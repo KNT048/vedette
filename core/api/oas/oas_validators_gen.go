@@ -75322,7 +75322,7 @@ func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) Validate() error {
 			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -75380,7 +75380,7 @@ func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) Validate() error {
 			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -75484,20 +75484,8 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -75533,6 +75521,23 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) Validate() error {
 	return nil
 }
 
+func (s ReportsGetReportsDocumentOKDetectionsByKindItemKind) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	case "intrusion":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -75558,20 +75563,8 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -75653,6 +75646,23 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKDetectionsTopItemKind) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	case "intrusion":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKDetectionsTopItemSeverity) Validate() error {
@@ -75862,20 +75872,8 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) Validate() er
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Engine)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Engine.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -75943,6 +75941,23 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) Validate() er
 	return nil
 }
 
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) Validate() error {
+	switch s {
+	case "surface":
+		return nil
+	case "nuclei":
+		return nil
+	case "zap":
+		return nil
+	case "openvas":
+		return nil
+	case "match":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) Validate() error {
 	switch s {
 	case "critical":
@@ -75973,11 +75988,15 @@ func (s ReportsGetReportsDocumentOKExposureTargetsItemKind) Validate() error {
 
 func (s ReportsGetReportsDocumentOKExposureTargetsItemProof) Validate() error {
 	switch s {
-	case "verified":
+	case "proven":
 		return nil
 	case "covered":
 		return nil
-	case "not_verified":
+	case "missing":
+		return nil
+	case "expired":
+		return nil
+	case "not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -76340,73 +76359,13 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Validate() erro
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.By.Validate(); err != nil {
+		if err := s.Handled.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "by",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.FromVersion.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "from_version",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Note.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "note",
+			Name:  "handled",
 			Error: err,
 		})
 	}
@@ -76451,62 +76410,32 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Validate() erro
 			Error: err,
 		})
 	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
+		if err := s.Resolution.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "status",
+			Name:  "resolution",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if value, ok := s.ToVersion.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "to_version",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Via)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Via.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -76521,57 +76450,38 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Validate() erro
 	return nil
 }
 
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) Validate() error {
+	switch s {
+	case "patched":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     120,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Name)); err != nil {
-			return errors.Wrap(err, "string")
-		}
+	case "mitigated":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "name",
-			Error: err,
-		})
+	case "accepted":
+		return nil
+	case "not_relevant":
+		return nil
+	case "false_positive":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
 	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
 }
 
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) Validate() error {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Validate() error {
 	switch s {
-	case "vedette":
-		return nil
 	case "person":
+		return nil
+	case "version_moved":
+		return nil
+	case "software_removed":
+		return nil
+	case "distro_fixed":
+		return nil
+	case "scan_clear":
+		return nil
+	case "data_corrected":
+		return nil
+	case "not_installed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -76616,6 +76526,40 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) Validat
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -76639,17 +76583,15 @@ func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) Vali
 	}
 }
 
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) Validate() error {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) Validate() error {
 	switch s {
-	case "patched":
+	case "4.0":
 		return nil
-	case "mitigated":
+	case "3.1":
 		return nil
-	case "accepted":
+	case "3.0":
 		return nil
-	case "not_relevant":
-		return nil
-	case "false_positive":
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -76684,31 +76626,19 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
+		if err := s.Resolution.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "status",
+			Name:  "resolution",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Via)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Via.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -76723,7 +76653,7 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) Validate() error {
 	return nil
 }
 
-func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) Validate() error {
+func (s ReportsGetReportsDocumentOKHandledTotalsItemResolution) Validate() error {
 	switch s {
 	case "patched":
 		return nil
@@ -76734,6 +76664,27 @@ func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) Validate() error {
 	case "not_relevant":
 		return nil
 	case "false_positive":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "version_moved":
+		return nil
+	case "software_removed":
+		return nil
+	case "distro_fixed":
+		return nil
+	case "scan_clear":
+		return nil
+	case "data_corrected":
+		return nil
+	case "not_installed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -77020,19 +76971,30 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -77041,70 +77003,29 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Validate() error {
@@ -77144,14 +77065,35 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           4,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Layer)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "layer",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
 			MinLengthSet:  false,
-			MaxLength:     80,
-			MaxLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         nil,
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -77166,68 +77108,10 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.URL.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "url",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) Validate() error {
-	switch s {
-	case "under_attack":
-		return nil
-	case "exploited":
-		return nil
-	case "public_exploit":
-		return nil
-	case "critical_edge":
-		return nil
-	case "update_recommended":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) Validate() error {
@@ -77268,6 +77152,40 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -77285,6 +77203,21 @@ func (s ReportsGetReportsDocumentOKNewItemsItemSeverityBand) Validate() error {
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -77325,55 +77258,13 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Basis)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Basis.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "basis",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.By.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     120,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "by",
 			Error: err,
 		})
 	}
@@ -77392,6 +77283,25 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) Validate() error {
+	switch s {
+	case "scan":
+		return nil
+	case "device_version":
+		return nil
+	case "package":
+		return nil
+	case "banner_version":
+		return nil
+	case "statement":
+		return nil
+	case "person":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKNewItemsItemVerificationVerified) Validate() error {
@@ -77785,19 +77695,30 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -77806,70 +77727,29 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Validate() error {
@@ -77909,14 +77789,35 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Validate
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           4,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Layer)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "layer",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
 			MinLengthSet:  false,
-			MaxLength:     80,
-			MaxLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         nil,
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -77931,68 +77832,10 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Validate
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.URL.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "url",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) Validate() error {
-	switch s {
-	case "under_attack":
-		return nil
-	case "exploited":
-		return nil
-	case "public_exploit":
-		return nil
-	case "critical_edge":
-		return nil
-	case "update_recommended":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Validate() error {
@@ -78033,6 +77876,40 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Validate() 
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -78050,6 +77927,21 @@ func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) Validate
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -78090,55 +77982,13 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Validat
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Basis)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Basis.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "basis",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.By.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     120,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "by",
 			Error: err,
 		})
 	}
@@ -78157,6 +78007,25 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Validat
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) Validate() error {
+	switch s {
+	case "scan":
+		return nil
+	case "device_version":
+		return nil
+	case "package":
+		return nil
+	case "banner_version":
+		return nil
+	case "statement":
+		return nil
+	case "person":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified) Validate() error {
@@ -78664,19 +78533,30 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -78685,70 +78565,29 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) Validate() error {
@@ -78789,6 +78628,40 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -78806,6 +78679,21 @@ func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) Validate() erro
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -79412,7 +79300,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) Validate() error
 			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -79470,7 +79358,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) Validate() err
 			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -79574,20 +79462,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) Validate() er
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -79623,6 +79499,23 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) Validate() er
 	return nil
 }
 
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	case "intrusion":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -79648,20 +79541,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Validate() error
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -79743,6 +79624,23 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) Validate()
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	case "intrusion":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity) Validate() error {
@@ -79952,20 +79850,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) Vali
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Engine)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Engine.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -80033,6 +79919,23 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) Vali
 	return nil
 }
 
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) Validate() error {
+	switch s {
+	case "surface":
+		return nil
+	case "nuclei":
+		return nil
+	case "zap":
+		return nil
+	case "openvas":
+		return nil
+	case "match":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) Validate() error {
 	switch s {
 	case "critical":
@@ -80063,11 +79966,15 @@ func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) Validate() 
 
 func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) Validate() error {
 	switch s {
-	case "verified":
+	case "proven":
 		return nil
 	case "covered":
 		return nil
-	case "not_verified":
+	case "missing":
+		return nil
+	case "expired":
+		return nil
+	case "not_current":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -80430,73 +80337,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Valida
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.By.Validate(); err != nil {
+		if err := s.Handled.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "by",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.FromVersion.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "from_version",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Note.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "note",
+			Name:  "handled",
 			Error: err,
 		})
 	}
@@ -80541,62 +80388,32 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Valida
 			Error: err,
 		})
 	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
+		if err := s.Resolution.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "status",
+			Name:  "resolution",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if value, ok := s.ToVersion.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "to_version",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Via)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Via.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -80611,57 +80428,38 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Valida
 	return nil
 }
 
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) Validate() error {
+	switch s {
+	case "patched":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     120,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Name)); err != nil {
-			return errors.Wrap(err, "string")
-		}
+	case "mitigated":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "name",
-			Error: err,
-		})
+	case "accepted":
+		return nil
+	case "not_relevant":
+		return nil
+	case "false_positive":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
 	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
 }
 
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) Validate() error {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) Validate() error {
 	switch s {
-	case "vedette":
-		return nil
 	case "person":
+		return nil
+	case "version_moved":
+		return nil
+	case "software_removed":
+		return nil
+	case "distro_fixed":
+		return nil
+	case "scan_clear":
+		return nil
+	case "data_corrected":
+		return nil
+	case "not_installed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -80706,6 +80504,40 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -80729,17 +80561,15 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityB
 	}
 }
 
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) Validate() error {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) Validate() error {
 	switch s {
-	case "patched":
+	case "4.0":
 		return nil
-	case "mitigated":
+	case "3.1":
 		return nil
-	case "accepted":
+	case "3.0":
 		return nil
-	case "not_relevant":
-		return nil
-	case "false_positive":
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -80774,31 +80604,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) Validate() error
 		})
 	}
 	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
+		if err := s.Resolution.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "status",
+			Name:  "resolution",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Via)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Via.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -80813,7 +80631,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) Validate() error
 	return nil
 }
 
-func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) Validate() error {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) Validate() error {
 	switch s {
 	case "patched":
 		return nil
@@ -80824,6 +80642,27 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) Validate() 
 	case "not_relevant":
 		return nil
 	case "false_positive":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "version_moved":
+		return nil
+	case "software_removed":
+		return nil
+	case "distro_fixed":
+		return nil
+	case "scan_clear":
+		return nil
+	case "data_corrected":
+		return nil
+	case "not_installed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -81110,19 +80949,30 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -81131,70 +80981,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Validate() error {
@@ -81234,14 +81043,35 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Validate()
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           4,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Layer)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "layer",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
 			MinLengthSet:  false,
-			MaxLength:     80,
-			MaxLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         nil,
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -81256,68 +81086,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Validate()
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.URL.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "url",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) Validate() error {
-	switch s {
-	case "under_attack":
-		return nil
-	case "exploited":
-		return nil
-	case "public_exploit":
-		return nil
-	case "critical_edge":
-		return nil
-	case "update_recommended":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Validate() error {
@@ -81358,6 +81130,40 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Validate() er
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -81375,6 +81181,21 @@ func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) Validate()
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -81415,55 +81236,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Validate(
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Basis)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Basis.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "basis",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.By.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     120,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "by",
 			Error: err,
 		})
 	}
@@ -81482,6 +81261,25 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Validate(
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) Validate() error {
+	switch s {
+	case "scan":
+		return nil
+	case "device_version":
+		return nil
+	case "package":
+		return nil
+	case "banner_version":
+		return nil
+	case "statement":
+		return nil
+	case "person":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified) Validate() error {
@@ -81875,19 +81673,30 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -81896,70 +81705,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) Validate() error {
@@ -81999,14 +81767,35 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           4,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Layer)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "layer",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
 			MinLengthSet:  false,
-			MaxLength:     80,
-			MaxLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
 			Email:         false,
 			Hostname:      false,
-			Regex:         nil,
+			Regex:         regexMap["^[a-z0-9-]{1,40}$"],
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
@@ -82021,68 +81810,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.URL.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     500,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "url",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) Validate() error {
-	switch s {
-	case "under_attack":
-		return nil
-	case "exploited":
-		return nil
-	case "public_exploit":
-		return nil
-	case "critical_edge":
-		return nil
-	case "update_recommended":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Validate() error {
@@ -82123,6 +81854,40 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Va
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -82140,6 +81905,21 @@ func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand)
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -82180,55 +81960,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Basis)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := s.Basis.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "basis",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.By.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     120,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "by",
 			Error: err,
 		})
 	}
@@ -82247,6 +81985,25 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) Validate() error {
+	switch s {
+	case "scan":
+		return nil
+	case "device_version":
+		return nil
+	case "package":
+		return nil
+	case "banner_version":
+		return nil
+	case "statement":
+		return nil
+	case "person":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified) Validate() error {
@@ -82754,19 +82511,30 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
 			Email:         false,
 			Hostname:      false,
-			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			Regex:         nil,
 			MinNumeric:    0,
 			MinNumericSet: false,
 			MaxNumeric:    0,
 			MaxNumericSet: false,
-		}).Validate(string(s.Kind)); err != nil {
+		}).Validate(string(s.Key)); err != nil {
 			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -82775,70 +82543,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.Ref.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     200,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ref",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Version.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     80,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "none_yet":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Validate() error {
@@ -82879,6 +82606,40 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Validate(
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Vector)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "vector",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Version.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "version",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -82896,6 +82657,21 @@ func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) Valida
 	case "low":
 		return nil
 	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) Validate() error {
+	switch s {
+	case "4.0":
+		return nil
+	case "3.1":
+		return nil
+	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

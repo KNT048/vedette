@@ -66396,7 +66396,7 @@
                                   "critical_edge",
                                   "update_recommended"
                                 ],
-                                "description": "The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended"
+                                "description": "The open statuses: the urgency layers 1 to 5 in order"
                               },
                               "n": {
                                 "type": "integer",
@@ -66448,7 +66448,7 @@
                                   "critical_edge",
                                   "update_recommended"
                                 ],
-                                "description": "The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended"
+                                "description": "The open statuses: the urgency layers 1 to 5 in order"
                               },
                               "cve": {
                                 "type": "string"
@@ -66480,57 +66480,94 @@
                                         "type": "number",
                                         "minimum": 0,
                                         "maximum": 10
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "enum": [
+                                          "4.0",
+                                          "3.1",
+                                          "3.0",
+                                          "2.0"
+                                        ]
+                                      },
+                                      "vector": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
                                       }
                                     },
                                     "required": [
                                       "band",
-                                      "score"
+                                      "score",
+                                      "version",
+                                      "vector"
                                     ],
-                                    "additionalProperties": false
+                                    "additionalProperties": false,
+                                    "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                   },
                                   {
                                     "type": "null"
                                   }
-                                ],
-                                "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                ]
                               },
                               "fix": {
                                 "type": "object",
                                 "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 400,
+                                    "description": "The \"By fix\" group; opaque"
+                                  },
                                   "kind": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$",
-                                    "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                    "enum": [
+                                      "update",
+                                      "distro_update",
+                                      "os_update",
+                                      "feature_update",
+                                      "none_yet",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "product": {
+                                    "type": "string",
+                                    "description": "The product the fix is for, as people name it"
                                   },
                                   "version": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "maxLength": 80
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ],
-                                    "description": "The version that fixes it, when known"
+                                    "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   },
                                   "ref": {
+                                    "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "url": {
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "maxLength": 200
+                                        "format": "uri"
                                       },
                                       {
                                         "type": "null"
                                       }
                                     ],
-                                    "description": "A KB number or advisory id, when the fix is named by one"
+                                    "description": "The vendor advisory or release notes"
                                   }
                                 },
                                 "required": [
+                                  "key",
                                   "kind",
+                                  "product",
                                   "version",
-                                  "ref"
+                                  "ref",
+                                  "url"
                                 ],
                                 "additionalProperties": false
                               },
@@ -66550,7 +66587,7 @@
                                     },
                                     "added": {
                                       "type": "boolean",
-                                      "description": "False while the device is not added yet (still to review)"
+                                      "description": "false = \"Not added yet\""
                                     }
                                   },
                                   "required": [
@@ -66606,7 +66643,7 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "status": {
+                              "resolution": {
                                 "type": "string",
                                 "enum": [
                                   "patched",
@@ -66615,11 +66652,20 @@
                                   "not_relevant",
                                   "false_positive"
                                 ],
-                                "description": "How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive"
+                                "description": "How a finding was handled; a handled finding's status is its resolution"
                               },
                               "via": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9_]{1,40}$"
+                                "enum": [
+                                  "person",
+                                  "version_moved",
+                                  "software_removed",
+                                  "distro_fixed",
+                                  "scan_clear",
+                                  "data_corrected",
+                                  "not_installed"
+                                ],
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
                               },
                               "n": {
                                 "type": "integer",
@@ -66628,7 +66674,7 @@
                               }
                             },
                             "required": [
-                              "status",
+                              "resolution",
                               "via",
                               "n"
                             ],
@@ -66654,7 +66700,7 @@
                                   },
                                   "added": {
                                     "type": "boolean",
-                                    "description": "False while the device is not added yet (still to review)"
+                                    "description": "false = \"Not added yet\""
                                   }
                                 },
                                 "required": [
@@ -66698,110 +66744,118 @@
                                               "type": "number",
                                               "minimum": 0,
                                               "maximum": 10
+                                            },
+                                            "version": {
+                                              "type": "string",
+                                              "enum": [
+                                                "4.0",
+                                                "3.1",
+                                                "3.0",
+                                                "2.0"
+                                              ]
+                                            },
+                                            "vector": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
                                             }
                                           },
                                           "required": [
                                             "band",
-                                            "score"
+                                            "score",
+                                            "version",
+                                            "vector"
                                           ],
-                                          "additionalProperties": false
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ],
-                                      "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
-                                    },
-                                    "status": {
-                                      "type": "string",
-                                      "enum": [
-                                        "patched",
-                                        "mitigated",
-                                        "accepted",
-                                        "not_relevant",
-                                        "false_positive"
-                                      ],
-                                      "description": "How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive"
-                                    },
-                                    "via": {
-                                      "type": "string",
-                                      "pattern": "^[a-z0-9_]{1,40}$",
-                                      "description": "How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected, not_installed"
-                                    },
-                                    "by": {
-                                      "type": "object",
-                                      "properties": {
-                                        "kind": {
-                                          "type": "string",
-                                          "enum": [
-                                            "vedette",
-                                            "person"
-                                          ]
-                                        },
-                                        "name": {
-                                          "type": "string",
-                                          "maxLength": 120,
-                                          "description": "\"Vedette\", or the person who handled it"
-                                        }
-                                      },
-                                      "required": [
-                                        "kind",
-                                        "name"
-                                      ],
-                                      "additionalProperties": false
-                                    },
-                                    "from_version": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 80
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ],
-                                      "description": "For via = version_moved: the version before"
-                                    },
-                                    "to_version": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 80
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ],
-                                      "description": "For via = version_moved: the version after"
-                                    },
-                                    "note": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 500
+                                          "additionalProperties": false,
+                                          "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                         },
                                         {
                                           "type": "null"
                                         }
                                       ]
                                     },
-                                    "accepted_until": {
-                                      "anyOf": [
-                                        {
+                                    "handled": {
+                                      "type": "object",
+                                      "properties": {
+                                        "resolution": {
                                           "type": "string",
-                                          "format": "date",
-                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                          "enum": [
+                                            "patched",
+                                            "mitigated",
+                                            "accepted",
+                                            "not_relevant",
+                                            "false_positive"
+                                          ],
+                                          "description": "How a finding was handled; a handled finding's status is its resolution"
                                         },
-                                        {
-                                          "type": "null"
+                                        "via": {
+                                          "type": "string",
+                                          "enum": [
+                                            "person",
+                                            "version_moved",
+                                            "software_removed",
+                                            "distro_fixed",
+                                            "scan_clear",
+                                            "data_corrected",
+                                            "not_installed"
+                                          ],
+                                          "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                        },
+                                        "by": {
+                                          "type": "string",
+                                          "description": "\"system\" when Vedette handled it; else the person"
+                                        },
+                                        "at": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                        },
+                                        "note": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "until": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "date",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "accepted: the last day; null otherwise"
+                                        },
+                                        "from_version": {
+                                          "description": "via version_moved: the version that was affected",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "to_version": {
+                                          "description": "via version_moved: the version now installed",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
                                         }
+                                      },
+                                      "required": [
+                                        "resolution",
+                                        "via",
+                                        "by",
+                                        "at",
+                                        "note",
+                                        "until",
+                                        "from_version",
+                                        "to_version"
                                       ],
-                                      "description": "For status = accepted: the last day"
-                                    },
-                                    "at": {
-                                      "type": "string",
-                                      "format": "date-time",
-                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      "additionalProperties": false,
+                                      "description": "Who and how, from stored fields: \"Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)\""
                                     }
                                   },
                                   "required": [
@@ -66809,17 +66863,10 @@
                                     "cve",
                                     "product",
                                     "severity",
-                                    "status",
-                                    "via",
-                                    "by",
-                                    "from_version",
-                                    "to_version",
-                                    "note",
-                                    "accepted_until",
-                                    "at"
+                                    "handled"
                                   ],
                                   "additionalProperties": false,
-                                  "description": "One finding handled in the period, with who and how from stored fields (\"Patched by Vedette: 6.24 → 7.23\")"
+                                  "description": "One finding handled in the period"
                                 }
                               }
                             },
@@ -66907,7 +66954,7 @@
                                         },
                                         "added": {
                                           "type": "boolean",
-                                          "description": "False while the device is not added yet (still to review)"
+                                          "description": "false = \"Not added yet\""
                                         }
                                       },
                                       "required": [
@@ -66948,46 +66995,38 @@
                                         "not_relevant",
                                         "false_positive"
                                       ],
-                                      "description": "The one status of a finding"
+                                      "description": "The one status of a finding, most urgent first"
                                     },
                                     "reasons": {
                                       "type": "array",
                                       "items": {
                                         "type": "object",
                                         "properties": {
-                                          "status": {
-                                            "type": "string",
-                                            "enum": [
-                                              "under_attack",
-                                              "exploited",
-                                              "public_exploit",
-                                              "critical_edge",
-                                              "update_recommended"
-                                            ],
-                                            "description": "The urgency layer this reason supports"
+                                          "layer": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 4
                                           },
                                           "source": {
                                             "type": "string",
-                                            "maxLength": 80,
-                                            "description": "Who says so: CISA KEV, a vendor, GitHub, this box"
+                                            "pattern": "^[a-z0-9-]{1,40}$",
+                                            "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4"
                                           },
-                                          "at": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                              },
-                                              {
-                                                "type": "null"
-                                              }
-                                            ]
+                                          "name": {
+                                            "type": "string",
+                                            "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                          },
+                                          "date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                            "description": "When the source said so; layer 1: the newest alert; layer 4: since when the rule holds"
                                           },
                                           "url": {
                                             "anyOf": [
                                               {
                                                 "type": "string",
-                                                "maxLength": 500
+                                                "format": "uri"
                                               },
                                               {
                                                 "type": "null"
@@ -67004,20 +67043,35 @@
                                                 "type": "null"
                                               }
                                             ],
-                                            "description": "A short fact of the source, such as 244 stars or not yet in CISA KEV"
+                                            "description": "A short fact of the signal: \"244 stars\", the attacker address for layer 1"
+                                          },
+                                          "due": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "format": "date",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ],
+                                            "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
                                           }
                                         },
                                         "required": [
-                                          "status",
+                                          "layer",
                                           "source",
-                                          "at",
+                                          "name",
+                                          "date",
                                           "url",
-                                          "detail"
+                                          "detail",
+                                          "due"
                                         ],
                                         "additionalProperties": false,
-                                        "description": "One line of the reasons under the status badge"
+                                        "description": "One urgency layer that applies, with its evidence"
                                       },
-                                      "description": "Every urgency layer that applies, most urgent first"
+                                      "description": "Every layer 1 to 4 that applies, most urgent first; empty for layer 5"
                                     },
                                     "severity": {
                                       "anyOf": [
@@ -67038,19 +67092,35 @@
                                               "type": "number",
                                               "minimum": 0,
                                               "maximum": 10
+                                            },
+                                            "version": {
+                                              "type": "string",
+                                              "enum": [
+                                                "4.0",
+                                                "3.1",
+                                                "3.0",
+                                                "2.0"
+                                              ]
+                                            },
+                                            "vector": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
                                             }
                                           },
                                           "required": [
                                             "band",
-                                            "score"
+                                            "score",
+                                            "version",
+                                            "vector"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": false,
+                                          "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                         },
                                         {
                                           "type": "null"
                                         }
-                                      ],
-                                      "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                      ]
                                     },
                                     "verification": {
                                       "type": "object",
@@ -67062,71 +67132,106 @@
                                             "device",
                                             "scan",
                                             "person"
-                                          ],
-                                          "description": "no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person"
+                                          ]
+                                        },
+                                        "basis": {
+                                          "type": "string",
+                                          "enum": [
+                                            "scan",
+                                            "device_version",
+                                            "package",
+                                            "banner_version",
+                                            "statement",
+                                            "person"
+                                          ]
                                         },
                                         "by": {
+                                          "description": "verified person: who confirmed it",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "at": {
                                           "anyOf": [
                                             {
                                               "type": "string",
-                                              "maxLength": 120
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                             },
                                             {
                                               "type": "null"
                                             }
                                           ],
-                                          "description": "Who confirmed it, when verified = person"
-                                        },
-                                        "basis": {
-                                          "type": "string",
-                                          "pattern": "^[a-z0-9_]{1,40}$",
-                                          "description": "What the match rests on (open list): scan, device_version, package, banner_version, statement, person"
+                                          "description": "When it was confirmed; null while not confirmed"
                                         }
                                       },
                                       "required": [
                                         "verified",
+                                        "basis",
                                         "by",
-                                        "basis"
+                                        "at"
                                       ],
                                       "additionalProperties": false
                                     },
                                     "fix": {
                                       "type": "object",
                                       "properties": {
+                                        "key": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 400,
+                                          "description": "The \"By fix\" group; opaque"
+                                        },
                                         "kind": {
                                           "type": "string",
-                                          "pattern": "^[a-z0-9_]{1,40}$",
-                                          "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                          "enum": [
+                                            "update",
+                                            "distro_update",
+                                            "os_update",
+                                            "feature_update",
+                                            "none_yet",
+                                            "unknown"
+                                          ]
+                                        },
+                                        "product": {
+                                          "type": "string",
+                                          "description": "The product the fix is for, as people name it"
                                         },
                                         "version": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string",
-                                              "maxLength": 80
-                                            },
-                                            {
-                                              "type": "null"
-                                            }
-                                          ],
-                                          "description": "The version that fixes it, when known"
+                                          "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
                                         },
                                         "ref": {
+                                          "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "url": {
                                           "anyOf": [
                                             {
                                               "type": "string",
-                                              "maxLength": 200
+                                              "format": "uri"
                                             },
                                             {
                                               "type": "null"
                                             }
                                           ],
-                                          "description": "A KB number or advisory id, when the fix is named by one"
+                                          "description": "The vendor advisory or release notes"
                                         }
                                       },
                                       "required": [
+                                        "key",
                                         "kind",
+                                        "product",
                                         "version",
-                                        "ref"
+                                        "ref",
+                                        "url"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -67210,7 +67315,7 @@
                                   },
                                   "added": {
                                     "type": "boolean",
-                                    "description": "False while the device is not added yet (still to review)"
+                                    "description": "false = \"Not added yet\""
                                   }
                                 },
                                 "required": [
@@ -67251,46 +67356,38 @@
                                   "not_relevant",
                                   "false_positive"
                                 ],
-                                "description": "The one status of a finding"
+                                "description": "The one status of a finding, most urgent first"
                               },
                               "reasons": {
                                 "type": "array",
                                 "items": {
                                   "type": "object",
                                   "properties": {
-                                    "status": {
-                                      "type": "string",
-                                      "enum": [
-                                        "under_attack",
-                                        "exploited",
-                                        "public_exploit",
-                                        "critical_edge",
-                                        "update_recommended"
-                                      ],
-                                      "description": "The urgency layer this reason supports"
+                                    "layer": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 4
                                     },
                                     "source": {
                                       "type": "string",
-                                      "maxLength": 80,
-                                      "description": "Who says so: CISA KEV, a vendor, GitHub, this box"
+                                      "pattern": "^[a-z0-9-]{1,40}$",
+                                      "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4"
                                     },
-                                    "at": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "format": "date-time",
-                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
+                                    "name": {
+                                      "type": "string",
+                                      "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                      "description": "When the source said so; layer 1: the newest alert; layer 4: since when the rule holds"
                                     },
                                     "url": {
                                       "anyOf": [
                                         {
                                           "type": "string",
-                                          "maxLength": 500
+                                          "format": "uri"
                                         },
                                         {
                                           "type": "null"
@@ -67307,20 +67404,35 @@
                                           "type": "null"
                                         }
                                       ],
-                                      "description": "A short fact of the source, such as 244 stars or not yet in CISA KEV"
+                                      "description": "A short fact of the signal: \"244 stars\", the attacker address for layer 1"
+                                    },
+                                    "due": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "date",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
                                     }
                                   },
                                   "required": [
-                                    "status",
+                                    "layer",
                                     "source",
-                                    "at",
+                                    "name",
+                                    "date",
                                     "url",
-                                    "detail"
+                                    "detail",
+                                    "due"
                                   ],
                                   "additionalProperties": false,
-                                  "description": "One line of the reasons under the status badge"
+                                  "description": "One urgency layer that applies, with its evidence"
                                 },
-                                "description": "Every urgency layer that applies, most urgent first"
+                                "description": "Every layer 1 to 4 that applies, most urgent first; empty for layer 5"
                               },
                               "severity": {
                                 "anyOf": [
@@ -67341,19 +67453,35 @@
                                         "type": "number",
                                         "minimum": 0,
                                         "maximum": 10
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "enum": [
+                                          "4.0",
+                                          "3.1",
+                                          "3.0",
+                                          "2.0"
+                                        ]
+                                      },
+                                      "vector": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
                                       }
                                     },
                                     "required": [
                                       "band",
-                                      "score"
+                                      "score",
+                                      "version",
+                                      "vector"
                                     ],
-                                    "additionalProperties": false
+                                    "additionalProperties": false,
+                                    "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                   },
                                   {
                                     "type": "null"
                                   }
-                                ],
-                                "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                ]
                               },
                               "verification": {
                                 "type": "object",
@@ -67365,71 +67493,106 @@
                                       "device",
                                       "scan",
                                       "person"
-                                    ],
-                                    "description": "no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person"
+                                    ]
+                                  },
+                                  "basis": {
+                                    "type": "string",
+                                    "enum": [
+                                      "scan",
+                                      "device_version",
+                                      "package",
+                                      "banner_version",
+                                      "statement",
+                                      "person"
+                                    ]
                                   },
                                   "by": {
+                                    "description": "verified person: who confirmed it",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "at": {
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "maxLength": 120
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                       },
                                       {
                                         "type": "null"
                                       }
                                     ],
-                                    "description": "Who confirmed it, when verified = person"
-                                  },
-                                  "basis": {
-                                    "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$",
-                                    "description": "What the match rests on (open list): scan, device_version, package, banner_version, statement, person"
+                                    "description": "When it was confirmed; null while not confirmed"
                                   }
                                 },
                                 "required": [
                                   "verified",
+                                  "basis",
                                   "by",
-                                  "basis"
+                                  "at"
                                 ],
                                 "additionalProperties": false
                               },
                               "fix": {
                                 "type": "object",
                                 "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 400,
+                                    "description": "The \"By fix\" group; opaque"
+                                  },
                                   "kind": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$",
-                                    "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                    "enum": [
+                                      "update",
+                                      "distro_update",
+                                      "os_update",
+                                      "feature_update",
+                                      "none_yet",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "product": {
+                                    "type": "string",
+                                    "description": "The product the fix is for, as people name it"
                                   },
                                   "version": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "maxLength": 80
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ],
-                                    "description": "The version that fixes it, when known"
+                                    "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   },
                                   "ref": {
+                                    "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "url": {
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "maxLength": 200
+                                        "format": "uri"
                                       },
                                       {
                                         "type": "null"
                                       }
                                     ],
-                                    "description": "A KB number or advisory id, when the fix is named by one"
+                                    "description": "The vendor advisory or release notes"
                                   }
                                 },
                                 "required": [
+                                  "key",
                                   "kind",
+                                  "product",
                                   "version",
-                                  "ref"
+                                  "ref",
+                                  "url"
                                 ],
                                 "additionalProperties": false
                               },
@@ -67510,11 +67673,13 @@
                               "proof": {
                                 "type": "string",
                                 "enum": [
-                                  "verified",
+                                  "proven",
                                   "covered",
-                                  "not_verified"
+                                  "missing",
+                                  "expired",
+                                  "not_current"
                                 ],
-                                "description": "covered = the proof of a parent domain covers it"
+                                "description": "proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired; not_current"
                               },
                               "last_scan_at": {
                                 "anyOf": [
@@ -67631,8 +67796,13 @@
                                   "properties": {
                                     "engine": {
                                       "type": "string",
-                                      "pattern": "^[a-z0-9_]{1,40}$",
-                                      "description": "Open list: surface, nuclei, zap, openvas, match"
+                                      "enum": [
+                                        "surface",
+                                        "nuclei",
+                                        "zap",
+                                        "openvas",
+                                        "match"
+                                      ]
                                     },
                                     "severity": {
                                       "type": "string",
@@ -67690,7 +67860,7 @@
                       "properties": {
                         "module_on": {
                           "type": "boolean",
-                          "description": "False when incidents are off"
+                          "description": "False when detection is off"
                         },
                         "by_kind": {
                           "type": "array",
@@ -67699,8 +67869,13 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9_]{1,40}$",
-                                "description": "Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly"
+                                "enum": [
+                                  "trap",
+                                  "bad_address",
+                                  "log_anomaly",
+                                  "unknown_device",
+                                  "intrusion"
+                                ]
                               },
                               "n": {
                                 "type": "integer",
@@ -67729,7 +67904,13 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9_]{1,40}$"
+                                "enum": [
+                                  "trap",
+                                  "bad_address",
+                                  "log_anomaly",
+                                  "unknown_device",
+                                  "intrusion"
+                                ]
                               },
                               "title": {
                                 "type": "string",
@@ -67760,7 +67941,7 @@
                                       },
                                       "added": {
                                         "type": "boolean",
-                                        "description": "False while the device is not added yet (still to review)"
+                                        "description": "false = \"Not added yet\""
                                       }
                                     },
                                     "required": [
@@ -67824,8 +68005,8 @@
                             "properties": {
                               "id": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9_]{1,40}$",
-                                "description": "passive, active, agents, honeypot, logs, exposure, ids …"
+                                "pattern": "^[a-z0-9-]{1,40}$",
+                                "description": "The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids"
                               },
                               "on": {
                                 "type": "boolean"
@@ -67845,7 +68026,8 @@
                             "properties": {
                               "id": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9_]{1,40}$"
+                                "pattern": "^[a-z0-9-]{1,40}$",
+                                "description": "The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id"
                               },
                               "name": {
                                 "type": "string",
@@ -68328,7 +68510,7 @@
                                       "critical_edge",
                                       "update_recommended"
                                     ],
-                                    "description": "The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended"
+                                    "description": "The open statuses: the urgency layers 1 to 5 in order"
                                   },
                                   "n": {
                                     "type": "integer",
@@ -68380,7 +68562,7 @@
                                       "critical_edge",
                                       "update_recommended"
                                     ],
-                                    "description": "The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended"
+                                    "description": "The open statuses: the urgency layers 1 to 5 in order"
                                   },
                                   "cve": {
                                     "type": "string"
@@ -68412,57 +68594,94 @@
                                             "type": "number",
                                             "minimum": 0,
                                             "maximum": 10
+                                          },
+                                          "version": {
+                                            "type": "string",
+                                            "enum": [
+                                              "4.0",
+                                              "3.1",
+                                              "3.0",
+                                              "2.0"
+                                            ]
+                                          },
+                                          "vector": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 200
                                           }
                                         },
                                         "required": [
                                           "band",
-                                          "score"
+                                          "score",
+                                          "version",
+                                          "vector"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": false,
+                                        "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                       },
                                       {
                                         "type": "null"
                                       }
-                                    ],
-                                    "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                    ]
                                   },
                                   "fix": {
                                     "type": "object",
                                     "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400,
+                                        "description": "The \"By fix\" group; opaque"
+                                      },
                                       "kind": {
                                         "type": "string",
-                                        "pattern": "^[a-z0-9_]{1,40}$",
-                                        "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                        "enum": [
+                                          "update",
+                                          "distro_update",
+                                          "os_update",
+                                          "feature_update",
+                                          "none_yet",
+                                          "unknown"
+                                        ]
+                                      },
+                                      "product": {
+                                        "type": "string",
+                                        "description": "The product the fix is for, as people name it"
                                       },
                                       "version": {
-                                        "anyOf": [
-                                          {
-                                            "type": "string",
-                                            "maxLength": 80
-                                          },
-                                          {
-                                            "type": "null"
-                                          }
-                                        ],
-                                        "description": "The version that fixes it, when known"
+                                        "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
                                       },
                                       "ref": {
+                                        "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "url": {
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "maxLength": 200
+                                            "format": "uri"
                                           },
                                           {
                                             "type": "null"
                                           }
                                         ],
-                                        "description": "A KB number or advisory id, when the fix is named by one"
+                                        "description": "The vendor advisory or release notes"
                                       }
                                     },
                                     "required": [
+                                      "key",
                                       "kind",
+                                      "product",
                                       "version",
-                                      "ref"
+                                      "ref",
+                                      "url"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -68482,7 +68701,7 @@
                                         },
                                         "added": {
                                           "type": "boolean",
-                                          "description": "False while the device is not added yet (still to review)"
+                                          "description": "false = \"Not added yet\""
                                         }
                                       },
                                       "required": [
@@ -68538,7 +68757,7 @@
                               "items": {
                                 "type": "object",
                                 "properties": {
-                                  "status": {
+                                  "resolution": {
                                     "type": "string",
                                     "enum": [
                                       "patched",
@@ -68547,11 +68766,20 @@
                                       "not_relevant",
                                       "false_positive"
                                     ],
-                                    "description": "How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive"
+                                    "description": "How a finding was handled; a handled finding's status is its resolution"
                                   },
                                   "via": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$"
+                                    "enum": [
+                                      "person",
+                                      "version_moved",
+                                      "software_removed",
+                                      "distro_fixed",
+                                      "scan_clear",
+                                      "data_corrected",
+                                      "not_installed"
+                                    ],
+                                    "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
                                   },
                                   "n": {
                                     "type": "integer",
@@ -68560,7 +68788,7 @@
                                   }
                                 },
                                 "required": [
-                                  "status",
+                                  "resolution",
                                   "via",
                                   "n"
                                 ],
@@ -68586,7 +68814,7 @@
                                       },
                                       "added": {
                                         "type": "boolean",
-                                        "description": "False while the device is not added yet (still to review)"
+                                        "description": "false = \"Not added yet\""
                                       }
                                     },
                                     "required": [
@@ -68630,110 +68858,118 @@
                                                   "type": "number",
                                                   "minimum": 0,
                                                   "maximum": 10
+                                                },
+                                                "version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "4.0",
+                                                    "3.1",
+                                                    "3.0",
+                                                    "2.0"
+                                                  ]
+                                                },
+                                                "vector": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
                                                 }
                                               },
                                               "required": [
                                                 "band",
-                                                "score"
+                                                "score",
+                                                "version",
+                                                "vector"
                                               ],
-                                              "additionalProperties": false
-                                            },
-                                            {
-                                              "type": "null"
-                                            }
-                                          ],
-                                          "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
-                                        },
-                                        "status": {
-                                          "type": "string",
-                                          "enum": [
-                                            "patched",
-                                            "mitigated",
-                                            "accepted",
-                                            "not_relevant",
-                                            "false_positive"
-                                          ],
-                                          "description": "How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive"
-                                        },
-                                        "via": {
-                                          "type": "string",
-                                          "pattern": "^[a-z0-9_]{1,40}$",
-                                          "description": "How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected, not_installed"
-                                        },
-                                        "by": {
-                                          "type": "object",
-                                          "properties": {
-                                            "kind": {
-                                              "type": "string",
-                                              "enum": [
-                                                "vedette",
-                                                "person"
-                                              ]
-                                            },
-                                            "name": {
-                                              "type": "string",
-                                              "maxLength": 120,
-                                              "description": "\"Vedette\", or the person who handled it"
-                                            }
-                                          },
-                                          "required": [
-                                            "kind",
-                                            "name"
-                                          ],
-                                          "additionalProperties": false
-                                        },
-                                        "from_version": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string",
-                                              "maxLength": 80
-                                            },
-                                            {
-                                              "type": "null"
-                                            }
-                                          ],
-                                          "description": "For via = version_moved: the version before"
-                                        },
-                                        "to_version": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string",
-                                              "maxLength": 80
-                                            },
-                                            {
-                                              "type": "null"
-                                            }
-                                          ],
-                                          "description": "For via = version_moved: the version after"
-                                        },
-                                        "note": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string",
-                                              "maxLength": 500
+                                              "additionalProperties": false,
+                                              "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                             },
                                             {
                                               "type": "null"
                                             }
                                           ]
                                         },
-                                        "accepted_until": {
-                                          "anyOf": [
-                                            {
+                                        "handled": {
+                                          "type": "object",
+                                          "properties": {
+                                            "resolution": {
                                               "type": "string",
-                                              "format": "date",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                              "enum": [
+                                                "patched",
+                                                "mitigated",
+                                                "accepted",
+                                                "not_relevant",
+                                                "false_positive"
+                                              ],
+                                              "description": "How a finding was handled; a handled finding's status is its resolution"
                                             },
-                                            {
-                                              "type": "null"
+                                            "via": {
+                                              "type": "string",
+                                              "enum": [
+                                                "person",
+                                                "version_moved",
+                                                "software_removed",
+                                                "distro_fixed",
+                                                "scan_clear",
+                                                "data_corrected",
+                                                "not_installed"
+                                              ],
+                                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                            },
+                                            "by": {
+                                              "type": "string",
+                                              "description": "\"system\" when Vedette handled it; else the person"
+                                            },
+                                            "at": {
+                                              "type": "string",
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                            },
+                                            "note": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "until": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "format": "date",
+                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ],
+                                              "description": "accepted: the last day; null otherwise"
+                                            },
+                                            "from_version": {
+                                              "description": "via version_moved: the version that was affected",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "to_version": {
+                                              "description": "via version_moved: the version now installed",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
                                             }
+                                          },
+                                          "required": [
+                                            "resolution",
+                                            "via",
+                                            "by",
+                                            "at",
+                                            "note",
+                                            "until",
+                                            "from_version",
+                                            "to_version"
                                           ],
-                                          "description": "For status = accepted: the last day"
-                                        },
-                                        "at": {
-                                          "type": "string",
-                                          "format": "date-time",
-                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                          "additionalProperties": false,
+                                          "description": "Who and how, from stored fields: \"Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)\""
                                         }
                                       },
                                       "required": [
@@ -68741,17 +68977,10 @@
                                         "cve",
                                         "product",
                                         "severity",
-                                        "status",
-                                        "via",
-                                        "by",
-                                        "from_version",
-                                        "to_version",
-                                        "note",
-                                        "accepted_until",
-                                        "at"
+                                        "handled"
                                       ],
                                       "additionalProperties": false,
-                                      "description": "One finding handled in the period, with who and how from stored fields (\"Patched by Vedette: 6.24 → 7.23\")"
+                                      "description": "One finding handled in the period"
                                     }
                                   }
                                 },
@@ -68839,7 +69068,7 @@
                                             },
                                             "added": {
                                               "type": "boolean",
-                                              "description": "False while the device is not added yet (still to review)"
+                                              "description": "false = \"Not added yet\""
                                             }
                                           },
                                           "required": [
@@ -68880,46 +69109,38 @@
                                             "not_relevant",
                                             "false_positive"
                                           ],
-                                          "description": "The one status of a finding"
+                                          "description": "The one status of a finding, most urgent first"
                                         },
                                         "reasons": {
                                           "type": "array",
                                           "items": {
                                             "type": "object",
                                             "properties": {
-                                              "status": {
-                                                "type": "string",
-                                                "enum": [
-                                                  "under_attack",
-                                                  "exploited",
-                                                  "public_exploit",
-                                                  "critical_edge",
-                                                  "update_recommended"
-                                                ],
-                                                "description": "The urgency layer this reason supports"
+                                              "layer": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 4
                                               },
                                               "source": {
                                                 "type": "string",
-                                                "maxLength": 80,
-                                                "description": "Who says so: CISA KEV, a vendor, GitHub, this box"
+                                                "pattern": "^[a-z0-9-]{1,40}$",
+                                                "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4"
                                               },
-                                              "at": {
-                                                "anyOf": [
-                                                  {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                                  },
-                                                  {
-                                                    "type": "null"
-                                                  }
-                                                ]
+                                              "name": {
+                                                "type": "string",
+                                                "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                              },
+                                              "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                                "description": "When the source said so; layer 1: the newest alert; layer 4: since when the rule holds"
                                               },
                                               "url": {
                                                 "anyOf": [
                                                   {
                                                     "type": "string",
-                                                    "maxLength": 500
+                                                    "format": "uri"
                                                   },
                                                   {
                                                     "type": "null"
@@ -68936,20 +69157,35 @@
                                                     "type": "null"
                                                   }
                                                 ],
-                                                "description": "A short fact of the source, such as 244 stars or not yet in CISA KEV"
+                                                "description": "A short fact of the signal: \"244 stars\", the attacker address for layer 1"
+                                              },
+                                              "due": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
                                               }
                                             },
                                             "required": [
-                                              "status",
+                                              "layer",
                                               "source",
-                                              "at",
+                                              "name",
+                                              "date",
                                               "url",
-                                              "detail"
+                                              "detail",
+                                              "due"
                                             ],
                                             "additionalProperties": false,
-                                            "description": "One line of the reasons under the status badge"
+                                            "description": "One urgency layer that applies, with its evidence"
                                           },
-                                          "description": "Every urgency layer that applies, most urgent first"
+                                          "description": "Every layer 1 to 4 that applies, most urgent first; empty for layer 5"
                                         },
                                         "severity": {
                                           "anyOf": [
@@ -68970,19 +69206,35 @@
                                                   "type": "number",
                                                   "minimum": 0,
                                                   "maximum": 10
+                                                },
+                                                "version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "4.0",
+                                                    "3.1",
+                                                    "3.0",
+                                                    "2.0"
+                                                  ]
+                                                },
+                                                "vector": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
                                                 }
                                               },
                                               "required": [
                                                 "band",
-                                                "score"
+                                                "score",
+                                                "version",
+                                                "vector"
                                               ],
-                                              "additionalProperties": false
+                                              "additionalProperties": false,
+                                              "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                             },
                                             {
                                               "type": "null"
                                             }
-                                          ],
-                                          "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                          ]
                                         },
                                         "verification": {
                                           "type": "object",
@@ -68994,71 +69246,106 @@
                                                 "device",
                                                 "scan",
                                                 "person"
-                                              ],
-                                              "description": "no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person"
+                                              ]
+                                            },
+                                            "basis": {
+                                              "type": "string",
+                                              "enum": [
+                                                "scan",
+                                                "device_version",
+                                                "package",
+                                                "banner_version",
+                                                "statement",
+                                                "person"
+                                              ]
                                             },
                                             "by": {
+                                              "description": "verified person: who confirmed it",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "at": {
                                               "anyOf": [
                                                 {
                                                   "type": "string",
-                                                  "maxLength": 120
+                                                  "format": "date-time",
+                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                                 },
                                                 {
                                                   "type": "null"
                                                 }
                                               ],
-                                              "description": "Who confirmed it, when verified = person"
-                                            },
-                                            "basis": {
-                                              "type": "string",
-                                              "pattern": "^[a-z0-9_]{1,40}$",
-                                              "description": "What the match rests on (open list): scan, device_version, package, banner_version, statement, person"
+                                              "description": "When it was confirmed; null while not confirmed"
                                             }
                                           },
                                           "required": [
                                             "verified",
+                                            "basis",
                                             "by",
-                                            "basis"
+                                            "at"
                                           ],
                                           "additionalProperties": false
                                         },
                                         "fix": {
                                           "type": "object",
                                           "properties": {
+                                            "key": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 400,
+                                              "description": "The \"By fix\" group; opaque"
+                                            },
                                             "kind": {
                                               "type": "string",
-                                              "pattern": "^[a-z0-9_]{1,40}$",
-                                              "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                              "enum": [
+                                                "update",
+                                                "distro_update",
+                                                "os_update",
+                                                "feature_update",
+                                                "none_yet",
+                                                "unknown"
+                                              ]
+                                            },
+                                            "product": {
+                                              "type": "string",
+                                              "description": "The product the fix is for, as people name it"
                                             },
                                             "version": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "maxLength": 80
-                                                },
-                                                {
-                                                  "type": "null"
-                                                }
-                                              ],
-                                              "description": "The version that fixes it, when known"
+                                              "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
                                             },
                                             "ref": {
+                                              "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "url": {
                                               "anyOf": [
                                                 {
                                                   "type": "string",
-                                                  "maxLength": 200
+                                                  "format": "uri"
                                                 },
                                                 {
                                                   "type": "null"
                                                 }
                                               ],
-                                              "description": "A KB number or advisory id, when the fix is named by one"
+                                              "description": "The vendor advisory or release notes"
                                             }
                                           },
                                           "required": [
+                                            "key",
                                             "kind",
+                                            "product",
                                             "version",
-                                            "ref"
+                                            "ref",
+                                            "url"
                                           ],
                                           "additionalProperties": false
                                         },
@@ -69142,7 +69429,7 @@
                                       },
                                       "added": {
                                         "type": "boolean",
-                                        "description": "False while the device is not added yet (still to review)"
+                                        "description": "false = \"Not added yet\""
                                       }
                                     },
                                     "required": [
@@ -69183,46 +69470,38 @@
                                       "not_relevant",
                                       "false_positive"
                                     ],
-                                    "description": "The one status of a finding"
+                                    "description": "The one status of a finding, most urgent first"
                                   },
                                   "reasons": {
                                     "type": "array",
                                     "items": {
                                       "type": "object",
                                       "properties": {
-                                        "status": {
-                                          "type": "string",
-                                          "enum": [
-                                            "under_attack",
-                                            "exploited",
-                                            "public_exploit",
-                                            "critical_edge",
-                                            "update_recommended"
-                                          ],
-                                          "description": "The urgency layer this reason supports"
+                                        "layer": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 4
                                         },
                                         "source": {
                                           "type": "string",
-                                          "maxLength": 80,
-                                          "description": "Who says so: CISA KEV, a vendor, GitHub, this box"
+                                          "pattern": "^[a-z0-9-]{1,40}$",
+                                          "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4"
                                         },
-                                        "at": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string",
-                                              "format": "date-time",
-                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                            },
-                                            {
-                                              "type": "null"
-                                            }
-                                          ]
+                                        "name": {
+                                          "type": "string",
+                                          "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                        },
+                                        "date": {
+                                          "type": "string",
+                                          "format": "date",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                          "description": "When the source said so; layer 1: the newest alert; layer 4: since when the rule holds"
                                         },
                                         "url": {
                                           "anyOf": [
                                             {
                                               "type": "string",
-                                              "maxLength": 500
+                                              "format": "uri"
                                             },
                                             {
                                               "type": "null"
@@ -69239,20 +69518,35 @@
                                               "type": "null"
                                             }
                                           ],
-                                          "description": "A short fact of the source, such as 244 stars or not yet in CISA KEV"
+                                          "description": "A short fact of the signal: \"244 stars\", the attacker address for layer 1"
+                                        },
+                                        "due": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "date",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
                                         }
                                       },
                                       "required": [
-                                        "status",
+                                        "layer",
                                         "source",
-                                        "at",
+                                        "name",
+                                        "date",
                                         "url",
-                                        "detail"
+                                        "detail",
+                                        "due"
                                       ],
                                       "additionalProperties": false,
-                                      "description": "One line of the reasons under the status badge"
+                                      "description": "One urgency layer that applies, with its evidence"
                                     },
-                                    "description": "Every urgency layer that applies, most urgent first"
+                                    "description": "Every layer 1 to 4 that applies, most urgent first; empty for layer 5"
                                   },
                                   "severity": {
                                     "anyOf": [
@@ -69273,19 +69567,35 @@
                                             "type": "number",
                                             "minimum": 0,
                                             "maximum": 10
+                                          },
+                                          "version": {
+                                            "type": "string",
+                                            "enum": [
+                                              "4.0",
+                                              "3.1",
+                                              "3.0",
+                                              "2.0"
+                                            ]
+                                          },
+                                          "vector": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 200
                                           }
                                         },
                                         "required": [
                                           "band",
-                                          "score"
+                                          "score",
+                                          "version",
+                                          "vector"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": false,
+                                        "description": "The CVSS base score of the CVE and its band. Never changes the status. null = \"Not scored yet\", never 0"
                                       },
                                       {
                                         "type": "null"
                                       }
-                                    ],
-                                    "description": "The CVSS band and score of the CVE; null = not scored yet. Never changes the status"
+                                    ]
                                   },
                                   "verification": {
                                     "type": "object",
@@ -69297,71 +69607,106 @@
                                           "device",
                                           "scan",
                                           "person"
-                                        ],
-                                        "description": "no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person"
+                                        ]
+                                      },
+                                      "basis": {
+                                        "type": "string",
+                                        "enum": [
+                                          "scan",
+                                          "device_version",
+                                          "package",
+                                          "banner_version",
+                                          "statement",
+                                          "person"
+                                        ]
                                       },
                                       "by": {
+                                        "description": "verified person: who confirmed it",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "at": {
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "maxLength": 120
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                           },
                                           {
                                             "type": "null"
                                           }
                                         ],
-                                        "description": "Who confirmed it, when verified = person"
-                                      },
-                                      "basis": {
-                                        "type": "string",
-                                        "pattern": "^[a-z0-9_]{1,40}$",
-                                        "description": "What the match rests on (open list): scan, device_version, package, banner_version, statement, person"
+                                        "description": "When it was confirmed; null while not confirmed"
                                       }
                                     },
                                     "required": [
                                       "verified",
+                                      "basis",
                                       "by",
-                                      "basis"
+                                      "at"
                                     ],
                                     "additionalProperties": false
                                   },
                                   "fix": {
                                     "type": "object",
                                     "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400,
+                                        "description": "The \"By fix\" group; opaque"
+                                      },
                                       "kind": {
                                         "type": "string",
-                                        "pattern": "^[a-z0-9_]{1,40}$",
-                                        "description": "Open list: update, distro_update, os_update, feature_update, none_yet, unknown"
+                                        "enum": [
+                                          "update",
+                                          "distro_update",
+                                          "os_update",
+                                          "feature_update",
+                                          "none_yet",
+                                          "unknown"
+                                        ]
+                                      },
+                                      "product": {
+                                        "type": "string",
+                                        "description": "The product the fix is for, as people name it"
                                       },
                                       "version": {
-                                        "anyOf": [
-                                          {
-                                            "type": "string",
-                                            "maxLength": 80
-                                          },
-                                          {
-                                            "type": "null"
-                                          }
-                                        ],
-                                        "description": "The version that fixes it, when known"
+                                        "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
                                       },
                                       "ref": {
+                                        "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "url": {
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "maxLength": 200
+                                            "format": "uri"
                                           },
                                           {
                                             "type": "null"
                                           }
                                         ],
-                                        "description": "A KB number or advisory id, when the fix is named by one"
+                                        "description": "The vendor advisory or release notes"
                                       }
                                     },
                                     "required": [
+                                      "key",
                                       "kind",
+                                      "product",
                                       "version",
-                                      "ref"
+                                      "ref",
+                                      "url"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -69442,11 +69787,13 @@
                                   "proof": {
                                     "type": "string",
                                     "enum": [
-                                      "verified",
+                                      "proven",
                                       "covered",
-                                      "not_verified"
+                                      "missing",
+                                      "expired",
+                                      "not_current"
                                     ],
-                                    "description": "covered = the proof of a parent domain covers it"
+                                    "description": "proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired; not_current"
                                   },
                                   "last_scan_at": {
                                     "anyOf": [
@@ -69563,8 +69910,13 @@
                                       "properties": {
                                         "engine": {
                                           "type": "string",
-                                          "pattern": "^[a-z0-9_]{1,40}$",
-                                          "description": "Open list: surface, nuclei, zap, openvas, match"
+                                          "enum": [
+                                            "surface",
+                                            "nuclei",
+                                            "zap",
+                                            "openvas",
+                                            "match"
+                                          ]
                                         },
                                         "severity": {
                                           "type": "string",
@@ -69622,7 +69974,7 @@
                           "properties": {
                             "module_on": {
                               "type": "boolean",
-                              "description": "False when incidents are off"
+                              "description": "False when detection is off"
                             },
                             "by_kind": {
                               "type": "array",
@@ -69631,8 +69983,13 @@
                                 "properties": {
                                   "kind": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$",
-                                    "description": "Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly"
+                                    "enum": [
+                                      "trap",
+                                      "bad_address",
+                                      "log_anomaly",
+                                      "unknown_device",
+                                      "intrusion"
+                                    ]
                                   },
                                   "n": {
                                     "type": "integer",
@@ -69661,7 +70018,13 @@
                                 "properties": {
                                   "kind": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$"
+                                    "enum": [
+                                      "trap",
+                                      "bad_address",
+                                      "log_anomaly",
+                                      "unknown_device",
+                                      "intrusion"
+                                    ]
                                   },
                                   "title": {
                                     "type": "string",
@@ -69692,7 +70055,7 @@
                                           },
                                           "added": {
                                             "type": "boolean",
-                                            "description": "False while the device is not added yet (still to review)"
+                                            "description": "false = \"Not added yet\""
                                           }
                                         },
                                         "required": [
@@ -69756,8 +70119,8 @@
                                 "properties": {
                                   "id": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$",
-                                    "description": "passive, active, agents, honeypot, logs, exposure, ids …"
+                                    "pattern": "^[a-z0-9-]{1,40}$",
+                                    "description": "The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids"
                                   },
                                   "on": {
                                     "type": "boolean"
@@ -69777,7 +70140,8 @@
                                 "properties": {
                                   "id": {
                                     "type": "string",
-                                    "pattern": "^[a-z0-9_]{1,40}$"
+                                    "pattern": "^[a-z0-9-]{1,40}$",
+                                    "description": "The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id"
                                   },
                                   "name": {
                                     "type": "string",

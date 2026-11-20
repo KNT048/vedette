@@ -64,8 +64,8 @@ describe('reports conformance (mock)', () => {
     const full = (await call('viewer', 'GET', '/reports/document', undefined, ReportDocument)).body as Doc
     expect(Object.keys(full)).toEqual(expect.arrayContaining(['summary', 'handled', 'open', 'new', 'exposure', 'detections', 'coverage']))
     const patched = full.handled!.devices.flatMap((d) => d.items).find((i) => i.product === 'WinRAR')!
-    expect([patched.status, patched.via, patched.by.kind, patched.from_version, patched.to_version]).toEqual(['patched', 'version_moved', 'vedette', '6.24', '7.23'])
-    expect(full.handled!.devices.flatMap((d) => d.items).some((i) => i.status === 'not_relevant')).toBe(false)
+    expect([patched.handled.resolution, patched.handled.via, patched.handled.by, patched.handled.from_version, patched.handled.to_version]).toEqual(['patched', 'version_moved', 'system', '6.24', '7.23'])
+    expect(full.handled!.devices.flatMap((d) => d.items).some((i) => i.handled.resolution === 'not_relevant')).toBe(false)
     expect(full.open!.groups.flatMap((g) => g.items).some((f) => !f.device.added)).toBe(true)
     expect(full.summary!.first.length).toBeLessThanOrEqual(3)
 
@@ -79,7 +79,7 @@ describe('reports conformance (mock)', () => {
     expect(doc.open!.grouping).toBe('cve')
     expect(doc.open!.groups.every((g) => g.key.startsWith('CVE-'))).toBe(true)
     expect(doc.open!.groups.flatMap((g) => g.items).every((f) => f.device.added)).toBe(true)
-    expect(doc.handled!.devices.flatMap((d) => d.items).some((i) => i.status === 'not_relevant')).toBe(true)
+    expect(doc.handled!.devices.flatMap((d) => d.items).some((i) => i.handled.resolution === 'not_relevant')).toBe(true)
   })
 
   it('sends to the saved recipients and keeps the document exactly as sent', async () => {

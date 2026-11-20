@@ -284314,7 +284314,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) Encode(e *jx.Encoder) 
 func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
 	}
 	{
 		e.FieldStart("last_at")
@@ -284344,9 +284344,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) Decode(d *jx.Decoder) 
 		case "kind":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Kind = string(v)
-				if err != nil {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -284433,6 +284431,52 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) UnmarshalJSON(data []b
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKDetectionsByKindItemKind as json.
+func (s ReportsGetReportsDocumentOKDetectionsByKindItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKDetectionsByKindItemKind from json.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKDetectionsByKindItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKDetectionsByKindItemKind(v) {
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion
+	default:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKDetectionsByKindItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -284452,7 +284496,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) encodeFields(e *jx.Encode
 	}
 	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
 	}
 	{
 		e.FieldStart("severity")
@@ -284506,9 +284550,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 		case "kind":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.Kind = string(v)
-				if err != nil {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -284719,6 +284761,52 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) MarshalJSON() ([]by
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKDetectionsTopItemKind as json.
+func (s ReportsGetReportsDocumentOKDetectionsTopItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKDetectionsTopItemKind from json.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKDetectionsTopItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKDetectionsTopItemKind(v) {
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindTrap
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion
+	default:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKDetectionsTopItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -285130,7 +285218,7 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) Encode(e *jx.
 func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("engine")
-		e.Str(s.Engine)
+		s.Engine.Encode(e)
 	}
 	{
 		e.FieldStart("new")
@@ -285165,9 +285253,7 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) Decode(d *jx.
 		case "engine":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Engine = string(v)
-				if err != nil {
+				if err := s.Engine.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -285260,6 +285346,52 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) MarshalJSON()
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine as json.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine from json.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine(v) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch
+	default:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -285366,12 +285498,16 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemProof) Decode(d *jx.Decod
 	}
 	// Try to use constant string.
 	switch ReportsGetReportsDocumentOKExposureTargetsItemProof(v) {
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofVerified:
-		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofVerified
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofProven:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofProven
 	case ReportsGetReportsDocumentOKExposureTargetsItemProofCovered:
 		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofCovered
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified:
-		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofMissing
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofExpired
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent
 	default:
 		*s = ReportsGetReportsDocumentOKExposureTargetsItemProof(v)
 	}
@@ -286086,18 +286222,6 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Encode(e *jx.En
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("accepted_until")
-		s.AcceptedUntil.Encode(e, json.EncodeDate)
-	}
-	{
-		e.FieldStart("at")
-		json.EncodeDateTime(e, s.At)
-	}
-	{
-		e.FieldStart("by")
-		s.By.Encode(e)
-	}
-	{
 		e.FieldStart("cve")
 		e.Str(s.Cve)
 	}
@@ -286106,12 +286230,8 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) encodeFields(e 
 		e.Str(s.FindingID)
 	}
 	{
-		e.FieldStart("from_version")
-		s.FromVersion.Encode(e)
-	}
-	{
-		e.FieldStart("note")
-		s.Note.Encode(e)
+		e.FieldStart("handled")
+		s.Handled.Encode(e)
 	}
 	{
 		e.FieldStart("product")
@@ -286121,33 +286241,14 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) encodeFields(e 
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
-	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
-	}
-	{
-		e.FieldStart("to_version")
-		s.ToVersion.Encode(e)
-	}
-	{
-		e.FieldStart("via")
-		e.Str(s.Via)
-	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [12]string{
-	0:  "accepted_until",
-	1:  "at",
-	2:  "by",
-	3:  "cve",
-	4:  "finding_id",
-	5:  "from_version",
-	6:  "note",
-	7:  "product",
-	8:  "severity",
-	9:  "status",
-	10: "to_version",
-	11: "via",
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [5]string{
+	0: "cve",
+	1: "finding_id",
+	2: "handled",
+	3: "product",
+	4: "severity",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItem from json.
@@ -286155,44 +286256,12 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 	if s == nil {
 		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItem to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "accepted_until":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"accepted_until\"")
-			}
-		case "at":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.At = v
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
-			}
-		case "by":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				if err := s.By.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"by\"")
-			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -286204,7 +286273,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "finding_id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.FindingID = string(v)
@@ -286215,28 +286284,18 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"finding_id\"")
 			}
-		case "from_version":
-			requiredBitSet[0] |= 1 << 5
+		case "handled":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.FromVersion.Decode(d); err != nil {
+				if err := s.Handled.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"from_version\"")
-			}
-		case "note":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Note.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"note\"")
+				return errors.Wrap(err, "decode field \"handled\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -286248,7 +286307,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -286256,38 +286315,6 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
-			}
-		case "status":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
-		case "to_version":
-			requiredBitSet[1] |= 1 << 2
-			if err := func() error {
-				if err := s.ToVersion.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "via":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.Via = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"via\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -286298,9 +286325,8 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00001111,
+	for i, mask := range [1]uint8{
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -286347,71 +286373,163 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) UnmarshalJSON(d
 }
 
 // Encode implements json.Marshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) Encode(e *jx.Encoder) {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) encodeFields(e *jx.Encoder) {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("kind")
-		s.Kind.Encode(e)
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
 	}
 	{
-		e.FieldStart("name")
-		e.Str(s.Name)
+		e.FieldStart("by")
+		e.Str(s.By)
+	}
+	{
+		e.FieldStart("from_version")
+		s.FromVersion.Encode(e)
+	}
+	{
+		e.FieldStart("note")
+		s.Note.Encode(e)
+	}
+	{
+		e.FieldStart("resolution")
+		s.Resolution.Encode(e)
+	}
+	{
+		e.FieldStart("to_version")
+		s.ToVersion.Encode(e)
+	}
+	{
+		e.FieldStart("until")
+		s.Until.Encode(e, json.EncodeDate)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy = [2]string{
-	0: "kind",
-	1: "name",
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled = [8]string{
+	0: "at",
+	1: "by",
+	2: "from_version",
+	3: "note",
+	4: "resolution",
+	5: "to_version",
+	6: "until",
+	7: "via",
 }
 
-// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy from json.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled from json.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kind\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
+				v, err := json.DecodeDateTime(d)
+				s.At = v
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.By = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "from_version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.FromVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"from_version\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Note.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "resolution":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Resolution.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution\"")
+			}
+		case "to_version":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.ToVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"to_version\"")
+			}
+		case "until":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"until\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy")
+		return errors.Wrap(err, "decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -286423,8 +286541,8 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) Decode(d *jx.
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) {
-					name = jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) {
+					name = jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -286445,54 +286563,110 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) Decode(d *jx.
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) MarshalJSON() ([]byte, error) {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind as json.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution as json.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind from json.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution from json.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind(v) {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution(v) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive
 	default:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind(v)
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia as json.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia from json.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia(v) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled
+	default:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -286514,11 +286688,21 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) encodeF
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity from json.
@@ -286552,6 +286736,28 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -286562,7 +286768,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -286654,48 +286860,46 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) Unm
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus as json.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion as json.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus from json.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus(v) {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion(v) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20
 	default:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus(v)
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -286714,18 +286918,18 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) encodeFields(e *jx.Encode
 		e.Int(s.N)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("resolution")
+		s.Resolution.Encode(e)
 	}
 	{
 		e.FieldStart("via")
-		e.Str(s.Via)
+		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfReportsGetReportsDocumentOKHandledTotalsItem = [3]string{
 	0: "n",
-	1: "status",
+	1: "resolution",
 	2: "via",
 }
 
@@ -286750,22 +286954,20 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"n\"")
 			}
-		case "status":
+		case "resolution":
 			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
+				if err := s.Resolution.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
+				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.Via = string(v)
-				if err != nil {
+				if err := s.Via.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -286828,48 +287030,98 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) UnmarshalJSON(data []byte
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsDocumentOKHandledTotalsItemStatus as json.
-func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsDocumentOKHandledTotalsItemResolution as json.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemResolution) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsDocumentOKHandledTotalsItemStatus from json.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItemStatus) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsDocumentOKHandledTotalsItemResolution from json.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemResolution) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledTotalsItemStatus to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledTotalsItemResolution to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsDocumentOKHandledTotalsItemStatus(v) {
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive
+	switch ReportsGetReportsDocumentOKHandledTotalsItemResolution(v) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive
 	default:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatus(v)
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolution(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledTotalsItemResolution) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItemStatus) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemResolution) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKHandledTotalsItemVia as json.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKHandledTotalsItemVia from json.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKHandledTotalsItemVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKHandledTotalsItemVia(v) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaPerson
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled
+	default:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -287419,12 +287671,24 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -287432,10 +287696,13 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKNewItemsItemFix from json.
@@ -287447,20 +287714,42 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -287469,8 +287758,18 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -287489,7 +287788,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -287535,6 +287834,54 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) UnmarshalJSON(data []byte) 
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKNewItemsItemFixKind as json.
+func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKNewItemsItemFixKind from json.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKNewItemsItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKNewItemsItemFixKind(v) {
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -287545,20 +287892,28 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Encode(e *jx.Encode
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("at")
-		s.At.Encode(e, json.EncodeDateTime)
+		e.FieldStart("date")
+		json.EncodeDate(e, s.Date)
 	}
 	{
 		e.FieldStart("detail")
 		s.Detail.Encode(e)
 	}
 	{
-		e.FieldStart("source")
-		e.Str(s.Source)
+		e.FieldStart("due")
+		s.Due.Encode(e, json.EncodeDate)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("layer")
+		e.Int(s.Layer)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("source")
+		e.Str(s.Source)
 	}
 	{
 		e.FieldStart("url")
@@ -287566,12 +287921,14 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemReasonsItem = [5]string{
-	0: "at",
+var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemReasonsItem = [7]string{
+	0: "date",
 	1: "detail",
-	2: "source",
-	3: "status",
-	4: "url",
+	2: "due",
+	3: "layer",
+	4: "name",
+	5: "source",
+	6: "url",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKNewItemsItemReasonsItem from json.
@@ -287583,15 +287940,17 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Decode(d *jx.Decode
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "date":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+				v, err := json.DecodeDate(d)
+				s.Date = v
+				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
+				return errors.Wrap(err, "decode field \"date\"")
 			}
 		case "detail":
 			requiredBitSet[0] |= 1 << 1
@@ -287603,8 +287962,42 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"detail\"")
 			}
-		case "source":
+		case "due":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Due.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"due\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Layer = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"layer\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -287615,18 +288008,8 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
-		case "status":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
 		case "url":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.URL.Decode(d); err != nil {
 					return err
@@ -287645,7 +288028,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -287691,52 +288074,6 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) UnmarshalJSON(data 
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus as json.
-func (s ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus from json.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus(v) {
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended
-	default:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -287754,11 +288091,21 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) encodeFields(e *jx.Enc
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKNewItemsItemSeverity from json.
@@ -287792,6 +288139,28 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) Decode(d *jx.Decoder) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -287802,7 +288171,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) Decode(d *jx.Decoder) 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -287894,6 +288263,50 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityBand) UnmarshalJSON(data
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKNewItemsItemSeverityVersion as json.
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKNewItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKNewItemsItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKNewItemsItemSeverityVersion(v) {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ReportsGetReportsDocumentOKNewItemsItemStatus as json.
 func (s ReportsGetReportsDocumentOKNewItemsItemStatus) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -287960,8 +288373,12 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Encode(e *jx.Encod
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("at")
+		s.At.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("basis")
-		e.Str(s.Basis)
+		s.Basis.Encode(e)
 	}
 	{
 		e.FieldStart("by")
@@ -287973,10 +288390,11 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemVerification = [3]string{
-	0: "basis",
-	1: "by",
-	2: "verified",
+var jsonFieldsNameOfReportsGetReportsDocumentOKNewItemsItemVerification = [4]string{
+	0: "at",
+	1: "basis",
+	2: "by",
+	3: "verified",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKNewItemsItemVerification from json.
@@ -287988,12 +288406,20 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Decode(d *jx.Decod
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "basis":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Basis = string(v)
-				if err != nil {
+				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "basis":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Basis.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -288001,7 +288427,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"basis\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.By.Decode(d); err != nil {
 					return err
@@ -288011,7 +288437,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -288030,7 +288456,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -288072,6 +288498,54 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKNewItemsItemVerificationBasis as json.
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKNewItemsItemVerificationBasis from json.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKNewItemsItemVerificationBasis to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKNewItemsItemVerificationBasis(v) {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson
+	default:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasis(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -288875,12 +289349,24 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Encode(e *jx.Enc
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -288888,10 +289374,13 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix from json.
@@ -288903,20 +289392,42 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Decode(d *jx.Dec
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -288925,8 +289436,18 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -288945,7 +289466,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -288991,6 +289512,54 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) UnmarshalJSON(da
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind as json.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind from json.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind(v) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -289001,20 +289570,28 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Encode(e
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("at")
-		s.At.Encode(e, json.EncodeDateTime)
+		e.FieldStart("date")
+		json.EncodeDate(e, s.Date)
 	}
 	{
 		e.FieldStart("detail")
 		s.Detail.Encode(e)
 	}
 	{
-		e.FieldStart("source")
-		e.Str(s.Source)
+		e.FieldStart("due")
+		s.Due.Encode(e, json.EncodeDate)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("layer")
+		e.Int(s.Layer)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("source")
+		e.Str(s.Source)
 	}
 	{
 		e.FieldStart("url")
@@ -289022,12 +289599,14 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) encodeFi
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem = [5]string{
-	0: "at",
+var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem = [7]string{
+	0: "date",
 	1: "detail",
-	2: "source",
-	3: "status",
-	4: "url",
+	2: "due",
+	3: "layer",
+	4: "name",
+	5: "source",
+	6: "url",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem from json.
@@ -289039,15 +289618,17 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Decode(d
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "date":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+				v, err := json.DecodeDate(d)
+				s.Date = v
+				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
+				return errors.Wrap(err, "decode field \"date\"")
 			}
 		case "detail":
 			requiredBitSet[0] |= 1 << 1
@@ -289059,8 +289640,42 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Decode(d
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"detail\"")
 			}
-		case "source":
+		case "due":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Due.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"due\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Layer = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"layer\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -289071,18 +289686,8 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Decode(d
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
-		case "status":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
 		case "url":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.URL.Decode(d); err != nil {
 					return err
@@ -289101,7 +289706,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Decode(d
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -289147,52 +289752,6 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) Unmarsha
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus as json.
-func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus from json.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus(v) {
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended
-	default:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -289210,11 +289769,21 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) encodeField
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity from json.
@@ -289248,6 +289817,28 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -289258,7 +289849,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) Decode(d *j
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -289350,6 +289941,50 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) Unmarsh
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion as json.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion(v) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus as json.
 func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -289416,8 +290051,12 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Encode(
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("at")
+		s.At.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("basis")
-		e.Str(s.Basis)
+		s.Basis.Encode(e)
 	}
 	{
 		e.FieldStart("by")
@@ -289429,10 +290068,11 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) encodeF
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification = [3]string{
-	0: "basis",
-	1: "by",
-	2: "verified",
+var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification = [4]string{
+	0: "at",
+	1: "basis",
+	2: "by",
+	3: "verified",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification from json.
@@ -289444,12 +290084,20 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Decode(
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "basis":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Basis = string(v)
-				if err != nil {
+				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "basis":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Basis.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -289457,7 +290105,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Decode(
 				return errors.Wrap(err, "decode field \"basis\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.By.Decode(d); err != nil {
 					return err
@@ -289467,7 +290115,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Decode(
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -289486,7 +290134,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -289528,6 +290176,54 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) Marshal
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis as json.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis from json.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis(v) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson
+	default:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -290842,12 +291538,24 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -290855,10 +291563,13 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKSummaryFirstItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsDocumentOKSummaryFirstItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKSummaryFirstItemFix from json.
@@ -290870,20 +291581,42 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -290892,8 +291625,18 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -290912,7 +291655,7 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -290958,6 +291701,54 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) UnmarshalJSON(data []by
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsDocumentOKSummaryFirstItemFixKind as json.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKSummaryFirstItemFixKind from json.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKSummaryFirstItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKSummaryFirstItemFixKind(v) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -290975,11 +291766,21 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) encodeFields(e *jx
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKSummaryFirstItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKSummaryFirstItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKSummaryFirstItemSeverity from json.
@@ -291013,6 +291814,28 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -291023,7 +291846,7 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -291111,6 +291934,50 @@ func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) MarshalJSON() (
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion as json.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion from json.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion(v) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -292755,7 +293622,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) Encode(e *jx.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
 	}
 	{
 		e.FieldStart("last_at")
@@ -292785,9 +293652,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) Decode(d *jx.
 		case "kind":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Kind = string(v)
-				if err != nil {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -292874,6 +293739,52 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind as json.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind(v) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -292893,7 +293804,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) encodeFields(e *
 	}
 	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
 	}
 	{
 		e.FieldStart("severity")
@@ -292947,9 +293858,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 		case "kind":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.Kind = string(v)
-				if err != nil {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -293160,6 +294069,52 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) MarshalJSO
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind as json.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind(v) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -293571,7 +294526,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) Enco
 func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("engine")
-		e.Str(s.Engine)
+		s.Engine.Encode(e)
 	}
 	{
 		e.FieldStart("new")
@@ -293606,9 +294561,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) Deco
 		case "engine":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Engine = string(v)
-				if err != nil {
+				if err := s.Engine.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -293701,6 +294654,52 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) Mars
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine as json.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine(v) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -293807,12 +294806,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) Decode(d 
 	}
 	// Try to use constant string.
 	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof(v) {
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified:
-		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven
 	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered:
 		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified:
-		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent
 	default:
 		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof(v)
 	}
@@ -294527,18 +295530,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Encode
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("accepted_until")
-		s.AcceptedUntil.Encode(e, json.EncodeDate)
-	}
-	{
-		e.FieldStart("at")
-		json.EncodeDateTime(e, s.At)
-	}
-	{
-		e.FieldStart("by")
-		s.By.Encode(e)
-	}
-	{
 		e.FieldStart("cve")
 		e.Str(s.Cve)
 	}
@@ -294547,12 +295538,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) encode
 		e.Str(s.FindingID)
 	}
 	{
-		e.FieldStart("from_version")
-		s.FromVersion.Encode(e)
-	}
-	{
-		e.FieldStart("note")
-		s.Note.Encode(e)
+		e.FieldStart("handled")
+		s.Handled.Encode(e)
 	}
 	{
 		e.FieldStart("product")
@@ -294562,33 +295549,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) encode
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
-	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
-	}
-	{
-		e.FieldStart("to_version")
-		s.ToVersion.Encode(e)
-	}
-	{
-		e.FieldStart("via")
-		e.Str(s.Via)
-	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [12]string{
-	0:  "accepted_until",
-	1:  "at",
-	2:  "by",
-	3:  "cve",
-	4:  "finding_id",
-	5:  "from_version",
-	6:  "note",
-	7:  "product",
-	8:  "severity",
-	9:  "status",
-	10: "to_version",
-	11: "via",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [5]string{
+	0: "cve",
+	1: "finding_id",
+	2: "handled",
+	3: "product",
+	4: "severity",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem from json.
@@ -294596,44 +295564,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 	if s == nil {
 		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "accepted_until":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"accepted_until\"")
-			}
-		case "at":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.At = v
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
-			}
-		case "by":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				if err := s.By.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"by\"")
-			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -294645,7 +295581,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "finding_id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.FindingID = string(v)
@@ -294656,28 +295592,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"finding_id\"")
 			}
-		case "from_version":
-			requiredBitSet[0] |= 1 << 5
+		case "handled":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.FromVersion.Decode(d); err != nil {
+				if err := s.Handled.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"from_version\"")
-			}
-		case "note":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Note.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"note\"")
+				return errors.Wrap(err, "decode field \"handled\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -294689,7 +295615,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -294697,38 +295623,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
-			}
-		case "status":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
-		case "to_version":
-			requiredBitSet[1] |= 1 << 2
-			if err := func() error {
-				if err := s.ToVersion.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "via":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.Via = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"via\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -294739,9 +295633,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00001111,
+	for i, mask := range [1]uint8{
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -294788,71 +295681,163 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Unmars
 }
 
 // Encode implements json.Marshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) Encode(e *jx.Encoder) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) encodeFields(e *jx.Encoder) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("kind")
-		s.Kind.Encode(e)
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
 	}
 	{
-		e.FieldStart("name")
-		e.Str(s.Name)
+		e.FieldStart("by")
+		e.Str(s.By)
+	}
+	{
+		e.FieldStart("from_version")
+		s.FromVersion.Encode(e)
+	}
+	{
+		e.FieldStart("note")
+		s.Note.Encode(e)
+	}
+	{
+		e.FieldStart("resolution")
+		s.Resolution.Encode(e)
+	}
+	{
+		e.FieldStart("to_version")
+		s.ToVersion.Encode(e)
+	}
+	{
+		e.FieldStart("until")
+		s.Until.Encode(e, json.EncodeDate)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy = [2]string{
-	0: "kind",
-	1: "name",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled = [8]string{
+	0: "at",
+	1: "by",
+	2: "from_version",
+	3: "note",
+	4: "resolution",
+	5: "to_version",
+	6: "until",
+	7: "via",
 }
 
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kind\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
+				v, err := json.DecodeDateTime(d)
+				s.At = v
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.By = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "from_version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.FromVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"from_version\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Note.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "resolution":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Resolution.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution\"")
+			}
+		case "to_version":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.ToVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"to_version\"")
+			}
+		case "until":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"until\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy")
+		return errors.Wrap(err, "decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -294864,8 +295849,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) Deco
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) {
-					name = jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) {
+					name = jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -294886,54 +295871,110 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) Deco
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) MarshalJSON() ([]byte, error) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind as json.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution as json.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind(v) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution(v) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive
 	default:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind(v)
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia as json.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia(v) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -294955,11 +295996,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity from json.
@@ -294993,6 +296044,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -295003,7 +296076,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -295095,48 +296168,46 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus as json.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion as json.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus(v) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion(v) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20
 	default:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus(v)
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -295155,18 +296226,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) encodeFields(e *
 		e.Int(s.N)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("resolution")
+		s.Resolution.Encode(e)
 	}
 	{
 		e.FieldStart("via")
-		e.Str(s.Via)
+		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledTotalsItem = [3]string{
 	0: "n",
-	1: "status",
+	1: "resolution",
 	2: "via",
 }
 
@@ -295191,22 +296262,20 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"n\"")
 			}
-		case "status":
+		case "resolution":
 			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
+				if err := s.Resolution.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
+				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.Via = string(v)
-				if err != nil {
+				if err := s.Via.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -295269,48 +296338,98 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) UnmarshalJSON(da
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus as json.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) Encode(e *jx.Encoder) {
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution as json.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) Decode(d *jx.Decoder) error {
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus to nil")
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus(v) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution(v) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive
 	default:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus(v)
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) MarshalJSON() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) UnmarshalJSON(data []byte) error {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia as json.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia(v) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -295860,12 +296979,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Encode(e *jx.Encod
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -295873,10 +297004,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix from json.
@@ -295888,20 +297022,42 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Decode(d *jx.Decod
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -295910,8 +297066,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -295930,7 +297096,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -295976,6 +297142,54 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) UnmarshalJSON(data
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind as json.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind(v) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -295986,20 +297200,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Encode(e *
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("at")
-		s.At.Encode(e, json.EncodeDateTime)
+		e.FieldStart("date")
+		json.EncodeDate(e, s.Date)
 	}
 	{
 		e.FieldStart("detail")
 		s.Detail.Encode(e)
 	}
 	{
-		e.FieldStart("source")
-		e.Str(s.Source)
+		e.FieldStart("due")
+		s.Due.Encode(e, json.EncodeDate)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("layer")
+		e.Int(s.Layer)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("source")
+		e.Str(s.Source)
 	}
 	{
 		e.FieldStart("url")
@@ -296007,12 +297229,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem = [5]string{
-	0: "at",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem = [7]string{
+	0: "date",
 	1: "detail",
-	2: "source",
-	3: "status",
-	4: "url",
+	2: "due",
+	3: "layer",
+	4: "name",
+	5: "source",
+	6: "url",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem from json.
@@ -296024,15 +297248,17 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Decode(d *
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "date":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+				v, err := json.DecodeDate(d)
+				s.Date = v
+				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
+				return errors.Wrap(err, "decode field \"date\"")
 			}
 		case "detail":
 			requiredBitSet[0] |= 1 << 1
@@ -296044,8 +297270,42 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"detail\"")
 			}
-		case "source":
+		case "due":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Due.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"due\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Layer = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"layer\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -296056,18 +297316,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
-		case "status":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
 		case "url":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.URL.Decode(d); err != nil {
 					return err
@@ -296086,7 +297336,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -296132,52 +297382,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) UnmarshalJ
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus as json.
-func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus(v) {
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended
-	default:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -296195,11 +297399,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) encodeFields(
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity from json.
@@ -296233,6 +297447,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -296243,7 +297479,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -296335,6 +297571,50 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) Unmarshal
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion as json.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion(v) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus as json.
 func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -296401,8 +297681,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Encode(e 
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("at")
+		s.At.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("basis")
-		e.Str(s.Basis)
+		s.Basis.Encode(e)
 	}
 	{
 		e.FieldStart("by")
@@ -296414,10 +297698,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) encodeFie
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification = [3]string{
-	0: "basis",
-	1: "by",
-	2: "verified",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification = [4]string{
+	0: "at",
+	1: "basis",
+	2: "by",
+	3: "verified",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification from json.
@@ -296429,12 +297714,20 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Decode(d 
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "basis":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Basis = string(v)
-				if err != nil {
+				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "basis":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Basis.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -296442,7 +297735,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Decode(d 
 				return errors.Wrap(err, "decode field \"basis\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.By.Decode(d); err != nil {
 					return err
@@ -296452,7 +297745,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Decode(d 
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -296471,7 +297764,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) Decode(d 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -296513,6 +297806,54 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) MarshalJS
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis as json.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis(v) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -297316,12 +298657,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Encode(
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -297329,10 +298682,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) encodeF
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix from json.
@@ -297344,20 +298700,42 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Decode(
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -297366,8 +298744,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -297386,7 +298774,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -297432,6 +298820,54 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Unmarsh
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind as json.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind(v) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -297442,20 +298878,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("at")
-		s.At.Encode(e, json.EncodeDateTime)
+		e.FieldStart("date")
+		json.EncodeDate(e, s.Date)
 	}
 	{
 		e.FieldStart("detail")
 		s.Detail.Encode(e)
 	}
 	{
-		e.FieldStart("source")
-		e.Str(s.Source)
+		e.FieldStart("due")
+		s.Due.Encode(e, json.EncodeDate)
 	}
 	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
+		e.FieldStart("layer")
+		e.Int(s.Layer)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("source")
+		e.Str(s.Source)
 	}
 	{
 		e.FieldStart("url")
@@ -297463,12 +298907,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem = [5]string{
-	0: "at",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem = [7]string{
+	0: "date",
 	1: "detail",
-	2: "source",
-	3: "status",
-	4: "url",
+	2: "due",
+	3: "layer",
+	4: "name",
+	5: "source",
+	6: "url",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem from json.
@@ -297480,15 +298926,17 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "date":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+				v, err := json.DecodeDate(d)
+				s.Date = v
+				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
+				return errors.Wrap(err, "decode field \"date\"")
 			}
 		case "detail":
 			requiredBitSet[0] |= 1 << 1
@@ -297500,8 +298948,42 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"detail\"")
 			}
-		case "source":
+		case "due":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Due.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"due\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Layer = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"layer\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -297512,18 +298994,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
-		case "status":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
 		case "url":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.URL.Decode(d); err != nil {
 					return err
@@ -297542,7 +299014,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -297588,52 +299060,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem)
 	return s.Decode(d)
 }
 
-// Encode encodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus as json.
-func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus from json.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus(v) {
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended
-	default:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -297651,11 +299077,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) en
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity from json.
@@ -297689,6 +299125,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -297699,7 +299157,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -297791,6 +299249,50 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion as json.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion(v) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus as json.
 func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -297857,8 +299359,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("at")
+		s.At.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("basis")
-		e.Str(s.Basis)
+		s.Basis.Encode(e)
 	}
 	{
 		e.FieldStart("by")
@@ -297870,10 +299376,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification = [3]string{
-	0: "basis",
-	1: "by",
-	2: "verified",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification = [4]string{
+	0: "at",
+	1: "basis",
+	2: "by",
+	3: "verified",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification from json.
@@ -297885,12 +299392,20 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "basis":
+		case "at":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Basis = string(v)
-				if err != nil {
+				if err := s.At.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "basis":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Basis.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -297898,7 +299413,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 				return errors.Wrap(err, "decode field \"basis\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.By.Decode(d); err != nil {
 					return err
@@ -297908,7 +299423,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -297927,7 +299442,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -297969,6 +299484,54 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis as json.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis(v) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -299283,12 +300846,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Encode(e *jx.E
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
 		e.FieldStart("kind")
-		e.Str(s.Kind)
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
 	}
 	{
 		e.FieldStart("ref")
 		s.Ref.Encode(e)
+	}
+	{
+		e.FieldStart("url")
+		s.URL.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -299296,10 +300871,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix = [3]string{
-	0: "kind",
-	1: "ref",
-	2: "version",
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix = [6]string{
+	0: "key",
+	1: "kind",
+	2: "product",
+	3: "ref",
+	4: "url",
+	5: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix from json.
@@ -299311,20 +300889,42 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Decode(d *jx.D
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "kind":
+		case "key":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.Kind = string(v)
+				s.Key = string(v)
 				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
 		case "ref":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Ref.Decode(d); err != nil {
 					return err
@@ -299333,8 +300933,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ref\"")
 			}
+		case "url":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -299353,7 +300963,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -299399,6 +301009,54 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) UnmarshalJSON(
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind as json.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind(v) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -299416,11 +301074,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) encodeFie
 		e.FieldStart("score")
 		e.Float64(s.Score)
 	}
+	{
+		e.FieldStart("vector")
+		e.Str(s.Vector)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity = [2]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity = [4]string{
 	0: "band",
 	1: "score",
+	2: "vector",
+	3: "version",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity from json.
@@ -299454,6 +301122,28 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"score\"")
 			}
+		case "vector":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vector\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -299464,7 +301154,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) Decode(d 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -299552,6 +301242,50 @@ func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) Marsha
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion as json.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion from json.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion(v) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20
+	default:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

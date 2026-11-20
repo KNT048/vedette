@@ -97,54 +97,96 @@ export const PdplReport = z.object({
 export const PdplState = z.object({ org: PdplOrg.nullable(), defaults: z.object({ name: z.string() }), report: PdplReport.nullable(), ai_available: z.boolean() })
 
 // ---- The periodic security report: one definition (options, recipients), the document it makes, the sent documents ----
-// The status words are the shared vocabulary of findings: one code per finding, rendered by the shared status badge.
+// Statuses, severity, reasons, verification, fix and the handled line are the findings vocabulary and shapes; incident
+// kinds are the detection ones; proof states and issue engines are the exposure ones. Copied field for field while those
+// contracts live on their own branches: import them when they merge.
 
+// Same shape as the findings contract (lib/statusCodes.ts); import it when the findings branch merges.
 export const OpenStatus = z.enum(['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'])
-  .describe('The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public exploit available, critical on an edge device, update recommended')
+  .describe('The open statuses: the urgency layers 1 to 5 in order')
+// Same shape as the findings contract (Resolution); import it when the findings branch merges.
 export const HandledStatus = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
-  .describe('How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false positive')
-export const FindingStatus = z.enum([...OpenStatus.options, ...HandledStatus.options]).describe('The one status of a finding')
-const word = z.string().regex(/^[a-z0-9_]{1,40}$/)
-export const Severity = z.object({
-  band: z.enum(['critical', 'high', 'medium', 'low', 'none']), score: z.number().min(0).max(10),
-}).nullable().describe('The CVSS band and score of the CVE; null = not scored yet. Never changes the status')
+  .describe('How a finding was handled; a handled finding\'s status is its resolution')
+export const FindingStatus = z.enum([...OpenStatus.options, ...HandledStatus.options]).describe('The one status of a finding, most urgent first')
+// Same shape as the findings contract; import it when the findings branch merges.
+export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed'])
+  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed')
+// Same shape as the findings contract; import it when the findings branch merges.
+export const Verified = z.enum(['no', 'device', 'scan', 'person'])
+// Same shape as the findings contract; import it when the findings branch merges.
+export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_version', 'statement', 'person'])
+// Same shape as the findings contract; import it when the findings branch merges.
+export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'none_yet', 'unknown'])
+// Same shape as the findings contract; import it when the findings branch merges.
+export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
+// Same shape as the detection contract (DetectionKind); import it when the detection branch merges.
+export const DetectionKind = z.enum(['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion'])
+// Same shape as the exposure contract (ProofState, IssueEngine); import them when the exposure branch merges.
+export const ProofState = z.enum(['proven', 'covered', 'missing', 'expired', 'not_current'])
+export const IssueEngine = z.enum(['surface', 'nuclei', 'zap', 'openvas', 'match'])
+const slug = z.string().regex(/^[a-z0-9-]{1,40}$/)
+
+// Same shape as the findings contract (CveSeverity); import it when the findings branch merges.
+export const CveSeverity = z.object({
+  band: SeverityBand,
+  score: z.number().min(0).max(10),
+  version: z.enum(['4.0', '3.1', '3.0', '2.0']),
+  vector: z.string().min(1).max(200),
+}).describe('The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet", never 0')
 export const DeviceRef = z.object({
   id: z.string().describe('The device id when the report was made; the device may be gone since'),
   name: z.string().max(200),
-  added: z.boolean().describe('False while the device is not added yet (still to review)'),
+  added: z.boolean().describe('false = "Not added yet"'),
 })
+// Same shape as the findings contract; import it when the findings branch merges.
 export const Verification = z.object({
-  verified: z.enum(['no', 'device', 'scan', 'person']).describe('no = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check; person = confirmed by a person'),
-  by: z.string().max(120).nullable().describe('Who confirmed it, when verified = person'),
-  basis: word.describe('What the match rests on (open list): scan, device_version, package, banner_version, statement, person'),
+  verified: Verified,
+  basis: Basis,
+  by: z.string().nullable().describe('verified person: who confirmed it'),
+  at: iso.nullable().describe('When it was confirmed; null while not confirmed'),
 })
+// Same shape as the findings contract; import it when the findings branch merges.
 export const Fix = z.object({
-  kind: word.describe('Open list: update, distro_update, os_update, feature_update, none_yet, unknown'),
-  version: z.string().max(80).nullable().describe('The version that fixes it, when known'),
-  ref: z.string().max(200).nullable().describe('A KB number or advisory id, when the fix is named by one'),
+  key: z.string().min(1).max(400).describe('The "By fix" group; opaque'),
+  kind: FixKind,
+  product: z.string().describe('The product the fix is for, as people name it'),
+  version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known'),
+  ref: z.string().nullable().describe('os_update: the KB number; none_yet: the advisory id when known'),
+  url: z.url().nullable().describe('The vendor advisory or release notes'),
 })
-export const UrgencyReason = z.object({
-  status: OpenStatus.describe('The urgency layer this reason supports'),
-  source: z.string().max(80).describe('Who says so: CISA KEV, a vendor, GitHub, this box'), at: iso.nullable(), url: z.string().max(500).nullable(),
-  detail: z.string().max(120).nullable().describe('A short fact of the source, such as 244 stars or not yet in CISA KEV'),
-}).describe('One line of the reasons under the status badge')
+// Same shape as the findings contract; import it when the findings branch merges.
+export const Reason = z.object({
+  layer: z.number().int().min(1).max(4),
+  source: slug.describe('The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4'),
+  name: z.string().describe('The source as people name it: "CISA KEV", "Rapid7", "GitHub"'),
+  date: z.iso.date().describe('When the source said so; layer 1: the newest alert; layer 4: since when the rule holds'),
+  url: z.url().nullable(),
+  detail: z.string().max(120).nullable().describe('A short fact of the signal: "244 stars", the attacker address for layer 1'),
+  due: z.iso.date().nullable().describe('Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise'),
+}).describe('One urgency layer that applies, with its evidence')
+// Same shape as the findings contract; import it when the findings branch merges.
+export const Handled = z.object({
+  resolution: HandledStatus,
+  via: Via,
+  by: z.string().describe('"system" when Vedette handled it; else the person'),
+  at: iso,
+  note: z.string().nullable(),
+  until: z.iso.date().nullable().describe('accepted: the last day; null otherwise'),
+  from_version: z.string().nullable().describe('via version_moved: the version that was affected'),
+  to_version: z.string().nullable().describe('via version_moved: the version now installed'),
+}).describe('Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)"')
+
 export const ReportFinding = z.object({
   finding_id: z.string(), cve: z.string(), device: DeviceRef,
   product: z.string().max(200).describe('The software line the CVE is on, as Findings names it'),
   version: z.string().max(80).nullable().describe('The version the finding was matched on'),
-  status: FindingStatus, reasons: z.array(UrgencyReason).describe('Every urgency layer that applies, most urgent first'),
-  severity: Severity, verification: Verification, fix: Fix, first_seen: iso,
+  status: FindingStatus, reasons: z.array(Reason).describe('Every layer 1 to 4 that applies, most urgent first; empty for layer 5'),
+  severity: CveSeverity.nullable(), verification: Verification, fix: Fix, first_seen: iso,
 })
 export const HandledItem = z.object({
-  finding_id: z.string(), cve: z.string(), product: z.string().max(200), severity: Severity,
-  status: HandledStatus,
-  via: word.describe('How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected, not_installed'),
-  by: z.object({ kind: z.enum(['vedette', 'person']), name: z.string().max(120).describe('"Vedette", or the person who handled it') }),
-  from_version: z.string().max(80).nullable().describe('For via = version_moved: the version before'),
-  to_version: z.string().max(80).nullable().describe('For via = version_moved: the version after'),
-  note: z.string().max(500).nullable(), accepted_until: z.iso.date().nullable().describe('For status = accepted: the last day'),
-  at: iso,
-}).describe('One finding handled in the period, with who and how from stored fields ("Patched by Vedette: 6.24 → 7.23")')
+  finding_id: z.string(), cve: z.string(), product: z.string().max(200), severity: CveSeverity.nullable(),
+  handled: Handled,
+}).describe('One finding handled in the period')
 export const PeriodKind = z.enum(['last_7_days', 'last_30_days', 'calendar_month'])
   .describe('calendar_month = the last whole calendar month in the organisation time zone')
 export const ReportOptions = z.object({
@@ -172,11 +214,11 @@ export const ReportSummary = z.object({
   new: z.number().int(), handled: z.number().int(),
   first: z.array(z.object({
     status: OpenStatus, cve: z.string(), finding_id: z.string().describe('Its most urgent finding'), product: z.string().max(200),
-    severity: Severity, fix: Fix, devices: z.array(DeviceRef).max(3), device_count: z.number().int(), finding_count: z.number().int(),
+    severity: CveSeverity.nullable(), fix: Fix, devices: z.array(DeviceRef).max(3), device_count: z.number().int(), finding_count: z.number().int(),
   })).max(3).describe('The three things to do first, most urgent first'),
 })
 export const ReportHandled = z.object({
-  totals: z.array(z.object({ status: HandledStatus, via: word, n: z.number().int() })).describe('Handled in the period by resolution'),
+  totals: z.array(z.object({ resolution: HandledStatus, via: Via, n: z.number().int() })).describe('Handled in the period by resolution'),
   devices: z.array(z.object({ device: DeviceRef, items: z.array(HandledItem) })),
   more: z.number().int().describe('Handled findings not listed (a report lists 100 at most)'),
 })
@@ -198,24 +240,24 @@ export const ExposureService = z.object({
 export const ExposureTarget = z.object({
   target_id: z.string(), kind: z.enum(['domain', 'ip']), value: z.string().max(253),
   parent: z.string().max(253).nullable().describe('The apex domain this target sits under'),
-  proof: z.enum(['verified', 'covered', 'not_verified']).describe('covered = the proof of a parent domain covers it'),
+  proof: ProofState.describe('proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired; not_current'),
   last_scan_at: iso.nullable(),
   services: z.array(ExposureService).describe('Open ports, then those closed in the period'),
-  issues: z.array(z.object({ engine: word.describe('Open list: surface, nuclei, zap, openvas, match'), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), open: z.number().int(), new: z.number().int() })),
+  issues: z.array(z.object({ engine: IssueEngine, severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), open: z.number().int(), new: z.number().int() })),
 })
 export const ReportExposure = z.object({
   module_on: z.boolean().describe('False when external exposure is off: the section says so instead of showing nothing'),
   targets: z.array(ExposureTarget),
 })
 export const ReportDetections = z.object({
-  module_on: z.boolean().describe('False when incidents are off'),
-  by_kind: z.array(z.object({ kind: word.describe('Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly'), n: z.number().int(), last_at: iso })),
-  top: z.array(z.object({ kind: word, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(), at: iso })).max(5),
+  module_on: z.boolean().describe('False when detection is off'),
+  by_kind: z.array(z.object({ kind: DetectionKind, n: z.number().int(), last_at: iso })),
+  top: z.array(z.object({ kind: DetectionKind, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(), at: iso })).max(5),
 })
 export const ReportCoverage = z.object({
   devices: z.number().int(), with_agent: z.number().int(), not_added: z.number().int(),
-  sources: z.array(z.object({ id: word.describe('passive, active, agents, honeypot, logs, exposure, ids …'), on: z.boolean() })),
-  feeds: z.array(z.object({ id: word, name: z.string().max(80), last_ok_at: iso.nullable(), stale: z.boolean() })),
+  sources: z.array(z.object({ id: slug.describe('The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids'), on: z.boolean() })),
+  feeds: z.array(z.object({ id: slug.describe('The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id'), name: z.string().max(80), last_ok_at: iso.nullable(), stale: z.boolean() })),
 })
 export const ReportDocument = z.object({
   definition_id: z.string(), title: z.string().max(120), generated_at: iso,

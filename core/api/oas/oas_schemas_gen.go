@@ -176846,6 +176846,7 @@ func (s *ReportsGetReportsDocumentOKCoverage) SetWithAgent(val int) {
 }
 
 type ReportsGetReportsDocumentOKCoverageFeedsItem struct {
+	// The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id.
 	ID       string      `json:"id"`
 	LastOkAt NilDateTime `json:"last_ok_at"`
 	Name     string      `json:"name"`
@@ -176893,7 +176894,7 @@ func (s *ReportsGetReportsDocumentOKCoverageFeedsItem) SetStale(val bool) {
 }
 
 type ReportsGetReportsDocumentOKCoverageSourcesItem struct {
-	// Passive, active, agents, honeypot, logs, exposure, ids ….
+	// The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids.
 	ID string `json:"id"`
 	On bool   `json:"on"`
 }
@@ -176920,7 +176921,7 @@ func (s *ReportsGetReportsDocumentOKCoverageSourcesItem) SetOn(val bool) {
 
 type ReportsGetReportsDocumentOKDetections struct {
 	ByKind []ReportsGetReportsDocumentOKDetectionsByKindItem `json:"by_kind"`
-	// False when incidents are off.
+	// False when detection is off.
 	ModuleOn bool                                           `json:"module_on"`
 	Top      []ReportsGetReportsDocumentOKDetectionsTopItem `json:"top"`
 }
@@ -176956,14 +176957,13 @@ func (s *ReportsGetReportsDocumentOKDetections) SetTop(val []ReportsGetReportsDo
 }
 
 type ReportsGetReportsDocumentOKDetectionsByKindItem struct {
-	// Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly.
-	Kind   string    `json:"kind"`
-	LastAt time.Time `json:"last_at"`
-	N      int       `json:"n"`
+	Kind   ReportsGetReportsDocumentOKDetectionsByKindItemKind `json:"kind"`
+	LastAt time.Time                                           `json:"last_at"`
+	N      int                                                 `json:"n"`
 }
 
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetKind() string {
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetKind() ReportsGetReportsDocumentOKDetectionsByKindItemKind {
 	return s.Kind
 }
 
@@ -176978,7 +176978,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) GetN() int {
 }
 
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetKind(val string) {
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetKind(val ReportsGetReportsDocumentOKDetectionsByKindItemKind) {
 	s.Kind = val
 }
 
@@ -176992,10 +176992,72 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItem) SetN(val int) {
 	s.N = val
 }
 
+type ReportsGetReportsDocumentOKDetectionsByKindItemKind string
+
+const (
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap          ReportsGetReportsDocumentOKDetectionsByKindItemKind = "trap"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress    ReportsGetReportsDocumentOKDetectionsByKindItemKind = "bad_address"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly    ReportsGetReportsDocumentOKDetectionsByKindItemKind = "log_anomaly"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice ReportsGetReportsDocumentOKDetectionsByKindItemKind = "unknown_device"
+	ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion     ReportsGetReportsDocumentOKDetectionsByKindItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKDetectionsByKindItemKind values.
+func (ReportsGetReportsDocumentOKDetectionsByKindItemKind) AllValues() []ReportsGetReportsDocumentOKDetectionsByKindItemKind {
+	return []ReportsGetReportsDocumentOKDetectionsByKindItemKind{
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice,
+		ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKDetectionsByKindItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKDetectionsByKindItemKind(data) {
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindTrap
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindBadAddress
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsByKindItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsDocumentOKDetectionsTopItem struct {
 	At       time.Time                                             `json:"at"`
 	Device   NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
-	Kind     string                                                `json:"kind"`
+	Kind     ReportsGetReportsDocumentOKDetectionsTopItemKind      `json:"kind"`
 	Severity ReportsGetReportsDocumentOKDetectionsTopItemSeverity  `json:"severity"`
 	Title    string                                                `json:"title"`
 }
@@ -177011,7 +177073,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDevice() NilReportsGet
 }
 
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetKind() string {
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetKind() ReportsGetReportsDocumentOKDetectionsTopItemKind {
 	return s.Kind
 }
 
@@ -177036,7 +177098,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDevice(val NilReportsG
 }
 
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetKind(val string) {
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetKind(val ReportsGetReportsDocumentOKDetectionsTopItemKind) {
 	s.Kind = val
 }
 
@@ -177051,7 +177113,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetTitle(val string) {
 }
 
 type ReportsGetReportsDocumentOKDetectionsTopItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -177086,6 +177148,68 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) SetID(val string) {
 // SetName sets the value of Name.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItemDevice) SetName(val string) {
 	s.Name = val
+}
+
+type ReportsGetReportsDocumentOKDetectionsTopItemKind string
+
+const (
+	ReportsGetReportsDocumentOKDetectionsTopItemKindTrap          ReportsGetReportsDocumentOKDetectionsTopItemKind = "trap"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress    ReportsGetReportsDocumentOKDetectionsTopItemKind = "bad_address"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly    ReportsGetReportsDocumentOKDetectionsTopItemKind = "log_anomaly"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice ReportsGetReportsDocumentOKDetectionsTopItemKind = "unknown_device"
+	ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion     ReportsGetReportsDocumentOKDetectionsTopItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKDetectionsTopItemKind values.
+func (ReportsGetReportsDocumentOKDetectionsTopItemKind) AllValues() []ReportsGetReportsDocumentOKDetectionsTopItemKind {
+	return []ReportsGetReportsDocumentOKDetectionsTopItemKind{
+		ReportsGetReportsDocumentOKDetectionsTopItemKindTrap,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice,
+		ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKDetectionsTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKDetectionsTopItemKind(data) {
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindTrap
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindBadAddress
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsDocumentOKDetectionsTopItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKDetectionsTopItemSeverity string
@@ -177182,7 +177306,8 @@ type ReportsGetReportsDocumentOKExposureTargetsItem struct {
 	LastScanAt NilDateTime                                                `json:"last_scan_at"`
 	// The apex domain this target sits under.
 	Parent NilString `json:"parent"`
-	// Covered = the proof of a parent domain covers it.
+	// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+	// not_current.
 	Proof ReportsGetReportsDocumentOKExposureTargetsItemProof `json:"proof"`
 	// Open ports, then those closed in the period.
 	Services []ReportsGetReportsDocumentOKExposureTargetsItemServicesItem `json:"services"`
@@ -177271,15 +177396,14 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItem) SetValue(val string) {
 }
 
 type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem struct {
-	// Open list: surface, nuclei, zap, openvas, match.
-	Engine   string                                                           `json:"engine"`
+	Engine   ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine   `json:"engine"`
 	New      int                                                              `json:"new"`
 	Open     int                                                              `json:"open"`
 	Severity ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity `json:"severity"`
 }
 
 // GetEngine returns the value of Engine.
-func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetEngine() string {
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetEngine() ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine {
 	return s.Engine
 }
 
@@ -177299,7 +177423,7 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) GetSeverity()
 }
 
 // SetEngine sets the value of Engine.
-func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetEngine(val string) {
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetEngine(val ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) {
 	s.Engine = val
 }
 
@@ -177316,6 +177440,68 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetOpen(val i
 // SetSeverity sets the value of Severity.
 func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItem) SetSeverity(val ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity) {
 	s.Severity = val
+}
+
+type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine string
+
+const (
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "surface"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei  ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "nuclei"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap     ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "zap"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "openvas"
+	ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch   ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine = "match"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine values.
+func (ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine {
+	return []ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine{
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas,
+		ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngine(data) {
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineSurface
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineNuclei
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineZap
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineOpenvas
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemEngineMatch
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKExposureTargetsItemIssuesItemSeverity string
@@ -177421,32 +177607,41 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemKind) UnmarshalText(data 
 	}
 }
 
-// Covered = the proof of a parent domain covers it.
+// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+// not_current.
 type ReportsGetReportsDocumentOKExposureTargetsItemProof string
 
 const (
-	ReportsGetReportsDocumentOKExposureTargetsItemProofVerified    ReportsGetReportsDocumentOKExposureTargetsItemProof = "verified"
-	ReportsGetReportsDocumentOKExposureTargetsItemProofCovered     ReportsGetReportsDocumentOKExposureTargetsItemProof = "covered"
-	ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified ReportsGetReportsDocumentOKExposureTargetsItemProof = "not_verified"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofProven     ReportsGetReportsDocumentOKExposureTargetsItemProof = "proven"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofCovered    ReportsGetReportsDocumentOKExposureTargetsItemProof = "covered"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofMissing    ReportsGetReportsDocumentOKExposureTargetsItemProof = "missing"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofExpired    ReportsGetReportsDocumentOKExposureTargetsItemProof = "expired"
+	ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent ReportsGetReportsDocumentOKExposureTargetsItemProof = "not_current"
 )
 
 // AllValues returns all ReportsGetReportsDocumentOKExposureTargetsItemProof values.
 func (ReportsGetReportsDocumentOKExposureTargetsItemProof) AllValues() []ReportsGetReportsDocumentOKExposureTargetsItemProof {
 	return []ReportsGetReportsDocumentOKExposureTargetsItemProof{
-		ReportsGetReportsDocumentOKExposureTargetsItemProofVerified,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofProven,
 		ReportsGetReportsDocumentOKExposureTargetsItemProofCovered,
-		ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofMissing,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofExpired,
+		ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s ReportsGetReportsDocumentOKExposureTargetsItemProof) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofVerified:
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofProven:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKExposureTargetsItemProofCovered:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified:
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofMissing:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofExpired:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -177456,14 +177651,20 @@ func (s ReportsGetReportsDocumentOKExposureTargetsItemProof) MarshalText() ([]by
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ReportsGetReportsDocumentOKExposureTargetsItemProof) UnmarshalText(data []byte) error {
 	switch ReportsGetReportsDocumentOKExposureTargetsItemProof(data) {
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofVerified:
-		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofVerified
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofProven:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofProven
 		return nil
 	case ReportsGetReportsDocumentOKExposureTargetsItemProofCovered:
 		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofCovered
 		return nil
-	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified:
-		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofNotVerified
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofMissing
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofExpired
+		return nil
+	case ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsDocumentOKExposureTargetsItemProofNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -177709,7 +177910,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItem) SetItems(val []ReportsGe
 }
 
 type ReportsGetReportsDocumentOKHandledDevicesItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -177746,44 +177947,14 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemDevice) SetName(val string
 	s.Name = val
 }
 
-// One finding handled in the period, with who and how from stored fields ("Patched by Vedette: 6.24
-// → 7.23").
+// One finding handled in the period.
 type ReportsGetReportsDocumentOKHandledDevicesItemItemsItem struct {
-	// For status = accepted: the last day.
-	AcceptedUntil NilDate                                                  `json:"accepted_until"`
-	At            time.Time                                                `json:"at"`
-	By            ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy `json:"by"`
-	Cve           string                                                   `json:"cve"`
-	FindingID     string                                                   `json:"finding_id"`
-	// For via = version_moved: the version before.
-	FromVersion NilString `json:"from_version"`
-	Note        NilString `json:"note"`
-	Product     string    `json:"product"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
+	Cve       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+	Handled  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled     `json:"handled"`
+	Product  string                                                            `json:"product"`
 	Severity NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
-	// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-	// positive.
-	Status ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus `json:"status"`
-	// For via = version_moved: the version after.
-	ToVersion NilString `json:"to_version"`
-	// How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected,
-	// not_installed.
-	Via string `json:"via"`
-}
-
-// GetAcceptedUntil returns the value of AcceptedUntil.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetAcceptedUntil() NilDate {
-	return s.AcceptedUntil
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetAt() time.Time {
-	return s.At
-}
-
-// GetBy returns the value of By.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetBy() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy {
-	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -177796,14 +177967,9 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetFindingID() 
 	return s.FindingID
 }
 
-// GetFromVersion returns the value of FromVersion.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetFromVersion() NilString {
-	return s.FromVersion
-}
-
-// GetNote returns the value of Note.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetNote() NilString {
-	return s.Note
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetHandled() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled {
+	return s.Handled
 }
 
 // GetProduct returns the value of Product.
@@ -177816,36 +177982,6 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetSeverity() N
 	return s.Severity
 }
 
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetStatus() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus {
-	return s.Status
-}
-
-// GetToVersion returns the value of ToVersion.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetToVersion() NilString {
-	return s.ToVersion
-}
-
-// GetVia returns the value of Via.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetVia() string {
-	return s.Via
-}
-
-// SetAcceptedUntil sets the value of AcceptedUntil.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetAcceptedUntil(val NilDate) {
-	s.AcceptedUntil = val
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetBy sets the value of By.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetBy(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) {
-	s.By = val
-}
-
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetCve(val string) {
 	s.Cve = val
@@ -177856,14 +177992,9 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetFindingID(va
 	s.FindingID = val
 }
 
-// SetFromVersion sets the value of FromVersion.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetFromVersion(val NilString) {
-	s.FromVersion = val
-}
-
-// SetNote sets the value of Note.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetNote(val NilString) {
-	s.Note = val
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetHandled(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) {
+	s.Handled = val
 }
 
 // SetProduct sets the value of Product.
@@ -177876,68 +178007,142 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetSeverity(val
 	s.Severity = val
 }
 
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetStatus(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) {
-	s.Status = val
+// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled struct {
+	At time.Time `json:"at"`
+	// "system" when Vedette handled it; else the person.
+	By string `json:"by"`
+	// Via version_moved: the version that was affected.
+	FromVersion NilString `json:"from_version"`
+	Note        NilString `json:"note"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
+	// Via version_moved: the version now installed.
+	ToVersion NilString `json:"to_version"`
+	// Accepted: the last day; null otherwise.
+	Until NilDate `json:"until"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetBy() string {
+	return s.By
+}
+
+// GetFromVersion returns the value of FromVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetFromVersion() NilString {
+	return s.FromVersion
+}
+
+// GetNote returns the value of Note.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetNote() NilString {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetResolution() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution {
+	return s.Resolution
+}
+
+// GetToVersion returns the value of ToVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetToVersion() NilString {
+	return s.ToVersion
+}
+
+// GetUntil returns the value of Until.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetUntil() NilDate {
+	return s.Until
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia {
+	return s.Via
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetBy(val string) {
+	s.By = val
+}
+
+// SetFromVersion sets the value of FromVersion.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetFromVersion(val NilString) {
+	s.FromVersion = val
+}
+
+// SetNote sets the value of Note.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetResolution(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) {
+	s.Resolution = val
 }
 
 // SetToVersion sets the value of ToVersion.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetToVersion(val NilString) {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
 }
 
+// SetUntil sets the value of Until.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetUntil(val NilDate) {
+	s.Until = val
+}
+
 // SetVia sets the value of Via.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetVia(val string) {
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetVia(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) {
 	s.Via = val
 }
 
-type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy struct {
-	Kind ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind `json:"kind"`
-	// "Vedette", or the person who handled it.
-	Name string `json:"name"`
-}
-
-// GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) GetKind() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind {
-	return s.Kind
-}
-
-// GetName returns the value of Name.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) GetName() string {
-	return s.Name
-}
-
-// SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) SetKind(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) {
-	s.Kind = val
-}
-
-// SetName sets the value of Name.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemBy) SetName(val string) {
-	s.Name = val
-}
-
-type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind string
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution string
 
 const (
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind = "vedette"
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind = "person"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "patched"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "mitigated"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted      ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "accepted"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "not_relevant"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution = "false_positive"
 )
 
-// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind values.
-func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind {
-	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind{
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette,
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson,
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -177945,22 +178150,116 @@ func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) MarshalTex
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKind(data) {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindVedette
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionPatched
 		return nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemByKindPerson
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionMitigated
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionAccepted
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionNotRelevant
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolutionFalsePositive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia string
+
+const (
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson          ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "person"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "version_moved"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "software_removed"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "distro_fixed"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "scan_clear"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "data_corrected"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaPerson
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaVersionMoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDistroFixed
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity struct {
-	Band  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand `json:"band"`
-	Score float64                                                            `json:"score"`
+	Band    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                               `json:"score"`
+	Vector  string                                                                `json:"vector"`
+	Version ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -177973,6 +178272,16 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetScor
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) {
 	s.Band = val
@@ -177981,6 +178290,16 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetBand
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand string
@@ -178045,41 +178364,35 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityBand) Unm
 	}
 }
 
-// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-// positive.
-type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus string
+type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion string
 
 const (
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus = "patched"
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated     ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus = "mitigated"
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted      ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus = "accepted"
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus = "not_relevant"
-	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus = "false_positive"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20 ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion = "2.0"
 )
 
-// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus values.
-func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus {
-	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus{
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched,
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated,
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted,
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant,
-		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive,
+// AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant:
-		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive:
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -178087,22 +178400,19 @@ func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) MarshalTex
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus(data) {
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusPatched
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion40
 		return nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusMitigated
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion31
 		return nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusAccepted
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion30
 		return nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusNotRelevant
-		return nil
-	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive:
-		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatusFalsePositive
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverityVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -178111,10 +178421,14 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemStatus) Unmarshal
 
 type ReportsGetReportsDocumentOKHandledTotalsItem struct {
 	N int `json:"n"`
-	// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-	// positive.
-	Status ReportsGetReportsDocumentOKHandledTotalsItemStatus `json:"status"`
-	Via    string                                             `json:"via"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsDocumentOKHandledTotalsItemResolution `json:"resolution"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsDocumentOKHandledTotalsItemVia `json:"via"`
 }
 
 // GetN returns the value of N.
@@ -178122,13 +178436,13 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetN() int {
 	return s.N
 }
 
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetStatus() ReportsGetReportsDocumentOKHandledTotalsItemStatus {
-	return s.Status
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetResolution() ReportsGetReportsDocumentOKHandledTotalsItemResolution {
+	return s.Resolution
 }
 
 // GetVia returns the value of Via.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetVia() string {
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) GetVia() ReportsGetReportsDocumentOKHandledTotalsItemVia {
 	return s.Via
 }
 
@@ -178137,51 +178451,50 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetN(val int) {
 	s.N = val
 }
 
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetStatus(val ReportsGetReportsDocumentOKHandledTotalsItemStatus) {
-	s.Status = val
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetResolution(val ReportsGetReportsDocumentOKHandledTotalsItemResolution) {
+	s.Resolution = val
 }
 
 // SetVia sets the value of Via.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetVia(val string) {
+func (s *ReportsGetReportsDocumentOKHandledTotalsItem) SetVia(val ReportsGetReportsDocumentOKHandledTotalsItemVia) {
 	s.Via = val
 }
 
-// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-// positive.
-type ReportsGetReportsDocumentOKHandledTotalsItemStatus string
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsDocumentOKHandledTotalsItemResolution string
 
 const (
-	ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched       ReportsGetReportsDocumentOKHandledTotalsItemStatus = "patched"
-	ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated     ReportsGetReportsDocumentOKHandledTotalsItemStatus = "mitigated"
-	ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted      ReportsGetReportsDocumentOKHandledTotalsItemStatus = "accepted"
-	ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant   ReportsGetReportsDocumentOKHandledTotalsItemStatus = "not_relevant"
-	ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive ReportsGetReportsDocumentOKHandledTotalsItemStatus = "false_positive"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched       ReportsGetReportsDocumentOKHandledTotalsItemResolution = "patched"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated     ReportsGetReportsDocumentOKHandledTotalsItemResolution = "mitigated"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted      ReportsGetReportsDocumentOKHandledTotalsItemResolution = "accepted"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant   ReportsGetReportsDocumentOKHandledTotalsItemResolution = "not_relevant"
+	ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive ReportsGetReportsDocumentOKHandledTotalsItemResolution = "false_positive"
 )
 
-// AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemStatus values.
-func (ReportsGetReportsDocumentOKHandledTotalsItemStatus) AllValues() []ReportsGetReportsDocumentOKHandledTotalsItemStatus {
-	return []ReportsGetReportsDocumentOKHandledTotalsItemStatus{
-		ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched,
-		ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated,
-		ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted,
-		ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant,
-		ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive,
+// AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemResolution values.
+func (ReportsGetReportsDocumentOKHandledTotalsItemResolution) AllValues() []ReportsGetReportsDocumentOKHandledTotalsItemResolution {
+	return []ReportsGetReportsDocumentOKHandledTotalsItemResolution{
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant,
+		ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKHandledTotalsItemResolution) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched:
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated:
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted:
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant:
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive:
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -178189,22 +178502,103 @@ func (s ReportsGetReportsDocumentOKHandledTotalsItemStatus) MarshalText() ([]byt
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsDocumentOKHandledTotalsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsDocumentOKHandledTotalsItemStatus(data) {
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusPatched
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledTotalsItemResolution(data) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionPatched
 		return nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusMitigated
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionMitigated
 		return nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusAccepted
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionAccepted
 		return nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusNotRelevant
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionNotRelevant
 		return nil
-	case ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive:
-		*s = ReportsGetReportsDocumentOKHandledTotalsItemStatusFalsePositive
+	case ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsDocumentOKHandledTotalsItemVia string
+
+const (
+	ReportsGetReportsDocumentOKHandledTotalsItemViaPerson          ReportsGetReportsDocumentOKHandledTotalsItemVia = "person"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved    ReportsGetReportsDocumentOKHandledTotalsItemVia = "version_moved"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved ReportsGetReportsDocumentOKHandledTotalsItemVia = "software_removed"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed     ReportsGetReportsDocumentOKHandledTotalsItemVia = "distro_fixed"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear       ReportsGetReportsDocumentOKHandledTotalsItemVia = "scan_clear"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected   ReportsGetReportsDocumentOKHandledTotalsItemVia = "data_corrected"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled    ReportsGetReportsDocumentOKHandledTotalsItemVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemVia values.
+func (ReportsGetReportsDocumentOKHandledTotalsItemVia) AllValues() []ReportsGetReportsDocumentOKHandledTotalsItemVia {
+	return []ReportsGetReportsDocumentOKHandledTotalsItemVia{
+		ReportsGetReportsDocumentOKHandledTotalsItemViaPerson,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKHandledTotalsItemVia(data) {
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaPerson
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaVersionMoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDistroFixed
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -178256,11 +178650,10 @@ type ReportsGetReportsDocumentOKNewItemsItem struct {
 	Fix       ReportsGetReportsDocumentOKNewItemsItemFix    `json:"fix"`
 	// The software line the CVE is on, as Findings names it.
 	Product string `json:"product"`
-	// Every urgency layer that applies, most urgent first.
-	Reasons []ReportsGetReportsDocumentOKNewItemsItemReasonsItem `json:"reasons"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsDocumentOKNewItemsItemSeverity `json:"severity"`
-	// The one status of a finding.
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsDocumentOKNewItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsDocumentOKNewItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
 	Status       ReportsGetReportsDocumentOKNewItemsItemStatus       `json:"status"`
 	Verification ReportsGetReportsDocumentOKNewItemsItemVerification `json:"verification"`
 	// The version the finding was matched on.
@@ -178378,7 +178771,7 @@ func (s *ReportsGetReportsDocumentOKNewItemsItem) SetVersion(val NilString) {
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -178416,17 +178809,33 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetName(val string) {
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                         `json:"key"`
+	Kind ReportsGetReportsDocumentOKNewItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetKind() string {
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetKind() ReportsGetReportsDocumentOKNewItemsItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -178434,14 +178843,29 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetRef() NilString {
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKind(val string) {
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKind(val ReportsGetReportsDocumentOKNewItemsItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -178449,107 +178873,53 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetRef(val NilString) {
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// One line of the reasons under the status badge.
-type ReportsGetReportsDocumentOKNewItemsItemReasonsItem struct {
-	At NilDateTime `json:"at"`
-	// A short fact of the source, such as 244 stars or not yet in CISA KEV.
-	Detail NilString `json:"detail"`
-	// Who says so: CISA KEV, a vendor, GitHub, this box.
-	Source string `json:"source"`
-	// The urgency layer this reason supports.
-	Status ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus `json:"status"`
-	URL    NilString                                                `json:"url"`
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetAt() NilDateTime {
-	return s.At
-}
-
-// GetDetail returns the value of Detail.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDetail() NilString {
-	return s.Detail
-}
-
-// GetSource returns the value of Source.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetSource() string {
-	return s.Source
-}
-
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetStatus() ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus {
-	return s.Status
-}
-
-// GetURL returns the value of URL.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetURL() NilString {
-	return s.URL
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetAt(val NilDateTime) {
-	s.At = val
-}
-
-// SetDetail sets the value of Detail.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDetail(val NilString) {
-	s.Detail = val
-}
-
-// SetSource sets the value of Source.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetSource(val string) {
-	s.Source = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetStatus(val ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) {
-	s.Status = val
-}
-
-// SetURL sets the value of URL.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetURL(val NilString) {
-	s.URL = val
-}
-
-// The urgency layer this reason supports.
-type ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus string
+type ReportsGetReportsDocumentOKNewItemsItemFixKind string
 
 const (
-	ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack       ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus = "under_attack"
-	ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited         ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus = "exploited"
-	ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit     ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus = "public_exploit"
-	ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge      ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus = "critical_edge"
-	ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus = "update_recommended"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate        ReportsGetReportsDocumentOKNewItemsItemFixKind = "update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKNewItemsItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKNewItemsItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKNewItemsItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown       ReportsGetReportsDocumentOKNewItemsItemFixKind = "unknown"
 )
 
-// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus values.
-func (ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) AllValues() []ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus {
-	return []ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus{
-		ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack,
-		ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited,
-		ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit,
-		ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge,
-		ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended,
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemFixKind values.
+func (ReportsGetReportsDocumentOKNewItemsItemFixKind) AllValues() []ReportsGetReportsDocumentOKNewItemsItemFixKind {
+	return []ReportsGetReportsDocumentOKNewItemsItemFixKind{
+		ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack:
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited:
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit:
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge:
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended:
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -178557,31 +178927,125 @@ func (s ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) MarshalText() 
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatus(data) {
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUnderAttack
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemFixKind(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUpdate
 		return nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusExploited
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate
 		return nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusPublicExploit
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate
 		return nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusCriticalEdge
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate
 		return nil
-	case ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsDocumentOKNewItemsItemReasonsItemStatusUpdateRecommended
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsDocumentOKNewItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKNewItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsDocumentOKNewItemsItemSeverity struct {
-	Band  ReportsGetReportsDocumentOKNewItemsItemSeverityBand `json:"band"`
-	Score float64                                             `json:"score"`
+	Band    ReportsGetReportsDocumentOKNewItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                `json:"score"`
+	Vector  string                                                 `json:"vector"`
+	Version ReportsGetReportsDocumentOKNewItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -178594,6 +179058,16 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetScore() float64 {
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKNewItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKNewItemsItemSeverityBand) {
 	s.Band = val
@@ -178602,6 +179076,16 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetBand(val ReportsGet
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemSeverityBand string
@@ -178666,7 +179150,62 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityBand) UnmarshalText(data
 	}
 }
 
-// The one status of a finding.
+type ReportsGetReportsDocumentOKNewItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20 ReportsGetReportsDocumentOKNewItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKNewItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKNewItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKNewItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
 type ReportsGetReportsDocumentOKNewItemsItemStatus string
 
 const (
@@ -178765,18 +179304,21 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemStatus) UnmarshalText(data []byt
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemVerification struct {
-	// What the match rests on (open list): scan, device_version, package, banner_version, statement,
-	// person.
-	Basis string `json:"basis"`
-	// Who confirmed it, when verified = person.
-	By NilString `json:"by"`
-	// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-	// person = confirmed by a person.
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                              `json:"at"`
+	Basis ReportsGetReportsDocumentOKNewItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                   `json:"by"`
 	Verified ReportsGetReportsDocumentOKNewItemsItemVerificationVerified `json:"verified"`
 }
 
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
 // GetBasis returns the value of Basis.
-func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetBasis() string {
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetBasis() ReportsGetReportsDocumentOKNewItemsItemVerificationBasis {
 	return s.Basis
 }
 
@@ -178790,8 +179332,13 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) GetVerified() Repo
 	return s.Verified
 }
 
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
 // SetBasis sets the value of Basis.
-func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetBasis(val string) {
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetBasis(val ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) {
 	s.Basis = val
 }
 
@@ -178805,8 +179352,75 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemVerification) SetVerified(val Re
 	s.Verified = val
 }
 
-// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-// person = confirmed by a person.
+type ReportsGetReportsDocumentOKNewItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan          ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "scan"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage       ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "package"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement     ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "statement"
+	ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson        ReportsGetReportsDocumentOKNewItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemVerificationBasis values.
+func (ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) AllValues() []ReportsGetReportsDocumentOKNewItemsItemVerificationBasis {
+	return []ReportsGetReportsDocumentOKNewItemsItemVerificationBasis{
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement,
+		ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemVerificationBasis(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKNewItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsDocumentOKNewItemsItemVerificationVerified string
 
 const (
@@ -179009,11 +179623,10 @@ type ReportsGetReportsDocumentOKOpenGroupsItemItemsItem struct {
 	Fix       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix    `json:"fix"`
 	// The software line the CVE is on, as Findings names it.
 	Product string `json:"product"`
-	// Every urgency layer that applies, most urgent first.
-	Reasons []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity `json:"severity"`
-	// The one status of a finding.
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
 	Status       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus       `json:"status"`
 	Verification ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification `json:"verification"`
 	// The version the finding was matched on.
@@ -179131,7 +179744,7 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) SetVersion(val NilS
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -179169,17 +179782,33 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetName(val s
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                                    `json:"key"`
+	Kind ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetKind() string {
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetKind() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -179187,14 +179816,29 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetRef() NilStri
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKind(val string) {
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKind(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -179202,107 +179846,53 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetRef(val NilSt
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// One line of the reasons under the status badge.
-type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem struct {
-	At NilDateTime `json:"at"`
-	// A short fact of the source, such as 244 stars or not yet in CISA KEV.
-	Detail NilString `json:"detail"`
-	// Who says so: CISA KEV, a vendor, GitHub, this box.
-	Source string `json:"source"`
-	// The urgency layer this reason supports.
-	Status ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus `json:"status"`
-	URL    NilString                                                           `json:"url"`
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetAt() NilDateTime {
-	return s.At
-}
-
-// GetDetail returns the value of Detail.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
-	return s.Detail
-}
-
-// GetSource returns the value of Source.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetSource() string {
-	return s.Source
-}
-
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetStatus() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus {
-	return s.Status
-}
-
-// GetURL returns the value of URL.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetURL() NilString {
-	return s.URL
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetAt(val NilDateTime) {
-	s.At = val
-}
-
-// SetDetail sets the value of Detail.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
-	s.Detail = val
-}
-
-// SetSource sets the value of Source.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
-	s.Source = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetStatus(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) {
-	s.Status = val
-}
-
-// SetURL sets the value of URL.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetURL(val NilString) {
-	s.URL = val
-}
-
-// The urgency layer this reason supports.
-type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus string
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind string
 
 const (
-	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus = "under_attack"
-	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited         ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus = "exploited"
-	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus = "public_exploit"
-	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus = "critical_edge"
-	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus = "update_recommended"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate        ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "unknown"
 )
 
-// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus values.
-func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus {
-	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus{
-		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack,
-		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited,
-		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit,
-		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge,
-		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended,
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited:
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -179310,31 +179900,125 @@ func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) Mar
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatus(data) {
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUnderAttack
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUpdate
 		return nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusExploited
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate
 		return nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusPublicExploit
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate
 		return nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate
 		return nil
-	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity struct {
-	Band  ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand `json:"band"`
-	Score float64                                                        `json:"score"`
+	Band    ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                           `json:"score"`
+	Vector  string                                                            `json:"vector"`
+	Version ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -179347,6 +180031,16 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetScore() 
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) GetVersion() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetBand(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) {
 	s.Band = val
@@ -179355,6 +180049,16 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetBand(val
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverity) SetVersion(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand string
@@ -179419,7 +180123,62 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityBand) Unmarsh
 	}
 }
 
-// The one status of a finding.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20 ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus string
 
 const (
@@ -179518,18 +180277,21 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemStatus) UnmarshalText
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification struct {
-	// What the match rests on (open list): scan, device_version, package, banner_version, statement,
-	// person.
-	Basis string `json:"basis"`
-	// Who confirmed it, when verified = person.
-	By NilString `json:"by"`
-	// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-	// person = confirmed by a person.
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                         `json:"at"`
+	Basis ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                              `json:"by"`
 	Verified ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified `json:"verified"`
 }
 
+// GetAt returns the value of At.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
 // GetBasis returns the value of Basis.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetBasis() string {
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetBasis() ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis {
 	return s.Basis
 }
 
@@ -179543,8 +180305,13 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) GetVeri
 	return s.Verified
 }
 
+// SetAt sets the value of At.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
 // SetBasis sets the value of Basis.
-func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetBasis(val string) {
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetBasis(val ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) {
 	s.Basis = val
 }
 
@@ -179558,8 +180325,75 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerification) SetVeri
 	s.Verified = val
 }
 
-// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-// person = confirmed by a person.
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan          ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "scan"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "package"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement     ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "statement"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson        ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasis(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemVerificationVerified string
 
 const (
@@ -180100,13 +180934,11 @@ type ReportsGetReportsDocumentOKSummaryFirstItem struct {
 	Devices      []ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem `json:"devices"`
 	FindingCount int                                                      `json:"finding_count"`
 	// Its most urgent finding.
-	FindingID string                                         `json:"finding_id"`
-	Fix       ReportsGetReportsDocumentOKSummaryFirstItemFix `json:"fix"`
-	Product   string                                         `json:"product"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsDocumentOKSummaryFirstItemSeverity `json:"severity"`
-	// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-	// exploit available, critical on an edge device, update recommended.
+	FindingID string                                                 `json:"finding_id"`
+	Fix       ReportsGetReportsDocumentOKSummaryFirstItemFix         `json:"fix"`
+	Product   string                                                 `json:"product"`
+	Severity  NilReportsGetReportsDocumentOKSummaryFirstItemSeverity `json:"severity"`
+	// The open statuses: the urgency layers 1 to 5 in order.
 	Status ReportsGetReportsDocumentOKSummaryFirstItemStatus `json:"status"`
 }
 
@@ -180201,7 +181033,7 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItem) SetStatus(val ReportsGetRe
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -180239,17 +181071,33 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetName(val str
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                             `json:"key"`
+	Kind ReportsGetReportsDocumentOKSummaryFirstItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetKind() string {
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetKind() ReportsGetReportsDocumentOKSummaryFirstItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -180257,14 +181105,29 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetRef() NilString {
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKind(val string) {
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKind(val ReportsGetReportsDocumentOKSummaryFirstItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -180272,14 +181135,92 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetRef(val NilString) {
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
+type ReportsGetReportsDocumentOKSummaryFirstItemFixKind string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate        ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "distro_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate      ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "os_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "none_yet"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemFixKind values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemFixKind) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemFixKind {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemFixKind{
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemFixKind(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsDocumentOKSummaryFirstItemSeverity struct {
-	Band  ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand `json:"band"`
-	Score float64                                                 `json:"score"`
+	Band    ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand    `json:"band"`
+	Score   float64                                                    `json:"score"`
+	Vector  string                                                     `json:"vector"`
+	Version ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -180292,6 +181233,16 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetScore() float64
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) GetVersion() ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetBand(val ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) {
 	s.Band = val
@@ -180300,6 +181251,16 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetBand(val Report
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverity) SetVersion(val ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand string
@@ -180364,8 +181325,62 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityBand) UnmarshalText(
 	}
 }
 
-// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-// exploit available, critical on an edge device, update recommended.
+type ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "4.0"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "3.1"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "3.0"
+	ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20 ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion{
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30,
+		ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion40
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion31
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion30
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
 type ReportsGetReportsDocumentOKSummaryFirstItemStatus string
 
 const (
@@ -180430,8 +181445,7 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemStatus) UnmarshalText(data [
 
 type ReportsGetReportsDocumentOKSummaryOpenByStatusItem struct {
 	N int `json:"n"`
-	// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-	// exploit available, critical on an edge device, update recommended.
+	// The open statuses: the urgency layers 1 to 5 in order.
 	Status ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus `json:"status"`
 }
 
@@ -180455,8 +181469,7 @@ func (s *ReportsGetReportsDocumentOKSummaryOpenByStatusItem) SetStatus(val Repor
 	s.Status = val
 }
 
-// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-// exploit available, critical on an edge device, update recommended.
+// The open statuses: the urgency layers 1 to 5 in order.
 type ReportsGetReportsDocumentOKSummaryOpenByStatusItemStatus string
 
 const (
@@ -180924,6 +181937,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentCoverage) SetWithAgent(val int) {
 }
 
 type ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem struct {
+	// The feed id: cisa-kev, vulncheck-kev, nvd, or a custom feed id.
 	ID       string      `json:"id"`
 	LastOkAt NilDateTime `json:"last_ok_at"`
 	Name     string      `json:"name"`
@@ -180971,7 +181985,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentCoverageFeedsItem) SetStale(val boo
 }
 
 type ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem struct {
-	// Passive, active, agents, honeypot, logs, exposure, ids ….
+	// The module that sees it: sensor-passive, sensor-active, agent-intake, honeypot, logs, exposure, ids.
 	ID string `json:"id"`
 	On bool   `json:"on"`
 }
@@ -180998,7 +182012,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentCoverageSourcesItem) SetOn(val bool
 
 type ReportsGetReportsHistoryIDOKDocumentDetections struct {
 	ByKind []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem `json:"by_kind"`
-	// False when incidents are off.
+	// False when detection is off.
 	ModuleOn bool                                                    `json:"module_on"`
 	Top      []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem `json:"top"`
 }
@@ -181034,14 +182048,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetections) SetTop(val []ReportsGet
 }
 
 type ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem struct {
-	// Open list: intrusion, trap, login_accepted, failed_logins, bad_connection, anomaly.
-	Kind   string    `json:"kind"`
-	LastAt time.Time `json:"last_at"`
-	N      int       `json:"n"`
+	Kind   ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind `json:"kind"`
+	LastAt time.Time                                                    `json:"last_at"`
+	N      int                                                          `json:"n"`
 }
 
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetKind() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetKind() ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind {
 	return s.Kind
 }
 
@@ -181056,7 +182069,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) GetN() int {
 }
 
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetKind(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetKind(val ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) {
 	s.Kind = val
 }
 
@@ -181070,10 +182083,72 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItem) SetN(val int)
 	s.N = val
 }
 
+type ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap          ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "trap"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress    ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "bad_address"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly    ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "log_anomaly"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "unknown_device"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion     ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind values.
+func (ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind {
+	return []ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind{
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindTrap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindBadAddress
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem struct {
 	At       time.Time                                                      `json:"at"`
 	Device   NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
-	Kind     string                                                         `json:"kind"`
+	Kind     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind      `json:"kind"`
 	Severity ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity  `json:"severity"`
 	Title    string                                                         `json:"title"`
 }
@@ -181089,7 +182164,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDevice() NilR
 }
 
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetKind() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetKind() ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind {
 	return s.Kind
 }
 
@@ -181114,7 +182189,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDevice(val Ni
 }
 
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetKind(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetKind(val ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) {
 	s.Kind = val
 }
 
@@ -181129,7 +182204,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetTitle(val str
 }
 
 type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -181164,6 +182239,68 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetID(val 
 // SetName sets the value of Name.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) SetName(val string) {
 	s.Name = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap          ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "trap"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "bad_address"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "log_anomaly"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "unknown_device"
+	ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind = "intrusion"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind values.
+func (ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind {
+	return []ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind{
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice,
+		ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindTrap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindBadAddress
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindLogAnomaly
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindUnknownDevice
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion:
+		*s = ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity string
@@ -181260,7 +182397,8 @@ type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem struct {
 	LastScanAt NilDateTime                                                         `json:"last_scan_at"`
 	// The apex domain this target sits under.
 	Parent NilString `json:"parent"`
-	// Covered = the proof of a parent domain covers it.
+	// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+	// not_current.
 	Proof ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof `json:"proof"`
 	// Open ports, then those closed in the period.
 	Services []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItem `json:"services"`
@@ -181349,15 +182487,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItem) SetValue(val s
 }
 
 type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem struct {
-	// Open list: surface, nuclei, zap, openvas, match.
-	Engine   string                                                                    `json:"engine"`
+	Engine   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine   `json:"engine"`
 	New      int                                                                       `json:"new"`
 	Open     int                                                                       `json:"open"`
 	Severity ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity `json:"severity"`
 }
 
 // GetEngine returns the value of Engine.
-func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetEngine() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetEngine() ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine {
 	return s.Engine
 }
 
@@ -181377,7 +182514,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) GetS
 }
 
 // SetEngine sets the value of Engine.
-func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetEngine(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetEngine(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) {
 	s.Engine = val
 }
 
@@ -181394,6 +182531,68 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetO
 // SetSeverity sets the value of Severity.
 func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItem) SetSeverity(val ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity) {
 	s.Severity = val
+}
+
+type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "surface"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei  ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "nuclei"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "zap"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "openvas"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch   ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine = "match"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine values.
+func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine {
+	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine{
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngine(data) {
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineSurface
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineNuclei
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineZap
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineOpenvas
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemEngineMatch
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemIssuesItemSeverity string
@@ -181499,32 +182698,41 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemKind) UnmarshalT
 	}
 }
 
-// Covered = the proof of a parent domain covers it.
+// Proven: its own proof holds; covered: the proof of a parent domain covers it; missing; expired;
+// not_current.
 type ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "verified"
-	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "covered"
-	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "not_verified"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven     ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "proven"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "covered"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "missing"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired    ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "expired"
+	ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof = "not_current"
 )
 
 // AllValues returns all ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof values.
 func (ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) AllValues() []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof {
 	return []ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof{
-		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven,
 		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered,
-		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired,
+		ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified:
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified:
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -181534,14 +182742,20 @@ func (s ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) MarshalTex
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof) UnmarshalText(data []byte) error {
 	switch ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProof(data) {
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified:
-		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofVerified
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofProven
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered:
 		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofCovered
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified:
-		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotVerified
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofMissing
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofExpired
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent:
+		*s = ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemProofNotCurrent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -181787,7 +183001,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) SetItems(val []
 }
 
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -181824,44 +183038,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemDevice) SetName(v
 	s.Name = val
 }
 
-// One finding handled in the period, with who and how from stored fields ("Patched by Vedette: 6.24
-// → 7.23").
+// One finding handled in the period.
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem struct {
-	// For status = accepted: the last day.
-	AcceptedUntil NilDate                                                           `json:"accepted_until"`
-	At            time.Time                                                         `json:"at"`
-	By            ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy `json:"by"`
-	Cve           string                                                            `json:"cve"`
-	FindingID     string                                                            `json:"finding_id"`
-	// For via = version_moved: the version before.
-	FromVersion NilString `json:"from_version"`
-	Note        NilString `json:"note"`
-	Product     string    `json:"product"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
+	Cve       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+	Handled  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled     `json:"handled"`
+	Product  string                                                                     `json:"product"`
 	Severity NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
-	// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-	// positive.
-	Status ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus `json:"status"`
-	// For via = version_moved: the version after.
-	ToVersion NilString `json:"to_version"`
-	// How (open list): person, version_moved, software_removed, distro_fixed, scan_clear, data_corrected,
-	// not_installed.
-	Via string `json:"via"`
-}
-
-// GetAcceptedUntil returns the value of AcceptedUntil.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetAcceptedUntil() NilDate {
-	return s.AcceptedUntil
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetAt() time.Time {
-	return s.At
-}
-
-// GetBy returns the value of By.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetBy() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy {
-	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -181874,14 +183058,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetFin
 	return s.FindingID
 }
 
-// GetFromVersion returns the value of FromVersion.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetFromVersion() NilString {
-	return s.FromVersion
-}
-
-// GetNote returns the value of Note.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetNote() NilString {
-	return s.Note
+// GetHandled returns the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetHandled() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled {
+	return s.Handled
 }
 
 // GetProduct returns the value of Product.
@@ -181894,36 +183073,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetSev
 	return s.Severity
 }
 
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus {
-	return s.Status
-}
-
-// GetToVersion returns the value of ToVersion.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetToVersion() NilString {
-	return s.ToVersion
-}
-
-// GetVia returns the value of Via.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetVia() string {
-	return s.Via
-}
-
-// SetAcceptedUntil sets the value of AcceptedUntil.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetAcceptedUntil(val NilDate) {
-	s.AcceptedUntil = val
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetBy sets the value of By.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetBy(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) {
-	s.By = val
-}
-
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetCve(val string) {
 	s.Cve = val
@@ -181934,14 +183083,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetFin
 	s.FindingID = val
 }
 
-// SetFromVersion sets the value of FromVersion.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetFromVersion(val NilString) {
-	s.FromVersion = val
-}
-
-// SetNote sets the value of Note.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetNote(val NilString) {
-	s.Note = val
+// SetHandled sets the value of Handled.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetHandled(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) {
+	s.Handled = val
 }
 
 // SetProduct sets the value of Product.
@@ -181954,68 +183098,142 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetSev
 	s.Severity = val
 }
 
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) {
-	s.Status = val
+// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled struct {
+	At time.Time `json:"at"`
+	// "system" when Vedette handled it; else the person.
+	By string `json:"by"`
+	// Via version_moved: the version that was affected.
+	FromVersion NilString `json:"from_version"`
+	Note        NilString `json:"note"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
+	// Via version_moved: the version now installed.
+	ToVersion NilString `json:"to_version"`
+	// Accepted: the last day; null otherwise.
+	Until NilDate `json:"until"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetBy() string {
+	return s.By
+}
+
+// GetFromVersion returns the value of FromVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetFromVersion() NilString {
+	return s.FromVersion
+}
+
+// GetNote returns the value of Note.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetNote() NilString {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetResolution() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution {
+	return s.Resolution
+}
+
+// GetToVersion returns the value of ToVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetToVersion() NilString {
+	return s.ToVersion
+}
+
+// GetUntil returns the value of Until.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetUntil() NilDate {
+	return s.Until
+}
+
+// GetVia returns the value of Via.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia {
+	return s.Via
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetBy(val string) {
+	s.By = val
+}
+
+// SetFromVersion sets the value of FromVersion.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetFromVersion(val NilString) {
+	s.FromVersion = val
+}
+
+// SetNote sets the value of Note.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetResolution(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) {
+	s.Resolution = val
 }
 
 // SetToVersion sets the value of ToVersion.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetToVersion(val NilString) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
 }
 
+// SetUntil sets the value of Until.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetUntil(val NilDate) {
+	s.Until = val
+}
+
 // SetVia sets the value of Via.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetVia(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetVia(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) {
 	s.Via = val
 }
 
-type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy struct {
-	Kind ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind `json:"kind"`
-	// "Vedette", or the person who handled it.
-	Name string `json:"name"`
-}
-
-// GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) GetKind() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind {
-	return s.Kind
-}
-
-// GetName returns the value of Name.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) GetName() string {
-	return s.Name
-}
-
-// SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) SetKind(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) {
-	s.Kind = val
-}
-
-// SetName sets the value of Name.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemBy) SetName(val string) {
-	s.Name = val
-}
-
-type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind string
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind = "vedette"
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind = "person"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "patched"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted      ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution = "false_positive"
 )
 
-// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind values.
-func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind {
-	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind{
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette,
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson,
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -182023,22 +183241,116 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) M
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKind(data) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindVedette
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionPatched
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemByKindPerson
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionMitigated
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionAccepted
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionNotRelevant
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolutionFalsePositive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson          ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "person"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "version_moved"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "software_removed"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "distro_fixed"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "scan_clear"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "data_corrected"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaPerson
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaVersionMoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDistroFixed
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity struct {
-	Band  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand `json:"band"`
-	Score float64                                                                     `json:"score"`
+	Band    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                                        `json:"score"`
+	Vector  string                                                                         `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -182051,6 +183363,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand) {
 	s.Band = val
@@ -182059,6 +183381,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityBand string
@@ -182123,41 +183455,35 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity
 	}
 }
 
-// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-// positive.
-type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus string
+type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus = "patched"
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated     ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus = "mitigated"
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted      ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus = "accepted"
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus = "not_relevant"
-	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus = "false_positive"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion = "2.0"
 )
 
-// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus values.
-func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus {
-	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus{
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched,
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated,
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted,
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant,
-		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive,
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant:
-		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive:
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -182165,22 +183491,19 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) M
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus(data) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusPatched
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion40
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusMitigated
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion31
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusAccepted
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion30
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusNotRelevant
-		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatusFalsePositive
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverityVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -182189,10 +183512,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemStatus) 
 
 type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem struct {
 	N int `json:"n"`
-	// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-	// positive.
-	Status ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus `json:"status"`
-	Via    string                                                      `json:"via"`
+	// How a finding was handled; a handled finding's status is its resolution.
+	Resolution ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution `json:"resolution"`
+	// How it was handled: person = a person marked it; version_moved = the software moved past the
+	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+	// not_installed = a person said the software is not installed.
+	Via ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia `json:"via"`
 }
 
 // GetN returns the value of N.
@@ -182200,13 +183527,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetN() int {
 	return s.N
 }
 
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus {
-	return s.Status
+// GetResolution returns the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetResolution() ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution {
+	return s.Resolution
 }
 
 // GetVia returns the value of Via.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetVia() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) GetVia() ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia {
 	return s.Via
 }
 
@@ -182215,51 +183542,50 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetN(val int) {
 	s.N = val
 }
 
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) {
-	s.Status = val
+// SetResolution sets the value of Resolution.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetResolution(val ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) {
+	s.Resolution = val
 }
 
 // SetVia sets the value of Via.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetVia(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem) SetVia(val ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) {
 	s.Via = val
 }
 
-// How a finding was handled: patched, mitigated, risk accepted until a day, not relevant, false
-// positive.
-type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus string
+// How a finding was handled; a handled finding's status is its resolution.
+type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus = "patched"
-	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated     ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus = "mitigated"
-	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted      ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus = "accepted"
-	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus = "not_relevant"
-	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus = "false_positive"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "patched"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated     ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "mitigated"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted      ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "accepted"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "not_relevant"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution = "false_positive"
 )
 
-// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus values.
-func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus {
-	return []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus{
-		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched,
-		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated,
-		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted,
-		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant,
-		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive,
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution{
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched:
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated:
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted:
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant:
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive:
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -182267,22 +183593,103 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) MarshalText
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatus(data) {
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusPatched
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionPatched
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusMitigated
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionMitigated
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusAccepted
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionAccepted
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusNotRelevant
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionNotRelevant
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive:
-		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemStatusFalsePositive
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How it was handled: person = a person marked it; version_moved = the software moved past the
+// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
+// installed package is fixed; scan_clear = a safe check that had matched came back clear;
+// data_corrected = no longer detected while nothing on the device changed (never patch credit);
+// not_installed = a person said the software is not installed.
+type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson          ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "person"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved    ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "version_moved"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "software_removed"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed     ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "distro_fixed"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "scan_clear"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "data_corrected"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "not_installed"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia values.
+func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) AllValues() []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia {
+	return []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia{
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia(data) {
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaPerson
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaVersionMoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaSoftwareRemoved
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDistroFixed
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -182334,11 +183741,10 @@ type ReportsGetReportsHistoryIDOKDocumentNewItemsItem struct {
 	Fix       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix    `json:"fix"`
 	// The software line the CVE is on, as Findings names it.
 	Product string `json:"product"`
-	// Every urgency layer that applies, most urgent first.
-	Reasons []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem `json:"reasons"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity `json:"severity"`
-	// The one status of a finding.
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
 	Status       ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus       `json:"status"`
 	Verification ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification `json:"verification"`
 	// The version the finding was matched on.
@@ -182456,7 +183862,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItem) SetVersion(val NilStr
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -182494,17 +183900,33 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetName(val str
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                                  `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetKind() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -182512,14 +183934,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetRef() NilString
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKind(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -182527,107 +183964,53 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetRef(val NilStri
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// One line of the reasons under the status badge.
-type ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem struct {
-	At NilDateTime `json:"at"`
-	// A short fact of the source, such as 244 stars or not yet in CISA KEV.
-	Detail NilString `json:"detail"`
-	// Who says so: CISA KEV, a vendor, GitHub, this box.
-	Source string `json:"source"`
-	// The urgency layer this reason supports.
-	Status ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus `json:"status"`
-	URL    NilString                                                         `json:"url"`
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetAt() NilDateTime {
-	return s.At
-}
-
-// GetDetail returns the value of Detail.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDetail() NilString {
-	return s.Detail
-}
-
-// GetSource returns the value of Source.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetSource() string {
-	return s.Source
-}
-
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus {
-	return s.Status
-}
-
-// GetURL returns the value of URL.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetURL() NilString {
-	return s.URL
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetAt(val NilDateTime) {
-	s.At = val
-}
-
-// SetDetail sets the value of Detail.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDetail(val NilString) {
-	s.Detail = val
-}
-
-// SetSource sets the value of Source.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetSource(val string) {
-	s.Source = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) {
-	s.Status = val
-}
-
-// SetURL sets the value of URL.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetURL(val NilString) {
-	s.URL = val
-}
-
-// The urgency layer this reason supports.
-type ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus string
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus = "under_attack"
-	ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus = "exploited"
-	ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus = "public_exploit"
-	ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus = "critical_edge"
-	ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus = "update_recommended"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "unknown"
 )
 
-// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus values.
-func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus {
-	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus{
-		ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack,
-		ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited,
-		ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit,
-		ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge,
-		ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended,
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack:
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited:
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit:
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge:
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended:
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -182635,31 +184018,125 @@ func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) Marsh
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatus(data) {
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUnderAttack
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusExploited
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusPublicExploit
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusCriticalEdge
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItemStatusUpdateRecommended
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity struct {
-	Band  ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand `json:"band"`
-	Score float64                                                      `json:"score"`
+	Band    ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                         `json:"score"`
+	Vector  string                                                          `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -182672,6 +184149,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetScore() fl
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) {
 	s.Band = val
@@ -182680,6 +184167,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetBand(val R
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand string
@@ -182744,7 +184241,62 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityBand) Unmarshal
 	}
 }
 
-// The one status of a finding.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus string
 
 const (
@@ -182843,18 +184395,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemStatus) UnmarshalText(d
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification struct {
-	// What the match rests on (open list): scan, device_version, package, banner_version, statement,
-	// person.
-	Basis string `json:"basis"`
-	// Who confirmed it, when verified = person.
-	By NilString `json:"by"`
-	// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-	// person = confirmed by a person.
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                       `json:"at"`
+	Basis ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                            `json:"by"`
 	Verified ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified `json:"verified"`
 }
 
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
 // GetBasis returns the value of Basis.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetBasis() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetBasis() ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis {
 	return s.Basis
 }
 
@@ -182868,8 +184423,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) GetVerifi
 	return s.Verified
 }
 
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
 // SetBasis sets the value of Basis.
-func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetBasis(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetBasis(val ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) {
 	s.Basis = val
 }
 
@@ -182883,8 +184443,75 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerification) SetVerifi
 	s.Verified = val
 }
 
-// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-// person = confirmed by a person.
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan          ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "scan"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage       ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "package"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement     ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "statement"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson        ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasis(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemVerificationVerified string
 
 const (
@@ -183087,11 +184714,10 @@ type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem struct {
 	Fix       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix    `json:"fix"`
 	// The software line the CVE is on, as Findings names it.
 	Product string `json:"product"`
-	// Every urgency layer that applies, most urgent first.
-	Reasons []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity `json:"severity"`
-	// The one status of a finding.
+	// Every layer 1 to 4 that applies, most urgent first; empty for layer 5.
+	Reasons  []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem `json:"reasons"`
+	Severity NilReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity   `json:"severity"`
+	// The one status of a finding, most urgent first.
 	Status       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus       `json:"status"`
 	Verification ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification `json:"verification"`
 	// The version the finding was matched on.
@@ -183209,7 +184835,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) SetVersion
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -183247,17 +184873,33 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetN
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                                             `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetKind() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -183265,14 +184907,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetRef(
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKind(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -183280,107 +184937,53 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetRef(
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
-// One line of the reasons under the status badge.
-type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem struct {
-	At NilDateTime `json:"at"`
-	// A short fact of the source, such as 244 stars or not yet in CISA KEV.
-	Detail NilString `json:"detail"`
-	// Who says so: CISA KEV, a vendor, GitHub, this box.
-	Source string `json:"source"`
-	// The urgency layer this reason supports.
-	Status ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus `json:"status"`
-	URL    NilString                                                                    `json:"url"`
-}
-
-// GetAt returns the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetAt() NilDateTime {
-	return s.At
-}
-
-// GetDetail returns the value of Detail.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
-	return s.Detail
-}
-
-// GetSource returns the value of Source.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetSource() string {
-	return s.Source
-}
-
-// GetStatus returns the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetStatus() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus {
-	return s.Status
-}
-
-// GetURL returns the value of URL.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetURL() NilString {
-	return s.URL
-}
-
-// SetAt sets the value of At.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetAt(val NilDateTime) {
-	s.At = val
-}
-
-// SetDetail sets the value of Detail.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
-	s.Detail = val
-}
-
-// SetSource sets the value of Source.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
-	s.Source = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) {
-	s.Status = val
-}
-
-// SetURL sets the value of URL.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetURL(val NilString) {
-	s.URL = val
-}
-
-// The urgency layer this reason supports.
-type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus string
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind string
 
 const (
-	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus = "under_attack"
-	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited         ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus = "exploited"
-	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus = "public_exploit"
-	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus = "critical_edge"
-	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus = "update_recommended"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "unknown"
 )
 
-// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus values.
-func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus {
-	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus{
-		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack,
-		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited,
-		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit,
-		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge,
-		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended,
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) MarshalText() ([]byte, error) {
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited:
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		return []byte(s), nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -183388,31 +184991,125 @@ func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemSt
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus) UnmarshalText(data []byte) error {
-	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatus(data) {
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUnderAttack
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusExploited
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusPublicExploit
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusCriticalEdge
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate
 		return nil
-	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended:
-		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItemStatusUpdateRecommended
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
+// One urgency layer that applies, with its evidence.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem struct {
+	// When the source said so; layer 1: the newest alert; layer 4: since when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars", the attacker address for layer 1.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4.
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity struct {
-	Band  ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand `json:"band"`
-	Score float64                                                                 `json:"score"`
+	Band    ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand    `json:"band"`
+	Score   float64                                                                    `json:"score"`
+	Vector  string                                                                     `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -183425,6 +185122,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Ge
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand) {
 	s.Band = val
@@ -183433,6 +185140,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) Se
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand string
@@ -183497,7 +185214,62 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityBand
 	}
 }
 
-// The one status of a finding.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The one status of a finding, most urgent first.
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus string
 
 const (
@@ -183596,18 +185368,21 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemStatus) Unma
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification struct {
-	// What the match rests on (open list): scan, device_version, package, banner_version, statement,
-	// person.
-	Basis string `json:"basis"`
-	// Who confirmed it, when verified = person.
-	By NilString `json:"by"`
-	// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-	// person = confirmed by a person.
+	// When it was confirmed; null while not confirmed.
+	At    NilDateTime                                                                  `json:"at"`
+	Basis ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By       NilString                                                                       `json:"by"`
 	Verified ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified `json:"verified"`
 }
 
+// GetAt returns the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
 // GetBasis returns the value of Basis.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetBasis() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) GetBasis() ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis {
 	return s.Basis
 }
 
@@ -183621,8 +185396,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 	return s.Verified
 }
 
+// SetAt sets the value of At.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
 // SetBasis sets the value of Basis.
-func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetBasis(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification) SetBasis(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) {
 	s.Basis = val
 }
 
@@ -183636,8 +185416,75 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerification
 	s.Verified = val
 }
 
-// No = not confirmed yet; device = the device reports this version; scan = confirmed by a safe check;
-// person = confirmed by a person.
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan          ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "scan"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "device_version"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "package"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "banner_version"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement     ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "statement"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson        ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis = "person"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasis(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisScan
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisDeviceVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPackage
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisBannerVersion
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisStatement
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemVerificationVerified string
 
 const (
@@ -184178,13 +186025,11 @@ type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem struct {
 	Devices      []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem `json:"devices"`
 	FindingCount int                                                               `json:"finding_count"`
 	// Its most urgent finding.
-	FindingID string                                                  `json:"finding_id"`
-	Fix       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix `json:"fix"`
-	Product   string                                                  `json:"product"`
-	// The CVSS band and score of the CVE; null = not scored yet. Never changes the status.
-	Severity NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity `json:"severity"`
-	// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-	// exploit available, critical on an edge device, update recommended.
+	FindingID string                                                          `json:"finding_id"`
+	Fix       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix         `json:"fix"`
+	Product   string                                                          `json:"product"`
+	Severity  NilReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity `json:"severity"`
+	// The open statuses: the urgency layers 1 to 5 in order.
 	Status ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus `json:"status"`
 }
 
@@ -184279,7 +186124,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) SetStatus(val Rep
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem struct {
-	// False while the device is not added yet (still to review).
+	// False = "Not added yet".
 	Added bool `json:"added"`
 	// The device id when the report was made; the device may be gone since.
 	ID   string `json:"id"`
@@ -184317,17 +186162,33 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetNam
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
-	// Open list: update, distro_update, os_update, feature_update, none_yet, unknown.
-	Kind string `json:"kind"`
-	// A KB number or advisory id, when the fix is named by one.
+	// The "By fix" group; opaque.
+	Key  string                                                      `json:"key"`
+	Kind ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind `json:"kind"`
+	// The product the fix is for, as people name it.
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
 	Ref NilString `json:"ref"`
-	// The version that fixes it, when known.
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known.
 	Version NilString `json:"version"`
 }
 
+// GetKey returns the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetKey() string {
+	return s.Key
+}
+
 // GetKind returns the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetKind() string {
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetKind() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind {
 	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetProduct() string {
+	return s.Product
 }
 
 // GetRef returns the value of Ref.
@@ -184335,14 +186196,29 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetRef() NilSt
 	return s.Ref
 }
 
+// GetURL returns the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetURL() NilURI {
+	return s.URL
+}
+
 // GetVersion returns the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetKey sets the value of Key.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKey(val string) {
+	s.Key = val
+}
+
 // SetKind sets the value of Kind.
-func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKind(val string) {
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKind(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetProduct(val string) {
+	s.Product = val
 }
 
 // SetRef sets the value of Ref.
@@ -184350,14 +186226,92 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetRef(val Nil
 	s.Ref = val
 }
 
+// SetURL sets the value of URL.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetURL(val NilURI) {
+	s.URL = val
+}
+
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
 }
 
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate        ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "distro_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "os_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "none_yet"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "unknown"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band. Never changes the status. null = "Not scored yet",
+// never 0.
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity struct {
-	Band  ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand `json:"band"`
-	Score float64                                                          `json:"score"`
+	Band    ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand    `json:"band"`
+	Score   float64                                                             `json:"score"`
+	Vector  string                                                              `json:"vector"`
+	Version ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion `json:"version"`
 }
 
 // GetBand returns the value of Band.
@@ -184370,6 +186324,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetScore(
 	return s.Score
 }
 
+// GetVector returns the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) GetVersion() ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion {
+	return s.Version
+}
+
 // SetBand sets the value of Band.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetBand(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) {
 	s.Band = val
@@ -184378,6 +186342,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetBand(v
 // SetScore sets the value of Score.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetScore(val float64) {
 	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverity) SetVersion(val ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) {
+	s.Version = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand string
@@ -184442,8 +186416,62 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityBand) Unmar
 	}
 }
 
-// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-// exploit available, critical on an edge device, update recommended.
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "4.0"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "3.1"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "3.0"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20 ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion40
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion31
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion30
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The open statuses: the urgency layers 1 to 5 in order.
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus string
 
 const (
@@ -184508,8 +186536,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemStatus) UnmarshalTe
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem struct {
 	N int `json:"n"`
-	// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-	// exploit available, critical on an edge device, update recommended.
+	// The open statuses: the urgency layers 1 to 5 in order.
 	Status ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus `json:"status"`
 }
 
@@ -184533,8 +186560,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem) SetStatus(
 	s.Status = val
 }
 
-// The urgency of an open finding, most urgent first: under attack here, exploited in the wild, public
-// exploit available, critical on an edge device, update recommended.
+// The open statuses: the urgency layers 1 to 5 in order.
 type ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItemStatus string
 
 const (

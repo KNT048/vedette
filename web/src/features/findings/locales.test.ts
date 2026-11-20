@@ -23,10 +23,4 @@ describe('findings locale keys', () => {
     }
     expect(missing).toEqual([])
   })
-
-  it('the All open filters name every value they offer', () => {
-    for (const v of ['all', 'confirmed', 'suspected']) expect(has(`filters.${v}`), `filters.${v}`).toBe(true)
-    for (const v of ['all', 'likely', 'unverified']) expect(has(`certainty.${v}`), `certainty.${v}`).toBe(true)
-    expect(has('certainty.label')).toBe(true)
-  })
 })

@@ -33,7 +33,6 @@ const ALLOWED: { file: string; count: number; why: string }[] = [
   { file: 'features/core/UsersSection.tsx', count: 1, why: SETTINGS },
   { file: 'features/feeds/HomePage.tsx', count: 1, why: SEARCH },
   { file: 'features/feeds/LookupPage.tsx', count: 1, why: SEARCH },
-  { file: 'features/findings/NeedsInput.tsx', count: 4, why: 'answers a question on the finding row it belongs to; reworked together with the findings page, not here' },
   { file: 'features/inventory/NetworkForm.tsx', count: 1, why: 'edits the one scan-scope settings object in place; adding and editing a range or an exclusion opens a dialog' },
   { file: 'features/logs/SiemSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/notify/ChannelsSettings.tsx', count: 1, why: SETTINGS },

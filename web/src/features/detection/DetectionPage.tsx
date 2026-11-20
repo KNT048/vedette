@@ -6,6 +6,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
+import { CveList } from '@/components/common/status'
 import { Segmented } from '@/components/ui/segmented'
 import { Select } from '@/components/ui/input'
 import { fmtDateTime, fmtNumber, fmtRelative } from '@/lib/format'
@@ -140,7 +141,7 @@ function Alerts() {
     { id: 'severity', header: t('alerts.col.severity'), cell: ({ row }) => <span className="font-medium">{severityText(t, row.original.severity)}</span> },
     { id: 'signature', header: t('alerts.col.signature'), cell: ({ row: { original: a } }) => (
       <div className="grid"><Link to={`/detection/alerts/${a.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium [overflow-wrap:anywhere] ${link}`}>{a.signature}</Link>
-        <span className="text-caption text-muted">{a.cves.length ? a.cves.join(', ') : t('alerts.noCve')}</span></div>
+        {a.cves.length ? <CveList label={t('alerts.cvesOf', { signature: a.signature })} items={a.cves.map((cve) => ({ cve }))} /> : <span className="text-caption text-muted">{t('alerts.noCve')}</span>}</div>
     ) },
     { id: 'flow', header: t('alerts.col.flow'), cell: ({ row: { original: a } }) => <AlertLine a={a} /> },
     { id: 'count', header: t('alerts.col.count'), cell: ({ row }) => <span className="tabular-nums">{fmtNumber(row.original.count)}</span> },

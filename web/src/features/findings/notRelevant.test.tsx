@@ -54,16 +54,4 @@ describe('not relevant is hidden by default', () => {
     expect(within(section).queryByRole('button', { name: /not relevant/ })).toBeNull()
   })
 
-  it('Findings list, Handled: hidden until "Show not relevant (N)", which keeps a shareable ?notrelevant=show', async () => {
-    seed(2)
-    const view = renderApp('/findings?tab=handled')
-    expect(await screen.findByRole('link', { name: 'CVE-2026-50002' }, T)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'CVE-2026-60000' })).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Show not relevant (2)' }))
-    expect(await screen.findByRole('link', { name: 'CVE-2026-60000' })).toBeInTheDocument()
-    view.unmount()
-    renderApp('/findings?tab=handled&notrelevant=show')
-    expect(await screen.findByRole('link', { name: 'CVE-2026-60001' }, T)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hide not relevant (2)' })).toBeInTheDocument()
-  })
 })

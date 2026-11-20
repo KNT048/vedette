@@ -999,9 +999,9 @@ describe('notify: channel form matrix', () => {
     const linked = async () => ((await getJson('/notify/zalo/approvers')).items as { state: string }[])[0]!.state
     // signed in as someone else (the administrator): the page opens, nothing links, Confirm is refused, the link stays good
     const wrong = renderApp(path, { role: 'admin' })
-    expect(await screen.findByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Confirm ownership' })).toBeInTheDocument()
     expect(await linked()).toBe('waiting')
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(/This link is for another Vedette account/)).toBeInTheDocument()
     wrong.unmount()
     // the right person
@@ -1010,7 +1010,7 @@ describe('notify: channel form matrix', () => {
     expect(await screen.findByText('3847561029384756102')).toHaveClass('font-mono')
     expect(screen.getByText('Named "Lan Pham" by your administrator.')).toBeInTheDocument()
     expect(screen.getByText(/Confirm only if this Zalo account is yours/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(/Linked\. Zalo ID 3847561029384756102 now counts as you/)).toBeInTheDocument()
     sessionStore.set({ userId: 'u-admin' })
     expect(await linked()).toBe('linked')
@@ -1032,7 +1032,7 @@ describe('notify: channel form matrix', () => {
     expect(zaloMessagesForTest().length).toBe(before)
     renderApp(mine.link, { role: 'admin' })
     expect(await screen.findByText(ZALO_BOX_UID)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(new RegExp(`Linked\\. Zalo ID ${ZALO_BOX_UID}`))).toBeInTheDocument()
     await expectNoA11yViolations()
   })

@@ -7,7 +7,7 @@ import { navItems, type NavGroup, type NavItem } from './feature'
 
 /** Always visible, in this order, never in a group. Incidents is here (UI.md §2, decided 2026-11-16): "the alert arrives" is the
  *  core journey, as Wiz and CrowdStrike keep Issues and Detections top-level. */
-export const PINNED = ['/', '/findings', '/plan', '/incidents'] as const
+export const PINNED = ['/', '/findings', '/incidents'] as const
 
 /** The collapsible groups, in order. `monitor` holds no group of its own any more: what it held is pinned or moved below. */
 export type ShellGroup = Exclude<NavGroup, 'monitor'>

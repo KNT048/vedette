@@ -7,7 +7,8 @@ import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { http, HttpResponse } from 'msw'
-import { auditStore, findingsStore } from '@/mocks/stores'
+import { auditStore } from '@/mocks/stores'
+import { records } from '@/features/findings/modelMocks'
 
 vi.setConfig({ testTimeout: 30_000 })
 const T = { timeout: 5000 }
@@ -38,15 +39,17 @@ describe('lists: the audit log, paged and searched by the box', () => {
   })
 })
 
-describe('lists: findings, filtered by the page\'s own search', () => {
-  it('the search box filters every finding, is kept in the URL, and the list goes back to page 1', async () => {
+describe('lists: findings, paged and searched on the server', () => {
+  it('the search box filters every handled finding, is kept in the URL, and the list goes back to page 1', async () => {
     const user = userEvent.setup()
-    const base = findingsStore.get()[0]!
-    findingsStore.set(Array.from({ length: 130 }, (_, i) => ({ ...base, id: `f-x${i}`, cve: `CVE-2026-${String(10_000 + i)}`, status: 'confirmed' as const })))
-    renderApp('/findings?tab=open&findings.page=3')
-    await screen.findByRole('table', { name: /findings/i }, T)
-    await waitFor(() => expect(range()).toMatch(/^101–130 of 130/), T)
-    await user.type(screen.getByRole('searchbox', { name: /Search|Filter/ }), 'CVE-2026-10077')
+    const base = records.get()[0]!
+    const at = new Date().toISOString()
+    records.set(Array.from({ length: 130 }, (_, i) => ({ ...base, id: `fv-x${i}`, cve: `CVE-2026-${String(10_000 + i)}`, state: 'handled' as const, resolution: 'patched' as const,
+      via: 'person' as const, resolved_by: 'admin@acme.example', resolved_at: at })))
+    renderApp('/findings?tab=handled&handled.page=3')
+    await screen.findByRole('table', { name: 'Handled findings' }, T)
+    await waitFor(() => expect(range()).toMatch(/^41–60 of 130/), T)
+    await user.type(screen.getByRole('searchbox', { name: 'Search CVEs, devices or software' }), 'CVE-2026-10077')
     await waitFor(() => expect(range()).toBe('1–1 of 1'), T)
   })
 })

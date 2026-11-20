@@ -35,8 +35,6 @@ const (
 	maxRun = 2 * time.Hour
 	// ProbeRetention is how long sa_probe rows are kept (INV-9 asks for at least 90 days).
 	ProbeRetention = 365 * 24 * time.Hour
-	// maxAttempts is how many times a queued device is tried after nmap failed before it is dropped.
-	maxAttempts = 3
 	// finishTimeout bounds the writes that must happen even when the run was cancelled.
 	finishTimeout = 30 * time.Second
 )

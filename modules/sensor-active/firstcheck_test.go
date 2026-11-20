@@ -104,7 +104,7 @@ func TestFirstCheckForADeviceNothingQueued(t *testing.T) {
 func TestScanOnRunsInTheNextWindowBeforeTheSweep(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 0, 30)) }) // before tonight's window (01:00)
-	e.sweptBefore()                                                       // not a new box: no first pass outside the window
+	e.sweptBefore()                                                         // not a new box: no first pass outside the window
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "scan_on"); err != nil {
 		t.Fatal(err)
 	}

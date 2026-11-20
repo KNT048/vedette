@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/knt048/vedette/core/run"
 	"net/netip"
 	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -483,4 +483,3 @@ func keepEnd(s string, n int) string {
 	}
 	return "…" + string(r[len(r)-n+1:])
 }
-

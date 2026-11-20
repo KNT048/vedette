@@ -492,7 +492,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		}
 		return r, nil
 	}
-	_, err := s.doRun(ctx, run.Spec{Kind: RunCheck, Title: "Check of " + lbl, Trigger: run.Manual, RequestedBy: by,
+	err := s.doRun(ctx, run.Spec{Kind: RunCheck, Title: "Check of " + lbl, Trigger: run.Manual, RequestedBy: by,
 		Subject: &run.Subject{Kind: "device", ID: assetID, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
 		work, busyWait, "The scanner stayed busy, so this check did not start; the device is checked in the scan window")
 	switch {

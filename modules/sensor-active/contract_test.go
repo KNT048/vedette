@@ -148,7 +148,7 @@ func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 func TestContract_INV3_StopsWhenTheWindowCloses(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 2}, func(e *env) {
-		e.setBase(local(9, 4, 59).Add(58 * time.Second))                                // 2 s to the end of the window
+		e.setBase(local(9, 4, 59).Add(58 * time.Second))                              // 2 s to the end of the window
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} }) // 126 hosts: batches of 64 and 62
 	})
 	start := time.Now()
@@ -570,7 +570,7 @@ func TestEventPayloads(t *testing.T) {
 func TestQueueSurvivesARestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 12, 0)) }) // outside the window: it only queues
-	e.sweptBefore()                                                       // not a new box: no first pass
+	e.sweptBefore()                                                         // not a new box: no first pass
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}

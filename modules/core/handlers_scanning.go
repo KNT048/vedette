@@ -535,8 +535,6 @@ func (h *ScanningHandlers) savedView(ctx context.Context, st Safety, adjusted []
 	return out
 }
 
-// ScanningPostScanningSafetyRanges implements POST /scanning/safety/ranges (admin): "+ New range" where the person is (#842). The
-// inventory adds the range in one transaction with the same rules, attestation, audit row (inventory.settings) and event as the PUT.
 // ScanningPostScanningSafetyEstimate implements POST /scanning/safety/estimate (viewer): the cost of one pass over a scope as typed,
 // before it is saved. Changes nothing.
 func (h *ScanningHandlers) ScanningPostScanningSafetyEstimate(ctx context.Context, req *oas.ScanningPostScanningSafetyEstimateReq) (*oas.ScanningPostScanningSafetyEstimateOK, error) {
@@ -551,6 +549,8 @@ func (h *ScanningHandlers) ScanningPostScanningSafetyEstimate(ctx context.Contex
 	return encode[oas.ScanningPostScanningSafetyEstimateOK](c)
 }
 
+// ScanningPostScanningSafetyRanges implements POST /scanning/safety/ranges (admin): "+ New range" where the person is (#842). The
+// inventory adds the range in one transaction with the same rules, attestation, audit row (inventory.settings) and event as the PUT.
 func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context, req *oas.ScanningPostScanningSafetyRangesReq) (*oas.ScanningPostScanningSafetyRangesOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {

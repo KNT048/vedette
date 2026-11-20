@@ -103,7 +103,7 @@ func (s *Service) runOf(self workFunc) func(ctx context.Context, x *run.Exec) (r
 			stop := context.AfterFunc(ctx, func() { cancel(context.Cause(ctx)) })
 			defer stop()
 			defer cancel(nil)
-			ctx = wctx
+			ctx = wctx //nolint:contextcheck // the caller's values, cancelled with the run's context by the AfterFunc above
 		}
 		res, err = work(context.WithValue(ctx, execKey{}, x), x)
 		if ctx.Err() != nil && err == nil && (res.Status == "" || res.Status == run.Done) {
@@ -241,19 +241,19 @@ func (s *Service) await(ctx context.Context, id string, startWithin time.Duratio
 }
 
 // doRun submits a run with its work and waits for it, as await does; the work's own error is returned when it ran.
-func (s *Service) doRun(ctx context.Context, spec run.Spec, work workFunc, startWithin time.Duration, busyReason string) (run.Run, error) {
+func (s *Service) doRun(ctx context.Context, spec run.Spec, work workFunc, startWithin time.Duration, busyReason string) error {
 	id, err := s.submit(ctx, spec, work, nil)
 	if err != nil {
-		return run.Run{}, err
+		return err
 	}
-	r, got, err := s.await(ctx, id, startWithin, busyReason, true)
+	_, got, err := s.await(ctx, id, startWithin, busyReason, true)
 	if err != nil {
-		return r, err
+		return err
 	}
 	if got != nil && got.err != nil {
-		return r, got.err
+		return got.err
 	}
-	return r, nil
+	return nil
 }
 
 // doWork runs fn as the work of a run made from spec and waits for it, as doRun does, and returns fn's own error (nil when it did
@@ -261,7 +261,7 @@ func (s *Service) doRun(ctx context.Context, spec run.Spec, work workFunc, start
 func (s *Service) doWork(ctx context.Context, spec run.Spec, fn func(ctx context.Context) error, result func(ctx context.Context, err error) run.Result,
 	startWithin time.Duration, busyReason string) error {
 	got := make(chan error, 1)
-	_, err := s.doRun(ctx, spec, func(ctx context.Context, _ *run.Exec) (run.Result, error) {
+	err := s.doRun(ctx, spec, func(ctx context.Context, _ *run.Exec) (run.Result, error) {
 		err := fn(ctx)
 		got <- err
 		return result(ctx, err), nil
@@ -339,17 +339,6 @@ func (s *Service) deviceLabel(ctx context.Context, id string) string {
 		return id
 	}
 	return label(a)
-}
-
-// item records a device or host a run touched; a failed write is logged, the work goes on.
-func (s *Service) item(ctx context.Context, it run.Item) {
-	x := execOf(ctx)
-	if x == nil {
-		return
-	}
-	if err := x.AddItem(context.WithoutCancel(ctx), it); err != nil && !errors.Is(err, run.ErrNotLive) {
-		s.log.WarnContext(ctx, "sensoractive: recording what a run touched failed", "run", x.ID(), "error", err)
-	}
 }
 
 // hostItem is the item of an address a sweep found: the device when the inventory has one there.

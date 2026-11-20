@@ -59,7 +59,7 @@ func TestSweepCutByTheWindowResumesWhereItStopped(t *testing.T) {
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("first window: err = %v, want ErrStopped", err)
 	}
-	e.setClock(local(10, 4, 59).Add(57*time.Second))
+	e.setClock(local(10, 4, 59).Add(57 * time.Second))
 	_, _ = e.svc.DiscoverRanges(e.ctx())
 	calls := e.nm.calls(t)
 	if len(calls) < 3 {

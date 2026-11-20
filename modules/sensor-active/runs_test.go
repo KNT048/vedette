@@ -96,8 +96,10 @@ func TestRunsARestartMidSweepGoesOnFromTheCursor(t *testing.T) {
 		t.Fatalf("before the restart: %+v", before)
 	}
 	again := newHeld()
-	e.withProber(again) // the process stops and a new one starts
-	<-errc
+	e.withProber(again)                                              // the process stops and a new one starts
+	if err := <-errc; err != nil && !errors.Is(err, sa.ErrStopped) { // the caller of the old process hears how its run went
+		t.Fatal(err)
+	}
 	waitFor(t, "the pass to end after the restart", func() bool {
 		r := sweepRuns(e)
 		return len(r) == 1 && r[0].Status == run.Done
@@ -152,7 +154,7 @@ func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 		t.Fatalf("the pass began at %s, want the /24 where a device was seen", first)
 	}
 	// the next window: the same run goes on from its cursor
-	e.setClock(local(10, 4, 59).Add(50*time.Second))
+	e.setClock(local(10, 4, 59).Add(50 * time.Second))
 	held2 := newHeld(2)
 	e.withProber(held2)
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {

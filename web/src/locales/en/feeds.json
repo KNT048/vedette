@@ -197,10 +197,6 @@
     "actions": "Actions"
   },
   "row": {
-    "every_one": "Every hour",
-    "every_other": "Every {{count}} hours",
-    "everyDays_other": "Every {{count}} days",
-    "everyWeek": "Every week",
     "never": "Never",
     "firstFetch": "Fetched at the next scheduled check (every 5 minutes), or now with Fetch now.",
     "answeredBy": "Newest list from {{source}}",

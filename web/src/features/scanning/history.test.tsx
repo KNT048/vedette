@@ -9,7 +9,7 @@ import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ScanRun } from '@/features/scan/types'
 
 // A user ran a vulnerability check and read its "0 matches" as "nothing ran"; their device checks were listed nowhere.
-// History says what each run found, in words, and lists every kind of run.
+// The runs say what each run found, in words, and list every kind of run.
 const T = { timeout: 5000 }
 const run = (over: Partial<ScanRun>): ScanRun => ({
   id: 'run-3sg', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:19:00.000Z',
@@ -45,11 +45,14 @@ describe('History says what each run found', () => {
     const res = await fetch(`${location.origin}/api/v1/scanning/engines/nmap-discovery/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: [device.id] }) })
     expect(res.status).toBe(202)
     renderApp('/settings/scanning')
-    await userEvent.click(await screen.findByRole('tab', { name: 'History' }, T))
-    const table = await screen.findByRole('table', { name: 'History of discovery runs and public scans' }, T)
+    await userEvent.click(await screen.findByRole('tab', { name: 'Runs' }, T))
+    const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
+    // the person's run, and the device check it made, each with its own page
+    expect(within(table).getByRole('link', { name: `Check ${device.ip}` })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
+    await userEvent.click(within(table).getAllByRole('link', { name: device.ip })[0]!)
     // what it found, never "see the device page"
     const found = device.services.length === 0 ? 'no open port' : `${device.services.length} open port`
-    expect(within(table).getByText((t) => t.startsWith(`Scanned ${device.ip}: ${found}`))).toBeInTheDocument()
-    expect(within(table).getAllByText('Device check, started by a person').length).toBeGreaterThan(0)
+    expect(await screen.findByText((t) => t.startsWith(`Scanned ${device.ip}: ${found}`), {}, T)).toBeInTheDocument()
+    expect(screen.getByText(/^Device check · /)).toBeInTheDocument()
   })
 })

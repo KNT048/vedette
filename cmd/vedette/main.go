@@ -386,7 +386,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
 	defer exposureService(d).Close() //nolint:contextcheck // INV-18: the run that runs ends with its audit row before the database closes; the shutdown outlives every request, so Close uses the Service's own context
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
-	defer scanService(d).Close()     // stop a live scan and wait for it before the database closes (scan review M4)
+	scanService(d)                   // builds the scan module's service, which registers its kind of run before the manager starts
 	// Runs: the ones a previous process left are recorded (stopped by the restart, the resumable queued again), then the queue
 	// starts. Closed before the module services above, so a run's work ends before the service it uses.
 	if err := d.Runs.Start(ctx); err != nil {

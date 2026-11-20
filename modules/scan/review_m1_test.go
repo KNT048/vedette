@@ -30,7 +30,7 @@ func TestReview_M1_PickIsPerDevice(t *testing.T) {
 	if len(r.eng.sent()) != 1 {
 		t.Fatalf("jobs: %+v", r.eng.sent())
 	}
-	if n := r.count(`SELECT count(*) FROM scan_run WHERE picked = '["a-nas02"]'`); n != 1 {
-		t.Fatalf("picked ids stored: %d", n)
+	if n := r.count(`SELECT count(*) FROM core_audit WHERE action = 'scan.pick' AND target = 'a-nas02'`); n != 1 || r.count(`SELECT count(*) FROM core_audit WHERE action = 'scan.pick'`) != 1 {
+		t.Fatalf("picks audited: %d", n)
 	}
 }

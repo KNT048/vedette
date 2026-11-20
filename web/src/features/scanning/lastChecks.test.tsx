@@ -35,7 +35,7 @@ describe('the device page says what each check does and when each last ran', () 
     expect(vuln).toHaveAccessibleDescription(/exploited flaws this device may have.*patches nothing\. Usually 5 to 15 minutes\./)
   })
 
-  it('Last checks: each kind with when, the History sentence and a link; the vulnerability check counts only this device', async () => {
+  it('Last checks: each kind with when, the outcome sentence and a link to its run; the vulnerability check counts only this device', async () => {
     // #965: the device's runs come by ?asset=, so a run older than the newest 100 of the LAN is still found
     server.use(http.get('*/api/v1/scans/runs', ({ request }) => new URL(request.url).searchParams.get('asset') === 'a-nas02'
       ? HttpResponse.json({ engine_busy: false, items: [run({ total: 2, results: [result('a-nas02', 'CVE-2026-1001'), result('a-other', 'CVE-2026-1002'), result('a-other', 'CVE-2026-1003')] })] })
@@ -46,7 +46,7 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(ident).getByText('Done')).toBeInTheDocument()
     const vuln = screen.getByRole('group', { name: VULN })
     expect(within(vuln).getByText('Checked 1 CVE: 1 no check exists (still suspected)')).toBeInTheDocument()
-    expect(within(vuln).getByRole('link', { name: 'See it in History' })).toHaveAttribute('href', '/settings/scanning?tab=history&run=run-nas')
+    expect(within(vuln).getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', '/runs/run-nas')
     // an SNMP read asked its address, but SNMP is not set up on it: that read is not its own, so its SNMP card and this row agree
     const snmp = screen.getByRole('group', { name: SNMP })
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
@@ -59,7 +59,7 @@ describe('the device page says what each check does and when each last ran', () 
     const snmp = await screen.findByRole('group', { name: SNMP }, T)
     expect(await within(snmp).findByText('2 of 3 devices answered over SNMP', {}, T)).toBeInTheDocument()
     expect(within(snmp).getByText('Partly done')).toBeInTheDocument()
-    expect(within(snmp).getByRole('link', { name: 'See it in History' })).toHaveAttribute('href', '/settings/scanning?tab=history&asset=a-fw01&job=saj-h3')
+    expect(within(snmp).getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', '/runs/saj-h3')
   })
 
   it('a kind that never ran says "Never" and what runs it; the checks module off says so', async () => {
@@ -72,7 +72,7 @@ describe('the device page says what each check does and when each last ran', () 
     expect(screen.getAllByRole('button', { name: 'Run vulnerability checks now' }).length).toBeGreaterThan(0)
     expect(within(ident).getByText('Never')).toBeInTheDocument()
     expect(within(ident).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
-    expect(within(ident).queryByRole('link', { name: 'See it in History' })).toBeNull()
+    expect(within(ident).queryByRole('link', { name: 'Open the run' })).toBeNull()
     expect(within(screen.getByRole('group', { name: VULN })).getByText(/Run vulnerability checks now” above runs it/)).toBeInTheDocument()
     const snmp = screen.getByRole('group', { name: SNMP })
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
@@ -97,24 +97,26 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(vuln).getByRole('link', { name: 'Turn them on: Settings, Scanning, Engines' })).toBeInTheDocument()
   })
 
-  it('a failed device check says Failed and why, and its link opens that run on top of the device\'s History', async () => {
+  it('a failed device check says Failed and why; its link opens that run\'s page, and "All runs of this device" lists its runs', async () => {
     historyStore.set([{ id: 'saj-fail', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: new Date().toISOString(), ended_at: new Date().toISOString(), outcome: 'failed', text: 'Failed: nmap gave up.' }, ...historyStore.get()])
     markReached('saj-fail', ['192.168.10.21'])
-    renderApp('/devices/a-nas02')
+    const view = renderApp('/devices/a-nas02')
     const ident = await screen.findByRole('group', { name: IDENT }, T)
     expect(within(ident).getByText('Failed')).toBeInTheDocument()
     expect(within(ident).getByText('Failed: nmap gave up.')).toBeInTheDocument()
-    const link = within(ident).getByRole('link', { name: 'See it in History' })
-    expect(link).toHaveAttribute('href', '/settings/scanning?tab=history&asset=a-nas02&job=saj-fail')
+    expect(screen.getByRole('link', { name: 'All runs of this device' })).toHaveAttribute('href', '/settings/scanning?tab=runs&runs.device=a-nas02')
+    const link = within(ident).getByRole('link', { name: 'Open the run' })
+    expect(link).toHaveAttribute('href', '/runs/saj-fail')
     await userEvent.click(link)
-    const opened = await screen.findByRole('region', { name: 'The run you opened' }, T)
-    expect(within(opened).getByText('Failed: nmap gave up.')).toBeInTheDocument()
-    expect(screen.getByText('Only this device’s runs: its device checks and, while SNMP is set up on it, the SNMP reads of its read address.')).toBeInTheDocument()
-    // only this device's runs: its two checks, never the sweep, never an SNMP read of a device without SNMP set up
-    const table = await screen.findByRole('table', { name: 'History of discovery runs and public scans' }, T)
-    expect(within(table).queryByText(/Swept 254 addresses/)).toBeNull()
-    expect(within(table).queryByText('2 of 3 devices answered over SNMP')).toBeNull()
-    expect(within(table).getByText(/^Scanned 192\.168\.10\.21: 3 open ports/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '192.168.10.21' }, T)).toBeInTheDocument()
+    expect(screen.getAllByText('Failed: nmap gave up.').length).toBeGreaterThan(0)
+    view.unmount()
+    // the device's runs: those about it (its checks), never another device's
+    renderApp('/settings/scanning?tab=runs&runs.device=a-nas02')
+    const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
+    expect(within(table).getByRole('link', { name: 'Check NAS-PHOTOS' })).toHaveAttribute('href', '/runs/run-m2')
+    expect(within(table).queryByRole('link', { name: 'Check WEB01' })).toBeNull()
+    expect(screen.getByText('Only the runs of NAS-PHOTOS.')).toBeInTheDocument()
   })
 
   // #965: a read that failed or has not answered is never shown as "Never"

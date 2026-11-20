@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
@@ -98,7 +99,7 @@ type pendingEvent struct {
 // open finding for the CVE that may be scanned without a pick → no_match; otherwise one new_kev run with only that
 // CVE's templates, outside the time window; when the run has ended → matched or clear.
 func (s *Service) RunRescans(ctx context.Context) error {
-	if err := s.reapOrphan(ctx); err != nil {
+	if err := s.closeOrphanProbes(ctx); err != nil {
 		return err
 	}
 	// The entries announced while scan was off or down are queued first (S4b); feeds unreadable does not hold up
@@ -204,7 +205,7 @@ func (s *Service) startRescan(ctx context.Context, batch []readyEvent) error {
 	return nil
 }
 
-// rescanNote is the trigger note of a rescan run: its CVEs, as many as fit the 300 characters of the column.
+// rescanNote is the trigger note of a rescan run: its CVEs, as many as fit the 200 characters core/run keeps of a trigger note.
 func rescanNote(cves []string) string {
 	if len(cves) == 1 {
 		return "New KEV entry with a scan template: " + cves[0]
@@ -212,7 +213,7 @@ func rescanNote(cves []string) string {
 	note := "New KEV entries with a scan template: " + cves[0]
 	for i, c := range cves[1:] {
 		more := fmt.Sprintf(" and %d more", len(cves)-1-i)
-		if len(note)+2+len(c)+len(more) > 300 {
+		if len(note)+2+len(c)+len(more) > 200 {
 			return note + more
 		}
 		note += ", " + c
@@ -306,8 +307,8 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 	// Wait first, before reading every finding and device (#164 review L1): try again at the next tick, still inside
 	// the 60 minutes, or when the scanner is back; a scanner that never comes back drops the event like a template
 	// that never comes (#164 review L3).
-	if s.liveRun() != "" {
-		return nil, nil
+	if busy, err := s.activeRun(ctx, s.cfg.DB.Reader()); err != nil || busy != "" {
+		return nil, err
 	}
 	if !s.scannerReady(ctx) {
 		if expired {
@@ -480,7 +481,10 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return s.missSlot(ctx, *slot, !saved.Valid || saved.String < store.FormatTS(*slot))
 	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
-	if err != nil || sc.ConfirmedAt == "" || s.liveRun() != "" || !s.scannerReady(ctx) {
+	if err != nil || sc.ConfirmedAt == "" {
+		return err
+	}
+	if busy, err := s.activeRun(ctx, s.cfg.DB.Reader()); err != nil || busy != "" || !s.scannerReady(ctx) {
 		return err
 	}
 	if c, err := time.Parse(time.RFC3339Nano, sc.ConfirmedAt); extra && (err != nil || !c.Before(*slot)) {
@@ -523,12 +527,12 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 
 // firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started.
 // sched_last cannot say it: a weekday slot that was missed or had nothing to scan is recorded without a run, and on a box that
-// was off or empty that first Sunday the first-run rule never applied. Run rows are never deleted, so the answer does not go back.
+// was off or empty that first Sunday the first-run rule never applied. A run is kept 400 days, so the answer does not go back on a box whose schedule runs at least yearly.
 func firstPending(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }) (bool, error) {
 	var ran bool
-	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM scan_run WHERE trigger = 'schedule')`).Scan(&ran); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM core_run WHERE module = 'scan' AND kind = 'vuln_check' AND trigger = 'schedule')`).Scan(&ran); err != nil {
 		return false, fmt.Errorf("scan: reading the scheduled runs: %w", err)
 	}
 	return !ran, nil
@@ -625,40 +629,33 @@ WHERE result IS NOT NULL ORDER BY ts DESC LIMIT 1000`)
 	return out, st.AutoRescan, rows.Err()
 }
 
-// RecoverEvery is how often the recover job looks for a run a restart left live. core/jobs runs a job as soon as its
-// module is on, so after a restart the run is closed at once; later passes are cheap.
+// RecoverEvery is how often the recover job looks for probe rows of a run that is no longer live. core/run records the run itself
+// at every start; core/jobs runs a job as soon as its module is on, so after a restart the log is closed at once.
 const RecoverEvery = 10 * time.Minute
 
-// RunRecover closes a run the database says is live while this process runs none (review M4): it shows stopped and
-// its open probe rows are closed (INV-7).
-func (s *Service) RunRecover(ctx context.Context) error { return s.reapOrphan(ctx) }
-
-// Close stops the live run and waits for it to end, at most the time a stopped run needs (review M4). Called when
-// Vedette shuts down; the run ends as stopped with the reason.
-func (s *Service) Close() {
-	s.closing.Store(true)
-	s.mu.Lock()
-	l := s.live
-	s.mu.Unlock()
-	if l == nil {
-		return
-	}
-	l.cancel()
-	select {
-	case <-l.done:
-	case <-time.After(stopGrace + finishTimeout):
-		s.cfg.Log.Error("scan: the live run did not stop at shutdown", "run", l.id)
-	}
+// RunRecover closes the probe rows of a run that a restart cut (review M4, INV-7): they show stopped.
+func (s *Service) RunRecover(ctx context.Context) error {
+	s.forgetPending(ctx)
+	return s.closeOrphanProbes(ctx)
 }
 
-// stopReason is why a run ended before its last device: Vedette shut down, the window of a scheduled run closed, or a
-// person pressed Stop now.
-func (s *Service) stopReason(ctx context.Context) string {
-	switch {
-	case s.closing.Load():
-		return stopShutdown
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return noteWindowEnded
+// forgetPending drops what a run that ended while it was queued (a stop, its module turned off) was started with.
+func (s *Service) forgetPending(ctx context.Context) {
+	s.mu.Lock()
+	ids := make([]string, 0, len(s.pending))
+	for id := range s.pending {
+		ids = append(ids, id)
 	}
-	return stopNow
+	s.mu.Unlock()
+	for _, id := range ids {
+		var st string
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT status FROM core_run WHERE id = ?`, id).Scan(&st); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return
+		} else if err == nil && !run.Status(st).Ended() {
+			continue
+		}
+		s.mu.Lock()
+		delete(s.pending, id)
+		s.mu.Unlock()
+	}
 }

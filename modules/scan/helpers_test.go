@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/core/store"
@@ -37,6 +39,43 @@ type fakeInventory struct {
 	mu    sync.Mutex
 	scope Scope
 	err   error
+	// the shared window, check rate and exclusions, the inventory's (INV-16): what SaveChecks stored, what it was given, and
+	// whether each transaction settled committed
+	checks  Checks
+	saved   []Checks
+	settled []bool
+	refuse  error
+}
+
+// defaultChecks are the shared values of a fresh box: every day 22:00 to 05:00, 5 requests per second, nothing excluded.
+func defaultChecks() Checks {
+	return Checks{Window: Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00"}, Rate: 5, Exclusions: []string{}}
+}
+
+func (f *fakeInventory) Checks(context.Context) (Checks, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.checks, nil
+}
+
+func (f *fakeInventory) SaveChecks(_ context.Context, tx *sql.Tx, _ string, c Checks) error {
+	if tx == nil {
+		return errors.New("no transaction")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.refuse != nil {
+		return f.refuse
+	}
+	f.saved = append(f.saved, c)
+	f.checks = c
+	return nil
+}
+
+func (f *fakeInventory) Settle(_ context.Context, _ *sql.Tx, committed bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.settled = append(f.settled, committed)
 }
 
 func (f *fakeInventory) Scope(context.Context) (Scope, error) {
@@ -84,6 +123,7 @@ type env struct {
 	t      *testing.T
 	db     *store.DB
 	svc    *Service
+	runs   *run.Manager
 	clock  *fakeClock
 	inv    *fakeInventory
 	engine *fakeEngine
@@ -103,13 +143,38 @@ func newDB(t *testing.T) *store.DB {
 // newEnv builds a service whose scope is confirmed and whose scanner is ready; tests change either.
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	e := &env{t: t, db: newDB(t), clock: &fakeClock{now: t0}, inv: &fakeInventory{scope: confirmedScope()}, engine: &fakeEngine{}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Pack: testPack(t), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
+	e := &env{t: t, db: newDB(t), clock: &fakeClock{now: t0}, inv: &fakeInventory{scope: confirmedScope(), checks: defaultChecks()}, engine: &fakeEngine{}}
+	svc, err := e.rebuild(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Engine: e.engine, Pack: testPack(t), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.svc = svc
 	return e
+}
+
+// rebuild is NewService over a run manager of its own, started: a kind is registered once per manager, and the manager runs the
+// kind of the service it was built for, so a test that changes the configuration builds the service again with a new manager and
+// the old one ends first.
+func (e *env) rebuild(cfg Config) (*Service, error) {
+	e.t.Helper()
+	if e.runs != nil {
+		e.runs.Close()
+	}
+	m, err := run.New(run.Config{DB: e.db, Audit: cfg.Audit, Clock: e.clock.Now, Log: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		return nil, err
+	}
+	cfg.Runs = m
+	svc, err := NewService(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.Start(e.t.Context()); err != nil {
+		return nil, err
+	}
+	e.t.Cleanup(m.Close)
+	e.runs = m
+	return svc, nil
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -208,4 +273,24 @@ func errOf(b map[string]any) (code, msg string) {
 	code, _ = m["code"].(string)
 	msg, _ = m["message"].(string)
 	return code, msg
+}
+
+// seedRun stores a vulnerability check as an earlier process left it: in status st (an end time when it has ended), started at
+// the given time, with one result row (a device item) per id.
+func seedRun(ctx context.Context, tx *sql.Tx, id, trigger, st, at string, ids ...string) error {
+	var ended any
+	if st != "running" && st != "stopping" && st != "queued" {
+		ended = at
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, total, done, queued_at, started_at, ended_at, updated_at)
+VALUES (?1, 'scan', 'vuln_check', 'nuclei', 'Vulnerability check', ?2, 'x', ?3, ?4, 0, ?5, ?5, ?6, ?5)`, id, trigger, st, len(ids), at, ended); err != nil {
+		return err
+	}
+	for i, d := range ids {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome, note) VALUES (?, ?, 'device', ?, ?, 'not_matched', 'x')`,
+			id, i+1, d, itemLabel(d, "192.0.2.1")); err != nil {
+			return err
+		}
+	}
+	return nil
 }

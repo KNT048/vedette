@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { hostOf, useFeedSources, useFetchFeed, usePatchFeed } from './api'
-import { everyLabel } from './defaults'
+import { ScheduleTextOf } from '@/components/schedule/ScheduleEditor'
 import { BuiltinDialog, CustomDialog, DeleteDialog } from './FeedDialogs'
 import type { Feed } from './types'
 
@@ -105,7 +105,7 @@ function Tables({ items }: { items: Feed[] }) {
   type R = { row: { original: Feed } }
   const common = {
     on: { id: 'on', header: t('col.on'), enableSorting: false, accessorKey: 'enabled', cell: ({ row }: R) => toggle(row.original) },
-    schedule: { id: 'schedule', header: t('col.schedule'), accessorKey: 'interval_hours', cell: ({ row }: R) => <span className="whitespace-nowrap">{everyLabel(t, row.original.interval_hours)}</span> },
+    schedule: { id: 'schedule', header: t('col.schedule'), enableSorting: false, cell: ({ row }: R) => <ScheduleTextOf ownerKey={`feeds.source:${row.original.id}`} /> },
     last: { id: 'last', header: t('col.last'), accessorKey: 'last_fetch', cell: ({ row }: R) => last(row.original) },
     records: { id: 'records', header: t('col.records'), accessorKey: 'records', cell: ({ row }: R) => (row.original.records === null ? <span className="text-muted">-</span> : fmtNumber(row.original.records)) },
     status: { id: 'status', header: t('col.status'), accessorKey: 'status', cell: ({ row }: R) => status(row.original) },
@@ -116,7 +116,7 @@ function Tables({ items }: { items: Feed[] }) {
   const mobile = (f: Feed, actions: React.ReactNode) => (
     <div className="grid gap-1.5 text-sm">
       <p className="flex flex-wrap items-center gap-3 font-medium">{f.name} {toggle(f)}</p>
-      <p className="text-muted">{t(`kind.${f.kind}`)}, {everyLabel(t, f.interval_hours)}, {f.last_fetch ? fmtRelative(f.last_fetch) : t('row.never')}, {f.records === null ? '-' : t('row.records', { count: f.records, n: fmtNumber(f.records) })}</p>
+      <p className="text-muted">{t(`kind.${f.kind}`)}, <ScheduleTextOf ownerKey={`feeds.source:${f.id}`} />, {f.last_fetch ? fmtRelative(f.last_fetch) : t('row.never')}, {f.records === null ? '-' : t('row.records', { count: f.records, n: fmtNumber(f.records) })}</p>
       {status(f)}
       <span className="flex flex-wrap gap-2">{actions}</span>
     </div>

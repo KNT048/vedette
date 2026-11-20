@@ -72,7 +72,7 @@ func TestReview4_L4_TheEventAndItsRunCommitTogether(t *testing.T) {
 	r.advance(2 * time.Minute)
 	_ = r.svc.RunRescans(r.ctx())
 	r.wait()
-	if n := r.count(`SELECT count(*) FROM scan_run`); n != 0 {
+	if n := r.count(`SELECT count(*) FROM core_run`); n != 0 {
 		t.Fatalf("%d rescan runs although the event could not be linked to one", n)
 	}
 }

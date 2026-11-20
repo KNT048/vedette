@@ -14,7 +14,7 @@ func TestReview4_H1_TheScheduleIsInTheOrgZone(t *testing.T) {
 	ict := time.FixedZone("ICT", 7*3600)
 	cfg := r.svc.cfg
 	cfg.Location = func(context.Context) *time.Location { return ict }
-	svc, err := NewService(cfg)
+	svc, err := r.rebuild(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,14 +33,14 @@ func TestReview4_H1_TheScheduleIsInTheOrgZone(t *testing.T) {
 	}
 	// no zone wired: UTC, not the machine's zone; a wired zone that answers nil is unknown (review4_zone_test.go)
 	cfg.Location = nil
-	if svc, err = NewService(cfg); err != nil {
+	if svc, err = r.rebuild(cfg); err != nil {
 		t.Fatal(err)
 	}
 	if l, ok := svc.loc(t.Context()); !ok || l != time.UTC {
 		t.Fatalf("no zone wired: %v %v", l, ok)
 	}
 	cfg.Location = func(context.Context) *time.Location { return nil }
-	if svc, err = NewService(cfg); err != nil {
+	if svc, err = r.rebuild(cfg); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := svc.loc(t.Context()); ok {

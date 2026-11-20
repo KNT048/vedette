@@ -32,8 +32,12 @@ function useRunEndToast(on: boolean) {
     liveId.current = null
     const r = list?.find((x) => x.id === prev)
     if (!r) return
-    if (r.status === 'stopped') toast.success(t('toast.stopped', { done: r.done, total: r.total }))
-    else if (r.status === 'auto_stopped') toast.warning(t('toast.autoStopped'))
+    const reason = (r.stop_reason ?? '').replace(/\.$/, '')
+    if (r.status === 'stopped' || r.status === 'auto_stopped') {
+      const text = t(reason ? 'toast.endedEarly' : 'toast.endedEarlyNoReason', { done: r.done, total: r.total, reason })
+      if (r.stop_reason?.startsWith('You pressed Stop')) toast.success(text)
+      else toast.warning(text)
+    }
     else toast.success(t('toast.done', { count: r.matched }))
   }, [live, list, t])
 }

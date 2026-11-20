@@ -19,13 +19,6 @@ func TestMigrations_ConstraintsHold(t *testing.T) {
 	e := newEnv(t)
 	for name, q := range map[string]string{
 		"second row":       `INSERT INTO scan_setting (id) VALUES (2)`,
-		"rate 0":           `UPDATE scan_setting SET rate = 0`,
-		"rate 21":          `UPDATE scan_setting SET rate = 21`,
-		"no day":           `UPDATE scan_setting SET days = '[]'`,
-		"days not array":   `UPDATE scan_setting SET days = '{}'`,
-		"from 24:00":       `UPDATE scan_setting SET win_from = '24:00'`,
-		"to 7:00":          `UPDATE scan_setting SET win_to = '7:00'`,
-		"201 exclusions":   `UPDATE scan_setting SET exclusions = (SELECT json_group_array('10.0.0.1') FROM (WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 201) SELECT i FROM n))`,
 		"unresponsive 1":   `UPDATE scan_setting SET unresponsive_after = 1`,
 		"frequency hourly": `UPDATE scan_setting SET sched_frequency = 'hourly'`,
 		"weekday 0":        `UPDATE scan_setting SET sched_weekday = 0`,
@@ -70,7 +63,7 @@ func TestHandlers_RolesAndModuleGate(t *testing.T) {
 		}
 	}
 	e.gate.Set(ModuleID, true)
-	if e.count(`SELECT rate FROM scan_setting`) != 5 {
+	if e.count(`SELECT unresponsive_after FROM scan_setting`) != 3 {
 		t.Fatal("a request to a module that is off changed data")
 	}
 }

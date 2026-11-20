@@ -51,7 +51,7 @@ func newCatchUpEnv(t *testing.T, feed *fakeKEVFeed) *runEnv {
 	r := newRunEnv(t)
 	cfg := r.svc.cfg
 	cfg.KEV = feed
-	svc, err := NewService(cfg)
+	svc, err := r.rebuild(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestContract_INV9_ABacklogIsScannedInOneRun(t *testing.T) {
 	r.findings.mu.Unlock()
 	r.eng.reply = lines("CVE-2024-3400")
 	r.tick()
-	if n := r.count(`SELECT count(*) FROM scan_run`); n != 1 {
+	if n := r.count(`SELECT count(*) FROM core_run`); n != 1 {
 		t.Fatalf("%d runs for a backlog of two entries, want one", n)
 	}
 	if r.count(`SELECT count(DISTINCT run_id) FROM scan_event`) != 1 || r.count(`SELECT count(*) FROM scan_event WHERE run_id IS NULL`) != 0 {
@@ -166,7 +166,7 @@ func TestContract_INV9_ABacklogIsScannedInOneRun(t *testing.T) {
 		t.Fatalf("jobs: %+v", jobs)
 	}
 	var note string
-	if err := r.db.Reader().QueryRowContext(r.ctx(), `SELECT trigger_note FROM scan_run`).Scan(&note); err != nil {
+	if err := r.db.Reader().QueryRowContext(r.ctx(), `SELECT trigger_note FROM core_run`).Scan(&note); err != nil {
 		t.Fatal(err)
 	}
 	if note != "New KEV entries with a scan template: CVE-2024-3400, CVE-2023-46805" {
@@ -193,7 +193,7 @@ func TestCatchUp_AFeedErrorDoesNotStopTheQueue(t *testing.T) {
 	}
 	r.advance(2 * time.Minute)
 	r.tick()
-	if n := r.count(`SELECT count(*) FROM scan_run`); n != 1 || len(feed.asked()) != 1 {
+	if n := r.count(`SELECT count(*) FROM core_run`); n != 1 || len(feed.asked()) != 1 {
 		t.Fatalf("%d runs, %d asks", n, len(feed.asked()))
 	}
 }

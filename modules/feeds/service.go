@@ -106,6 +106,9 @@ type Deps struct {
 	// Pins lists the CVEs an open finding references: the catalogue keeps them whatever their age (the retention rule). nil: none.
 	// They are only kept, never asked of a source by id.
 	Pins func(ctx context.Context) ([]string, error)
+	// DataDir is where the module keeps work files (the CVE Program's daily archive while it downloads); "": the system's
+	// temporary folder.
+	DataDir string
 	// Alert sends a notice to the admins through notify (the CISA list cannot be updated, critical; it is up to date again, not
 	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
 	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).

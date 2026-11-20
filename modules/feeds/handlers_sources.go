@@ -123,9 +123,6 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if err := purgeLoaded(ctx, tx, cur.ID); err != nil { // the data of a BYOK feed is the customer's licence: off means gone
 				return err
 			}
-			if err := pruneOrphanRanges(ctx, tx); err != nil {
-				return err
-			}
 			if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = NULL, last_success = NULL, records = NULL, status = 'never', error = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, cur.ID); err != nil {
 				return fmt.Errorf("feeds: reset BYOK feed: %w", err)
 			}

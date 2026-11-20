@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
-import { FindingStatusChip } from './AcceptRisk'
+import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { useFindingAgentGone } from './agentNow'
@@ -25,8 +25,7 @@ import { errMsg } from './errors'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
-import { RiskChip } from './Risk'
-import { CvssScore } from './Cvss'
+import { SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
@@ -190,7 +189,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <FindingStatusChip f={f} /><RiskChip f={f} /><CvssScore cvss={f.cvss} prefix />
+            <FindingStatus f={f} /><SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span className="inline-flex items-center gap-1">{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}<InfoTip topic={t('col.lastSeen')}>{t('matchedInfo')}</InfoTip></span>

@@ -5,8 +5,7 @@
 // colour only; it links to the device's To fix.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ArrowUpCircle, ShieldAlert } from 'lucide-react'
-import { Chip } from '@/components/common/StatusChip'
+import { StatusBadge } from '@/components/common/status'
 import { cn } from '@/lib/utils'
 import type { DeviceRisk } from './types'
 
@@ -20,10 +19,7 @@ export function RiskMarker({ id, risk, className }: { id: string; risk: DeviceRi
   return (
     <Link to={to} aria-label={aria} title={aria} data-risk={risk.level} onClick={(e) => e.stopPropagation()}
       className={cn('inline-flex shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', className)}>
-      <Chip tone={exploited ? 'danger' : 'warn'}>
-        {exploited ? <ShieldAlert aria-hidden className="size-3.5" /> : <ArrowUpCircle aria-hidden className="size-3.5" />}
-        {riskWord(t, risk)}
-      </Chip>
+      <StatusBadge code={exploited ? 'exploited' : 'update_recommended'} count={exploited ? risk.exploited : risk.updates} />
     </Link>
   )
 }
@@ -31,7 +27,7 @@ export function RiskMarker({ id, risk, className }: { id: string; risk: DeviceRi
 type T = ReturnType<typeof useTranslation>['t']
 /** The marker's short text: "2 exploited", "Update recommended"; '' when clean (for a <select> option: append it). */
 export const riskWord = (t: T, risk: DeviceRisk | null | undefined) =>
-  !risk ? '' : risk.level === 'exploited' ? t('inventory:risk.exploited', { count: risk.exploited }) : t('inventory:risk.update')
+  !risk ? '' : risk.level === 'exploited' ? t('common:deviceStatus.exploited', { count: risk.exploited }) : t('common:deviceStatus.update_recommended', { count: risk.updates })
 /** What the marker says to a screen reader and on hover, and where it leads. */
 export const riskDescription = (t: T, risk: DeviceRisk) =>
   risk.level === 'exploited' ? t('inventory:risk.exploitedAria', { count: risk.exploited }) : t('inventory:risk.updateAria', { count: risk.updates })

@@ -5,6 +5,7 @@ import { Globe } from 'lucide-react'
 import { Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { CveList } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -96,7 +97,7 @@ export function Answer({ v }: { v: OutsideView }) {
             <h3 className="text-sm font-medium">{t('outside.vulnsTitle', { count: v.vulns.length })}</h3>
             <InfoTip topic={t('outside.vulnsTitle', { count: v.vulns.length })}>{t('outside.vulnsNote')}</InfoTip>
           </div>
-          <ul className="grid gap-0.5 text-sm">{v.vulns.map((c) => <li key={c}>{t('outside.vuln', { cve: c })}</li>)}</ul>
+          <CveList items={v.vulns.map((cve) => ({ cve }))} label={t('outside.vulnsTitle', { count: v.vulns.length })} />
         </Panel>
       ) : null}
     </div>

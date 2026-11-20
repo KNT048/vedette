@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { KeyValue, Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { CveList, SeverityBadge, bandOf } from '@/components/common/status'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { BusyNote } from '@/components/common/BusyNote'
@@ -169,14 +170,14 @@ export function GreenboneSection({ s, again }: { s: Snapshot; again?: Target }) 
   const stopped = stopText(t, run)
   const cols: ColumnDef<GreenboneResult>[] = [
     { id: 'severity', header: t('greenbone.col.severity'), accessorFn: (r) => r.severity, cell: ({ row }) => {
-      const v = row.original.severity
-      return <Chip tone={v >= 7 ? 'danger' : v >= 4 ? 'warn' : 'off'}>{t(v >= 7 ? 'greenbone.sev.high' : v >= 4 ? 'greenbone.sev.medium' : 'greenbone.sev.low', { score: v.toFixed(1) })}</Chip>
+      const v = row.original.severity // OpenVAS's severity is a CVSS base score
+      return <SeverityBadge severity={{ band: bandOf(v), score: v }} />
     } },
     { id: 'name', header: t('greenbone.col.name'), accessorFn: (r) => r.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { id: 'port', header: t('greenbone.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port || t('common:unknown')}</span> },
     { id: 'qod', header: t('greenbone.col.qod'), accessorFn: (r) => r.qod, cell: ({ row }) => <span className="tabular-nums">{row.original.qod}%</span> },
     { id: 'cves', header: t('greenbone.col.cves'), enableSorting: false, accessorFn: (r) => r.cves.join(' '), cell: ({ row }) => (
-      row.original.cves.length > 0 ? <span className="grid gap-0.5 text-caption">{row.original.cves.map((c) => <span key={c}>{c}</span>)}</span> : <span className="text-caption text-muted">{t('greenbone.noCve')}</span>
+      row.original.cves.length > 0 ? <CveList rows items={row.original.cves.map((cve) => ({ cve }))} label={t('greenbone.col.cves')} /> : <span className="text-caption text-muted">{t('greenbone.noCve')}</span>
     ) },
     { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-meta">{row.original.solution}</span> },
   ]

@@ -801,6 +801,7 @@
     },
     "os": {
       "title": "Operating system of this box",
+      "cvesOf": "CVEs fixed by {{name}}",
       "desc": "This box keeps its own operating system patched.",
       "info": "This box is a security appliance, so it patches its own operating system. Ubuntu and Debian are supported.",
       "distro": "Distribution",

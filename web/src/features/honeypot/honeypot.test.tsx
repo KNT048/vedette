@@ -235,7 +235,7 @@ describe('honeypot: hit detail', () => {
 
   it('an unapproved unknown device is labelled', async () => {
     renderApp('/honeypot/hits/hit-seed-2')
-    expect(await screen.findByText('Not approved')).toBeInTheDocument()
+    expect(await screen.findByText('Not added yet')).toBeInTheDocument()
   })
 
   it('a missing hit is reported with a way back', async () => {

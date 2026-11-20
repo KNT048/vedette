@@ -1,13 +1,10 @@
 // "Accept risk until…" (S-MIT-1): a risk is accepted until a day, never for good; the finding reopens by itself after it.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { Field, Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDate } from '@/lib/format'
 import { dayAfter, untilBounds } from './accept'
-import type { FindingRow } from './types'
-import { InfoTip } from '@/components/common/InfoTip'
 
 const PRESETS = ['30', '90', '180'] as const
 
@@ -27,18 +24,4 @@ export function AcceptUntil({ id, value, onChange, error }: { id: string; value:
       </Field>
     </div>
   )
-}
-
-/**
- * The status chip of a finding; "Risk accepted" is the findings module's own closed status. An open finding whose version the
- * device's own agent reports is "Detected by the agent" (like Tenable's and Qualys's agents and Defender Vulnerability Management),
- * not "Suspected"; "Confirmed" stays what a safe scan template saw.
- */
-export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null; evidence?: { agent?: boolean } | null; agent?: boolean } }) {
-  const { t } = useTranslation('findings')
-  // A finding carries it in its evidence, a report row (weekly, PDPL) as agent.
-  // #824: the explanation is behind an ⓘ, not a hover-only title; no ⓘ on paper (weekly, PDPL print).
-  if (f.status === 'suspected' && (f.evidence?.agent || f.agent)) return <span className="inline-flex items-center gap-1"><Chip tone="warn">{t('agentChip')}</Chip><InfoTip topic={t('agentChip')} className="print:hidden">{t('agentChipHint')}</InfoTip></span>
-  if (f.status !== 'risk_accepted') return <StatusChip status={f.status} />
-  return <Chip tone="off" title={f.accepted_until ? t('accept.chipUntil', { date: fmtDate(f.accepted_until) }) : undefined}>{t('accept.chip')}</Chip>
 }

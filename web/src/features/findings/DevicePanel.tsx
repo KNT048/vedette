@@ -6,13 +6,13 @@ import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
-import { FindingStatusChip } from './AcceptRisk'
+import { FindingStatus, legacySeverity } from './legacyStatus'
 import { useFindings, usePlan, useToFix } from './api'
 import { DoneList } from './DoneList'
 import type { SoftwareView } from '@/features/inventory/types'
 import type { FindingRow, ToFixDevice } from './types'
 import { isOpen, riskRank } from './basis'
-import { RiskChip } from './Risk'
+import { SeverityBadge } from '@/components/common/status'
 import { IUpdated, type UpdatedSoftware } from './Updated'
 import { useDeviceSoftware } from './rematch'
 import { PlanDataState } from './Plan'
@@ -60,8 +60,8 @@ export function DevicePanel(props: Record<string, unknown>) {
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
                 <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
                 <span className="text-sm text-muted">{f.kev?.display ?? ''}</span>
-                <FindingStatusChip f={f} />
-                <RiskChip f={f} />
+                <FindingStatus f={f} />
+                <SeverityBadge severity={legacySeverity(f)} />
                 <span className="ml-auto text-caption text-muted" title={`${fmtDateTime(f.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(f.last_seen) })}</span>
                 <RowActions f={f} />
               </li>

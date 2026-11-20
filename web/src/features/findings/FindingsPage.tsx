@@ -14,15 +14,16 @@ import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select, Textarea } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { dayOf, fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { dayOf, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
+import { AcceptUntil } from './AcceptRisk'
+import { FindingStatus, legacySeverity } from './legacyStatus'
 import { untilOk } from './accept'
 import { useBulkStatus, useFindings, usePlan, useToFix } from './api'
 import { basisLabel, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
-import { RiskChip } from './Risk'
+import { SeverityBadge } from '@/components/common/status'
 import { NeedsInput } from './NeedsInput'
 import { ToFixTab, unproved } from './ToFix'
 import { useFixAction } from './fix'
@@ -100,13 +101,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
 
 /** The status, and for an accepted risk the day it ends. */
 function StatusCell({ r }: { r: FindingRow }) {
-  const { t } = useTranslation('findings')
-  return (
-    <span className="grid justify-items-start gap-0.5">
-      <FindingStatusChip f={r} />
-      {r.status === 'risk_accepted' && r.accepted_until ? <span className="whitespace-nowrap text-caption text-muted">{t('accept.rowUntil', { date: fmtDate(r.accepted_until) })}</span> : null}
-    </span>
-  )
+  return <FindingStatus f={r} />
 }
 
 function List() {
@@ -192,7 +187,7 @@ function List() {
     { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusCell r={r} /> },
     // #825: the CVSS score sits under the exploited risk, never instead of it, in the same cell (no extra column: the table fits 1280 px as before)
     { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => (
-      <RiskChip f={r} />
+      <SeverityBadge severity={legacySeverity(r)} />
     ) },
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
@@ -277,7 +272,7 @@ function List() {
                   <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
                   <NotAddedChip asset={r.asset} />
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
-                    <RiskChip f={r} />
+                    <SeverityBadge severity={legacySeverity(r)} />
                     <span>{t(basisLabel(r))}</span>
                     <span className="text-muted" title={`${fmtDateTime(r.last_seen)}. ${t('matchedInfo')}`}>{t('matched', { time: fmtRelative(r.last_seen) })}</span>
                   </div>

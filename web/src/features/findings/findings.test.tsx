@@ -14,8 +14,7 @@ import { feature } from './index'
 import { accepted, fixes } from './mocks'
 import { AiOutput, FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
-import { cvssBand } from './basis'
-import { CvssScore } from './Cvss'
+import { SeverityBadge, bandOf as cvssBand, fromCvss } from '@/components/common/status'
 import type { FindingDetail } from './types'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
@@ -522,10 +521,10 @@ describe('findings: CVSS score (#825)', () => {
   })
 
   it('a CVSS 2.0 score (only score NVD has) shows its v2 band and says "2.0" behind the ⓘ', async () => {
-    render(<MemoryRouter><CvssScore cvss={{ score: 9.3, version: '2.0', source: 'nvd', vector: 'AV:N/AC:M/Au:N/C:C/I:C/A:C' }} prefix /></MemoryRouter>)
-    await userEvent.click(screen.getByRole('button', { name: 'About CVSS 9.3 High' }))
-    const tip = await screen.findByRole('dialog', { name: 'About CVSS 9.3 High' })
-    expect(tip).toHaveTextContent('CVSS 2.0 base score. Source: NVD.')
+    render(<MemoryRouter><SeverityBadge severity={fromCvss({ score: 9.3, version: '2.0', vector: 'AV:N/AC:M/Au:N/C:C/I:C/A:C' })} detail /></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: 'About High 9.3' }))
+    const tip = await screen.findByRole('dialog', { name: 'About High 9.3' })
+    expect(tip).toHaveTextContent('CVSS 2.0 base score 9.3')
     expect(tip).toHaveTextContent('AV:N/AC:M/Au:N/C:C/I:C/A:C')
   })
 
@@ -564,31 +563,32 @@ describe('findings: CVSS score (#825)', () => {
     }
   })
 
-  it('the finding page shows "CVSS 9.8 Critical" in its first line, with the version and source behind the ⓘ; no score says so', async () => {
+  it('the finding page shows "Critical 9.8" in its first line, with the version and vector behind the ⓘ; no score says so', async () => {
     renderApp('/findings/f-1')
-    const about = await screen.findByRole('button', { name: 'About CVSS 9.8 Critical' })
+    const about = await screen.findByRole('button', { name: 'About Critical 9.8' })
     await userEvent.click(about)
-    const tip = await screen.findByRole('dialog', { name: 'About CVSS 9.8 Critical' })
-    expect(tip).toHaveTextContent('CVSS 3.1 base score. Source: NVD.')
+    const tip = await screen.findByRole('dialog', { name: 'About Critical 9.8' })
+    expect(tip).toHaveTextContent('CVSS 3.1 base score 9.8')
     // FIRST's terms of use: the vector with the score, and the attribution
     expect(tip).toHaveTextContent('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')
     expect(tip).toHaveTextContent('CVSS is owned by FIRST and used by permission.')
     await expectNoA11yViolations()
     cleanup()
     renderApp('/findings/f-3')
-    expect(await screen.findByText('No CVSS score')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'About No CVSS score' }))
-    expect(await screen.findByRole('dialog')).toHaveTextContent('No CVSS score in the data this box has.')
+    // no CVSS score: the band the exploited list gives, with no score and no ⓘ, never 0
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^About (Critical|High|Medium|Low) \d/ })).toBeNull()
+    expect(screen.queryByText(/^0\.0$/)).toBeNull()
   })
 })
 
 describe('findings: as a customer', () => {
-  it('real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
+  it('real risk first; a product-only guess is not confirmed yet; certainty filter', async () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows.map((r) => within(r).getByRole('link', { name: /^CVE-/ }).textContent)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
-    expect(within(rows[2]!).getByText('High, unverified')).toBeInTheDocument()
+    expect(within(rows[2]!).getByText('Not confirmed yet')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Unverified' }))
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2))
   })
@@ -599,10 +599,8 @@ describe('findings: as a customer', () => {
     renderApp('/findings?tab=open')
     const table = await screen.findByRole('table', { name: 'Findings list' })
     const row = within(within(table).getByRole('row', { name: /CVE-2026-119977/ }))
-    expect(row.getByText('High, unverified')).toBeVisible()
-    const why = row.getByRole('button', { name: 'About High, unverified' }) // #824: the explanation is behind the chip's ⓘ
-    expect(why).toHaveAccessibleDescription(expect.stringContaining("The device's agent reports the installed version") as string)
-    expect(why).not.toHaveAccessibleDescription(/Add the version/)
+    expect(row.getByText('Not confirmed yet')).toBeVisible()
+    expect(row.queryByText(/Add the version/)).toBeNull()
     // the mock's "How to check it yourself" agrees with mitigation genericRecheck (#801)
     sessionStore.set({ userId: 'u-admin' })
     const d = await (await fetch(`${location.origin}/api/v1/findings/${id}`)).json() as { recheck: { steps: string[] } }

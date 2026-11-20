@@ -41,8 +41,8 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(rows.length).toBeLessThanOrEqual(5)
     expect(within(rows[0]!).getAllByRole('link')[0]).toHaveAttribute('href', expect.stringMatching(/^\/findings\//))
     expect(within(rows[0]!).getAllByText(/^In (CISA|VulnCheck) KEV$/).length).toBe(1)
-    // Every row has its CVSS line: a score with its band, or "No CVSS score", never 0.
-    for (const r of rows) expect(within(r).getByText(/^(CVSS|No CVSS score)$/)).toBeInTheDocument()
+    // Every row has its severity: a band with its score, or "Not scored yet", never 0.
+    for (const r of rows) expect(r.querySelector('[data-band]')).not.toBeNull()
     expect(within(fix).queryByText(/^0\.0$/)).toBeNull()
     // Home no longer lists every finding, device and incident just to count them; the shell's badges share the same read.
     expect(seen.filter((p) => p === '/api/v1/findings/summary')).toHaveLength(1)

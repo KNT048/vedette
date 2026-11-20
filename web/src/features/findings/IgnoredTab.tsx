@@ -9,7 +9,7 @@ import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
 import { errMsg } from './errors'
 import { deviceName } from './basis'
-import { FindingStatusChip } from './AcceptRisk'
+import { FindingStatus } from './legacyStatus'
 import type { FindingRow } from './types'
 
 function IgnoredDevice({ id, name, rows }: { id: string; name: string; rows: FindingRow[] }) {
@@ -31,7 +31,7 @@ function IgnoredDevice({ id, name, rows }: { id: string; name: string; rows: Fin
           <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
             <span className="text-muted">{f.kev?.display ?? ''}</span>
-            <FindingStatusChip f={f} />
+            <FindingStatus f={f} />
           </li>
         ))}
       </ul>

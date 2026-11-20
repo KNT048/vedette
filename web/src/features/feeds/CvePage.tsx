@@ -5,6 +5,7 @@ import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { StatusBadge } from '@/components/common/status'
 import { Slot } from '@/components/common/Slot'
 import { fmtDate, fmtPercent } from '@/lib/format'
 import { CVE_ID, useCve, useTierCve } from './api'
@@ -47,7 +48,7 @@ export default function CvePage() {
         {(v) => (
           <>
             <PageHeader title={t('cve.title', { cve: v.cve, product: v.display })} stories={['S-FEED-1', 'S-FEED-3']}
-              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<Chip tone="danger">{t('cve.inKev', { date: fmtDate(v.date_added) })}</Chip></span>} />
+              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<StatusBadge code="exploited" /><span className="text-meta text-muted">{t('cve.inKev', { date: fmtDate(v.date_added) })}</span></span>} />
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
               <div>
                 <Section title={t('cve.facts')}>

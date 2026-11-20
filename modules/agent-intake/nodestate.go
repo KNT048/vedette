@@ -14,8 +14,8 @@ import (
 // The state of an agent, judged by its own rhythm (NodeHealth). The box cannot see the flags on the machine, so the rhythm is what the
 // agent was told and what it does. call_every_s is how often it was told to call: osquery fetches its config every five minutes
 // (--config_refresh=300 of the install scripts), the package reporter of scripts/osquery.sh (for systems osquery does not run on) runs
-// once an hour, a Wazuh agent is read at the pull interval. call_gap_s is the agent's own smoothed gap between config fetches: the calls
-// the refresh promises, at a steady pace. report_every_s is the longest interval of its report schedule: it delivers results at least that
+// once an hour, a Wazuh agent is judged at the pull interval by when Wazuh last heard from it. call_gap_s is the agent's own smoothed gap between two config fetches in a row
+// (the calls the refresh promises, at a steady pace), forgotten when results come after a silence it called quiet (forgetGap). report_every_s is the longest interval of its report schedule: it delivers results at least that
 // often whether or not it fetches its config. Quiet is a silence longer than three of the rhythm: the longer of what it was told and
 // what it does, or, while the box has not seen it fetch its config twice, of what it was told and its report schedule. One lost call (a
 // busy box, a network blip) never makes an agent quiet, a stopped osquery service is found within a quarter of an hour, and an agent that

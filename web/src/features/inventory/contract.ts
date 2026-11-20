@@ -78,7 +78,7 @@ export const DeviceSourceRow = z.object({
   switch: SourceState.nullable().describe('The person\'s switch of this source for this device (PUT /inventory/devices/{id}/sources); null when the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box itself and an ignored device'),
   action: SourceAction.nullable().describe('null when the row offers no button'),
   agent: z.enum(['osquery', 'wazuh', 'box', 'none']).nullable().describe('Agent row: which agent of this box reads the device (box = the Vedette box itself, which reads its own packages); null on the other rows'),
-  token: AgentToken.nullable().describe('Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest token made for this device that still enrolls machines (the secret is never here: it is shown once, when the token is made); null otherwise'),
+  token: AgentToken.nullable().describe('Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest token made for this device that still enrolls machines (the secret is never here: it is shown once, when the token is made); administrators only (the tokens list is theirs): null for the other roles, and on the other rows'),
 })
 export const DeviceSourcesView = z.object({
   rows: z.array(DeviceSourceRow).describe('Always three rows: scan, snmp, agent, in this order'),

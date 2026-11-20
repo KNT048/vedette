@@ -331,6 +331,14 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 			return "", fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}
+	// either row's agent was off, so the kept device's is: what the agents read on either row stops counting (ChangeSources)
+	if off, err := agentRefused(ctx, tx, into); err != nil {
+		return "", err
+	} else if off {
+		if err := s.dropAgentData(ctx, tx, o, into); err != nil {
+			return "", err
+		}
+	}
 	return watchEvent, s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why+watch)
 }
 

@@ -508,7 +508,8 @@ func agentRefused(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
 }
 
 // dropAgentData makes what the agents read of a device stop counting: the software readings of every agent source go and the lines
-// they touched are settled again (with their history), and so do the agents' open ports. What other sources read stays.
+// they touched are settled again (with their history), and so do the agents' open ports and their observations of the device (OS,
+// name, card, kind), whose fields are chosen again from what the other sources read. What other sources read stays.
 func (s *Service) dropAgentData(ctx context.Context, tx *sql.Tx, o *outbox, id string) error {
 	before, err := deviceKeys(ctx, tx, id)
 	if err != nil {
@@ -530,6 +531,15 @@ func (s *Service) dropAgentData(ctx context.Context, tx *sql.Tx, o *outbox, id s
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_service WHERE asset_id = ? AND source = ?`, id, string(observe.Agent)); err != nil {
 		return fmt.Errorf("inventory: drop the agents' open ports: %w", err)
+	}
+	// what the agents said of the device itself (its OS, name, card, kind): the device's fields are chosen again from the other sources
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND source = ?`, id, string(observe.Agent)); err != nil {
+		return fmt.Errorf("inventory: drop the agents' observations: %w", err)
+	}
+	if changed, err := s.RecomputeAsset(ctx, tx, id); err != nil {
+		return err
+	} else if changed {
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true})
 	}
 	if len(touched) == 0 {
 		return nil

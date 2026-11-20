@@ -125898,7 +125898,8 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	Switch NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch `json:"switch"`
 	// Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest
 	// token made for this device that still enrolls machines (the secret is never here: it is shown once,
-	// when the token is made); null otherwise.
+	// when the token is made); administrators only (the tokens list is theirs): null for the other roles,
+	// and on the other rows.
 	Token NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken `json:"token"`
 }
 

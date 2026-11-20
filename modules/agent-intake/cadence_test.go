@@ -276,39 +276,44 @@ func TestAgentCadence_SlowerThanToldIsNotQuietBetweenItsCalls(t *testing.T) {
 	}
 }
 
-// A device Wazuh reads is judged by the pull: reporting while a pull delivered it within three pull intervals, quiet after, back
-// with the next pull; the device page's time is the pull that delivered it.
-func TestAgentCadence_WazuhByItsPull(t *testing.T) {
+// A device Wazuh reads is judged by when Wazuh last heard from its agent (the keep-alive the pull reads) at the pull's rhythm: reporting
+// while that is within three pull intervals, quiet after, back when a pull reads a new keep-alive. An agent Wazuh lists as disconnected
+// (the pull still reads its inventory for a week) is quiet since its last keep-alive; the device's time is that keep-alive.
+func TestAgentCadence_WazuhByItsKeepAlive(t *testing.T) {
 	r := newWzRig(t)
 	r.save()
 	r.pull()
-	pulled := r.clock.Now()
-	d, ok := r.device(ipLinux)
-	if !ok {
-		t.Fatal("no Wazuh device")
-	}
-	path := "/inventory/agents/devices/" + d.ID + "/report"
-	get := func() map[string]any {
+	report := func(ip string) map[string]any {
 		t.Helper()
-		g := r.req("viewer", "GET", path)
+		d, ok := r.device(ip)
+		if !ok {
+			t.Fatalf("no Wazuh device at %s", ip)
+		}
+		g := r.req("viewer", "GET", "/inventory/agents/devices/"+d.ID+"/report")
 		if g.code != 200 || g.body["agent"] != "wazuh" {
 			t.Fatalf("GET: %d %s", g.code, g.raw)
 		}
 		return g.body
 	}
-	if b := get(); b["state"] != "reporting" || b["stale"] != false || b["rhythm_s"] != float64(3600) || !sameInstant(t, b["last_seen"].(string), pulled) {
+	heard := time.Date(2026, 11, 11, 7, 59, 0, 0, time.UTC) // web01's keep-alive in the fake
+	if b := report(ipLinux); b["state"] != "reporting" || b["stale"] != false || b["rhythm_s"] != float64(3600) || !sameInstant(t, b["last_seen"].(string), heard) {
 		t.Fatalf("just pulled: %v", b)
 	}
-	r.clock.Advance(3 * time.Hour) // the 60-minute pull missed twice, the third is due
-	if b := get(); b["state"] != "reporting" {
+	// WIN-FS01 is disconnected since 9 November: quiet since then, and no agent reports the device now
+	if b := report(ipWindows); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)) {
+		t.Fatalf("disconnected agent: %v", b)
+	}
+	r.clock.Advance(heard.Add(3 * time.Hour).Sub(r.clock.Now())) // three pull intervals since web01 was last heard of
+	if b := report(ipLinux); b["state"] != "reporting" {
 		t.Fatalf("three intervals: %v", b)
 	}
 	r.clock.Advance(time.Minute)
-	if b := get(); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), pulled) {
+	if b := report(ipLinux); b["state"] != "quiet" || b["stale"] != true || !sameInstant(t, b["quiet_since"].(string), heard) {
 		t.Fatalf("past three intervals: %v", b)
 	}
+	r.fake.agents[1]["lastKeepAlive"] = r.clock.Now().Add(-10 * time.Second).Format(time.RFC3339)
 	r.pull()
-	if b := get(); b["state"] != "reporting" {
+	if b := report(ipLinux); b["state"] != "reporting" {
 		t.Fatalf("pulled again: %v", b)
 	}
 }

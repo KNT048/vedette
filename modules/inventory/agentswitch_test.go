@@ -35,7 +35,12 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
+	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Ubuntu 24.04", Source: observe.Agent, Confidence: 1},
+		observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Linux 6", Source: observe.Nmap, Confidence: 0.6})
 	id := deviceAt(t, e, hint.IP)
+	if o, _ := currentOf(e.detail(id), "os"); o.Value != "Ubuntu 24.04" {
+		t.Fatalf("the agent's OS before: %+v", o)
+	}
 	lines := func() map[string]string {
 		t.Helper()
 		l, err := e.svc.SoftwareLines(ctx, id)
@@ -65,6 +70,12 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM inv_service WHERE asset_id = ? AND source = 'agent'`, id); n != 0 {
 		t.Fatalf("the agent's open ports stayed: %d", n)
+	}
+	if o, _ := currentOf(e.detail(id), "os"); o.Value != "Linux 6" || o.Source != "nmap" {
+		t.Fatalf("agent off: the device's OS is still the agent's: %+v", o)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND source = 'agent'`, id); n != 0 {
+		t.Fatalf("the agent's observations stayed: %d", n)
 	}
 	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.set_source' AND user = 'admin@example.com' AND detail = 'agent: off'`); n != 1 {
 		t.Fatalf("audit rows of the switch: %d (%v)", n, e.auditActions())
@@ -175,5 +186,38 @@ func TestDeviceSources_AgentRow(t *testing.T) {
 		if r := row(); r.State != "off" || r.Dot != "grey" || str(r.Switch) != "off" {
 			t.Errorf("off (%s): %+v switch %q", f.Agent, r, str(r.Switch))
 		}
+	}
+}
+
+// A device whose agent a person turned off is merged with a row that holds an agent's data (the same machine seen twice): the kept
+// device's agent is off, and nothing any agent read on either row counts.
+func TestAgentSwitch_MergeKeepsTheAgentOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	a, b := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.72")}, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.73")}
+	nginx := observe.Software{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.24.0", Confidence: 1, Packaged: true}
+	for _, h := range []observe.AssetHint{a, b} {
+		if err := e.svc.ReplaceSoftware(ctx, h, observe.Osquery, nil, []observe.Software{nginx}); err != nil {
+			t.Fatal(err)
+		}
+		e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: "Ubuntu 24.04", Source: observe.Agent, Confidence: 1})
+	}
+	off := "off"
+	ida, idb := deviceAt(t, e, a.IP), deviceAt(t, e, b.IP)
+	if _, err := e.svc.ChangeSources(ctx, "admin@example.com", ida, inventory.SourcesChange{Agent: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(ctx, "admin@example.com", ida, idb); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software_reading r JOIN inv_software s ON s.id = r.software_id WHERE s.asset_id = ? AND r.source IN ('osquery', 'wazuh')`, ida); n != 0 {
+		t.Fatalf("the merged row's agent readings count on a device whose agent is off: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND source = 'agent'`, ida); n != 0 {
+		t.Fatalf("the merged row's agent observations count: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_source = 'off'`, ida); n != 1 {
+		t.Fatal("the kept device's agent is not off")
 	}
 }

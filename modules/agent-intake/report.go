@@ -188,7 +188,8 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 		return ReportState{}, askNode{}, err
 	}
 	if w.minutes > 0 {
-		// Wazuh by its pull: the device's agent called when a pull last delivered it, and the pull interval is its rhythm.
+		// Wazuh by its pull: the device's agent last called when Wazuh last heard from it (its keep-alive, as the last pull that
+		// delivered it read it), and the pull interval is its rhythm: a disconnected agent, or a pull that stopped, turns quiet.
 		c := Cadence{LastCall: w.seen, LastResult: w.seen, CallEvery: time.Duration(w.minutes) * time.Minute}
 		st := ReportState{Agent: ReportWazuh, WazuhMinutes: w.minutes, LastSeen: w.seen, Rhythm: c.Rhythm()}
 		st.State, st.QuietSince = NodeHealth(c, now)
@@ -201,7 +202,7 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 }
 
 // wazuhRead is what the saved Wazuh connection's last pass says of a device: the pull's interval in minutes (0 when no agent of it was
-// delivered to the device) and when a pull last delivered it.
+// delivered to the device) and when Wazuh last heard from its agent (intake_wazuh_agent.seen_at).
 type wazuhRead struct {
 	minutes int
 	seen    time.Time

@@ -887,7 +887,7 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
     : agentsStore.get().filter((t) => t.device_id === a.id && (!t.expires_at || Date.parse(t.expires_at) > Date.now())).at(-1) ?? null
   const reads = agentKind === 'osquery' || agentKind === 'wazuh'
   const agent = row({ source: 'agent', switch: isOn('agent-intake') && a.id !== BOX_ID && (reads || agentSwitch === 'off') ? agentSwitch : null, agent: agentKind,
-    token: isOn('agent-intake') ? token : null, last_at: rep?.last_seen ?? times.get('agent') ?? null,
+    token: isOn('agent-intake') && currentUser()?.role === 'admin' ? token : null, last_at: rep?.last_seen ?? times.get('agent') ?? null,
     ...(a.id === BOX_ID ? { state: 'reporting', action: null } : !isOn('agent-intake') ? { state: 'module_off', action: 'turn_on_module' }
       : agentSwitch === 'off' ? { state: 'off', action: reads ? 'check' : token ? 'show_setup' : 'create_token' }
       : agentKind === 'osquery' ? { state: rep?.state ?? 'reporting', action: rep?.state === 'never_reported' ? 'show_setup' : 'check' }

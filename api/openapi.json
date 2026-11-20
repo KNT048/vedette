@@ -59,6 +59,9 @@
       "name": "core"
     },
     {
+      "name": "detection"
+    },
+    {
       "name": "exposure"
     },
     {
@@ -21140,6 +21143,1001 @@
                   },
                   "required": [
                     "temp_password"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detection/alerts": {
+      "get": {
+        "operationId": "detection_get_detection_alerts",
+        "summary": "Intrusion alerts: IPS and IDS events the box saw, one row per signature, source, destination and hour, with the CVE ids they name, the attacked device's findings for those CVEs and the incident that groups them. Searched by the box over the signature, category, addresses, device names and CVE ids; filtered by device (source or destination) and CVE; ordered by the newest last event (sort=last) or the most events (sort=count), ties by id; paged by offset and limit (at most 200). 400 bad_window, invalid_cve",
+        "tags": [
+          "detection"
+        ],
+        "x-stories": [
+          "S-IDS-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id: alerts where it is the source or the destination",
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "cve",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Alerts that name this CVE",
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Default last",
+              "type": "string",
+              "enum": [
+                "last",
+                "count"
+              ]
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Rows to skip, default 0",
+              "type": "string",
+              "pattern": "^[0-9]{1,6}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Rows of the page, 1 to 200 (default and above: 200)",
+              "type": "string",
+              "pattern": "^[0-9]{1,3}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9_]{1,40}$",
+                            "description": "Where the box saw the event. Open vocabulary: log = an IPS or IDS event in a log line a firewall sent to the box (FortiGate IPS, Suricata or Snort on pfSense/OPNsense, other device profiles). New sources add values"
+                          },
+                          "sid": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The rule or signature number the event gives; null when it gives none"
+                          },
+                          "signature": {
+                            "type": "string",
+                            "maxLength": 300,
+                            "description": "The rule or signature name as the event wrote it"
+                          },
+                          "category": {
+                            "type": "string",
+                            "maxLength": 120,
+                            "description": "The rule's class as the event wrote it (for example \"Attempted Administrator Privilege Gain\"); empty when it gives none"
+                          },
+                          "priority": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4,
+                            "description": "1 = most urgent, as the rule ranks it (Suricata priority; FortiGate critical/high/medium/low map to 1..4)"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low",
+                              "info"
+                            ],
+                            "description": "From the priority, raised to critical when the attacked device is affected by a CVE the alert names"
+                          },
+                          "src_ip": {
+                            "type": "string",
+                            "maxLength": 45,
+                            "description": "IPv4 or IPv6 address as the event names it"
+                          },
+                          "src_device": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The inventory device with the source address; null for an address outside the inventory"
+                          },
+                          "dst_ip": {
+                            "type": "string",
+                            "maxLength": 45,
+                            "description": "IPv4 or IPv6 address as the event names it"
+                          },
+                          "dst_port": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 65535
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null when the event gives no port (ICMP)"
+                          },
+                          "proto": {
+                            "type": "string",
+                            "maxLength": 16,
+                            "description": "Transport as the event wrote it, lower case: tcp, udp, icmp; empty when it gives none"
+                          },
+                          "dst_device": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The inventory device with the destination address: the device that was attacked; null when none has it"
+                          },
+                          "cves": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                            },
+                            "description": "The CVE ids the event names, sorted; empty when it names none"
+                          },
+                          "findings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "cve": {
+                                  "type": "string",
+                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                },
+                                "device": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "under_attack",
+                                    "exploited",
+                                    "public_exploit",
+                                    "critical_edge",
+                                    "update_recommended",
+                                    "patched",
+                                    "mitigated",
+                                    "accepted",
+                                    "not_relevant",
+                                    "false_positive"
+                                  ],
+                                  "description": "The finding's one status (under_attack while it is open and this attack is recent)"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "cve",
+                                "device",
+                                "status"
+                              ],
+                              "additionalProperties": false,
+                              "description": "A finding of the attacked device for a CVE the alert names: this device is affected by what was fired at it"
+                            },
+                            "description": "Findings of dst_device for the CVEs in cves; empty when the device is not affected or not in the inventory"
+                          },
+                          "first_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991,
+                            "description": "Events grouped into this alert: one alert per signature, source, destination and hour"
+                          },
+                          "incident": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "The incident of kind intrusion that groups this alert; handle it with PATCH /notify/incidents/{id}"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "new",
+                                      "acknowledged",
+                                      "resolved"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "status"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null when no incident was opened (the notify module is off)"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "source",
+                          "sid",
+                          "signature",
+                          "category",
+                          "priority",
+                          "severity",
+                          "src_ip",
+                          "src_device",
+                          "dst_ip",
+                          "dst_port",
+                          "proto",
+                          "dst_device",
+                          "cves",
+                          "findings",
+                          "first_seen",
+                          "last_seen",
+                          "count",
+                          "incident"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Alerts that match the filters, every page"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detection/alerts/{id}": {
+      "get": {
+        "operationId": "detection_get_detection_alerts_id",
+        "summary": "One intrusion alert, as in the list (the link of its incident)",
+        "tags": [
+          "detection"
+        ],
+        "x-stories": [
+          "S-IDS-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_]{1,40}$",
+                      "description": "Where the box saw the event. Open vocabulary: log = an IPS or IDS event in a log line a firewall sent to the box (FortiGate IPS, Suricata or Snort on pfSense/OPNsense, other device profiles). New sources add values"
+                    },
+                    "sid": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The rule or signature number the event gives; null when it gives none"
+                    },
+                    "signature": {
+                      "type": "string",
+                      "maxLength": 300,
+                      "description": "The rule or signature name as the event wrote it"
+                    },
+                    "category": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "description": "The rule's class as the event wrote it (for example \"Attempted Administrator Privilege Gain\"); empty when it gives none"
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4,
+                      "description": "1 = most urgent, as the rule ranks it (Suricata priority; FortiGate critical/high/medium/low map to 1..4)"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "high",
+                        "medium",
+                        "low",
+                        "info"
+                      ],
+                      "description": "From the priority, raised to critical when the attacked device is affected by a CVE the alert names"
+                    },
+                    "src_ip": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "description": "IPv4 or IPv6 address as the event names it"
+                    },
+                    "src_device": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The inventory device with the source address; null for an address outside the inventory"
+                    },
+                    "dst_ip": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "description": "IPv4 or IPv6 address as the event names it"
+                    },
+                    "dst_port": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 65535
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the event gives no port (ICMP)"
+                    },
+                    "proto": {
+                      "type": "string",
+                      "maxLength": 16,
+                      "description": "Transport as the event wrote it, lower case: tcp, udp, icmp; empty when it gives none"
+                    },
+                    "dst_device": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The inventory device with the destination address: the device that was attacked; null when none has it"
+                    },
+                    "cves": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                      },
+                      "description": "The CVE ids the event names, sorted; empty when it names none"
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "cve": {
+                            "type": "string",
+                            "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                          },
+                          "device": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "under_attack",
+                              "exploited",
+                              "public_exploit",
+                              "critical_edge",
+                              "update_recommended",
+                              "patched",
+                              "mitigated",
+                              "accepted",
+                              "not_relevant",
+                              "false_positive"
+                            ],
+                            "description": "The finding's one status (under_attack while it is open and this attack is recent)"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "cve",
+                          "device",
+                          "status"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A finding of the attacked device for a CVE the alert names: this device is affected by what was fired at it"
+                      },
+                      "description": "Findings of dst_device for the CVEs in cves; empty when the device is not affected or not in the inventory"
+                    },
+                    "first_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "last_seen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "Events grouped into this alert: one alert per signature, source, destination and hour"
+                    },
+                    "incident": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "The incident of kind intrusion that groups this alert; handle it with PATCH /notify/incidents/{id}"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "new",
+                                "acknowledged",
+                                "resolved"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when no incident was opened (the notify module is off)"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "sid",
+                    "signature",
+                    "category",
+                    "priority",
+                    "severity",
+                    "src_ip",
+                    "src_device",
+                    "dst_ip",
+                    "dst_port",
+                    "proto",
+                    "dst_device",
+                    "cves",
+                    "findings",
+                    "first_seen",
+                    "last_seen",
+                    "count",
+                    "incident"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detection/overview": {
+      "get": {
+        "operationId": "detection_get_detection_overview",
+        "summary": "Intrusion detection at a glance: what watches the network (traps, logs, mirror port, IPS events in firewall logs), each with its true state and one action; the incidents of the last 7 days by kind; bad-address hits seen through the mirror port; the count of intrusion alerts. Answers while any detection module is off",
+        "tags": [
+          "detection"
+        ],
+        "x-stories": [
+          "S-IDS-1",
+          "S-LOG-4",
+          "S-HP-1",
+          "S-ALERT-3"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "generated_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "window_days": {
+                      "type": "number",
+                      "const": 7
+                    },
+                    "watchers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "traps",
+                              "logs",
+                              "mirror_port",
+                              "ips_events"
+                            ],
+                            "description": "traps = decoy services and honey tokens (honeypot); logs = received logs matched against bad-address feeds and checked for anomalies (logs); mirror_port = DNS, TLS SNI, HTTP Host and flow metadata read from a mirror (SPAN) port, matched against bad-address feeds (sensor-passive); ips_events = IPS and IDS events in received firewall logs (ids). Only watchers this box can run are listed"
+                          },
+                          "module": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9-]{1,40}$",
+                            "description": "The module that runs it: honeypot, logs, sensor-passive, ids"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "watching",
+                              "quiet",
+                              "failed",
+                              "not_set_up",
+                              "off",
+                              "unavailable"
+                            ],
+                            "description": "watching = on and its input arrives; quiet = set up, but its input stopped arriving (a log source silent, no traffic on the mirror port); failed = the box could not start it (a trap the host could not set up); not_set_up = the module is on and nothing feeds it yet (no Trap IP, no log source, no mirror port, no log source of a kind that writes IPS events); off = its module is off; unavailable = this install cannot run it (traps on a container-only install)"
+                          },
+                          "detail": {
+                            "type": "string",
+                            "maxLength": 300,
+                            "description": "One plain sentence for the row, for display only (for example \"3 of 4 log sources are sending.\"); logic reads state"
+                          },
+                          "last_input_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When it last saw something: a trap hit, a log line, a packet on the mirror port, an IPS event; null when never"
+                          },
+                          "detections_7d": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "What it raised in the last 7 days: trap hits, bad-address hits, log anomalies, alerts"
+                          },
+                          "action": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "view",
+                                  "set_up",
+                                  "fix",
+                                  "turn_on"
+                                ],
+                                "description": "The one action of the row: view = open its page; set_up = add what feeds it; fix = open what stopped; turn_on = turn its module on (Settings, Modules)"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null when nothing can be done here (unavailable)"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "module",
+                          "state",
+                          "detail",
+                          "last_input_at",
+                          "detections_7d",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "In display order: traps, logs, mirror_port, ips_events; a watcher this install cannot run is listed as unavailable, an engine the box does not have is never listed"
+                    },
+                    "kinds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "trap",
+                              "bad_address",
+                              "log_anomaly",
+                              "unknown_device",
+                              "intrusion"
+                            ]
+                          },
+                          "incidents": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Incidents of this kind with activity in the window"
+                          },
+                          "new": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Of those, the ones nobody acknowledged or resolved yet"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "incidents",
+                          "new"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every kind, in the order of DetectionKind, zero included"
+                    },
+                    "mirror_port_hits": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Bad-address hits seen through the mirror port in the window"
+                        },
+                        "latest": {
+                          "maxItems": 5,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ts": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "src_ip": {
+                                "type": "string",
+                                "maxLength": 45,
+                                "description": "IPv4 or IPv6 address as the event names it"
+                              },
+                              "device": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "The inventory device with src_ip; null when none has it"
+                              },
+                              "dest": {
+                                "type": "string",
+                                "maxLength": 253
+                              },
+                              "dest_kind": {
+                                "type": "string",
+                                "enum": [
+                                  "ip",
+                                  "domain"
+                                ]
+                              },
+                              "seen_via": {
+                                "type": "string",
+                                "enum": [
+                                  "span_dns",
+                                  "span_sni",
+                                  "span_http",
+                                  "span_flow"
+                                ]
+                              },
+                              "feeds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Threat feeds that list the destination"
+                              }
+                            },
+                            "required": [
+                              "ts",
+                              "src_ip",
+                              "device",
+                              "dest",
+                              "dest_kind",
+                              "seen_via",
+                              "feeds"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "The newest five; the full list is GET /logs/bad-connections"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "latest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "alerts": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Intrusion alerts with activity in the window; 0 while the ids module is off"
+                        },
+                        "affected": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Of those, the alerts whose attacked device is affected by a CVE they name"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "affected"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "generated_at",
+                    "window_days",
+                    "watchers",
+                    "kinds",
+                    "mirror_port_hits",
+                    "alerts"
                   ],
                   "additionalProperties": false
                 }

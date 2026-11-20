@@ -488,6 +488,11 @@ func TestErrorMapping(t *testing.T) {
 	t.Run("unimplemented operation is 501", func(t *testing.T) {
 		wantError(t, r.do(t, req{method: "GET", path: "/me", user: "viewer"}), 501, "not_implemented")
 	})
+	t.Run("detection routes answer 501 until their backend is wired", func(t *testing.T) {
+		for _, p := range []string{"/detection/overview", "/detection/alerts?window=7d", "/detection/alerts/ida-1"} {
+			wantError(t, r.do(t, req{method: "GET", path: p, user: "viewer"}), 501, "not_implemented")
+		}
+	})
 	t.Run("malformed JSON is 400 invalid", func(t *testing.T) {
 		wantError(t, r.do(t, req{method: "PUT", path: "/core/general", user: "admin", csrf: true, body: `{"name":`}), 400, "invalid")
 	})

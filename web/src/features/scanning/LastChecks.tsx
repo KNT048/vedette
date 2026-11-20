@@ -7,20 +7,26 @@ import { ErrorState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { useDevice } from '@/features/inventory/api'
 import { useDeviceRuns, useScanConfig } from '@/features/scan/api'
-import { runHref } from '@/features/scan/links'
 import { RunStatusChip, runOutcome } from '@/features/scan/shared'
 import type { ScanRun } from '@/features/scan/types'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useScanning, useScanningHistory } from './api'
+import type { HistoryRun } from './types'
 import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
-import { historyRowHref } from './places'
-import { HistoryOutcome } from './RunHistory'
+import { runHref, runsHref } from './places'
 import { hasSnmpCard, hasSourcesCard } from '@/features/inventory/nameOf'
 import { DeviceActions, ScanOffSeeSources, useVulnCheckable } from './DeviceActions'
 
 const link = 'text-accent underline-offset-4 hover:underline'
+const outcomeTone = { ok: 'ok', partial: 'warn', failed: 'danger', stopped: 'warn', running: 'accent' } as const
+
+/** A LAN run's outcome: the chip and the sentence the box wrote from what the run stored. */
+function HistoryOutcome({ r }: { r: HistoryRun }) {
+  const { t } = useTranslation('scanning')
+  return <div className="grid justify-items-start gap-1 text-meta"><Chip tone={outcomeTone[r.outcome]}>{t(`history.outcome.${r.outcome}`)}</Chip><span>{r.text}</span></div>
+}
 
 /** The vulnerability check run of this device, as History counts it but with only this device's rows, so the shared sentence
  *  ("Checked 2 CVEs: 1 confirmed, …") is about it; a run that stopped before it reached the device says so ("Nothing to check"). */
@@ -61,7 +67,7 @@ function Never({ children }: { children: ReactNode }) {
 /**
  * "Last checks" on the device page: the last identification of this device (Check this device now, the window's queue,
  * the first step of a vulnerability check), its last vulnerability check and its last SNMP read, each with when, the outcome as
- * Settings › Scanning › History says it (shared code) and a link to that run there; a kind that never ran says so and what runs it.
+ * the box wrote it and a link to its run page; a kind that never ran says so and what runs it.
  * Read from GET /scanning/history?asset= (the LAN runs that reached its address) and GET /scans/runs?asset= (its vulnerability
  * checks). A read that failed shows the error with Retry, never "Never" (#965).
  */
@@ -108,14 +114,15 @@ export function LastChecks(props: Record<string, unknown>) {
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
   const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (
-    <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}>
+    <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}
+      actions={<Link to={runsHref({ device: assetId })} className={`text-meta ${link}`}>{t('lastChecks.allRuns')}</Link>}>
       {/* "Check this device now" and "Run vulnerability checks now" (or why neither is offered) sit here, with the checks they start */}
       {a ? <div className="mb-3"><DeviceActions assetId={assetId} asset={a} /></div> : null}
       {failed ? <ErrorState error={failed.error} onRetry={() => { for (const q of [history, modules, device]) if (q.isError) void q.refetch() }} /> : (
         <Card className="divide-y divide-rule">
           {loading ? <p className="text-meta text-muted">{t('common:loading')}</p> : (
             <>
-              <Row title={t('lastChecks.kind.identify')} when={ident?.started_at ?? null} href={ident ? historyRowHref(assetId, ident.id) : undefined}>
+              <Row title={t('lastChecks.kind.identify')} when={ident?.started_at ?? null} href={ident ? runHref(ident.id) : undefined}>
                 {ident ? <HistoryOutcome r={ident} /> : <Never>{neverIdentify}</Never>}
               </Row>
               <Row title={t('lastChecks.kind.vuln')} when={vuln?.started_at ?? null} href={vuln ? runHref(vuln.id) : undefined}>
@@ -124,7 +131,7 @@ export function LastChecks(props: Record<string, unknown>) {
                   : runs.isError ? <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
                   : <Never>{neverVuln}</Never>}
               </Row>
-              <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? historyRowHref(assetId, snmp.id) : undefined}>
+              <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? runHref(snmp.id) : undefined}>
                 {snmp ? <HistoryOutcome r={snmp} /> : <Never>{t('lastChecks.neverSnmp')}{snmpCard ? <> <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link></> : null}</Never>}
               </Row>
             </>

@@ -289,13 +289,13 @@ func newRunEnv(t *testing.T) *runEnv {
 	t.Helper()
 	e := newEnv(t)
 	r := &runEnv{env: e,
-		inv:      &runInventory{fakeInventory: fakeInventory{scope: confirmedScope()}, devices: sampleDevices(), policy: samplePolicy},
+		inv:      &runInventory{fakeInventory: fakeInventory{scope: confirmedScope(), checks: defaultChecks()}, devices: sampleDevices(), policy: samplePolicy},
 		findings: &fakeFindings{list: sampleFindings()},
 		eng:      &runEngine{reply: lines("CVE-2022-27593")},
 	}
 	cfg := e.svc.cfg
 	cfg.Inventory, cfg.Findings, cfg.Engine, cfg.Pack = r.inv, r.findings, r.eng, testPack(t)
-	svc, err := NewService(cfg)
+	svc, err := e.rebuild(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,19 +303,23 @@ func newRunEnv(t *testing.T) *runEnv {
 	return r
 }
 
-// wait blocks until the run in the background has ended.
+// wait blocks until the run in the background has ended and core/run recorded how.
 func (r *runEnv) wait() {
 	r.t.Helper()
-	r.svc.mu.Lock()
-	l := r.svc.live
-	r.svc.mu.Unlock()
-	if l == nil {
-		return
-	}
-	select {
-	case <-l.done:
-	case <-time.After(10 * time.Second):
-		r.t.Fatal("the run did not end")
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	timeout := time.After(10 * time.Second)
+	for {
+		if id, err := r.svc.activeRun(r.ctx(), r.db.Reader()); err != nil {
+			r.t.Fatal(err)
+		} else if id == "" {
+			return
+		}
+		select {
+		case <-tick.C:
+		case <-timeout:
+			r.t.Fatal("the run did not end")
+		}
 	}
 }
 

@@ -38,14 +38,15 @@ describe('Settings › Scanning: every engine on one page', () => {
     await expectNoA11yViolations()
   })
 
-  it('answers with the scan module off (GET /scanning is core\'s): discovery and OpenVAS are still there; History says what it needs', async () => {
+  it('answers with the scan module off (GET /scanning is core\'s): discovery and OpenVAS are still there; Runs lists every run and says what the checks need', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'scan' ? { ...m, enabled: false } : m)))
     renderApp('/settings/scanning')
     expect(await card(/Network discovery \(nmap\)/)).toBeInTheDocument()
     expect(within(await card(/OpenVAS deep scan/)).getByRole('switch')).toBeInTheDocument()
     expect(within(await card(/Vulnerability checks \(Nuclei\)/)).getByRole('switch')).not.toBeChecked()
-    await userEvent.click(screen.getByRole('tab', { name: 'History' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Runs' }))
     expect(await screen.findByRole('link', { name: 'Turn them on: Engines, Vulnerability checks' })).toHaveAttribute('href', '/settings/scanning?tab=engines#engine-nuclei-switch')
+    expect(await screen.findByRole('table', { name: 'Runs of every engine' })).toBeInTheDocument()
   })
 
   it('turning off an engine names what stops with it, then moves the switch through PATCH /scanning/engines (audited by that switch)', async () => {
@@ -121,13 +122,13 @@ describe('Settings › Scanning: every engine on one page', () => {
   })
 
   it('the old Vulnerability scans links land on their new place; ?target= lands on the device page with its buttons', async () => {
-    for (const [from, want] of [['/scans', 'Engines'], ['/scans?tab=safety', 'Safety'], ['/scans?tab=probes', 'Probe log'], ['/scans?tab=auto', 'History']] as const) {
+    for (const [from, want] of [['/scans', 'Engines'], ['/scans?tab=safety', 'Safety'], ['/scans?tab=probes', 'Probe log'], ['/scans?tab=auto', 'Runs']] as const) {
       const view = renderApp(from)
       expect(await screen.findByRole('tab', { name: want, selected: true })).toBeInTheDocument()
       view.unmount()
     }
-    const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins
-    expect(within(await screen.findByRole('dialog')).getByText('You pressed Stop now.')).toBeInTheDocument()
+    const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins: the run's own page
+    expect(await screen.findByText('You pressed Stop now.', {}, { timeout: 4000 })).toBeInTheDocument()
     v2.unmount()
     renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
     expect(await screen.findByRole('button', { name: 'Check this device now' }, { timeout: 4000 })).toBeInTheDocument()
@@ -141,7 +142,8 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     await userEvent.click(await screen.findByRole('button', { name: 'Check this device now' }))
     expect(await screen.findByRole('progressbar')).toBeInTheDocument()
     expect(screen.getByText('Check 192.168.10.21')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', '/devices/a-nas02')
+    // the run's own page, never the device page the button is on
+    expect(screen.getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
     expect(auditStore.get().length).toBeGreaterThanOrEqual(0)
   })
 
@@ -171,14 +173,14 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     expect(await screen.findByText('Requires Admin role')).toBeInTheDocument()
   })
 
-  it('the top-bar indicator: nothing while idle; "1 scan running" opens the place of the run, public scans included', async () => {
+  it('the top-bar indicator: nothing while idle; "1 scan running" opens that run\'s page', async () => {
     const view = renderHere(<ScansRunningIndicator />, 'viewer')
     await waitFor(() => expect(screen.queryByText(/scan running/)).toBeNull())
     view.unmount()
     as('u-admin')
     expect((await fetch(`${base()}/scanning/engines/nmap-discovery/run`, json('POST', { targets: ['a-web01'] }))).status).toBe(202)
     renderHere(<ScansRunningIndicator />, 'viewer')
-    expect(await screen.findByRole('link', { name: '1 scan running' })).toHaveAttribute('href', '/devices/a-web01')
+    expect(await screen.findByRole('link', { name: '1 scan running' })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
   })
 })
 

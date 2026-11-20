@@ -1,18 +1,18 @@
 # Scan — Change Impact Map
 
 
-## Modifying: the results of a run (`RunRow.Result`, `scan_run.results`, `stop_reason`, `identification`)
+## Modifying: the results of a run (`RunRow.Result`, the items of `core_run`, `stop_reason`, `identification`)
 - **The SPA** words a run from them (`web/src/features/scan/shared.tsx` `runOutcome`: "Checked 3 CVEs: 1 confirmed, 2 no check exists (still suspected)"; History's "What it found" and the "Last scan" line). A new result kind needs its words there (`scan.json` `outcome.part.*`), or History says less than the run found.
 
 ## Modifying: `DeviceChanged`, `Service.dev`, the per-device context of `scanTarget`
 - **cmd/vedette** `wiring.go` subscribes `inventory.asset.updated` (module on). A device's part stops alone (`noteTurnedOff`); the run's `status` stays `done`. Dropping the per-device context makes a scan turned off on the device page keep running until the run ends, which the Sources card says does not happen.
 - **inventory** `VulnScanPolicy` (INV-37): a hand-added device whose network scan is off is refused even when picked; `targetReason` lists it as `regular_scan_never`.
 
-## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
+## Modifying: the shared window, rate and exclusions (`Inventory.Checks`, `settings`, `Engine`; #850, INV-16)
 - **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.
 - **`Checks.Version` / `ConfigView.Version` / `Patch.Version`** (review #860 M1): the inventory's version of the shared block passes through `SharedChecks`; `PUT /scans/config` with a stale one is 409 `safety_changed` from the inventory's `SaveChecks`, inside this module's transaction (its own row rolls back too).
-- **cmd/vedette** `mergeScanningSafety` reads `LegacyChecks` (scan_setting) once at start; `scanningEngines.nuclei` reads `Engine` for the card.
-- **`scan_setting`** keeps its columns and a copy of the values (forward-only, DATA_MODEL §6): do not drop them before a release that no longer rolls back past #850.
+- **cmd/vedette** `scanningEngines.nuclei` reads `Engine` for the card.
+- **`scan_setting`** keeps no copy of the window, rate and exclusions: the inventory is their one home.
 
 ## Modifying: `RunView.progress`, `live.prog`, `setProgress`/`progressOf` (#830, INV-15)
 - **SPA**: `/scans` (the web part of #830 shows it; contract `web/src/lib/progress.ts` `JobProgress`, shared with exposure). **sensor-active**: its `Dispatcher` reports into the Sink of the context the run probes with; a wrapper of that context in `cmd/vedette` must keep its values (`context.WithoutCancel`, never `context.Background()`).
@@ -27,7 +27,7 @@
 - **sensor-active** (`IdentifyDevice`, mã `Why`), adapter `scanIdentify` ở `cmd/vedette/scan.go`; **SPA** `RunsTab` (`Identification` trong hộp thoại kết quả), `contract.ts` `IdentReason`/`RunIdentRow`, mock `IDENT_NOTE`/`identOne` (cùng câu với `identNote`), `api/openapi.json` + ogen. Đổi một lý do hay câu: sửa cả bốn chỗ cùng commit.
 
 ## Modifying: `slotOK`, `NextRun`, `lastSlot`, `RunSchedule` (lượt lịch đầu)
-- "Chưa lượt lịch nào" = không dòng `scan_run` nào `trigger = schedule` (`firstPending`; trước đây là `sched_last` trống, sai khi một mốc bỏ lỡ hay không có gì để quét đã được ghi): đổi luật này đổi cả `next_run` của `GET /scans/config` (`view`), `RunSchedule`, mock `nextRun` (`web/src/features/scan/mocks.ts`, `first` = chưa có run `schedule`, cùng luật) và `TestContract_POST3_NextRun`; dòng `scan_run` không bao giờ bị xoá, nên lượt đầu không quay lại; khôi phục một bản sao lưu trước lượt lịch đầu làm hộp chạy lượt đầu ở cửa sổ kế tiếp.
+- "Chưa lượt lịch nào" = không `core_run` nào của `vuln_check` có `trigger = schedule` (`firstPending`; trước đây là `sched_last` trống, sai khi một mốc bỏ lỡ hay không có gì để quét đã được ghi): đổi luật này đổi cả `next_run` của `GET /scans/config` (`view`), `RunSchedule`, mock `nextRun` (`web/src/features/scan/mocks.ts`, `first` = chưa có run `schedule`, cùng luật) và `TestContract_POST3_NextRun`; dòng `scan_run` không bao giờ bị xoá, nên lượt đầu không quay lại; khôi phục một bản sao lưu trước lượt lịch đầu làm hộp chạy lượt đầu ở cửa sổ kế tiếp.
 
 ## Modifying: `identNote` (thêm `os_no_patch_level`)
 - Mã lý do do sensor-active trả (`WhyOSNoPatch`); thêm/đổi mã thì đổi `IdentReason` của `contract.ts`, OpenAPI và `core/api/oas` (sinh), ghi chú của mock và nhãn `scan.ident.*`.
@@ -84,3 +84,8 @@
 - The index carries `own_ip` per template (decided by `scripts/scanpack` `ownIPSafe` from the template file: read-only GET/HEAD requests only); `pack.Parse` refuses an `own_ip` entry that is not an http GET/HEAD check or carries a refused tag; the worker re-reads the file with `pack.OwnIPText`, which also passes every request target and raw header through `pack.RequestPayloadOK` (no injection-shaped payload, review round 2 M1). The mark is in the pack's SHA-256 label. The Makefile rebuilds the pack when `modules/scan/pack` changes. Changing the rule changes the pack (`SCAN_PACK_VERSION`, the committed `content/nucleipack/index.json`) and the PRIVACY flow 9 sentence. The LAN scope ignores the field.
 - `nucleiargv` has a second scope, `own_ip` (one public IPv4 through `core/localnet.Public`, rate fixed at `OwnIPRate`, `-etags` with `OwnIPForbiddenTags`), told apart from the LAN line by its `-etags` only; `Validate` reads the scope from the flags, never from the target. A change to either shape is a sensor-protocol change and moves sensor-active INV-17 with it.
 - Shared with the worker of the `scan` container: a change to the argv grammar or the job limits is a sensor-protocol change (proto number, worker, `docs/specs/sensor-protocol.md` §9). The set of target addresses is `core/localnet.Addr` (RFC 1918 + 100.64/10), shared with `nmapargv`, the inventory scope and setup; widening it without a wire change keeps the proto (§10: an older worker refuses the new targets as `invalid_job`). `nucleiout` is the trust boundary for what devices answered: keep it fail-closed and fuzzed; its one exception is a well-formed line about another host:port, skipped and counted (`Read`, `Skipped`): the callers (`sensor-active` RunNuclei, `scan` `noteSkipped`, `cmd/vedette` `send`) log it and note it on the probe row. Its fixtures are real lines of the pinned nuclei (lab VM, 2026-11-12): v3.11.1 writes `host` as the bare address with `port` apart, read by `targetOf`; bumping `NUCLEI_VERSION` means recording them again.
+
+## Modifying: the run kind (`runrows.go`, `runKindName`, `runLane`, `Service.pending`, `runVulnCheck`)
+- **core/run** owns the status, the queue, the stop and the restart recovery; this module owns what a run is for. A run's rows are `core_run_item`s of four kinds (`device`, `finding`, `identification`, `identified`): the web reads them back as `RunView.results` and `identification`, and the KEV rescan decides matched/clear from them (`matchedCVE`), so changing the kinds changes both. The `finding` item must stay right after its `device` item.
+- A run's picks, CVEs and window end live in `Service.pending` (this process only): a restart ends a running check as stopped and a queued one as failed (`noteLost`). Making the kind resumable needs those stored first.
+- **cmd/vedette** registers the kind by building the service before the run manager starts (`scanService`); the lane `nuclei` is the one live check.

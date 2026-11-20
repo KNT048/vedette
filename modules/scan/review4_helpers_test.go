@@ -52,7 +52,7 @@ func (r *runEnv) schedAt(at time.Time) {
 
 func (r *runEnv) scheduled() int {
 	r.t.Helper()
-	return r.count(`SELECT count(*) FROM scan_run WHERE trigger = 'schedule'`)
+	return r.count(`SELECT count(*) FROM core_run WHERE trigger = 'schedule'`)
 }
 
 func (r *runEnv) nextRun() string {

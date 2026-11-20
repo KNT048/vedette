@@ -218,7 +218,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     const t0 = Date.now()
     await waitFor(() => expect(screen.getByText(/Last scan was stopped .*: 0\/2 devices done/)).toBeInTheDocument(), { timeout: 5000 })
     expect(Date.now() - t0).toBeLessThan(5000)
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByRole('progressbar', { name: 'Scan progress' })).not.toBeInTheDocument()
     expect(screen.getAllByText('You pressed Stop now.').length).toBeGreaterThan(0)
     const run = (await getRuns())[0]!
     expect(run.status).toBe('stopped')
@@ -228,7 +228,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(probes.length).toBeGreaterThan(0)
     expect(probes.every((p) => p.result === 'stopped')).toBe(true)
     expect(findingsStore.get().find((x) => x.id === 'f-1')!.history.some((h) => h.action === 'rescanned')).toBe(false)
-    expect(auditStore.get().some((a) => a.action === 'scan.stop')).toBe(true)
+    expect(auditStore.get().some((a) => a.action === 'scanning.run_stop')).toBe(true)
   })
 
   it('dừng lần quét đã kết thúc báo lỗi rõ; dừng hai lần không lỗi', async () => {
@@ -480,9 +480,10 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(within(table).getByRole('link', { name: 'Devices' })).toHaveAttribute('href', '/devices') // #850: Scan selected is on the Devices list
     expect(within(table).getByText(/^Stopped before the end:/).className).toContain('text-off')
     await expectNoA11yViolations()
+    // the run opens on its own page, with why it stopped
     await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))
-    const dlg = await screen.findByRole('dialog')
-    expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Vulnerability checks of/ }, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByText('You pressed Stop now.', {}, { timeout: 4000 })).toBeInTheDocument()
   })
 
   it('a rescan dropped after 7 days stays in the log with the reason', async () => {

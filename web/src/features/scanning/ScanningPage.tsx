@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Navigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { DependencyLink } from '@/components/common/DependencyLink'
@@ -7,7 +8,6 @@ import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, SampleDataNote } from '@/components/common/States'
 import { CredentialedTab } from '@/features/scan/CredentialedTab'
 import { HistoryTab } from '@/features/scan/HistoryTab'
-import { RunHistory } from './RunHistory'
 import { ProbesTab } from '@/features/scan/ProbesTab'
 import { useRuns } from '@/features/scan/api'
 import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
@@ -15,6 +15,8 @@ import { fmtDateTime } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
 import { EnginesTab } from './EnginesTab'
+import { runHref } from './places'
+import { RunsTab } from './RunsTab'
 import { SafetyTab } from './SafetyTab'
 import type { Scanning } from './types'
 
@@ -32,8 +34,12 @@ function useRunEndToast(on: boolean) {
     liveId.current = null
     const r = list?.find((x) => x.id === prev)
     if (!r) return
-    if (r.status === 'stopped') toast.success(t('toast.stopped', { done: r.done, total: r.total }))
-    else if (r.status === 'auto_stopped') toast.warning(t('toast.autoStopped'))
+    const reason = (r.stop_reason ?? '').replace(/\.$/, '')
+    if (r.status === 'stopped' || r.status === 'auto_stopped') {
+      const text = t(reason ? 'toast.endedEarly' : 'toast.endedEarlyNoReason', { done: r.done, total: r.total, reason })
+      if (r.stop_reason?.startsWith('You pressed Stop')) toast.success(text)
+      else toast.warning(text)
+    }
     else toast.success(t('toast.done', { count: r.matched }))
   }, [live, list, t])
 }
@@ -60,14 +66,27 @@ function Page({ d }: { d: Scanning }) {
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },
-        // The vulnerability checks (scan module), then every other run, which core lists whatever the scan module is
-        { id: 'history', label: t('page.tab.history'), panel: <><NucleiOnly><HistoryTab /></NucleiOnly><RunHistory /></> },
+        // Every run of every engine (core lists them whatever module is on); under it the vulnerability checks' own results and rescans
+        { id: 'runs', label: t('page.tab.runs'), panel: <><RunsTab /><NucleiOnly><HistoryTab /></NucleiOnly></> },
         { id: 'probes', label: t('page.tab.probes'), panel: <NucleiOnly><ProbesTab /></NucleiOnly> },
         // Not offered in v1 (no backend); kept for after v1
         ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('page.tab.credentialed'), panel: <CredentialedTab /> }] : []),
       ]} />
     </>
   )
+}
+
+/** The History tab became Runs: an old link opens its run (`job=`, `run=`), the runs of its device (`asset=`), or the Runs tab. */
+function historyMoved(params: URLSearchParams): string | null {
+  if (params.get('tab') !== 'history') return null
+  const job = params.get('job') ?? params.get('run')
+  if (job) return runHref(job)
+  const p = new URLSearchParams(params)
+  p.set('tab', 'runs')
+  const asset = p.get('asset')
+  if (asset) p.set('runs.device', asset)
+  p.delete('asset')
+  return `/settings/scanning?${p}`
 }
 
 /**
@@ -77,5 +96,8 @@ function Page({ d }: { d: Scanning }) {
  */
 export default function ScanningPage() {
   const q = useScanning()
+  const [params] = useSearchParams()
+  const moved = historyMoved(params)
+  if (moved) return <Navigate to={moved} replace />
   return <QueryState query={q}>{(d) => <Page d={d} />}</QueryState>
 }

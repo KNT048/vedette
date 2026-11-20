@@ -471,7 +471,7 @@ export const handlers = [
     const stored = runs.get().find((x) => x.id === cur.id)!
     if (stored.status === 'running') {
       saveRun({ ...stored, status: 'stopping', stop_requested_at: nowIso() })
-      audit('scan.stop', stored.id, `scanned ${stored.done}/${stored.total}`)
+      audit('scanning.run_stop', stored.id, `scanned ${stored.done}/${stored.total}`)
     }
     return HttpResponse.json(strip(runs.get().find((x) => x.id === cur.id)!))
   }),

@@ -435,7 +435,6 @@
       "scanning.run_stop": "Stop a run",
       "schedule.run_now": "Run a schedule once now",
       "schedule.save": "Change a schedule",
-      "scanning.safety.merged": "Merge the two scan windows into one",
       "scan.pick": "Pick device to scan",
       "scan.start": "Start scan",
       "scan.stop": "Stop scan",

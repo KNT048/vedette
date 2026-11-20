@@ -81,7 +81,7 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 			t.Errorf("%s: %v", id, err)
 		}
 	}
-	if len(r.eng.sent()) != 0 || r.count(`SELECT count(*) FROM scan_run`) != 0 {
+	if len(r.eng.sent()) != 0 || r.count(`SELECT count(*) FROM core_run`) != 0 {
 		t.Fatal("a refused start sent or wrote something")
 	}
 }
@@ -138,7 +138,7 @@ func TestContract_INV2_CommitmentAndScanner(t *testing.T) {
 	r.svc.cfg.Pack = nil // no template pack: the scanner cannot be used either
 	_, err = r.svc.StartRun(r.ctx(), "it@acme.example", []string{"a-web01"})
 	wantAPI(t, err, 503, "scanner_unavailable")
-	if len(r.eng.sent()) != 0 || r.count(`SELECT count(*) FROM scan_run`) != 0 || len(r.audits()) != 0 {
+	if len(r.eng.sent()) != 0 || r.count(`SELECT count(*) FROM core_run`) != 0 || len(r.audits()) != 0 {
 		t.Fatal("a refused start sent or wrote something")
 	}
 }
@@ -166,9 +166,7 @@ func TestContract_INV3_OneRunAndLimits(t *testing.T) {
 	wantAPI(t, err, 409, "already_running")
 	// the database refuses a second live run whatever the code does
 	err = r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, picked, target_ids, total)
-VALUES ('run-x', 'manual', '2026-11-10T10:00:00.000Z', 'x', 'running', '[]', '["a"]', 1)`)
-		return err
+		return seedRun(r.ctx(), tx, "run-x", "manual", "running", "2026-11-10T10:00:00.000Z", "a")
 	})
 	if err == nil {
 		t.Fatal("a second live run was stored")
@@ -244,7 +242,7 @@ func TestContract_INV6_StopNow(t *testing.T) {
 	_, err = r.svc.StopRun(r.ctx(), "it@acme.example", "run-nope")
 	wantAPI(t, err, 404, "not_found")
 	if !slices.ContainsFunc(r.audits(), func(a auditRow) bool {
-		return a.Action == "scan.stop" && a.Target == v.ID && a.User == "it@acme.example"
+		return a.Action == "scanning.run_stop" && a.Target == v.ID && a.User == "it@acme.example"
 	}) {
 		t.Fatal("Stop now not audited")
 	}
@@ -430,8 +428,7 @@ func TestRun_OrphanFromARestartIsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, picked, target_ids, total)
-VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', '[]', '["a-web01"]', 1)`); err != nil {
+		if err := seedRun(r.ctx(), tx, "run-old", "manual", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request) VALUES ('pr-1', '2026-11-10T09:00:00.000Z', 'run-old', '192.168.10.12', 'WEB01', 't.yaml', 'GET / HTTP/1.1')`)
@@ -440,10 +437,16 @@ VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', '[]', '
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := r.runs.Recover(r.ctx()); err != nil { // the start of the box: core/run records the run
+		t.Fatal(err)
+	}
 	r.start("a-web01")
 	r.wait()
+	if err := r.svc.RunRecover(r.ctx()); err != nil {
+		t.Fatal(err)
+	}
 	old := r.run("run-old")
-	if old.Status != "stopped" || *old.StopReason != "Vedette restarted during this scan, so it was stopped." || r.count(`SELECT count(*) FROM scan_probe WHERE id = 'pr-1' AND result = 'stopped'`) != 1 {
+	if old.Status != "stopped" || *old.StopReason != "Vedette restarted" || r.count(`SELECT count(*) FROM scan_probe WHERE id = 'pr-1' AND result = 'stopped'`) != 1 {
 		t.Fatalf("%+v", old)
 	}
 }
@@ -541,15 +544,14 @@ func TestRunsOf_TheDevicesRunsPastTheNewest100(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		ins := `INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, picked, target_ids, total) VALUES (?, 'manual', ?, 'x', ?, 'done', '[]', ?, 1)`
 		at := func(i int) string {
 			return time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Minute).Format("2006-01-02T15:04:05.000Z")
 		}
-		if _, err := tx.ExecContext(r.ctx(), ins, "run-bn340", at(0), at(0), `["a-bn340","a-web01"]`); err != nil {
+		if err := seedRun(r.ctx(), tx, "run-bn340", "manual", "done", at(0), "a-bn340", "a-web01"); err != nil {
 			return err
 		}
 		for i := 1; i <= 120; i++ {
-			if _, err := tx.ExecContext(r.ctx(), ins, fmt.Sprintf("run-%03d", i), at(i), at(i), `["a-web01"]`); err != nil {
+			if err := seedRun(r.ctx(), tx, fmt.Sprintf("run-%03d", i), "manual", "done", at(i), "a-web01"); err != nil {
 				return err
 			}
 		}

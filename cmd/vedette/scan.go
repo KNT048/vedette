@@ -60,6 +60,9 @@ func scanService(d deps) *scan.Service {
 	}
 	cfg := scan.Config{DB: d.DB, Audit: d.Audit, Inventory: scanInventory{inv: inv}, External: scanExternal{svc: exposureService(d)}, Log: d.Log, Clock: d.Clock,
 		Location: orgLocationAt(d)} // the window and the schedule are in the organization's zone (review H1); nil (no core, a failed read, an unknown name) starts nothing automated
+	if d.Runs != nil { // a nil *run.Manager inside the field would not compare equal to nil; the kind is registered before the manager starts
+		cfg.Runs = d.Runs
+	}
 	if d.Findings != nil {
 		cfg.Findings = scanFindings{svc: d.Findings}
 	}

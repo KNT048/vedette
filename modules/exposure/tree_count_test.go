@@ -92,15 +92,17 @@ func TestCount_SubdomainTargetsUnrelatedToTheirParentAndNamesScannedTwice(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	twice, err := doubleScanned(e.ctx(), e.db.Reader())
-	if err != nil {
-		t.Fatal(err)
+	twice := 0 // the names the runner probed for two targets
+	for _, n := range run.asked[fx.Targets[0].Value] {
+		if slices.Contains(run.asked[fx.Targets[1].Value], n) {
+			twice++
+		}
 	}
 	t.Logf("subdomain targets unrelated to their parent: %d; names scanned by two targets: %d", pairs, twice)
 	if pairs != 0 || twice != 0 {
 		t.Errorf("unrelated parent and child pairs = %d, names scanned twice = %d; want 0 and 0", pairs, twice)
 	}
-	if slices.Contains(run.asked["example.com"], "git.example.com") {
-		t.Errorf("the parent's scan probed its child's name: %v", run.asked["example.com"])
+	if n, err := doubleScanned(e.ctx(), e.db.Reader()); err != nil || n != int64(twice) { // the selfcheck reads what the scans recorded
+		t.Errorf("the selfcheck counts %d names scanned twice (%v), the runner was asked %d", n, err, twice)
 	}
 }

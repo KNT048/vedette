@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Domain targets form a tree. Where a target sits (its parent) and which target scans each name found under a domain (the owner) are
@@ -25,10 +26,12 @@ import (
 //   - Every name under a domain is scanned by at most one enabled target: its owner, the deepest enabled target that contains the name
 //     and whose scope takes it (its own name always; with scope all every name under it; with scope selected the names chosen on its own
 //     rows; with scope self none other). A name nobody's scope takes is scanned by nobody. A target's scan skips every name it does not
-//     own: the names of its enabled children are theirs.
-//   - A name a target no longer scans keeps its row (found, first and last seen) and loses the addresses it had there; a service of that
-//     target on an address no name of it points at any more is closed at once, its issues gone with it (as for an address that left the
-//     domain). The owner's own scan watches them from now on.
+//     own: an enabled child's own name, and the names under the child that the child's scope takes. A name under a child that scans only
+//     itself (or did not choose it) stays its parent's when the parent's scope takes it.
+//   - The rows of a name live with the target that scans it. When that changes (a child added, removed, switched off or narrowed), the
+//     old target hands them over in the same write (handOver): the name keeps a row in both, its addresses, services and issues move,
+//     merged with what the new owner holds; nothing is closed, reopened or made new, so the change raises no alert. A name nobody
+//     scans keeps its rows where they are, as the last scan left them.
 
 // scopeNode is one domain target as the ownership rule reads it.
 type scopeNode struct {
@@ -86,6 +89,48 @@ func (p *NamePlan) Scans(name string) bool {
 		return true
 	}
 	return ownerOf(name, p.nodes) == p.id
+}
+
+// own is the plan's target as a node.
+func (p *NamePlan) own() (scopeNode, bool) {
+	if p == nil {
+		return scopeNode{}, false
+	}
+	for _, n := range p.nodes {
+		if n.id == p.id {
+			return n, true
+		}
+	}
+	return scopeNode{}, false
+}
+
+// Find says the scan looks for names under the target (scope all or selected); with scope self it looks up the target's name only.
+// A nil plan finds every name.
+func (p *NamePlan) Find() bool {
+	n, ok := p.own()
+	return !ok || n.mode != ScopeSelf
+}
+
+// Choose says the target's scope is the names chosen: on a domain with too many names to list, its scan falls back to Chosen.
+func (p *NamePlan) Choose() bool {
+	n, ok := p.own()
+	return ok && n.mode == ScopeSelected
+}
+
+// Chosen are the names chosen for the target's scan (scope selected) that it scans, sorted.
+func (p *NamePlan) Chosen() []string {
+	n, ok := p.own()
+	if !ok || n.mode != ScopeSelected {
+		return nil
+	}
+	var out []string
+	for name := range n.chosen {
+		if name != n.value && p.Scans(name) {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // planOf is the plan of the domain target t among all, with the chosen names of each target (chosen by target id).
@@ -172,140 +217,352 @@ func ancestors(t Target, byID map[string]Target) []Target {
 	return out
 }
 
-// settleTree writes, in tx, the parent of every domain target and the owner of every name found under one (exp_host.child_target_id:
-// the other target that scans the name; NULL when the row's own target scans it or nobody does), and drops the addresses of the names a
-// target does not scan; the services of a target left on no address of it are closed and their issues gone. It returns the ids of the
-// services it closed, by target.
-func settleTree(ctx context.Context, tx *sql.Tx) (map[string][]string, error) {
+// settleTree writes, in tx, the parent of every domain target and the link of every name that is its own target
+// (exp_host.child_target_id), and hands the rows of each name over to the target that scans it now (handOver), so ownership moves
+// without anything being closed or opened. gone is a target removed in the same write ("" for none): it scans nothing, and its names go
+// to whoever scans them before its rows are deleted.
+func settleTree(ctx context.Context, tx *sql.Tx, gone string) error {
 	all, err := listTargets(ctx, tx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for _, t := range all {
-		if p := parentOf(t, all); p != t.ParentID {
+	live := slices.DeleteFunc(slices.Clone(all), func(t Target) bool { return t.ID == gone })
+	for _, t := range live {
+		if p := parentOf(t, live); p != t.ParentID {
 			if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET parent_id = ? WHERE id = ?`, nullString(p), t.ID); err != nil {
-				return nil, fmt.Errorf("placing target %s: %w", t.Value, err)
+				return fmt.Errorf("placing target %s: %w", t.Value, err)
 			}
 		}
 	}
 	chosen, err := chosenNames(ctx, tx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	nodes := map[string]scopeNode{}
-	var list []scopeNode
-	for _, t := range all {
+	var nodes []scopeNode
+	byValue := map[string]string{}
+	for _, t := range live {
 		if t.Kind == KindDomain {
-			n := nodeOf(t, chosen)
-			nodes[t.ID] = n
-			list = append(list, n)
+			nodes = append(nodes, nodeOf(t, chosen))
+			byValue[t.Value] = t.ID
 		}
 	}
-	type hostRow struct{ id, target, name, child string }
-	var hosts []hostRow
-	err = func() error {
-		rows, err := tx.QueryContext(ctx, `SELECT id, target_id, name, coalesce(child_target_id, '') FROM exp_host`)
+	hosts, err := hostRows(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for _, h := range hosts {
+		child := byValue[h.name] // the name is its own target: that target scans it
+		if child == h.target {
+			child = ""
+		}
+		if child != h.child {
+			if _, err := tx.ExecContext(ctx, `UPDATE exp_host SET child_target_id = ? WHERE id = ?`, nullString(child), h.id); err != nil {
+				return fmt.Errorf("linking the name %s: %w", h.name, err)
+			}
+		}
+		if owner := ownerOf(h.name, nodes); owner != "" && owner != h.target {
+			if err := handOver(ctx, tx, h, owner); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// hostRow is a name of a target as settleTree reads it.
+type hostRow struct{ id, target, name, child string }
+
+func hostRows(ctx context.Context, q querier) ([]hostRow, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, target_id, name, coalesce(child_target_id, '') FROM exp_host ORDER BY target_id, name`)
+	if err != nil {
+		return nil, fmt.Errorf("reading names: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []hostRow
+	for rows.Next() {
+		var h hostRow
+		if err := rows.Scan(&h.id, &h.target, &h.name, &h.child); err != nil {
+			return nil, fmt.Errorf("reading names: %w", err)
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
+// handOver moves what the target of h holds about its name to the target that scans the name now (to), merged with what to holds
+// already: the name (to gets a row of it, first and last seen kept), its addresses, the services on an address no other name of the
+// old target points at with their issues, the issues about that name or that address. A service on an address the old target still
+// reaches through another of its names is copied, not moved: both scan that address now, and neither reads its ports as new. Nothing
+// is closed, reopened or made new: states, first seen and a person's decisions travel with the rows, so a name that comes back
+// later is not reported as newly open.
+func handOver(ctx context.Context, tx *sql.Tx, h hostRow, to string) error {
+	var oh string
+	err := tx.QueryRowContext(ctx, `SELECT id FROM exp_host WHERE target_id = ? AND name = ?`, to, h.name).Scan(&oh)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		oh = store.NewID("xh")
+		_, err = tx.ExecContext(ctx, `INSERT INTO exp_host (id, target_id, name, source, cname, first_seen, last_seen)
+			SELECT ?, ?, name, source, cname, first_seen, last_seen FROM exp_host WHERE id = ?`, oh, to, h.id)
+	case err == nil:
+		_, err = tx.ExecContext(ctx, `UPDATE exp_host SET first_seen = min(exp_host.first_seen, f.first_seen), last_seen = max(exp_host.last_seen, f.last_seen)
+			FROM (SELECT first_seen, last_seen FROM exp_host WHERE id = ?) AS f WHERE exp_host.id = ?`, h.id, oh)
+	}
+	if err != nil {
+		return fmt.Errorf("handing over the name %s: %w", h.name, err)
+	}
+	ips, err := moveAddresses(ctx, tx, h, to, oh)
+	if err != nil {
+		return err
+	}
+	for _, ip := range ips {
+		var still int
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_address WHERE target_id = ? AND ip = ?)`, h.target, ip).Scan(&still); err != nil {
+			return fmt.Errorf("handing over %s: %w", ip, err)
+		}
+		svcs, err := idsOf(ctx, tx, `SELECT id FROM exp_service WHERE target_id = ? AND ip = ?`, h.target, ip)
+		if err != nil {
+			return err
+		}
+		for _, sid := range svcs {
+			if err := handOverService(ctx, tx, sid, to, h.name, still == 1); err != nil {
+				return err
+			}
+		}
+		if err := handOverIssues(ctx, tx, h.target, to, func(e IssueEngine, key string) bool { return keyAddr(e, key) == ip }, still == 1); err != nil {
+			return err
+		}
+	}
+	return handOverIssues(ctx, tx, h.target, to, func(e IssueEngine, key string) bool { return issueName(e, key) == h.name }, false)
+}
+
+// moveAddresses moves the addresses of h to the row oh of target to and returns them.
+func moveAddresses(ctx context.Context, tx *sql.Tx, h hostRow, to, oh string) ([]string, error) {
+	type addr struct{ ip, family, class, first, last string }
+	var as []addr
+	err := func() error {
+		rows, err := tx.QueryContext(ctx, `SELECT ip, family, class, first_seen, last_seen FROM exp_address WHERE host_id = ?`, h.id)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
-			var h hostRow
-			if err := rows.Scan(&h.id, &h.target, &h.name, &h.child); err != nil {
+			var a addr
+			if err := rows.Scan(&a.ip, &a.family, &a.class, &a.first, &a.last); err != nil {
 				return err
 			}
-			hosts = append(hosts, h)
+			as = append(as, a)
 		}
 		return rows.Err()
 	}()
 	if err != nil {
-		return nil, fmt.Errorf("reading names: %w", err)
+		return nil, fmt.Errorf("the addresses of %s: %w", h.name, err)
 	}
-	left := map[string]bool{}               // the targets that dropped an address
-	dropped := map[string]map[string]bool{} // the names each target does not scan
-	for _, h := range hosts {
-		own, ok := nodes[h.target]
-		if !ok {
-			continue // a row of an IP target: none is written
-		}
-		// The row's own target is taken as enabled: a target that is switched off keeps its rows as its last scan left them, and an
-		// enabled one under it is still the owner of its names.
-		scope := slices.Clone(list)
-		for i := range scope {
-			if scope[i].id == own.id {
-				scope[i].enabled = true
+	var ips []string
+	for _, a := range as {
+		res, err := tx.ExecContext(ctx, `UPDATE exp_address SET first_seen = min(first_seen, ?3), family = CASE WHEN ?4 > last_seen THEN ?5 ELSE family END,
+			class = CASE WHEN ?4 > last_seen THEN ?6 ELSE class END, last_seen = max(last_seen, ?4) WHERE target_id = ?1 AND host_id = ?2 AND ip = ?7`,
+			to, oh, a.first, a.last, a.family, a.class, a.ip)
+		if err == nil {
+			if n, _ := res.RowsAffected(); n == 0 {
+				_, err = tx.ExecContext(ctx, `INSERT INTO exp_address (host_id, target_id, ip, family, class, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					oh, to, a.ip, a.family, a.class, a.first, a.last)
 			}
 		}
-		owner := ownerOf(h.name, scope)
-		child := owner
-		if owner == h.target {
-			child = ""
-		}
-		if child != h.child {
-			if _, err := tx.ExecContext(ctx, `UPDATE exp_host SET child_target_id = ? WHERE id = ?`, nullString(child), h.id); err != nil {
-				return nil, fmt.Errorf("writing the owner of %s: %w", h.name, err)
-			}
-		}
-		if owner == h.target {
-			continue
-		}
-		if dropped[h.target] == nil {
-			dropped[h.target] = map[string]bool{}
-		}
-		dropped[h.target][h.name] = true
-		res, err := tx.ExecContext(ctx, `DELETE FROM exp_address WHERE host_id = ?`, h.id)
 		if err != nil {
-			return nil, fmt.Errorf("dropping the addresses of %s: %w", h.name, err)
+			return nil, fmt.Errorf("handing over the address %s: %w", a.ip, err)
 		}
-		if n, _ := res.RowsAffected(); n > 0 {
-			left[h.target] = true
-		}
-	}
-	closed := map[string][]string{}
-	for target := range left {
-		ids, err := closeUnaddressed(ctx, tx, target)
-		if err != nil {
-			return nil, err
-		}
-		if err := goneWithService(ctx, tx, ids); err != nil {
-			return nil, err
-		}
-		closed[target] = ids
-	}
-	for target, names := range dropped {
-		if err := goneWithName(ctx, tx, target, names); err != nil {
-			return nil, err
+		if !slices.Contains(ips, a.ip) {
+			ips = append(ips, a.ip)
 		}
 	}
-	return closed, nil
+	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_address WHERE host_id = ?`, h.id); err != nil {
+		return nil, fmt.Errorf("handing over the addresses of %s: %w", h.name, err)
+	}
+	return ips, nil
 }
 
-// goneWithName marks gone the open issues of target about a name it does not scan any more (a certificate, a web site or an admin page
-// by that name): its scans no longer look there, so they would never say it is fixed; the scan that owns the name reports it there.
-func goneWithName(ctx context.Context, tx *sql.Tx, target string, names map[string]bool) error {
-	rows, err := tx.QueryContext(ctx, `SELECT id, engine, key FROM exp_issue WHERE target_id = ? AND state = 'open'`, target)
+// handOverService gives the service sid to target to: moved (merged into to's own row of the same port when it has one), or copied when
+// keep (the old target still reaches the address). Its issues follow: with a copy, those about the name go and the others are copied.
+func handOverService(ctx context.Context, tx *sql.Tx, sid, to, name string, keep bool) error {
+	var oid string
+	err := tx.QueryRowContext(ctx, `SELECT o.id FROM exp_service o JOIN exp_service s ON s.ip = o.ip AND s.port = o.port AND s.proto = o.proto
+		WHERE s.id = ? AND o.target_id = ?`, sid, to).Scan(&oid)
+	switch {
+	case errors.Is(err, sql.ErrNoRows) && !keep: // the row itself moves, with its issues
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET target_id = ? WHERE id = ?`, to, sid); err != nil {
+			return fmt.Errorf("handing over service %s: %w", sid, err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET target_id = ? WHERE service_id = ?`, to, sid); err != nil {
+			return fmt.Errorf("handing over the issues of service %s: %w", sid, err)
+		}
+		return nil
+	case errors.Is(err, sql.ErrNoRows): // a copy
+		oid = store.NewID("xs")
+		_, err = tx.ExecContext(ctx, `INSERT INTO exp_service (id, target_id, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id)
+			SELECT ?, ?, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id FROM exp_service WHERE id = ?`, oid, to, sid)
+	case err == nil: // merged: the later reading wins, first seen is the earlier
+		_, err = tx.ExecContext(ctx, `UPDATE exp_service SET first_seen = min(exp_service.first_seen, s.first_seen),
+			state = CASE WHEN s.last_seen > exp_service.last_seen THEN s.state ELSE exp_service.state END,
+			name = CASE WHEN s.last_seen > exp_service.last_seen THEN s.name ELSE exp_service.name END,
+			product = CASE WHEN s.last_seen > exp_service.last_seen THEN s.product ELSE exp_service.product END,
+			version = CASE WHEN s.last_seen > exp_service.last_seen THEN s.version ELSE exp_service.version END,
+			cpe = CASE WHEN s.last_seen > exp_service.last_seen THEN s.cpe ELSE exp_service.cpe END,
+			title = CASE WHEN s.last_seen > exp_service.last_seen THEN s.title ELSE exp_service.title END,
+			cert = CASE WHEN s.last_seen > exp_service.last_seen THEN s.cert ELSE exp_service.cert END,
+			is_web = CASE WHEN s.last_seen > exp_service.last_seen THEN s.is_web ELSE exp_service.is_web END,
+			ident = CASE WHEN s.last_seen > exp_service.last_seen THEN s.ident ELSE exp_service.ident END,
+			last_run_id = CASE WHEN s.last_seen > exp_service.last_seen THEN s.last_run_id ELSE exp_service.last_run_id END,
+			last_seen = max(exp_service.last_seen, s.last_seen)
+			FROM (SELECT * FROM exp_service WHERE id = ?) AS s WHERE exp_service.id = ?`, sid, oid)
+	}
 	if err != nil {
-		return fmt.Errorf("issues by name: %w", err)
+		return fmt.Errorf("handing over service %s: %w", sid, err)
 	}
-	var gone []string
+	issues, err := issuesOf(ctx, tx, `SELECT id, engine, key FROM exp_issue WHERE service_id = ?`, sid)
+	if err != nil {
+		return err
+	}
+	for _, i := range issues {
+		n := issueName(i.engine, i.key)
+		switch {
+		case !keep || n == name:
+			err = moveIssue(ctx, tx, i, to, oid)
+		case n == "":
+			err = copyIssue(ctx, tx, i, to, oid)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if !keep {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM exp_service WHERE id = ?`, sid); err != nil {
+			return fmt.Errorf("handing over service %s: %w", sid, err)
+		}
+	}
+	return nil
+}
+
+// handOverIssues gives the issues of from that are about no service and that about picks to target to: copied when keep, else moved.
+func handOverIssues(ctx context.Context, tx *sql.Tx, from, to string, about func(IssueEngine, string) bool, keep bool) error {
+	issues, err := issuesOf(ctx, tx, `SELECT id, engine, key FROM exp_issue WHERE target_id = ? AND service_id IS NULL`, from)
+	if err != nil {
+		return err
+	}
+	for _, i := range issues {
+		if !about(i.engine, i.key) {
+			continue
+		}
+		if keep {
+			err = copyIssue(ctx, tx, i, to, "")
+		} else {
+			err = moveIssue(ctx, tx, i, to, "")
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type issueRef struct {
+	id     string
+	engine IssueEngine
+	key    string
+}
+
+func issuesOf(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]issueRef, error) {
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("issues: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []issueRef
 	for rows.Next() {
-		var id, engine, key string
-		if err := rows.Scan(&id, &engine, &key); err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("issues by name: %w", err)
+		var i issueRef
+		var e string
+		if err := rows.Scan(&i.id, &e, &i.key); err != nil {
+			return nil, fmt.Errorf("issues: %w", err)
 		}
-		if n := issueName(IssueEngine(engine), key); n != "" && names[n] {
-			gone = append(gone, id)
-		}
+		i.engine = IssueEngine(e)
+		out = append(out, i)
 	}
-	_ = rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("issues by name: %w", err)
+	return out, rows.Err()
+}
+
+func idsOf(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("reading ids: %w", err)
 	}
-	for _, id := range gone {
-		if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET state = 'gone' WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("issue %s gone: %w", id, err)
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("reading ids: %w", err)
 		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// twinOf is the issue of target to with the engine and key of i on service svc ("": none), or "".
+func twinOf(ctx context.Context, tx *sql.Tx, i issueRef, to, svc string) (string, error) {
+	var id string
+	err := tx.QueryRowContext(ctx, `SELECT id FROM exp_issue WHERE target_id = ? AND engine = ? AND key = ? AND ifnull(service_id, '') = ?`, to, string(i.engine), i.key, svc).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
+// moveIssue gives issue i to target to, on service svc ("": none): its row moves, or is merged into to's own issue of the same engine and
+// key (first seen the earlier, the later reading wins, a person's decision is kept from either).
+func moveIssue(ctx context.Context, tx *sql.Tx, i issueRef, to, svc string) error {
+	twin, err := twinOf(ctx, tx, i, to, svc)
+	if err != nil {
+		return fmt.Errorf("handing over issue %s: %w", i.id, err)
+	}
+	if twin == "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET target_id = ?, service_id = ? WHERE id = ?`, to, nullString(svc), i.id); err != nil {
+			return fmt.Errorf("handing over issue %s: %w", i.id, err)
+		}
+		return nil
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE exp_issue SET first_seen = min(exp_issue.first_seen, i.first_seen),
+		title = CASE WHEN i.last_seen > exp_issue.last_seen THEN i.title ELSE exp_issue.title END,
+		severity = CASE WHEN i.last_seen > exp_issue.last_seen THEN i.severity ELSE exp_issue.severity END,
+		cves = CASE WHEN i.last_seen > exp_issue.last_seen THEN i.cves ELSE exp_issue.cves END,
+		detail = CASE WHEN i.last_seen > exp_issue.last_seen THEN i.detail ELSE exp_issue.detail END,
+		state = CASE WHEN exp_issue.state = 'handled' OR i.state = 'handled' THEN 'handled' WHEN i.last_seen > exp_issue.last_seen THEN i.state ELSE exp_issue.state END,
+		resolution = CASE WHEN exp_issue.state = 'handled' THEN exp_issue.resolution ELSE i.resolution END,
+		resolved_by = CASE WHEN exp_issue.state = 'handled' THEN exp_issue.resolved_by ELSE i.resolved_by END,
+		resolved_at = CASE WHEN exp_issue.state = 'handled' THEN exp_issue.resolved_at ELSE i.resolved_at END,
+		note = CASE WHEN exp_issue.state = 'handled' THEN exp_issue.note ELSE coalesce(i.note, exp_issue.note) END,
+		accepted_until = CASE WHEN exp_issue.state = 'handled' THEN exp_issue.accepted_until ELSE i.accepted_until END,
+		last_run_id = CASE WHEN i.last_seen > exp_issue.last_seen THEN i.last_run_id ELSE exp_issue.last_run_id END,
+		last_seen = max(exp_issue.last_seen, i.last_seen)
+		FROM (SELECT * FROM exp_issue WHERE id = ?) AS i WHERE exp_issue.id = ?`, i.id, twin)
+	if err == nil {
+		_, err = tx.ExecContext(ctx, `DELETE FROM exp_issue WHERE id = ?`, i.id)
+	}
+	if err != nil {
+		return fmt.Errorf("merging issue %s: %w", i.id, err)
+	}
+	return nil
+}
+
+// copyIssue gives target to a copy of issue i on service svc ("": none), unless it has that issue already.
+func copyIssue(ctx context.Context, tx *sql.Tx, i issueRef, to, svc string) error {
+	twin, err := twinOf(ctx, tx, i, to, svc)
+	if err != nil || twin != "" {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, cves, detail, state, resolution, resolved_by, resolved_at,
+		note, accepted_until, first_seen, last_seen, last_run_id) SELECT ?, ?, ?, engine, key, title, severity, cves, detail, state, resolution, resolved_by, resolved_at,
+		note, accepted_until, first_seen, last_seen, last_run_id FROM exp_issue WHERE id = ?`, store.NewID("xi"), to, nullString(svc), i.id)
+	if err != nil {
+		return fmt.Errorf("copying issue %s: %w", i.id, err)
 	}
 	return nil
 }
@@ -341,34 +598,6 @@ func urlHost(raw string) string {
 	return u.Hostname()
 }
 
-// closeUnaddressed closes the open services of target on addresses no row of it has any more and returns their ids.
-func closeUnaddressed(ctx context.Context, tx *sql.Tx, target string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT s.id FROM exp_service s WHERE s.target_id = ? AND s.state = 'open'
-		AND NOT EXISTS (SELECT 1 FROM exp_address a WHERE a.target_id = s.target_id AND a.ip = s.ip)`, target)
-	if err != nil {
-		return nil, fmt.Errorf("services left without an address: %w", err)
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			_ = rows.Close()
-			return nil, fmt.Errorf("services left without an address: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	_ = rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("services left without an address: %w", err)
-	}
-	for _, id := range ids {
-		if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET state = 'closed' WHERE id = ?`, id); err != nil {
-			return nil, fmt.Errorf("closing service %s: %w", id, err)
-		}
-	}
-	return ids, nil
-}
-
 // NodeEdit is a change to a target (PATCH /exposure/tree/{id}); a nil field is left as it is.
 type NodeEdit struct {
 	Scope   *ScopeMode // domains only
@@ -391,9 +620,8 @@ func errNotAName(id string) *APIError {
 	return apiErr(400, "bad_value", "%s is not a name found under this target.", clipText(id, 96))
 }
 
-// EditNode changes the scope, the switch or the chosen names of a target, audited, and settles the tree in the same write: the names it
-// no longer scans keep their rows and lose their addresses, the names a child gave back are scanned by it again from its next scan.
-// Switching a target off stops its scan that is queued or runs.
+// EditNode changes the scope, the switch or the chosen names of a target, audited, and settles the tree in the same write: the rows of the
+// names whose scanner changed go to the target that scans them now. Switching a target off stops its scan that is queued or runs.
 func (s *Service) EditNode(ctx context.Context, user, id string, e NodeEdit) (TargetView, error) {
 	off := false
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
@@ -457,7 +685,7 @@ func (s *Service) EditNode(ctx context.Context, user, id string, e NodeEdit) (Ta
 				}
 			}
 		}
-		if _, err := settleTree(ctx, tx); err != nil {
+		if err := settleTree(ctx, tx, ""); err != nil {
 			return err
 		}
 		off = t.Enabled && !enabled
@@ -551,45 +779,50 @@ func unplacedPairs(ctx context.Context, q querier) (int64, error) {
 	return n, nil
 }
 
-// doubleScanned counts the names scanned by two or more enabled targets: a target scans its own name, and a name under it whose row
-// carries addresses (a scan of that target resolved and probed it; a name it does not scan keeps its row without addresses).
+// doubleScanned counts the names that two enabled targets each probed in their newest scan that wrote its rows, both scans started after
+// both targets existed: a name scanned twice in the same round (a parent that probed a child's name). It reads what the scans recorded
+// (run items of kind name), not the rows the tree keeps in order.
 func doubleScanned(ctx context.Context, q querier) (int64, error) {
-	ts, err := treeTargets(ctx, q)
+	rows, err := q.QueryContext(ctx, `WITH last AS (
+			SELECT t.id AS target, t.created_at AS created, r.id AS run, r.started_at AS started FROM exp_target t
+			JOIN core_run r ON r.id = (SELECT r2.id FROM exp_scan x JOIN core_run r2 ON r2.id = x.run_id
+				WHERE x.target_id = t.id AND r2.status IN ('done', 'partial', 'stopped') AND r2.started_at IS NOT NULL
+				AND EXISTS (SELECT 1 FROM core_run_item i WHERE i.run_id = r2.id AND i.subject_kind = 'name')
+				ORDER BY r2.started_at DESC, r2.id DESC LIMIT 1)
+			WHERE t.enabled = 1)
+		SELECT l.target, l.created, l.started, i.label, coalesce(h.name, i.label) FROM last l
+		JOIN core_run_item i ON i.run_id = l.run AND i.subject_kind = 'name' LEFT JOIN exp_host h ON h.id = i.subject_id`)
 	if err != nil {
-		return 0, err
-	}
-	by := map[string]map[string]bool{} // name: the enabled targets that scan it
-	add := func(name, target string) {
-		if by[name] == nil {
-			by[name] = map[string]bool{}
-		}
-		by[name][target] = true
-	}
-	for _, t := range ts {
-		if t.enabled && t.kind == string(KindDomain) {
-			add(t.value, t.id)
-		}
-	}
-	rows, err := q.QueryContext(ctx, `SELECT DISTINCT h.name, h.target_id FROM exp_host h JOIN exp_target t ON t.id = h.target_id
-		WHERE t.enabled = 1 AND EXISTS (SELECT 1 FROM exp_address a WHERE a.host_id = h.id)`)
-	if err != nil {
-		return 0, fmt.Errorf("scanned names: %w", err)
+		return 0, fmt.Errorf("probed names: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	type scanOf struct{ created, started string }
+	scans := map[string]scanOf{}
+	by := map[string][]string{} // name: the targets whose newest scan probed it
 	for rows.Next() {
-		var name, target string
-		if err := rows.Scan(&name, &target); err != nil {
-			return 0, fmt.Errorf("scanned names: %w", err)
+		var target, created, started, label, name string
+		if err := rows.Scan(&target, &created, &started, &label, &name); err != nil {
+			return 0, fmt.Errorf("probed names: %w", err)
 		}
-		add(name, target)
+		scans[target] = scanOf{created, started}
+		if !slices.Contains(by[name], target) {
+			by[name] = append(by[name], target)
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("scanned names: %w", err)
+		return 0, fmt.Errorf("probed names: %w", err)
 	}
 	var n int64
 	for _, ts := range by {
-		if len(ts) > 1 {
-			n++
+	pairs:
+		for i, a := range ts {
+			for _, b := range ts[i+1:] {
+				sa, sb := scans[a], scans[b]
+				if sa.started >= sb.created && sb.started >= sa.created { // both scans of the same round
+					n++
+					break pairs
+				}
+			}
 		}
 	}
 	return n, nil

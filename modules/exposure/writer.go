@@ -50,6 +50,7 @@ type written struct {
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string
+	probed    map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
 }
 
 // issueIn is one issue a scan reported, before it is a row.
@@ -75,13 +76,13 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err != nil {
 		return written{}, err
 	}
+	out := written{probed: hostIDs}
 	if _, err := writeHosts(ctx, tx, w.target.ID, at, w.c.Listed); err != nil { // found, not probed: rows without addresses
 		return written{}, err
 	}
 	if err := writeAddresses(ctx, tx, w.target, at, w.c.Hosts, hostIDs); err != nil {
 		return written{}, err
 	}
-	var out written
 	if out.opened, out.closed, err = s.writeServices(ctx, tx, w, at); err != nil {
 		return written{}, err
 	}
@@ -107,14 +108,14 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err := goneWithService(ctx, tx, out.closed); err != nil {
 		return written{}, err
 	}
-	// The tree as it is now decides which of these names the target scans: a name another target took over while the scan ran (or one
-	// a runner probed against the plan) keeps its row without addresses, as the other names it does not scan.
-	left, err := settleTree(ctx, tx)
-	if err != nil {
+	// The tree as it is now decides which of these names the target scans: the rows of a name another target took over while the scan ran
+	// (or one a runner probed against the plan) go to that target, and what went with them is not new here.
+	if err := settleTree(ctx, tx, ""); err != nil {
 		return written{}, err
 	}
-	out.closed = append(out.closed, left[w.target.ID]...)
-	out.counts.ClosedServices = len(out.closed)
+	if out.opened, out.newIssues, err = stillHere(ctx, tx, w.target.ID, out.opened, out.newIssues); err != nil {
+		return written{}, err
+	}
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
 	if err := rowCounts(ctx, tx, w.target.ID, &out.counts); err != nil {
 		return written{}, err
@@ -129,6 +130,31 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	detail := fmt.Sprintf("%d names, %d open services (%d new, %d closed), %d open issues (%d new)", out.counts.Hosts, out.counts.Services,
 		out.counts.NewServices, out.counts.ClosedServices, out.counts.Issues, out.counts.NewIssues)
 	return out, s.audit(ctx, tx, w.user, "exposure.scan", w.target.Value, detail)
+}
+
+// stillHere keeps, of the services opened and the issues new in a write, those target still holds after the tree settled.
+func stillHere(ctx context.Context, tx *sql.Tx, target string, opened []PortRow, fresh []string) ([]PortRow, []string, error) {
+	var ports []PortRow
+	for _, p := range opened {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM exp_service WHERE target_id = ? AND ip = ? AND port = ?`, target, ipKey(p.IP), p.Port).Scan(&n); err != nil {
+			return nil, nil, fmt.Errorf("services after the tree settled: %w", err)
+		}
+		if n > 0 {
+			ports = append(ports, p)
+		}
+	}
+	var ids []string
+	for _, id := range fresh {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM exp_issue WHERE id = ? AND target_id = ?`, id, target).Scan(&n); err != nil {
+			return nil, nil, fmt.Errorf("issues after the tree settled: %w", err)
+		}
+		if n > 0 {
+			ids = append(ids, id)
+		}
+	}
+	return ports, ids, nil
 }
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the

@@ -301,7 +301,7 @@ func TestDomainScan(t *testing.T) {
 			offered = append(offered, a.String())
 			return a.String() == "203.0.113.10"
 		}
-		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked), log).Domain(t.Context(), "acme.example", nil, verified)
+		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked), log).Domain(t.Context(), "acme.example", Every, verified)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -430,7 +430,7 @@ func TestCTFailuresStopTheScan(t *testing.T) {
 			n := &fakeNet{open: map[string]handler{}}
 			var asked []string
 			_, err := newScanner(t, n, fakeResolver{"acme.example": addrs("203.0.113.10")}, ctAnswer(c.status, c.body, &asked), &probeLog{}).
-				Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool { return true })
+				Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return true })
 			if !errors.Is(err, c.want) || len(asked) != c.asks || len(n.dialed) != 0 {
 				t.Fatalf("%d: err %v, asked %d, dialed %d", c.status, err, len(asked), len(n.dialed))
 			}
@@ -525,12 +525,12 @@ func TestIdentify(t *testing.T) {
 func TestParseCT(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{`{"error":"busy"}`, `[{"name_value":"a.acme.example"}, {"name_value":`, `[{"name_value":"a.acme.example"}`, `[{"name_value":5}]`} {
-		if _, err := parseCT([]byte(bad), "acme.example", maxCTBody); err == nil {
+		if _, err := ctOf([]byte(bad), maxCTBody); err == nil {
 			t.Fatalf("%s was taken", bad)
 		}
 	}
 	// the same names in another order give the same list: the domain first, then sorted, each once
-	a, err := parseCT([]byte(`[{"name_value":"b.acme.example\na.acme.example"},{"common_name":"acme.example","name_value":"a.acme.example"}]`), "acme.example", maxCTBody)
+	a, err := ctOf([]byte(`[{"name_value":"b.acme.example\na.acme.example"},{"common_name":"acme.example","name_value":"a.acme.example"}]`), maxCTBody)
 	if err != nil || !slices.Equal(a, []string{"acme.example", "a.acme.example", "b.acme.example"}) {
 		t.Fatalf("%v %v", a, err)
 	}
@@ -541,18 +541,18 @@ func TestParseCT(t *testing.T) {
 		fmt.Fprintf(&b, `{"name_value":"h%d.acme.example"},`, i)
 	}
 	b.WriteString(`{"name_value":"last.acme.example"}]`)
-	if names, err := parseCT([]byte(b.String()), "acme.example", maxCTBody); err != nil || len(names) != maxNames {
+	if names, err := ctOf([]byte(b.String()), maxCTBody); err != nil || len(names) != maxNames {
 		t.Fatalf("at the cap: %d names, %v", len(names), err)
 	}
 	over := strings.Replace(b.String(), `"last.acme.example"`, `"last.acme.example\none-more.acme.example"`, 1)
-	if _, err := parseCT([]byte(over), "acme.example", maxCTBody); !errors.Is(err, ErrTooManyNames) {
+	if _, err := ctOf([]byte(over), maxCTBody); !errors.Is(err, ErrTooManyNames) {
 		t.Fatalf("over the cap: %v", err)
 	}
-	if _, err := parseCT([]byte(`[{"name_value":"a.acme.example"}]`), "acme.example", 10); !errors.Is(err, ErrTooManyNames) {
+	if _, err := ctOf([]byte(`[{"name_value":"a.acme.example"}]`), 10); !errors.Is(err, ErrTooManyNames) {
 		t.Fatalf("over the size limit: %v", err)
 	}
 	huge := `[{"name_value":"` + strings.Repeat("a", maxCTEntry) + `"}]`
-	if _, err := parseCT([]byte(huge), "acme.example", maxCTBody); err == nil || errors.Is(err, ErrTooManyNames) {
+	if _, err := ctOf([]byte(huge), maxCTBody); err == nil || errors.Is(err, ErrTooManyNames) {
 		t.Fatalf("an entry over maxCTEntry: %v", err)
 	}
 }
@@ -563,7 +563,7 @@ func FuzzParseCT(f *testing.F) {
 	f.Add(`[{"name_value":"\u0000.acme.example"}]`)
 	f.Add(`[`)
 	f.Fuzz(func(t *testing.T, in string) {
-		names, err := parseCT([]byte(in), "acme.example", maxCTBody)
+		names, err := ctOf([]byte(in), maxCTBody)
 		if err != nil {
 			return
 		}
@@ -615,7 +615,7 @@ func TestDomainSkipsTheNamesItIsToldNotToProbe(t *testing.T) {
 		var offered []string
 		may := func(_ context.Context, a netip.Addr) bool { offered = append(offered, a.String()); return true }
 		scans := func(name string) bool { return name != "git.acme.example" && name != "acme.example" } // the domain is probed whatever it says
-		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked), &probeLog{}).Domain(t.Context(), "acme.example", scans, may)
+		got, err := newScanner(t, n, res, ctAnswer(200, ct, &asked), &probeLog{}).Domain(t.Context(), "acme.example", Names{Scans: scans, Find: true}, may)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -639,4 +639,10 @@ func TestDomainSkipsTheNamesItIsToldNotToProbe(t *testing.T) {
 			t.Fatalf("the skipped name's address was dialed %d times", d)
 		}
 	})
+}
+
+// ctOf reads a crt.sh answer for acme.example with every name reached.
+func ctOf(body []byte, limit int) ([]string, error) {
+	names, _, err := parseCTScope(body, "acme.example", limit, nil)
+	return names, err
 }

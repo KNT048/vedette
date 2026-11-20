@@ -246,11 +246,60 @@ func TestTree_TheParentsScanSkipsItsChildsNames(t *testing.T) {
 	}
 }
 
-// What a parent found on its child's name before the child was added is the child's from then on, in the same write: the parent keeps
-// the name (linked to the child) without its address, the services on the address only that name pointed at are closed, and the issues
-// about that name (a certificate, a web site) or on those services are gone. Removing the child gives the name back to the parent's
-// next scan. No name is ever counted as scanned by two targets.
-func TestTree_AChildAddedTakesItsNameFromTheParentsRows(t *testing.T) {
+// planRunner answers a domain's scan as the surface scanner does with its plan: the names it owns with their ports and certificates, the
+// others listed without a probe.
+type planRunner struct {
+	content Content // every name the domain has, with the ports and certificates of their addresses
+	last    ScanTarget
+}
+
+func (r *planRunner) Scan(_ context.Context, st ScanTarget) (Content, error) {
+	r.last = st
+	out := Content{Hosts: []HostRow{}, Ports: []PortRow{}}
+	reached := map[string]bool{}
+	for _, h := range r.content.Hosts {
+		if !strings.HasSuffix("."+h.Name, "."+st.Value) {
+			continue
+		}
+		if !st.Names.Scans(h.Name) {
+			out.Listed = append(out.Listed, HostRow{Name: h.Name, Source: h.Source})
+			continue
+		}
+		out.Hosts = append(out.Hosts, h)
+		reached[h.IP] = true
+		for _, c := range r.content.Certs {
+			if c.Host == h.Name {
+				out.Certs = append(out.Certs, c)
+			}
+		}
+	}
+	for _, p := range r.content.Ports {
+		if reached[p.IP] {
+			out.Ports = append(out.Ports, p)
+		}
+	}
+	return out, nil
+}
+
+// lastWritten is the newest exposure.scan.written of target id.
+func (e *env) lastWritten(id string) ScanWrittenEvent {
+	e.t.Helper()
+	e.pub.mu.Lock()
+	defer e.pub.mu.Unlock()
+	for i := len(e.pub.got) - 1; i >= 0; i-- {
+		if w, ok := e.pub.got[i].Data.(ScanWrittenEvent); ok && w.TargetID == id {
+			return w
+		}
+	}
+	e.t.Fatalf("no scan of %s was written", id)
+	return ScanWrittenEvent{}
+}
+
+// The rows of a name live with the target that scans it, and moving them is never news: the apex scanned git.<apex> and x.git.<apex>;
+// git.<apex> added takes their rows (open services, an issue about the name, first seen kept), the apex keeps the names without them;
+// switched off, narrowed to its own name, or removed, the child hands them back and the apex's next scan opens no port and finds no new
+// issue. Neither count of the tree is ever above 0.
+func TestTree_OwnershipMovesWithoutANewPortOrANewIssue(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	apex := e.addNode("acme.example", "")
@@ -261,54 +310,110 @@ func TestTree_AChildAddedTakesItsNameFromTheParentsRows(t *testing.T) {
 	if _, err := e.commit(apex.ID); err != nil {
 		t.Fatal(err)
 	}
-	soon := certAt("git.acme.example", 9*day)
-	run := &fakeRunner{content: Content{
-		Hosts: []HostRow{
-			{Name: "acme.example", IP: ipA, IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassPublic}}},
-			{Name: "git.acme.example", IP: ipB, IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic}}},
-		},
-		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}, {IP: ipB, Port: 443, Service: "https"}, {IP: ipB, Port: 22, Service: "ssh"}},
-		Certs: []CertRow{soon},
+	host := func(name, ip string) HostRow {
+		return HostRow{Name: name, IP: ip, Source: "ct", IPs: []HostIP{{IP: ip, Family: "ipv4", Class: ClassPublic}}}
+	}
+	run := &planRunner{content: Content{
+		Hosts: []HostRow{host("acme.example", ipA), host("git.acme.example", ipB), host("x.git.acme.example", ipC)},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}, {IP: ipB, Port: 22, Service: "ssh"}, {IP: ipB, Port: 443, Service: "https"}, {IP: ipC, Port: 80, Service: "http"}},
+		Certs: []CertRow{certAt("git.acme.example", 9*day)},
 	}}
 	e.svc.SetRunner(run)
-	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", apex.ID); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND state = 'open' AND key = ?`, apex.ID, keyCertExpiry+"git.acme.example"); n != 1 {
-		t.Fatalf("the certificate of git is not an issue of the apex: %d", n)
-	}
-	git := e.addNode("git.acme.example", "")
-	for _, c := range []struct {
-		what  string
-		query string
-		want  int
-	}{
-		{"the name stays, linked to the child", `SELECT count(*) FROM exp_host WHERE target_id = ? AND name = 'git.acme.example' AND child_target_id = '` + git.ID + `'`, 1},
-		{"without its address", `SELECT count(*) FROM exp_address a JOIN exp_host h ON h.id = a.host_id WHERE a.target_id = ? AND h.name = 'git.acme.example'`, 0},
-		{"the services on its address are closed", `SELECT count(*) FROM exp_service WHERE target_id = ? AND ip = '` + ipB + `' AND state = 'open'`, 0},
-		{"the apex's own service stays", `SELECT count(*) FROM exp_service WHERE target_id = ? AND ip = '` + ipA + `' AND state = 'open'`, 1},
-		{"the issue about the name is gone", `SELECT count(*) FROM exp_issue WHERE target_id = ? AND state = 'open' AND key LIKE 'cert_expiry:git.%'`, 0},
-	} {
-		if n := e.count(c.query, apex.ID); n != c.want {
-			t.Errorf("%s: %d, want %d", c.what, n, c.want)
+	scanApex := func(what string) {
+		t.Helper()
+		e.advance(ScanEvery)
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", apex.ID); err != nil {
+			t.Fatal(err)
+		}
+		w := e.lastWritten(apex.ID)
+		if !w.First && (len(w.Opened) != 0 || len(w.NewIssues) != 0) {
+			t.Fatalf("%s: the apex's scan reports opened %+v and new issues %v", what, w.Opened, w.NewIssues)
+		}
+		if p, n := e.treeCounts(); p != 0 || n != 0 {
+			t.Fatalf("%s: counts %d %d", what, p, n)
 		}
 	}
-	if p, n := e.treeCounts(); p != 0 || n != 0 {
-		t.Fatalf("counts %d %d", p, n)
+	held := func(target, ip string) int {
+		return e.count(`SELECT count(*) FROM exp_service WHERE target_id = ? AND ip = ? AND state = 'open'`, target, ip)
 	}
-	// The child removed: the parent's next scan probes the name again and writes its address
+	scanApex("the first scan")
+	scanApex("the second scan")
+
+	git := e.addNode("git.acme.example", "")
+	for _, c := range []struct {
+		what string
+		n    int
+		want int
+	}{
+		{"the apex keeps git's name, linked to it", e.count(`SELECT count(*) FROM exp_host WHERE target_id = ? AND name = 'git.acme.example' AND child_target_id = ?`, apex.ID, git.ID), 1},
+		{"a name under git is no target: no link", e.count(`SELECT count(*) FROM exp_host WHERE target_id = ? AND name = 'x.git.acme.example' AND child_target_id IS NULL`, apex.ID), 1},
+		{"the apex holds nothing on git's addresses", held(apex.ID, ipB) + held(apex.ID, ipC), 0},
+		{"git holds them, open", held(git.ID, ipB) + held(git.ID, ipC), 3},
+		{"with their first seen", e.count(`SELECT count(*) FROM exp_service s WHERE s.target_id = ? AND s.first_seen = (SELECT min(first_seen) FROM exp_service WHERE target_id = ?)`, git.ID, git.ID), 3},
+		{"and the issue about its name", e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND state = 'open' AND key = ?`, git.ID, keyCertExpiry+"git.acme.example"), 1},
+		{"nothing was closed", e.count(`SELECT count(*) FROM exp_service WHERE state = 'closed'`), 0},
+	} {
+		if c.n != c.want {
+			t.Errorf("%s: %d, want %d", c.what, c.n, c.want)
+		}
+	}
+	scanApex("the scan after git was added")
+
+	off, on, self := false, true, ScopeSelf
+	if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if held(apex.ID, ipB) != 2 || held(git.ID, ipB) != 0 {
+		t.Fatalf("git switched off: the apex holds %d on its address, git %d", held(apex.ID, ipB), held(git.ID, ipB))
+	}
+	scanApex("git switched off")
+	if _, err := e.svc.EditNode(e.ctx(), "admin@acme.example", git.ID, NodeEdit{Enabled: &on, Scope: &self}); err != nil {
+		t.Fatal(err)
+	}
+	if held(git.ID, ipB) != 2 || held(apex.ID, ipC) != 1 || held(git.ID, ipC) != 0 { // git's own name is git's; x.git, out of its scope, the apex's
+		t.Fatalf("git on, only its own name: git %d on its address, apex %d / git %d on x.git's", held(git.ID, ipB), held(apex.ID, ipC), held(git.ID, ipC))
+	}
+	scanApex("git narrowed to its own name")
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", git.ID); err != nil {
 		t.Fatal(err)
 	}
+	if held(apex.ID, ipB) != 2 || e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND state = 'open' AND key = ?`, apex.ID, keyCertExpiry+"git.acme.example") != 1 {
+		t.Fatal("git removed: its rows did not come back to the apex")
+	}
+	scanApex("git removed")
+	if n := e.count(`SELECT count(*) FROM exp_service WHERE state = 'closed'`); n != 0 {
+		t.Fatalf("%d services were closed by moves", n)
+	}
+}
+
+// The count of names scanned twice reads what the scans probed: with a runner that probes every name it is handed, the apex's scan of
+// its child's name counts; with the plan obeyed it does not.
+func TestTree_ANameScannedTwiceIsCounted(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	apex, git := e.proveTree()
+	hosts := []HostRow{{Name: "acme.example", IP: ipA, IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassPublic}}},
+		{Name: "git.acme.example", IP: ipB, IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic}}}}
+	for _, c := range []struct {
+		id    string
+		hosts []HostRow
+	}{{git.ID, hosts[1:]}, {apex.ID, hosts}} { // the apex's runner probes every name, whatever the plan says
+		e.svc.SetRunner(&fakeRunner{content: Content{Hosts: c.hosts, Ports: []PortRow{}}})
+		e.advance(ScanEvery)
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", c.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, n := e.treeCounts(); n != 1 {
+		t.Fatalf("a name probed by the apex and its child counts %d, want 1", n)
+	}
+	e.svc.SetRunner(&planRunner{content: Content{Hosts: hosts, Ports: []PortRow{}}})
 	e.advance(ScanEvery)
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", apex.ID); err != nil {
 		t.Fatal(err)
 	}
-	if !run.last.Names.Scans("git.acme.example") {
-		t.Fatal("the name is not given back to the parent")
-	}
-	if n := e.count(`SELECT count(*) FROM exp_address a JOIN exp_host h ON h.id = a.host_id WHERE a.target_id = ? AND h.name = 'git.acme.example' AND h.child_target_id IS NULL`, apex.ID); n != 1 {
-		t.Fatalf("the name's address after the child left: %d", n)
+	if _, n := e.treeCounts(); n != 0 {
+		t.Fatalf("with the plan obeyed the count is %d, want 0", n)
 	}
 }
 

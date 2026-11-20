@@ -43,7 +43,7 @@ func ctURL(domain string) string {
 }
 
 // searchCT asks crt.sh for the names under domain, once more when the first answer fails (the service is often busy), and
-// returns them: the domain first, then the others sorted. Names are untrusted: parseCT keeps only valid names under the domain.
+// returns them: the domain first, then the others sorted. Names are untrusted: parseCTScope keeps only valid names under the domain.
 // scans picks the names the scan probes (nil: every name): only those count against maxNames; the others are returned apart
 // (skipped, sorted, at most maxNames of them).
 func (s *Scanner) searchCT(ctx context.Context, domain string, scans func(string) bool) (names, skipped []string, err error) {
@@ -83,18 +83,12 @@ func (s *Scanner) askCT(ctx context.Context, domain string, scans func(string) b
 	return parseCTScope(body, domain, maxCTBody, scans)
 }
 
-// parseCT reads crt.sh's JSON (an array of certificates; name_value holds the names of one, one a line), at most limit bytes and
+// parseCTScope reads crt.sh's JSON (an array of certificates; name_value holds the names of one, one a line), at most limit bytes and
 // maxCTEntry bytes a certificate, and returns every distinct valid name under domain: the domain first, the others sorted.
 // Wildcards, e-mail addresses, other domains and anything that is not a host name are dropped. A body that is not that JSON,
 // or an entry over maxCTEntry, is an error (fail closed); over limit, or over maxNames names, is ErrTooManyNames: nothing is
-// cut, so the same logs give the same names every day.
-func parseCT(body []byte, domain string, limit int) ([]string, error) {
-	names, _, err := parseCTScope(body, domain, limit, nil)
-	return names, err
-}
-
-// parseCTScope is parseCT where only the names scans accepts (nil: all) count against maxNames; the others are returned apart, sorted,
-// at most maxNames of them (a listing, not a scan: one past the bound is left out).
+// cut, so the same logs give the same names every day. Only the names scans accepts (nil: all) count against maxNames and are returned
+// first; the others are returned apart, sorted, at most maxNames of them (a listing, not a scan: one past the bound is left out).
 func parseCTScope(body []byte, domain string, limit int, scans func(string) bool) ([]string, []string, error) {
 	if len(body) > limit {
 		return nil, nil, ErrTooManyNames

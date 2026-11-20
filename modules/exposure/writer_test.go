@@ -215,8 +215,8 @@ func TestWriter_ReplayOfStoredScansWritesTheRows(t *testing.T) {
 		{"the web alerts", `SELECT count(*) FROM exp_issue WHERE target_id = 'xt-ip' AND engine = 'zap' AND state = 'open'`, 4},
 		{"OpenVAS's results", `SELECT count(*) FROM exp_issue WHERE target_id = 'xt-ip' AND engine = 'openvas' AND state = 'open'`, 3},
 		{"the names under the apex", `SELECT count(*) FROM exp_host WHERE target_id = 'xt-apex'`, 20},
-		// git.<apex> is a target of its own, so the apex keeps its name without its address, and the four services on the address only that
-		// name pointed at are the child's alone (no name scanned by two targets)
+		// git.<apex> is a target of its own, so the apex keeps its name and hands its address and the four services on it (open, merged
+		// into the child's own) to the child: no name scanned by two targets
 		{"their addresses", `SELECT count(*) FROM exp_address WHERE target_id = 'xt-apex'`, 26},
 		{"the apex's services", `SELECT count(*) FROM exp_service WHERE target_id = 'xt-apex' AND state = 'open'`, 14},
 		{"the child's name under the apex", `SELECT count(*) FROM exp_host WHERE target_id = 'xt-apex' AND child_target_id = 'xt-git'`, 1},

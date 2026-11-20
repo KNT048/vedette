@@ -610,7 +610,7 @@ func (s *Service) addDomain(ctx context.Context, user, raw string, scope ScopeMo
 		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, ScopeMode: scope, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
-		if _, err := settleTree(ctx, tx); err != nil { // under its nearest parent; the targets under it move under it
+		if err := settleTree(ctx, tx, ""); err != nil { // under its nearest parent; the targets under it move under it
 			return err
 		}
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "scope "+string(cmp.Or(scope, ScopeAll)))
@@ -679,10 +679,11 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 				return ErrIgnoredFull
 			}
 		}
-		if err := deleteTarget(ctx, tx, id); err != nil {
+		// its children move up to its parent, and the rows of its names go to whoever scans them now, before its own are deleted
+		if err := settleTree(ctx, tx, id); err != nil {
 			return err
 		}
-		if _, err := settleTree(ctx, tx); err != nil { // its children move up to its parent, and its names go back to whoever scans them
+		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
 		}
 		if err := s.uncover(ctx, tx, t); err != nil { // what its record proved needs a proof of its own now

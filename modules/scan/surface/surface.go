@@ -177,10 +177,12 @@ type (
 	// Result is what one scan found. Wordlist: why a domain scan did not try every common name (WordlistWildcard,
 	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer, sorted; they are
 	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27). Skipped: the names found that the scan was told
-	// not to probe (another target scans them, or the scope leaves them out), with their source and CNAME only.
+	// not to reach (another target scans them, or the scope leaves them out), with their source only. NamesCut: the scope is the names
+	// chosen and the domain has more names than one scan lists, so only the chosen ones were looked up.
 	Result struct {
 		Hosts      []Host
 		Skipped    []Host
+		NamesCut   bool
 		Ports      []Port
 		Admin      []Admin
 		Certs      []Cert
@@ -189,33 +191,67 @@ type (
 	}
 )
 
+// Names is which names under a domain one scan reaches: the scope of the target and the names its child targets scan themselves.
+type Names struct {
+	// Scans says the scan probes a name (nil: every name found); the domain itself always. A name it refuses is listed in Skipped,
+	// never resolved nor probed, and does not count against maxNames.
+	Scans func(name string) bool
+	// Find: look for names under the domain (certificate logs, MX and NS, common names). Without it, only the domain and Chosen.
+	Find bool
+	// Choose: the scope is the names chosen. With too many names under the domain to list them, the scan falls back to Chosen
+	// (Result.NamesCut) instead of refusing.
+	Choose bool
+	// Chosen are names under the domain looked up and probed whether or not they are found this time (the names chosen).
+	Chosen []string
+}
+
+// Every is the scan of every name found under a domain.
+var Every = Names{Find: true}
+
 // Domain scans a verified domain: its names from certificate transparency, the apex's MX and NS hosts under it
 // and the common names that resolve (discover), each with its addresses, CNAME and class, listed; HTTP checks by name on 80 and 443
 // for the names on a public IPv4 address; a port scan only of the addresses that mayScanPorts accepts (exposure: a verified IP
 // target that may be scanned now), which are also the ones of kind "box". One probe-log row of kind "dns" is written before the
-// lookups. scans says which names this scan probes (nil: every one): a name it refuses is listed in Skipped and gets no check by
-// name, and its addresses no port scan through it; the domain itself is always probed. ErrCT when the search gives no answer,
-// ErrTooManyNames when the domain has more names than one scan reads, ErrTooLong past the time cap.
-func (s *Scanner) Domain(ctx context.Context, domain string, scans func(name string) bool, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
+// lookups. names is which names it reaches (Names): the others are listed in Skipped with no lookup, no check by name and no port scan
+// through them. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names to scan than one scan reads,
+// ErrTooLong past the time cap.
+func (s *Scanner) Domain(ctx context.Context, domain string, names Names, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
 		return Result{}, fmt.Errorf("surface: %q is not a domain name", domain)
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	ct, err := s.searchCT(ctx, domain)
-	if err != nil {
-		return Result{}, s.stopped(ctx, err)
+	var ct, other []string
+	cut := false
+	if names.Find {
+		var err error
+		ct, other, err = s.searchCT(ctx, domain, names.Scans)
+		switch {
+		case errors.Is(err, ErrTooManyNames) && names.Choose: // too many to list: the chosen names only, and the scan says so
+			cut, ct, other = true, nil, nil
+		case err != nil:
+			return Result{}, s.stopped(ctx, err)
+		}
+		s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct), "skipped", len(other))
 	}
-	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct))
 	// The domain is the label (and the target column); the text leads with the counts, so the 300-character clip of the probe log
 	// never cuts them.
 	const asked = "DNS lookups via the box's resolver: A, AAAA, CNAME of %d names from certificates; MX, NS; wildcard check; up to %d common names"
-	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: fmt.Sprintf(asked, len(ct), len(wordlist.Labels()))}}
+	const askedChosen = "DNS lookups via the box's resolver: A, AAAA, CNAME of the domain and %d chosen names"
+	req := fmt.Sprintf(asked, len(ct), len(wordlist.Labels()))
+	if !names.Find || cut {
+		req = fmt.Sprintf(askedChosen, len(names.Chosen))
+	}
+	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: req}}
 	if err := s.record(ctx, probe, false); err != nil {
 		return Result{}, err
 	}
-	d, err := s.discover(ctx, domain, ct)
+	d, err := s.discover(ctx, domain, ct, other, names, names.Find && !cut)
+	if errors.Is(err, ErrTooManyNames) && names.Choose && names.Find && !cut {
+		cut = true
+		d, err = s.discover(ctx, domain, nil, nil, names, false)
+	}
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -227,7 +263,10 @@ func (s *Scanner) Domain(ctx context.Context, domain string, scans func(name str
 	if d.answers[domain].failed { // the domain itself (and so, at worst, every name) got no clear answer: nothing to compare with
 		return Result{}, ErrDNS
 	}
-	res := Result{Wordlist: d.wordlist}
+	res := Result{Wordlist: d.wordlist, NamesCut: cut}
+	for _, n := range d.skipped { // another target's names, or out of the scope: listed, never looked up nor probed
+		res.Skipped = append(res.Skipped, Host{Name: n, Source: d.source[n]})
+	}
 	var jobs []fetchJob
 	var public []netip.Addr
 	contacted := map[string]netip.Addr{}
@@ -241,10 +280,6 @@ func (s *Scanner) Domain(ctx context.Context, domain string, scans func(name str
 			continue // a name from an old certificate that no longer resolves
 		}
 		h := Host{Name: n, Source: d.source[n], CNAME: a.cname}
-		if n != domain && scans != nil && !scans(n) { // another target's name, or one the scope leaves out: listed, never probed
-			res.Skipped = append(res.Skipped, h)
-			continue
-		}
 		if i := slices.IndexFunc(a.addrs, netip.Addr.Is4); i >= 0 {
 			h.IP = a.addrs[i]
 		}

@@ -112,13 +112,13 @@ type fakeSurface struct {
 	domain  string
 	ip      netip.Addr
 	allowed []string
-	scans   func(string) bool // the names the scan was told to probe
-	started chan struct{}     // set: the scan blocks until its context ends
-	ctx     context.Context   // the context of that blocking scan, set before started is closed
+	names   surface.Names   // the names the scan was told to reach
+	started chan struct{}   // set: the scan blocks until its context ends
+	ctx     context.Context // the context of that blocking scan, set before started is closed
 }
 
-func (f *fakeSurface) Domain(ctx context.Context, d string, scans func(string) bool, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
-	f.domain, f.scans = d, scans
+func (f *fakeSurface) Domain(ctx context.Context, d string, names surface.Names, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
+	f.domain, f.names = d, names
 	for _, a := range []string{"203.0.113.10", "203.0.113.11"} {
 		if may(ctx, netip.MustParseAddr(a)) {
 			f.allowed = append(f.allowed, a)
@@ -175,7 +175,7 @@ func TestExposureRunnerResult(t *testing.T) {
 	}
 	// A name the scan did not probe (its child target's, or out of its scope) comes back listed, without an address; the scan was handed
 	// the target's plan (nil here: every name)
-	if !reflect.DeepEqual(c.Listed, []exposure.HostRow{{Name: "git.acme.example", Source: "ct", CNAME: "git.example.net"}}) || f.scans == nil || !f.scans("www.acme.example") {
+	if !reflect.DeepEqual(c.Listed, []exposure.HostRow{{Name: "git.acme.example", Source: "ct", CNAME: "git.example.net"}}) || f.names.Scans == nil || !f.names.Scans("www.acme.example") || !f.names.Find || f.names.Choose {
 		t.Fatalf("listed %+v", c.Listed)
 	}
 	if fmt.Sprint(asked) != "[op@acme.example 203.0.113.10 op@acme.example 203.0.113.11]" || fmt.Sprint(f.allowed) != "[203.0.113.10]" {
@@ -243,7 +243,7 @@ func exposureScanNeverProbesNonPublic(t *testing.T) {
 			t.Fatalf("%s: %v", a, err)
 		}
 	}
-	got, err := s.Domain(t.Context(), "acme.example", nil, func(context.Context, netip.Addr) bool {
+	got, err := s.Domain(t.Context(), "acme.example", surface.Every, func(context.Context, netip.Addr) bool {
 		t.Error("a non-public address was offered for a port scan")
 		return true
 	})

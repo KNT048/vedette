@@ -1139,8 +1139,20 @@ func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) er
 
 // RecomputeAsset folds the observations of a device into its current columns (DATA_MODEL 5.1 rule 3): per
 // field the winner by source rank, confidence, seen_at, id. It is the only code that writes those columns, and
-// it runs in the transaction of the insert and the audit row. It reports whether anything changed.
+// it runs in the transaction of the insert and the audit row. It reports whether anything changed. The OS a network device states
+// (or the OS a person set on it) is then a software line again (syncStatedOS): what decides it may have moved.
 func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
+	changed, err := s.recomputeColumns(ctx, tx, assetID)
+	if err != nil {
+		return false, err
+	}
+	if _, err := s.syncStatedOS(ctx, tx, assetID, s.now()); err != nil {
+		return false, err
+	}
+	return changed, nil
+}
+
+func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
 	if _, err := s.lapseOS(ctx, tx, assetID); err != nil { // a newer OS read after a person's correction ends it (INV-52)
 		return false, err
 	}

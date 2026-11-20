@@ -17,7 +17,7 @@ func TestPackagedRowKeepsFullVersionAndSource(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.50")}
 	sync := func(src observe.Source, full string) {
 		t.Helper()
-		err := e.svc.ReplaceSoftware(e.ctx(), hint, src, []observe.Software{
+		err := e.svc.ReplaceSoftware(e.ctx(), hint, src, nil, []observe.Software{
 			{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9, Packaged: true, PkgVersion: full, PkgSource: "openssh"},
 			{Display: "curl", Vendor: "curl", Product: "curl", Version: "8.5.0", Confidence: 0.9, Packaged: true, PkgVersion: "8.5.0-2ubuntu10; rm", PkgSource: "curl"},
 			{Display: "Chrome", Vendor: "Google", Product: "Chrome", Version: "130.0", Confidence: 0.9, PkgVersion: "130.0-1", PkgSource: "chrome"},
@@ -38,13 +38,13 @@ func TestPackagedRowKeepsFullVersionAndSource(t *testing.T) {
 		}
 		return got
 	}
-	sync(observe.Agent, "1:9.6p1-3ubuntu13.5")
+	sync(observe.Osquery, "1:9.6p1-3ubuntu13.5")
 	got := read()
 	if got["OpenSSH/agent"] != [2]string{"1:9.6p1-3ubuntu13.5", "openssh"} || got["curl/agent"] != [2]string{} || got["Chrome/agent"] != [2]string{} {
 		t.Fatalf("stored %v", got)
 	}
 	e.ev.reset()
-	sync(observe.Agent, "1:9.6p1-3ubuntu13.14")
+	sync(observe.Osquery, "1:9.6p1-3ubuntu13.14")
 	if got := read(); got["OpenSSH/agent"][0] != "1:9.6p1-3ubuntu13.14" {
 		t.Fatalf("after the update %v", got)
 	}
@@ -52,7 +52,7 @@ func TestPackagedRowKeepsFullVersionAndSource(t *testing.T) {
 		t.Fatalf("%d match events after a package update, want 1", n)
 	}
 	e.ev.reset()
-	sync(observe.Agent, "1:9.6p1-3ubuntu13.14") // the same list again: nothing to tell
+	sync(observe.Osquery, "1:9.6p1-3ubuntu13.14") // the same list again: nothing to tell
 	if n := len(e.ev.named(inventory.EventMatchChanged)); n != 0 {
 		t.Fatalf("%d match events for an unchanged list", n)
 	}

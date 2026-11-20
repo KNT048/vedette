@@ -328,7 +328,7 @@ func TestContract_POST2_UpsertSoftwareReplacesBySource(t *testing.T) {
 	id := e.addDevice(inventory.AddInput{CatalogID: "windows-11", IP: "192.168.1.5"})
 	up := func(items ...inventory.SoftwareItem) {
 		t.Helper()
-		if err := e.svc.UpsertSoftware(e.ctx(), id, items, "agent"); err != nil {
+		if err := e.svc.UpsertSoftware(e.ctx(), id, items, "osquery"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -373,23 +373,23 @@ func TestContract_POST2_UpsertSoftwareReplacesBySource(t *testing.T) {
 	if err := e.svc.UpsertSoftware(e.ctx(), id, nil, "manual"); err == nil {
 		t.Fatal("manual accepted")
 	}
-	if err := e.svc.UpsertSoftware(e.ctx(), "a-nope", nil, "agent"); err == nil {
+	if err := e.svc.UpsertSoftware(e.ctx(), "a-nope", nil, "osquery"); err == nil {
 		t.Fatal("unknown device accepted")
 	}
-	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "", Product: "x"}}, "agent"); err == nil {
+	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "", Product: "x"}}, "osquery"); err == nil {
 		t.Fatal("empty vendor accepted")
 	}
-	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "agent"); err == nil {
+	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "osquery"); err == nil {
 		t.Fatal("confidence 2 accepted")
 	}
 	// the agent path through core/observe finds or creates the device by hint
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{MAC: macB, IP: netip.MustParseAddr("192.168.1.77")}, observe.Agent, []observe.Software{{Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{MAC: macB, IP: netip.MustParseAddr("192.168.1.77")}, observe.Osquery, nil, []observe.Software{{Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.idByMAC(macB); len(e.detail(got).Asset.Software) != 1 {
 		t.Fatal("software not stored for the new device")
 	}
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{MAC: macB}, observe.Manual, nil); err == nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{MAC: macB}, observe.Manual, nil, nil); err == nil {
 		t.Fatal("manual accepted by the sink")
 	}
 }

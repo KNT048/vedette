@@ -38,10 +38,10 @@ var updateReach = flag.Bool("update-reach", false, "rewrite "+reachGolden+" from
 var reachWant = map[findings.ReachClass]int{
 	findings.ReachNoNVDData:     1,
 	findings.ReachNoNVDVersions: 72,
-	findings.ReachKeyedVersion:  789,
-	findings.ReachKeyedOnly:     166,
-	findings.ReachViaNVD:        120,
-	findings.ReachNone:          633,
+	findings.ReachKeyedVersion:  808,
+	findings.ReachKeyedOnly:     161,
+	findings.ReachViaNVD:        114,
+	findings.ReachNone:          625,
 }
 
 func TestReachability_910_Fixture(t *testing.T) {

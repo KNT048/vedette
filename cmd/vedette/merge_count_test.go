@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -80,8 +81,14 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 			}
 			return id.(string) + "-" + dev.tag
 		}
-		for _, r := range fx.Software {
-			s.insertRow("inv_software", r, map[string]any{"id": sw(r["id"]), "asset_id": dev.id, "seen_at": dev.seen})
+		for _, r := range fx.Software { // the export's agent rows as software lines read by osquery
+			id := sw(r["id"])
+			key := productid.Key(r["vendor"].(string), r["product"].(string))
+			s.exec(`INSERT INTO inv_software (id, asset_id, product_key, display, vendor, product, cpe, version, pkg_version, pkg_source, packaged, source, confidence,
+				seen_at, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'osquery', ?, ?, ?, ?)`,
+				id, dev.id, key, r["display"], r["vendor"], r["product"], r["cpe"], r["version"], r["pkg_version"], r["pkg_source"], r["packaged"], r["confidence"], dev.seen, dev.seen, dev.seen)
+			s.exec(`INSERT INTO inv_software_reading (software_id, source, display, version, pkg_version, pkg_source, packaged, cpe, confidence, first_seen, seen_at)
+				VALUES (?, 'osquery', ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, r["display"], r["version"], r["pkg_version"], r["pkg_source"], r["packaged"], r["cpe"], r["confidence"], dev.seen, dev.seen)
 		}
 		for _, r := range fx.Services {
 			s.insertRow("inv_service", r, map[string]any{"id": r["id"].(string) + "-" + dev.tag, "asset_id": dev.id})
@@ -134,7 +141,8 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 type mergeFact struct{ name, q string }
 
 var mergeFacts = []mergeFact{
-	{"software rows", `SELECT source || '|' || lower(vendor) || '|' || lower(product) || '|' || ifnull(version, '') || '|' || ifnull(corrects, '') FROM inv_software WHERE asset_id = ?1`},
+	{"software readings", `SELECT w.product_key || '|' || w.line || '|' || r.source || '|' || r.instance || '|' || ifnull(r.version, '') || '|' || ifnull(r.pkg_version, '')
+		FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.asset_id = ?1`},
 	{"open ports", `SELECT port || '/' || proto || '|' || source FROM inv_service WHERE asset_id = ?1`},
 	{"findings", `SELECT cve FROM fnd_finding WHERE asset_id = ?1`},
 	{"finding history", `SELECT f.cve || '|' || h.ts || '|' || h.user || '|' || h.action || '|' || ifnull(h.note, '') FROM fnd_finding_history h JOIN fnd_finding f ON f.id = h.finding_id WHERE f.asset_id = ?1`},

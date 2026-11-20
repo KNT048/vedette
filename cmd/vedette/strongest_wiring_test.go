@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -107,6 +108,9 @@ func addSSHDevice(t *testing.T, s *stack, ip string, r sshRows) string {
 	upsert := func(source string, it inventory.SoftwareItem) {
 		t.Helper()
 		it.KevKeys, it.Confidence = keys, 0.9
+		if source == "agent" {
+			source = "osquery" // an agent list names the agent that read it
+		}
 		if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{it}, source); err != nil {
 			t.Fatalf("%s row: %v", source, err)
 		}
@@ -129,7 +133,7 @@ func addSSHDevice(t *testing.T, s *stack, ip string, r sshRows) string {
 		}
 		var row string
 		for _, sw := range dev.Software {
-			if sw.Source == "nmap" || sw.Source == "manual" {
+			if strings.EqualFold(sw.Product, "openssh") { // the one line of OpenSSH, whatever source reads it
 				row = sw.ID
 			}
 		}
@@ -410,7 +414,8 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 }
 
 // Another install of the software that inventory keeps in matching (a scan reads OpenSSH 8.9p1 on another port next to the agent's
-// 10.2p1 package) stays in the assistant's context and names the finding's own install; a same-release banner does not.
+// 10.2p1 package) is a reading of the one OpenSSH line: the device shows one line, says another release differs, and matching still
+// reads the 8.9p1 install; a same-release banner is neither.
 func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -434,13 +439,34 @@ func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
 		}
 		return rows, banner
 	}
-	rows, banner := sshRowsOf(other)
-	if len(rows) != 2 || banner == "" {
-		t.Fatalf("another release: %+v, want the agent's row and the 8.9p1 install", rows)
+	if rows, banner := sshRowsOf(other); len(rows) != 1 || rows[0].Source != "agent" || banner != "" {
+		t.Fatalf("another release: %+v, want the agent's line alone", rows)
 	}
-	dev, _ := s.d.Inventory.Device(ctx, other)
-	if got := aiMatched(findings.Row{SoftwareID: banner}, effectiveDevice(ctx, s.d.Inventory, dev)); !strings.Contains(got, "8.9p1") || strings.Contains(got, "10.2") {
-		t.Errorf("aiMatched = %q, want the 8.9p1 install", got)
+	lines, err := s.d.Inventory.EffectiveSoftware(ctx, other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ssh *inventory.EffectiveSoftware
+	for i := range lines {
+		if strings.EqualFold(lines[i].Product, "openssh") {
+			ssh = &lines[i]
+		}
+	}
+	if ssh == nil || !ssh.Differs || len(ssh.AlsoSeen) != 1 || ssh.AlsoSeen[0].Version != "8.9p1" {
+		t.Fatalf("the line must say the 8.9p1 install differs: %+v", ssh)
+	}
+	a, _, err := findingsInventory{s.d.Inventory}.MatchInput(ctx, other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var versions []string
+	for _, sw := range a.Software {
+		if strings.EqualFold(sw.Product, "openssh") {
+			versions = append(versions, sw.Version)
+		}
+	}
+	if !slices.Contains(versions, "8.9p1") || !slices.Contains(versions, "10.2p1") {
+		t.Fatalf("matching reads %v, want both installs", versions)
 	}
 	if rows, _ := sshRowsOf(same); len(rows) != 1 || rows[0].Source != "agent" {
 		t.Errorf("same release: %+v, want the agent's row alone", rows)

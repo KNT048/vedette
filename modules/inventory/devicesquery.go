@@ -217,11 +217,11 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 		parts := []string{
 			fmt.Sprintf(like, "coalesce(a.user_name, '')"), fmt.Sprintf(like, "coalesce(a.hostname, '')"), "instr(coalesce(a.ip, ''), ?) > 0",
 			fmt.Sprintf(like, "coalesce(a.vendor, '')"), fmt.Sprintf(like, "coalesce(a.model, '')"),
-			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND " + fmt.Sprintf(like, "sq.display") + "))",
+			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND sq.state <> 'removed' AND " + fmt.Sprintf(like, "sq.display") + "))",
 		}
 		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q, f.Q}
 		if keys := modelKeys(f.Q); len(keys) > 0 { // the model a person's declared OS row gives the device (INV-45: "FortiGate")
-			parts = append(parts, "EXISTS (SELECT 1 FROM inv_software sm WHERE sm.asset_id = a.id AND sm.source = 'manual' AND lower(sm.vendor) || '|' || lower(sm.product) IN (SELECT value FROM json_each(?)))")
+			parts = append(parts, "EXISTS (SELECT 1 FROM inv_software sm WHERE sm.asset_id = a.id AND sm.source = 'manual' AND sm.state = 'present' AND lower(sm.vendor) || '|' || lower(sm.product) IN (SELECT value FROM json_each(?)))")
 			qa = append(qa, jsonList(keys))
 		}
 		if hex, ok := macFragment(f.Q); ok {
@@ -248,7 +248,8 @@ func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]st
 		have[id][src] = true
 	}
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT asset_id, source FROM inv_observation
-		UNION SELECT DISTINCT asset_id, source FROM inv_software
+		UNION SELECT DISTINCT w.asset_id, CASE WHEN r.source IN ('osquery', 'wazuh', 'box') THEN 'agent' ELSE r.source END
+			FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.state <> 'removed'
 		UNION SELECT DISTINCT asset_id, source FROM inv_service`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read sources: %w", err)

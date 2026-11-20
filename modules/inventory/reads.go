@@ -124,35 +124,29 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`,
-		`+fingerprintRow+`, CASE WHEN s.source = 'manual' THEN `+liveSW+` ELSE 0 END, s.seen_at
-		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
-		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
+	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, s.product_key, `+notInstalledSW+`,
+		`+fingerprintRow+`, `+guessLine+`, s.state = 'present', s.seen_at
+		FROM inv_software s WHERE s.asset_id IN `+sub+` AND s.state <> 'removed' AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id`, args...)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
-		var asset, key sql.NullString
+		var asset, key string
 		var sw Software
 		var ver sql.NullString
-		var guess bool
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &guess, &sw.live, &sw.seenAt); err != nil {
+		var fingerprint, guess bool
+		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &fingerprint, &guess, &sw.live, &sw.seenAt); err != nil {
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
-		d := &out[idx[asset.String]]
-		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {
-			d.Software[n-1].Kev = append(d.Software[n-1].Kev, key.String)
-			continue
-		}
+		d := &out[idx[asset]]
 		sw.Version = ptr(ver)
-		if guess {
+		if fingerprint {
 			sw.Basis = basisGuess
 		}
-		sw.Kev = []string{}
-		if key.Valid {
-			sw.Kev = append(sw.Kev, key.String)
-		}
+		sw.Source = sourceClass(sw.Source)
+		sw.live = sw.live && sw.Source == sourceManual // a person's entry in use (declaredIdentity reads it)
+		sw.Kev = matchKeys(key, guess)
 		d.Software = append(d.Software, sw)
 	}
 	return rows.Err()
@@ -472,7 +466,8 @@ func manualAt(ctx context.Context, db querier, id string) (*string, error) {
 	var at sql.NullString
 	err := db.QueryRowContext(ctx, `SELECT coalesce((SELECT max(t) FROM (
 			SELECT seen_at AS t FROM inv_observation WHERE asset_id = ?1 AND source = 'manual'
-			UNION ALL SELECT seen_at FROM inv_software WHERE asset_id = ?1 AND source = 'manual')),
+			UNION ALL SELECT r.seen_at FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.asset_id = ?1 AND r.source = 'manual'
+			UNION ALL SELECT not_installed_at FROM inv_software WHERE asset_id = ?1 AND not_installed_at IS NOT NULL)),
 		CASE WHEN origin = 'manual' THEN first_seen END)
 		FROM inv_asset WHERE id = ?1`, id).Scan(&at)
 	if err != nil {
@@ -567,7 +562,7 @@ func (d Device) Name() string {
 
 // firstSoftware selects the display name of a device's first software, in the order the pages list it; never an nmap
 // OS guess the device does not use (hiddenGuess).
-var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
+var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND s.state <> 'removed' AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
 
 // Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
 // and reports.

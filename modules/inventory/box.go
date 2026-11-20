@@ -110,7 +110,7 @@ func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE is_box = 1`).Scan(&id); err != nil {
 		return fmt.Errorf("inventory: find the box: %w", err)
 	}
-	return s.UpsertSoftware(ctx, id, items, "agent")
+	return s.UpsertSoftware(ctx, id, items, string(observe.Box))
 }
 
 // RefreshBoxServices stores the ports the box listens on from outside as its open services (source agent, confidence 1.0; INV-3,

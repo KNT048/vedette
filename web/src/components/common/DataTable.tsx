@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ListSearch, Pager, RangeText } from './Pager'
-import { listKey, useListParams, type ListParams } from './listParams'
+import { decodeSort, encodeSort, listKey, useListParams, type ListParams } from './listParams'
 
 export type { ColumnDef }
 
@@ -69,9 +69,15 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   server?: { total: number; list: ListParams }
 }) {
   const { t } = useTranslation()
-  const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
   const own = useListParams(urlKey ?? listKey(caption))
   const list = server?.list ?? own
+  // The sort is the list's (URL) state too, so a list that is rebuilt (a refetch, a tab change, a reload) keeps its order
+  const sorting: SortingState = list.sort ? decodeSort(list.sort) : (initialSort ?? [])
+  const setSorting = (next: SortingState | ((o: SortingState) => SortingState)) => {
+    const n = typeof next === 'function' ? next(sorting) : next
+    const code = encodeSort(n)
+    list.set({ sort: code === encodeSort(initialSort ?? []) ? '' : code, page: 0 })
+  }
   const filter = server || !search ? '' : list.q
   const size = list.size ?? pageSize
   // The page and size are the list's (URL) state; the server's page is `data` itself (manualPagination)
@@ -91,15 +97,18 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   const rows = table.getRowModel().rows
   // A server-paged list asked for a page past the last (an old link, rows that aged out): the server returned none, so ask for the
   // last page instead of showing an empty table under a pager that says otherwise
-  const pastEnd = !!server && list.page > pages - 1 && data.length === 0
+  // (a total of 0 is a list not loaded yet or emptied, not a page past the end: the page the URL names is kept)
+  const pastEnd = !!server && server.total > 0 && list.page > pages - 1 && data.length === 0
   useEffect(() => { if (pastEnd) list.set({ page: pages - 1 }) }, [pastEnd, pages, list])
   // The page's own filters changed: back to page 1
-  const lastReset = useRef(resetPageOn)
+  // (compared by value: a filter object or array rebuilt on every render is the same filter, not a change)
+  const resetKey = JSON.stringify(resetPageOn) ?? ''
+  const lastReset = useRef(resetKey)
   useEffect(() => {
-    if (Object.is(lastReset.current, resetPageOn)) return
-    lastReset.current = resetPageOn
+    if (lastReset.current === resetKey) return
+    lastReset.current = resetKey
     if (list.page !== 0) list.set({ page: 0 })
-  }, [resetPageOn, list])
+  }, [resetKey, list])
   const top = useRef<HTMLDivElement>(null)
   const setPage = (p: number, fromBottom = false) => {
     list.set({ page: p })

@@ -198,7 +198,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
         </p>
       ) : null}
       {list.isSuccess ? (
-        <DataTable data={rows} columns={columns} caption={t('data.restore.title')} pageSize={20} empty={t('data.restore.empty')}
+        <DataTable urlKey="restore-points" data={rows} columns={columns} caption={t('data.restore.title')} pageSize={20} empty={t('data.restore.empty')}
           mobileRow={(b) => (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="grid gap-0.5"><span className="font-medium">{fmtDateTime(b.created_at)}</span><span className="text-meta text-muted">{t(`data.restore.kind.${b.kind}`)}, {(b.size / 1e6).toFixed(1)} MB, {b.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')}</span></div>

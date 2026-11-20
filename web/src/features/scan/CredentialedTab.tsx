@@ -136,7 +136,7 @@ function List({ items }: { items: CredTarget[] }) {
   const testing = test.isPending ? items.find((x) => x.id === test.variables) : undefined
   return (
     <>
-      <DataTable caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
+      <DataTable urlKey="credentialed" caption={t('cred.caption')} data={items} columns={columns} empty={<EmptyState title={t('cred.empty')}>{t('cred.emptyHelp')}</EmptyState>} />
       {/* An SSH login check waits on the server; say so while it runs */}
       <BusyNote busy={test.isPending} className="mt-2">{t('cred.testWaiting', { name: testing?.label ?? '' })}</BusyNote>
       <Dialog open={!!rm} onOpenChange={(o) => { if (!o) setRm(null) }}>

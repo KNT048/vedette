@@ -40,7 +40,7 @@ export function LogTab() {
     <Section title={t('log.title')} description={t('log.description')} info={t('log.descriptionInfo')} stories={['S-RESP-2', 'S-AI-8']}
       actions={chain === null ? <Chip tone="off">{t('log.checking')}</Chip> : chain.ok ? <Chip tone="ok">{t('log.verified')}</Chip> : <Chip tone="danger">{t('log.broken', { n: (chain.broken_at ?? 0) + 1 })}</Chip>}>
       {items.length ? (
-        <DataTable caption={t('log.title')} data={[...items].reverse()} columns={columns} pageSize={50}
+        <DataTable urlKey="response-log" caption={t('log.title')} data={[...items].reverse()} columns={columns} pageSize={50}
           mobileRow={(e) => <div className="grid gap-1 text-sm"><div className="flex flex-wrap items-center gap-2"><Chip tone={TONE[e.kind] ?? 'off'}>{t(`log.kinds.${e.kind}`)}</Chip><span className="text-meta text-muted">{fmtDateTime(e.ts)}, {e.actor}</span></div><p>{e.detail}</p><p className="font-mono text-caption text-muted" title={e.hash}>{e.hash.slice(0, 10)}</p></div>} />
       ) : <EmptyState title={t('log.empty')}>{t('log.emptyBody')}</EmptyState>}
     </Section>

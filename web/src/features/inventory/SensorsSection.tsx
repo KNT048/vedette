@@ -161,7 +161,7 @@ export function SensorsSection() {
       info={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI || q.data?.sensors.some((x) => x.span) ? '' : 'NoSpan'}Info`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>
-          {(d) => <DataTable caption={t('sensors.caption')} data={d.sensors} columns={columns} />}
+          {(d) => <DataTable urlKey="sensors" caption={t('sensors.caption')} data={d.sensors} columns={columns} />}
         </QueryState>
       </RequireModule>
       {config ? (install === 'container'

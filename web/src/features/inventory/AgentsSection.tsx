@@ -416,7 +416,7 @@ function MachinesTable({ nodes, box }: { nodes: AgentNode[]; box: string }) {
     <div className="grid gap-1.5">
       <h4 className="text-sm font-medium">{t('agents.machines.title')}</h4>
       <p className="max-w-3xl text-meta text-muted">{t('agents.machines.body')}</p>
-      {nodes.length ? <DataTable caption={t('agents.machines.caption')} data={nodes} columns={columns} /> : <p className="text-meta text-muted">{t('agents.machines.none')}</p>}
+      {nodes.length ? <DataTable urlKey="agents-machines" caption={t('agents.machines.caption')} data={nodes} columns={columns} /> : <p className="text-meta text-muted">{t('agents.machines.none')}</p>}
     </div>
   )
 }
@@ -490,7 +490,7 @@ export function AgentsSection() {
                       <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
                     </div>
                   </div>
-                  {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
+                  {d.tokens.length ? <DataTable urlKey="agent-tokens" caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
                 </div>
                 {d.tokens.length ? <MachinesTable nodes={d.nodes} box={d.server_url} /> : null}
               </div>

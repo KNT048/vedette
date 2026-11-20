@@ -1,6 +1,7 @@
 package ids
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,8 +40,10 @@ const (
 	MaxAlerts = 50000
 	// RetentionDays is how long an alert is kept after its last event.
 	RetentionDays = 90
-	// MaxAnnouncedPerFlush is how many alerts one flush announces to notify; the others are stored and shown, not announced.
-	MaxAnnouncedPerFlush = 50
+	// AlertEventsPerHour is how many announcements of alerts notify gets in a clock hour (like the logs module's IocEventsPerHour): a
+	// flood of distinct sources (UDP syslog can be forged on the LAN) cannot make thousands of incidents. Past it, the alerts are stored
+	// and shown, and one summary incident a clock hour says that more came. The most severe alerts are announced first.
+	AlertEventsPerHour = 100
 	// FlushEvery is the pause between two flushes of the events received.
 	FlushEvery = 5 * time.Second
 )
@@ -66,9 +70,10 @@ type LinkedFinding struct {
 	Affected bool
 }
 
-// Findings is what the module needs of the findings module: the device's findings for some CVEs.
+// Findings is what the module needs of the findings module: the findings of some devices for some CVEs, read once for all of them
+// (device id -> the CVEs an alert at it names; the answer is keyed by device id).
 type Findings interface {
-	Linked(ctx context.Context, assetID string, cves []string) ([]LinkedFinding, error)
+	Linked(ctx context.Context, cvesByDevice map[string][]string) (map[string][]LinkedFinding, error)
 }
 
 // IncidentRef is the incident of kind intrusion that groups an alert.
@@ -116,6 +121,15 @@ type Service struct {
 	buf     map[string]*pending
 	dropped int64 // events dropped because MaxPending alerts were waiting
 	lastIn  time.Time
+
+	// The hourly announcement budget, read and written by the flush job only (one run at a time) under annMu: the clock hour, how many
+	// were announced in it, the severity each incident key was last announced with in it (a repeat at the same or a lower severity is
+	// not announced again; a rise is), and the hour whose summary was sent.
+	annMu      sync.Mutex
+	annHour    int64
+	annSent    int
+	annTold    map[string]int
+	annSummary int64
 }
 
 // NewService checks the config and returns the service.
@@ -136,9 +150,11 @@ func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabl
 
 func (s *Service) now() time.Time { return s.cfg.Clock().UTC().Truncate(time.Millisecond) }
 
-// dedupeKey is the alert an event belongs to: one per source, signature, source address, destination address and hour.
+// dedupeKey is the alert an event belongs to: one per source, signature (with the CVE ids the event names, at most MaxCVEs), source
+// address, destination address and hour. The CVE ids are part of it, so an alert's CVE ids never change after it is made (and its
+// incident key with them).
 func dedupeKey(source string, e Event, at time.Time) string {
-	h := sha256.Sum256([]byte(strings.Join([]string{source, e.Profile, strconv.FormatInt(e.SID, 10), e.Signature, e.Src.String(), e.Dst.String(),
+	h := sha256.Sum256([]byte(strings.Join([]string{source, e.Profile, strconv.FormatInt(e.SID, 10), e.Signature, strings.Join(e.CVEs, ","), e.Src.String(), e.Dst.String(),
 		at.UTC().Truncate(time.Hour).Format(time.RFC3339)}, "\x00")))
 	return hex.EncodeToString(h[:])
 }
@@ -262,10 +278,30 @@ func (s *Service) Flush(ctx context.Context) error {
 		return trim(ctx, tx, s.now())
 	})
 	if err != nil {
+		s.requeue(batch) // the next flush tries again, within MaxPending
 		return err
 	}
 	s.announce(ctx, out)
 	return nil
+}
+
+// requeue puts back the alerts of a flush whose write failed, merged with what arrived since, within MaxPending (the rest are counted
+// as dropped).
+func (s *Service) requeue(batch map[string]*pending) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, p := range batch {
+		if cur := s.buf[k]; cur != nil {
+			cur.count += p.count
+			cur.first, cur.last = minTime(cur.first, p.first), maxTime(cur.last, p.last)
+			continue
+		}
+		if len(s.buf) >= MaxPending {
+			s.dropped += int64(p.count)
+			continue
+		}
+		s.buf[k] = p
+	}
 }
 
 func nullable(s string) any {
@@ -298,7 +334,8 @@ func upsert(ctx context.Context, tx *sql.Tx, p *pending, srcAsset, dstAsset stri
 		return stored{}, fmt.Errorf("ids: storing an alert: %w", err)
 	}
 	for _, c := range e.CVEs {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO ids_alert_cve (alert_id, cve) VALUES (?, ?) ON CONFLICT DO NOTHING`, id, c); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO ids_alert_cve (alert_id, cve) SELECT ?1, ?2 WHERE (SELECT count(*) FROM ids_alert_cve WHERE alert_id = ?1) < ?3
+			ON CONFLICT DO NOTHING`, id, c, MaxCVEs); err != nil {
 			return stored{}, fmt.Errorf("ids: storing the CVE of an alert: %w", err)
 		}
 	}
@@ -367,41 +404,132 @@ func prioritySeverity(p int) string {
 	return "info"
 }
 
-// announce publishes one ids.alert.detected per alert the flush stored, at most MaxAnnouncedPerFlush; the rest are logged once.
+var severityRank = map[string]int{"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+// summaryTarget is the start of the target of the summary incident of an hour in which alerts went past AlertEventsPerHour; the clock
+// hour is appended, so each hour that overflows is its own incident.
+const summaryTarget = "more intrusion alerts"
+
+// announce publishes ids.alert.detected for the alerts a flush stored, in a fixed order: the most severe first (critical: the attacked
+// device is affected by a CVE the alert names), then the newest, then by source address, incident target and alert. An incident key already announced in this clock hour with
+// the same or a higher severity is not announced again (its alert row counts the events); one whose severity rose is, so notify raises
+// the incident. At most AlertEventsPerHour announcements a clock hour; past it, one summary incident for the hour with the highest
+// severity left out.
 func (s *Service) announce(ctx context.Context, rows []stored) {
 	if s.cfg.Events == nil || len(rows) == 0 {
 		return
 	}
-	if len(rows) > MaxAnnouncedPerFlush {
-		s.cfg.Log.WarnContext(ctx, "ids: more alerts at once than are announced; the rest are on the Intrusion detection page", "stored", len(rows), "announced", MaxAnnouncedPerFlush)
-		rows = rows[:MaxAnnouncedPerFlush]
-	}
 	ctx = context.WithoutCancel(ctx)
-	for _, r := range rows {
-		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: s.alertEvent(ctx, r)}); err != nil {
+	evs := s.alertEvents(ctx, rows)
+	slices.SortFunc(evs, func(a, b AlertEvent) int {
+		return cmp.Or(cmp.Compare(severityRank[b.Severity], severityRank[a.Severity]), b.At.Compare(a.At), strings.Compare(a.Source, b.Source),
+			strings.Compare(a.Target, b.Target), strings.Compare(a.Link, b.Link))
+	})
+	s.annMu.Lock()
+	hour := s.now().Unix() / 3600
+	if hour != s.annHour {
+		s.annHour, s.annSent, s.annTold = hour, 0, map[string]int{}
+	}
+	var send []AlertEvent
+	left, leftSev := 0, "info"
+	for _, ev := range evs {
+		key := ev.Source + "\x00" + ev.Target
+		rank := severityRank[ev.Severity]
+		if told, ok := s.annTold[key]; ok && told >= rank {
+			continue
+		}
+		if s.annSent >= AlertEventsPerHour {
+			left++
+			if rank > severityRank[leftSev] {
+				leftSev = ev.Severity
+			}
+			continue
+		}
+		s.annSent++
+		s.annTold[key] = rank
+		send = append(send, ev)
+	}
+	summary := left > 0 && s.annSummary != hour
+	if summary {
+		s.annSummary = hour
+	}
+	s.annMu.Unlock()
+	for _, ev := range send {
+		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: ev}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "ids: announcing an alert", "err", err)
 		}
 	}
+	if left == 0 {
+		return
+	}
+	s.cfg.Log.WarnContext(ctx, "ids: more intrusion alerts than the hourly limit of announcements; they are stored and shown on the Intrusion detection page", "not_announced", left, "limit", AlertEventsPerHour)
+	if !summary {
+		return
+	}
+	if severityRank[leftSev] < severityRank["medium"] {
+		leftSev = "medium"
+	}
+	ev := AlertEvent{Source: "ids", Target: summaryTarget + " " + strconv.FormatInt(hour, 10),
+		Title:    "At least " + strconv.Itoa(left) + " more intrusion alerts this hour, not announced one by one",
+		What:     "The limit of " + strconv.Itoa(AlertEventsPerHour) + " announced intrusion alerts an hour was reached; more IPS events were received and are not announced one by one. A flood of events from many addresses can also be forged on the LAN when the firewall sends its logs over UDP.",
+		Action:   "Open Intrusion detection and read the alerts of the last 24 hours, the most severe first.",
+		Severity: leftSev, Link: "/detection", At: s.now(), Devices: []DeviceRef{}}
+	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: ev}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "ids: announcing the summary of the alerts not announced", "err", err)
+	}
 }
 
-// alertEvent describes an alert for its incident. The attacked device's findings for the CVEs decide whether it is critical.
-func (s *Service) alertEvent(ctx context.Context, r stored) AlertEvent {
-	e := r.p.ev
-	ids := []string{}
-	for _, id := range []string{r.dstAsset, r.srcAsset} {
-		if id != "" {
-			ids = append(ids, id)
+// alertEvents describes the stored alerts for their incidents. The devices' names and findings are read once for all of them; an alert
+// whose attacked device is affected by a CVE it names is critical.
+func (s *Service) alertEvents(ctx context.Context, rows []stored) []AlertEvent {
+	set := map[string]bool{}
+	cves := map[string][]string{}
+	for _, r := range rows {
+		for _, id := range []string{r.dstAsset, r.srcAsset} {
+			if id != "" {
+				set[id] = true
+			}
+		}
+		if r.dstAsset != "" && len(r.p.ev.CVEs) > 0 {
+			cves[r.dstAsset] = append(cves[r.dstAsset], r.p.ev.CVEs...)
 		}
 	}
 	names := map[string]string{}
-	if s.cfg.Inventory != nil && len(ids) > 0 {
-		if n, err := s.cfg.Inventory.Names(ctx, ids); err == nil {
+	if s.cfg.Inventory != nil && len(set) > 0 {
+		idList := make([]string, 0, len(set))
+		for id := range set {
+			idList = append(idList, id)
+		}
+		slices.Sort(idList)
+		if n, err := s.cfg.Inventory.Names(ctx, idList); err == nil {
 			names = n
 		}
 	}
+	linked := map[string][]LinkedFinding{}
+	if s.cfg.Findings != nil && len(cves) > 0 {
+		for id, c := range cves {
+			slices.Sort(c)
+			cves[id] = slices.Compact(c)
+		}
+		if l, err := s.cfg.Findings.Linked(ctx, cves); err == nil {
+			linked = l
+		} else {
+			s.cfg.Log.WarnContext(ctx, "ids: the findings of the attacked devices could not be read", "err", err)
+		}
+	}
+	out := make([]AlertEvent, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, alertEvent(r, names, linked[r.dstAsset]))
+	}
+	return out
+}
+
+// alertEvent describes one alert for its incident.
+func alertEvent(r stored, names map[string]string, linked []LinkedFinding) AlertEvent {
+	e := r.p.ev
 	var devices []DeviceRef
-	for _, id := range ids {
-		if n := names[id]; n != "" {
+	for _, id := range []string{r.dstAsset, r.srcAsset} {
+		if n := names[id]; id != "" && n != "" {
 			devices = append(devices, DeviceRef{ID: id, Name: n})
 		}
 	}
@@ -411,15 +539,12 @@ func (s *Service) alertEvent(ctx context.Context, r stored) AlertEvent {
 	}
 	severity := prioritySeverity(e.Priority)
 	var affected []string
-	if s.cfg.Findings != nil && r.dstAsset != "" && len(e.CVEs) > 0 {
-		if fs, err := s.cfg.Findings.Linked(ctx, r.dstAsset, e.CVEs); err == nil {
-			for _, f := range fs {
-				if f.Affected {
-					affected = append(affected, f.CVE)
-				}
-			}
+	for _, f := range linked {
+		if f.Affected && slices.Contains(e.CVEs, f.CVE) && !slices.Contains(affected, f.CVE) {
+			affected = append(affected, f.CVE)
 		}
 	}
+	slices.SortFunc(affected, cmpCVE)
 	if len(affected) > 0 {
 		severity = "critical"
 	}
@@ -444,8 +569,11 @@ func (s *Service) alertEvent(ctx context.Context, r stored) AlertEvent {
 	}
 	action := "Check whether the device runs what the rule targets and is up to date. If " + e.Src.String() + " is not yours and keeps trying, block it at the firewall."
 	if len(affected) > 0 {
-		what.WriteString(" The device is affected by " + strings.Join(affected, ", ") + ".")
+		what.WriteString(" " + dst + " is affected by " + strings.Join(affected, ", ") + ".")
 		action = "The attacked device is affected by " + strings.Join(affected, ", ") + ": patch it now, or isolate it until it is patched."
+	}
+	if devices == nil {
+		devices = []DeviceRef{}
 	}
 	return AlertEvent{AlertID: r.id, Source: source, Target: target, Title: title, What: clipText(what.String(), 1000), Action: action,
 		Severity: severity, Link: "/detection/alerts/" + r.id, At: r.p.last, Devices: devices}

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,13 +52,19 @@ func (fakeInventory) Names(_ context.Context, ids []string) (map[string]string, 
 }
 
 // fakeFindings holds open findings by device and CVE: the NAS is affected by Log4Shell.
-type fakeFindings struct{ open map[[2]string]string }
+type fakeFindings struct {
+	open  map[[2]string]string
+	calls *atomic.Int32
+}
 
-func (f fakeFindings) Linked(_ context.Context, asset string, cves []string) ([]LinkedFinding, error) {
-	var out []LinkedFinding
-	for _, c := range cves {
-		if id, ok := f.open[[2]string{asset, c}]; ok {
-			out = append(out, LinkedFinding{ID: id, CVE: c, Status: "under_attack", Affected: true})
+func (f fakeFindings) Linked(_ context.Context, byDevice map[string][]string) (map[string][]LinkedFinding, error) {
+	f.calls.Add(1)
+	out := map[string][]LinkedFinding{}
+	for asset, cves := range byDevice {
+		for _, c := range cves {
+			if id, ok := f.open[[2]string{asset, c}]; ok {
+				out[asset] = append(out[asset], LinkedFinding{ID: id, CVE: c, Status: "under_attack", Affected: true})
+			}
 		}
 	}
 	return out, nil
@@ -106,7 +113,7 @@ func newEnv(t *testing.T) *env {
 		e.exec(`INSERT INTO inv_asset (id, ip, kind, origin, first_seen, last_seen) VALUES (?, ?, 'server', 'manual', ?, ?)`, d.id, ip, ts, ts)
 	}
 	e.exec(`INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) VALUES ('a-other', 'server', 'manual', ?, ?)`, ts, ts)
-	svc, err := NewService(Config{DB: db, Inventory: fakeInventory{}, Findings: fakeFindings{open: map[[2]string]string{{"a-nas", "CVE-2021-44228"}: "f-nas-log4j"}},
+	svc, err := NewService(Config{DB: db, Inventory: fakeInventory{}, Findings: fakeFindings{open: map[[2]string]string{{"a-nas", "CVE-2021-44228"}: "f-nas-log4j"}, calls: &atomic.Int32{}},
 		Incidents: fakeIncidents{}, Events: e.ev, Modules: e.mods, Clock: func() time.Time { return e.now }})
 	if err != nil {
 		t.Fatal(err)
@@ -366,8 +373,104 @@ func TestNothingIsReadWhileTheModuleIsOffAndTheBufferIsBounded(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM ids_alert`); n != MaxPending {
 		t.Fatalf("%d alerts, want %d", n, MaxPending)
 	}
-	if len(e.ev.got) != MaxAnnouncedPerFlush {
-		t.Fatalf("%d announced, want %d", len(e.ev.got), MaxAnnouncedPerFlush)
+	if len(e.ev.got) != 1 { // one source naming one CVE: one incident key, announced once
+		t.Fatalf("%d announced, want 1", len(e.ev.got))
+	}
+}
+
+// fortiLine is a FortiGate IPS line (severity high: priority 2, a medium alert) from src to dst naming Log4Shell.
+func fortiLine(src, dst string) [2]string {
+	return [2]string{"fortigate", `<185>logid="0419016384" type="utm" subtype="ips" severity="high" srcip=` + src + ` dstip=` + dst +
+		` proto=6 attack="Apache.Log4j.Error.Log.Remote.Code.Execution" dstport=443 attackid=51006 cve="CVE-2021-44228"`}
+}
+
+// A forged flood: UDP syslog can be sent by any LAN host posing as the firewall, each line with another source address. Every alert is
+// stored, but notify gets at most AlertEventsPerHour announcements in the hour and one summary; the alerts at an affected device are
+// announced first, whatever the order the lines came in, and the order is the same every time.
+func TestAFloodOfForgedSourcesIsAnnouncedWithinTheHourlyBudgetMostSevereFirst(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var flood [][2]string
+	for i := range 500 {
+		flood = append(flood, fortiLine("198.51.100."+strconv.Itoa(i%250+1), "10.0.10."+strconv.Itoa(100+i/250)))
+	}
+	flood = append(flood, fortiLine("192.0.2.7", "10.0.10.21"), fortiLine("192.0.2.8", "10.0.10.21"))
+	e.offer(time.Minute, flood...)
+	if n := e.count(`SELECT count(*) FROM ids_alert`); n != 502 {
+		t.Fatalf("%d alerts stored, want 502", n)
+	}
+	got := e.ev.got
+	if len(got) != AlertEventsPerHour+1 {
+		t.Fatalf("%d announced, want %d and one summary", len(got), AlertEventsPerHour)
+	}
+	if got[0].Severity != "critical" || got[1].Severity != "critical" || got[0].Source != "192.0.2.7" || got[1].Source != "192.0.2.8" {
+		t.Fatalf("the alerts at the affected NAS are not first: %+v %+v", got[0], got[1])
+	}
+	last := got[len(got)-1]
+	if last.Source != "ids" || !strings.HasPrefix(last.Target, summaryTarget+" ") || last.Link != "/detection" || last.Severity != "medium" ||
+		!strings.HasPrefix(last.Title, "At least ") {
+		t.Fatalf("summary %+v", last)
+	}
+	// more in the same hour: no announcement, no second summary
+	e.offer(time.Minute, fortiLine("198.51.100.251", "10.0.10.110"))
+	if len(e.ev.got) != AlertEventsPerHour+1 {
+		t.Fatalf("%d announced after the budget ran out", len(e.ev.got))
+	}
+	// the next hour has a budget again
+	e.now = e.now.Add(time.Hour)
+	e.offer(0, fortiLine("198.51.100.252", "10.0.10.110"))
+	if len(e.ev.got) != AlertEventsPerHour+2 {
+		t.Fatalf("%d announced in the next hour", len(e.ev.got))
+	}
+}
+
+// One incident per (CVE, attacker): when the attacker hits a device that is not affected and the affected NAS, the incident is
+// announced critical, in one flush (the affected alert is announced first and the other repeats it) and across flushes (a repeat
+// whose severity rose is announced again, so notify raises the incident; one that did not rise is not).
+func TestARepeatAtAnAffectedDeviceRaisesTheIncident(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.offer(time.Minute, fortiLine("198.51.100.9", "10.0.10.5"), fortiLine("198.51.100.9", "10.0.10.21"))
+	if len(e.ev.got) != 1 || e.ev.got[0].Severity != "critical" {
+		t.Fatalf("same flush: %+v", e.ev.got)
+	}
+	e2 := newEnv(t)
+	e2.offer(time.Minute, fortiLine("198.51.100.9", "10.0.10.5"))
+	e2.offer(time.Minute, fortiLine("198.51.100.9", "10.0.10.5")) // the same again: not announced
+	e2.offer(0, fortiLine("198.51.100.9", "10.0.10.21"))
+	sev := []string{}
+	for _, ev := range e2.ev.got {
+		sev = append(sev, ev.Severity)
+	}
+	if !slices.Equal(sev, []string{"medium", "critical"}) || e2.ev.got[0].Target != e2.ev.got[1].Target {
+		t.Fatalf("across flushes: %v %+v", sev, e2.ev.got)
+	}
+}
+
+// A flush whose write fails keeps its alerts for the next one, and the findings are read once per page, not once per device.
+func TestAFailedFlushKeepsItsAlertsAndFindingsAreReadOncePerPage(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.Offer(t.Context(), []Line{{Kind: "fortigate", At: e.now, Text: fortiLine("198.51.100.9", "10.0.10.21")[1]}})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := e.svc.Flush(ctx); err == nil {
+		t.Fatal("a flush on a cancelled context wrote")
+	}
+	if err := e.svc.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM ids_alert`); n != 1 {
+		t.Fatalf("%d alerts after the failed flush was retried", n)
+	}
+	e.offer(time.Minute, e.fixtures()...)
+	calls := e.svc.cfg.Findings.(fakeFindings).calls
+	calls.Store(0)
+	if _, err := e.svc.List(t.Context(), Query{Window: "7d"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("findings read %d times for one page", n)
 	}
 }
 

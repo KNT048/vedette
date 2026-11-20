@@ -12,6 +12,9 @@
 ## Modifying: sự kiện `ids.alert.detected` (`AlertEvent`)
 - **notify** (`modules/notify/events.go` `intrusionEvent`): đọc qua JSON `source, target, title, what, action, severity, link, at, devices`; `link` phải bắt đầu `/detection/`. Đổi `IncidentKey` → sự cố cũ không còn được đếm tiếp và `incident` của cảnh báo đọc (notify `IncidentOf`) mất liên kết.
 
+## Modifying: `Findings.Linked` (cổng gộp: thiết bị → CVE)
+- Gọi một lần mỗi trang, mỗi `Summarize` và mỗi flush (không theo từng thiết bị); bộ chuyển `idsFindings` đọc `Attacked` một lần mỗi lời gọi.
+
 ## Modifying: `List`/`Get`/`Summarize`
 - **web/features/detection** (`contract.ts` là hợp đồng; `into` của handler từ chối phản hồi lệch schema). `Summarize` → tổng quan (`alerts.total/affected`, watcher `ips_events`).
 

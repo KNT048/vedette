@@ -937,7 +937,7 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 
 // intrusionEvent opens or counts the incident of kind intrusion of an IPS or IDS alert (ids.alert.detected). The ids module sends the
 // description ready-made; source (the attacking address) and target (the CVE ids or the rule) make the dedupe key, and the link is the
-// alert's page.
+// alert's page (or /detection for the hourly summary). A repeat with a higher severity raises the open incident (OpenIncident).
 func (s *Service) intrusionEvent(ctx context.Context, data any) error {
 	var e struct {
 		Source   string    `json:"source"`
@@ -953,8 +953,8 @@ func (s *Service) intrusionEvent(ctx context.Context, data any) error {
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	if !strings.HasPrefix(e.Link, "/detection/") {
-		return fmt.Errorf("%w: an intrusion event links to its alert under /detection/", ErrInvalidNotice)
+	if e.Link != "/detection" && !strings.HasPrefix(e.Link, "/detection/") {
+		return fmt.Errorf("%w: an intrusion event links to its alert or to /detection", ErrInvalidNotice)
 	}
 	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentIntrusion, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity,
 		What: e.What, Action: e.Action, Link: e.Link, Devices: e.Devices, At: e.At})

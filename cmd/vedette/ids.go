@@ -117,48 +117,47 @@ func (a idsInventory) Names(ctx context.Context, idList []string) (map[string]st
 	return out, nil
 }
 
-// idsFindings gives the attacked device's findings for the CVEs an alert names, with the status vocabulary of the findings contract.
+// idsFindings gives the attacked devices' findings for the CVEs an alert names, with the status vocabulary of the findings contract.
 // The findings module on this branch keeps its older statuses, so they are mapped here: an open finding whose CVE an alert named in
-// the last 14 days (idsmodule.AttackWindow) is under_attack (layer 1), another open one is exploited (the findings of this model are all on
-// the exploited list); a handled one keeps its handling. The findings rebuild replaces this with findings.View and its one status.
+// the last 14 days (ids.AttackWindow) is under_attack (layer 1), another open one is exploited (the findings of this model are all on
+// the exploited list); a handled one keeps its handling. The attacked CVEs are read once per call, whatever the number of devices.
+// The findings rebuild replaces this with findings.View and its one status.
 type idsFindings struct{ d *deps }
 
-func (a idsFindings) Linked(ctx context.Context, assetID string, cves []string) ([]idsmodule.LinkedFinding, error) {
+func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (map[string][]idsmodule.LinkedFinding, error) {
 	if a.d.Findings == nil || a.d.Reg != nil && !a.d.Reg.Enabled("findings") {
 		return nil, nil
 	}
-	recs, err := a.d.Findings.List(ctx, assetID)
-	if err != nil {
-		return nil, err
-	}
-	want := map[string]bool{}
-	for _, c := range cves {
-		want[c] = true
-	}
 	var attacked map[string]bool
-	var out []idsmodule.LinkedFinding
-	for _, r := range recs {
-		if !want[r.CVE] {
-			continue
+	out := map[string][]idsmodule.LinkedFinding{}
+	for assetID, cves := range byDevice {
+		recs, err := a.d.Findings.List(ctx, assetID)
+		if err != nil {
+			return nil, err
 		}
-		f := idsmodule.LinkedFinding{ID: r.ID, CVE: r.CVE, Affected: r.Status.Open()}
-		switch r.Status {
-		case findings.StatusPatched, findings.StatusMitigated, findings.StatusNotRelevant, findings.StatusFalsePositive:
-			f.Status = string(r.Status)
-		case findings.StatusRiskAccepted:
-			f.Status = "accepted"
-		default:
-			if attacked == nil {
-				if attacked, err = recentlyAttacked(ctx, idsService(*a.d), clockOf(a.d)); err != nil {
-					return nil, err
+		for _, r := range recs {
+			if !slices.Contains(cves, r.CVE) {
+				continue
+			}
+			f := idsmodule.LinkedFinding{ID: r.ID, CVE: r.CVE, Affected: r.Status.Open()}
+			switch r.Status {
+			case findings.StatusPatched, findings.StatusMitigated, findings.StatusNotRelevant, findings.StatusFalsePositive:
+				f.Status = string(r.Status)
+			case findings.StatusRiskAccepted:
+				f.Status = "accepted"
+			default:
+				if attacked == nil {
+					if attacked, err = recentlyAttacked(ctx, idsService(*a.d), clockOf(a.d)); err != nil {
+						return nil, err
+					}
+				}
+				f.Status = "exploited"
+				if attacked[r.CVE] {
+					f.Status = "under_attack"
 				}
 			}
-			f.Status = "exploited"
-			if attacked[r.CVE] {
-				f.Status = "under_attack"
-			}
+			out[assetID] = append(out[assetID], f)
 		}
-		out = append(out, f)
 	}
 	return out, nil
 }

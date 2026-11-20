@@ -180,13 +180,16 @@ func (s *Service) link(ctx context.Context, alerts []Alert, withIncident bool) e
 		}
 	}
 	found := map[pair][]LinkedFinding{}
-	if s.cfg.Findings != nil {
+	if s.cfg.Findings != nil && len(byAsset) > 0 {
 		for asset, cves := range byAsset {
 			slices.Sort(cves)
-			fs, err := s.cfg.Findings.Linked(ctx, asset, slices.Compact(cves))
-			if err != nil {
-				return err
-			}
+			byAsset[asset] = slices.Compact(cves)
+		}
+		all, err := s.cfg.Findings.Linked(ctx, byAsset) // one read for the whole page
+		if err != nil {
+			return err
+		}
+		for asset, fs := range all {
 			for _, f := range fs {
 				found[pair{asset, f.CVE}] = append(found[pair{asset, f.CVE}], f)
 			}

@@ -112,6 +112,9 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 			if wasHeld && in.Severity.rank() > Severity(cur).rank() {
 				return s.raiseHeld(ctx, tx, id, in.Severity, at) // INV-23: a held incident that turns high or critical is sent as usual
 			}
+			if in.Kind == IncidentIntrusion && in.Severity.rank() > Severity(cur).rank() {
+				return s.raiseIntrusion(ctx, tx, id, in, at) // INV-26: an attack at an affected device raises the incident and says so
+			}
 			return nil
 		case !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("notify: find incident: %w", err)
@@ -764,4 +767,23 @@ func (s *Service) KindCounts(ctx context.Context, since time.Time) ([]KindCount,
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// raiseIntrusion raises an open intrusion incident to the severity of a repeat (the attacker hit a device affected by the CVE: critical):
+// the incident takes the repeat's title, description and devices, and one notice of the raise is queued (its own id, so a raise to each
+// level is sent once and never mistaken for the first notice).
+func (s *Service) raiseIntrusion(ctx context.Context, tx *sql.Tx, id string, in IncidentInput, at time.Time) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET severity = ?, title = ?, what = ?, action = ? WHERE id = ?`,
+		string(in.Severity), strings.TrimSpace(in.Title), in.What, in.Action, id); err != nil {
+		return fmt.Errorf("notify: raise an intrusion incident: %w", err)
+	}
+	names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
+	for _, d := range in.Devices {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, d.ID, d.Name); err != nil {
+			return fmt.Errorf("notify: save incident device: %w", err)
+		}
+		names, ids = append(names, d.Name), append(ids, d.ID)
+	}
+	return s.enqueue(ctx, tx, Notice{ID: id + "-raised-" + string(in.Severity), Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title),
+		What: in.What, Action: in.Action, Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at})
 }

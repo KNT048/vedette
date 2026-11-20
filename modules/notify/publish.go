@@ -222,7 +222,8 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		}
 	}
 	if n.Kind == KindIncident {
-		return markUnsent(ctx, tx, n.ID, unsent, floor, lowest)
+		id, _, _ := strings.Cut(n.ID, "-raised-")
+		return markUnsent(ctx, tx, id, unsent, floor, lowest)
 	}
 	return nil
 }
@@ -550,7 +551,8 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 // refOf is the (kind, ref_id, history link) of the first notice of a send.
 func refOf(n Notice) (kind, ref, link string) {
 	if n.Kind == KindIncident {
-		return "incident", n.ID, "/incidents/" + n.ID
+		id, _, _ := strings.Cut(n.ID, "-raised-") // the notice of a raised intrusion incident (raiseIntrusion) is a send of that incident
+		return "incident", id, "/incidents/" + id
 	}
 	link = findingsList
 	if len(n.FindingIDs) > 0 {

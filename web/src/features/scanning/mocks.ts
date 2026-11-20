@@ -11,7 +11,7 @@ import { mockDeviceProgress } from '@/lib/progress'
 import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion, snmpStore } from '@/features/inventory/mocks'
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
-import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
+import { lastScanRun, liveScanRuns, runs as scanRunStore } from '@/features/scan/mocks'
 import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, HistoryRun, RangeAdd, Run as RunSchema, RunDetail, RunningJob, RunStatus, Scanning, SafetyInput } from './contract'
 
 type EngineT = z.infer<typeof Engine>
@@ -207,12 +207,60 @@ function withButtons(r: RunRow): RunRow {
   const workLeft = r.steps.length === 0 || r.steps.some((s) => s.status !== 'done')
   return { ...r, can_stop: ['queued', 'waiting', 'running'].includes(r.status), can_resume: r.status === 'waiting' || (r.status === 'stopped' && workLeft && r.kind === 'lan_sweep') }
 }
+/**
+ * The runs the engines' own mocks hold (a person's discovery run, the vulnerability checks, the public scan, the LAN history), as
+ * GET /runs lists them once each engine writes its runs through core/run: under the same ids, so every "Open the run" of the dev
+ * data opens its run page. Read only here: Stop and Resume act on the rows of runsStore.
+ */
+function engineRuns(): RunRow[] {
+  const now = nowIso()
+  const out: RunRow[] = []
+  const ro = (r: RunRow): RunRow => ({ ...r, can_stop: false, can_resume: false })
+  for (const j of discoveryRuns()) {
+    out.push(ro(runBase({ id: j.id, module: 'sensor-active', kind: j.target_id ? 'device_check' : 'lan_sweep', lane: 'nmap', title: j.label, status: 'running',
+      subject: j.target_id ? { kind: 'device', id: j.target_id, label: assetsStore.get().find((a) => a.id === j.target_id)?.hostname ?? j.label } : null,
+      queued_at: j.started_at, started_at: j.started_at, updated_at: now })))
+  }
+  const live = new Map(liveScanRuns().map((r) => [r.id, r]))
+  for (const stored of scanRunStore.get()) {
+    const r = live.get(stored.id) ?? stored
+    out.push(ro(runBase({ id: r.id, module: 'scan', kind: 'vuln_check', lane: 'nuclei', title: `Vulnerability checks of ${r.total} device${r.total === 1 ? '' : 's'}`,
+      trigger: r.trigger === 'manual' ? 'manual' : r.trigger === 'schedule' ? 'schedule' : 'event', trigger_note: r.trigger_note, requested_by: r.started_by,
+      status: r.status === 'auto_stopped' ? 'stopped' : r.status, stop_reason: r.stop_reason, total: r.total, done: r.done,
+      queued_at: r.started_at, started_at: r.started_at, ended_at: r.ended_at, updated_at: r.ended_at ?? now,
+      items: r.results.map((x, i) => ({ seq: i + 1, subject_kind: 'device', subject_id: x.target_id, label: x.label, outcome: x.result === 'matched' ? 'found' : 'checked', note: x.note })),
+      items_total: r.results.length })))
+  }
+  const ex = exposureMockRun()
+  if (ex) {
+    out.push(ro(runBase({ id: ex.id, module: 'exposure', kind: 'exposure_scan', lane: 'exposure', title: `Scan of ${ex.target_value}`, requested_by: ex.by || 'system',
+      subject: { kind: 'target', id: ex.target_id, label: ex.target_value }, status: ex.status, error: ex.error?.message ?? null, stop_reason: ex.stop_reason ?? null,
+      queued_at: ex.started_at, started_at: ex.status === 'queued' ? null : ex.started_at, ended_at: ex.finished_at, updated_at: ex.finished_at ?? now })))
+  }
+  const kinds = { sweep: 'lan_sweep', device: 'device_check', snmp: 'snmp_read', external: 'exposure_scan' } as const
+  const states = { ok: 'done', partial: 'partial', failed: 'failed', stopped: 'stopped', running: 'running' } as const
+  for (const h of historyStore.get()) {
+    out.push(ro(runBase({ id: h.id, module: h.kind === 'external' ? 'exposure' : 'sensor-active', kind: kinds[h.kind], lane: h.kind === 'external' ? 'exposure' : 'nmap', title: h.label,
+      trigger: h.trigger === 'person' ? 'manual' : 'schedule', requested_by: h.trigger === 'person' ? 'admin@acme.example' : 'system',
+      subject: h.target_id ? { kind: 'target', id: h.target_id, label: h.label } : null, status: states[h.outcome],
+      error: h.outcome === 'failed' || h.outcome === 'partial' ? h.text : null, stop_reason: h.outcome === 'stopped' ? h.text : null,
+      queued_at: h.started_at, started_at: h.started_at, ended_at: h.ended_at, updated_at: h.ended_at ?? now,
+      log: [{ ts: h.started_at, level: 'info', text: h.text }] })))
+  }
+  return out
+}
+/** Every run GET /runs knows: the runs of runsStore, then the engines' own (an id held by both is runsStore's). */
+function allRunRows(): RunRow[] {
+  const own = runsStore.get()
+  const ids = new Set(own.map((r) => r.id))
+  return [...own, ...engineRuns().filter((r) => !ids.has(r.id))]
+}
 const runSummary = (r: RunRow): z.infer<typeof RunSchema> => {
   const { steps: _s, items: _i, items_total: _t, log: _l, children: _c, ...run } = r
   return run
 }
 const runDetail = (id: string): RunRow | undefined => {
-  const all = runsStore.get()
+  const all = allRunRows()
   const r = all.find((x) => x.id === id)
   return r && { ...r, children: all.filter((x) => x.parent_id === id).map(runSummary) }
 }
@@ -229,7 +277,7 @@ const runHandlers = [
     const u = new URL(request.url)
     const p = (k: string) => u.searchParams.get(k) ?? ''
     const q = p('q').trim().toLowerCase()
-    const rows = runsStore.get()
+    const rows = allRunRows()
       .filter((r) => (!p('module') || r.module === p('module')) && (!p('kind') || r.kind === p('kind')) && (!p('status') || r.status === p('status')))
       .filter((r) => (!p('subject_kind') || r.subject?.kind === p('subject_kind')) && (!p('subject_id') || r.subject?.id === p('subject_id')))
       .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.subject?.label ?? '').toLowerCase().includes(q) || r.requested_by.toLowerCase().includes(q) || r.id === p('q').trim())

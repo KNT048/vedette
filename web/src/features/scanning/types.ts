@@ -10,3 +10,7 @@ export type SafetyInput = z.infer<typeof C.SafetyInput>
 export type SafetySaved = z.infer<typeof C.SafetySaved>
 export type Scanning = z.infer<typeof C.Scanning>
 export type HistoryRun = z.infer<typeof C.HistoryRun>
+export type Run = z.infer<typeof C.Run>
+export type RunDetail = z.infer<typeof C.RunDetail>
+export type RunList = z.infer<typeof C.RunList>
+export type RunStatus = z.infer<typeof C.RunStatus>

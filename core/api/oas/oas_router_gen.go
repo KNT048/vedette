@@ -185,107 +185,92 @@ var (
 	rn102AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn174AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn158AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn160AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn172AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn176AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn157AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn190AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn178AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
 	rn191AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn162AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn180AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn182AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn164AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn187AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn193AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn196AllowedHeaders = map[string]string{
+	rn157AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn170AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn211AllowedHeaders = map[string]string{
+	rn160AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
+	rn189AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn213AllowedHeaders = map[string]string{
+	rn161AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn207AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn215AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn204AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn206AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
+	rn195AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
 	}
 	rn208AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn209AllowedHeaders = map[string]string{
+	rn210AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn213AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn228AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn230AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn232AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn221AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn223AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn225AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 	rn226AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn227AllowedHeaders = map[string]string{
+	rn245AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn220AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-		"PUT":   "Content-Type",
-	}
-	rn272AllowedHeaders = map[string]string{
+	rn243AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn274AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn275AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn276AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn277AllowedHeaders = map[string]string{
+	rn244AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn237AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn282AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn258AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn240AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
-	}
-	rn287AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
+		"PUT":   "Content-Type",
 	}
 	rn289AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn290AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn291AllowedHeaders = map[string]string{
@@ -294,122 +279,122 @@ var (
 	rn292AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn259AllowedHeaders = map[string]string{
+	rn293AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
-	}
-	rn242AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-	}
-	rn302AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
 	}
 	rn294AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn295AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn303AllowedHeaders = map[string]string{
+	rn254AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn270AllowedHeaders = map[string]string{
+	rn299AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn275AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn257AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn266AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn244AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn297AllowedHeaders = map[string]string{
+	rn304AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn315AllowedHeaders = map[string]string{
+	rn306AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn307AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn308AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn309AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn276AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn259AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
+	rn319AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn311AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+		"POST": "Content-Type",
 	}
 	rn312AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn305AllowedHeaders = map[string]string{
+	rn320AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn287AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
+	rn283AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn261AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn314AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn332AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn328AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn329AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn322AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn104AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn317AllowedHeaders = map[string]string{
+	rn334AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn336AllowedHeaders = map[string]string{
+	rn353AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
-	}
-	rn338AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn342AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn330AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-	}
-	rn352AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn347AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn351AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn366AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
 	}
 	rn355AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn401AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn403AllowedHeaders = map[string]string{
+	rn359AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn404AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn407AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn378AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn380AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn385AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
+	rn347AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
 	}
 	rn369AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn415AllowedHeaders = map[string]string{
+	rn364AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn416AllowedHeaders = map[string]string{
+	rn368AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn419AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn394AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn426AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn374AllowedHeaders = map[string]string{
+	rn383AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
+	}
+	rn372AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn418AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn420AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn421AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn424AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
@@ -417,28 +402,61 @@ var (
 	rn395AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn452AllowedHeaders = map[string]string{
+	rn397AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn402AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn386AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn432AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn433AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn436AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn411AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn443AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn391AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn441AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn412AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn469AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn468AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
+	rn473AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn470AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn472AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn451AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-	}
-	rn456AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn453AllowedHeaders = map[string]string{
+	rn452AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn455AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn434AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn435AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn440AllowedHeaders = map[string]string{
+	rn457AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -3743,7 +3761,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PUT",
-									allowedHeaders: rn174AllowedHeaders,
+									allowedHeaders: rn191AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -3797,13 +3815,77 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "GET,PUT",
-								allowedHeaders: rn158AllowedHeaders,
+								allowedHeaders: rn162AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
 						}
 
 						return
+					}
+
+				case 'i': // Prefix: "issues/"
+
+					if l := len("issues/"); len(elem) >= l && elem[0:l] == "issues/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'h': // Prefix: "handle"
+
+						if l := len("handle"); len(elem) >= l && elem[0:l] == "handle" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleExposurePostExposureIssuesHandleRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn180AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					case 'r': // Prefix: "reopen"
+
+						if l := len("reopen"); len(elem) >= l && elem[0:l] == "reopen" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleExposurePostExposureIssuesReopenRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn182AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
 					}
 
 				case 's': // Prefix: "scan"
@@ -3857,64 +3939,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 't': // Prefix: "targets"
+				case 't': // Prefix: "t"
 
-					if l := len("targets"); len(elem) >= l && elem[0:l] == "targets" {
+					if l := len("t"); len(elem) >= l && elem[0:l] == "t" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch r.Method {
-						case "GET":
-							s.handleExposureGetExposureTargetsRequest([0]string{}, elemIsEscaped, w, r)
-						case "POST":
-							s.handleExposurePostExposureTargetsRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET,POST",
-								allowedHeaders: rn160AllowedHeaders,
-								acceptPost:     "application/json",
-								acceptPatch:    "",
-							})
-						}
-
-						return
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'a': // Prefix: "argets"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("argets"); len(elem) >= l && elem[0:l] == "argets" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "id"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
 						if len(elem) == 0 {
 							switch r.Method {
-							case "DELETE":
-								s.handleExposureDeleteExposureTargetsIDRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
 							case "GET":
-								s.handleExposureGetExposureTargetsIDRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
+								s.handleExposureGetExposureTargetsRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleExposurePostExposureTargetsRequest([0]string{}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "DELETE,GET",
-									allowedHeaders: nil,
-									acceptPost:     "",
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn164AllowedHeaders,
+									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
 							}
@@ -3930,40 +3985,40 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
 							if len(elem) == 0 {
-								break
+								switch r.Method {
+								case "DELETE":
+									s.handleExposureDeleteExposureTargetsIDRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								case "GET":
+									s.handleExposureGetExposureTargetsIDRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "DELETE,GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
 							}
 							switch elem[0] {
-							case 'd': // Prefix: "diff"
+							case '/': // Prefix: "/"
 
-								if l := len("diff"); len(elem) >= l && elem[0:l] == "diff" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "GET":
-										s.handleExposureGetExposureTargetsIDDiffRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "GET",
-											allowedHeaders: nil,
-											acceptPost:     "",
-											acceptPatch:    "",
-										})
-									}
-
-									return
-								}
-
-							case 'o': // Prefix: "o"
-
-								if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 									elem = elem[l:]
 								} else {
 									break
@@ -3973,9 +4028,313 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 								switch elem[0] {
-								case 'p': // Prefix: "penvas"
+								case 'd': // Prefix: "diff"
 
-									if l := len("penvas"); len(elem) >= l && elem[0:l] == "penvas" {
+									if l := len("diff"); len(elem) >= l && elem[0:l] == "diff" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleExposureGetExposureTargetsIDDiffRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "GET",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 'o': // Prefix: "o"
+
+									if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'p': // Prefix: "penvas"
+
+										if l := len("penvas"); len(elem) >= l && elem[0:l] == "penvas" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleExposurePostExposureTargetsIDOpenvasRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'u': // Prefix: "utside"
+
+										if l := len("utside"); len(elem) >= l && elem[0:l] == "utside" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleExposureGetExposureTargetsIDOutsideRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleExposurePostExposureTargetsIDOutsideRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "GET,POST",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
+								case 'q': // Prefix: "queue"
+
+									if l := len("queue"); len(elem) >= l && elem[0:l] == "queue" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleExposureDeleteExposureTargetsIDQueueRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "DELETE",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 's': // Prefix: "s"
+
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "c"
+
+										if l := len("c"); len(elem) >= l && elem[0:l] == "c" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case 'a': // Prefix: "an"
+
+											if l := len("an"); len(elem) >= l && elem[0:l] == "an" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleExposurePostExposureTargetsIDScanRequest([1]string{
+														args[0],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, notAllowedParams{
+														allowedMethods: "POST",
+														allowedHeaders: rn187AllowedHeaders,
+														acceptPost:     "application/json",
+														acceptPatch:    "",
+													})
+												}
+
+												return
+											}
+
+										case 'h': // Prefix: "hedule"
+
+											if l := len("hedule"); len(elem) >= l && elem[0:l] == "hedule" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "PUT":
+													s.handleExposurePutExposureTargetsIDScheduleRequest([1]string{
+														args[0],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, notAllowedParams{
+														allowedMethods: "PUT",
+														allowedHeaders: rn193AllowedHeaders,
+														acceptPost:     "",
+														acceptPatch:    "",
+													})
+												}
+
+												return
+											}
+
+										}
+
+									case 'n': // Prefix: "napshots"
+
+										if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch r.Method {
+											case "GET":
+												s.handleExposureGetExposureTargetsIDSnapshotsRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "GET",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "date"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[1] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "GET":
+													s.handleExposureGetExposureTargetsIDSnapshotsDateRequest([2]string{
+														args[0],
+														args[1],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, notAllowedParams{
+														allowedMethods: "GET",
+														allowedHeaders: nil,
+														acceptPost:     "",
+														acceptPatch:    "",
+													})
+												}
+
+												return
+											}
+
+										}
+
+									}
+
+								case 't': // Prefix: "terms"
+
+									if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleExposureDeleteExposureTargetsIDTermsRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleExposurePutExposureTargetsIDTermsRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "DELETE,PUT",
+												allowedHeaders: rn157AllowedHeaders,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 'v': // Prefix: "verify"
+
+									if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
 										elem = elem[l:]
 									} else {
 										break
@@ -3985,7 +4344,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										// Leaf node.
 										switch r.Method {
 										case "POST":
-											s.handleExposurePostExposureTargetsIDOpenvasRequest([1]string{
+											s.handleExposurePostExposureTargetsIDVerifyRequest([1]string{
 												args[0],
 											}, elemIsEscaped, w, r)
 										default:
@@ -4000,69 +4359,84 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										return
 									}
 
-								case 'u': // Prefix: "utside"
-
-									if l := len("utside"); len(elem) >= l && elem[0:l] == "utside" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "GET":
-											s.handleExposureGetExposureTargetsIDOutsideRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										case "POST":
-											s.handleExposurePostExposureTargetsIDOutsideRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "GET,POST",
-												allowedHeaders: nil,
-												acceptPost:     "",
-												acceptPatch:    "",
-											})
-										}
-
-										return
-									}
-
 								}
 
-							case 'q': // Prefix: "queue"
+							}
 
-								if l := len("queue"); len(elem) >= l && elem[0:l] == "queue" {
-									elem = elem[l:]
-								} else {
-									break
+						}
+
+					case 'r': // Prefix: "ree"
+
+						if l := len("ree"); len(elem) >= l && elem[0:l] == "ree" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "GET":
+								s.handleExposureGetExposureTreeRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleExposurePostExposureTreeRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn170AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "DELETE":
+									s.handleExposureDeleteExposureTreeIDRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								case "GET":
+									s.handleExposureGetExposureTreeIDRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								case "PATCH":
+									s.handleExposurePatchExposureTreeIDRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "DELETE,GET,PATCH",
+										allowedHeaders: rn160AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "application/json",
+									})
 								}
 
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "DELETE":
-										s.handleExposureDeleteExposureTargetsIDQueueRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "DELETE",
-											allowedHeaders: nil,
-											acceptPost:     "",
-											acceptPatch:    "",
-										})
-									}
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
 
-									return
-								}
-
-							case 's': // Prefix: "s"
-
-								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 									elem = elem[l:]
 								} else {
 									break
@@ -4072,86 +4446,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 								switch elem[0] {
-								case 'c': // Prefix: "c"
+								case 'a': // Prefix: "addresses"
 
-									if l := len("c"); len(elem) >= l && elem[0:l] == "c" {
+									if l := len("addresses"); len(elem) >= l && elem[0:l] == "addresses" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										break
-									}
-									switch elem[0] {
-									case 'a': // Prefix: "an"
-
-										if l := len("an"); len(elem) >= l && elem[0:l] == "an" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "POST":
-												s.handleExposurePostExposureTargetsIDScanRequest([1]string{
-													args[0],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, notAllowedParams{
-													allowedMethods: "POST",
-													allowedHeaders: rn172AllowedHeaders,
-													acceptPost:     "application/json",
-													acceptPatch:    "",
-												})
-											}
-
-											return
-										}
-
-									case 'h': // Prefix: "hedule"
-
-										if l := len("hedule"); len(elem) >= l && elem[0:l] == "hedule" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "PUT":
-												s.handleExposurePutExposureTargetsIDScheduleRequest([1]string{
-													args[0],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, notAllowedParams{
-													allowedMethods: "PUT",
-													allowedHeaders: rn176AllowedHeaders,
-													acceptPost:     "",
-													acceptPatch:    "",
-												})
-											}
-
-											return
-										}
-
-									}
-
-								case 'n': // Prefix: "napshots"
-
-									if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
+										// Leaf node.
 										switch r.Method {
 										case "GET":
-											s.handleExposureGetExposureTargetsIDSnapshotsRequest([1]string{
+											s.handleExposureGetExposureTreeIDAddressesRequest([1]string{
 												args[0],
 											}, elemIsEscaped, w, r)
 										default:
@@ -4165,31 +4472,142 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 										return
 									}
-									switch elem[0] {
-									case '/': // Prefix: "/"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								case 'h': // Prefix: "hosts"
+
+									if l := len("hosts"); len(elem) >= l && elem[0:l] == "hosts" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleExposureGetExposureTreeIDHostsRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "GET",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 'i': // Prefix: "issues"
+
+									if l := len("issues"); len(elem) >= l && elem[0:l] == "issues" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleExposureGetExposureTreeIDIssuesRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "GET",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 's': // Prefix: "s"
+
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "can"
+
+										if l := len("can"); len(elem) >= l && elem[0:l] == "can" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "date"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
+										if len(elem) == 0 {
+											switch r.Method {
+											case "POST":
+												s.handleExposurePostExposureTreeIDScanRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn189AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+										switch elem[0] {
+										case 's': // Prefix: "s"
+
+											if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "GET":
+													s.handleExposureGetExposureTreeIDScansRequest([1]string{
+														args[0],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, notAllowedParams{
+														allowedMethods: "GET",
+														allowedHeaders: nil,
+														acceptPost:     "",
+														acceptPatch:    "",
+													})
+												}
+
+												return
+											}
+
+										}
+
+									case 'e': // Prefix: "ervices"
+
+										if l := len("ervices"); len(elem) >= l && elem[0:l] == "ervices" {
+											elem = elem[l:]
+										} else {
 											break
 										}
-										args[1] = elem
-										elem = ""
 
 										if len(elem) == 0 {
 											// Leaf node.
 											switch r.Method {
 											case "GET":
-												s.handleExposureGetExposureTargetsIDSnapshotsDateRequest([2]string{
+												s.handleExposureGetExposureTreeIDServicesRequest([1]string{
 													args[0],
-													args[1],
 												}, elemIsEscaped, w, r)
 											default:
 												s.notAllowed(w, r, notAllowedParams{
@@ -4205,64 +4623,64 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									}
 
-								}
+								case 't': // Prefix: "terms"
 
-							case 't': // Prefix: "terms"
-
-								if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "DELETE":
-										s.handleExposureDeleteExposureTargetsIDTermsRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleExposurePutExposureTargetsIDTermsRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "DELETE,PUT",
-											allowedHeaders: rn157AllowedHeaders,
-											acceptPost:     "",
-											acceptPatch:    "",
-										})
+									if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
-								}
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleExposureDeleteExposureTreeIDTermsRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleExposurePutExposureTreeIDTermsRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "DELETE,PUT",
+												allowedHeaders: rn161AllowedHeaders,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
 
-							case 'v': // Prefix: "verify"
-
-								if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "POST":
-										s.handleExposurePostExposureTargetsIDVerifyRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "POST",
-											allowedHeaders: nil,
-											acceptPost:     "",
-											acceptPatch:    "",
-										})
+										return
 									}
 
-									return
+								case 'v': // Prefix: "verify"
+
+									if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleExposurePostExposureTreeIDVerifyRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "POST",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
 								}
 
 							}
@@ -4324,7 +4742,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn190AllowedHeaders,
+										allowedHeaders: rn207AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -4364,7 +4782,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "DELETE,PUT",
-											allowedHeaders: rn178AllowedHeaders,
+											allowedHeaders: rn195AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -4482,7 +4900,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn191AllowedHeaders,
+									allowedHeaders: rn208AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -4578,7 +4996,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn193AllowedHeaders,
+											allowedHeaders: rn210AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -4696,7 +5114,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn196AllowedHeaders,
+										allowedHeaders: rn213AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -4797,7 +5215,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn211AllowedHeaders,
+												allowedHeaders: rn228AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -4822,7 +5240,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn213AllowedHeaders,
+												allowedHeaders: rn230AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -4864,7 +5282,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn215AllowedHeaders,
+											allowedHeaders: rn232AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -4997,7 +5415,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn204AllowedHeaders,
+												allowedHeaders: rn221AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -5024,7 +5442,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn206AllowedHeaders,
+												allowedHeaders: rn223AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -5053,7 +5471,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn208AllowedHeaders,
+											allowedHeaders: rn225AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -5080,7 +5498,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn209AllowedHeaders,
+											allowedHeaders: rn226AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -5262,7 +5680,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn228AllowedHeaders,
+											allowedHeaders: rn245AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -5315,7 +5733,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn226AllowedHeaders,
+										allowedHeaders: rn243AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5407,7 +5825,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn227AllowedHeaders,
+										allowedHeaders: rn244AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5451,7 +5869,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "DELETE,PATCH,PUT",
-											allowedHeaders: rn220AllowedHeaders,
+											allowedHeaders: rn237AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "application/json",
 										})
@@ -5659,7 +6077,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn272AllowedHeaders,
+										allowedHeaders: rn289AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5684,7 +6102,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn274AllowedHeaders,
+										allowedHeaders: rn291AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5709,7 +6127,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn275AllowedHeaders,
+										allowedHeaders: rn292AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5734,7 +6152,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn276AllowedHeaders,
+										allowedHeaders: rn293AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5900,7 +6318,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn277AllowedHeaders,
+											allowedHeaders: rn294AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -6023,7 +6441,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "DELETE,PUT",
-											allowedHeaders: rn237AllowedHeaders,
+											allowedHeaders: rn254AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -6085,7 +6503,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn282AllowedHeaders,
+													allowedHeaders: rn299AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6144,7 +6562,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn258AllowedHeaders,
+									allowedHeaders: rn275AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6187,7 +6605,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,GET,PATCH",
-										allowedHeaders: rn240AllowedHeaders,
+										allowedHeaders: rn257AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "application/json",
 									})
@@ -6287,7 +6705,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn287AllowedHeaders,
+														allowedHeaders: rn304AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -6315,7 +6733,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn289AllowedHeaders,
+														allowedHeaders: rn306AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -6346,7 +6764,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn290AllowedHeaders,
+												allowedHeaders: rn307AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -6373,7 +6791,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn291AllowedHeaders,
+												allowedHeaders: rn308AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -6400,7 +6818,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn292AllowedHeaders,
+												allowedHeaders: rn309AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -6454,7 +6872,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "GET,POST",
-														allowedHeaders: rn259AllowedHeaders,
+														allowedHeaders: rn276AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -6496,7 +6914,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													default:
 														s.notAllowed(w, r, notAllowedParams{
 															allowedMethods: "DELETE,PATCH",
-															allowedHeaders: rn242AllowedHeaders,
+															allowedHeaders: rn259AllowedHeaders,
 															acceptPost:     "",
 															acceptPatch:    "application/json",
 														})
@@ -6525,7 +6943,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "PUT",
-														allowedHeaders: rn302AllowedHeaders,
+														allowedHeaders: rn319AllowedHeaders,
 														acceptPost:     "",
 														acceptPatch:    "",
 													})
@@ -6554,7 +6972,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn294AllowedHeaders,
+													allowedHeaders: rn311AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6611,7 +7029,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn295AllowedHeaders,
+									allowedHeaders: rn312AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6663,7 +7081,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PUT",
-									allowedHeaders: rn303AllowedHeaders,
+									allowedHeaders: rn320AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6772,7 +7190,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn270AllowedHeaders,
+												allowedHeaders: rn287AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -6801,7 +7219,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "GET,PUT",
-											allowedHeaders: rn266AllowedHeaders,
+											allowedHeaders: rn283AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -6882,7 +7300,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "DELETE,GET,PUT",
-												allowedHeaders: rn244AllowedHeaders,
+												allowedHeaders: rn261AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -6921,7 +7339,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn297AllowedHeaders,
+														allowedHeaders: rn314AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -7126,7 +7544,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn315AllowedHeaders,
+								allowedHeaders: rn332AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -7164,7 +7582,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn311AllowedHeaders,
+									allowedHeaders: rn328AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -7217,7 +7635,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn312AllowedHeaders,
+									allowedHeaders: rn329AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7257,7 +7675,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn305AllowedHeaders,
+										allowedHeaders: rn322AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7514,7 +7932,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "DELETE,PUT",
-									allowedHeaders: rn317AllowedHeaders,
+									allowedHeaders: rn334AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -7569,7 +7987,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "POST",
-								allowedHeaders: rn336AllowedHeaders,
+								allowedHeaders: rn353AllowedHeaders,
 								acceptPost:     "application/json",
 								acceptPatch:    "",
 							})
@@ -7605,7 +8023,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn338AllowedHeaders,
+									allowedHeaders: rn355AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7794,7 +8212,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn342AllowedHeaders,
+										allowedHeaders: rn359AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7828,7 +8246,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PATCH",
-									allowedHeaders: rn330AllowedHeaders,
+									allowedHeaders: rn347AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -7855,7 +8273,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn352AllowedHeaders,
+								allowedHeaders: rn369AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -7968,7 +8386,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn347AllowedHeaders,
+									allowedHeaders: rn364AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -8137,7 +8555,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn351AllowedHeaders,
+									allowedHeaders: rn368AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -8276,7 +8694,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn366AllowedHeaders,
+											allowedHeaders: rn383AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -8307,7 +8725,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn355AllowedHeaders,
+									allowedHeaders: rn372AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -8568,7 +8986,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn401AllowedHeaders,
+													allowedHeaders: rn418AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -8595,7 +9013,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn403AllowedHeaders,
+													allowedHeaders: rn420AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -8634,7 +9052,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn404AllowedHeaders,
+														allowedHeaders: rn421AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -8730,7 +9148,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn407AllowedHeaders,
+												allowedHeaders: rn424AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -8786,7 +9204,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn378AllowedHeaders,
+										allowedHeaders: rn395AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8826,7 +9244,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn380AllowedHeaders,
+										allowedHeaders: rn397AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -9000,7 +9418,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn385AllowedHeaders,
+									allowedHeaders: rn402AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -9040,7 +9458,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn369AllowedHeaders,
+										allowedHeaders: rn386AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -9129,7 +9547,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn415AllowedHeaders,
+										allowedHeaders: rn432AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -9193,7 +9611,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn416AllowedHeaders,
+										allowedHeaders: rn433AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -9357,7 +9775,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn419AllowedHeaders,
+													allowedHeaders: rn436AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -9505,7 +9923,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn394AllowedHeaders,
+									allowedHeaders: rn411AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -9568,7 +9986,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn426AllowedHeaders,
+											allowedHeaders: rn443AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -9601,7 +10019,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn374AllowedHeaders,
+										allowedHeaders: rn391AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -9628,7 +10046,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn424AllowedHeaders,
+											allowedHeaders: rn441AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -9659,7 +10077,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn395AllowedHeaders,
+									allowedHeaders: rn412AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -9875,7 +10293,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn452AllowedHeaders,
+												allowedHeaders: rn469AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -9905,7 +10323,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PATCH",
-											allowedHeaders: rn451AllowedHeaders,
+											allowedHeaders: rn468AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "application/json",
 										})
@@ -9954,7 +10372,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn456AllowedHeaders,
+											allowedHeaders: rn473AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -9991,7 +10409,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn453AllowedHeaders,
+													allowedHeaders: rn470AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -10016,7 +10434,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn455AllowedHeaders,
+													allowedHeaders: rn472AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -10075,7 +10493,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "GET,PUT",
-											allowedHeaders: rn434AllowedHeaders,
+											allowedHeaders: rn451AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -10101,7 +10519,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "GET,POST",
-											allowedHeaders: rn435AllowedHeaders,
+											allowedHeaders: rn452AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -10271,7 +10689,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn440AllowedHeaders,
+										allowedHeaders: rn457AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -13930,6 +14348,70 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 					}
 
+				case 'i': // Prefix: "issues/"
+
+					if l := len("issues/"); len(elem) >= l && elem[0:l] == "issues/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'h': // Prefix: "handle"
+
+						if l := len("handle"); len(elem) >= l && elem[0:l] == "handle" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = ExposurePostExposureIssuesHandleOperation
+								r.summary = "Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with accepted_until, from tomorrow to 365 days ahead, else 400 bad_until), false_positive or not_relevant. The note is required (at least 3 characters, else 400 note_required) for false_positive, not_relevant and accepted. One audit row per issue; issues not open are skipped"
+								r.operationID = "exposure_post_exposure_issues_handle"
+								r.operationGroup = ""
+								r.pathPattern = "/exposure/issues/handle"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'r': // Prefix: "reopen"
+
+						if l := len("reopen"); len(elem) >= l && elem[0:l] == "reopen" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = ExposurePostExposureIssuesReopenOperation
+								r.summary = "Reopen handled issues (at most 500); the others are skipped. Audited"
+								r.operationID = "exposure_post_exposure_issues_reopen"
+								r.operationGroup = ""
+								r.pathPattern = "/exposure/issues/reopen"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
 				case 's': // Prefix: "scan"
 
 					if l := len("scan"); len(elem) >= l && elem[0:l] == "scan" {
@@ -13981,75 +14463,45 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 't': // Prefix: "targets"
+				case 't': // Prefix: "t"
 
-					if l := len("targets"); len(elem) >= l && elem[0:l] == "targets" {
+					if l := len("t"); len(elem) >= l && elem[0:l] == "t" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch method {
-						case "GET":
-							r.name = ExposureGetExposureTargetsOperation
-							r.summary = "Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus the box-IP auto-detect settings"
-							r.operationID = "exposure_get_exposure_targets"
-							r.operationGroup = ""
-							r.pathPattern = "/exposure/targets"
-							r.args = args
-							r.count = 0
-							return r, true
-						case "POST":
-							r.name = ExposurePostExposureTargetsOperation
-							r.summary = "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here"
-							r.operationID = "exposure_post_exposure_targets"
-							r.operationGroup = ""
-							r.pathPattern = "/exposure/targets"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'a': // Prefix: "argets"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("argets"); len(elem) >= l && elem[0:l] == "argets" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "id"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
 						if len(elem) == 0 {
 							switch method {
-							case "DELETE":
-								r.name = ExposureDeleteExposureTargetsIDOperation
-								r.summary = "Delete a target with its snapshots and commitment. For a public IP this removes it from the list; with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next time the box sees it"
-								r.operationID = "exposure_delete_exposure_targets_id"
-								r.operationGroup = ""
-								r.pathPattern = "/exposure/targets/{id}"
-								r.args = args
-								r.count = 1
-								return r, true
 							case "GET":
-								r.name = ExposureGetExposureTargetsIDOperation
-								r.summary = "One external-exposure target"
-								r.operationID = "exposure_get_exposure_targets_id"
+								r.name = ExposureGetExposureTargetsOperation
+								r.summary = "Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus the box-IP auto-detect settings"
+								r.operationID = "exposure_get_exposure_targets"
 								r.operationGroup = ""
-								r.pathPattern = "/exposure/targets/{id}"
+								r.pathPattern = "/exposure/targets"
 								r.args = args
-								r.count = 1
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = ExposurePostExposureTargetsOperation
+								r.summary = "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here"
+								r.operationID = "exposure_post_exposure_targets"
+								r.operationGroup = ""
+								r.pathPattern = "/exposure/targets"
+								r.args = args
+								r.count = 0
 								return r, true
 							default:
 								return
@@ -14064,38 +14516,43 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
 							if len(elem) == 0 {
-								break
+								switch method {
+								case "DELETE":
+									r.name = ExposureDeleteExposureTargetsIDOperation
+									r.summary = "Delete a target with its snapshots and commitment. For a public IP this removes it from the list; with ignore=true it also goes on the Ignored list and is never added again or scanned (ignore is only for IPs, else 400 bad_value); without it, auto-detect brings it back (as a new target) the next time the box sees it"
+									r.operationID = "exposure_delete_exposure_targets_id"
+									r.operationGroup = ""
+									r.pathPattern = "/exposure/targets/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								case "GET":
+									r.name = ExposureGetExposureTargetsIDOperation
+									r.summary = "One external-exposure target"
+									r.operationID = "exposure_get_exposure_targets_id"
+									r.operationGroup = ""
+									r.pathPattern = "/exposure/targets/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
 							}
 							switch elem[0] {
-							case 'd': // Prefix: "diff"
+							case '/': // Prefix: "/"
 
-								if l := len("diff"); len(elem) >= l && elem[0:l] == "diff" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "GET":
-										r.name = ExposureGetExposureTargetsIDDiffOperation
-										r.summary = "Compare two scan days: newly exposed, gone, changed"
-										r.operationID = "exposure_get_exposure_targets_id_diff"
-										r.operationGroup = ""
-										r.pathPattern = "/exposure/targets/{id}/diff"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
-									}
-								}
-
-							case 'o': // Prefix: "o"
-
-								if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 									elem = elem[l:]
 								} else {
 									break
@@ -14105,34 +14562,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 								switch elem[0] {
-								case 'p': // Prefix: "penvas"
+								case 'd': // Prefix: "diff"
 
-									if l := len("penvas"); len(elem) >= l && elem[0:l] == "penvas" {
-										elem = elem[l:]
-									} else {
-										break
-									}
-
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = ExposurePostExposureTargetsIDOpenvasOperation
-											r.summary = "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan"
-											r.operationID = "exposure_post_exposure_targets_id_openvas"
-											r.operationGroup = ""
-											r.pathPattern = "/exposure/targets/{id}/openvas"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
-										}
-									}
-
-								case 'u': // Prefix: "utside"
-
-									if l := len("utside"); len(elem) >= l && elem[0:l] == "utside" {
+									if l := len("diff"); len(elem) >= l && elem[0:l] == "diff" {
 										elem = elem[l:]
 									} else {
 										break
@@ -14142,20 +14574,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										// Leaf node.
 										switch method {
 										case "GET":
-											r.name = ExposureGetExposureTargetsIDOutsideOperation
-											r.summary = "What the Internet sees: the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends nothing"
-											r.operationID = "exposure_get_exposure_targets_id_outside"
+											r.name = ExposureGetExposureTargetsIDDiffOperation
+											r.summary = "Compare two scan days: newly exposed, gone, changed"
+											r.operationID = "exposure_get_exposure_targets_id_diff"
 											r.operationGroup = ""
-											r.pathPattern = "/exposure/targets/{id}/outside"
-											r.args = args
-											r.count = 1
-											return r, true
-										case "POST":
-											r.name = ExposurePostExposureTargetsIDOutsideOperation
-											r.summary = "Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited"
-											r.operationID = "exposure_post_exposure_targets_id_outside"
-											r.operationGroup = ""
-											r.pathPattern = "/exposure/targets/{id}/outside"
+											r.pathPattern = "/exposure/targets/{id}/diff"
 											r.args = args
 											r.count = 1
 											return r, true
@@ -14164,48 +14587,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 									}
 
-								}
+								case 'o': // Prefix: "o"
 
-							case 'q': // Prefix: "queue"
-
-								if l := len("queue"); len(elem) >= l && elem[0:l] == "queue" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "DELETE":
-										r.name = ExposureDeleteExposureTargetsIDQueueOperation
-										r.summary = "Take the scan of this target that waits in the queue out of it (a Scan now or a scheduled scan). 409 not_queued when none waits, or its checks have started (stop it once it runs). Audited as exposure.scan"
-										r.operationID = "exposure_delete_exposure_targets_id_queue"
-										r.operationGroup = ""
-										r.pathPattern = "/exposure/targets/{id}/queue"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
-									}
-								}
-
-							case 's': // Prefix: "s"
-
-								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									break
-								}
-								switch elem[0] {
-								case 'c': // Prefix: "c"
-
-									if l := len("c"); len(elem) >= l && elem[0:l] == "c" {
+									if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
 										elem = elem[l:]
 									} else {
 										break
@@ -14215,9 +14599,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 									switch elem[0] {
-									case 'a': // Prefix: "an"
+									case 'p': // Prefix: "penvas"
 
-										if l := len("an"); len(elem) >= l && elem[0:l] == "an" {
+										if l := len("penvas"); len(elem) >= l && elem[0:l] == "penvas" {
 											elem = elem[l:]
 										} else {
 											break
@@ -14227,11 +14611,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											// Leaf node.
 											switch method {
 											case "POST":
-												r.name = ExposurePostExposureTargetsIDScanOperation
-												r.summary = "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited"
-												r.operationID = "exposure_post_exposure_targets_id_scan"
+												r.name = ExposurePostExposureTargetsIDOpenvasOperation
+												r.summary = "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan"
+												r.operationID = "exposure_post_exposure_targets_id_openvas"
 												r.operationGroup = ""
-												r.pathPattern = "/exposure/targets/{id}/scan"
+												r.pathPattern = "/exposure/targets/{id}/openvas"
 												r.args = args
 												r.count = 1
 												return r, true
@@ -14240,9 +14624,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											}
 										}
 
-									case 'h': // Prefix: "hedule"
+									case 'u': // Prefix: "utside"
 
-										if l := len("hedule"); len(elem) >= l && elem[0:l] == "hedule" {
+										if l := len("utside"); len(elem) >= l && elem[0:l] == "utside" {
 											elem = elem[l:]
 										} else {
 											break
@@ -14251,12 +14635,21 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										if len(elem) == 0 {
 											// Leaf node.
 											switch method {
-											case "PUT":
-												r.name = ExposurePutExposureTargetsIDScheduleOperation
-												r.summary = "Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly, counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of the current version are accepted (else it is skipped and schedule.note says why), with the same steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan. What it finds new since the scan before (an open port, an admin page, a certificate now expiring within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value for another value. Audited (exposure.schedule)"
-												r.operationID = "exposure_put_exposure_targets_id_schedule"
+											case "GET":
+												r.name = ExposureGetExposureTargetsIDOutsideOperation
+												r.summary = "What the Internet sees: the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends nothing"
+												r.operationID = "exposure_get_exposure_targets_id_outside"
 												r.operationGroup = ""
-												r.pathPattern = "/exposure/targets/{id}/schedule"
+												r.pathPattern = "/exposure/targets/{id}/outside"
+												r.args = args
+												r.count = 1
+												return r, true
+											case "POST":
+												r.name = ExposurePostExposureTargetsIDOutsideOperation
+												r.summary = "Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited"
+												r.operationID = "exposure_post_exposure_targets_id_outside"
+												r.operationGroup = ""
+												r.pathPattern = "/exposure/targets/{id}/outside"
 												r.args = args
 												r.count = 1
 												return r, true
@@ -14267,22 +14660,23 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									}
 
-								case 'n': // Prefix: "napshots"
+								case 'q': // Prefix: "queue"
 
-									if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
+									if l := len("queue"); len(elem) >= l && elem[0:l] == "queue" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
+										// Leaf node.
 										switch method {
-										case "GET":
-											r.name = ExposureGetExposureTargetsIDSnapshotsOperation
-											r.summary = "Scan days of a target, newest first"
-											r.operationID = "exposure_get_exposure_targets_id_snapshots"
+										case "DELETE":
+											r.name = ExposureDeleteExposureTargetsIDQueueOperation
+											r.summary = "Take the scan of this target that waits in the queue out of it (a Scan now or a scheduled scan). 409 not_queued when none waits, or its checks have started (stop it once it runs). Audited as exposure.scan"
+											r.operationID = "exposure_delete_exposure_targets_id_queue"
 											r.operationGroup = ""
-											r.pathPattern = "/exposure/targets/{id}/snapshots"
+											r.pathPattern = "/exposure/targets/{id}/queue"
 											r.args = args
 											r.count = 1
 											return r, true
@@ -14290,35 +14684,463 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											return
 										}
 									}
-									switch elem[0] {
-									case '/': // Prefix: "/"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								case 's': // Prefix: "s"
+
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "c"
+
+										if l := len("c"); len(elem) >= l && elem[0:l] == "c" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "date"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
+										if len(elem) == 0 {
 											break
 										}
-										args[1] = elem
-										elem = ""
+										switch elem[0] {
+										case 'a': // Prefix: "an"
+
+											if l := len("an"); len(elem) >= l && elem[0:l] == "an" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = ExposurePostExposureTargetsIDScanOperation
+													r.summary = "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited"
+													r.operationID = "exposure_post_exposure_targets_id_scan"
+													r.operationGroup = ""
+													r.pathPattern = "/exposure/targets/{id}/scan"
+													r.args = args
+													r.count = 1
+													return r, true
+												default:
+													return
+												}
+											}
+
+										case 'h': // Prefix: "hedule"
+
+											if l := len("hedule"); len(elem) >= l && elem[0:l] == "hedule" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "PUT":
+													r.name = ExposurePutExposureTargetsIDScheduleOperation
+													r.summary = "Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly, counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of the current version are accepted (else it is skipped and schedule.note says why), with the same steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan. What it finds new since the scan before (an open port, an admin page, a certificate now expiring within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value for another value. Audited (exposure.schedule)"
+													r.operationID = "exposure_put_exposure_targets_id_schedule"
+													r.operationGroup = ""
+													r.pathPattern = "/exposure/targets/{id}/schedule"
+													r.args = args
+													r.count = 1
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
+									case 'n': // Prefix: "napshots"
+
+										if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch method {
+											case "GET":
+												r.name = ExposureGetExposureTargetsIDSnapshotsOperation
+												r.summary = "Scan days of a target, newest first"
+												r.operationID = "exposure_get_exposure_targets_id_snapshots"
+												r.operationGroup = ""
+												r.pathPattern = "/exposure/targets/{id}/snapshots"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "date"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[1] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "GET":
+													r.name = ExposureGetExposureTargetsIDSnapshotsDateOperation
+													r.summary = "Scan result of one day"
+													r.operationID = "exposure_get_exposure_targets_id_snapshots_date"
+													r.operationGroup = ""
+													r.pathPattern = "/exposure/targets/{id}/snapshots/{date}"
+													r.args = args
+													r.count = 2
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
+									}
+
+								case 't': // Prefix: "terms"
+
+									if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = ExposureDeleteExposureTargetsIDTermsOperation
+											r.summary = "Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan now sentence again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance"
+											r.operationID = "exposure_delete_exposure_targets_id_terms"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/targets/{id}/terms"
+											r.args = args
+											r.count = 1
+											return r, true
+										case "PUT":
+											r.name = ExposurePutExposureTargetsIDTermsOperation
+											r.summary = "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
+											r.operationID = "exposure_put_exposure_targets_id_terms"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/targets/{id}/terms"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'v': // Prefix: "verify"
+
+									if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = ExposurePostExposureTargetsIDVerifyOperation
+											r.summary = "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\""
+											r.operationID = "exposure_post_exposure_targets_id_verify"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/targets/{id}/verify"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							}
+
+						}
+
+					case 'r': // Prefix: "ree"
+
+						if l := len("ree"); len(elem) >= l && elem[0:l] == "ree" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch method {
+							case "GET":
+								r.name = ExposureGetExposureTreeOperation
+								r.summary = "Every target as a tree, with its proof (own or covered by an ancestor), consent, newest scan and counts, plus the box-IP settings, the Ignored list and the gateway"
+								r.operationID = "exposure_get_exposure_tree"
+								r.operationGroup = ""
+								r.pathPattern = "/exposure/tree"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = ExposurePostExposureTreeOperation
+								r.summary = "Add a target: a domain, or a public IPv4 address typed in (kind left out: an IPv4 address is an IP, anything else a domain). A domain goes under the nearest domain target it is a name of, and targets that are names of it move under it in the same write; a name the parent already found becomes its own target there (Host.child). scope_mode is for domains only (default all; 400 bad_value for an IP). A typed IP is never scanned until proven. 409 duplicate, 400 bad_value, 400 ip_not_allowed for a private, reserved or IPv6 address"
+								r.operationID = "exposure_post_exposure_tree"
+								r.operationGroup = ""
+								r.pathPattern = "/exposure/tree"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								switch method {
+								case "DELETE":
+									r.name = ExposureDeleteExposureTreeIDOperation
+									r.summary = "Delete a target with its rows, consent and runs. Its children move up to its parent (or the top) and keep their own options; a child that was covered by its proof needs its own. ignore=true (IPs only, else 400 bad_value) also puts the IP on the Ignored list. Audited"
+									r.operationID = "exposure_delete_exposure_tree_id"
+									r.operationGroup = ""
+									r.pathPattern = "/exposure/tree/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								case "GET":
+									r.name = ExposureGetExposureTreeIDOperation
+									r.summary = "One target node"
+									r.operationID = "exposure_get_exposure_tree_id"
+									r.operationGroup = ""
+									r.pathPattern = "/exposure/tree/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								case "PATCH":
+									r.name = ExposurePatchExposureTreeIDOperation
+									r.summary = "Edit a target: scope_mode (domains only), enabled, and selected, the ids of the names to scan when the scope is selected (replaces the choice; 400 bad_value for an id of another node or with another scope). Audited"
+									r.operationID = "exposure_patch_exposure_tree_id"
+									r.operationGroup = ""
+									r.pathPattern = "/exposure/tree/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'a': // Prefix: "addresses"
+
+									if l := len("addresses"); len(elem) >= l && elem[0:l] == "addresses" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = ExposureGetExposureTreeIDAddressesOperation
+											r.summary = "Addresses of this node and of its names, with kind and first and last seen"
+											r.operationID = "exposure_get_exposure_tree_id_addresses"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/addresses"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'h': // Prefix: "hosts"
+
+									if l := len("hosts"); len(elem) >= l && elem[0:l] == "hosts" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = ExposureGetExposureTreeIDHostsOperation
+											r.summary = "Names found under this domain node, with source, first and last seen, the choice for scope selected and the child target that owns a name; empty for an IP"
+											r.operationID = "exposure_get_exposure_tree_id_hosts"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/hosts"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'i': // Prefix: "issues"
+
+									if l := len("issues"); len(elem) >= l && elem[0:l] == "issues" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = ExposureGetExposureTreeIDIssuesOperation
+											r.summary = "Issues every engine reported on this node, open, gone and handled, most severe first"
+											r.operationID = "exposure_get_exposure_tree_id_issues"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/issues"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 's': // Prefix: "s"
+
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "can"
+
+										if l := len("can"); len(elem) >= l && elem[0:l] == "can" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch method {
+											case "POST":
+												r.name = ExposurePostExposureTreeIDScanOperation
+												r.summary = "Scan now: queues a run for this node (202 with the scan, status queued or running). Refused when blocked: 409 disabled, 409 not_verified (the proof is re-checked right before), 400 commitment_required for an operator; an administrator's first Scan now records the confirmation and needs two-step sign-in (403 twofa_required) and notice_version (409 notice_changed when not current). 409 busy when a run of this node is queued or running. Stop it through the shared run"
+												r.operationID = "exposure_post_exposure_tree_id_scan"
+												r.operationGroup = ""
+												r.pathPattern = "/exposure/tree/{id}/scan"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case 's': // Prefix: "s"
+
+											if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "GET":
+													r.name = ExposureGetExposureTreeIDScansOperation
+													r.summary = "The runs of this node, newest first (at most 100)"
+													r.operationID = "exposure_get_exposure_tree_id_scans"
+													r.operationGroup = ""
+													r.pathPattern = "/exposure/tree/{id}/scans"
+													r.args = args
+													r.count = 1
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
+									case 'e': // Prefix: "ervices"
+
+										if l := len("ervices"); len(elem) >= l && elem[0:l] == "ervices" {
+											elem = elem[l:]
+										} else {
+											break
+										}
 
 										if len(elem) == 0 {
 											// Leaf node.
 											switch method {
 											case "GET":
-												r.name = ExposureGetExposureTargetsIDSnapshotsDateOperation
-												r.summary = "Scan result of one day"
-												r.operationID = "exposure_get_exposure_targets_id_snapshots_date"
+												r.name = ExposureGetExposureTreeIDServicesOperation
+												r.summary = "Services found on this node's public addresses, open and closed, with first and last seen and whether they answered HTTP"
+												r.operationID = "exposure_get_exposure_tree_id_services"
 												r.operationGroup = ""
-												r.pathPattern = "/exposure/targets/{id}/snapshots/{date}"
+												r.pathPattern = "/exposure/tree/{id}/services"
 												r.args = args
-												r.count = 2
+												r.count = 1
 												return r, true
 											default:
 												return
@@ -14327,65 +15149,65 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									}
 
-								}
+								case 't': // Prefix: "terms"
 
-							case 't': // Prefix: "terms"
-
-								if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "DELETE":
-										r.name = ExposureDeleteExposureTargetsIDTermsOperation
-										r.summary = "Withdraw the testing terms of a target: always possible; the next scan runs in the scope of the Scan now sentence again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance"
-										r.operationID = "exposure_delete_exposure_targets_id_terms"
-										r.operationGroup = ""
-										r.pathPattern = "/exposure/targets/{id}/terms"
-										r.args = args
-										r.count = 1
-										return r, true
-									case "PUT":
-										r.name = ExposurePutExposureTargetsIDTermsOperation
-										r.summary = "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
-										r.operationID = "exposure_put_exposure_targets_id_terms"
-										r.operationGroup = ""
-										r.pathPattern = "/exposure/targets/{id}/terms"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
+									if l := len("terms"); len(elem) >= l && elem[0:l] == "terms" {
+										elem = elem[l:]
+									} else {
+										break
 									}
-								}
 
-							case 'v': // Prefix: "verify"
-
-								if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
-									elem = elem[l:]
-								} else {
-									break
-								}
-
-								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = ExposurePostExposureTargetsIDVerifyOperation
-										r.summary = "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\""
-										r.operationID = "exposure_post_exposure_targets_id_verify"
-										r.operationGroup = ""
-										r.pathPattern = "/exposure/targets/{id}/verify"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = ExposureDeleteExposureTreeIDTermsOperation
+											r.summary = "Withdraw the testing terms: the next scan is a surface scan, and a deep scan of this node that runs now is stopped. Audited"
+											r.operationID = "exposure_delete_exposure_tree_id_terms"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/terms"
+											r.args = args
+											r.count = 1
+											return r, true
+										case "PUT":
+											r.name = ExposurePutExposureTreeIDTermsOperation
+											r.summary = "Accept the testing terms of a proven or covered node: its scans are then deep scans; disruptive adds the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified; 409 shared_address for disruptive behind carrier-grade NAT. Records the scan confirmation too when the node has none of the current sentence. Audited"
+											r.operationID = "exposure_put_exposure_tree_id_terms"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/terms"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
 									}
+
+								case 'v': // Prefix: "verify"
+
+									if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = ExposurePostExposureTreeIDVerifyOperation
+											r.summary = "Check ownership now: a domain's TXT record, a typed IP's file or reverse DNS name, or that the box still goes out through its own IP. A node covered by a proven ancestor is verified by that proof. Not found is a normal answer (verified false). 429 rate_limited as before"
+											r.operationID = "exposure_post_exposure_tree_id_verify"
+											r.operationGroup = ""
+											r.pathPattern = "/exposure/tree/{id}/verify"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							}

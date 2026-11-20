@@ -380,3 +380,32 @@ func TestHandlers_AddTargetTakesAPublicIP(t *testing.T) {
 		t.Fatalf("the list: %d %v", code, b)
 	}
 }
+
+// The target-tree operations are in the contract before the server has them: each one, with a valid request,
+// answers 501 not_implemented (behind the module gate and the role check) until its handler is written.
+func TestHandlers_TreeOperationsAre501UntilBuilt(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	for _, c := range []struct{ method, path, body string }{
+		{"GET", "/exposure/tree", ""},
+		{"POST", "/exposure/tree", `{"value":"example.com","scope_mode":"all"}`},
+		{"GET", "/exposure/tree/xt-1", ""},
+		{"PATCH", "/exposure/tree/xt-1", `{"enabled":false}`},
+		{"DELETE", "/exposure/tree/xt-1", ""},
+		{"POST", "/exposure/tree/xt-1/verify", ""},
+		{"PUT", "/exposure/tree/xt-1/terms", `{"version":"v","disruptive":false}`},
+		{"DELETE", "/exposure/tree/xt-1/terms", ""},
+		{"POST", "/exposure/tree/xt-1/scan", ""},
+		{"GET", "/exposure/tree/xt-1/scans", ""},
+		{"GET", "/exposure/tree/xt-1/hosts", ""},
+		{"GET", "/exposure/tree/xt-1/addresses", ""},
+		{"GET", "/exposure/tree/xt-1/services", ""},
+		{"GET", "/exposure/tree/xt-1/issues", ""},
+		{"POST", "/exposure/issues/handle", `{"ids":["xi-1"],"resolution":"patched","note":""}`},
+		{"POST", "/exposure/issues/reopen", `{"ids":["xi-1"]}`},
+	} {
+		if code, b := e.call(c.method, c.path, "admin", c.body); code != 501 || errCode(b) != "not_implemented" {
+			t.Errorf("%s %s: %d %v", c.method, c.path, code, b)
+		}
+	}
+}

@@ -497,6 +497,7 @@
     "rangeHint": "CIDR with prefix length, for example 192.168.10.0/24.",
     "rangeHintInfo": "Internal addresses only: 10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127. Other prefix lengths work too, for example 192.168.10.0/25.",
     "addRange": "Add range",
+    "saveRange": "Save range",
     "edit": "Edit",
     "remove": "Remove",
     "editRange": "Edit range {{value}}",

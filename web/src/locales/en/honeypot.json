@@ -350,6 +350,7 @@
       "type": "Token type",
       "ext": "File type",
       "plant": "Where will you plant it?",
+      "new": "Add a token",
       "create": "Create token",
       "name": {
         "file": "File name",

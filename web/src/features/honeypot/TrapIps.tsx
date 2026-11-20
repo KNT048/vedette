@@ -9,6 +9,7 @@ import { Card } from '@/components/common/Card'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -60,10 +61,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   const needAdmin = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const firstSmb = smbName ? data.items.find((x) => x.enabled && x.name === smbName && x.services.includes('smb')) : undefined
 
-  function open(e: Editing) {
-    setEditing(e)
-    requestAnimationFrame(() => document.getElementById('tip-preset')?.focus())
-  }
+  const open = (e: Editing) => setEditing(e)
 
   return (
     <div className="grid gap-4">
@@ -83,13 +81,17 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
         </Card>
       ) : null}
 
-      {editing ? (
-        <TrapIpForm key={editing.mode === 'edit' ? editing.item.id : `add-${editing.preset}`} data={data} editing={editing} onDone={() => setEditing(null)} />
-      ) : (
-        <div>
-          <Button id="trap-ip-add" variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
-        </div>
-      )}
+      <div>
+        <Button id="trap-ip-add" variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
+      </div>
+      {/* 17 services and four fields: a wide dialog over the list, which stays as it was underneath */}
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null) }}>
+        {editing ? (
+          <DialogContent wide title={editing.mode === 'edit' ? t('trapIp.form.editTitle', { name: editing.item.name }) : t('trapIp.form.addTitle')}>
+            <TrapIpForm key={editing.mode === 'edit' ? editing.item.id : `add-${editing.preset}`} data={data} editing={editing} onDone={() => setEditing(null)} />
+          </DialogContent>
+        ) : null}
+      </Dialog>
 
       {data.items.length ? (
         <Card flush>
@@ -189,10 +191,8 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
   const ipInfo = t(data.spare_ips.length ? (data.spare_checked ? 'trapIp.form.ipHintInfo' : 'trapIp.form.ipHintUncheckedInfo') : 'trapIp.form.ipHintNoneInfo')
   const described = (f: Exclude<FieldId, 'form'>, id: string) => (errors[f] ? `${id}-error` : `${id}-hint`)
   return (
-    <Card>
-      <form onSubmit={submit} noValidate aria-labelledby="tip-form-title" className="grid gap-4">
-        <p id="tip-form-title" className="text-sm font-medium">{cur ? t('trapIp.form.editTitle', { name: cur.name }) : t('trapIp.form.addTitle')}</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <form onSubmit={submit} noValidate className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('trapIp.form.preset')} htmlFor="tip-preset" hint={t('trapIp.form.presetHint')} error={errors.preset}>
             <Select id="tip-preset" value={preset} onChange={(e) => pickPreset(e.target.value as TrapPreset)} aria-invalid={errors.preset ? true : undefined} aria-describedby={described('preset', 'tip-preset')}>
               {PRESETS.map((p) => <option key={p.id} value={p.id}>{t(`trapIp.preset.${p.id}`)}</option>)}
@@ -226,12 +226,11 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
           {errors.services ? <p id="tip-services-error" className="text-meta text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-meta text-muted">{t('trapIp.form.servicesHint')}</p>}
         </fieldset>
         {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" busy={busy} busyLabel={t(cur ? 'common:busy.saving' : 'common:busy.adding')}>{cur ? t('trapIp.form.save') : t('trapIp.form.add')}</Button>
+        <DialogFooter>
           <Button type="button" onClick={onDone}>{t('trapIp.form.cancel')}</Button>
-        </div>
-      </form>
-    </Card>
+          <Button type="submit" variant="primary" busy={busy} busyLabel={t(cur ? 'common:busy.saving' : 'common:busy.adding')}>{cur ? t('trapIp.form.save') : t('trapIp.form.add')}</Button>
+        </DialogFooter>
+    </form>
   )
 }
 

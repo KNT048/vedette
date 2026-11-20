@@ -1221,6 +1221,10 @@ describe('inventory: range validation helpers', () => {
 })
 
 describe('inventory: scope and sensors (S-INV-1, admin)', () => {
+  type User = ReturnType<typeof userEvent.setup>
+  /** Adding a range opens a dialog over the page; this opens it and gives back its input. */
+  const openAdd = async (user: User) => { await user.click(await screen.findByRole('button', { name: 'Add range' }, T)); return screen.findByLabelText('Add a network range') }
+  const submitDialog = (user: User) => user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^(Add range|Save range|Add exclusion)$/ }))
   it('the page answers in its first line, has the sections, and no a11y violations', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
@@ -1263,13 +1267,13 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('adding a range: a format error shows in the browser; changing ranges needs the commitment again before saving', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const input = await screen.findByLabelText('Add a network range', undefined, T)
+    const input = await openAdd(user)
     await user.type(input, '10.0.5.0/99')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(await screen.findByText(/is not a valid range/, undefined, T)).toBeInTheDocument()
     await user.clear(input)
     await user.type(input, '10.0.5.0/24')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(screen.getByRole('button', { name: 'Remove range 10.0.5.0/24' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('Tick the confirmation')
@@ -1284,21 +1288,21 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('Add range with the box empty says so under the box', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    await screen.findByLabelText('Add a network range', undefined, T)
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await openAdd(user)
+    await submitDialog(user)
     expect(await screen.findByText(/Type a range first/, undefined, T)).toBeInTheDocument()
   })
 
   it('a bare address is rejected with a clear message, never turned into /24; with the prefix it is added and saved as typed', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const input = await screen.findByLabelText('Add a network range', undefined, T)
+    const input = await openAdd(user)
     await user.type(input, '192.168.18.0')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(await screen.findByText('"192.168.18.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.18.0/24 or 192.168.18.0/25.', undefined, T)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Remove range 192\.168\.18\.0/ })).not.toBeInTheDocument()
     await user.type(input, '/25')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(screen.getByRole('button', { name: 'Remove range 192.168.18.0/25' })).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -1309,9 +1313,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('host bits are cut with a visible note and the prefix the user typed is kept', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const input = await screen.findByLabelText('Add a network range', undefined, T)
+    const input = await openAdd(user)
     await user.type(input, '192.168.30.77/23')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(screen.getByRole('button', { name: 'Remove range 192.168.30.0/23' })).toBeInTheDocument()
     expect(screen.getByText('192.168.30.77/23 was added as 192.168.30.0/23, the first address of its range.')).toBeInTheDocument()
   })
@@ -1319,34 +1323,33 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('rejects a duplicate, an overlapping range, and a public range in the editor', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const input = await screen.findByLabelText('Add a network range', undefined, T)
+    const input = await openAdd(user)
     await user.type(input, '192.168.10.0/24')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(await screen.findByText('192.168.10.0/24 is already in the list.', undefined, T)).toBeInTheDocument()
     await user.clear(input)
     await user.type(input, '192.168.10.0/25')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(await screen.findByText(/overlaps 192\.168\.10\.0\/24/, undefined, T)).toBeInTheDocument()
     await user.clear(input)
     await user.type(input, '8.8.8.0/24')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(await screen.findByText(/is not an internal range/, undefined, T)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove range 8.8.8.0/24' })).not.toBeInTheDocument()
   })
 
-  it('every stored range has Edit and Remove; Edit moves it back to the input; Remove drops it', async () => {
+  it('every stored range has Edit and Remove; Edit opens it in a dialog, filled in; Remove drops it', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     await screen.findByRole('button', { name: 'Edit range 192.168.20.0/24' }, T)
     expect(screen.getByRole('button', { name: 'Edit range 192.168.10.0/24' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove range 192.168.10.0/24' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Edit range 192.168.20.0/24' }))
-    const input = screen.getByLabelText('Add a network range')
+    const input = await screen.findByLabelText('Add a network range')
     expect(input).toHaveValue('192.168.20.0/24')
-    expect(screen.queryByRole('button', { name: 'Remove range 192.168.20.0/24' })).not.toBeInTheDocument() // taken out of the list while editing
     await user.clear(input)
     await user.type(input, '192.168.20.0/25')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     await user.click(screen.getByRole('button', { name: 'Remove range 192.168.10.0/24' }))
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -1382,28 +1385,29 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
     expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.18.0']) // kept as stored, not guessed
     // add another range: allowed
+    await openAdd(user)
     await user.type(screen.getByLabelText('Add a network range'), '10.9.0.0/16')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
-    // edit the bad one: it moves to the input, the owner types the size, adds it back
+    await submitDialog(user)
+    // edit the bad one: it opens in a dialog, the owner types the size and saves it
     await user.click(screen.getByRole('button', { name: 'Edit range 192.168.18.0' }))
-    const input = screen.getByLabelText('Add a network range')
+    const input = await screen.findByLabelText('Add a network range')
     expect(input).toHaveValue('192.168.18.0')
     await user.type(input, '/24')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await scopeSaved()
-    expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['10.9.0.0/16', '192.168.18.0/24'])
+    expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.18.0/24', '10.9.0.0/16'])
   })
 
   it('the scope confirmation sits right above Save and asks for a tick inline only when the ranges changed', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const input = await screen.findByLabelText('Add a network range', undefined, T)
-    const confirm = screen.getByRole('checkbox', { name: /I confirm these network ranges/ })
+    const confirm = await screen.findByRole('checkbox', { name: /I confirm these network ranges/ }, T)
     expect(confirm).toBeChecked() // sample scope was confirmed already
     expect(confirm.closest('#scope')).toContainElement(screen.getByRole('button', { name: 'Save changes' })) // same bar as the Save button
+    const input = await openAdd(user)
     await user.type(input, '192.168.60.0/24{Enter}') // Enter adds the range
     expect(screen.getByRole('button', { name: 'Remove range 192.168.60.0/24' })).toBeInTheDocument()
     expect(confirm).not.toBeChecked()
@@ -1454,8 +1458,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(screen.getByText('Fix or remove the 1 range marked in red to save.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
     // other ranges can still be added
+    await openAdd(user)
     await user.type(screen.getByLabelText('Add a network range'), '10.1.0.0/16')
-    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    await submitDialog(user)
     expect(screen.getByRole('button', { name: 'Remove range 10.1.0.0/16' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled() // still invalid
     // removing the bad one unblocks Save
@@ -1615,8 +1620,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     await user.type(from, '22:30')
     await user.click(screen.getByRole('checkbox', { name: 'Sunday' }))
     await user.selectOptions(screen.getByRole('combobox', { name: 'Scan speed' }), '10')
-    await user.type(screen.getByLabelText('Exclude from scanning'), '192.168.10.10')
     await user.click(screen.getByRole('button', { name: 'Add exclusion' }))
+    await user.type(screen.getByLabelText('Exclude from scanning'), '192.168.10.10')
+    await submitDialog(user)
     await user.click(screen.getByRole('checkbox', { name: 'Switch' }))
     await user.click(screen.getByRole('switch', { name: 'Allow regular scans, NAS' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -1634,7 +1640,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('saving the scope shows the "Scan scope saved." toast', async () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    await user.type(await screen.findByLabelText('Add a network range', undefined, T), '192.168.61.0/24{Enter}')
+    await user.type(await openAdd(user), '192.168.61.0/24{Enter}')
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect((await screen.findAllByText('Scan scope saved.', undefined, { timeout: 3000 })).length).toBeGreaterThan(0)

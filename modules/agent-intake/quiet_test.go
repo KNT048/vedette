@@ -12,6 +12,7 @@ func TestAgentStateFromItsOwnSchedule(t *testing.T) {
 	_, secret := w.token("servers", 7)
 	key := w.enroll(secret, "srv-1", peerA)
 	w.post("/intake/osquery/log", peerA, fullLog(key))
+	w.refresh(key) // its rhythm: a config fetch every 5 minutes
 	d, ok := w.device(peerA)
 	if !ok {
 		t.Fatal("no device")
@@ -195,9 +196,7 @@ func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 	_, second := w.token("second", 7)
 	newKey := w.enroll(second, "srv-1", peerA)
 	w.report(newKey, peerA, macA) // the new agent's first report binds it to the same address
-	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
-	w.clock.Advance(10 * time.Minute)
-	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
+	w.refresh(newKey)             // its 5-minute config refresh
 
 	if b := w.req("viewer", "GET", path).body; b["state"] != "reporting" || b["quiet_since"] != nil || b["stale"] != false {
 		t.Fatalf("device page after the re-install: %v", b)
@@ -258,6 +257,7 @@ func TestAgentForgedNameDoesNotSupersede(t *testing.T) {
 	forged := w.enroll(attackerTok, "srv-1", peerB)
 	w.report(forged, peerB, macA) // declares the victim's MAC from its own address
 	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": victim})
+	w.refresh(victim)
 	if b := w.devicePage(peerA); b["state"] != "reporting" {
 		t.Fatalf("victim, calling: %v", b)
 	}
@@ -290,6 +290,7 @@ func TestAgentTwoMachinesWithTheSameNameKeepTheirState(t *testing.T) {
 	keyA := w.enroll(tokA, "ubuntu", peerA)
 	w.report(keyA, peerA, macA)
 	w.post("/intake/osquery/log", peerA, fullLog(keyA))
+	w.refresh(keyA)
 	w.clock.Advance(2 * time.Minute)
 	keyB := w.enroll(tokB, "ubuntu", peerB)
 	w.report(keyB, peerB, macB)
@@ -326,6 +327,7 @@ func TestAgentUninstalledIsRemovedFromSettings(t *testing.T) {
 	if software == 0 {
 		t.Fatal("the device has no software to keep")
 	}
+	w.refresh(key)
 	w.clock.Advance(3 * time.Hour)
 	nodes := w.nodeList()
 	if nodes[0]["host"] != "srv-1" || nodes[0]["state"] != "quiet" {
@@ -381,5 +383,18 @@ func TestAgentQuietSinceIgnoresThePruneClock(t *testing.T) {
 	since, _ := r.body["quiet_since"].(string)
 	if r.body["state"] != "quiet" || since == "" || !sameInstant(t, since, lastCall) {
 		t.Fatalf("quiet_since %v, want the last call %s: %s", since, lastCall, r.raw)
+	}
+}
+
+// refresh is two of the node's config fetches from peerA, five minutes apart (the install scripts' --config_refresh=300): the box has
+// seen two fetches in a row, so it knows the node refreshes its config (NodeHealth judges a node it has not seen do so by its report
+// schedule).
+func (w *world) refresh(key string) {
+	w.t.Helper()
+	for range 2 {
+		w.clock.Advance(5 * time.Minute)
+		if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 200 || r.invalid() {
+			w.t.Fatalf("config: %d %s", r.code, r.raw)
+		}
 	}
 }

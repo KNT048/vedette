@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/store"
 	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -45,7 +46,7 @@ func newInventory(d *deps) *inventory.Service {
 	}
 	cfg := inventory.Config{Zone: orgTimeZone(d), DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
 		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses, DeclaredOS: declaredOS, OSVersion: findings.OSVersion,
-		SNMPOf: sourceFacts{d}.snmp, AgentOf: sourceFacts{d}.agent, Lifecycle: d.Lifecycle}
+		SNMPOf: sourceFacts{d}.snmp, AgentOf: sourceFacts{d}.agent, AskAgent: sourceFacts{d}.askAgent, Lifecycle: d.Lifecycle}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -308,5 +309,37 @@ func (f sourceFacts) agent(ctx context.Context, id string) (inventory.AgentFact,
 	if err != nil {
 		return inventory.AgentFact{}, err
 	}
-	return inventory.AgentFact{Agent: r.Agent, State: r.State, LastSeen: r.LastSeen}, nil
+	out := inventory.AgentFact{Agent: r.Agent, State: r.State, LastSeen: r.LastSeen}
+	if t := r.Setup; t != nil {
+		out.Token = &inventory.AgentToken{ID: t.ID, Name: t.Name, Kind: t.Kind, Last4: t.Last4, CreatedAt: store.FormatTS(t.CreatedAt), Hosts: t.Hosts,
+			CreatedBy: optionalString(t.CreatedBy), DeviceID: optionalString(t.DeviceID), LastReceived: optionalTime(t.LastReceived), ExpiresAt: optionalTime(t.ExpiresAt)}
+	}
+	return out, nil
+}
+
+// askAgent is inventory.Config.AskAgent: a person turned a device's agent on again, so its osquery agent is asked to send its software
+// now ("I updated it": the same ask, in the person's name). Best effort: a device whose agent cannot be asked (Wazuh, none, an ask
+// still open or made in the last minutes) waits for the agent's next report.
+func (f sourceFacts) askAgent(ctx context.Context, actor, id string) {
+	if f.d.AgentIntake == nil || f.d.Reg != nil && !f.d.Reg.Enabled("agent-intake") {
+		return
+	}
+	if _, err := f.d.AgentIntake.AskReport(ctx, actor, id); err != nil {
+		f.d.Log.DebugContext(ctx, "inventory: the agent turned on again was not asked to report now", "device", id, "error", err.Error())
+	}
+}
+
+func optionalString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func optionalTime(t time.Time) *string {
+	if t.IsZero() {
+		return nil
+	}
+	s := store.FormatTS(t)
+	return &s
 }

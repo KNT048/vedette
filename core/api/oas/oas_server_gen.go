@@ -1648,7 +1648,8 @@ type Handler interface {
 	// list arrives, the box's config gives the agent's software queries (the same read-only queries,
 	// nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
 	// it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
-	// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+	// osquery agent of this box reports on the device (Wazuh only, or none). 409 agent_off: a person
+	// turned the agent off for this device. 404 not_found. Audited.
 	//
 	// POST /inventory/agents/devices/{id}/report
 	InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryPostInventoryAgentsDevicesIDReportParams) (*InventoryPostInventoryAgentsDevicesIDReportOK, error)
@@ -1795,13 +1796,15 @@ type Handler interface {
 	InventoryPutInventoryAgentsWazuh(ctx context.Context, req *InventoryPutInventoryAgentsWazuhReq) (*InventoryPutInventoryAgentsWazuhOK, error)
 	// InventoryPutInventoryDevicesIDSources implements inventory_put_inventory_devices_id_sources operation.
 	//
-	// Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that
-	// traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
-	// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
-	// window. Off stops it for any device (the run on it stops); what the source found stays and manual
-	// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
-	// not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
-	// ignored device.
+	// Turn the network scan, the SNMP reads or the agents' data of one device on or off. On is the
+	// person's consent to that traffic: a device added by hand gets it from then on, inside every other
+	// safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the
+	// device for the next window. Off stops it for any device (the run on it stops); what the source found
+	// stays and manual values still win. Agent off: every agent's data for the device is refused and what
+	// the agents read stops counting (their software readings and open ports go); on: taken again, and an
+	// osquery agent is asked to send its software now. One audit row per source changed. 400 bad_source:
+	// neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored:
+	// turning a source on for an ignored device.
 	//
 	// PUT /inventory/devices/{id}/sources
 	InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (*InventoryPutInventoryDevicesIDSourcesOK, error)

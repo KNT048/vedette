@@ -1146,9 +1146,9 @@ describe('exposure: add target form matrix', () => {
     expect(screen.getByTestId('proof-ptr')).toHaveTextContent(/under acme\.example/) // the domains of this box that can carry the name
     expect(screen.getByText(/An A record of one of your domains pointing at this address is not proof/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled() // nothing is scanned until it is proved
-    await userEvent.click(screen.getByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
     expect(await screen.findByText(/Vedette found no proof of 198\.51\.100\.7/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Check' })) // the file is served by now
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' })) // the file is served by now
     expect(await screen.findByText(/198\.51\.100\.7 is proved: the token file was found/)).toBeInTheDocument()
     expect(screen.getByTestId('proof-expires')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/)
     expect(screen.getByTestId('proof-next')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/) // when the box checks it again by itself

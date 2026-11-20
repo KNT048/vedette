@@ -42,6 +42,7 @@ var readingsDecls = map[string]bool{
 	"modules/inventory/entries.go:RemoveSoftware":       true,
 	"modules/inventory/join.go:foldSoftware":            true,
 	"modules/inventory/retention.go:pruneAgentSoftware": true, // drops readings of agents gone silent: a write job
+	"modules/inventory/manual.go:dropAgentData":         true, // the agent switch turned off: the agents' readings go
 }
 
 // matchInputCallers may call MatchInput: the matcher itself, its adapter in the wiring, the report's fixes (the matcher's own fix

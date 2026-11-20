@@ -128,6 +128,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 | nền | `GET /setup`; `POST /auth/login`, `/auth/login/resend-code`, `/auth/logout` | public |
 | nền | `PATCH /modules/{id}` | admin |
 | quét (#850, INV-40) | `GET /scanning`, `GET /scanning/history` (viewer); `PUT /scanning/safety`, `POST /scanning/safety/ranges`, `POST /scanning/safety/exclusions`, `PATCH /scanning/engines/{id}`, `POST /scanning/engines/nmap-discovery/run` | admin |
+| phát hiện xâm nhập | `GET /detection/overview` (trả lời cả khi mọi module phát hiện tắt: nói module nào tắt); `GET /detection/alerts`, `GET /detection/alerts/{id}` (của module `ids`; tới khi module đó có, core trả `501 not_implemented`) | viewer |
 | cài đặt | `GET /core/setup/modules` (kèm `lan`: mạng của hộp, chỉ khi cài đặt còn mở), `POST /core/setup` (cần mã cài đặt một lần, và `accept_terms`), `POST /core/setup/restore/upload` và `/core/setup/restore` (cần mã đó, chỉ trước khi cài xong; bước 2 cần cả `accept_terms`), `GET /core/setup/restore`, `GET /core/auth-options` | public |
 | chung | `GET /core/general` (viewer); `PUT /core/general` | admin |
 | chung | `GET /core/terms` (điều khoản sử dụng đã chấp nhận) | viewer |

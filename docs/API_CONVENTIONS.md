@@ -10,7 +10,7 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 
 | Quy tắc | Chi tiết (đo từ `openapi.json`) |
 |---|---|
-| Phân nhóm theo module | Phần đầu đường dẫn = nhóm của module: `/ai`, `/core`, `/exposure`, `/feeds`, `/findings`, `/honeypot`, `/inventory`, `/logs`, `/notify`, `/reports`, `/response`, `/scans`. Ngoại lệ có chủ đích, đều thuộc `core` hoặc `inventory`: `/auth/*`, `/me`, `/modules`, `/setup` (core); `/install/*`, `/intake/*` (inventory, tệp cài và nhận dữ liệu agent). `/findings` thuộc module `mitigation` (README `features/findings`); `/scans` (số nhiều) thuộc module `scan`. |
+| Phân nhóm theo module | Phần đầu đường dẫn = nhóm của module: `/ai`, `/core`, `/exposure`, `/feeds`, `/findings`, `/honeypot`, `/inventory`, `/logs`, `/notify`, `/reports`, `/response`, `/scans`. Ngoại lệ có chủ đích, đều thuộc `core` hoặc `inventory`: `/auth/*`, `/me`, `/modules`, `/setup`, `/scanning` (Cài đặt › Quét, trả lời khi mọi module máy quét tắt), `/detection` (tổng quan phát hiện xâm nhập, trả lời khi mọi module phát hiện tắt; `/detection/alerts` về module `ids` khi module đó có) (core); `/install/*`, `/intake/*` (inventory, tệp cài và nhận dữ liệu agent). `/findings` thuộc module `mitigation` (README `features/findings`); `/scans` (số nhiều) thuộc module `scan`. |
 | Số thao tác mỗi nhóm | core 57 · ai 52 · response 39 · inventory 29 · honeypot 14 · feeds 13 · scan 13 · notify 12 · exposure 11 · reports 11 · logs 10 · findings 5 (GET 103, POST 97, PUT 33, DELETE 22, PATCH 12). |
 | Danh từ, kebab-case | Đường dẫn là danh từ số nhiều cho tập hợp (`/core/users`, `/inventory/devices`, `/honeypot/trap-ips`), số ít cho đối tượng cấu hình một-bản (`/core/general`, `/core/privacy`, `/scans/config`, `/logs/siem`). Đoạn đường dẫn kebab-case (`box-ip`, `chat-decision`, `sample-data`, `auth-options`). Tham số đường dẫn `{id}`, trừ khoá tự nhiên: `{type}` (kênh), `{service}` (bẫy), `{date}`, `{token}`. |
 | Tên trường, tham số | JSON và query: `snake_case`. Định danh **của một thứ** (id module, kênh, việc AI, loại): kebab-case (`explain-finding`, `zalo-personal`, `sensor-passive`, `netconf-restconf`). **Trạng thái / enum trạng thái**: snake_case (`false_positive`, `auto_stopped`, `blocked_by_hook`). |
@@ -171,7 +171,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_version` | 400 | The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5. | module inventory (validator dùng chung) |
 | `bad_vendor` | 400 | Choose a vendor from the list, or none. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `bad_webhook` | 400 | A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app. | module notify (validator dùng chung) |
-| `bad_window` | 400 | window must be 24h or 7d. | 4 endpoint (/feeds, /inventory, /logs, /notify) |
+| `bad_window` | 400 | window must be 24h or 7d. / The time range must be 24h, 7d or 30d. | 4 endpoint 24h/7d (/feeds, /inventory, /logs, /notify); `GET /detection/alerts` (24h, 7d hoặc 30d) |
 | `code_expired` | 400 | This code has expired. Ask for a new code. | module core (validator dùng chung) |
 | `code_required` | 400 | Type the 6-digit two-step code to approve a high-risk AI request. | `POST /response/actions/{id}/approve` |
 | `confirm_mismatch` | 400 | The organization name does not match. Type it exactly to confirm deletion. | `POST /core/data/purge` |

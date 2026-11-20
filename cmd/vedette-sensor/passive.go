@@ -95,6 +95,7 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 		return err
 	}
 	cfg.Link = withBeat(client, heartbeatPath, logger)
+	cfg.Meta = capture.NewLinkMetadata(client, nil) // SPAN metadata goes to core's bad-address matching; nothing of it is kept but the matches
 	if *f.replay != "" {
 		cfg.Link = replayLink{withBeat(client, heartbeatPath, logger)}
 	}

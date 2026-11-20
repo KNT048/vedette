@@ -124,7 +124,7 @@ func tierInfo(a Asset, s Software) (in swInfo, pkg, ok bool) {
 	return in, false, true
 }
 
-// tierKey is the product key of an NVD CPE as the plan indexes it: productid.Norm(vendor) "|" productid.Norm(product), read without a full parse (an
+// tierKey is the product key of an NVD CPE as the plan indexes it: productid.NormKey(vendor, product), read without a full parse (an
 // escaped colon makes a key that matches nothing, which only drops). "" when the string is not a CPE 2.3 name.
 func tierKey(cpe string) string {
 	rest, ok := strings.CutPrefix(cpe, cpePrefix)
@@ -140,17 +140,7 @@ func tierKey(cpe string) string {
 		return ""
 	}
 	p, _, _ := strings.Cut(rest, ":")
-	return normed(v) + "|" + normed(p)
-}
-
-// normed is norm without a copy for a name that is already only [a-z0-9] (most of NVD's): Keep runs on every distinct CPE of a pass.
-func normed(s string) string {
-	for i := 0; i < len(s); i++ {
-		if c := s[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') {
-			return productid.Norm(s)
-		}
-	}
-	return s
+	return productid.NormKey(v, p)
 }
 
 // isWindowsKey says whether a key is a Microsoft Windows release (windows_11_23h2): a Windows row is read with every one of them.
@@ -183,14 +173,14 @@ func newTierScope(assets []Asset, skip map[string]map[string]bool) *TierScope {
 			if in.hasCPE {
 				v, _ := in.cpe.Vendor.Literal()
 				p, _ := in.cpe.Product.Literal()
-				t.keys[productid.Norm(v)+"|"+productid.Norm(p)] = true
+				t.keys[productid.NormKey(v, p)] = true
 			}
 			for _, id := range in.ids {
 				if id.prefix {
 					t.prefix = append(t.prefix, id)
 					continue
 				}
-				t.keys[id.vendor+"|"+id.product] = true
+				t.keys[productid.NormKey(id.vendor, id.product)] = true
 			}
 		}
 	}
@@ -330,11 +320,11 @@ func (x *tierIndex) candidates(in swInfo, win bool) []int {
 	if in.hasCPE {
 		v, _ := in.cpe.Vendor.Literal()
 		p, _ := in.cpe.Product.Literal()
-		add(x.byKey[productid.Norm(v)+"|"+productid.Norm(p)])
+		add(x.byKey[productid.NormKey(v, p)])
 	}
 	for _, id := range in.ids {
 		if !id.prefix {
-			add(x.byKey[id.vendor+"|"+id.product])
+			add(x.byKey[productid.NormKey(id.vendor, id.product)])
 		}
 	}
 	for k, l := range x.byKey { // aliases by prefix and Windows releases: few rows, a walk of the keys

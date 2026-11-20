@@ -17,7 +17,7 @@
   {"id": "gzip", "display": "GNU gzip", "vendor": "GNU", "product": "gzip", "cpe": ["a:gnu:gzip"], "linux": ["gzip"]},
   {"id": "less", "display": "GNU less", "vendor": "GNU", "product": "less", "cpe": ["a:gnu:less"], "linux": ["less"]},
   {"id": "busybox", "display": "BusyBox", "vendor": "BusyBox", "product": "BusyBox", "cpe": ["a:busybox:busybox"], "linux": ["busybox", "busybox-static"]},
-  {"id": "containerd", "display": "containerd", "vendor": "Linux Foundation", "product": "containerd", "cpe": ["a:linuxfoundation:containerd"], "linux": ["containerd", "containerd.io"]},
+  {"id": "containerd", "display": "containerd", "vendor": "Linux Foundation", "product": "containerd", "cpe": ["a:linuxfoundation:containerd"], "linux": ["containerd"], "linux_upstream": ["containerd.io"]},
   {"id": "runc", "display": "runc", "vendor": "Linux Foundation", "product": "runc", "cpe": ["a:linuxfoundation:runc"], "linux": ["runc"]},
   {"id": "dnsmasq", "display": "dnsmasq", "vendor": "Thekelleys", "product": "dnsmasq", "cpe": ["a:thekelleys:dnsmasq"], "linux": ["dnsmasq", "dnsmasq-base"]},
   {"id": "tcpdump", "display": "tcpdump", "vendor": "tcpdump", "product": "tcpdump", "cpe": ["a:tcpdump:tcpdump"], "linux": ["tcpdump"]},

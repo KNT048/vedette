@@ -37,12 +37,18 @@ const (
 	ClassFileTransfer Class = "file_transfer"
 	ClassRemoteAccess Class = "remote_access"
 	ClassBackup       Class = "backup"
+	ClassRouter       Class = "router"     // an internet router
+	ClassNetwork      Class = "network"    // a switch, access point or router inside the network
+	ClassNAS          Class = "nas"        // network storage
+	ClassHypervisor   Class = "hypervisor" // a hypervisor or its management
+	ClassManagement   Class = "management" // a management console of security products
 )
 
 // Valid says whether c is a class of the vocabulary.
 func (c Class) Valid() bool {
 	switch c {
-	case ClassNone, ClassFirewall, ClassVPN, ClassMail, ClassFileTransfer, ClassRemoteAccess, ClassBackup:
+	case ClassNone, ClassFirewall, ClassVPN, ClassMail, ClassFileTransfer, ClassRemoteAccess, ClassBackup, ClassRouter, ClassNetwork,
+		ClassNAS, ClassHypervisor, ClassManagement:
 		return true
 	}
 	return false
@@ -158,12 +164,14 @@ type catalogue struct {
 	byIdentity  map[string]*entry // Norm(vendor) + "|" + Norm(product) of the product, its other names and its NVD names
 	byCPE       map[string]*entry // "part:vendor:product" of its NVD names and of the CPEs nmap prints for it
 	nmap        map[string]*entry // "part:vendor:product" nmap prints
+	byKey       map[string]*entry // Key of every product, the curated ones too
+	curated     []*entry          // the curated products the catalogue files do not list
 }
 
-var cat = mustLoad(catalogdata.Products)
+var cat = mustLoad(catalogdata.Products, catalogdata.Curated, catalogdata.KEVProducts)
 
-func mustLoad(fsys fs.FS) *catalogue {
-	c, err := load(fsys)
+func mustLoad(fsys fs.FS, curated, kev []byte) *catalogue {
+	c, err := load(fsys, curated, kev)
 	if err != nil {
 		panic("productid: " + err.Error()) // embedded data; TestCatalogue_Loads names the fault
 	}
@@ -177,9 +185,9 @@ var (
 	errData = errors.New("catalogue data")
 )
 
-func load(fsys fs.FS) (*catalogue, error) {
+func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
 	c := &catalogue{linux: map[string]linuxName{}, windows: map[string]*entry{}, byIdentity: map[string]*entry{}, byCPE: map[string]*entry{},
-		nmap: map[string]*entry{}}
+		nmap: map[string]*entry{}, byKey: map[string]*entry{}}
 	names, err := fs.Glob(fsys, "products/*.json")
 	if err != nil || len(names) == 0 {
 		return nil, fmt.Errorf("%w: no products/*.json", errData)
@@ -205,7 +213,11 @@ func load(fsys fs.FS) (*catalogue, error) {
 				return nil, fmt.Errorf("%w: %s: id %q or key %q is listed twice", errData, path.Base(name), e.p.ID, e.p.Key)
 			}
 			ids[e.p.ID], keys[e.p.Key] = true, true
+			c.byKey[e.p.Key] = e
 		}
+	}
+	if err := c.addCurated(curated, kev); err != nil {
+		return nil, fmt.Errorf("%w: curated.json: %w", errData, err)
 	}
 	return c, nil
 }
@@ -280,7 +292,7 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 		c.nmap[s], c.byCPE[s] = e, e
 	}
 	ident := func(vendor, product string) {
-		if k := Norm(vendor) + "|" + Norm(product); len(k) > 2 {
+		if k := NormKey(vendor, product); len(k) > 2 {
 			if _, taken := c.byIdentity[k]; !taken {
 				c.byIdentity[k] = e
 			}
@@ -344,4 +356,122 @@ func NmapAliases(base string) []string {
 		}
 	}
 	return out
+}
+
+// ---- the curated products a person picks when declaring a device (content/catalog/curated.json, read by the web picker too) ----
+
+type curatedRow struct {
+	Display  string   `json:"display"`
+	Category string   `json:"category"`
+	Kind     string   `json:"kind"`
+	Vendor   string   `json:"vendor"`
+	Product  string   `json:"product"`
+	KevMatch []string `json:"kev_match"`
+	CPE      []string `json:"cpe"`
+}
+
+// curatedFileTransfer are curated products that move files for others (their category says "tools" or "network device").
+var curatedFileTransfer = map[string]bool{"Progress MOVEit Transfer": true, "ProFTPD / vsFTPd (FTP server)": true}
+
+// curatedClass is the class of a curated product from its category and kind.
+func curatedClass(r curatedRow) Class {
+	switch {
+	case curatedFileTransfer[r.Display]:
+		return ClassFileTransfer
+	case r.Kind == "firewall":
+		return ClassFirewall
+	case r.Category == "Firewall and router" && r.Kind == "router":
+		return ClassRouter
+	case r.Category == "Network device" && (r.Kind == "router" || r.Kind == "switch" || r.Kind == "ap"):
+		return ClassNetwork
+	case r.Category == "VPN and remote access" && r.Kind == "server":
+		return ClassVPN
+	case r.Category == "NAS and storage" || r.Kind == "nas" && r.Category != "Backup":
+		return ClassNAS
+	case r.Category == "Virtualization" && r.Kind == "server":
+		return ClassHypervisor
+	case r.Category == "Remote support" && r.Kind == "server":
+		return ClassRemoteAccess
+	case r.Category == "Email":
+		return ClassMail
+	case r.Category == "Backup":
+		return ClassBackup
+	case r.Category == "Security software" && r.Kind == "server":
+		return ClassManagement
+	}
+	return ClassNone
+}
+
+var slugRE = regexp.MustCompile(`[^a-z0-9]+`)
+
+// addCurated makes every curated product resolvable: a product the catalogue files list takes the curated class when it has
+// none; any other becomes a product of its own with the curated CPEs and the exploited-list keys its kev_match fragments name
+// (a key whose vendor contains the vendor fragment and whose product contains the product fragment, as the inventory reads them).
+// Curated products are not in Products: their CPEs are names a scan prints, not aliases for the matcher.
+func (c *catalogue) addCurated(data, kevData []byte) error {
+	var rows []curatedRow
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return err
+	}
+	var kev []struct{ Vendor, Product string }
+	if err := json.Unmarshal(kevData, &kev); err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if strings.TrimSpace(r.Vendor) == "" || strings.TrimSpace(r.Product) == "" {
+			return fmt.Errorf("%q has no vendor or product", r.Display)
+		}
+		class, key := curatedClass(r), Key(r.Vendor, r.Product)
+		e, ok := c.byKey[key]
+		if !ok {
+			e, ok = c.byIdentity[NormKey(r.Vendor, r.Product)]
+		}
+		if ok {
+			if e.p.Class == ClassNone {
+				e.p.Class = class
+			}
+			continue
+		}
+		p := Product{ID: "curated-" + strings.Trim(slugRE.ReplaceAllString(strings.ToLower(r.Display), "-"), "-"), Display: r.Display,
+			Vendor: r.Vendor, Product: r.Product, Key: key, KEV: []string{key}, Class: class}
+		for _, m := range r.KevMatch {
+			v, pr, _ := strings.Cut(strings.ToLower(m), "|")
+			for _, k := range kev {
+				if kk := Key(k.Vendor, k.Product); strings.Contains(strings.ToLower(k.Vendor), v) && (pr == "" || strings.Contains(strings.ToLower(k.Product), pr)) &&
+					!slices.Contains(p.KEV, kk) {
+					p.KEV = append(p.KEV, kk)
+				}
+			}
+		}
+		for _, s := range r.CPE {
+			if !cpeRE.MatchString(s) || strings.HasSuffix(s, "*") {
+				return fmt.Errorf("%q: cpe %q is not part:vendor:product", r.Display, s)
+			}
+			f := strings.SplitN(s, ":", 3)
+			p.CPEs = append(p.CPEs, CPEName{Part: f[0], Vendor: f[1], Product: f[2]})
+		}
+		e = &entry{p: p}
+		c.byKey[key] = e
+		c.curated = append(c.curated, e)
+		if k := NormKey(r.Vendor, r.Product); len(k) > 2 {
+			if _, taken := c.byIdentity[k]; !taken {
+				c.byIdentity[k] = e
+			}
+		}
+		for _, n := range p.CPEs {
+			if _, taken := c.byCPE[n.Base()]; !taken {
+				c.byCPE[n.Base()] = e
+			}
+		}
+	}
+	return nil
+}
+
+// ByKey is the product whose Key is key (lower(vendor)|lower(product)), a curated one too.
+func ByKey(key string) (Product, bool) {
+	e, ok := cat.byKey[NormalizeKey(key)]
+	if !ok {
+		return Product{}, false
+	}
+	return e.p, true
 }

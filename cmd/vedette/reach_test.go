@@ -38,9 +38,9 @@ var updateReach = flag.Bool("update-reach", false, "rewrite "+reachGolden+" from
 var reachWant = map[findings.ReachClass]int{
 	findings.ReachNoNVDData:     1,
 	findings.ReachNoNVDVersions: 72,
-	findings.ReachKeyedVersion:  788,
+	findings.ReachKeyedVersion:  789,
 	findings.ReachKeyedOnly:     166,
-	findings.ReachViaNVD:        121,
+	findings.ReachViaNVD:        120,
 	findings.ReachNone:          633,
 }
 

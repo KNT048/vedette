@@ -22,6 +22,9 @@ func Key(vendor, product string) string {
 // Norm keeps only [a-z0-9] of the lower-cased text, so a name and the NVD spelling of it compare equal: "Photo Station" and
 // "photo_station" are both "photostation", "Palo Alto Networks" is "paloaltonetworks".
 func Norm(s string) string {
+	if normalised(s) {
+		return s // already [a-z0-9] only: no copy (the matcher normalises NVD names that mostly are)
+	}
 	var sb strings.Builder
 	for _, r := range strings.ToLower(s) {
 		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
@@ -30,6 +33,19 @@ func Norm(s string) string {
 	}
 	return sb.String()
 }
+
+func normalised(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
+}
+
+// NormKey is the normalised identity of a vendor and product: Norm(vendor) + "|" + Norm(product) ("Palo Alto Networks",
+// "PAN-OS" is "paloaltonetworks|panos").
+func NormKey(vendor, product string) string { return Norm(vendor) + "|" + Norm(product) }
 
 // companyWords are the words a vendor's legal name adds to the name a list writes without them ("Progress Software Corporation"
 // is "Progress", "Juniper Networks" is "Juniper").

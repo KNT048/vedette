@@ -10,9 +10,11 @@ import (
 )
 
 // keyByHand is a vendor|product key or a name normalisation written outside this package.
-var keyByHand = regexp.MustCompile(`ToLower\([^)]*[Vv]endor[^)]*\)\s*\+\s*"\|"|` + // strings.ToLower(vendor) + "|" + …
+var keyByHand = regexp.MustCompile(`(?m)ToLower\([^)]*[Vv]endor[^)]*\)\s*\+\s*"\|"|` + // strings.ToLower(vendor) + "|" + …
 	`ToLower\([^)]*[Vv]endor\s*\+\s*"\|"|` + // strings.ToLower(vendor + "|" + product)
-	`(?m)^func (norm|normKey|cnaVendorKey|cnaProductKey|ProductKey|KevKey|NormalizeKevKey)\(`)
+	`[Vv]endor\)?\s*\+\s*"\|"\s*\+\s*[\w.(]*[Pp]roduct|` + // vendor + "|" + product
+	`[Vv]endor\)?\s*\+\s*"\|"\s*$|` + // a vendor prefix: lower(vendor) + "|"
+	`^func (norm|normKey|cnaVendorKey|cnaProductKey|ProductKey|KevKey|NormalizeKevKey)\(`)
 
 // Only this package builds a product key or normalises a product name; every other package calls Key, Norm, NormVendor or
 // NormProduct.

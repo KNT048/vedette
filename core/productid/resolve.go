@@ -84,8 +84,8 @@ func resolveCPE(cpe, vendor, product string) (Product, bool) {
 
 // ResolveStored is the product of a software row as the inventory keeps it: vendor, product, the name shown (display) and maybe a
 // CPE. Every rule is tried: the CPE when the catalogue lists it, the vendor and product (or another name of the product, or one of
-// its NVD names), the shown name and the product as a program name, the product as a package name, and last the CPE as a product
-// of its own.
+// its NVD names), the shown name and the product as a program name, the product as a package name when the row is a package
+// (vendor and product the same name), and last the CPE as a product of its own.
 func ResolveStored(vendor, product, display, cpe string) (Product, bool) {
 	if len(vendor) > maxName || len(product) > maxName || len(display) > maxName || len(cpe) > maxName {
 		return Product{}, false
@@ -95,16 +95,25 @@ func ResolveStored(vendor, product, display, cpe string) (Product, bool) {
 			return p, true
 		}
 	}
-	if e, ok := cat.byIdentity[Norm(vendor)+"|"+Norm(product)]; ok {
-		return withPatterns(e, display), true
+	if e, ok := cat.byIdentity[NormKey(vendor, product)]; ok {
+		p := withPatterns(e, display)
+		if base := cpeBase(cpe); !p.HasCPE() && base != "" { // a product the catalogue knows by name only, named by the row's own CPE
+			f := strings.SplitN(base, ":", 3)
+			p.CPEs = []CPEName{{Part: f[0], Vendor: f[1], Product: f[2]}}
+		}
+		return p, true
 	}
 	for _, n := range []string{display, product} {
 		if p, ok := resolveWindows(n); ok && n != "" {
 			return p, true
 		}
 	}
-	if p, ok := resolveLinux(product); ok {
-		return p, true
+	// A package name is read only for a row that is a package: one the agent keeps under its own name (vendor and product are the
+	// package's name). A program "Code" by Claris or "Veeam Agent" by Veeam Software is not the package "code" or "veeam".
+	if vendor == "" || Norm(vendor) == Norm(product) {
+		if p, ok := resolveLinux(product); ok {
+			return p, true
+		}
 	}
 	if cpe != "" {
 		return resolveCPE(cpe, vendor, product)

@@ -34,7 +34,7 @@ func TestKey(t *testing.T) {
 // The catalogue loads, and every exploited-list key it names is a pair of CISA's list (no dead key).
 func TestCatalogue_Loads(t *testing.T) {
 	t.Parallel()
-	if _, err := load(catalogdata.Products); err != nil {
+	if _, err := load(catalogdata.Products, catalogdata.Curated, catalogdata.KEVProducts); err != nil {
 		t.Fatal(err)
 	}
 	var kev []struct{ Vendor, Product string }
@@ -158,10 +158,66 @@ func TestResolveStored(t *testing.T) {
 			t.Errorf("%v = %v %+v", c, ok, p)
 		}
 	}
-	if p, ok := ResolveStored("Brother Industries Ltd.", "BrLauncher", "BrLauncher", ""); ok {
-		t.Errorf("an unknown program resolves to %+v", p)
+	for _, c := range [][3]string{
+		{"Brother Industries Ltd.", "BrLauncher", "BrLauncher"},
+		{"Veeam Software", "Veeam Agent for Microsoft Windows", "Veeam Agent for Microsoft Windows"}, // not the package "veeam*"
+		{"Claris", "Code", "Code"}, // not Visual Studio Code's package "code"
+		{"Foo", "Bind", "Bind"},    // not ISC BIND's package "bind"
+	} {
+		if p, ok := ResolveStored(c[0], c[1], c[2], ""); ok {
+			t.Errorf("%v resolves to %+v", c, p)
+		}
+	}
+	if p, ok := ResolveStored("bind9", "bind9", "bind9", ""); !ok || p.ID != "isc-bind" {
+		t.Errorf("the package bind9 = %v %+v", ok, p)
+	}
+	if p, ok := ResolveStored("Wazuh, Inc.", "Wazuh Agent", "Wazuh Agent", ""); !ok || p.ID != "wazuh-agent" || p.HasCPE() {
+		t.Errorf("the Wazuh agent must not carry the server's NVD name: %v %+v", ok, p)
+	}
+	if p, ok := Resolve(Linux, "wazuh-manager", "", ""); !ok || p.ID != "wazuh-server" || !p.Upstream || !p.HasCPE() {
+		t.Errorf("wazuh-manager = %v %+v", ok, p)
 	}
 	if strings.Contains(Products()[0].Key, " |") {
 		t.Error("keys are trimmed")
+	}
+}
+
+// Every curated product (what a person picks when declaring a device) resolves, edge and management devices with their class.
+func TestCuratedProductsResolve(t *testing.T) {
+	t.Parallel()
+	var rows []curatedRow
+	if err := json.Unmarshal(catalogdata.Curated, &rows); err != nil {
+		t.Fatal(err)
+	}
+	classes := map[Class]int{}
+	for _, r := range rows {
+		p, ok := ResolveStored(r.Vendor, r.Product, r.Display, "")
+		if !ok {
+			t.Errorf("curated %q (%s|%s) does not resolve", r.Display, r.Vendor, r.Product)
+			continue
+		}
+		if !p.Class.Valid() {
+			t.Errorf("%q: class %q", r.Display, p.Class)
+		}
+		classes[p.Class]++
+	}
+	for name, want := range map[string]Class{
+		"FortiGate": ClassFirewall, "Ivanti Connect Secure (Pulse Secure VPN)": ClassVPN, "VMware ESXi": ClassHypervisor,
+		"Progress MOVEit Transfer": ClassFileTransfer, "ConnectWise ScreenConnect": ClassRemoteAccess, "MikroTik RouterOS": ClassRouter,
+	} {
+		i := slices.IndexFunc(rows, func(r curatedRow) bool { return r.Display == name })
+		if i < 0 {
+			t.Errorf("no curated %q", name)
+			continue
+		}
+		if p, ok := ResolveStored(rows[i].Vendor, rows[i].Product, rows[i].Display, ""); !ok || p.Class != want {
+			t.Errorf("%q = %v class %q, want %q", name, ok, p.Class, want)
+		}
+	}
+	if p, ok := ByKey("Fortinet|FortiOS"); !ok || p.Class != ClassFirewall || !slices.Contains(p.KEV, "fortinet|fortios") {
+		t.Errorf("ByKey(fortinet|fortios) = %v %+v", ok, p)
+	}
+	if classes[ClassNone] == len(rows) || classes[ClassFirewall] < 5 {
+		t.Errorf("classes = %v", classes)
 	}
 }

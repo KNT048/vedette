@@ -25,10 +25,13 @@ func loadAliases(products []productid.Product) map[identity][]identity {
 		if len(ids) == 0 {
 			continue
 		}
-		names := append([]string{p.Vendor + "|" + p.Product}, p.Also...)
+		names := [][2]string{{p.Vendor, p.Product}}
+		for _, a := range p.Also {
+			v, pr, _ := strings.Cut(a, "|")
+			names = append(names, [2]string{v, pr})
+		}
 		for _, n := range names {
-			v, pr, _ := strings.Cut(n, "|")
-			if key := (identity{vendor: productid.Norm(v), product: productid.Norm(pr)}); key.ok() {
+			if key := (identity{vendor: productid.Norm(n[0]), product: productid.Norm(n[1])}); key.ok() {
 				if _, taken := out[key]; !taken {
 					out[key] = ids
 				}

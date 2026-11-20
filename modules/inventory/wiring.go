@@ -636,7 +636,7 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		}
 		var byVendor []string
 		if multi {
-			prefix := vendor + "|"
+			prefix := productid.Key(p.Vendor, "")
 			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+`
 				UNION SELECT id FROM inv_asset WHERE lower(vendor) = ?`, len(prefix), prefix, vendor)
 			if err != nil {
@@ -924,11 +924,11 @@ func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
 
 // devicesOf lists the devices with software keyed to vendor|product, or to any product of vendor for "Multiple products".
 func (s *Service) devicesOf(ctx context.Context, vendor, product string) ([]string, error) {
-	vendor, product = strings.ToLower(vendor), strings.ToLower(product)
-	prefix := vendor + "|"
-	multi := strings.TrimSpace(product) == multiProducts
+	prefix := productid.Key(vendor, "")
+	multi := strings.EqualFold(strings.TrimSpace(product), multiProducts)
 	return s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, prefix+product, prefix+multiProducts, boolInt(multi), len(prefix), prefix)
+		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, productid.Key(vendor, product), productid.Key(vendor, multiProducts),
+		boolInt(multi), len(prefix), prefix)
 }
 
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just

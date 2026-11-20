@@ -148,7 +148,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
   return (
     <>
       <Section id="services" title={t('traps.title')} description={t('traps.description')} info={<><p>{t('traps.descriptionInfo')}</p><p>{t('traps.testNote')}</p></>}>
-        <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
+        <DataTable urlKey="honeypot-traps" caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">
               <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-caption text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-caption text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
@@ -222,7 +222,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
     </EmptyState>
   )
   return (
-    <DataTable caption={t('hits.caption')} data={items} columns={columns}
+    <DataTable urlKey="honeypot-hits" caption={t('hits.caption')} data={items} columns={columns}
       mobileRow={(h) => (
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center justify-between gap-2">

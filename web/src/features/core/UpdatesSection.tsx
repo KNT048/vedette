@@ -184,7 +184,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} info={t('updates.managed.info')} />
         {/* No empty table: the list comes from the running release's signed manifest, which a build without a release never gets. */}
         {s.managed.length ? (
-          <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
+          <DataTable urlKey="updates-managed" data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
             mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
         ) : <div className="flex items-center gap-1"><p className="text-sm text-muted">{t('updates.managed.none')}</p><InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip></div>}
       </section>
@@ -223,7 +223,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       </Section>
 
       <Section title={t('updates.components')} description={t('updates.componentsDesc')} info={t('updates.componentsInfo')}>
-        <DataTable data={s.components} columns={columns} caption={t('updates.components')} pageSize={20}
+        <DataTable urlKey="updates-components" data={s.components} columns={columns} caption={t('updates.components')} pageSize={20}
           mobileRow={(c) => {
             const a = availableOf(c.id)
             return (
@@ -268,7 +268,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       ) : null}
 
       <Section title={t('updates.history')} description={t('updates.historyDesc')}>
-        <DataTable data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}
+        <DataTable urlKey="updates-history" data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}
           mobileRow={(h) => <div className="grid gap-0.5"><span className="font-medium">{comp(h.component)}, {t(`updates.act.${h.action}`)}</span><span className="font-mono text-caption [overflow-wrap:anywhere]">{h.from ?? '–'} {'>'} {h.to}</span><span className="text-caption text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('updates.hist.system') : h.user}</span></div>} />
       </Section>
 

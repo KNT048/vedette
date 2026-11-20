@@ -62,7 +62,7 @@ export default function ActivityPanel() {
           <Field label={t('activity.filter.to')} htmlFor="act-to"><Input id="act-to" type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
         </div>
         <QueryState query={list}>
-          {(r) => <DataTable<ActivityEntry> caption={t('activity.caption')} data={r.items} columns={cols} initialSort={[{ id: 'ts', desc: true }]} empty={t('activity.empty')} pageSize={20}
+          {(r) => <DataTable<ActivityEntry> urlKey="ai-activity" caption={t('activity.caption')} data={r.items} columns={cols} initialSort={[{ id: 'ts', desc: true }]} empty={t('activity.empty')} pageSize={20}
             filtered={!!(f.job || f.result || f.from || f.to)} onClearFilters={() => setF({ job: '', result: '', from: '', to: '' })} />}
         </QueryState>
         <p className="text-meta text-muted">{t('activity.readOnly', { days: list.data?.retention_days ?? 365 })}{admin ? <>{' '}<Link to="/settings/ai#ai-retention" className="font-medium text-accent underline underline-offset-4">{t('activity.retentionLink')}</Link></> : null}</p>

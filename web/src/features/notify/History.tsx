@@ -58,7 +58,7 @@ export default function History() {
           <>
             <p className="mb-3 max-w-3xl text-meta text-muted">{d.suppressed.count > 0 ? t('history.meta', { count: d.suppressed.count, days: d.suppressed.days }) : t('history.metaNone', { days: d.suppressed.days })}</p>
             {d.items.length === 0 ? <EmptyState title={t('history.emptyTitle')} info={t('history.emptyBodyInfo')}>{t('history.emptyBody')}</EmptyState>
-              : <DataTable caption={t('history.caption')} data={d.items} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
+              : <DataTable urlKey="notify-history" caption={t('history.caption')} data={d.items} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
           </>
         )}
       </QueryState>

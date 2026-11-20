@@ -430,12 +430,12 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 			if e.p.Class == ClassNone {
 				e.p.Class = class
 			}
-			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev)
+			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev, &e.p)
 			continue
 		}
 		p := Product{ID: "curated-" + strings.Trim(slugRE.ReplaceAllString(strings.ToLower(r.Display), "-"), "-"), Display: r.Display,
 			Vendor: r.Vendor, Product: r.Product, Key: key, KEV: []string{key}, Class: class}
-		p.KEV = curatedKEV(p.KEV, r.KevMatch, kev)
+		p.KEV = curatedKEV(p.KEV, r.KevMatch, kev, nil)
 		for _, s := range r.CPE {
 			if !cpeRE.MatchString(s) || strings.HasSuffix(s, "*") {
 				return fmt.Errorf("%q: cpe %q is not part:vendor:product", r.Display, s)
@@ -461,18 +461,63 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 }
 
 // curatedKEV adds to keys the exploited-list keys a curated row's kev_match fragments name: a key whose vendor contains the vendor
-// fragment and whose product contains the product fragment, as the inventory's catalogue reads them.
-func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }) []string {
+// fragment and whose product contains the product fragment, as the inventory's catalogue reads them. For a product the catalogue
+// files list (own set), only the product's own names are taken: a list name that holds the product's name or is held by it
+// ("Connect Secure, Policy Secure, and Neurons", "Pulse Connect Secure" for Connect Secure; "Exchange" for Exchange Server), never a
+// neighbour the fragment also reaches (WinRAR for 7-Zip, FortiOS for FortiClient). Such a product is what agents and scans read,
+// so its keys must name it alone.
+func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }, own *Product) []string {
 	for _, m := range match {
 		v, pr, _ := strings.Cut(strings.ToLower(m), "|")
 		for _, k := range kev {
-			if kk := Key(k.Vendor, k.Product); strings.Contains(strings.ToLower(k.Vendor), v) && (pr == "" || strings.Contains(spaced(strings.ToLower(k.Product)), pr)) &&
-				!slices.Contains(keys, kk) {
-				keys = append(keys, kk)
+			kk := Key(k.Vendor, k.Product)
+			if !strings.Contains(strings.ToLower(k.Vendor), v) || pr != "" && !strings.Contains(spaced(strings.ToLower(k.Product)), pr) || slices.Contains(keys, kk) {
+				continue
 			}
+			if own != nil && !ownName(own.Product, own.Vendor, k.Product) {
+				continue
+			}
+			keys = append(keys, kk)
 		}
 	}
 	return keys
+}
+
+// ownName says whether a list's product name names the product: the words of one hold every word of the other, the vendor's words
+// left out ("Jenkins Command Line Interface (CLI)" for Jenkins, "Exchange" for Exchange Server, "Internet Explorer and Edge" for
+// Edge; never "PHPMailer" for PHP or "Internet Key Exchange" for Exchange Server).
+func ownName(product, vendor, listed string) bool {
+	drop := map[string]bool{"and": true}
+	for _, w := range nameWords(vendor) {
+		drop[w] = true
+	}
+	words := func(s string) map[string]bool {
+		out := map[string]bool{}
+		for _, w := range nameWords(s) {
+			if !drop[w] {
+				out[w] = true
+			}
+		}
+		return out
+	}
+	if len(words(product)) == 0 { // the product is the vendor's name ("Jenkins", "GitLab"): its words are the name
+		drop = map[string]bool{"and": true}
+	}
+	holds := func(a, b map[string]bool) bool {
+		for w := range b {
+			if !a[w] {
+				return false
+			}
+		}
+		return len(b) > 0
+	}
+	a, b := words(product), words(listed)
+	return holds(a, b) || holds(b, a)
+}
+
+// nameWords are the lower-case words of a name, split at anything but a letter or a digit.
+func nameWords(s string) []string {
+	return strings.FieldsFunc(strings.ToLower(spaced(s)), func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') })
 }
 
 // spaced writes the no-break spaces a list name may hold ("Commerce and\u202fMagento") as plain spaces.

@@ -24,12 +24,20 @@ func init() {
 				FROM inv_software_reading e WHERE e.software_id = s.id AND e.source = s.source AND ifnull(e.version, '') = ifnull(s.version, '')
 				AND ifnull(e.pkg_version, '') = ifnull(s.pkg_version, '')))))`,
 	})
+	// A line's state agrees with its readings: a removed line has none, a line in use has one (a source's or a person's entry).
+	selfcheck.Register(selfcheck.Invariant{
+		Name:  "inventory.removed_line_has_no_reading",
+		Query: `SELECT count(*) FROM inv_software s WHERE s.state = 'removed' AND EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = s.id)`,
+	})
 	// A present line has a reading (a source's or a person's entry).
 	selfcheck.Register(selfcheck.Invariant{
 		Name:  "inventory.present_line_has_a_reading",
 		Query: `SELECT count(*) FROM inv_software s WHERE s.state = 'present' AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = s.id)`,
 	})
 }
+
+// The train rule of a line and the newest release among equal sources need the product catalogue and the version order, which live
+// in Go: the fixture tests check them on every line (lines_fixture_test.go assertResolved).
 
 // rankSQL is readingRank in SQL for a source and instance column (guesses aside).
 func rankSQL(source, instance string) string {

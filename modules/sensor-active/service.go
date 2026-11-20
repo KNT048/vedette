@@ -1189,6 +1189,9 @@ func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip ne
 	return nil
 }
 
+// statedInstance names the readings of what a device states about its firmware in a gentle look with titles (statedSoftware).
+const statedInstance = "stated"
+
 // recordHost stores the result of h on the device (recordDevice).
 func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind) error {
 	if obs := deviceObservations(h, kind); len(obs) > 0 {
@@ -1216,7 +1219,10 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 		// a gentle look with titles reads no product, but the scripts of nmapargv.TitleScripts may read what the device states about
 		// its firmware (INV-25): that is recorded, the one thing such a scan says about software
 		if sw := statedSoftware(h); len(sw) > 0 {
-			if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, nil, sw); err != nil {
+			for i := range sw { // only what such a look reads is replaced: the banners of the last normal scan stay
+				sw[i].Instance = statedInstance
+			}
+			if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, []string{statedInstance}, sw); err != nil {
 				return fmt.Errorf("sensoractive: recording software: %w", err)
 			}
 		}

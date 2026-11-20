@@ -379,15 +379,6 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				return err
 			}
 			match := after != before[id] || slices.Contains(joined, id) // findings matches the device again only when its OS or model changed; or another device joined it
-			// the OS a network device states is a software line (statedos.go); what decides it (the address, the MAC there) may move
-			// in any batch
-			moved, err := s.syncStatedOS(ctx, tx, id, s.now())
-			if err != nil {
-				return err
-			}
-			if moved {
-				o.add(EventSoftwareChanged, AssetEvent{AssetID: id})
-			}
 			switch {
 			case created[id] != "":
 				quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)
@@ -1148,8 +1139,20 @@ func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) er
 
 // RecomputeAsset folds the observations of a device into its current columns (DATA_MODEL 5.1 rule 3): per
 // field the winner by source rank, confidence, seen_at, id. It is the only code that writes those columns, and
-// it runs in the transaction of the insert and the audit row. It reports whether anything changed.
+// it runs in the transaction of the insert and the audit row. It reports whether anything changed. The OS a network device states
+// (or the OS a person set on it) is then a software line again (syncStatedOS): what decides it may have moved.
 func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
+	changed, err := s.recomputeColumns(ctx, tx, assetID)
+	if err != nil {
+		return false, err
+	}
+	if _, err := s.syncStatedOS(ctx, tx, assetID, s.now()); err != nil {
+		return false, err
+	}
+	return changed, nil
+}
+
+func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
 	if _, err := s.lapseOS(ctx, tx, assetID); err != nil { // a newer OS read after a person's correction ends it (INV-52)
 		return false, err
 	}

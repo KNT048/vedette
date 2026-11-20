@@ -635,7 +635,7 @@ CREATE TABLE inv_software (
     last_seen        TEXT NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     removed_at       TEXT CHECK (removed_at IS NULL OR removed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     CHECK ((state = 'removed') = (removed_at IS NOT NULL)),
-    CHECK ((state = 'not_installed') = (not_installed_at IS NOT NULL))
+    CHECK (state <> 'not_installed' OR not_installed_at IS NOT NULL) -- a removed line keeps a person's mark: it holds when the software is read again
 );
 
 CREATE TABLE inv_software_reading (
@@ -786,6 +786,9 @@ BEGIN
 END;
 
 CREATE TRIGGER inv_software_event_append_only BEFORE UPDATE ON inv_software_event
+WHEN NEW.id IS NOT OLD.id OR NEW.product_key IS NOT OLD.product_key OR NEW.display IS NOT OLD.display OR NEW.ts IS NOT OLD.ts
+  OR NEW.kind IS NOT OLD.kind OR NEW.from_version IS NOT OLD.from_version OR NEW.to_version IS NOT OLD.to_version
+  OR NEW.source IS NOT OLD.source OR NEW.actor IS NOT OLD.actor
 BEGIN
     SELECT RAISE(ABORT, 'inv_software_event is append-only');
 END;

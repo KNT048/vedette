@@ -26,8 +26,8 @@ import (
 //  4. Every other reading of another release still feeds matching (an older second install, another port), unless the person's
 //     entry holds and the reading was already there when the person set it: the person looked at it and said otherwise. Such a
 //     reading sets differs.
-//  5. A "not installed" mark holds until a reading first seen after the mark (a new install, or the source reading a new release).
-//     A line with no reading and no entry is removed; one that gets a reading again is present.
+//  5. A "not installed" mark holds until a reading first seen after the mark (a new install, or the source reading a new release),
+//     also across a removal. A line with no reading and no entry is removed; one that gets a reading again is present.
 
 // The instances a source gives that mean something to the resolver.
 const (
@@ -162,7 +162,8 @@ func Resolve(line LineState, readings []Reading) Resolution {
 	case len(rs) == 0:
 		res.State = stateRemoved
 		return res
-	case line.State == stateNotInstalled:
+	case line.State == stateNotInstalled || line.State == stateRemoved && line.NotInstalledAt != "": // a removed line keeps the mark
+		res.State = stateNotInstalled
 		for _, r := range rs {
 			if !r.entry() && r.FirstSeen > line.NotInstalledAt {
 				res.State, res.Unmarked = statePresent, true

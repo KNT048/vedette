@@ -61,7 +61,7 @@ func countOf(list []string, v string) int {
 func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.18.1")
+	ip := netip.MustParseAddr("192.0.2.1")
 	rec := func(v string, src observe.Source) {
 		t.Helper()
 		e.tick(time.Minute)
@@ -146,7 +146,7 @@ func TestINV41_CorrectedOSWinsDrivesMatchingAndClears(t *testing.T) {
 func TestINV52_CorrectedOSLapsesOnANewerReading(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.18.1")
+	ip := netip.MustParseAddr("192.0.2.1")
 	rec := func(v string, src observe.Source) {
 		t.Helper()
 		e.tick(time.Minute)

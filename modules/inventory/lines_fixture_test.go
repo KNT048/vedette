@@ -217,18 +217,19 @@ func TestSoftwareLines_Fixture_OneLinePerProductAndTrain(t *testing.T) {
 func assertResolved(t *testing.T, r *replayed) {
 	t.Helper()
 	ctx := t.Context()
-	rows, err := r.db.Reader().QueryContext(ctx, `SELECT id, state, ifnull(not_installed_at, ''), source, ifnull(version, ''), ifnull(pkg_version, ''), differs FROM inv_software WHERE state <> 'removed'`)
+	rows, err := r.db.Reader().QueryContext(ctx, `SELECT id, state, ifnull(not_installed_at, ''), source, ifnull(version, ''), ifnull(pkg_version, ''), differs, product_key, line
+		FROM inv_software WHERE state <> 'removed'`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	type stored struct {
-		id, state, marked, source, version, pkg string
-		differs                                 bool
+		id, state, marked, source, version, pkg, key, line string
+		differs                                            bool
 	}
 	var all []stored
 	for rows.Next() {
 		var s stored
-		if err := rows.Scan(&s.id, &s.state, &s.marked, &s.source, &s.version, &s.pkg, &s.differs); err != nil {
+		if err := rows.Scan(&s.id, &s.state, &s.marked, &s.source, &s.version, &s.pkg, &s.differs, &s.key, &s.line); err != nil {
 			t.Fatal(err)
 		}
 		all = append(all, s)
@@ -240,6 +241,12 @@ func assertResolved(t *testing.T, r *replayed) {
 			t.Fatal(err)
 		}
 		res := Resolve(LineState{State: s.state, NotInstalledAt: s.marked}, rs)
+		// the line is the catalogue's train of every reading's release (a reading of another train is a line of its own)
+		for _, rd := range rs {
+			if rd.Version != "" && trainOf(s.key, rd.Version) != s.line {
+				t.Errorf("line %s is train %q, its %s reading %q is train %q", s.id, s.line, rd.Source, rd.Version, trainOf(s.key, rd.Version))
+			}
+		}
 		if res.Lapsed != nil || res.State != s.state || res.Effective.Source != s.source || res.Effective.Version != s.version || res.Effective.PkgVersion != s.pkg || res.Differs != s.differs {
 			t.Errorf("line %s stores %+v, the resolver says %s %s %q %q differs %v", s.id, s, res.State, res.Effective.Source, res.Effective.Version, res.Effective.PkgVersion, res.Differs)
 		}
@@ -330,7 +337,7 @@ func TestSoftwareLines_Fixture_VersionMoveKeepsIDs(t *testing.T) {
 	}
 	dangling := 0
 	for id := range ids {
-		if r.count(t, `SELECT count(*) FROM inv_software WHERE id = ?`, id) != 1 {
+		if r.count(t, `SELECT count(*) FROM inv_software WHERE id = ? AND state = 'present'`, id) != 1 {
 			dangling++
 		}
 	}

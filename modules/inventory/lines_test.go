@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"database/sql"
 	"net/netip"
 	"slices"
 	"testing"
@@ -252,5 +253,95 @@ func TestSoftwareLines_StatedNetworkOSIsALine(t *testing.T) {
 	}
 	if m := matchRows(t, e, deviceAt(t, e, ip)); len(m) != 1 || m[0].ID != id || m[0].Version != "7.0.15" {
 		t.Fatalf("the update keeps the line: %+v", m)
+	}
+}
+
+// A person's OS on a network device is what the matcher reads for the stated OS line: SNMP states FortiOS 7.0.1, the person says
+// 7.4.5, matching reads 7.4.5 on the same line; clearing the person's OS brings back the statement.
+func TestSoftwareLines_PersonsOSReachesTheStatedOSLine(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.0.2.91")
+	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.OS, Value: "FortiOS 7.0.1", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	dev := deviceAt(t, e, ip)
+	id := matchRows(t, e, dev)[0].ID
+	set := func(os string) {
+		t.Helper()
+		e.tick(time.Minute)
+		if err := e.svc.PatchDevice(e.ctx(), "op@example.com", dev, inventory.Patch{OS: &os}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set("FortiOS 7.4.5")
+	if m := matchRows(t, e, dev); len(m) != 1 || m[0].ID != id || m[0].Version != "7.4.5" || m[0].Source != "manual" || !slices.Contains(m[0].KevKeys, "fortinet|fortios") {
+		t.Fatalf("the person's OS must reach the line: %+v", m)
+	}
+	set("")
+	if m := matchRows(t, e, dev); len(m) != 1 || m[0].ID != id || m[0].Version != "7.0.1" || m[0].Source != "snmp" {
+		t.Fatalf("cleared: %+v", m)
+	}
+}
+
+// A person's "not installed" survives the software going away and coming back at the release the person saw (a stale agent list
+// pruned, a scan that missed the port); a new release lifts it.
+func TestSoftwareLines_NotInstalledSurvivesARemoval(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{NotInstalled: true}); err != nil {
+		t.Fatal(err)
+	}
+	c.send(observe.Nmap, nil) // gone
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	if n := c.e.count(`SELECT count(*) FROM inv_software WHERE id = ? AND state = 'not_installed' AND not_installed_by = 'op@example.com'`, id); n != 1 {
+		t.Fatal("the same release read again must keep the person's mark")
+	}
+	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22"))
+	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" {
+		t.Fatalf("a new release lifts the mark: %+v", l)
+	}
+}
+
+// A merge keeps a person's "not installed" of the folded row's line even when the kept row reads the software, and the folded
+// line's history is the kept line's.
+func TestSoftwareLines_MergeKeepsTheMarkAndTheHistory(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a, b := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.83")}, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.84")}
+	e.tick(time.Minute)
+	if err := e.svc.ReplaceSoftware(e.ctx(), a, observe.Nmap, nil, []observe.Software{ssh("9.6", "tcp/22")}); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	if err := e.svc.ReplaceSoftware(e.ctx(), b, observe.Nmap, nil, []observe.Software{ssh("9.6", "tcp/22")}); err != nil {
+		t.Fatal(err)
+	}
+	into, from := deviceAt(t, e, a.IP), deviceAt(t, e, b.IP)
+	gone := matchRows(t, e, from)[0].ID
+	e.tick(time.Minute)
+	if err := e.svc.EditSoftware(e.ctx(), "op@example.com", from, gone, inventory.SoftwareEdit{NotInstalled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(e.ctx(), "op@example.com", into, from); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software WHERE asset_id = ? AND state = 'not_installed' AND not_installed_by = 'op@example.com'`, into); n != 1 {
+		t.Fatal("the merge lost the person's not installed")
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software_event WHERE asset_id = ? OR software_id = ?`, from, gone); n != 0 {
+		t.Fatalf("%d history rows still name the folded device or line", n)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software_event WHERE asset_id = ? AND kind = 'marked_not_installed'`, into); n != 1 {
+		t.Fatal("the person's mark is not in the kept device's history")
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE inv_software_event SET to_version = 'x'`)
+		return err
+	}); err == nil {
+		t.Fatal("history must stay append-only beyond its device and line ids")
 	}
 }

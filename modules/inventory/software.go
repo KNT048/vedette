@@ -278,6 +278,15 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		}
 		kept[k] = true
 		h, had := old[k]
+		if !had { // the line's own release read again (after a removal, or by another instance) is no new reading
+			var v, pv, first string
+			if err := tx.QueryRowContext(ctx, `SELECT ifnull(version, ''), ifnull(pkg_version, ''), first_seen FROM inv_software WHERE id = ?`, lineID).Scan(&v, &pv, &first); err != nil {
+				return fmt.Errorf("inventory: read software line: %w", err)
+			}
+			if v == l.reading.Version && pv == l.reading.PkgVersion && first < l.reading.FirstSeen {
+				l.reading.FirstSeen = first
+			}
+		}
 		switch {
 		case !had:
 			changed = true

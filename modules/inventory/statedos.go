@@ -15,7 +15,9 @@ import (
 // history, findings and a fix, and no reader needs a made-up software row for it. Its reading has the instance "os" and the source
 // of the statement (snmp, or passive for LLDP). Vedette's own SNMP read of the device's address always counts; an LLDP statement
 // only when no SNMP answer reads one and the device's MAC is that OS vendor's card (lldpStated). When the device's own agent reports
-// another OS, the agent's reading wins and the statement is no line.
+// another OS, the agent's reading wins and the statement is no line. While a person's OS stands (INV-41), it replaces the statement:
+// the line is the person's product and version (a reading of source manual, instance "os": the line's entry), or no line when the
+// person's OS is not a network OS.
 
 // syncStatedOS makes the "os" readings of a device follow its observations, in the transaction that recorded them. changed says a
 // line moved.
@@ -39,19 +41,31 @@ func (s *Service) syncStatedOS(ctx context.Context, tx *sql.Tx, assetID, now str
 	if err != nil {
 		return false, err
 	}
-	var want *listed
-	if p, v, _, ok := productid.StatedOS(snmp); ok {
-		want = statedReading(p, v, "snmp", snmpAt)
-	} else if p, v, vendor, ok := productid.StatedOS(lldp); ok && vendor != "" && lldpStated(lldp, mac.String) {
-		want = statedReading(p, v, "passive", lldpAt)
+	person, setAt, setBy, corrected, err := manualOS(ctx, tx, assetID)
+	if err != nil {
+		return false, err
 	}
-	if want != nil && agent != "" {
+	var want *listed
+	switch {
+	case corrected: // a person's OS (INV-41) is what the device runs in place of every statement it corrects
+		if p, v, _, ok := productid.StatedOS(person); ok {
+			want = statedReading(p, v, sourceManual, setAt)
+			want.reading.SetBy, want.reading.Confidence = setBy, 1
+		}
+	default:
+		if p, v, _, ok := productid.StatedOS(snmp); ok {
+			want = statedReading(p, v, "snmp", snmpAt)
+		} else if p, v, vendor, ok := productid.StatedOS(lldp); ok && vendor != "" && lldpStated(lldp, mac.String) {
+			want = statedReading(p, v, "passive", lldpAt)
+		}
+	}
+	if want != nil && agent != "" && !corrected {
 		if p, _, _, ok := productid.StatedOS(agent); !ok || p.Key != want.id.productKey && !strings.EqualFold(p.Product, want.id.product) {
 			want = nil // the device's own agent reads another OS
 		}
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT r.software_id, r.source, ifnull(r.version, '') FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id
-		WHERE w.asset_id = ? AND r.instance = ? AND r.source IN ('snmp', 'passive')`, assetID, instanceOS)
+		WHERE w.asset_id = ? AND r.instance = ? AND r.source IN ('snmp', 'passive', 'manual')`, assetID, instanceOS)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read the stated OS: %w", err)
 	}

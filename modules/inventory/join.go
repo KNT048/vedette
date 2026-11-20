@@ -276,6 +276,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	for _, q := range []string{
 		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
 		`UPDATE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,            // the rows both held are folded already
+		`UPDATE inv_software_event SET asset_id = ?1 WHERE asset_id = ?2`,      // the software history follows the device
 		`UPDATE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
 		// a notice a person dismissed stays dismissed (INV-47); one both dismissed is the same decision, into's row stays
 		`UPDATE OR IGNORE inv_detected_keep SET asset_id = ?1 WHERE asset_id = ?2`,
@@ -821,16 +822,17 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 // to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it. Nothing else is
 // removed: the lines left on from move with their ids.
 func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string) (map[string]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, '')
+	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, ''),
+		ifnull(f.version, ''), ifnull(f.pkg_version, ''), f.first_seen
 		FROM inv_software f JOIN inv_software i ON i.asset_id = ?2 AND i.product_key = f.product_key AND i.line = f.line WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 	}
-	type fold struct{ gone, kept, goneState, keptState, markedAt, markedBy string }
+	type fold struct{ gone, kept, goneState, keptState, markedAt, markedBy, version, pkg, first string }
 	var folds []fold
 	for rows.Next() {
 		var f fold
-		if err := rows.Scan(&f.gone, &f.kept, &f.goneState, &f.keptState, &f.markedAt, &f.markedBy); err != nil {
+		if err := rows.Scan(&f.gone, &f.kept, &f.goneState, &f.keptState, &f.markedAt, &f.markedBy, &f.version, &f.pkg, &f.first); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 		}
@@ -849,18 +851,22 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 			`DELETE FROM inv_software_reading WHERE software_id = ?2 AND EXISTS (SELECT 1 FROM inv_software_reading k WHERE k.software_id = ?1
 				AND k.source = inv_software_reading.source AND k.instance = inv_software_reading.instance)`,
 			`UPDATE inv_software_reading SET software_id = ?1 WHERE software_id = ?2`,
+			// a release both rows read is one reading of the machine: first seen when either row first read it
+			`UPDATE inv_software_reading SET first_seen = min(first_seen, ?5) WHERE software_id = ?1 AND ifnull(version, '') = ?3 AND ifnull(pkg_version, '') = ?4`,
 			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
 				last_seen = max(last_seen, (SELECT last_seen FROM inv_software WHERE id = ?2)) WHERE id = ?1`,
 			`DELETE FROM inv_software WHERE id = ?2`,
+			`UPDATE inv_software_event SET software_id = ?1 WHERE software_id = ?2`, // the folded line's history is the kept line's
 		} {
-			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
+			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone, f.version, f.pkg, f.first); err != nil {
 				return nil, fmt.Errorf("inventory: fold software: %w", err)
 			}
 		}
-		// into's line keeps its state; when it was removed, from's "not installed" carries over (from's readings bring it back)
-		if f.goneState == stateNotInstalled && f.keptState == stateRemoved {
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'not_installed', removed_at = NULL, not_installed_at = ?, not_installed_by = ? WHERE id = ?`,
-				f.markedAt, nullStr(f.markedBy), f.kept); err != nil {
+		// a person's "not installed" on the folded line is kept (into's own mark, when it has one, stays): the resolver lifts it only for a
+		// reading first seen after the mark
+		if f.markedAt != "" && f.keptState != stateNotInstalled {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = CASE WHEN state = 'removed' THEN 'removed' ELSE 'not_installed' END,
+				not_installed_at = ?, not_installed_by = ? WHERE id = ? AND not_installed_at IS NULL`, f.markedAt, nullStr(f.markedBy), f.kept); err != nil {
 				return nil, fmt.Errorf("inventory: fold software: %w", err)
 			}
 		}

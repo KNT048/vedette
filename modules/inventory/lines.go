@@ -209,7 +209,7 @@ func (s *Service) settleLine(ctx context.Context, tx *sql.Tx, lineID, now string
 		if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, l.display, now, "removed", l.version, "", "", ""); err != nil {
 			return out, err
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'removed', removed_at = ?, not_installed_at = NULL, not_installed_by = NULL, differs = 0 WHERE id = ?`, now, lineID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'removed', removed_at = ?, differs = 0 WHERE id = ?`, now, lineID); err != nil { // a person's mark stays
 			return out, fmt.Errorf("inventory: remove software line: %w", err)
 		}
 		out.changed = true

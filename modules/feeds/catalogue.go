@@ -65,7 +65,8 @@ type nvdWrite struct {
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
 // description), its scores and its NVD ranges replace what the catalogue had (the CVE record's own rows stay; reads prefer NVD's when
 // there are any). A record NVD rejected keeps only its status, so the retention rule drops it unless a list, a signal or a finding
-// holds it.
+// holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its pages over several checks
+// never puts back what a later pull already replaced.
 func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret retention, now time.Time) (nvdWrite, error) {
 	var out nvdWrite
 	stamp := store.FormatTS(now)
@@ -73,6 +74,11 @@ func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret rete
 	if err != nil {
 		return out, err
 	}
+	storedMod, err := tx.PrepareContext(ctx, `SELECT modified FROM feeds_cve WHERE cve = ? AND modified IS NOT NULL`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = storedMod.Close() }()
 	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(cve) DO UPDATE SET published = coalesce(excluded.published, published), modified = coalesce(excluded.modified, modified), nvd_status = excluded.nvd_status, nvd_at = excluded.nvd_at,
 description = excluded.description, updated_at = excluded.updated_at`)
@@ -118,6 +124,16 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 			}
 			if n == 0 {
 				continue
+			}
+		}
+		if !r.LastModified.IsZero() {
+			var mod string
+			err := storedMod.QueryRowContext(ctx, r.CVE).Scan(&mod)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return out, fmt.Errorf("feeds: catalogue: %w", err)
+			}
+			if t, perr := parseTS(mod); err == nil && perr == nil && r.LastModified.Before(t) {
+				continue // the catalogue holds a newer record of this CVE
 			}
 		}
 		if kev[r.CVE] {

@@ -540,13 +540,22 @@ func (s *Service) catchUp(ctx context.Context, rp *recentPull, now time.Time, wa
 			return errNVDPaused
 		}
 		show(cur)
-		u, err := WalkPageURL(url, cur.NextIndex, walkPageSize)
-		if err != nil {
-			return err
-		}
-		body, d, err := s.nvdParsedPage(ctx, rp.run, u, cur.NextIndex, walkMaxBytes)
-		if err != nil {
-			return err
+		var (
+			body int
+			d    NVDPage
+		)
+		for _, size := range []int{walkPageSize, recentSmallPage} { // a page too large or unreadable is asked again smaller
+			u, err := WalkPageURL(url, cur.NextIndex, size)
+			if err != nil {
+				return err
+			}
+			if body, d, err = s.nvdParsedPage(ctx, rp.run, u, cur.NextIndex, walkMaxBytes); err == nil || size == recentSmallPage ||
+				!errors.Is(err, ErrTooLarge) && !errors.Is(err, ErrBadSample) {
+				if err != nil {
+					return err
+				}
+				break
+			}
 		}
 		switch {
 		case d.Total > walkMaxTotal:
@@ -617,15 +626,10 @@ func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, no
 		}
 		s.nvdMu.Lock()
 		at, seen := s.nvdAsked[cve]
+		s.nvdMu.Unlock()
 		if seen && now.Sub(at) < missingAskAgain {
-			s.nvdMu.Unlock()
 			continue
 		}
-		if s.nvdAsked == nil {
-			s.nvdAsked = map[string]time.Time{}
-		}
-		s.nvdAsked[cve] = now
-		s.nvdMu.Unlock()
 		if !waitTurn() {
 			break
 		}
@@ -643,6 +647,12 @@ func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, no
 			break
 		}
 		bytes += body
+		s.nvdMu.Lock() // NVD answered (with the record or without): not asked again for a while; a busy answer is retried sooner
+		if s.nvdAsked == nil {
+			s.nvdAsked = map[string]time.Time{}
+		}
+		s.nvdAsked[cve] = now
+		s.nvdMu.Unlock()
 		for _, r := range d.Records {
 			if r.CVE == cve { // only the record asked for
 				out = append(out, r)
@@ -676,10 +686,14 @@ ORDER BY substr(m.cve, 5, 4) DESC, length(m.cve) DESC, m.cve DESC LIMIT ?`, limi
 	return out, rows.Err()
 }
 
-const (
-	missingKEVSQL = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
-	missingSQL    = missingKEVSQL + ` UNION SELECT cve FROM feeds_signal WHERE qualifies = 1`
-)
+// publicSignalSources are the signal sources whose CVEs may be asked of NVD by id: public lists the box downloads whole. A source built
+// from what the box itself sees (an IDS alert naming a CVE) is never one of them.
+var publicSignalSources = []string{nucleiFeedID}
+
+const missingKEVSQL = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
+
+// missingSQL is the CVEs whose missing NVD record may be asked for by id (the sources are constants of this package).
+var missingSQL = missingKEVSQL + ` UNION SELECT cve FROM feeds_signal WHERE qualifies = 1 AND source IN ('` + strings.Join(publicSignalSources, `', '`) + `')`
 
 // missingCount is how many kept CVEs a public list names have no NVD record.
 func (s *Store) missingCount(ctx context.Context) (int, error) {

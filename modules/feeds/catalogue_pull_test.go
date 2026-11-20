@@ -141,13 +141,14 @@ func TestCataloguePull_WalksTheWholeSetForOlderKeptCVEs(t *testing.T) {
 	}
 }
 
-// A few kept CVEs without an NVD record are asked for by id: a qualifying signal's CVE and an exploited-list entry, never a CVE only a
-// custom feed names or a signal that does not qualify. A CVE NVD has no record of is not asked again within a day.
+// A few kept CVEs without an NVD record are asked for by id: a qualifying signal of a public source and an exploited-list entry, never
+// a CVE only a custom feed names, a signal that does not qualify, or one of a source that is not a public list. A CVE NVD has no record of is not asked again within a day.
 func TestCataloguePull_AsksNVDByIDForSignalledCVEsOnly(t *testing.T) {
 	t.Parallel()
 	e, n := catalogueEnv(t)
 	signal(t, e, nucleiFeedID, true, "CVE-2018-0007", "CVE-2018-0010")
 	signal(t, e, "poc-index", false, "CVE-2018-0009")
+	signal(t, e, "ids-local", true, "CVE-2018-0012") // a signal of what the box saw itself: never sent anywhere
 	addCustom(t, e.db, "cf-v", "Partner advisories", KindVulnerabilities)
 	applyV(t, e.db, epoch0, "cf-v", []Vuln{vuln("CVE-2018-0008", "Acme", "Box", "2026-11-01")}, true)
 	applyV(t, e.db, epoch0, kevFeedID, []Vuln{vuln("CVE-2017-0011", "Acme", "Box", "2026-11-01")}, false)

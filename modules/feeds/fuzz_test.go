@@ -240,3 +240,44 @@ func FuzzValidDomainIsTheRegexp(f *testing.F) {
 		}
 	})
 }
+
+// ParseNVD is the one decoder of every NVD answer (the walk over the whole set included): whatever the bytes, it returns a classified
+// error or records that fit the catalogue's CHECKs.
+func FuzzParseNVD(f *testing.F) {
+	f.Add(fixture(f, "nvd-kev-page.json"))
+	f.Add([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2026-0001","published":"2026-01-01T00:00:00.000","lastModified":"2026-01-02T00:00:00","vulnStatus":"Analyzed",` +
+		`"metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}]},` +
+		`"configurations":[{"operator":"AND","nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]},` +
+		`{"cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:o:acme:os:-:*:*:*:*:*:*:*"}]}]}]}}]}`))
+	f.Add([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":42}},{"cve":{"id":"CVE-2026-0002","metrics":[]}}]}`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		d, err := ParseNVD(data)
+		if err != nil {
+			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("unclassified error: %v", err)
+			}
+			return
+		}
+		if d.Accepted != len(d.Records) || len(d.Rejects) > MaxRejects {
+			t.Fatalf("accounting: %+v", d.Stats)
+		}
+		for _, r := range d.Records {
+			if !cveRE.MatchString(r.CVE) || len(r.CVE) > 32 || r.Status == "" || len(r.Status) > nvdMaxStatus || len([]rune(r.Description)) > nvdMaxDescription {
+				t.Fatalf("bad record accepted: %+v", r)
+			}
+			if len(r.Platforms) > len(r.Affected) {
+				t.Fatalf("platforms of %s: %d for %d entries", r.CVE, len(r.Platforms), len(r.Affected))
+			}
+			for _, a := range r.Affected {
+				if badAffected(a) != "" {
+					t.Fatalf("bad entry accepted: %+v", a)
+				}
+			}
+			for _, m := range r.Metrics {
+				if m.Score < 0 || m.Score > 10 || m.Vector == "" || len(m.Vector) > 200 {
+					t.Fatalf("bad score accepted: %+v", m)
+				}
+			}
+		}
+	})
+}

@@ -491,3 +491,29 @@ func TestGolden_CatalogueTables(t *testing.T) {
 		t.Errorf("catalogue differs from %s (run with -update and review the diff):\n%s", path, b.String())
 	}
 }
+
+// A record older than the stored one is not written: a pull that collected its pages over several checks never puts back what a later
+// pull replaced (the ranges NVD added stay).
+func TestCatalogue_OlderRecordNeverReplacesANewerOne(t *testing.T) {
+	t.Parallel()
+	_, db := newStore(t)
+	applyV(t, db, epoch0, kevFeedID, []Vuln{vuln("CVE-2026-0201", "Acme", "Box", "2026-11-01")}, false)
+	rec := func(mod time.Time, rows ...AffectedRow) NVDRecord {
+		return NVDRecord{CVE: "CVE-2026-0201", Published: epoch0.AddDate(0, -1, 0), LastModified: mod, Status: "Analyzed", Affected: append([]AffectedRow{}, rows...)}
+	}
+	newer := rec(epoch0.Add(-time.Hour), AffectedRow{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", EndExcl: "2.0"})
+	older := rec(epoch0.Add(-48 * time.Hour))
+	write(t, db, func(tx *sql.Tx) error { return storeRecords(t.Context(), tx, []NVDRecord{newer}, epoch0) })
+	var w nvdWrite
+	write(t, db, func(tx *sql.Tx) (err error) {
+		ret, err := retentionOf(t.Context(), tx, epoch0, nil)
+		if err != nil {
+			return err
+		}
+		w, err = writeNVDRecords(t.Context(), tx, []NVDRecord{older}, ret, epoch0)
+		return err
+	})
+	if w.Stored != 0 || len(w.KEVChanged) != 0 || count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0201'`) != 1 {
+		t.Fatalf("the older record replaced the newer one: %+v", w)
+	}
+}

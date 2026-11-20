@@ -539,3 +539,31 @@ func TestNote_ShowsOneRejectedValue(t *testing.T) {
 		t.Errorf("all rejected: %v", all)
 	}
 }
+
+// A nuclei index that lists fewer than half of the CVEs the box holds templates of is refused: the signals stay, and so do the older
+// CVEs the retention rule keeps for them.
+func TestNucleiIndexThatShrinksSharplyIsRefused(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(nucleiFeedID)
+	e.mirror(nucleiFeedID, o.url("/cves.json"))
+	var full strings.Builder
+	for i := range 200 {
+		fmt.Fprintf(&full, `{"ID":"CVE-2019-%04d","file_path":"http/cves/2019/CVE-2019-%04d.yaml"}`+"\n", i, i)
+	}
+	o.body("/cves.json", `"n1"`, full.String())
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
+	}
+	o.body("/cves.json", `"n2"`, `{"ID":"CVE-2019-0001","file_path":"http/cves/2019/CVE-2019-0001.yaml"}`+"\n")
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(nucleiFeedID); f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "fewer than half of the 200") {
+		t.Fatalf("feed %+v %q", f, deref(f.Error))
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE source = 'nuclei-templates'`); n != 200 {
+		t.Fatalf("%d signals kept", n)
+	}
+}

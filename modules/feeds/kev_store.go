@@ -402,6 +402,18 @@ func stringSet(ctx context.Context, q queryer, query string, args ...any) (map[s
 	return out, nil
 }
 
+// nucleiShrinkFloor: below this many stored templates any index is taken as it is (a first load, a test).
+const nucleiShrinkFloor = 100
+
+// signalCount is how many signal rows source holds.
+func (s *Store) signalCount(ctx context.Context, source string) (int, error) {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_signal WHERE source = ?`, source).Scan(&n); err != nil {
+		return 0, fmt.Errorf("feeds: count signals: %w", err)
+	}
+	return n, nil
+}
+
 // templatesOfCISA is the CISA-list CVEs that have a nuclei template.
 const templatesOfCISA = `SELECT s.cve FROM feeds_signal s WHERE s.kind = 'public_exploit' AND s.source = 'nuclei-templates'
 AND EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = s.cve AND k.list = 'cisa')`

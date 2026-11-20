@@ -42780,6 +42780,2026 @@ func (s *CorePutCoreOidcReqRoleMapItemRole) UnmarshalText(data []byte) error {
 	}
 }
 
+type DetectionGetDetectionAlertsIDOK struct {
+	// The rule's class as the event wrote it (for example "Attempted Administrator Privilege Gain"); empty
+	// when it gives none.
+	Category string `json:"category"`
+	// Events grouped into this alert: one alert per signature, source, destination and hour.
+	Count int `json:"count"`
+	// The CVE ids the event names, sorted; empty when it names none.
+	Cves []string `json:"cves"`
+	// The inventory device with the destination address: the device that was attacked; null when none has
+	// it.
+	DstDevice NilDetectionGetDetectionAlertsIDOKDstDevice `json:"dst_device"`
+	// IPv4 or IPv6 address as the event names it.
+	DstIP string `json:"dst_ip"`
+	// Null when the event gives no port (ICMP).
+	DstPort NilInt `json:"dst_port"`
+	// Findings of dst_device for the CVEs in cves; empty when the device is not affected or not in the
+	// inventory.
+	Findings  []DetectionGetDetectionAlertsIDOKFindingsItem `json:"findings"`
+	FirstSeen time.Time                                     `json:"first_seen"`
+	ID        string                                        `json:"id"`
+	// Null when no incident was opened (the notify module is off).
+	Incident NilDetectionGetDetectionAlertsIDOKIncident `json:"incident"`
+	LastSeen time.Time                                  `json:"last_seen"`
+	// 1 = most urgent, as the rule ranks it (Suricata priority; FortiGate critical/high/medium/low map to
+	// 1..4).
+	Priority int `json:"priority"`
+	// Transport as the event wrote it, lower case: tcp, udp, icmp; empty when it gives none.
+	Proto string `json:"proto"`
+	// From the priority, raised to critical when the attacked device is affected by a CVE the alert names.
+	Severity DetectionGetDetectionAlertsIDOKSeverity `json:"severity"`
+	// The rule or signature number the event gives; null when it gives none.
+	Sid NilInt `json:"sid"`
+	// The rule or signature name as the event wrote it.
+	Signature string `json:"signature"`
+	// Where the box saw the event. Open vocabulary: log = an IPS or IDS event in a log line a firewall
+	// sent to the box (FortiGate IPS, Suricata or Snort on pfSense/OPNsense, other device profiles). New
+	// sources add values.
+	Source string `json:"source"`
+	// The inventory device with the source address; null for an address outside the inventory.
+	SrcDevice NilDetectionGetDetectionAlertsIDOKSrcDevice `json:"src_device"`
+	// IPv4 or IPv6 address as the event names it.
+	SrcIP string `json:"src_ip"`
+}
+
+// GetCategory returns the value of Category.
+func (s *DetectionGetDetectionAlertsIDOK) GetCategory() string {
+	return s.Category
+}
+
+// GetCount returns the value of Count.
+func (s *DetectionGetDetectionAlertsIDOK) GetCount() int {
+	return s.Count
+}
+
+// GetCves returns the value of Cves.
+func (s *DetectionGetDetectionAlertsIDOK) GetCves() []string {
+	return s.Cves
+}
+
+// GetDstDevice returns the value of DstDevice.
+func (s *DetectionGetDetectionAlertsIDOK) GetDstDevice() NilDetectionGetDetectionAlertsIDOKDstDevice {
+	return s.DstDevice
+}
+
+// GetDstIP returns the value of DstIP.
+func (s *DetectionGetDetectionAlertsIDOK) GetDstIP() string {
+	return s.DstIP
+}
+
+// GetDstPort returns the value of DstPort.
+func (s *DetectionGetDetectionAlertsIDOK) GetDstPort() NilInt {
+	return s.DstPort
+}
+
+// GetFindings returns the value of Findings.
+func (s *DetectionGetDetectionAlertsIDOK) GetFindings() []DetectionGetDetectionAlertsIDOKFindingsItem {
+	return s.Findings
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *DetectionGetDetectionAlertsIDOK) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetIncident returns the value of Incident.
+func (s *DetectionGetDetectionAlertsIDOK) GetIncident() NilDetectionGetDetectionAlertsIDOKIncident {
+	return s.Incident
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *DetectionGetDetectionAlertsIDOK) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPriority returns the value of Priority.
+func (s *DetectionGetDetectionAlertsIDOK) GetPriority() int {
+	return s.Priority
+}
+
+// GetProto returns the value of Proto.
+func (s *DetectionGetDetectionAlertsIDOK) GetProto() string {
+	return s.Proto
+}
+
+// GetSeverity returns the value of Severity.
+func (s *DetectionGetDetectionAlertsIDOK) GetSeverity() DetectionGetDetectionAlertsIDOKSeverity {
+	return s.Severity
+}
+
+// GetSid returns the value of Sid.
+func (s *DetectionGetDetectionAlertsIDOK) GetSid() NilInt {
+	return s.Sid
+}
+
+// GetSignature returns the value of Signature.
+func (s *DetectionGetDetectionAlertsIDOK) GetSignature() string {
+	return s.Signature
+}
+
+// GetSource returns the value of Source.
+func (s *DetectionGetDetectionAlertsIDOK) GetSource() string {
+	return s.Source
+}
+
+// GetSrcDevice returns the value of SrcDevice.
+func (s *DetectionGetDetectionAlertsIDOK) GetSrcDevice() NilDetectionGetDetectionAlertsIDOKSrcDevice {
+	return s.SrcDevice
+}
+
+// GetSrcIP returns the value of SrcIP.
+func (s *DetectionGetDetectionAlertsIDOK) GetSrcIP() string {
+	return s.SrcIP
+}
+
+// SetCategory sets the value of Category.
+func (s *DetectionGetDetectionAlertsIDOK) SetCategory(val string) {
+	s.Category = val
+}
+
+// SetCount sets the value of Count.
+func (s *DetectionGetDetectionAlertsIDOK) SetCount(val int) {
+	s.Count = val
+}
+
+// SetCves sets the value of Cves.
+func (s *DetectionGetDetectionAlertsIDOK) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDstDevice sets the value of DstDevice.
+func (s *DetectionGetDetectionAlertsIDOK) SetDstDevice(val NilDetectionGetDetectionAlertsIDOKDstDevice) {
+	s.DstDevice = val
+}
+
+// SetDstIP sets the value of DstIP.
+func (s *DetectionGetDetectionAlertsIDOK) SetDstIP(val string) {
+	s.DstIP = val
+}
+
+// SetDstPort sets the value of DstPort.
+func (s *DetectionGetDetectionAlertsIDOK) SetDstPort(val NilInt) {
+	s.DstPort = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *DetectionGetDetectionAlertsIDOK) SetFindings(val []DetectionGetDetectionAlertsIDOKFindingsItem) {
+	s.Findings = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *DetectionGetDetectionAlertsIDOK) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetIncident sets the value of Incident.
+func (s *DetectionGetDetectionAlertsIDOK) SetIncident(val NilDetectionGetDetectionAlertsIDOKIncident) {
+	s.Incident = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *DetectionGetDetectionAlertsIDOK) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *DetectionGetDetectionAlertsIDOK) SetPriority(val int) {
+	s.Priority = val
+}
+
+// SetProto sets the value of Proto.
+func (s *DetectionGetDetectionAlertsIDOK) SetProto(val string) {
+	s.Proto = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *DetectionGetDetectionAlertsIDOK) SetSeverity(val DetectionGetDetectionAlertsIDOKSeverity) {
+	s.Severity = val
+}
+
+// SetSid sets the value of Sid.
+func (s *DetectionGetDetectionAlertsIDOK) SetSid(val NilInt) {
+	s.Sid = val
+}
+
+// SetSignature sets the value of Signature.
+func (s *DetectionGetDetectionAlertsIDOK) SetSignature(val string) {
+	s.Signature = val
+}
+
+// SetSource sets the value of Source.
+func (s *DetectionGetDetectionAlertsIDOK) SetSource(val string) {
+	s.Source = val
+}
+
+// SetSrcDevice sets the value of SrcDevice.
+func (s *DetectionGetDetectionAlertsIDOK) SetSrcDevice(val NilDetectionGetDetectionAlertsIDOKSrcDevice) {
+	s.SrcDevice = val
+}
+
+// SetSrcIP sets the value of SrcIP.
+func (s *DetectionGetDetectionAlertsIDOK) SetSrcIP(val string) {
+	s.SrcIP = val
+}
+
+type DetectionGetDetectionAlertsIDOKDstDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKDstDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKDstDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKDstDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKDstDevice) SetName(val string) {
+	s.Name = val
+}
+
+// A finding of the attacked device for a CVE the alert names: this device is affected by what was
+// fired at it.
+type DetectionGetDetectionAlertsIDOKFindingsItem struct {
+	Cve    string                                            `json:"cve"`
+	Device DetectionGetDetectionAlertsIDOKFindingsItemDevice `json:"device"`
+	ID     string                                            `json:"id"`
+	// The finding's one status (under_attack while it is open and this attack is recent).
+	Status DetectionGetDetectionAlertsIDOKFindingsItemStatus `json:"status"`
+}
+
+// GetCve returns the value of Cve.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) GetDevice() DetectionGetDetectionAlertsIDOKFindingsItemDevice {
+	return s.Device
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) GetID() string {
+	return s.ID
+}
+
+// GetStatus returns the value of Status.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) GetStatus() DetectionGetDetectionAlertsIDOKFindingsItemStatus {
+	return s.Status
+}
+
+// SetCve sets the value of Cve.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) SetDevice(val DetectionGetDetectionAlertsIDOKFindingsItemDevice) {
+	s.Device = val
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItem) SetStatus(val DetectionGetDetectionAlertsIDOKFindingsItemStatus) {
+	s.Status = val
+}
+
+type DetectionGetDetectionAlertsIDOKFindingsItemDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+// The finding's one status (under_attack while it is open and this attack is recent).
+type DetectionGetDetectionAlertsIDOKFindingsItemStatus string
+
+const (
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusUnderAttack       DetectionGetDetectionAlertsIDOKFindingsItemStatus = "under_attack"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusExploited         DetectionGetDetectionAlertsIDOKFindingsItemStatus = "exploited"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusPublicExploit     DetectionGetDetectionAlertsIDOKFindingsItemStatus = "public_exploit"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusCriticalEdge      DetectionGetDetectionAlertsIDOKFindingsItemStatus = "critical_edge"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusUpdateRecommended DetectionGetDetectionAlertsIDOKFindingsItemStatus = "update_recommended"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusPatched           DetectionGetDetectionAlertsIDOKFindingsItemStatus = "patched"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusMitigated         DetectionGetDetectionAlertsIDOKFindingsItemStatus = "mitigated"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusAccepted          DetectionGetDetectionAlertsIDOKFindingsItemStatus = "accepted"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusNotRelevant       DetectionGetDetectionAlertsIDOKFindingsItemStatus = "not_relevant"
+	DetectionGetDetectionAlertsIDOKFindingsItemStatusFalsePositive     DetectionGetDetectionAlertsIDOKFindingsItemStatus = "false_positive"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsIDOKFindingsItemStatus values.
+func (DetectionGetDetectionAlertsIDOKFindingsItemStatus) AllValues() []DetectionGetDetectionAlertsIDOKFindingsItemStatus {
+	return []DetectionGetDetectionAlertsIDOKFindingsItemStatus{
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusUnderAttack,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusExploited,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusPublicExploit,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusCriticalEdge,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusUpdateRecommended,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusPatched,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusMitigated,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusAccepted,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusNotRelevant,
+		DetectionGetDetectionAlertsIDOKFindingsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsIDOKFindingsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusUnderAttack:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusExploited:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusPublicExploit:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusPatched:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusMitigated:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusAccepted:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusNotRelevant:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsIDOKFindingsItemStatus) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsIDOKFindingsItemStatus(data) {
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusUnderAttack:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusUnderAttack
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusExploited:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusExploited
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusPublicExploit:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusPublicExploit
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusCriticalEdge:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusCriticalEdge
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusUpdateRecommended:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusUpdateRecommended
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusPatched:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusPatched
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusMitigated:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusMitigated
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusAccepted:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusAccepted
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusNotRelevant:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusNotRelevant
+		return nil
+	case DetectionGetDetectionAlertsIDOKFindingsItemStatusFalsePositive:
+		*s = DetectionGetDetectionAlertsIDOKFindingsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionAlertsIDOKIncident struct {
+	// The incident of kind intrusion that groups this alert; handle it with PATCH /notify/incidents/{id}.
+	ID     string                                        `json:"id"`
+	Status DetectionGetDetectionAlertsIDOKIncidentStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKIncident) GetID() string {
+	return s.ID
+}
+
+// GetStatus returns the value of Status.
+func (s *DetectionGetDetectionAlertsIDOKIncident) GetStatus() DetectionGetDetectionAlertsIDOKIncidentStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKIncident) SetID(val string) {
+	s.ID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *DetectionGetDetectionAlertsIDOKIncident) SetStatus(val DetectionGetDetectionAlertsIDOKIncidentStatus) {
+	s.Status = val
+}
+
+type DetectionGetDetectionAlertsIDOKIncidentStatus string
+
+const (
+	DetectionGetDetectionAlertsIDOKIncidentStatusNew          DetectionGetDetectionAlertsIDOKIncidentStatus = "new"
+	DetectionGetDetectionAlertsIDOKIncidentStatusAcknowledged DetectionGetDetectionAlertsIDOKIncidentStatus = "acknowledged"
+	DetectionGetDetectionAlertsIDOKIncidentStatusResolved     DetectionGetDetectionAlertsIDOKIncidentStatus = "resolved"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsIDOKIncidentStatus values.
+func (DetectionGetDetectionAlertsIDOKIncidentStatus) AllValues() []DetectionGetDetectionAlertsIDOKIncidentStatus {
+	return []DetectionGetDetectionAlertsIDOKIncidentStatus{
+		DetectionGetDetectionAlertsIDOKIncidentStatusNew,
+		DetectionGetDetectionAlertsIDOKIncidentStatusAcknowledged,
+		DetectionGetDetectionAlertsIDOKIncidentStatusResolved,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsIDOKIncidentStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsIDOKIncidentStatusNew:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKIncidentStatusAcknowledged:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKIncidentStatusResolved:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsIDOKIncidentStatus) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsIDOKIncidentStatus(data) {
+	case DetectionGetDetectionAlertsIDOKIncidentStatusNew:
+		*s = DetectionGetDetectionAlertsIDOKIncidentStatusNew
+		return nil
+	case DetectionGetDetectionAlertsIDOKIncidentStatusAcknowledged:
+		*s = DetectionGetDetectionAlertsIDOKIncidentStatusAcknowledged
+		return nil
+	case DetectionGetDetectionAlertsIDOKIncidentStatusResolved:
+		*s = DetectionGetDetectionAlertsIDOKIncidentStatusResolved
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// From the priority, raised to critical when the attacked device is affected by a CVE the alert names.
+type DetectionGetDetectionAlertsIDOKSeverity string
+
+const (
+	DetectionGetDetectionAlertsIDOKSeverityCritical DetectionGetDetectionAlertsIDOKSeverity = "critical"
+	DetectionGetDetectionAlertsIDOKSeverityHigh     DetectionGetDetectionAlertsIDOKSeverity = "high"
+	DetectionGetDetectionAlertsIDOKSeverityMedium   DetectionGetDetectionAlertsIDOKSeverity = "medium"
+	DetectionGetDetectionAlertsIDOKSeverityLow      DetectionGetDetectionAlertsIDOKSeverity = "low"
+	DetectionGetDetectionAlertsIDOKSeverityInfo     DetectionGetDetectionAlertsIDOKSeverity = "info"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsIDOKSeverity values.
+func (DetectionGetDetectionAlertsIDOKSeverity) AllValues() []DetectionGetDetectionAlertsIDOKSeverity {
+	return []DetectionGetDetectionAlertsIDOKSeverity{
+		DetectionGetDetectionAlertsIDOKSeverityCritical,
+		DetectionGetDetectionAlertsIDOKSeverityHigh,
+		DetectionGetDetectionAlertsIDOKSeverityMedium,
+		DetectionGetDetectionAlertsIDOKSeverityLow,
+		DetectionGetDetectionAlertsIDOKSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsIDOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsIDOKSeverityCritical:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKSeverityHigh:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKSeverityMedium:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKSeverityLow:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsIDOKSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsIDOKSeverity) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsIDOKSeverity(data) {
+	case DetectionGetDetectionAlertsIDOKSeverityCritical:
+		*s = DetectionGetDetectionAlertsIDOKSeverityCritical
+		return nil
+	case DetectionGetDetectionAlertsIDOKSeverityHigh:
+		*s = DetectionGetDetectionAlertsIDOKSeverityHigh
+		return nil
+	case DetectionGetDetectionAlertsIDOKSeverityMedium:
+		*s = DetectionGetDetectionAlertsIDOKSeverityMedium
+		return nil
+	case DetectionGetDetectionAlertsIDOKSeverityLow:
+		*s = DetectionGetDetectionAlertsIDOKSeverityLow
+		return nil
+	case DetectionGetDetectionAlertsIDOKSeverityInfo:
+		*s = DetectionGetDetectionAlertsIDOKSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionAlertsIDOKSrcDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKSrcDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKSrcDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsIDOKSrcDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsIDOKSrcDevice) SetName(val string) {
+	s.Name = val
+}
+
+type DetectionGetDetectionAlertsOK struct {
+	Items []DetectionGetDetectionAlertsOKItemsItem `json:"items"`
+	// Alerts that match the filters, every page.
+	Total int `json:"total"`
+}
+
+// GetItems returns the value of Items.
+func (s *DetectionGetDetectionAlertsOK) GetItems() []DetectionGetDetectionAlertsOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *DetectionGetDetectionAlertsOK) GetTotal() int {
+	return s.Total
+}
+
+// SetItems sets the value of Items.
+func (s *DetectionGetDetectionAlertsOK) SetItems(val []DetectionGetDetectionAlertsOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *DetectionGetDetectionAlertsOK) SetTotal(val int) {
+	s.Total = val
+}
+
+type DetectionGetDetectionAlertsOKItemsItem struct {
+	// The rule's class as the event wrote it (for example "Attempted Administrator Privilege Gain"); empty
+	// when it gives none.
+	Category string `json:"category"`
+	// Events grouped into this alert: one alert per signature, source, destination and hour.
+	Count int `json:"count"`
+	// The CVE ids the event names, sorted; empty when it names none.
+	Cves []string `json:"cves"`
+	// The inventory device with the destination address: the device that was attacked; null when none has
+	// it.
+	DstDevice NilDetectionGetDetectionAlertsOKItemsItemDstDevice `json:"dst_device"`
+	// IPv4 or IPv6 address as the event names it.
+	DstIP string `json:"dst_ip"`
+	// Null when the event gives no port (ICMP).
+	DstPort NilInt `json:"dst_port"`
+	// Findings of dst_device for the CVEs in cves; empty when the device is not affected or not in the
+	// inventory.
+	Findings  []DetectionGetDetectionAlertsOKItemsItemFindingsItem `json:"findings"`
+	FirstSeen time.Time                                            `json:"first_seen"`
+	ID        string                                               `json:"id"`
+	// Null when no incident was opened (the notify module is off).
+	Incident NilDetectionGetDetectionAlertsOKItemsItemIncident `json:"incident"`
+	LastSeen time.Time                                         `json:"last_seen"`
+	// 1 = most urgent, as the rule ranks it (Suricata priority; FortiGate critical/high/medium/low map to
+	// 1..4).
+	Priority int `json:"priority"`
+	// Transport as the event wrote it, lower case: tcp, udp, icmp; empty when it gives none.
+	Proto string `json:"proto"`
+	// From the priority, raised to critical when the attacked device is affected by a CVE the alert names.
+	Severity DetectionGetDetectionAlertsOKItemsItemSeverity `json:"severity"`
+	// The rule or signature number the event gives; null when it gives none.
+	Sid NilInt `json:"sid"`
+	// The rule or signature name as the event wrote it.
+	Signature string `json:"signature"`
+	// Where the box saw the event. Open vocabulary: log = an IPS or IDS event in a log line a firewall
+	// sent to the box (FortiGate IPS, Suricata or Snort on pfSense/OPNsense, other device profiles). New
+	// sources add values.
+	Source string `json:"source"`
+	// The inventory device with the source address; null for an address outside the inventory.
+	SrcDevice NilDetectionGetDetectionAlertsOKItemsItemSrcDevice `json:"src_device"`
+	// IPv4 or IPv6 address as the event names it.
+	SrcIP string `json:"src_ip"`
+}
+
+// GetCategory returns the value of Category.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetCategory() string {
+	return s.Category
+}
+
+// GetCount returns the value of Count.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetCount() int {
+	return s.Count
+}
+
+// GetCves returns the value of Cves.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetDstDevice returns the value of DstDevice.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetDstDevice() NilDetectionGetDetectionAlertsOKItemsItemDstDevice {
+	return s.DstDevice
+}
+
+// GetDstIP returns the value of DstIP.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetDstIP() string {
+	return s.DstIP
+}
+
+// GetDstPort returns the value of DstPort.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetDstPort() NilInt {
+	return s.DstPort
+}
+
+// GetFindings returns the value of Findings.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetFindings() []DetectionGetDetectionAlertsOKItemsItemFindingsItem {
+	return s.Findings
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIncident returns the value of Incident.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetIncident() NilDetectionGetDetectionAlertsOKItemsItemIncident {
+	return s.Incident
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetPriority returns the value of Priority.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetPriority() int {
+	return s.Priority
+}
+
+// GetProto returns the value of Proto.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetProto() string {
+	return s.Proto
+}
+
+// GetSeverity returns the value of Severity.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSeverity() DetectionGetDetectionAlertsOKItemsItemSeverity {
+	return s.Severity
+}
+
+// GetSid returns the value of Sid.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSid() NilInt {
+	return s.Sid
+}
+
+// GetSignature returns the value of Signature.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSignature() string {
+	return s.Signature
+}
+
+// GetSource returns the value of Source.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSource() string {
+	return s.Source
+}
+
+// GetSrcDevice returns the value of SrcDevice.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSrcDevice() NilDetectionGetDetectionAlertsOKItemsItemSrcDevice {
+	return s.SrcDevice
+}
+
+// GetSrcIP returns the value of SrcIP.
+func (s *DetectionGetDetectionAlertsOKItemsItem) GetSrcIP() string {
+	return s.SrcIP
+}
+
+// SetCategory sets the value of Category.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetCategory(val string) {
+	s.Category = val
+}
+
+// SetCount sets the value of Count.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetCves sets the value of Cves.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDstDevice sets the value of DstDevice.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetDstDevice(val NilDetectionGetDetectionAlertsOKItemsItemDstDevice) {
+	s.DstDevice = val
+}
+
+// SetDstIP sets the value of DstIP.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetDstIP(val string) {
+	s.DstIP = val
+}
+
+// SetDstPort sets the value of DstPort.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetDstPort(val NilInt) {
+	s.DstPort = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetFindings(val []DetectionGetDetectionAlertsOKItemsItemFindingsItem) {
+	s.Findings = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIncident sets the value of Incident.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetIncident(val NilDetectionGetDetectionAlertsOKItemsItemIncident) {
+	s.Incident = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetPriority(val int) {
+	s.Priority = val
+}
+
+// SetProto sets the value of Proto.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetProto(val string) {
+	s.Proto = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSeverity(val DetectionGetDetectionAlertsOKItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetSid sets the value of Sid.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSid(val NilInt) {
+	s.Sid = val
+}
+
+// SetSignature sets the value of Signature.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSignature(val string) {
+	s.Signature = val
+}
+
+// SetSource sets the value of Source.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetSrcDevice sets the value of SrcDevice.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSrcDevice(val NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) {
+	s.SrcDevice = val
+}
+
+// SetSrcIP sets the value of SrcIP.
+func (s *DetectionGetDetectionAlertsOKItemsItem) SetSrcIP(val string) {
+	s.SrcIP = val
+}
+
+type DetectionGetDetectionAlertsOKItemsItemDstDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemDstDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemDstDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemDstDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemDstDevice) SetName(val string) {
+	s.Name = val
+}
+
+// A finding of the attacked device for a CVE the alert names: this device is affected by what was
+// fired at it.
+type DetectionGetDetectionAlertsOKItemsItemFindingsItem struct {
+	Cve    string                                                   `json:"cve"`
+	Device DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice `json:"device"`
+	ID     string                                                   `json:"id"`
+	// The finding's one status (under_attack while it is open and this attack is recent).
+	Status DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus `json:"status"`
+}
+
+// GetCve returns the value of Cve.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) GetDevice() DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice {
+	return s.Device
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) GetID() string {
+	return s.ID
+}
+
+// GetStatus returns the value of Status.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) GetStatus() DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus {
+	return s.Status
+}
+
+// SetCve sets the value of Cve.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) SetDevice(val DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice) {
+	s.Device = val
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItem) SetStatus(val DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus) {
+	s.Status = val
+}
+
+type DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+// The finding's one status (under_attack while it is open and this attack is recent).
+type DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus string
+
+const (
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUnderAttack       DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "under_attack"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusExploited         DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "exploited"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPublicExploit     DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "public_exploit"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusCriticalEdge      DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "critical_edge"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUpdateRecommended DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "update_recommended"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPatched           DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "patched"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusMitigated         DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "mitigated"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusAccepted          DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "accepted"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusNotRelevant       DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "not_relevant"
+	DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusFalsePositive     DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus = "false_positive"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus values.
+func (DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus) AllValues() []DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus {
+	return []DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus{
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUnderAttack,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusExploited,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPublicExploit,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusCriticalEdge,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUpdateRecommended,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPatched,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusMitigated,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusAccepted,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusNotRelevant,
+		DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUnderAttack:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusExploited:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPublicExploit:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusCriticalEdge:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUpdateRecommended:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPatched:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusMitigated:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusAccepted:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusNotRelevant:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsOKItemsItemFindingsItemStatus(data) {
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUnderAttack:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUnderAttack
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusExploited:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusExploited
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPublicExploit:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPublicExploit
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusCriticalEdge:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusCriticalEdge
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUpdateRecommended:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusUpdateRecommended
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPatched:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusPatched
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusMitigated:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusMitigated
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusAccepted:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusAccepted
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusNotRelevant:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusNotRelevant
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusFalsePositive:
+		*s = DetectionGetDetectionAlertsOKItemsItemFindingsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionAlertsOKItemsItemIncident struct {
+	// The incident of kind intrusion that groups this alert; handle it with PATCH /notify/incidents/{id}.
+	ID     string                                               `json:"id"`
+	Status DetectionGetDetectionAlertsOKItemsItemIncidentStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemIncident) GetID() string {
+	return s.ID
+}
+
+// GetStatus returns the value of Status.
+func (s *DetectionGetDetectionAlertsOKItemsItemIncident) GetStatus() DetectionGetDetectionAlertsOKItemsItemIncidentStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemIncident) SetID(val string) {
+	s.ID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *DetectionGetDetectionAlertsOKItemsItemIncident) SetStatus(val DetectionGetDetectionAlertsOKItemsItemIncidentStatus) {
+	s.Status = val
+}
+
+type DetectionGetDetectionAlertsOKItemsItemIncidentStatus string
+
+const (
+	DetectionGetDetectionAlertsOKItemsItemIncidentStatusNew          DetectionGetDetectionAlertsOKItemsItemIncidentStatus = "new"
+	DetectionGetDetectionAlertsOKItemsItemIncidentStatusAcknowledged DetectionGetDetectionAlertsOKItemsItemIncidentStatus = "acknowledged"
+	DetectionGetDetectionAlertsOKItemsItemIncidentStatusResolved     DetectionGetDetectionAlertsOKItemsItemIncidentStatus = "resolved"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsOKItemsItemIncidentStatus values.
+func (DetectionGetDetectionAlertsOKItemsItemIncidentStatus) AllValues() []DetectionGetDetectionAlertsOKItemsItemIncidentStatus {
+	return []DetectionGetDetectionAlertsOKItemsItemIncidentStatus{
+		DetectionGetDetectionAlertsOKItemsItemIncidentStatusNew,
+		DetectionGetDetectionAlertsOKItemsItemIncidentStatusAcknowledged,
+		DetectionGetDetectionAlertsOKItemsItemIncidentStatusResolved,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsOKItemsItemIncidentStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusNew:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusAcknowledged:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusResolved:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsOKItemsItemIncidentStatus) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsOKItemsItemIncidentStatus(data) {
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusNew:
+		*s = DetectionGetDetectionAlertsOKItemsItemIncidentStatusNew
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusAcknowledged:
+		*s = DetectionGetDetectionAlertsOKItemsItemIncidentStatusAcknowledged
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemIncidentStatusResolved:
+		*s = DetectionGetDetectionAlertsOKItemsItemIncidentStatusResolved
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// From the priority, raised to critical when the attacked device is affected by a CVE the alert names.
+type DetectionGetDetectionAlertsOKItemsItemSeverity string
+
+const (
+	DetectionGetDetectionAlertsOKItemsItemSeverityCritical DetectionGetDetectionAlertsOKItemsItemSeverity = "critical"
+	DetectionGetDetectionAlertsOKItemsItemSeverityHigh     DetectionGetDetectionAlertsOKItemsItemSeverity = "high"
+	DetectionGetDetectionAlertsOKItemsItemSeverityMedium   DetectionGetDetectionAlertsOKItemsItemSeverity = "medium"
+	DetectionGetDetectionAlertsOKItemsItemSeverityLow      DetectionGetDetectionAlertsOKItemsItemSeverity = "low"
+	DetectionGetDetectionAlertsOKItemsItemSeverityInfo     DetectionGetDetectionAlertsOKItemsItemSeverity = "info"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsOKItemsItemSeverity values.
+func (DetectionGetDetectionAlertsOKItemsItemSeverity) AllValues() []DetectionGetDetectionAlertsOKItemsItemSeverity {
+	return []DetectionGetDetectionAlertsOKItemsItemSeverity{
+		DetectionGetDetectionAlertsOKItemsItemSeverityCritical,
+		DetectionGetDetectionAlertsOKItemsItemSeverityHigh,
+		DetectionGetDetectionAlertsOKItemsItemSeverityMedium,
+		DetectionGetDetectionAlertsOKItemsItemSeverityLow,
+		DetectionGetDetectionAlertsOKItemsItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsOKItemsItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsOKItemsItemSeverityCritical:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityHigh:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityMedium:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityLow:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsOKItemsItemSeverity) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsOKItemsItemSeverity(data) {
+	case DetectionGetDetectionAlertsOKItemsItemSeverityCritical:
+		*s = DetectionGetDetectionAlertsOKItemsItemSeverityCritical
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityHigh:
+		*s = DetectionGetDetectionAlertsOKItemsItemSeverityHigh
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityMedium:
+		*s = DetectionGetDetectionAlertsOKItemsItemSeverityMedium
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityLow:
+		*s = DetectionGetDetectionAlertsOKItemsItemSeverityLow
+		return nil
+	case DetectionGetDetectionAlertsOKItemsItemSeverityInfo:
+		*s = DetectionGetDetectionAlertsOKItemsItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionAlertsOKItemsItemSrcDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemSrcDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemSrcDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionAlertsOKItemsItemSrcDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionAlertsOKItemsItemSrcDevice) SetName(val string) {
+	s.Name = val
+}
+
+// Default last.
+type DetectionGetDetectionAlertsSort string
+
+const (
+	DetectionGetDetectionAlertsSortLast  DetectionGetDetectionAlertsSort = "last"
+	DetectionGetDetectionAlertsSortCount DetectionGetDetectionAlertsSort = "count"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsSort values.
+func (DetectionGetDetectionAlertsSort) AllValues() []DetectionGetDetectionAlertsSort {
+	return []DetectionGetDetectionAlertsSort{
+		DetectionGetDetectionAlertsSortLast,
+		DetectionGetDetectionAlertsSortCount,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsSort) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsSortLast:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsSortCount:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsSort) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsSort(data) {
+	case DetectionGetDetectionAlertsSortLast:
+		*s = DetectionGetDetectionAlertsSortLast
+		return nil
+	case DetectionGetDetectionAlertsSortCount:
+		*s = DetectionGetDetectionAlertsSortCount
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionAlertsWindow string
+
+const (
+	DetectionGetDetectionAlertsWindow24h DetectionGetDetectionAlertsWindow = "24h"
+	DetectionGetDetectionAlertsWindow7d  DetectionGetDetectionAlertsWindow = "7d"
+	DetectionGetDetectionAlertsWindow30d DetectionGetDetectionAlertsWindow = "30d"
+)
+
+// AllValues returns all DetectionGetDetectionAlertsWindow values.
+func (DetectionGetDetectionAlertsWindow) AllValues() []DetectionGetDetectionAlertsWindow {
+	return []DetectionGetDetectionAlertsWindow{
+		DetectionGetDetectionAlertsWindow24h,
+		DetectionGetDetectionAlertsWindow7d,
+		DetectionGetDetectionAlertsWindow30d,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionAlertsWindow) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionAlertsWindow24h:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsWindow7d:
+		return []byte(s), nil
+	case DetectionGetDetectionAlertsWindow30d:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionAlertsWindow) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionAlertsWindow(data) {
+	case DetectionGetDetectionAlertsWindow24h:
+		*s = DetectionGetDetectionAlertsWindow24h
+		return nil
+	case DetectionGetDetectionAlertsWindow7d:
+		*s = DetectionGetDetectionAlertsWindow7d
+		return nil
+	case DetectionGetDetectionAlertsWindow30d:
+		*s = DetectionGetDetectionAlertsWindow30d
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionOverviewOK struct {
+	Alerts      DetectionGetDetectionOverviewOKAlerts `json:"alerts"`
+	GeneratedAt time.Time                             `json:"generated_at"`
+	// Every kind, in the order of DetectionKind, zero included.
+	Kinds          []DetectionGetDetectionOverviewOKKindsItem    `json:"kinds"`
+	MirrorPortHits DetectionGetDetectionOverviewOKMirrorPortHits `json:"mirror_port_hits"`
+	// In display order: traps, logs, mirror_port, ips_events; a watcher this install cannot run is listed
+	// as unavailable, an engine the box does not have is never listed.
+	Watchers   []DetectionGetDetectionOverviewOKWatchersItem `json:"watchers"`
+	WindowDays float64                                       `json:"window_days"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *DetectionGetDetectionOverviewOK) GetAlerts() DetectionGetDetectionOverviewOKAlerts {
+	return s.Alerts
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *DetectionGetDetectionOverviewOK) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetKinds returns the value of Kinds.
+func (s *DetectionGetDetectionOverviewOK) GetKinds() []DetectionGetDetectionOverviewOKKindsItem {
+	return s.Kinds
+}
+
+// GetMirrorPortHits returns the value of MirrorPortHits.
+func (s *DetectionGetDetectionOverviewOK) GetMirrorPortHits() DetectionGetDetectionOverviewOKMirrorPortHits {
+	return s.MirrorPortHits
+}
+
+// GetWatchers returns the value of Watchers.
+func (s *DetectionGetDetectionOverviewOK) GetWatchers() []DetectionGetDetectionOverviewOKWatchersItem {
+	return s.Watchers
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *DetectionGetDetectionOverviewOK) GetWindowDays() float64 {
+	return s.WindowDays
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *DetectionGetDetectionOverviewOK) SetAlerts(val DetectionGetDetectionOverviewOKAlerts) {
+	s.Alerts = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *DetectionGetDetectionOverviewOK) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *DetectionGetDetectionOverviewOK) SetKinds(val []DetectionGetDetectionOverviewOKKindsItem) {
+	s.Kinds = val
+}
+
+// SetMirrorPortHits sets the value of MirrorPortHits.
+func (s *DetectionGetDetectionOverviewOK) SetMirrorPortHits(val DetectionGetDetectionOverviewOKMirrorPortHits) {
+	s.MirrorPortHits = val
+}
+
+// SetWatchers sets the value of Watchers.
+func (s *DetectionGetDetectionOverviewOK) SetWatchers(val []DetectionGetDetectionOverviewOKWatchersItem) {
+	s.Watchers = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *DetectionGetDetectionOverviewOK) SetWindowDays(val float64) {
+	s.WindowDays = val
+}
+
+type DetectionGetDetectionOverviewOKAlerts struct {
+	// Of those, the alerts whose attacked device is affected by a CVE they name.
+	Affected int `json:"affected"`
+	// Intrusion alerts with activity in the window; 0 while the ids module is off.
+	Total int `json:"total"`
+}
+
+// GetAffected returns the value of Affected.
+func (s *DetectionGetDetectionOverviewOKAlerts) GetAffected() int {
+	return s.Affected
+}
+
+// GetTotal returns the value of Total.
+func (s *DetectionGetDetectionOverviewOKAlerts) GetTotal() int {
+	return s.Total
+}
+
+// SetAffected sets the value of Affected.
+func (s *DetectionGetDetectionOverviewOKAlerts) SetAffected(val int) {
+	s.Affected = val
+}
+
+// SetTotal sets the value of Total.
+func (s *DetectionGetDetectionOverviewOKAlerts) SetTotal(val int) {
+	s.Total = val
+}
+
+type DetectionGetDetectionOverviewOKKindsItem struct {
+	// Incidents of this kind with activity in the window.
+	Incidents int                                          `json:"incidents"`
+	Kind      DetectionGetDetectionOverviewOKKindsItemKind `json:"kind"`
+	// Of those, the ones nobody acknowledged or resolved yet.
+	New int `json:"new"`
+}
+
+// GetIncidents returns the value of Incidents.
+func (s *DetectionGetDetectionOverviewOKKindsItem) GetIncidents() int {
+	return s.Incidents
+}
+
+// GetKind returns the value of Kind.
+func (s *DetectionGetDetectionOverviewOKKindsItem) GetKind() DetectionGetDetectionOverviewOKKindsItemKind {
+	return s.Kind
+}
+
+// GetNew returns the value of New.
+func (s *DetectionGetDetectionOverviewOKKindsItem) GetNew() int {
+	return s.New
+}
+
+// SetIncidents sets the value of Incidents.
+func (s *DetectionGetDetectionOverviewOKKindsItem) SetIncidents(val int) {
+	s.Incidents = val
+}
+
+// SetKind sets the value of Kind.
+func (s *DetectionGetDetectionOverviewOKKindsItem) SetKind(val DetectionGetDetectionOverviewOKKindsItemKind) {
+	s.Kind = val
+}
+
+// SetNew sets the value of New.
+func (s *DetectionGetDetectionOverviewOKKindsItem) SetNew(val int) {
+	s.New = val
+}
+
+type DetectionGetDetectionOverviewOKKindsItemKind string
+
+const (
+	DetectionGetDetectionOverviewOKKindsItemKindTrap          DetectionGetDetectionOverviewOKKindsItemKind = "trap"
+	DetectionGetDetectionOverviewOKKindsItemKindBadAddress    DetectionGetDetectionOverviewOKKindsItemKind = "bad_address"
+	DetectionGetDetectionOverviewOKKindsItemKindLogAnomaly    DetectionGetDetectionOverviewOKKindsItemKind = "log_anomaly"
+	DetectionGetDetectionOverviewOKKindsItemKindUnknownDevice DetectionGetDetectionOverviewOKKindsItemKind = "unknown_device"
+	DetectionGetDetectionOverviewOKKindsItemKindIntrusion     DetectionGetDetectionOverviewOKKindsItemKind = "intrusion"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKKindsItemKind values.
+func (DetectionGetDetectionOverviewOKKindsItemKind) AllValues() []DetectionGetDetectionOverviewOKKindsItemKind {
+	return []DetectionGetDetectionOverviewOKKindsItemKind{
+		DetectionGetDetectionOverviewOKKindsItemKindTrap,
+		DetectionGetDetectionOverviewOKKindsItemKindBadAddress,
+		DetectionGetDetectionOverviewOKKindsItemKindLogAnomaly,
+		DetectionGetDetectionOverviewOKKindsItemKindUnknownDevice,
+		DetectionGetDetectionOverviewOKKindsItemKindIntrusion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKKindsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKKindsItemKindTrap:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKKindsItemKindBadAddress:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKKindsItemKindLogAnomaly:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKKindsItemKindUnknownDevice:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKKindsItemKindIntrusion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKKindsItemKind) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKKindsItemKind(data) {
+	case DetectionGetDetectionOverviewOKKindsItemKindTrap:
+		*s = DetectionGetDetectionOverviewOKKindsItemKindTrap
+		return nil
+	case DetectionGetDetectionOverviewOKKindsItemKindBadAddress:
+		*s = DetectionGetDetectionOverviewOKKindsItemKindBadAddress
+		return nil
+	case DetectionGetDetectionOverviewOKKindsItemKindLogAnomaly:
+		*s = DetectionGetDetectionOverviewOKKindsItemKindLogAnomaly
+		return nil
+	case DetectionGetDetectionOverviewOKKindsItemKindUnknownDevice:
+		*s = DetectionGetDetectionOverviewOKKindsItemKindUnknownDevice
+		return nil
+	case DetectionGetDetectionOverviewOKKindsItemKindIntrusion:
+		*s = DetectionGetDetectionOverviewOKKindsItemKindIntrusion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionOverviewOKMirrorPortHits struct {
+	// The newest five; the full list is GET /logs/bad-connections.
+	Latest []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem `json:"latest"`
+	// Bad-address hits seen through the mirror port in the window.
+	Total int `json:"total"`
+}
+
+// GetLatest returns the value of Latest.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHits) GetLatest() []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem {
+	return s.Latest
+}
+
+// GetTotal returns the value of Total.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHits) GetTotal() int {
+	return s.Total
+}
+
+// SetLatest sets the value of Latest.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHits) SetLatest(val []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) {
+	s.Latest = val
+}
+
+// SetTotal sets the value of Total.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHits) SetTotal(val int) {
+	s.Total = val
+}
+
+type DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem struct {
+	Dest     string                                                          `json:"dest"`
+	DestKind DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind `json:"dest_kind"`
+	// The inventory device with src_ip; null when none has it.
+	Device NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice `json:"device"`
+	// Threat feeds that list the destination.
+	Feeds   []string                                                       `json:"feeds"`
+	SeenVia DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia `json:"seen_via"`
+	// IPv4 or IPv6 address as the event names it.
+	SrcIP string    `json:"src_ip"`
+	Ts    time.Time `json:"ts"`
+}
+
+// GetDest returns the value of Dest.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetDest() string {
+	return s.Dest
+}
+
+// GetDestKind returns the value of DestKind.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetDestKind() DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind {
+	return s.DestKind
+}
+
+// GetDevice returns the value of Device.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetDevice() NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice {
+	return s.Device
+}
+
+// GetFeeds returns the value of Feeds.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetFeeds() []string {
+	return s.Feeds
+}
+
+// GetSeenVia returns the value of SeenVia.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetSeenVia() DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia {
+	return s.SeenVia
+}
+
+// GetSrcIP returns the value of SrcIP.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetSrcIP() string {
+	return s.SrcIP
+}
+
+// GetTs returns the value of Ts.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) GetTs() time.Time {
+	return s.Ts
+}
+
+// SetDest sets the value of Dest.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetDest(val string) {
+	s.Dest = val
+}
+
+// SetDestKind sets the value of DestKind.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetDestKind(val DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind) {
+	s.DestKind = val
+}
+
+// SetDevice sets the value of Device.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetDevice(val NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) {
+	s.Device = val
+}
+
+// SetFeeds sets the value of Feeds.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetFeeds(val []string) {
+	s.Feeds = val
+}
+
+// SetSeenVia sets the value of SeenVia.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetSeenVia(val DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia) {
+	s.SeenVia = val
+}
+
+// SetSrcIP sets the value of SrcIP.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetSrcIP(val string) {
+	s.SrcIP = val
+}
+
+// SetTs sets the value of Ts.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItem) SetTs(val time.Time) {
+	s.Ts = val
+}
+
+type DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind string
+
+const (
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindIP     DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind = "ip"
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindDomain DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind = "domain"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind values.
+func (DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind) AllValues() []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind {
+	return []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind{
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindIP,
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindDomain,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindIP:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindDomain:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKind(data) {
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindIP:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindIP
+		return nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindDomain:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDestKindDomain
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia string
+
+const (
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanDNS  DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia = "span_dns"
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanSni  DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia = "span_sni"
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanHTTP DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia = "span_http"
+	DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanFlow DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia = "span_flow"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia values.
+func (DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia) AllValues() []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia {
+	return []DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia{
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanDNS,
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanSni,
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanHTTP,
+		DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanFlow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanDNS:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanSni:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanHTTP:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanFlow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenVia(data) {
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanDNS:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanDNS
+		return nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanSni:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanSni
+		return nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanHTTP:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanHTTP
+		return nil
+	case DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanFlow:
+		*s = DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemSeenViaSpanFlow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type DetectionGetDetectionOverviewOKWatchersItem struct {
+	// Null when nothing can be done here (unavailable).
+	Action NilDetectionGetDetectionOverviewOKWatchersItemAction `json:"action"`
+	// One plain sentence for the row, for display only (for example "3 of 4 log sources are sending.");
+	// logic reads state.
+	Detail string `json:"detail"`
+	// What it raised in the last 7 days: trap hits, bad-address hits, log anomalies, alerts.
+	Detections7d int `json:"detections_7d"`
+	// Traps = decoy services and honey tokens (honeypot); logs = received logs matched against bad-address
+	// feeds and checked for anomalies (logs); mirror_port = DNS, TLS SNI, HTTP Host and flow metadata read
+	// from a mirror (SPAN) port, matched against bad-address feeds (sensor-passive); ips_events = IPS and
+	// IDS events in received firewall logs (ids). Only watchers this box can run are listed.
+	ID DetectionGetDetectionOverviewOKWatchersItemID `json:"id"`
+	// When it last saw something: a trap hit, a log line, a packet on the mirror port, an IPS event; null
+	// when never.
+	LastInputAt NilDateTime `json:"last_input_at"`
+	// The module that runs it: honeypot, logs, sensor-passive, ids.
+	Module string `json:"module"`
+	// Watching = on and its input arrives; quiet = set up, but its input stopped arriving (a log source
+	// silent, no traffic on the mirror port); failed = the box could not start it (a trap the host could
+	// not set up); not_set_up = the module is on and nothing feeds it yet (no Trap IP, no log source, no
+	// mirror port, no log source of a kind that writes IPS events); off = its module is off; unavailable =
+	// this install cannot run it (traps on a container-only install).
+	State DetectionGetDetectionOverviewOKWatchersItemState `json:"state"`
+}
+
+// GetAction returns the value of Action.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetAction() NilDetectionGetDetectionOverviewOKWatchersItemAction {
+	return s.Action
+}
+
+// GetDetail returns the value of Detail.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetDetections7d returns the value of Detections7d.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetDetections7d() int {
+	return s.Detections7d
+}
+
+// GetID returns the value of ID.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetID() DetectionGetDetectionOverviewOKWatchersItemID {
+	return s.ID
+}
+
+// GetLastInputAt returns the value of LastInputAt.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetLastInputAt() NilDateTime {
+	return s.LastInputAt
+}
+
+// GetModule returns the value of Module.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetModule() string {
+	return s.Module
+}
+
+// GetState returns the value of State.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) GetState() DetectionGetDetectionOverviewOKWatchersItemState {
+	return s.State
+}
+
+// SetAction sets the value of Action.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetAction(val NilDetectionGetDetectionOverviewOKWatchersItemAction) {
+	s.Action = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetDetections7d sets the value of Detections7d.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetDetections7d(val int) {
+	s.Detections7d = val
+}
+
+// SetID sets the value of ID.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetID(val DetectionGetDetectionOverviewOKWatchersItemID) {
+	s.ID = val
+}
+
+// SetLastInputAt sets the value of LastInputAt.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetLastInputAt(val NilDateTime) {
+	s.LastInputAt = val
+}
+
+// SetModule sets the value of Module.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetModule(val string) {
+	s.Module = val
+}
+
+// SetState sets the value of State.
+func (s *DetectionGetDetectionOverviewOKWatchersItem) SetState(val DetectionGetDetectionOverviewOKWatchersItemState) {
+	s.State = val
+}
+
+// The one action of the row: view = open its page; set_up = add what feeds it; fix = open what
+// stopped; turn_on = turn its module on (Settings, Modules).
+type DetectionGetDetectionOverviewOKWatchersItemAction string
+
+const (
+	DetectionGetDetectionOverviewOKWatchersItemActionView   DetectionGetDetectionOverviewOKWatchersItemAction = "view"
+	DetectionGetDetectionOverviewOKWatchersItemActionSetUp  DetectionGetDetectionOverviewOKWatchersItemAction = "set_up"
+	DetectionGetDetectionOverviewOKWatchersItemActionFix    DetectionGetDetectionOverviewOKWatchersItemAction = "fix"
+	DetectionGetDetectionOverviewOKWatchersItemActionTurnOn DetectionGetDetectionOverviewOKWatchersItemAction = "turn_on"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKWatchersItemAction values.
+func (DetectionGetDetectionOverviewOKWatchersItemAction) AllValues() []DetectionGetDetectionOverviewOKWatchersItemAction {
+	return []DetectionGetDetectionOverviewOKWatchersItemAction{
+		DetectionGetDetectionOverviewOKWatchersItemActionView,
+		DetectionGetDetectionOverviewOKWatchersItemActionSetUp,
+		DetectionGetDetectionOverviewOKWatchersItemActionFix,
+		DetectionGetDetectionOverviewOKWatchersItemActionTurnOn,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKWatchersItemAction) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKWatchersItemActionView:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionSetUp:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionFix:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionTurnOn:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKWatchersItemAction) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKWatchersItemAction(data) {
+	case DetectionGetDetectionOverviewOKWatchersItemActionView:
+		*s = DetectionGetDetectionOverviewOKWatchersItemActionView
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionSetUp:
+		*s = DetectionGetDetectionOverviewOKWatchersItemActionSetUp
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionFix:
+		*s = DetectionGetDetectionOverviewOKWatchersItemActionFix
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemActionTurnOn:
+		*s = DetectionGetDetectionOverviewOKWatchersItemActionTurnOn
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Traps = decoy services and honey tokens (honeypot); logs = received logs matched against bad-address
+// feeds and checked for anomalies (logs); mirror_port = DNS, TLS SNI, HTTP Host and flow metadata read
+// from a mirror (SPAN) port, matched against bad-address feeds (sensor-passive); ips_events = IPS and
+// IDS events in received firewall logs (ids). Only watchers this box can run are listed.
+type DetectionGetDetectionOverviewOKWatchersItemID string
+
+const (
+	DetectionGetDetectionOverviewOKWatchersItemIDTraps      DetectionGetDetectionOverviewOKWatchersItemID = "traps"
+	DetectionGetDetectionOverviewOKWatchersItemIDLogs       DetectionGetDetectionOverviewOKWatchersItemID = "logs"
+	DetectionGetDetectionOverviewOKWatchersItemIDMirrorPort DetectionGetDetectionOverviewOKWatchersItemID = "mirror_port"
+	DetectionGetDetectionOverviewOKWatchersItemIDIpsEvents  DetectionGetDetectionOverviewOKWatchersItemID = "ips_events"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKWatchersItemID values.
+func (DetectionGetDetectionOverviewOKWatchersItemID) AllValues() []DetectionGetDetectionOverviewOKWatchersItemID {
+	return []DetectionGetDetectionOverviewOKWatchersItemID{
+		DetectionGetDetectionOverviewOKWatchersItemIDTraps,
+		DetectionGetDetectionOverviewOKWatchersItemIDLogs,
+		DetectionGetDetectionOverviewOKWatchersItemIDMirrorPort,
+		DetectionGetDetectionOverviewOKWatchersItemIDIpsEvents,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKWatchersItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKWatchersItemIDTraps:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDLogs:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDMirrorPort:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDIpsEvents:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKWatchersItemID) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKWatchersItemID(data) {
+	case DetectionGetDetectionOverviewOKWatchersItemIDTraps:
+		*s = DetectionGetDetectionOverviewOKWatchersItemIDTraps
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDLogs:
+		*s = DetectionGetDetectionOverviewOKWatchersItemIDLogs
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDMirrorPort:
+		*s = DetectionGetDetectionOverviewOKWatchersItemIDMirrorPort
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemIDIpsEvents:
+		*s = DetectionGetDetectionOverviewOKWatchersItemIDIpsEvents
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Watching = on and its input arrives; quiet = set up, but its input stopped arriving (a log source
+// silent, no traffic on the mirror port); failed = the box could not start it (a trap the host could
+// not set up); not_set_up = the module is on and nothing feeds it yet (no Trap IP, no log source, no
+// mirror port, no log source of a kind that writes IPS events); off = its module is off; unavailable =
+// this install cannot run it (traps on a container-only install).
+type DetectionGetDetectionOverviewOKWatchersItemState string
+
+const (
+	DetectionGetDetectionOverviewOKWatchersItemStateWatching    DetectionGetDetectionOverviewOKWatchersItemState = "watching"
+	DetectionGetDetectionOverviewOKWatchersItemStateQuiet       DetectionGetDetectionOverviewOKWatchersItemState = "quiet"
+	DetectionGetDetectionOverviewOKWatchersItemStateFailed      DetectionGetDetectionOverviewOKWatchersItemState = "failed"
+	DetectionGetDetectionOverviewOKWatchersItemStateNotSetUp    DetectionGetDetectionOverviewOKWatchersItemState = "not_set_up"
+	DetectionGetDetectionOverviewOKWatchersItemStateOff         DetectionGetDetectionOverviewOKWatchersItemState = "off"
+	DetectionGetDetectionOverviewOKWatchersItemStateUnavailable DetectionGetDetectionOverviewOKWatchersItemState = "unavailable"
+)
+
+// AllValues returns all DetectionGetDetectionOverviewOKWatchersItemState values.
+func (DetectionGetDetectionOverviewOKWatchersItemState) AllValues() []DetectionGetDetectionOverviewOKWatchersItemState {
+	return []DetectionGetDetectionOverviewOKWatchersItemState{
+		DetectionGetDetectionOverviewOKWatchersItemStateWatching,
+		DetectionGetDetectionOverviewOKWatchersItemStateQuiet,
+		DetectionGetDetectionOverviewOKWatchersItemStateFailed,
+		DetectionGetDetectionOverviewOKWatchersItemStateNotSetUp,
+		DetectionGetDetectionOverviewOKWatchersItemStateOff,
+		DetectionGetDetectionOverviewOKWatchersItemStateUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DetectionGetDetectionOverviewOKWatchersItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case DetectionGetDetectionOverviewOKWatchersItemStateWatching:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateQuiet:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateFailed:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateNotSetUp:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateOff:
+		return []byte(s), nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DetectionGetDetectionOverviewOKWatchersItemState) UnmarshalText(data []byte) error {
+	switch DetectionGetDetectionOverviewOKWatchersItemState(data) {
+	case DetectionGetDetectionOverviewOKWatchersItemStateWatching:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateWatching
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateQuiet:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateQuiet
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateFailed:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateFailed
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateNotSetUp:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateNotSetUp
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateOff:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateOff
+		return nil
+	case DetectionGetDetectionOverviewOKWatchersItemStateUnavailable:
+		*s = DetectionGetDetectionOverviewOKWatchersItemStateUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Error
 type Error struct {
 	Error ErrorError `json:"error"`
@@ -144128,6 +146148,368 @@ func (o NilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewNilDetectionGetDetectionAlertsIDOKDstDevice returns new NilDetectionGetDetectionAlertsIDOKDstDevice with value set to v.
+func NewNilDetectionGetDetectionAlertsIDOKDstDevice(v DetectionGetDetectionAlertsIDOKDstDevice) NilDetectionGetDetectionAlertsIDOKDstDevice {
+	return NilDetectionGetDetectionAlertsIDOKDstDevice{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsIDOKDstDevice is nullable DetectionGetDetectionAlertsIDOKDstDevice.
+type NilDetectionGetDetectionAlertsIDOKDstDevice struct {
+	Value DetectionGetDetectionAlertsIDOKDstDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsIDOKDstDevice) SetTo(v DetectionGetDetectionAlertsIDOKDstDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsIDOKDstDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsIDOKDstDevice) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsIDOKDstDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsIDOKDstDevice) Get() (v DetectionGetDetectionAlertsIDOKDstDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsIDOKDstDevice) Or(d DetectionGetDetectionAlertsIDOKDstDevice) DetectionGetDetectionAlertsIDOKDstDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionAlertsIDOKIncident returns new NilDetectionGetDetectionAlertsIDOKIncident with value set to v.
+func NewNilDetectionGetDetectionAlertsIDOKIncident(v DetectionGetDetectionAlertsIDOKIncident) NilDetectionGetDetectionAlertsIDOKIncident {
+	return NilDetectionGetDetectionAlertsIDOKIncident{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsIDOKIncident is nullable DetectionGetDetectionAlertsIDOKIncident.
+type NilDetectionGetDetectionAlertsIDOKIncident struct {
+	Value DetectionGetDetectionAlertsIDOKIncident
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsIDOKIncident) SetTo(v DetectionGetDetectionAlertsIDOKIncident) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsIDOKIncident) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsIDOKIncident) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsIDOKIncident
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsIDOKIncident) Get() (v DetectionGetDetectionAlertsIDOKIncident, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsIDOKIncident) Or(d DetectionGetDetectionAlertsIDOKIncident) DetectionGetDetectionAlertsIDOKIncident {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionAlertsIDOKSrcDevice returns new NilDetectionGetDetectionAlertsIDOKSrcDevice with value set to v.
+func NewNilDetectionGetDetectionAlertsIDOKSrcDevice(v DetectionGetDetectionAlertsIDOKSrcDevice) NilDetectionGetDetectionAlertsIDOKSrcDevice {
+	return NilDetectionGetDetectionAlertsIDOKSrcDevice{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsIDOKSrcDevice is nullable DetectionGetDetectionAlertsIDOKSrcDevice.
+type NilDetectionGetDetectionAlertsIDOKSrcDevice struct {
+	Value DetectionGetDetectionAlertsIDOKSrcDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsIDOKSrcDevice) SetTo(v DetectionGetDetectionAlertsIDOKSrcDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsIDOKSrcDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsIDOKSrcDevice) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsIDOKSrcDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsIDOKSrcDevice) Get() (v DetectionGetDetectionAlertsIDOKSrcDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsIDOKSrcDevice) Or(d DetectionGetDetectionAlertsIDOKSrcDevice) DetectionGetDetectionAlertsIDOKSrcDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionAlertsOKItemsItemDstDevice returns new NilDetectionGetDetectionAlertsOKItemsItemDstDevice with value set to v.
+func NewNilDetectionGetDetectionAlertsOKItemsItemDstDevice(v DetectionGetDetectionAlertsOKItemsItemDstDevice) NilDetectionGetDetectionAlertsOKItemsItemDstDevice {
+	return NilDetectionGetDetectionAlertsOKItemsItemDstDevice{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsOKItemsItemDstDevice is nullable DetectionGetDetectionAlertsOKItemsItemDstDevice.
+type NilDetectionGetDetectionAlertsOKItemsItemDstDevice struct {
+	Value DetectionGetDetectionAlertsOKItemsItemDstDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemDstDevice) SetTo(v DetectionGetDetectionAlertsOKItemsItemDstDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsOKItemsItemDstDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemDstDevice) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsOKItemsItemDstDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsOKItemsItemDstDevice) Get() (v DetectionGetDetectionAlertsOKItemsItemDstDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsOKItemsItemDstDevice) Or(d DetectionGetDetectionAlertsOKItemsItemDstDevice) DetectionGetDetectionAlertsOKItemsItemDstDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionAlertsOKItemsItemIncident returns new NilDetectionGetDetectionAlertsOKItemsItemIncident with value set to v.
+func NewNilDetectionGetDetectionAlertsOKItemsItemIncident(v DetectionGetDetectionAlertsOKItemsItemIncident) NilDetectionGetDetectionAlertsOKItemsItemIncident {
+	return NilDetectionGetDetectionAlertsOKItemsItemIncident{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsOKItemsItemIncident is nullable DetectionGetDetectionAlertsOKItemsItemIncident.
+type NilDetectionGetDetectionAlertsOKItemsItemIncident struct {
+	Value DetectionGetDetectionAlertsOKItemsItemIncident
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemIncident) SetTo(v DetectionGetDetectionAlertsOKItemsItemIncident) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsOKItemsItemIncident) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemIncident) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsOKItemsItemIncident
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsOKItemsItemIncident) Get() (v DetectionGetDetectionAlertsOKItemsItemIncident, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsOKItemsItemIncident) Or(d DetectionGetDetectionAlertsOKItemsItemIncident) DetectionGetDetectionAlertsOKItemsItemIncident {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionAlertsOKItemsItemSrcDevice returns new NilDetectionGetDetectionAlertsOKItemsItemSrcDevice with value set to v.
+func NewNilDetectionGetDetectionAlertsOKItemsItemSrcDevice(v DetectionGetDetectionAlertsOKItemsItemSrcDevice) NilDetectionGetDetectionAlertsOKItemsItemSrcDevice {
+	return NilDetectionGetDetectionAlertsOKItemsItemSrcDevice{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionAlertsOKItemsItemSrcDevice is nullable DetectionGetDetectionAlertsOKItemsItemSrcDevice.
+type NilDetectionGetDetectionAlertsOKItemsItemSrcDevice struct {
+	Value DetectionGetDetectionAlertsOKItemsItemSrcDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) SetTo(v DetectionGetDetectionAlertsOKItemsItemSrcDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionAlertsOKItemsItemSrcDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) Get() (v DetectionGetDetectionAlertsOKItemsItemSrcDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionAlertsOKItemsItemSrcDevice) Or(d DetectionGetDetectionAlertsOKItemsItemSrcDevice) DetectionGetDetectionAlertsOKItemsItemSrcDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice returns new NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice with value set to v.
+func NewNilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice(v DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice {
+	return NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice is nullable DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice.
+type NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice struct {
+	Value DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) SetTo(v DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) Get() (v DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) Or(d DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice) DetectionGetDetectionOverviewOKMirrorPortHitsLatestItemDevice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilDetectionGetDetectionOverviewOKWatchersItemAction returns new NilDetectionGetDetectionOverviewOKWatchersItemAction with value set to v.
+func NewNilDetectionGetDetectionOverviewOKWatchersItemAction(v DetectionGetDetectionOverviewOKWatchersItemAction) NilDetectionGetDetectionOverviewOKWatchersItemAction {
+	return NilDetectionGetDetectionOverviewOKWatchersItemAction{
+		Value: v,
+	}
+}
+
+// NilDetectionGetDetectionOverviewOKWatchersItemAction is nullable DetectionGetDetectionOverviewOKWatchersItemAction.
+type NilDetectionGetDetectionOverviewOKWatchersItemAction struct {
+	Value DetectionGetDetectionOverviewOKWatchersItemAction
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDetectionGetDetectionOverviewOKWatchersItemAction) SetTo(v DetectionGetDetectionOverviewOKWatchersItemAction) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDetectionGetDetectionOverviewOKWatchersItemAction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDetectionGetDetectionOverviewOKWatchersItemAction) SetToNull() {
+	o.Null = true
+	var v DetectionGetDetectionOverviewOKWatchersItemAction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDetectionGetDetectionOverviewOKWatchersItemAction) Get() (v DetectionGetDetectionOverviewOKWatchersItemAction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDetectionGetDetectionOverviewOKWatchersItemAction) Or(d DetectionGetDetectionOverviewOKWatchersItemAction) DetectionGetDetectionOverviewOKWatchersItemAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureDeleteExposureTargetsIDTermsOKBlockedReason returns new NilExposureDeleteExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposureDeleteExposureTargetsIDTermsOKBlockedReason(v ExposureDeleteExposureTargetsIDTermsOKBlockedReason) NilExposureDeleteExposureTargetsIDTermsOKBlockedReason {
 	return NilExposureDeleteExposureTargetsIDTermsOKBlockedReason{
@@ -169303,6 +171685,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDetectionGetDetectionAlertsSort returns new OptDetectionGetDetectionAlertsSort with value set to v.
+func NewOptDetectionGetDetectionAlertsSort(v DetectionGetDetectionAlertsSort) OptDetectionGetDetectionAlertsSort {
+	return OptDetectionGetDetectionAlertsSort{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDetectionGetDetectionAlertsSort is optional DetectionGetDetectionAlertsSort.
+type OptDetectionGetDetectionAlertsSort struct {
+	Value DetectionGetDetectionAlertsSort
+	Set   bool
+}
+
+// IsSet returns true if OptDetectionGetDetectionAlertsSort was set.
+func (o OptDetectionGetDetectionAlertsSort) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDetectionGetDetectionAlertsSort) Reset() {
+	var v DetectionGetDetectionAlertsSort
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDetectionGetDetectionAlertsSort) SetTo(v DetectionGetDetectionAlertsSort) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDetectionGetDetectionAlertsSort) Get() (v DetectionGetDetectionAlertsSort, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDetectionGetDetectionAlertsSort) Or(d DetectionGetDetectionAlertsSort) DetectionGetDetectionAlertsSort {
 	if v, ok := o.Get(); ok {
 		return v
 	}

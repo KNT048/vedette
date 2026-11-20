@@ -852,6 +852,32 @@ type Handler interface {
 	//
 	// PUT /core/oidc
 	CorePutCoreOidc(ctx context.Context, req *CorePutCoreOidcReq) (*CorePutCoreOidcOK, error)
+	// DetectionGetDetectionAlerts implements detection_get_detection_alerts operation.
+	//
+	// Intrusion alerts: IPS and IDS events the box saw, one row per signature, source, destination and
+	// hour, with the CVE ids they name, the attacked device's findings for those CVEs and the incident
+	// that groups them. Searched by the box over the signature, category, addresses, device names and CVE
+	// ids; filtered by device (source or destination) and CVE; ordered by the newest last event
+	// (sort=last) or the most events (sort=count), ties by id; paged by offset and limit (at most 200).
+	// 400 bad_window, invalid_cve.
+	//
+	// GET /detection/alerts
+	DetectionGetDetectionAlerts(ctx context.Context, params DetectionGetDetectionAlertsParams) (*DetectionGetDetectionAlertsOK, error)
+	// DetectionGetDetectionAlertsID implements detection_get_detection_alerts_id operation.
+	//
+	// One intrusion alert, as in the list (the link of its incident).
+	//
+	// GET /detection/alerts/{id}
+	DetectionGetDetectionAlertsID(ctx context.Context, params DetectionGetDetectionAlertsIDParams) (*DetectionGetDetectionAlertsIDOK, error)
+	// DetectionGetDetectionOverview implements detection_get_detection_overview operation.
+	//
+	// Intrusion detection at a glance: what watches the network (traps, logs, mirror port, IPS events in
+	// firewall logs), each with its true state and one action; the incidents of the last 7 days by kind;
+	// bad-address hits seen through the mirror port; the count of intrusion alerts. Answers while any
+	// detection module is off.
+	//
+	// GET /detection/overview
+	DetectionGetDetectionOverview(ctx context.Context) (*DetectionGetDetectionOverviewOK, error)
 	// ExposureDeleteExposureBoxIPIgnoredIP implements exposure_delete_exposure_box_ip_ignored_ip operation.
 	//
 	// Restore an IP from the Ignored list: detection may add it again the next time the box sees it. It is

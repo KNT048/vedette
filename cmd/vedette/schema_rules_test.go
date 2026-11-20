@@ -100,13 +100,6 @@ var jsonColumnAllowList = []string{
 	"sa_snmp.scope",
 	"sa_snmp_device.answer",
 	"scan_event.devices",
-	"scan_run.current",
-	"scan_run.identification",
-	"scan_run.picked",
-	"scan_run.results",
-	"scan_run.target_ids",
-	"scan_setting.days",
-	"scan_setting.exclusions",
 }
 
 // longValueListAllowList is every CHECK that restricts a column to more than five text values, as "table.column". An open

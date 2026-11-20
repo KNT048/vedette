@@ -67814,7 +67814,7 @@
                                             "null"
                                           ]
                                         },
-                                        "until": {
+                                        "accepted_until": {
                                           "anyOf": [
                                             {
                                               "type": "string",
@@ -67848,7 +67848,7 @@
                                         "by",
                                         "at",
                                         "note",
-                                        "until",
+                                        "accepted_until",
                                         "from_version",
                                         "to_version"
                                       ],
@@ -69928,7 +69928,7 @@
                                                 "null"
                                               ]
                                             },
-                                            "until": {
+                                            "accepted_until": {
                                               "anyOf": [
                                                 {
                                                   "type": "string",
@@ -69962,7 +69962,7 @@
                                             "by",
                                             "at",
                                             "note",
-                                            "until",
+                                            "accepted_until",
                                             "from_version",
                                             "to_version"
                                           ],

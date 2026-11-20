@@ -60,7 +60,7 @@ const OPEN = (end: number): (Omit<ReportFinding, 'first_seen'> & { age: number }
   { finding_id: 'f-107', cve: 'CVE-2024-6387', device: D.nas, product: 'OpenSSH', version: '8.9p1', status: 'public_exploit', reasons: [{ layer: 3, source: 'github-poc', name: 'GitHub', date: day(end, 12), url: null, detail: '244 stars', due: null }], severity: sev('high', 8.1), verification: byDevice, fix: fix('distro_update', 'OpenSSH', '1:8.9p1-3ubuntu0.10', 'USN-6859-1'), age: 12 },
 ]
 
-type Row = Omit<HandledItem, 'handled'> & { device: DeviceRef; age: number; handled: Omit<Handled, 'at' | 'until'> }
+type Row = Omit<HandledItem, 'handled'> & { device: DeviceRef; age: number; handled: Omit<Handled, 'at' | 'accepted_until'> }
 const h = (resolution: Handled['resolution'], via: Handled['via'], by: string, note: string | null = null, from_version: string | null = null, to_version: string | null = null) =>
   ({ resolution, via, by, note, from_version, to_version })
 const PERSON = 'it@acme.example'
@@ -103,7 +103,7 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
     .map(({ age, ...f }): ReportFinding => ({ ...f, first_seen: new Date(end - age * DAY).toISOString() }))
     .sort((a, b) => rank(a.status) - rank(b.status) || (b.severity?.score ?? 0) - (a.severity?.score ?? 0) || a.cve.localeCompare(b.cve))
   const handled = clean ? [] : HANDLED.filter((r) => keep(r.device) && (o.include_not_relevant || r.handled.resolution !== 'not_relevant'))
-    .map(({ age, ...r }) => ({ ...r, handled: { ...r.handled, at: new Date(end - age * DAY).toISOString(), until: r.handled.resolution === 'accepted' ? day(end, -30) : null } }))
+    .map(({ age, ...r }) => ({ ...r, handled: { ...r.handled, at: new Date(end - age * DAY).toISOString(), accepted_until: r.handled.resolution === 'accepted' ? day(end, -30) : null } }))
     .filter((r) => Date.parse(r.handled.at) >= from)
   const fresh = open.filter((f) => Date.parse(f.first_seen) >= from)
 

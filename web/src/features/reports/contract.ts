@@ -171,7 +171,7 @@ export const Handled = z.object({
   by: z.string().describe('"system" when Vedette handled it; else the person'),
   at: iso,
   note: z.string().nullable(),
-  until: z.iso.date().nullable().describe('accepted: the last day; null otherwise'),
+  accepted_until: z.iso.date().nullable().describe('accepted: the last day; null otherwise'),
   from_version: z.string().nullable().describe('via version_moved: the version that was affected'),
   to_version: z.string().nullable().describe('via version_moved: the version now installed'),
 }).describe('Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)"')

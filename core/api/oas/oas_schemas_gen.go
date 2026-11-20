@@ -180437,7 +180437,9 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetSeverity(val
 
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
 type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -180447,14 +180449,17 @@ type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled struct {
 	Resolution ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
 	// not_installed = a person said the software is not installed.
 	Via ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -180487,14 +180492,14 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetToVer
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -180525,11 +180530,6 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetResol
 // SetToVersion sets the value of ToVersion.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.
@@ -185528,7 +185528,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetSev
 
 // Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled struct {
-	At time.Time `json:"at"`
+	// Accepted: the last day; null otherwise.
+	AcceptedUntil NilDate   `json:"accepted_until"`
+	At            time.Time `json:"at"`
 	// "system" when Vedette handled it; else the person.
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
@@ -185538,14 +185540,17 @@ type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled stru
 	Resolution ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledResolution `json:"resolution"`
 	// Via version_moved: the version now installed.
 	ToVersion NilString `json:"to_version"`
-	// Accepted: the last day; null otherwise.
-	Until NilDate `json:"until"`
 	// How it was handled: person = a person marked it; version_moved = the software moved past the
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
 	// not_installed = a person said the software is not installed.
 	Via ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia `json:"via"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
 }
 
 // GetAt returns the value of At.
@@ -185578,14 +185583,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 	return s.ToVersion
 }
 
-// GetUntil returns the value of Until.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetUntil() NilDate {
-	return s.Until
-}
-
 // GetVia returns the value of Via.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) GetVia() ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia {
 	return s.Via
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
 }
 
 // SetAt sets the value of At.
@@ -185616,11 +185621,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 // SetToVersion sets the value of ToVersion.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetToVersion(val NilString) {
 	s.ToVersion = val
-}
-
-// SetUntil sets the value of Until.
-func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) SetUntil(val NilDate) {
-	s.Until = val
 }
 
 // SetVia sets the value of Via.

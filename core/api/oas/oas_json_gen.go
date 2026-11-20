@@ -290493,6 +290493,10 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Encode(e
 // encodeFields encodes fields.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -290517,23 +290521,19 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) encodeFi
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -290546,8 +290546,18 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -290559,7 +290569,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -290571,7 +290581,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -290581,7 +290591,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -290591,7 +290601,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -290601,7 +290611,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -290609,16 +290619,6 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled) Decode(d
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7
@@ -299801,6 +299801,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 // encodeFields encodes fields.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("accepted_until")
+		s.AcceptedUntil.Encode(e, json.EncodeDate)
+	}
+	{
 		e.FieldStart("at")
 		json.EncodeDateTime(e, s.At)
 	}
@@ -299825,23 +299829,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 		s.ToVersion.Encode(e)
 	}
 	{
-		e.FieldStart("until")
-		s.Until.Encode(e, json.EncodeDate)
-	}
-	{
 		e.FieldStart("via")
 		s.Via.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled = [8]string{
-	0: "at",
-	1: "by",
-	2: "from_version",
-	3: "note",
-	4: "resolution",
-	5: "to_version",
-	6: "until",
+	0: "accepted_until",
+	1: "at",
+	2: "by",
+	3: "from_version",
+	4: "note",
+	5: "resolution",
+	6: "to_version",
 	7: "via",
 }
 
@@ -299854,8 +299854,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "at":
+		case "accepted_until":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.At = v
@@ -299867,7 +299877,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return errors.Wrap(err, "decode field \"at\"")
 			}
 		case "by":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.By = string(v)
@@ -299879,7 +299889,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "from_version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FromVersion.Decode(d); err != nil {
 					return err
@@ -299889,7 +299899,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return errors.Wrap(err, "decode field \"from_version\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -299899,7 +299909,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -299909,7 +299919,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		case "to_version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.ToVersion.Decode(d); err != nil {
 					return err
@@ -299917,16 +299927,6 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled)
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"to_version\"")
-			}
-		case "until":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				if err := s.Until.Decode(d, json.DecodeDate); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"until\"")
 			}
 		case "via":
 			requiredBitSet[0] |= 1 << 7

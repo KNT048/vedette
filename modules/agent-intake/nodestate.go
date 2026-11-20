@@ -104,6 +104,16 @@ type NodeState struct {
 	Rhythm                time.Duration // the interval it is judged by (Cadence.Rhythm): quiet after three of it
 }
 
+// forgetGap is the node's learned gap after a result post at now: forgotten (0, judged by its report schedule again) when the post comes
+// after a silence that was quiet by the learned refresh. An agent that delivers results but does not fetch its config at that pace does
+// not refresh it (two service starts close together looked like a refresh); one that does relearns its pace from its next two fetches.
+func forgetGap(n nodeRow, now time.Time) time.Duration {
+	if n.callGap > 0 && now.Sub(n.lastCall) > quietCalls*max(n.callGap, n.callEvery) {
+		return 0
+	}
+	return n.callGap
+}
+
 // supersededBy says whether a newer record is the same machine as this one by what the box itself saw: both are bound to the same
 // source address (bound_ip is the TCP peer address of the node's own reports, set by the binding of INV-12, and an unbound node has
 // none). The name a node claims, its token and the MAC it declares are claims, not identity: a holder of any token can enrol under another

@@ -42,7 +42,8 @@ type replayCall struct {
 
 // timeline is the calls of one agent from its enrolment to its last call, as its kind makes them. The times are drawn from a fixed
 // seed, so the replay is the same at every run: config fetches every 300 s plus a few seconds; osquery's hourly queries each on their own
-// splayed period (±10 % of 3600 s, as osquery splays them); the reporter once an hour at its minute plus up to 60 s of random delay.
+// splayed period (±10 % of 3600 s, as osquery splays them); every other hour a service start 1 to 15 minutes after a result (one config
+// fetch); the reporter once an hour at its minute plus up to 60 s of random delay.
 func timeline(i int, n replayNode, kind string) []replayCall {
 	enrolled, _ := time.Parse(time.RFC3339Nano, n.EnrolledAt)
 	last, _ := time.Parse(time.RFC3339Nano, n.LastCallAt)
@@ -68,8 +69,14 @@ func timeline(i int, n replayNode, kind string) []replayCall {
 		fallthrough
 	case kindResults:
 		for _, period := range []time.Duration{3240 * time.Second, 3600 * time.Second, 3960 * time.Second} {
+			k := 0
 			for t := enrolled.Add(time.Duration(rnd.IntN(3600)) * time.Second); t.Before(last); t = t.Add(period) {
 				add(t, true)
+				// every other hourly result of one query, the service starts again 1 to 15 minutes later (an update, a reboot): osquery
+				// fetches its config when it starts, whether or not it refreshes it afterwards
+				if k++; period == 3600*time.Second && k%2 == 0 {
+					add(t.Add(time.Minute+time.Duration(rnd.IntN(14*60))*time.Second), false)
+				}
 			}
 		}
 	case kindHourly:

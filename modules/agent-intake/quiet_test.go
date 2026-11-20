@@ -196,9 +196,7 @@ func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 	_, second := w.token("second", 7)
 	newKey := w.enroll(second, "srv-1", peerA)
 	w.report(newKey, peerA, macA) // the new agent's first report binds it to the same address
-	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
-	w.clock.Advance(5 * time.Minute) // its 5-minute config refresh
-	w.post("/intake/osquery/config", peerA, map[string]any{"node_key": newKey})
+	w.refresh(newKey) // its 5-minute config refresh
 
 	if b := w.req("viewer", "GET", path).body; b["state"] != "reporting" || b["quiet_since"] != nil || b["stale"] != false {
 		t.Fatalf("device page after the re-install: %v", b)
@@ -388,12 +386,15 @@ func TestAgentQuietSinceIgnoresThePruneClock(t *testing.T) {
 	}
 }
 
-// refresh is the node's next config fetch from peerA, five minutes on (the install scripts' --config_refresh=300): the box has seen two of its
-// calls apart, so it knows the node's rhythm (NodeHealth judges a node it has seen call once by its report schedule).
+// refresh is two of the node's config fetches from peerA, five minutes apart (the install scripts' --config_refresh=300): the box has
+// seen two fetches in a row, so it knows the node refreshes its config (NodeHealth judges a node it has not seen do so by its report
+// schedule).
 func (w *world) refresh(key string) {
 	w.t.Helper()
-	w.clock.Advance(5 * time.Minute)
-	if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 200 || r.invalid() {
-		w.t.Fatalf("config: %d %s", r.code, r.raw)
+	for range 2 {
+		w.clock.Advance(5 * time.Minute)
+		if r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key}); r.code != 200 || r.invalid() {
+			w.t.Fatalf("config: %d %s", r.code, r.raw)
+		}
 	}
 }

@@ -353,6 +353,7 @@ type nodeRow struct {
 	id, tokenID string
 	lastSeen    time.Time
 	lastCall    time.Time     // its last call (last_call_at), from which the next call's gap is measured
+	lastResult  time.Time     // its last result post (last_result_at), zero when none: a last call equal to it was a result post
 	callEvery   time.Duration // how often it was told to call (call_every_s)
 	callGap     time.Duration // its own smoothed gap between calls (call_gap_s), 0 until learned
 	reportEvery time.Duration // the longest interval of the schedule the box last gave it, without its speed-ups (report_every_s)
@@ -375,15 +376,15 @@ type nodeRow struct {
 func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	want := hashHex(key)
 	var n nodeRow
-	var got, seen, enrolled, asked, taken, osTaken, call string
+	var got, seen, enrolled, asked, taken, osTaken, call, result string
 	var every, gap, report int64
 	var ip, mac sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL, kernel,
 		win_name, win_version, win_target, ifnull(hostname, ''), host_identifier, ifnull(report_asked_at, ''), ifnull(software_taken_at, ''),
-		ifnull(os_taken_at, ''), ifnull(platform, ''), ifnull(last_call_at, last_seen), call_every_s, ifnull(call_gap_s, 0), report_every_s
+		ifnull(os_taken_at, ''), ifnull(platform, ''), ifnull(last_call_at, last_seen), call_every_s, ifnull(call_gap_s, 0), report_every_s, ifnull(last_result_at, '')
 		FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
 		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname, &n.hostID, &asked, &taken, &osTaken, &n.platform,
-		&call, &every, &gap, &report)
+		&call, &every, &gap, &report, &result)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}
@@ -399,6 +400,7 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
 	n.osAt, _ = time.Parse(time.RFC3339Nano, osTaken)
 	n.lastCall, _ = time.Parse(time.RFC3339Nano, call)
+	n.lastResult, _ = time.Parse(time.RFC3339Nano, result)
 	n.callEvery, n.callGap, n.reportEvery = time.Duration(every)*time.Second, time.Duration(gap)*time.Second, time.Duration(report)*time.Second
 	if ip.Valid {
 		n.boundIP, _ = netip.ParseAddr(ip.String)
@@ -463,7 +465,9 @@ func (s *Service) touch(ctx context.Context, n nodeRow, every, report time.Durat
 		return nil
 	}
 	gap := n.callGap
-	if report != 0 { // a config fetch (the log path's touch is no fetch)
+	// Learned only between two config fetches in a row: when the call before was a result post, the gap says nothing about the config
+	// refresh (an agent without it fetches its config only when its service starts, often minutes after a result).
+	if report != 0 && (n.lastResult.IsZero() || n.lastCall.After(n.lastResult)) { // a config fetch (the log path's touch is no fetch)
 		gap = nextGap(n.callGap, now.Sub(n.lastCall), n.callEvery)
 	}
 	if report == 0 {

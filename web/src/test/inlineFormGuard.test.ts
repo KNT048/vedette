@@ -70,7 +70,7 @@ function enclosing(text: string, at: number): string | null {
   let name: string | null = null
   for (const m of text.matchAll(/^(?:export\s+)?(?:default\s+)?(?:function\s+([A-Z]\w*)|const\s+([A-Z]\w*)\s*=)/gm)) {
     if (m.index > at) break
-    name = m[1] ?? m[2]
+    name = m[1] ?? m[2] ?? null
   }
   return name
 }

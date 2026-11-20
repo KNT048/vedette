@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest'
 const SRC = resolve(process.cwd(), 'src') // vitest runs from web/
 const ROOTS = ['features', 'components', 'app']
 const HEADINGS = new Set(['h2', 'h3', 'h4', 'h5'])
-const PROSE = new Set(['p', 'span', 'div', 'strong', 'em', 'b', 'i', 'br', 'code', 'small', 'time', 'InfoTip', 'Card', 'Trans', 'StoryTag', 'Notice', ''])
 /** Tags that are controls or data wherever they appear (also inside an attribute or an expression). */
 const CONTENT_TAG = /<(?!\/)(?!(?:p|span|div|strong|em|b|i|br|code|small|time|InfoTip|Card|Trans|StoryTag|Notice|h[2-5]|section|header)\b)[A-Za-z]/
 

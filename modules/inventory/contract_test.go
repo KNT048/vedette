@@ -204,7 +204,9 @@ func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") {
+		// Tests may seed and read inv_* rows to set up and check what the product code does (the merge count test of
+		// cmd/vedette loads a fixture device that way); the product code never does.
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 		b, err := os.ReadFile(path) //nolint:gosec // walking our own source tree

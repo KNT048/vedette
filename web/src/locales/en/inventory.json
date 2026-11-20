@@ -1169,7 +1169,7 @@
     "now": "Allowed now: {{list}}.",
     "none": "No range is allowed yet.",
     "add": "Add to scope",
-    "confirm": "Confirm",
+    "confirm": "Confirm the scope",
     "restWhy": "The scan window, speed and fragile types stay as they are.",
     "rest": "Change them in Scope",
     "changed": "Someone changed the scan scope meanwhile. Check the ranges above and tick again."

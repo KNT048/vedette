@@ -196,7 +196,7 @@ func TestAgentReEnrolledUnderAnotherTokenIsNotQuiet(t *testing.T) {
 	_, second := w.token("second", 7)
 	newKey := w.enroll(second, "srv-1", peerA)
 	w.report(newKey, peerA, macA) // the new agent's first report binds it to the same address
-	w.refresh(newKey) // its 5-minute config refresh
+	w.refresh(newKey)             // its 5-minute config refresh
 
 	if b := w.req("viewer", "GET", path).body; b["state"] != "reporting" || b["quiet_since"] != nil || b["stale"] != false {
 		t.Fatalf("device page after the re-install: %v", b)

@@ -13,24 +13,26 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// nvd-kev keeps the day NVD published each CVE from the same answer as the ranges; a value that is not a date is dropped.
+// The catalogue keeps the time NVD published each CVE from the same answer as the ranges; a record whose dates are not NVD timestamps
+// is rejected whole.
 func TestParseNVD_Published(t *testing.T) {
 	t.Parallel()
 	d, err := ParseNVD([]byte(testFile(t, "nvd-kev-page.json")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Published["CVE-2016-4655"] != "2016-08-25" || d.Published["CVE-2024-21762"] != "2024-02-09" {
-		t.Fatalf("published = %+v", d.Published)
+	recs := byCVE(d)
+	if recs["CVE-2016-4655"].Published.Format(time.DateOnly) != "2016-08-25" || recs["CVE-2024-21762"].Published.Format(time.DateOnly) != "2024-02-09" {
+		t.Fatalf("published = %+v", recs)
 	}
-	d, err = ParseNVD([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":"CVE-2020-0001","published":"x'; DROP TABLE","configurations":[]}},{"cve":{"id":"CVE-2020-0002","configurations":[]}}]}`))
-	if err != nil || len(d.Published) != 0 || d.Accepted != 2 {
-		t.Fatalf("published %+v, accepted %d, %v", d.Published, d.Accepted, err)
+	d, err = ParseNVD([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":"CVE-2020-0001","published":"x'; DROP TABLE","lastModified":"2020-01-01T00:00:00.000","vulnStatus":"Analyzed","configurations":[]}},{"cve":{"id":"CVE-2020-0002","configurations":[]}}]}`))
+	if err != nil || len(d.Records) != 0 || d.Rejected != 2 {
+		t.Fatalf("records %+v, rejected %d, %v", d.Records, d.Rejected, err)
 	}
 }
 
-// A pull stores every day; a box from before the table (rows of ranges, no day) makes its next pull a full one, once.
-func TestNVDPull_PublishedAndOneFullPullForOldBoxes(t *testing.T) {
+// A pull stores every CVE's day; the next day only an update is asked for.
+func TestNVDPull_Published(t *testing.T) {
 	t.Parallel()
 	e, n := nvdEnv(t)
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
@@ -40,22 +42,16 @@ func TestNVDPull_PublishedAndOneFullPullForOldBoxes(t *testing.T) {
 	if err != nil || len(pub) != 250 || !pub["CVE-2024-0007"].Equal(time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("published %d %v", len(pub), err)
 	}
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `DELETE FROM feeds_published`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
 	full := n.count(0)
 	e.setNow(e.clock().Add(25 * time.Hour))
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
 		t.Fatal(err)
 	}
-	if n.count(0) != full+1 || n.count(200) != 2 { // the whole list again, page by page
-		t.Fatalf("not a full pull: page 0 asked %d times, page 200 %d", n.count(0), n.count(200))
+	if n.count(0) != full+1 || n.count(200) != 2 { // the script answers an update with the whole list: page by page again
+		t.Fatalf("pages: page 0 asked %d times, page 200 %d", n.count(0), n.count(200))
 	}
 	if pub, _ := e.svc.st.KevPublished(t.Context()); len(pub) != 250 {
-		t.Fatalf("published after the full pull: %d", len(pub))
+		t.Fatalf("published after the update: %d", len(pub))
 	}
 }
 
@@ -103,12 +99,12 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] != nil || b["epss"] != 0.5 { // EPSS only: older, no tier
 		t.Fatalf("old: %d %v", c, b)
 	}
-	// A CVE nvd-recent does not hold still shows the day feeds_published has (nvd-kev or CVE.org), with no tier
+	// A CVE outside the window still shows the day the catalogue has (NVD's or the CVE record's), with no tier
 	write(t, e.db, func(tx *sql.Tx) error {
 		return applyPublished(t.Context(), tx, map[string]string{"CVE-2020-0003": "2020-03-10"})
 	})
 	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] == nil || !strings.HasPrefix(b["published"].(string), "2020-03-10") {
-		t.Fatalf("published from feeds_published: %d %v", c, b)
+		t.Fatalf("published from the catalogue: %d %v", c, b)
 	}
 	if c, b = e.get("/feeds/cve/CVE-2026-9999/tier"); c != http.StatusNotFound || code(b) != "not_in_data" {
 		t.Fatalf("absent: %d %v", c, b)
@@ -126,10 +122,11 @@ func seedTierData(t *testing.T, e *env, now time.Time) {
 			args []any
 		}{
 			{`INSERT INTO feeds_epss (cve, epss, percentile, gen) VALUES ('CVE-2026-0001', 0.34, 0.97, 1), ('CVE-2026-0002', 0.02, 0.6, 1), ('CVE-2020-0003', 0.5, 0.99, 1)`, nil},
-			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES ('CVE-2026-0001', ?, ?, 'Analyzed', 'HIGH', 7.5), ('CVE-2026-0002', ?, ?, 'Awaiting Analysis', NULL, NULL)`,
-				[]any{ts(now.AddDate(0, -2, 0)), ts(now.AddDate(0, -1, 0)), ts(now.AddDate(0, -3, 0)), ts(now.AddDate(0, -3, 0))}},
-			{`INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES ('CVE-2026-0001', 'cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*', '', '', '', '1.28.1')`, nil},
-			{`INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, []any{ts(now), ts(now), ts(now)}},
+			{`INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES ('CVE-2026-0001', ?, ?, 'Analyzed', ?, ?), ('CVE-2026-0002', ?, ?, 'Awaiting Analysis', ?, ?)`,
+				[]any{ts(now.AddDate(0, -2, 0)), ts(now.AddDate(0, -1, 0)), ts(now), ts(now), ts(now.AddDate(0, -3, 0)), ts(now.AddDate(0, -3, 0)), ts(now), ts(now)}},
+			{`INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES ('CVE-2026-0001', 'nvd', '3.1', 7.5, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N')`, nil},
+			{`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl) VALUES ('CVE-2026-0001', 'nvd', 'a', 'f5', 'nginx', 'cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*', '', '', '', '1.28.1')`, nil},
+			{`INSERT INTO feeds_nvd_cursor (selector, url, mode, win_from, win_to, until, next_index, total) VALUES ('recent', 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, []any{ts(now), ts(now), ts(now)}},
 			{`UPDATE feeds_source SET last_success = ?, status = 'ok' WHERE id = ?`, []any{ts(now), epssAllFeedID}},
 		} {
 			if _, err := tx.ExecContext(t.Context(), q.sql, q.args...); err != nil {
@@ -217,12 +214,15 @@ func benchTierRecords(b *testing.B, products int) {
 			cve := fmt.Sprintf("CVE-2026-%06d", i)
 			p := i % products
 			pub := ts(now.AddDate(0, 0, -(i % 360)))
-			if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 7.5)`, cve, pub, pub); err != nil {
+			if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES (?, ?, ?, 'Analyzed', ?, ?)`, cve, pub, pub, pub, pub); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES (?, 'nvd', '3.1', 7.5, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N')`, cve); err != nil {
 				return err
 			}
 			for _, q := range []int{p, p + 1} {
-				if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, ?, '', '', '', '2.0')`,
-					cve, fmt.Sprintf("cpe:2.3:a:vendor%d:product%d:*:*:*:*:*:*:*:*", q, q)); err != nil {
+				if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'nvd', 'a', ?, ?, ?, '', '', '', '2.0')`,
+					cve, fmt.Sprintf("vendor%d", q), fmt.Sprintf("product%d", q), fmt.Sprintf("cpe:2.3:a:vendor%d:product%d:*:*:*:*:*:*:*:*", q, q)); err != nil {
 					return err
 				}
 			}
@@ -230,7 +230,7 @@ func benchTierRecords(b *testing.B, products int) {
 				return err
 			}
 		}
-		if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, ts(now), ts(now), ts(now)); err != nil {
+		if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_nvd_cursor (selector, url, mode, win_from, win_to, until, next_index, total) VALUES ('recent', 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, ts(now), ts(now), ts(now)); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(b.Context(), `UPDATE feeds_source SET enabled = 1, last_success = ?, status = 'ok' WHERE id IN ('epss-all', 'nvd-recent')`, ts(now))
@@ -253,14 +253,14 @@ func benchTierRecords(b *testing.B, products int) {
 	}
 }
 
-// Review r1 #6 of #804: NVD's "running on" condition is kept per entry and read back; an entry stored before the column is "?" (not
-// known). Review r1 #12: a CVE whose kept CPEs fall in two reads of tierChunk is one record with every entry.
+// NVD's "running on" condition is kept per entry and read back. A CVE whose kept CPEs fall in two reads of tierChunk is one record with
+// every entry.
 func TestTierRecords_PlatformsAndChunks(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	now := e.clock()
 	seedTierData(t, e, now)
-	d, err := ParseNVDRecent([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2026-0007","published":"` + now.AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000") +
+	d, err := ParseNVD([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2026-0007","published":"` + now.AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000") +
 		`","lastModified":"2026-08-03T00:00:00.000","vulnStatus":"Analyzed","configurations":[
 {"operator":"AND","nodes":[{"operator":"OR","cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*","versionEndExcluding":"1.30.0"}]},
  {"operator":"OR","cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:o:microsoft:windows:-:*:*:*:*:*:*:*"},{"vulnerable":false,"criteria":"cpe:2.3:h:acme:box:-:*:*:*:*:*:*:*"}]}]},
@@ -268,7 +268,7 @@ func TestTierRecords_PlatformsAndChunks(t *testing.T) {
 	if err != nil || len(d.Records) != 1 || len(d.Records[0].Platforms) != 2 || !slices.Equal(d.Records[0].Platforms[0], []string{"microsoft:windows"}) || d.Records[0].Platforms[1] != nil {
 		t.Fatalf("parse: %+v %v", d, err)
 	}
-	write(t, e.db, func(tx *sql.Tx) error { return storeRecentPage(t.Context(), tx, d.Records, now.AddDate(0, 0, -365)) })
+	write(t, e.db, func(tx *sql.Tx) error { return storeRecords(t.Context(), tx, d.Records, now) })
 	got, err := e.svc.st.TierRecords(t.Context(), now, func(cpe string) bool { return strings.Contains(cpe, ":f5:") })
 	if err != nil {
 		t.Fatal(err)
@@ -281,14 +281,14 @@ func TestTierRecords_PlatformsAndChunks(t *testing.T) {
 		!slices.ContainsFunc(r.Platforms, func(p []string) bool { return len(p) == 0 }) {
 		t.Fatalf("stored condition: %+v", r.Platforms)
 	}
-	if r := by["CVE-2026-0001"]; len(r.Platforms) != 1 || !slices.Equal(r.Platforms[0], []string{"?"}) { // seeded without the column
-		t.Fatalf("not known: %+v", r.Platforms)
+	if r := by["CVE-2026-0001"]; len(r.Platforms) != 1 || len(r.Platforms[0]) != 0 { // seeded with none
+		t.Fatalf("none: %+v", r.Platforms)
 	}
 	// 501 kept CPEs of one CVE: two reads, one record
 	write(t, e.db, func(tx *sql.Tx) error {
 		for i := range tierChunk + 1 {
-			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES ('CVE-2026-0002', ?, '', '', '', '2.0', '[]')`,
-				fmt.Sprintf("cpe:2.3:a:many:product%d:*:*:*:*:*:*:*:*", i)); err != nil {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, platforms)
+VALUES ('CVE-2026-0002', 'nvd', 'a', 'many', ?, ?, '', '', '', '2.0', '[]')`, fmt.Sprintf("product%d", i), fmt.Sprintf("cpe:2.3:a:many:product%d:*:*:*:*:*:*:*:*", i)); err != nil {
 				return err
 			}
 		}

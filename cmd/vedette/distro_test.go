@@ -31,8 +31,8 @@ func TestDistroFixReachesFindings(t *testing.T) {
 			sql  string
 			args []any
 		}{
-			{`INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, []any{cve, now}},
-			{`INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6p2')`, []any{cve}},
+			{`UPDATE feeds_cve SET nvd_at = ?2, nvd_status = 'Analyzed' WHERE cve = ?1`, []any{cve, now}},
+			{`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'nvd', 'a', 'openbsd', 'openssh', 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6p2')`, []any{cve}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '24.04', 'openssh', ?, 'fixed', '1:9.6p1-3ubuntu13.5')`, []any{cve}},
 		} {
 			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
@@ -223,8 +223,8 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 			sql  string
 			args []any
 		}{
-			{`INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, []any{cve, now}},
-			{`INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, []any{cve}},
+			{`UPDATE feeds_cve SET nvd_at = ?2, nvd_status = 'Analyzed' WHERE cve = ?1`, []any{cve, now}},
+			{`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'nvd', 'a', 'openbsd', 'openssh', 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, []any{cve}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.23', 'openssh', ?, 'fixed', '10.2_p1-r1')`, []any{cve}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.24', 'openssh', ?, 'fixed', '10.3_p1-r2')`, []any{cve}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('alpine-osv', 'alpine', '3.22', 'openssh', ?, 'fixed', '10.0_p1-r11')`, []any{cve}},
@@ -292,11 +292,10 @@ func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 	s.kevAdded(cve, "OpenBSD", "OpenSSH", time.Now().AddDate(0, 0, -11))
 	now := store.FormatTS(time.Now().UTC())
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, cve, now); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_at = ?2, nvd_status = 'Analyzed' WHERE cve = ?1`, cve, now); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, cve)
-		return err
+		return seedRange(ctx, tx, cve, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6")
 	})
 	if err != nil {
 		t.Fatal(err)

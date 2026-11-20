@@ -172,7 +172,7 @@ func TestContract_AnOlderCopyNeverReplacesTheList(t *testing.T) {
 	if c, b := e.fetch("cisa-kev"); c != 200 || at(b, "answered_by") != AnsweredCISA {
 		t.Fatalf("first pull: %d %v", c, b)
 	}
-	before := rowsOf(t, e.db, "feeds_vuln")
+	before := rowsOf(t, e.db, "feeds_kev")
 	// cisa.gov goes dark; the GitHub copy is a release behind and has another entry
 	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
 	o.body(mirrorPath, `"m-old"`, kevWith(t, "2026.10.01", "2026-10-01T10:00:00Z", "CVE-2026-19999"))
@@ -183,8 +183,8 @@ func TestContract_AnOlderCopyNeverReplacesTheList(t *testing.T) {
 	if v := e.feed("cisa-kev").CatalogVersion; v == nil || *v != "2026.11.04" {
 		t.Errorf("catalog version went back to %v", v)
 	}
-	if rowsOf(t, e.db, "feeds_vuln") != before {
-		t.Errorf("rows %d -> %d: the older list changed the data", before, rowsOf(t, e.db, "feeds_vuln"))
+	if rowsOf(t, e.db, "feeds_kev") != before {
+		t.Errorf("rows %d -> %d: the older list changed the data", before, rowsOf(t, e.db, "feeds_kev"))
 	}
 	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-19999"); found {
 		t.Error("an entry of the older list was stored")

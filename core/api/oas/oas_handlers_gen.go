@@ -10485,6 +10485,149 @@ func (s *Server) handleCoreGetModulesRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleCoreGetSchedulesOwnerKeyRequest handles core_get_schedules_owner_key operation.
+//
+// One schedule with its next three start times, what it waits for, why its last due time was skipped
+// and what its owner allows. Before anyone saves it: its owner's default (saved false). 404 not_found
+// for a key no owner has, or a subject that does not exist.
+//
+// GET /schedules/{owner_key}
+func (s *Server) handleCoreGetSchedulesOwnerKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CoreGetSchedulesOwnerKeyOperation,
+			ID:   "core_get_schedules_owner_key",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CoreGetSchedulesOwnerKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeCoreGetSchedulesOwnerKeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *CoreGetSchedulesOwnerKeyOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CoreGetSchedulesOwnerKeyOperation,
+			OperationSummary: "One schedule with its next three start times, what it waits for, why its last due time was skipped and what its owner allows. Before anyone saves it: its owner's default (saved false). 404 not_found for a key no owner has, or a subject that does not exist",
+			OperationID:      "core_get_schedules_owner_key",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "owner_key",
+					In:   "path",
+				}: params.OwnerKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = CoreGetSchedulesOwnerKeyParams
+			Response = *CoreGetSchedulesOwnerKeyOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCoreGetSchedulesOwnerKeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CoreGetSchedulesOwnerKey(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CoreGetSchedulesOwnerKey(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCoreGetSchedulesOwnerKeyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCoreGetSetupRequest handles core_get_setup operation.
 //
 // Whether first-run setup is done.
@@ -15944,6 +16087,292 @@ func (s *Server) handleCorePostCoreUsersIDResetPasswordRequest(args [1]string, a
 	}
 }
 
+// handleCorePostSchedulesOwnerKeyRunRequest handles core_post_schedules_owner_key_run operation.
+//
+// Run once now: start what the schedule starts, as the caller, without changing when it is next due.
+// Answers the run (null for work that is not a run; open it at /runs/). 409 busy while the run it last
+// started has not ended; 409 not_started when its owner does not start now (the message says why, e.g.
+// its module is off); 403 forbidden as for PUT. Audited (schedule.run_now).
+//
+// POST /schedules/{owner_key}/run
+func (s *Server) handleCorePostSchedulesOwnerKeyRunRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostSchedulesOwnerKeyRunOperation,
+			ID:   "core_post_schedules_owner_key_run",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostSchedulesOwnerKeyRunOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeCorePostSchedulesOwnerKeyRunParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *CorePostSchedulesOwnerKeyRunOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostSchedulesOwnerKeyRunOperation,
+			OperationSummary: "Run once now: start what the schedule starts, as the caller, without changing when it is next due. Answers the run (null for work that is not a run; open it at /runs/<id>). 409 busy while the run it last started has not ended; 409 not_started when its owner does not start now (the message says why, e.g. its module is off); 403 forbidden as for PUT. Audited (schedule.run_now)",
+			OperationID:      "core_post_schedules_owner_key_run",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "owner_key",
+					In:   "path",
+				}: params.OwnerKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = CorePostSchedulesOwnerKeyRunParams
+			Response = *CorePostSchedulesOwnerKeyRunOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCorePostSchedulesOwnerKeyRunParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostSchedulesOwnerKeyRun(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostSchedulesOwnerKeyRun(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostSchedulesOwnerKeyRunResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePostSchedulesPreviewRequest handles core_post_schedules_preview operation.
+//
+// The next three start times of a rule as if it were saved now, read in its zone, with the scan window
+// applied; with owner_key, its owner's limits apply. 400 invalid (with field).
+//
+// POST /schedules/preview
+func (s *Server) handleCorePostSchedulesPreviewRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostSchedulesPreviewOperation,
+			ID:   "core_post_schedules_preview",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostSchedulesPreviewOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostSchedulesPreviewRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostSchedulesPreviewOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostSchedulesPreviewOperation,
+			OperationSummary: "The next three start times of a rule as if it were saved now, read in its zone, with the scan window applied; with owner_key, its owner's limits apply. 400 invalid (with field)",
+			OperationID:      "core_post_schedules_preview",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostSchedulesPreviewReq
+			Params   = struct{}
+			Response = *CorePostSchedulesPreviewOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostSchedulesPreview(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostSchedulesPreview(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostSchedulesPreviewResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCorePutCoreConnectionsIDRequest handles core_put_core_connections_id operation.
 //
 // Edit a connection, its allow-list and per-tool enable (blank secret = keep the old one; clear_pin =
@@ -17085,6 +17514,164 @@ func (s *Server) handleCorePutCoreOidcRequest(args [0]string, argsEscaped bool, 
 	}
 
 	if err := encodeCorePutCoreOidcResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePutSchedulesOwnerKeyRequest handles core_put_schedules_owner_key operation.
+//
+// Save a schedule: on/off, pause until, the rule. 400 invalid (with field) for a rule that cannot be
+// saved or that its owner does not allow (the message ends with the owner's reason); 403 forbidden
+// when edit_role is admin and the caller is not. Audited (schedule.save).
+//
+// PUT /schedules/{owner_key}
+func (s *Server) handleCorePutSchedulesOwnerKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePutSchedulesOwnerKeyOperation,
+			ID:   "core_put_schedules_owner_key",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePutSchedulesOwnerKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeCorePutSchedulesOwnerKeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePutSchedulesOwnerKeyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePutSchedulesOwnerKeyOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePutSchedulesOwnerKeyOperation,
+			OperationSummary: "Save a schedule: on/off, pause until, the rule. 400 invalid (with field) for a rule that cannot be saved or that its owner does not allow (the message ends with the owner's reason); 403 forbidden when edit_role is admin and the caller is not. Audited (schedule.save)",
+			OperationID:      "core_put_schedules_owner_key",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "owner_key",
+					In:   "path",
+				}: params.OwnerKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CorePutSchedulesOwnerKeyReq
+			Params   = CorePutSchedulesOwnerKeyParams
+			Response = *CorePutSchedulesOwnerKeyOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCorePutSchedulesOwnerKeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePutSchedulesOwnerKey(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePutSchedulesOwnerKey(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePutSchedulesOwnerKeyResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

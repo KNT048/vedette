@@ -10,7 +10,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { isLive, useRuns, useScanConfig, useStartRun, useTargets } from './api'
 import { errMsg } from './errors'
-import { runHref } from './links'
+import { runHref } from '@/features/scanning/places'
 
 /** The most devices of one run (contract.ts POST /scans/runs, scan errTooMany). */
 const MAX = 200

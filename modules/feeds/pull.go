@@ -51,20 +51,6 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	versions, err := s.st.contentVersionsStored(ctx)
-	if err != nil {
-		return err
-	}
-	for i := range rows {
-		rows[i].ContentVersion = versions[rows[i].ID]
-	}
-	reloads, err := s.startReloads(ctx, rows) // an incremental feed read by other code starts its full reload now (INV-32)
-	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		s.Log.ErrorContext(ctx, "starting the reload of a feed failed", "error", err) // the plain schedule this tick; the next one tries again
-	}
 	pulled := false
 	var kevPulled *sourceRow
 	for _, r := range rows {
@@ -73,29 +59,15 @@ func (s *Service) RunPull(ctx context.Context) error {
 		}
 		if pulled { // an earlier pull of this tick may have filled it (EPSS after the CISA list); a tick that pulled nothing reads no row twice
 			if cur, err := s.st.source(ctx, r.ID); err == nil {
-				if cur, err = s.st.withVersion(ctx, cur); err == nil {
-					r = cur
-				}
+				r = cur
 			}
 		}
 		due := r.state().Due(now, r.IntervalHours)
-		if r.Enabled && (reloads[r.ID] || contentResets[decoderOf(r)] == nil && r.reload()) {
-			due = s.reloadDue(r, now) // its stored data was read by other code: now, not after its interval (INV-32)
-		}
-		if r.ID == recentFeedID && r.Enabled { // A fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
-			cur, err := s.st.recentCursor(ctx)
-			if err != nil { // the plain schedule this tick, as the re-read above falls back (review 1 #4 of #805)
-				s.Log.ErrorContext(ctx, "reading where the NVD pull of recent CVEs stands failed", "error", err)
-			} else if !recentComplete(cur, r.URL) {
-				st := r.state()
-				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
-				due = st.Due(now, r.IntervalHours)
-			}
-		}
-		if r.ID == nvdFeedID && r.Enabled { // review r2 M1 of #825: the full pull migration 0015 asked for runs at the next check, not a day later
-			if full, err := s.st.fullDue(ctx, r.ID); err != nil {
-				s.Log.ErrorContext(ctx, "reading whether the NVD affected versions need a full pull failed", "error", err)
-			} else if full {
+		if r.ID == recentFeedID && r.Enabled { // An unfinished fill or walk goes on now, not a day after the last success
+			owed, err := s.st.recentOwed(ctx, r.URL)
+			if err != nil { // the plain schedule this tick, as the re-read above falls back
+				s.Log.ErrorContext(ctx, "reading where the NVD pull of the catalogue stands failed", "error", err)
+			} else if owed {
 				st := r.state()
 				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
 				due = st.Due(now, r.IntervalHours)
@@ -135,7 +107,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
 		s.Log.ErrorContext(ctx, "adding the devices of \"I have it\" failed", "error", err)
 	}
-	if err := s.st.maintain(ctx, now); err != nil && ctx.Err() == nil { // a stop in the middle of it is a shutdown, not a failure
+	if err := s.maintain(ctx, now); err != nil && ctx.Err() == nil { // a stop in the middle of it is a shutdown, not a failure
 		s.Log.ErrorContext(ctx, "pruning feed data failed", "error", err)
 	}
 	return nil
@@ -156,18 +128,16 @@ type pullPlan struct {
 	replaceVulns bool
 	hasVulns     bool
 
-	templates    []string
+	templates    []Template
 	hasTemplates bool
 
-	epssLatest, epssAgo map[string]float64
-	hasEPSS             bool
+	nvd    []NVDRecord // nvd-kev: the records of the exploited-list selector, written into the catalogue
+	hasNVD bool
 
-	affected     map[string][]AffectedRow // nvd-kev
-	affectedFull bool                     // a full pull: CVEs not in affected are dropped
-	published    map[string]string        // nvd-kev: the day NVD published each CVE
-	cvss         map[string]CVSS          // nvd-kev: the CVSS base score of each CVE that has one (INV-28)
-	cvssSeen     map[string]bool          // nvd-kev: every CVE NVD answered for (INV-28)
-	hasAffected  bool
+	// kevRanges are the exploited-list CVEs whose NVD ranges a pull of nvd-recent changed (it wrote them page by page), kevRangesFirst
+	// whether none of them had NVD's answer before the pull.
+	kevRanges      []string
+	kevRangesFirst bool
 
 	cveOrg        map[string]CVEOrgResult // cve-org: the CVEs whose record gave ranges
 	cveOrgChecked []string                // every CVE whose record was read
@@ -190,10 +160,6 @@ type pullPlan struct {
 	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
 	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
 	hasWinRel bool
-
-	// partial: a good pull that did not read every page of its source (a Windows page that failed): what it read is stored, but the
-	// content version is not recorded (INV-32)
-	partial bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -321,8 +287,6 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		dec, builtin = b.Decoder, b
 	}
 	switch dec {
-	case DecoderEPSS:
-		return s.buildEPSS(ctx, src, p)
 	case DecoderNVD:
 		return s.buildNVD(ctx, src, p)
 	case DecoderCVEOrg:
@@ -345,9 +309,9 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // Both copies of the CISA list, every check
 		return s.buildKEVBoth(ctx, src, p)
 	}
-	// Conditional only after a good pull: a list pulled every hour stays cheap with a 304. Never when this code reads it again (INV-32).
+	// Conditional only after a good pull: a list pulled every hour stays cheap with a 304.
 	req := Request{URL: src.URL, Auth: auth}
-	if src.Status == "ok" && !src.reload() {
+	if src.Status == "ok" {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
@@ -379,8 +343,15 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		if err := accepted(n.Stats); err != nil {
 			return p, err
 		}
-		p.templates, p.hasTemplates = n.CVEs, true
-		p.out.fill(n.Stats, len(n.CVEs))
+		// a cut or substituted index must not take the public-exploit signal from the CVEs it no longer names: the retention rule would
+		// then drop thousands of older CVEs, which come back only slowly once the index is whole again. The yardstick is the last good
+		// pull from this address (feeds_source.records: cleared by a new address or by turning the feed off and on), and an index at or
+		// above nucleiFloor is always taken.
+		if n, held := len(n.Templates), src.Records; held != nil && *held >= nucleiShrinkFloor && 2*n < *held && n < nucleiFloor {
+			return p, fail(ErrBadSample, "The nuclei index lists %s CVEs, fewer than half of the %s of the last good index; Vedette kept the templates it had. To take this index anyway, turn the feed off and on again.", grouped(n), grouped(*held))
+		}
+		p.templates, p.hasTemplates = n.Templates, true
+		p.out.fill(n.Stats, len(n.Templates))
 	default: // DecoderParser: the built-in IOC lists and every custom feed
 		var res Result
 		if src.Builtin {
@@ -456,58 +427,6 @@ func iocsOf(recs []Record) []iocInput {
 	return out
 }
 
-// buildEPSS asks api.first.org for the score of every stored CVE now and 7 days ago, 100 CVEs per request
-// (INV-2). Any failed request fails the whole pull: scores are never half updated.
-func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
-	cves, err := s.st.kevCVEs(ctx)
-	if err != nil {
-		return p, err
-	}
-	p.out = outcome{OK: true}
-	p.hasEPSS = true
-	p.epssLatest, p.epssAgo = map[string]float64{}, map[string]float64{}
-	if len(cves) == 0 { // nothing to score yet; the KEV pull forces this feed when CVEs arrive
-		return p, nil
-	}
-	now := s.now()
-	var st Stats
-	for _, c := range []struct {
-		date string
-		into map[string]float64
-	}{{"", p.epssLatest}, {EPSSDate(now, 7), p.epssAgo}} {
-		urls, err := EPSSBatchURLs(src.URL, cves, c.date)
-		if err != nil {
-			return p, err
-		}
-		for _, u := range urls {
-			resp, err := s.get(ctx, Request{URL: u})
-			if err != nil {
-				return p, err
-			}
-			d, err := ParseEPSS(resp.Body)
-			if err != nil {
-				return p, err
-			}
-			p.out.Bytes += len(resp.Body)
-			if c.date == "" {
-				st.Accepted += d.Accepted
-				st.Rejected += d.Rejected
-				if len(st.Reasons) == 0 {
-					st.Reasons = d.Reasons
-				}
-			}
-			for _, sc := range d.Scores {
-				c.into[sc.CVE] = sc.Score
-			}
-		}
-	}
-	if len(p.epssLatest) == 0 {
-		return p, accepted(st)
-	}
-	p.out.fill(st, len(p.epssLatest))
-	return p, nil
-}
-
 // errStoreFailed is the sentence stored on a feed when its result could not be written (a database problem).
 const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
 
@@ -537,9 +456,6 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if !src.Enabled {
 		return sourceRow{}, 0, nil, ErrFeedDisabled
 	}
-	if src, err = s.st.withVersion(ctx, src); err != nil { // which code read the stored data: a reload sends no validators (INV-32)
-		return sourceRow{}, 0, nil, err
-	}
 	started := s.now()
 	bctx, cancel := context.WithTimeout(ctx, pullBudget)
 	p, perr := s.build(bctx, src)
@@ -564,13 +480,6 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept
 	}
 	p.out.Started, p.out.Finished = started, s.now()
-	if p.out.OK && contentResets[decoderOf(src)] == nil {
-		if !p.out.NotModified && !p.partial {
-			p.out.ContentVersion = contentVersionOf(src) // the whole source was read and stored by this code (INV-32)
-		} else if src.reload() {
-			s.shortReload(src.ID) // nothing new stored, or a page missing: the version stays, tried again after a back-off
-		}
-	}
 
 	var (
 		fresh          []VulnRow
@@ -581,6 +490,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		rangesChanged  []string
 		rangesFirst    bool
 	)
+	pinned, err := s.pinned(ctx) // the catalogue keeps them, whatever an NVD pull brings
+	if err != nil {
+		return sourceRow{}, 0, nil, err
+	}
 	// the outcome row and the audit entry, in the pull's last transaction; the note is the pull's own (what the feed holds is
 	// counted when the row is read: heldNow)
 	finish := func(tx *sql.Tx, out outcome) error {
@@ -605,7 +518,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		}
 		if p.hasEPSSAll { // 400,000 rows: chunks too (applyEPSSAll)
 			var err error
-			stale, err = applyEPSSAll(ctx, s.DB, src, p.epssAll, p.epssDay, func(tx *sql.Tx) error { return finish(tx, p.out) })
+			stale, err = applyEPSSAll(ctx, s.DB, p.out.Finished, src, p.epssAll, p.epssDay, func(tx *sql.Tx) error { return finish(tx, p.out) })
 			return err
 		}
 		return s.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -622,7 +535,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				var updated []string
 				if isKEVSource(src.ID) {
 					var have int
-					if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_vuln WHERE source_id = ?`, src.ID).Scan(&have); err != nil {
+					if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_kev WHERE source_id = ?`, src.ID).Scan(&have); err != nil {
 						return fmt.Errorf("feeds: count KEV rows: %w", err)
 					}
 					baseline = have == 0
@@ -634,42 +547,34 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return err
 				}
 				// the entries this pull announces as new (below, after the commit) are recorded with it
-				if src.ID == "cisa-kev" && !baseline {
+				if src.ID == kevFeedID && !baseline {
 					if err := markAnnounced(ctx, tx, fresh, p.out.Finished); err != nil {
 						return err
 					}
 				}
 				changed = append(changed, updated...)
 			case p.hasTemplates:
-				if changed, err = applyTemplates(ctx, tx, p.templates); err != nil {
+				if changed, err = applyTemplates(ctx, tx, p.out.Finished, p.templates); err != nil {
 					return err
 				}
-			case p.hasEPSS:
-				if _, err = applyEPSS(ctx, tx, p.epssLatest, p.epssAgo); err != nil {
+			case p.hasNVD:
+				before, err := kevNVDCountTx(ctx, tx)
+				if err != nil {
 					return err
-				}
-			case p.hasAffected:
-				var before int
-				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source = 'nvd'`).Scan(&before); err != nil {
-					return fmt.Errorf("feeds: count affected: %w", err)
 				}
 				rangesFirst = before == 0
-				var total int
-				if rangesChanged, total, err = applyAffected(ctx, tx, p.affected, p.affectedFull, p.out.Finished); err != nil {
+				ret, err := retentionOf(ctx, tx, p.out.Finished, pinned)
+				if err != nil {
 					return err
 				}
-				if err = applyPublished(ctx, tx, p.published); err != nil {
+				w, err := writeNVDRecords(ctx, tx, p.nvd, ret, p.out.Finished)
+				if err != nil {
 					return err
 				}
-				if err = applyCVSS(ctx, tx, p.cvssSeen, p.cvss, p.affectedFull); err != nil {
+				rangesChanged = w.KEVChanged
+				if p.out.Records, err = kevNVDCountTx(ctx, tx); err != nil { // the exploited CVEs NVD answered for, not only this (incremental) pull's
 					return err
 				}
-				if p.affectedFull { // the one full pull migration 0015 asked for is done (INV-28)
-					if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET full_due = 0 WHERE id = ? AND full_due = 1`, src.ID); err != nil {
-						return fmt.Errorf("feeds: full pull done: %w", err)
-					}
-				}
-				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			case p.hasCVEOrg:
 				// ranges of CVEs read for the first time are backlog, like NVD's first fill; a new CISA entry still
 				// alerts, by its own new_kev event, published before this one and matched against these ranges
@@ -702,6 +607,8 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
 				}
+			case len(p.kevRanges) > 0: // nvd-recent stored its pages already: the exploited-list CVEs whose ranges changed are news
+				rangesChanged, rangesFirst = p.kevRanges, p.kevRangesFirst
 			}
 			return finish(tx, p.out)
 		})
@@ -762,21 +669,20 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	return row, kev, evs, nil
 }
 
-// pull is pullOne plus the rule that every load of the CISA list brings the EPSS scores and the NVD affected
-// versions with it, whoever started it (the job or "Fetch now"): new CVEs get their score and versions now, not in a
-// day, and a box whose EPSS feed ran before the list existed ("OK, 0 records") is filled. A feed that is off is left
-// alone; EPSS or NVD failing is its own feed's status, not the list's.
+// pull is pullOne plus the rule that every load of the CISA list brings the NVD records and the CVE records of its new
+// entries with it, whoever started it (the job or "Fetch now"): new CVEs get their versions now, not in a day. A feed
+// that is off is left alone; NVD failing is its own feed's status, not the list's. (Every CVE's EPSS score is already on
+// the box: epss-all holds them all.)
 //
-// The events of the CISA list (new_kev, baseline, updated) go out only after those two pulls: the
-// devices are matched once, against the new entry's NVD versions and EPSS score, so a ransomware CVE inside the
-// range alerts as critical at once, and a device outside every range gets no alert at all. The events of the
-// two pulls follow those of the list.
+// The events of the CISA list (new_kev, baseline, updated) go out only after those pulls: the devices are matched
+// once, against the new entry's NVD versions, so a ransomware CVE inside the range alerts as critical at once, and a
+// device outside every range gets no alert at all. The events of the other pulls follow those of the list.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
 	if err == nil && isKEVSource(id) && row.Status == "ok" {
-		deps := []string{"first-epss", "nvd-kev", cveOrgFeedID} // CVE.org after NVD: only what NVD left without ranges
+		deps := []string{nvdFeedID, cveOrgFeedID} // CVE.org after NVD: only what NVD left without ranges
 		if id == vulnCheckFeedID {
-			deps = []string{cveOrgFeedID} // VulnCheck's entries get the CNA's ranges at once; EPSS and NVD answer for the CISA list only
+			deps = []string{cveOrgFeedID} // VulnCheck's entries get the CNA's ranges at once; NVD's selector answers for the CISA list only
 		}
 		for _, dep := range deps {
 			if s.busy(dep) {
@@ -784,10 +690,6 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 			}
 			e, err := s.st.source(ctx, dep)
 			if err != nil || !e.Enabled || (fresh == 0 && e.Records != nil && *e.Records > 0) {
-				continue
-			}
-			// EPSS keeps its own back-off: with the list pulled every hour, a failing EPSS would otherwise be asked every hour.
-			if dep == "first-epss" && e.Failures > 0 && !e.state().Due(s.now(), e.IntervalHours) {
 				continue
 			}
 			// a paused NVD pull keeps the wait NVD asked for (busy, Retry-After): the list does not make it ask sooner (review LOW)

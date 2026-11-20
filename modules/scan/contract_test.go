@@ -16,7 +16,7 @@ func TestContract_INV4_DangerousChecksLocked(t *testing.T) {
 	if c, msg := errOf(b); code != 400 || c != "dangerous_locked" || msg != "Vedette has no dangerous checks: no exploitation, no denial of service. It cannot be turned on." {
 		t.Fatalf("dangerous_checks true: %d %v", code, b)
 	}
-	if e.count(`SELECT rate FROM scan_setting`) != 5 || len(e.audits()) != 0 {
+	if e.count(`SELECT unresponsive_after FROM scan_setting`) != 3 || len(e.audits()) != 0 {
 		t.Fatal("a refused change was saved or audited")
 	}
 	code, b = e.call("PUT", "/scans/config", "admin", `{"dangerous_checks":false,"rate":7}`)
@@ -233,9 +233,7 @@ func TestContract_POST3_NextRun(t *testing.T) {
 		t.Fatalf("view next_run after a slot without a run: %v", v.NextRun)
 	}
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, target_ids, total)
-VALUES ('r-sched', 'schedule', '2026-11-08T23:00:00.000Z', 'system', '2026-11-09T01:00:00.000Z', 'done', '["a-web01"]', 1)`)
-		return err
+		return seedRun(e.ctx(), tx, "r-sched", "schedule", "done", "2026-11-08T23:00:00.000Z", "a-web01")
 	}); err != nil {
 		t.Fatal(err)
 	}

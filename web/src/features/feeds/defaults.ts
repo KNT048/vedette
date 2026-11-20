@@ -1,5 +1,4 @@
 // Shared by the parsing editor (UI) and the mock parser: which fields each feed kind has, which formats fit it, sensible starting rules.
-import type { TFunction } from 'i18next'
 import type { FeedFormat, FeedKind, FieldMap, Parser } from './types'
 
 export const FIELDS: Record<FeedKind, { id: string; required: boolean; date?: boolean }[]> = {
@@ -113,7 +112,3 @@ export function blockedFeedHost(raw: string): Refusal {
 export const sameFeedAddress = (a: string, b: string) => {
   try { const x = new URL(a.trim()), y = new URL(b.trim()); return `${x.protocol}//${x.host}${x.pathname}${x.search}` === `${y.protocol}//${y.host}${y.pathname}${y.search}` } catch { return false }
 }
-
-/** "Every 3 days" and "Every week" read better than 72 and 168 hours; the value stays in hours. */
-export const everyLabel = (t: TFunction<'feeds'>, h: number) =>
-  h === 168 ? t('row.everyWeek') : h > 24 && h % 24 === 0 ? t('row.everyDays', { count: h / 24 }) : t('row.every', { count: h })

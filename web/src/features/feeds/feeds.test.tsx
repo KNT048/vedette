@@ -683,13 +683,20 @@ describe('feeds: parser preview form matrix', () => {
 })
 
 describe('feeds: Settings -> Feeds (S-FEED-4)', () => {
-  it('the header names GitHub-hosted lists, and long schedules read in days and weeks', async () => {
+  it('the header names GitHub-hosted lists, and the schedule of a feed is the shared one, limited by what sources allow', async () => {
     renderApp('/settings/feeds')
     expect(await screen.findByText(/Some sources publish their lists on GitHub, so those come from raw\.githubusercontent\.com/)).toBeInTheDocument()
     await userEvent.click((await screen.findAllByRole('button', { name: /^Settings for / }))[0]!)
     const dlg = await screen.findByRole('dialog')
-    const opts = within(within(dlg).getByLabelText('Fetch schedule')).getAllByRole('option')
-    expect(opts.map((o) => [o.textContent, (o as HTMLOptionElement).value])).toEqual(expect.arrayContaining([['Every 3 days', '72'], ['Every week', '168'], ['Every 24 hours', '24']]))
+    const fs = within(await within(dlg).findByRole('group', { name: 'Fetch schedule' }))
+    expect(await fs.findByText('Sources ask clients not to poll more often.')).toBeInTheDocument()
+    expect(within(fs.getByLabelText('Unit')).getAllByRole('option').map((o) => (o as HTMLOptionElement).value)).toEqual(['hours', 'days'])
+    await userEvent.clear(fs.getByLabelText('Every'))
+    await userEvent.type(fs.getByLabelText('Every'), '2')
+    await userEvent.selectOptions(fs.getByLabelText('Unit'), 'days')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await screen.findAllByText('Every 2 days')).length).toBeGreaterThan(0)
   })
 })
 

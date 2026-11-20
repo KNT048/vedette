@@ -533,7 +533,7 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 	}
 	// nvd-recent and epss-all are not due, so RunPull below pulls only the distribution feed
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_recent_cursor SET url = (SELECT url FROM feeds_source WHERE id = ?)`, recentFeedID)
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_nvd_cursor SET url = (SELECT url FROM feeds_source WHERE id = ?)`, recentFeedID)
 		if err == nil {
 			_, err = tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_success = ?, status = 'ok' WHERE id = ?`, store.FormatTS(now), recentFeedID)
 		}

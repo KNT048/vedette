@@ -19,7 +19,7 @@
 - Đổi cách chuẩn hoá (IP qua `netip`, domain/hash chữ thường, ngày UTC) hoặc danh sách địa chỉ/tên bị loại = đổi khoá khớp IOC của **honeypot/logs/response**. Dòng kiểu hosts-file (`0.0.0.0 tên`) cho ra tên, không bao giờ IP đích.
 
 ## Modifying: `ParseKEV`, `EPSSBatchURLs`/`ParseEPSS`, `ParseNucleiCVEs` (parser dựng sẵn)
-- **feeds** job kéo (WP-20) ghi `feeds_vuln` từ `KEVCatalog.Vulns`, `has_template` từ `NucleiCVEs.CVEs`, `epss`/`epss_7d_ago` từ `ParseEPSS` của các URL do `EPSSBatchURLs(base, cveKEV, date)` dựng (≤ 100 CVE mỗi yêu cầu, `date` = `EPSSDate(now, 7)` cho delta). Nguồn là `api.first.org` (đã có trong PRIVACY.md luồng 1). Đổi trường `Vuln` = đổi cột `feeds_vuln`; `Vuln.Key()` = `ProductKey` là khoá khớp của **inventory**.
+- **feeds** job kéo (WP-20) ghi `feeds_vuln` từ `KEVCatalog.Vulns`, `has_template` từ `NucleiCVEs.CVEs`, EPSS từ `ParseEPSS` của các URL do `EPSSBatchURLs(base, cveKEV, date)` dựng (≤ 100 CVE mỗi yêu cầu, `date` = `EPSSDate(now, 7)` cho delta). Nguồn là `api.first.org` (đã có trong PRIVACY.md luồng 1). Đổi trường `Vuln` = đổi cột `feeds_vuln`; `Vuln.Key()` = `ProductKey` là khoá khớp của **inventory**.
 - KEV và nuclei đọc khoá JSON đúng chữ hoa/thường, khoá lặp lấy giá trị cuối (như `JSON.parse` của SPA). nuclei `cves.json` là JSON Lines với `ID`, `Info`, `file_path`; không nhận mảng.
 - Giới hạn riêng của nguồn dựng sẵn: `hagezi-tif` dùng `wildcard/tif.mini-onlydomains.txt` (kho hagezi đã bỏ thư mục `domains/`) với `MaxRows` 250 000; `ipsum` dùng `levels/3.txt` (IPsum mức ≥ 3, DATA_PIPELINE §2b) trong trần 50 000. Đổi URL/biến thể phải đo lại dòng và dung lượng.
 
@@ -29,6 +29,13 @@
 - **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): mọi quyết định theo phiên bản dựa vào các mục này; đổi hình `AffectedRow` hay bỏ mục ⇒ finding đổi (`modules/findings` `TestGolden_*`).
 - **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` lần đầu (trong `notify.WithBaseline`), sau đó `Inventory.RematchMany` với vendor/product của các CVE trong sự kiện (review H3); `findingsFeeds.Vulns` giữ danh sách theo `Store.MatchStamp` (đổi cách ghi `feeds_vuln`/`feeds_affected_cve` mà không đổi `last_fetch`, `updated_at` hay số hàng ⇒ findings đọc danh sách cũ).
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 14), export policy (`feeds_affected*`).
+
+## Modifying: danh mục lỗ hổng (`feeds_cve`, `feeds_cve_metric`, `feeds_cve_range`, `feeds_kev`, `feeds_signal`, `feeds_epss_hist`, `feeds_nvd_cursor`, `ParseNVD`, `PickCVSS`, `retention`)
+- **findings** (qua `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS`, `TierVulns`/`TierDistro` đọc các bảng mới; đổi luật chọn CVSS, luật giữ hay thứ tự nguồn khoảng làm đổi finding: chạy golden test của findings và `cmd/vedette` (`TestReachability_910_Fixture`, các test wiring dùng `catalogue_seed_test.go`).
+- **inventory** (`feedsKEV`: `KevProducts`, `KevCVEsByKeys`) đọc mục chủ của `feeds_kev`.
+- **core** `export_policy.go`: mọi cột mới được phân loại (`TestExport_PolicyClassifiesEveryColumn`, danh sách bảng bỏ qua trong `data_test.go`); `docs/SCHEMA.sql` bằng `make schema`.
+- **PRIVACY.md** luồng 1 và `locales/en/core.json` `privacy.flow.1`: các yêu cầu NVD (cửa sổ, đi qua toàn bộ danh sách, `cveId`).
+- Thêm nguồn tín hiệu mới: ghi `feeds_signal` qua `putSignal`, luật `qualifies` của loại đó; CVE có tín hiệu đạt được giữ ở mọi tuổi và được lấy bản ghi NVD (`missingSQL`).
 
 ## Modifying: `CVEOrgRecordURL`/`ParseCVERecord`, feed `cve-org`, `feeds_affected_cve.source`, `Store.RangesFromCVEOrg`
 

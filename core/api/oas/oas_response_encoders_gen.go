@@ -979,6 +979,19 @@ func encodeCoreGetModulesResponse(response *CoreGetModulesOK, w http.ResponseWri
 	return nil
 }
 
+func encodeCoreGetSchedulesOwnerKeyResponse(response *CoreGetSchedulesOwnerKeyOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCoreGetSetupResponse(response *CoreGetSetupOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1520,6 +1533,32 @@ func encodeCorePostCoreUsersIDResetPasswordResponse(response *CorePostCoreUsersI
 	return nil
 }
 
+func encodeCorePostSchedulesOwnerKeyRunResponse(response *CorePostSchedulesOwnerKeyRunOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostSchedulesPreviewResponse(response *CorePostSchedulesPreviewOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePutCoreConnectionsIDResponse(response *CorePutCoreConnectionsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1612,6 +1651,19 @@ func encodeCorePutCoreNetworkSpanResponse(response *CorePutCoreNetworkSpanOK, w 
 }
 
 func encodeCorePutCoreOidcResponse(response *CorePutCoreOidcOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePutSchedulesOwnerKeyResponse(response *CorePutSchedulesOwnerKeyOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

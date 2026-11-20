@@ -282,6 +282,63 @@ export const ManagementBody = z.object({
   confirm: z.boolean().optional().describe('Required when the address, prefix, gateway or mode changes: 409 confirm_required (with new_ip; null with DHCP, where the server picks the address) otherwise. DNS-only changes apply at once. dhcp with any static field: 400 dhcp_no_static'),
 })
 
+// ---- schedules (core/schedule): every schedule a person can set, one model and one editor ----
+const clockTime = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/).describe('HH:MM, 00:00 to 23:59, in the rule\'s zone')
+const isoWeekday = z.number().int().min(1).max(7).describe('1 = Monday ... 7 = Sunday')
+export const ScheduleFreq = z.enum(['interval', 'daily', 'weekly', 'monthly', 'once']).describe('interval: every every_minutes (with at_time, a whole number of days: every N days at that time); daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at')
+export const ScheduleWindowMode = z.enum(['global', 'none', 'custom']).describe('global: it starts only inside the box\'s scan window (Settings › Scanning › Safety), and a due time outside it waits for it to open; none: at any time; custom: only inside its own days and hours (window_days, window_from, window_to), and a due time outside them moves to their next opening')
+export const ScheduleRule = z.object({
+  freq: ScheduleFreq,
+  every_minutes: z.number().int().min(1).max(527040).nullable().describe('interval only: 1 minute to 366 days'),
+  at_time: clockTime.nullable().describe('daily, weekly, monthly; interval only when every_minutes is whole days. A time the clocks skip when summer time starts comes due when they jump; a time they show twice comes due once'),
+  weekdays: z.array(isoWeekday).min(1).max(7).nullable().describe('weekly only'),
+  month_day: z.number().int().min(0).max(31).nullable().describe('monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day'),
+  once_at: ts.nullable().describe('once only'),
+  tz: z.string().max(64).describe('"org" (the organization\'s time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin'),
+  window: ScheduleWindowMode,
+  window_days: z.array(isoWeekday).min(1).max(7).nullable().describe('custom window only'),
+  window_from: clockTime.nullable().describe('custom window only: when it opens'),
+  window_to: clockTime.nullable().describe('custom window only: when it closes; earlier than window_from = it crosses midnight and belongs to the day it opens on; equal = the whole day'),
+}).describe('When a schedule comes due. The fields its frequency does not use are null (the box clears them when it saves)')
+export const ScheduleLimits = z.object({
+  freqs: z.array(ScheduleFreq).describe('The frequencies its owner allows'),
+  min_every_minutes: z.number().int(), max_every_minutes: z.number().int(),
+  windows: z.array(ScheduleWindowMode).describe('The window modes its owner allows'),
+  reason: z.string().describe('Why the choices are limited, shown next to them (e.g. "Sources ask clients not to poll more often."); empty when they are not'),
+})
+export const Schedule = z.object({
+  owner_key: z.string().describe('What the schedule starts: scan.vuln, inventory.sweep, exposure.target:<id>, reports.def:<id>, feeds.source:<id>, ...'),
+  module: z.string().describe('The module that owns it: a due time is skipped while it is off'),
+  saved: z.boolean().describe('false: nobody saved it yet; enabled and rule are its default'),
+  enabled: z.boolean(),
+  paused_until: ts.nullable().describe('Due times before it are skipped: the next one counts from it'),
+  rule: ScheduleRule,
+  zone: z.string().describe('The IANA zone the rule is read in (the organization\'s for tz "org")'),
+  next_due_at: ts.nullable().describe('null while off or when it never comes due again (a once rule that ran)'),
+  upcoming: z.array(ts).max(3).describe('The next three start times: a due time in the past starts now, and one outside the scan window when it opens'),
+  waiting_for: z.string().nullable().describe('Due, and held: what it waits for ("The scan window to open")'),
+  last_due_at: ts.nullable(),
+  last_run_id: z.string().nullable().describe('The run it last started (also by Run once now): open it at /runs/<id>'),
+  last_skip_reason: z.string().nullable().describe('Why the last due time did not start anything ("The run it started at 20 Nov 2026, 23:00 had not ended.", "Its module is off."); null once a due time starts'),
+  last_skip_at: ts.nullable(),
+  updated_by: z.string().nullable().describe('Who last changed it (an email, or system for a default); null while not saved'),
+  updated_at: ts.nullable(),
+  limits: ScheduleLimits,
+  edit_role: z.enum(['operator', 'admin']).describe('Who may change it and run it once'),
+})
+export const ScheduleSave = z.object({
+  enabled: z.boolean(),
+  paused_until: ts.nullable().optional().describe('Skip the due times before this; null or a past time: not paused'),
+  rule: ScheduleRule,
+})
+export const SchedulePreviewBody = z.object({
+  owner_key: z.string().max(160).optional().describe('Apply this owner\'s limits (400 invalid with the reason when the rule breaks them)'),
+  rule: ScheduleRule,
+  paused_until: ts.nullable().optional(),
+})
+export const SchedulePreview = z.object({ zone: z.string(), upcoming: z.array(ts).max(3).describe('The next three start times if the rule were saved now') })
+const scheduleKey = z.object({ owner_key: z.string().max(160).regex(/^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$/) })
+
 export const endpoints = defineEndpoints([
   // nền
   { method: 'get', path: '/me', summary: 'The signed-in user (401 when not signed in)', stories: ['S-CORE-3'], role: 'viewer', response: Me },
@@ -377,4 +434,9 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/core/network/ntp', summary: 'NTP servers: default pool or your own (1 to 4)', stories: ['S-CORE-8'], role: 'admin', body: NtpConfig, response: NetworkState },
   { method: 'put', path: '/core/network/box-address', summary: 'Box address: the host name or IPv4 address the LAN reaches the box at, used by every link the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with it', stories: ['S-CORE-8', 'S-NOT-1', 'S-RESP-3'], role: 'admin', body: BoxAddressBody, response: NetworkState },
   { method: 'post', path: '/core/network/box-address/forget', summary: 'Stop answering to an earlier Box address: it leaves the Host allowlist at once and the certificate at its next re-issue. 404 not_found when the box does not answer to it', stories: ['S-CORE-8'], role: 'admin', body: z.object({ address: z.string() }), response: NetworkState },
+  // schedules (core/schedule)
+  { method: 'get', path: '/schedules/{owner_key}', summary: 'One schedule with its next three start times, what it waits for, why its last due time was skipped and what its owner allows. Before anyone saves it: its owner\'s default (saved false). 404 not_found for a key no owner has, or a subject that does not exist', stories: ['S-SCAN-4'], role: 'viewer', params: scheduleKey, response: Schedule, example: { params: { owner_key: 'scan.vuln' } } },
+  { method: 'put', path: '/schedules/{owner_key}', summary: 'Save a schedule: on/off, pause until, the rule. 400 invalid (with field) for a rule that cannot be saved or that its owner does not allow (the message ends with the owner\'s reason); 403 forbidden when edit_role is admin and the caller is not. Audited (schedule.save)', stories: ['S-SCAN-4'], role: 'operator', params: scheduleKey, body: ScheduleSave, response: Schedule },
+  { method: 'post', path: '/schedules/{owner_key}/run', summary: 'Run once now: start what the schedule starts, as the caller, without changing when it is next due. Answers the run (null for work that is not a run; open it at /runs/<id>). 409 busy while the run it last started has not ended; 409 not_started when its owner does not start now (the message says why, e.g. its module is off); 403 forbidden as for PUT. Audited (schedule.run_now)', stories: ['S-SCAN-4'], role: 'operator', params: scheduleKey, response: z.object({ run_id: z.string().nullable() }) },
+  { method: 'post', path: '/schedules/preview', summary: 'The next three start times of a rule as if it were saved now, read in its zone, with the scan window applied; with owner_key, its owner\'s limits apply. 400 invalid (with field)', stories: ['S-SCAN-4'], role: 'viewer', body: SchedulePreviewBody, response: SchedulePreview },
 ])

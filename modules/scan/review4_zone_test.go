@@ -21,7 +21,7 @@ func zoneEnv(t *testing.T) (*runEnv, *atomic.Bool) {
 		}
 		return time.UTC
 	}
-	svc, err := NewService(cfg)
+	svc, err := r.rebuild(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestReview4_ZoneUnknownHoldsTheKEVRescan(t *testing.T) {
 	}
 	r.advance(2 * time.Minute)
 	r.tick()
-	if n := r.count(`SELECT count(*) FROM scan_run`); n != 0 {
+	if n := r.count(`SELECT count(*) FROM core_run`); n != 0 {
 		t.Fatalf("%d rescan runs while the organization zone is unknown", n)
 	}
 	if r.count(`SELECT count(*) FROM scan_event WHERE result IS NULL AND run_id IS NULL`) != 1 {
@@ -71,7 +71,7 @@ func TestReview4_ZoneUnknownHoldsTheKEVRescan(t *testing.T) {
 	}
 	broken.Store(false)
 	r.tick()
-	if n := r.count(`SELECT count(*) FROM scan_run WHERE trigger = 'new_kev'`); n != 1 {
+	if n := r.count(`SELECT count(*) FROM core_run WHERE trigger = 'event'`); n != 1 {
 		t.Fatalf("%d rescan runs once the zone is back, want 1", n)
 	}
 }
@@ -86,7 +86,7 @@ func TestReview4_ZoneUnknownFor7DaysShowsTheEventAsExpired(t *testing.T) {
 	}
 	r.advance(8 * 24 * time.Hour)
 	r.tick()
-	if r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_zone'`) != 1 || r.count(`SELECT count(*) FROM scan_run`) != 0 {
+	if r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_zone'`) != 1 || r.count(`SELECT count(*) FROM core_run`) != 0 {
 		t.Fatal("the event was not closed as expired_zone, or a run started")
 	}
 }

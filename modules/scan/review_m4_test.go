@@ -10,13 +10,16 @@ import (
 
 type jobsJob = jobs.Job
 
-// M4: the module's job closes a run a restart left live, and Close stops the live run and waits for it.
-func TestReview_M4_RecoverJobAndClose(t *testing.T) {
+// M4: core/run records a run a restart left live as stopped; the module's recover job then closes its open probe rows. A shutdown
+// leaves the live run as it is, for the next start to record.
+func TestReview_M4_RecoverJobAndShutdown(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, status, picked, target_ids, total)
-VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', '[]', '["a-web01"]', 1)`)
+		if err := seedRun(r.ctx(), tx, "run-old", "manual", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request) VALUES ('pr-old', '2026-11-10T09:00:00.000Z', 'run-old', '192.168.10.12', 'WEB01', 't.yaml', 'GET / HTTP/1.1')`)
 		return err
 	})
 	if err != nil {
@@ -27,15 +30,33 @@ VALUES ('run-old', 'manual', '2026-11-10T09:00:00.000Z', 'x', 'running', '[]', '
 	if i < 0 {
 		t.Fatal("no recover job")
 	}
-	if err := js[i].Run(r.ctx()); err != nil || r.run("run-old").Status != "stopped" {
-		t.Fatalf("recover: %v %+v", err, r.run("run-old"))
+	if err := js[i].Run(r.ctx()); err != nil || r.count(`SELECT count(*) FROM scan_probe WHERE id = 'pr-old' AND result IS NULL`) != 1 {
+		t.Fatalf("the job closed the probes of a run still recorded as live: %v", err)
 	}
+	if err := r.runs.Recover(r.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.run("run-old"); got.Status != "stopped" || got.StopReason == nil || *got.StopReason != "Vedette restarted" {
+		t.Fatalf("after the restart: %+v", got)
+	}
+	if err := js[i].Run(r.ctx()); err != nil || r.count(`SELECT count(*) FROM scan_probe WHERE id = 'pr-old' AND result = 'stopped'`) != 1 {
+		t.Fatalf("recover: %v", err)
+	}
+
 	started := r.eng.blockRuns()
 	v := r.start("a-web01")
 	<-started
-	r.svc.Close()
-	got := r.run(v.ID)
-	if got.Status != "stopped" || got.StopReason == nil || *got.StopReason != "Vedette was shut down during this scan." || r.svc.liveRun() != "" {
-		t.Fatalf("after Close: %+v", got)
+	r.runs.Close()
+	if got := r.run(v.ID); got.Status != "running" {
+		t.Fatalf("after a shutdown: %+v", got)
+	}
+	if err := r.runs.Recover(r.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.run(v.ID); got.Status != "stopped" || got.StopReason == nil || *got.StopReason != "Vedette restarted" {
+		t.Fatalf("after the next start: %+v", got)
+	}
+	if err := js[i].Run(r.ctx()); err != nil || r.count(`SELECT count(*) FROM scan_probe WHERE result IS NULL`) != 0 {
+		t.Fatalf("recover after the shutdown: %v", err)
 	}
 }

@@ -13,17 +13,16 @@ import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
-import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
+import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
+import { WindowFields } from '@/components/schedule/WindowFields'
 import { fmtDateTime, fmtMonthYear, fmtRelative, isNever } from '@/lib/format'
 import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
 import type { MaintenanceWindow, OsPackage, OsRun, OsState } from './types'
-
-const DAYS = [1, 2, 3, 4, 5, 6, 7]
 
 /** Hết hạn hỗ trợ: đã qua, sắp tới (trong 12 tháng) hay còn dài. Debian có thêm giai đoạn LTS. */
 function support(os: NonNullable<OsState['os']>, now = Date.now()): 'ok' | 'soon' | 'extended' | 'ended' {
@@ -44,29 +43,11 @@ function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; tit
   const [w, setW] = useState<MaintenanceWindow>(s.window)
   const same = JSON.stringify(w) === JSON.stringify(s.window) || (w.mode === 'always' && s.window.mode === 'always')
   const problem = w.mode === 'window' ? (w.days.length === 0 ? t('updates.os.window.noDays') : w.from === w.to ? t('updates.os.window.empty') : null) : null
-  const toggle = (d: number, on: boolean) => setW({ ...w, days: on ? [...w.days, d].sort() : w.days.filter((x) => x !== d) })
   return (
     <fieldset disabled={disabled} title={title} className="m-0 grid min-w-0 gap-3 border-0 p-0">
       <legend className="mb-1 text-sm font-medium">{t('updates.os.window.title')}</legend>
       <Segmented label={t('updates.os.window.modeLabel')} value={w.mode} onChange={(mode) => setW({ ...w, mode })} options={[{ value: 'always', label: t('updates.os.window.anytime') }, { value: 'window', label: t('updates.os.window.only') }]} />
-      {w.mode === 'window' ? (
-        <div className="grid gap-3">
-          <div role="group" aria-label={t('updates.os.window.days')} className="flex flex-wrap gap-x-4 gap-y-2">
-            {DAYS.map((d) => (
-              <span key={d} className="inline-flex items-center gap-2 text-sm">
-                <Checkbox id={`win-day-${d}`} checked={w.days.includes(d)} onCheckedChange={(v) => toggle(d, v === true)} />
-                <Label htmlFor={`win-day-${d}`} className="font-normal">{t(`updates.os.day.${d}`)}</Label>
-              </span>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Label htmlFor="win-from" className="font-normal">{t('updates.os.window.from')}</Label>
-            <Input id="win-from" type="time" className="w-32" value={w.from} onChange={(e) => setW({ ...w, from: e.target.value })} />
-            <Label htmlFor="win-to" className="font-normal">{t('updates.os.window.until')}</Label>
-            <Input id="win-to" type="time" className="w-32" value={w.to} onChange={(e) => setW({ ...w, to: e.target.value })} />
-          </div>
-        </div>
-      ) : null}
+      {w.mode === 'window' ? <WindowFields idPrefix="win" value={w} onChange={(v) => setW({ ...w, ...v })} /> : null}
       {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-meta text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
       <div className="flex items-center gap-1"><p className="text-meta text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>{w.mode === 'always' ? null : <InfoTip topic={t('updates.os.windowLabel')}>{t('updates.os.window.windowInfo')}</InfoTip>}</div>
       {problem ? <p role="alert" className="text-meta text-danger">{problem}</p> : null}

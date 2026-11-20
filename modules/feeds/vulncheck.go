@@ -354,5 +354,5 @@ func vulnCheckError(err error) error {
 // vulnCheckHeld is the CVEs of the vulncheck-kev rows the box holds: they stay while VulnCheck lists them and CISA does not,
 // whatever their age (review M2).
 func (s *Store) vulnCheckHeld(ctx context.Context) (map[string]bool, error) {
-	return stringSet(ctx, s.db.Reader(), `SELECT cve FROM feeds_vuln WHERE source_id = 'vulncheck-kev'`)
+	return stringSet(ctx, s.db.Reader(), `SELECT cve FROM feeds_kev WHERE list = 'vulncheck'`)
 }

@@ -3,10 +3,7 @@ package scan
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/csv"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -17,83 +14,6 @@ const RetentionDays = 90
 
 // maxProbeList caps GET /scans/probes; the CSV has every row.
 const maxProbeList = 5000
-
-const runColumns = `id, trigger, trigger_note, started_at, started_by, ended_at, status, total, done, current, results, matched, stop_reason, identification`
-
-func scanRun(row interface{ Scan(...any) error }) (RunView, error) {
-	var v RunView
-	var cur sql.NullString
-	var results, idents string
-	err := row.Scan(&v.ID, &v.Trigger, &v.TriggerNote, &v.StartedAt, &v.StartedBy, &v.EndedAt, &v.Status, &v.Total, &v.Done, &cur, &results, &v.Matched, &v.StopReason, &idents)
-	if err != nil {
-		return RunView{}, err
-	}
-	if cur.Valid {
-		v.Current = &Current{}
-		if err := json.Unmarshal([]byte(cur.String), v.Current); err != nil {
-			return RunView{}, fmt.Errorf("scan: reading the current device: %w", err)
-		}
-	}
-	if err := json.Unmarshal([]byte(results), &v.Results); err != nil {
-		return RunView{}, fmt.Errorf("scan: reading the results: %w", err)
-	}
-	if v.Results == nil {
-		v.Results = []RunRow{}
-	}
-	if err := json.Unmarshal([]byte(idents), &v.Identification); err != nil {
-		return RunView{}, fmt.Errorf("scan: reading the identification: %w", err)
-	}
-	if v.Identification == nil {
-		v.Identification = []IdentRow{}
-	}
-	return v, nil
-}
-
-// Run returns one run.
-func (s *Service) Run(ctx context.Context, id string) (RunView, error) {
-	v, err := scanRun(s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT `+runColumns+` FROM scan_run WHERE id = ?`, id))
-	if errors.Is(err, sql.ErrNoRows) {
-		return RunView{}, errNoRun
-	}
-	if err != nil {
-		return RunView{}, fmt.Errorf("scan: reading run %s: %w", id, err)
-	}
-	if v.Status == "running" || v.Status == "stopping" {
-		v.Progress = s.progressOf(v.ID)
-	}
-	return v, nil
-}
-
-// Runs returns the newest runs, newest first, with their per-device results (S-SCAN-3).
-func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
-	return s.runs(ctx, ``)
-}
-
-// RunsOf returns the newest runs that had this device among their targets (the device page's Last checks), newest
-// first, however many runs of other devices came after.
-func (s *Service) RunsOf(ctx context.Context, asset string) ([]RunView, error) {
-	return s.runs(ctx, `WHERE EXISTS (SELECT 1 FROM json_each(scan_run.target_ids) WHERE value = ?)`, asset)
-}
-
-func (s *Service) runs(ctx context.Context, where string, args ...any) ([]RunView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT `+runColumns+` FROM scan_run `+where+` ORDER BY started_at DESC, rowid DESC LIMIT ?`, append(args, keepRuns)...)
-	if err != nil {
-		return nil, fmt.Errorf("scan: listing runs: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := []RunView{}
-	for rows.Next() {
-		v, err := scanRun(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan: listing runs: %w", err)
-		}
-		if v.Status == "running" || v.Status == "stopping" {
-			v.Progress = s.progressOf(v.ID)
-		}
-		out = append(out, v)
-	}
-	return out, rows.Err()
-}
 
 // ProbeView is contract.ts ProbeEntry.
 type ProbeView struct {

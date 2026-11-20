@@ -2046,7 +2046,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
       await screen.findByRole('button', { name: 'Save window' }, T)
       const os = osSection()
       const group = () => os.getByRole('group', { name: 'Window mode' })
-      const dayFields = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'From', 'until']
+      const dayFields = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'From', 'Until']
       await eachOption([
         { option: 'Only in a window', shown: dayFields, hidden: [/any time of day/] },
         { option: 'Any time', shown: [/any time of day/], hidden: dayFields },
@@ -2060,9 +2060,9 @@ describe('core: operating system of the box (S-CORE-7)', () => {
       expect(os.getByRole('alert')).toHaveTextContent('Pick at least one day.')
       expect(os.getByRole('button', { name: 'Save window' })).toBeDisabled()
       await u.click(os.getByLabelText('Monday'))
-      fireEvent.change(os.getByLabelText('until'), { target: { value: '02:00' } })
+      fireEvent.change(os.getByLabelText('Until'), { target: { value: '02:00' } })
       expect(os.getByRole('alert')).toHaveTextContent('The start and the end are the same')
-      fireEvent.change(os.getByLabelText('until'), { target: { value: '04:00' } })
+      fireEvent.change(os.getByLabelText('Until'), { target: { value: '04:00' } })
       await u.click(os.getByRole('button', { name: 'Save window' }))
       expect(await screen.findByText('Maintenance window saved.')).toBeInTheDocument()
       expect(await os.findByText('Mon, 02:00 to 04:00')).toBeInTheDocument()

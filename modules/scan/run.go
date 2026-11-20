@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -17,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/progress"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
@@ -70,8 +70,6 @@ const (
 	noteNoApply       = "No scan template applies to the software on this device."
 	noteEngine        = "The scanner could not finish this device, so nothing was concluded. Try again later."
 	stopNow           = "You pressed Stop now."
-	stopShutdown      = "Vedette was shut down during this scan."
-	stopRestart       = "Vedette restarted during this scan, so it was stopped."
 )
 
 // RunRow is contract.ts RunResultRow.
@@ -116,10 +114,9 @@ type RunView struct {
 
 // live is the run this process is executing.
 type live struct {
-	id     string
-	cancel context.CancelFunc
-	done   chan struct{}
-	prog   *progress.Tracker // of the current device (#830); guarded by Service.mu, nil before the first device
+	id   string
+	cur  Current           // the device being checked: shown while the run goes on, never stored
+	prog *progress.Tracker // of the current device (#830); guarded by Service.mu, nil before the first device
 }
 
 var (
@@ -151,10 +148,12 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	if len(ids) > MaxRunTargets {
 		return RunView{}, errTooMany
 	}
-	if err := s.reapOrphan(ctx); err != nil {
-		return RunView{}, err
+	if s.cfg.Runs == nil {
+		return RunView{}, errors.New("scan: no run manager is wired")
 	}
-	if s.liveRun() != "" {
+	if busy, err := s.activeRun(ctx, s.cfg.DB.Reader()); err != nil {
+		return RunView{}, err
+	} else if busy != "" {
 		return RunView{}, errRunning
 	}
 	all, err := s.Targets(ctx) // one batch policy read for every device
@@ -209,45 +208,75 @@ type runSpec struct {
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error
 }
 
-// start writes the run row and its audit row, then runs it in the background.
-func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
-	id := store.NewID("run")
-	base := context.WithoutCancel(ctx)
-	rctx, cancel := context.WithCancel(base)
-	if !sp.end.IsZero() { // by the injected clock, so a test can put the end close
-		cancel()
-		rctx, cancel = context.WithTimeout(base, sp.end.Sub(s.now()))
+// Run kind of a vulnerability check on core/run (DB-DESIGN core_run): one run per Scan now, schedule slot or KEV rescan, one step
+// per device (total 1: the run's done and total count devices), one item per result row. The lane is nuclei: the database holds
+// one live run in it. A restart records a running check as stopped by core/run itself and does not resume it: the consent of a
+// pick and the CVEs a rescan was linked with live in the process that started the run, so the owners start a new one (the
+// schedule on its next tick, a KEV event while its result is open).
+const (
+	runKindName = "vuln_check"
+	runLane     = "nuclei"
+	// noteLost is the end of a queued check a restart left without the picks it was started with.
+	noteLost = "Vedette restarted before this scan began, so it did not run. Start it again."
+)
+
+// registerKind adds the kind of run to the box's run manager; without one the module cannot start a check.
+func (s *Service) registerKind() error {
+	return s.cfg.Runs.Register(run.Kind{Module: ModuleID, Name: runKindName, Lane: runLane, Run: s.runVulnCheck})
+}
+
+// runTitle is what the run says it does.
+func runTitle(sp runSpec, labels []string) string {
+	what := fmt.Sprintf("%d devices", len(sp.ids))
+	if len(sp.ids) == 1 && len(labels) == 1 {
+		what = labels[0]
 	}
-	l := &live{id: id, cancel: cancel, done: make(chan struct{})}
-	// The slot is taken before the row is written, so reapOrphan never mistakes this run for one a restart left behind.
-	s.mu.Lock()
-	if s.live != nil || s.engineBusy() {
-		s.mu.Unlock()
-		cancel()
+	switch sp.trigger {
+	case "schedule":
+		return "Scheduled vulnerability check of " + what
+	case "new_kev":
+		return "Vulnerability check after a new known-exploited entry: " + what
+	}
+	return "Vulnerability check of " + what
+}
+
+var triggers = map[string]run.Trigger{"manual": run.Manual, "schedule": run.Schedule, "new_kev": run.Event}
+
+// start queues the run with its steps, the audit rows and what the run is for, in one transaction; core/run starts it once the
+// nuclei lane is free.
+func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
+	if s.cfg.Runs == nil {
+		return RunView{}, errors.New("scan: no run manager is wired")
+	}
+	if s.engineBusy() {
 		return RunView{}, errRunning
 	}
-	s.live = l
-	s.mu.Unlock()
-	free := func() { s.mu.Lock(); s.live = nil; s.mu.Unlock(); cancel() }
-	now := store.FormatTS(s.now())
-	tids, err := json.Marshal(sp.ids)
-	if err != nil {
-		free()
-		return RunView{}, fmt.Errorf("scan: encoding the targets: %w", err)
+	devs, _ := s.devicesByID(ctx) // for the names of the steps; a failed read names them by id
+	labels := make([]string, len(sp.ids))
+	steps := make([]run.StepPlan, len(sp.ids))
+	for i, id := range sp.ids {
+		labels[i] = id
+		if d, ok := devs[id]; ok && d.Label != "" {
+			labels[i] = d.Label
+		}
+		steps[i] = run.StepPlan{Name: labels[i], Total: 1}
 	}
-	pk, err := json.Marshal(append([]string{}, sp.picked...))
-	if err != nil {
-		free()
-		return RunView{}, fmt.Errorf("scan: encoding the picks: %w", err)
+	spec := run.Spec{Module: ModuleID, Kind: runKindName, Title: runTitle(sp, labels), Trigger: triggers[sp.trigger], RequestedBy: sp.user, Steps: steps}
+	if sp.note != nil {
+		spec.TriggerNote = *sp.note
 	}
-	cur, err := json.Marshal(sp.first)
-	if err != nil {
-		free()
-		return RunView{}, fmt.Errorf("scan: encoding the current device: %w", err)
+	if len(sp.ids) == 1 {
+		spec.Subject = &run.Subject{Kind: "device", ID: sp.ids[0], Label: labels[0]}
 	}
-	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO scan_run (id, trigger, trigger_note, started_at, started_by, status, picked, target_ids, total, current)
-VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp.user, string(pk), string(tids), len(sp.ids), string(cur)); err != nil {
+	var id string
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if busy, err := s.activeRun(ctx, tx); err != nil {
+			return err
+		} else if busy != "" {
+			return errRunning
+		}
+		var err error
+		if id, err = s.cfg.Runs.CreateTx(ctx, tx, spec); err != nil {
 			if store.IsUniqueViolation(err) {
 				return errRunning
 			}
@@ -265,65 +294,68 @@ VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)`, id, sp.trigger, sp.note, now, sp
 			}
 		}
 		if sp.inTx != nil {
-			return sp.inTx(ctx, tx, id)
+			if err := sp.inTx(ctx, tx, id); err != nil {
+				return err
+			}
 		}
+		// Before the commit: the dispatcher cannot start the run until it, and then finds what it needs.
+		s.mu.Lock()
+		s.pending[id] = sp
+		s.mu.Unlock()
 		return nil
 	})
 	if err != nil {
-		free()
+		if id != "" {
+			s.mu.Lock()
+			delete(s.pending, id)
+			s.mu.Unlock()
+		}
 		return RunView{}, err
 	}
 	s.publish(ctx, EventRunStarted, RunEvent{RunID: id, Status: "running"})
-	go func() {
-		defer close(l.done)
-		defer cancel()
-		s.execute(rctx, id, sp)
-		s.mu.Lock()
-		s.live = nil
-		s.mu.Unlock()
-	}()
 	return s.Run(ctx, id)
+}
+
+// takePending hands the run the spec it was started with, once.
+func (s *Service) takePending(id string) (runSpec, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sp, ok := s.pending[id]
+	delete(s.pending, id)
+	return sp, ok
 }
 
 // engineBusy says an Engine.Run call has not returned yet (review M2).
 func (s *Service) engineBusy() bool { return s.busy.Load() > 0 }
 
-func (s *Service) liveRun() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.live == nil {
-		return ""
+// activeRun is the id of a vulnerability check that has not ended (queued, running or stopping), "" when none: a second one is
+// refused (INV-3).
+func (s *Service) activeRun(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (string, error) {
+	var id string
+	err := q.QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND kind = ? AND status IN ('queued', 'running', 'stopping') LIMIT 1`, ModuleID, runKindName).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
 	}
-	return s.live.id
+	if err != nil {
+		return "", fmt.Errorf("scan: reading the live run: %w", err)
+	}
+	return id, nil
 }
 
-// reapOrphan closes a run the database says is running while this process runs none: Vedette restarted during it.
-// Its open probe rows become stopped (INV-7: the log keeps what was on its way).
-func (s *Service) reapOrphan(ctx context.Context) error {
-	if s.liveRun() != "" {
-		return nil
-	}
+// closeOrphanProbes closes the probe rows of a run that is no longer live: a restart cut it (core/run records the run itself), and
+// INV-7 wants the log to keep what was on its way, as stopped.
+func (s *Service) closeOrphanProbes(ctx context.Context) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if s.liveRun() != "" { // again inside the writer: a start in between has taken the slot
-			return nil
-		}
-		var id string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM scan_run WHERE status IN ('running', 'stopping')`).Scan(&id)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("scan: reading the live run: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE scan_probe SET result = 'stopped' WHERE run_id = ? AND result IS NULL`, id); err != nil {
-			return fmt.Errorf("scan: closing the probe log: %w", err)
-		}
-		_, err = tx.ExecContext(ctx, `UPDATE scan_run SET status = 'stopped', ended_at = ?, current = NULL, stop_reason = ? WHERE id = ?`, store.FormatTS(s.now()), stopRestart, id)
+		_, err := tx.ExecContext(ctx, `UPDATE scan_probe SET result = 'stopped' WHERE result IS NULL AND run_id IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM core_run r WHERE r.id = scan_probe.run_id AND r.status IN ('running', 'stopping'))`)
 		return err
 	})
 }
 
-// StopRun is Stop now (PRE-2, POST-2, INV-6): the run becomes stopping, no new request leaves, and it is stopped
-// within 5 seconds. Stopping a run that is already stopping is not an error.
+// StopRun is Stop now (PRE-2, POST-2, INV-6): the run becomes stopping, no new request leaves, and it is stopped within 5
+// seconds. Stopping a run that is already stopping is not an error. core/run records the stop and its audit row.
 func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error) {
 	v, err := s.Run(ctx, id)
 	if err != nil {
@@ -332,79 +364,133 @@ func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error)
 	if v.Status != "running" && v.Status != "stopping" {
 		return RunView{}, errNotRunning
 	}
-	if v.Status == "running" {
-		err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			r, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = 'stopping', stop_requested_at = ? WHERE id = ? AND status = 'running'`, store.FormatTS(s.now()), id)
-			if err != nil {
-				return fmt.Errorf("scan: stopping the run: %w", err)
-			}
-			if n, _ := r.RowsAffected(); n == 0 {
-				return nil
-			}
-			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "scan.stop", Target: id, Detail: fmt.Sprintf("scanned %d/%d", v.Done, v.Total)})
-		})
-		if err != nil {
-			return RunView{}, err
-		}
-	}
-	s.mu.Lock()
-	l := s.live
-	s.mu.Unlock()
-	if l != nil && l.id == id {
-		l.cancel()
-	} else if err := s.reapOrphan(ctx); err != nil {
-		return RunView{}, err
+	if err := s.cfg.Runs.Stop(ctx, id, user, stopNow); err != nil && !errors.Is(err, run.ErrEnded) {
+		return RunView{}, fmt.Errorf("scan: stopping the run: %w", err)
 	}
 	return s.Run(ctx, id)
 }
 
 // ---- executing a run ----
 
+// runVulnCheck is the Run of the kind: core/run calls it once the nuclei lane is free.
+func (s *Service) runVulnCheck(ctx context.Context, x *run.Exec) (run.Result, error) {
+	sp, ok := s.takePending(x.ID())
+	if !ok { // a queued run a restart left: the picks and the CVEs it was started with are gone
+		return run.Result{Status: run.Failed, Error: noteLost}, nil
+	}
+	s.mu.Lock()
+	s.live = &live{id: x.ID(), cur: sp.first}
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.live = nil; s.mu.Unlock() }()
+	if !sp.end.IsZero() { // by the injected clock, so a test can put the end close
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, sp.end.Sub(s.now()))
+		defer cancel()
+	}
+	return s.execute(ctx, x, sp), nil
+}
+
 // execute scans the targets one device at a time. Every device is checked again right before its job leaves core
 // (INV-1); a person's Stop now or an unresponsive device (INV-6) ends the run, and the devices not reached are not
-// touched.
+// touched. Each device is a step of the run and its rows are items, written as the device ends.
 // sp.picked are the ids whose pick is their consent (M1): each other device is checked as for an automatic run.
-func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
+func (s *Service) execute(ctx context.Context, x *run.Exec, sp runSpec) run.Result {
 	ids := sp.ids
 	sp.identBusy = new(bool)
-	var rows []RunRow
-	idents := []IdentRow{}
-	status, reason := "done", ""
-	done, next := 0, len(ids) // devices finished; first device not touched
+	res := run.Result{}
+	event, matched := "done", 0
+	next := len(ids) // first device not touched
+	rec := func(rows []RunRow, ident *IdentRow) {
+		for _, r := range rows {
+			if r.Result == "matched" {
+				matched++
+			}
+		}
+		s.record(ctx, x, rows, ident)
+	}
 	for i, id := range ids {
 		if ctx.Err() != nil {
-			status, reason, next = "stopped", s.stopReason(ctx), i
+			res, event = s.interrupted(ctx)
+			next = i
 			break
 		}
-		got, ident, end := s.scanTarget(ctx, runID, id, i, sp)
-		rows = append(rows, got...)
-		if ident != nil {
-			idents = append(idents, *ident)
+		seq := i + 1
+		s.step(ctx, "start", x.StartStep(context.WithoutCancel(ctx), seq))
+		got, ident, end := s.scanTarget(ctx, x.ID(), id, sp)
+		rec(got, ident)
+		fctx := context.WithoutCancel(ctx)
+		switch end {
+		case "":
+			s.step(ctx, "progress", x.Progress(fctx, seq, 1, 1))
+			s.step(ctx, "end", x.EndStep(fctx, seq, run.Done, ""))
+			continue
+		case "stopped":
+			s.step(ctx, "end", x.EndStep(fctx, seq, run.Stopped, ""))
+			res, event = s.interrupted(ctx)
+		default:
+			s.step(ctx, "end", x.EndStep(fctx, seq, run.Partial, end))
+			res, event = run.Result{Status: run.Partial, Error: end}, "auto_stopped"
 		}
-		if end == "stopped" {
-			status, reason, next = "stopped", s.stopReason(ctx), i+1
-			break
-		}
-		if end != "" {
-			status, reason, next = "auto_stopped", end, i+1
-			break
-		}
-		done++
+		next = i + 1
+		break
 	}
 	fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	devs, _ := s.devicesByID(fctx) // for the labels of the rows below; a failed read leaves dashes
-	for _, id := range ids[next:] {
-		d := devs[id]
-		rows = append(rows, RunRow{TargetID: id, Label: orDash(d.Label), IP: orDash(d.IP), Result: "skipped", Note: noteSkipped})
+	for i := next; i < len(ids); i++ {
+		d := devs[ids[i]]
+		rec([]RunRow{{TargetID: ids[i], Label: orDash(d.Label), IP: orDash(d.IP), Result: "skipped", Note: noteSkipped}}, nil)
 		if identifies(sp) {
-			d.ID = id
+			d.ID = ids[i]
 			r := identRow(d, nil, "not_scanned")
 			r.Note = noteSkipped
-			idents = append(idents, r)
+			s.record(fctx, x, nil, &r)
 		}
+		s.step(fctx, "end", x.EndStep(fctx, i+1, run.Stopped, noteSkipped))
 	}
-	s.finish(fctx, runID, status, reason, rows, idents, done)
+	// Review L4: a probe row closeProbes could not close does not stay open for good (INV-7).
+	left := "no_response"
+	if res.Status != run.Done {
+		left = "stopped"
+	}
+	s.closeRunProbes(fctx, x.ID(), left)
+	s.publish(fctx, eventNameOf(event), RunEvent{RunID: x.ID(), Status: event, Matched: matched})
+	return res
+}
+
+func eventNameOf(status string) string {
+	if status == "done" {
+		return EventRunFinished
+	}
+	return EventRunStopped
+}
+
+// interrupted is how a run ended before its last device: the window of a scheduled run closed (it stopped by itself), or the run's
+// context ended for a stop or a shutdown (core/run records which: a person's stop makes it stopped, a shutdown leaves it running
+// for the next start to record).
+func (s *Service) interrupted(ctx context.Context) (run.Result, string) {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return run.Result{Status: run.Partial, Error: noteWindowEnded}, "auto_stopped"
+	}
+	return run.Result{Status: run.Partial, Error: stopNow}, "stopped"
+}
+
+// step logs a failed write of a step: the run goes on, its rows are the record.
+func (s *Service) step(ctx context.Context, what string, err error) {
+	if err != nil && !errors.Is(err, run.ErrNotLive) {
+		s.cfg.Log.WarnContext(ctx, "scan: could not record the progress of a run", "step", what, "error", err)
+	}
+}
+
+// closeRunProbes closes the probe rows a run left open.
+func (s *Service) closeRunProbes(ctx context.Context, runID, result string) {
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE scan_probe SET result = ? WHERE run_id = ? AND result IS NULL`, result, runID)
+		return err
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "scan: closing the probe log failed", "run", runID, "error", err)
+	}
 }
 
 // identifies says a run identifies its devices before checking them: Scan now only. A schedule and a KEV rescan check
@@ -430,7 +516,7 @@ func (s *Service) devicesByID(ctx context.Context) (map[string]Device, error) {
 // scanTarget scans one device. end is "" to go on, "stopped" after Stop now, or the stop reason of an
 // unresponsive device when stop_on_unresponsive is set. ident is the device's identification row in a Scan now run, nil
 // in other runs.
-func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, sp runSpec) (rows []RunRow, ident *IdentRow, end string) {
+func (s *Service) scanTarget(ctx context.Context, runID, id string, sp runSpec) (rows []RunRow, ident *IdentRow, end string) {
 	explicit := slices.Contains(sp.picked, id) // M1: the pick is per device
 	skipped := func(d Device, why string) *IdentRow {
 		if !identifies(sp) {
@@ -455,9 +541,7 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if !ok {
 		return []RunRow{{TargetID: id, Label: "—", IP: "—", Result: "skipped", Note: skipNote["gone"]}}, skipped(Device{ID: id}, ReasonGone), ""
 	}
-	if err := s.setCurrent(ctx, runID, index, d); err != nil {
-		return failed(err)
-	}
+	s.setCurrent(runID, d)
 	// #830: the device's own progress. The worker's reports of its nmap and nuclei jobs reach this Tracker through ctx (the Dispatcher
 	// finds the Sink there); the scan names the phase itself where no tool reports yet.
 	tr := progress.NewTracker(s.now)
@@ -610,15 +694,28 @@ func (s *Service) progressOf(id string) *progress.View {
 	return tr.View()
 }
 
-func (s *Service) setCurrent(ctx context.Context, runID string, done int, d Device) error {
-	cur, err := json.Marshal(Current{Label: d.Label, IP: d.IP})
-	if err != nil {
-		return fmt.Errorf("scan: encoding the current device: %w", err)
+// setCurrent names the device the live run is on (display only).
+func (s *Service) setCurrent(runID string, d Device) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.live != nil && s.live.id == runID {
+		s.live.cur = Current{Label: d.Label, IP: d.IP}
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE scan_run SET done = ?, current = ? WHERE id = ? AND status IN ('running', 'stopping')`, done, string(cur), runID)
-		return err
-	})
+}
+
+// currentOf is the device run id is on while this process runs it (or has it queued); nil otherwise.
+func (s *Service) currentOf(id string) *Current {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.live != nil && s.live.id == id {
+		c := s.live.cur
+		return &c
+	}
+	if sp, ok := s.pending[id]; ok {
+		c := sp.first
+		return &c
+	}
+	return nil
 }
 
 // check is one CVE of a device and the templates that confirm it.
@@ -1037,55 +1134,6 @@ func (s *Service) closeProbes(ctx context.Context, rows []probeRow, result func(
 	if err != nil {
 		s.cfg.Log.ErrorContext(ctx, "scan: closing the probe log failed", "error", err)
 	}
-}
-
-// finish writes the end of a run and announces it.
-func (s *Service) finish(ctx context.Context, runID, status, reason string, rows []RunRow, idents []IdentRow, done int) {
-	matched := 0
-	for _, r := range rows {
-		if r.Result == "matched" {
-			matched++
-		}
-	}
-	if rows == nil {
-		rows = []RunRow{}
-	}
-	if idents == nil {
-		idents = []IdentRow{}
-	}
-	b, err := json.Marshal(rows)
-	var ib []byte
-	if err == nil {
-		ib, err = json.Marshal(idents)
-	}
-	if err == nil {
-		var stop *string
-		if reason != "" {
-			stop = &reason
-		}
-		err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			if _, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = ?, ended_at = ?, current = NULL, results = ?, identification = ?, matched = ?, stop_reason = ?, done = ? WHERE id = ?`,
-				status, store.FormatTS(s.now()), string(b), string(ib), matched, stop, done, runID); err != nil {
-				return err
-			}
-			// Review L4: a probe row closeProbes could not close does not stay open for good (INV-7).
-			left := "no_response"
-			if status != "done" {
-				left = "stopped"
-			}
-			_, err := tx.ExecContext(ctx, `UPDATE scan_probe SET result = ? WHERE run_id = ? AND result IS NULL`, left, runID)
-			return err
-		})
-	}
-	if err != nil {
-		s.cfg.Log.ErrorContext(ctx, "scan: writing the end of a run failed", "run", runID, "error", err)
-		return
-	}
-	name := EventRunFinished
-	if status != "done" {
-		name = EventRunStopped
-	}
-	s.publish(ctx, name, RunEvent{RunID: runID, Status: status, Matched: matched})
 }
 
 func (s *Service) publish(ctx context.Context, name string, data any) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Counter } from './Counter'
+import { useKeepListParams } from './listParams'
 
 // Khung trang (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
 
@@ -17,6 +18,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
   // Lỗi lập trình: báo khi phát triển, không làm vỡ trang của người dùng.
   if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items, got ${all.length}; the rest are dropped`)
   const items = all.slice(0, 4)
+  const keep = useKeepListParams()
   return (
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
@@ -29,7 +31,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
               <span className="text-meta text-muted">{k.label}</span>
             </div>
           ) : (
-            <Link to={k.to} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
+            <Link to={keep(k.to)} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
               <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
               <span className="text-meta text-muted underline-offset-4 group-hover:underline">{k.label}</span>
             </Link>

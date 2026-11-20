@@ -141,7 +141,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
       <KevFreshness latest={hot.data?.latest ?? null} />
       <QueryState query={hot}>
         {(d) => d.rows.length ? (
-          <DataTable caption={t('hot.title')} data={d.rows} columns={columns} onRowClick={(r) => navigate(`/cve/${r.cves[0]!.cve}`)} rowTone={(r) => (r.you_have === 'yes' ? 'danger' : undefined)}
+          <DataTable urlKey="hot-cves" caption={t('hot.title')} data={d.rows} columns={columns} onRowClick={(r) => navigate(`/cve/${r.cves[0]!.cve}`)} rowTone={(r) => (r.you_have === 'yes' ? 'danger' : undefined)}
             mobileRow={(r) => (
               <div className="grid gap-1.5">
                 <div className="flex items-start justify-between gap-3">

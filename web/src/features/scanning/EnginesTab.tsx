@@ -38,7 +38,7 @@ const STATE_TONE: Record<Engine['state'], Tone> = { off: 'off', needs_setup: 'wa
 const PLACE: Partial<Record<EngineId, string>> = {
   passive: '/devices/setup?tab=sensor',
   'nmap-versions': '/settings/scanning?tab=safety#fragile',
-  osquery: '/devices/setup?tab=agents', wazuh: '/devices/setup?tab=agents#wazuh-url',
+  osquery: '/devices/setup?tab=agents', wazuh: '/devices/setup?tab=wazuh',
   zap: '/exposure?tab=targets#targets', honeypot: '/honeypot?tab=trap-ips',
 }
 /** Devices › Setup is an administrator's page (a forbidden page for the others): its links are not offered to them (#877 r1 L8). */

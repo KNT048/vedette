@@ -199,7 +199,7 @@ function Content() {
             // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
             <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
-            <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
+            <DataTable urlKey="incidents" caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
               empty={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} filtered={filtersOn} onClearFilters={clearFilters}
               mobileRow={(r) => (
                 <div className="flex items-start gap-3">

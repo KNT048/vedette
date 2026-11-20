@@ -92,7 +92,7 @@ function Body({ d }: { d: PrivacyState }) {
     <>
       <ReadOnlyNote role="admin" />
       <Section id="flows" title={t('privacy.flows')} description={t('privacy.flowsDesc')} info={t('privacy.flowsInfo')}>
-        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
+        <DataTable urlKey="privacy-flows" data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2"><span id={`flow-${f.id}`} className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
             <div className="text-meta">{whatCell(f)}</div>
@@ -102,17 +102,18 @@ function Body({ d }: { d: PrivacyState }) {
         )} />
       </Section>
 
-      <Section title={t('privacy.bugNote.title')} info={t('privacy.bugNote.bodyInfo')}>
-        <p className="max-w-3xl text-sm">{t('privacy.bugNote.body')}</p>
-      </Section>
-
-      <Section id="telemetry" title={t('privacy.telemetry.title')} info={t('privacy.telemetry.statementInfo')} stories={['S-CORE-4']}>
-        <p className="max-w-3xl text-sm">{t('privacy.telemetry.statement')}</p>
-      </Section>
-
-      <Section title={t('privacy.cookie.title')} info={t('privacy.cookie.bodyInfo')}>
-        <p className="max-w-3xl text-sm">{t('privacy.cookie.body')}</p>
-      </Section>
+      {/* The three statements without a switch share one folded line instead of three headings that only explain. */}
+      <details id="telemetry" className="max-w-3xl rounded-md border border-rule p-3">
+        <summary className="cursor-pointer text-sm font-medium">{t('privacy.more.title')}</summary>
+        <div className="mt-3 grid gap-2 text-sm">
+          {(['bugNote', 'telemetry', 'cookie'] as const).map((k) => (
+            <p key={k} className="flex items-start gap-1">
+              <span><span className="font-medium">{t(`privacy.${k}.title`)}.</span> {t(k === 'bugNote' ? 'privacy.bugNote.body' : k === 'telemetry' ? 'privacy.telemetry.statement' : 'privacy.cookie.body')}</span>
+              <InfoTip topic={t(`privacy.${k}.title`)}>{t(k === 'bugNote' ? 'privacy.bugNote.bodyInfo' : k === 'telemetry' ? 'privacy.telemetry.statementInfo' : 'privacy.cookie.bodyInfo')}</InfoTip>
+            </p>
+          ))}
+        </div>
+      </details>
     </>
   )
 }

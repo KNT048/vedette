@@ -90,7 +90,7 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
         <DialogContent wide title={t('res.title', { time: fmtDateTime(shown.started_at) })} description={t('res.description', { done: shown.done, total: shown.total })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
           {shown.stop_reason ? <Notice tone="warn" role="note" className="mb-0" title={shown.stop_reason} /> : null}
           <Identification rows={shown.identification} />
-          <DataTable caption={t('res.caption')} data={shown.results} columns={columns} pageSize={20} empty={t('res.empty')} />
+          <DataTable urlKey="scan-results" caption={t('res.caption')} data={shown.results} columns={columns} pageSize={20} empty={t('res.empty')} />
         </DialogContent>
       ) : null}
     </Dialog>
@@ -118,7 +118,7 @@ function History({ runs }: { runs: ScanRun[] }) {
   ], [t, view])
   return (
     <>
-      <DataTable caption={t('hist.caption')} data={runs} columns={columns} pageSize={10}
+      <DataTable urlKey="scan-history" caption={t('hist.caption')} data={runs} columns={columns} pageSize={10}
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-start justify-between gap-3">

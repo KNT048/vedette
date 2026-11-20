@@ -223,7 +223,7 @@ function Observations({ list }: { list: Observation[] }) {
     { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-meta text-muted">{t(row.original.contradicts_type ? 'obs.notUsedType' : 'obs.kept')}</span>) },
   ]
   return (
-    <DataTable caption={t('obs.caption')} data={list} columns={columns} pageSize={100}
+    <DataTable urlKey="observations" caption={t('obs.caption')} data={list} columns={columns} pageSize={100}
       mobileRow={(o) => (
         <div className="grid gap-1">
           <div className="flex items-start justify-between gap-3">
@@ -269,7 +269,7 @@ function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: De
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => source(row.original) },
   ]
   return (
-    <DataTable caption={t('services.caption')} data={list} columns={columns}
+    <DataTable urlKey="services" caption={t('services.caption')} data={list} columns={columns}
       mobileRow={(sv) => (
         <div className="grid gap-1">
           <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}</span>
@@ -435,7 +435,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   return (
     <>
       {osBox ?? <OsNeeds assetId={d.asset.id} needs={needs} />}
-      <DataTable caption={t('software.caption')} data={list} columns={columns}
+      <DataTable urlKey="software" caption={t('software.caption')} data={list} columns={columns}
         mobileRow={(sw) => (
           <div className="flex items-start justify-between gap-3">
             <div className="grid min-w-0 gap-1">

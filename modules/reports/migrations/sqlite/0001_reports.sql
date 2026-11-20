@@ -1,5 +1,6 @@
 -- +goose Up
--- Reports (modules/reports/CONTRACT.md). Forward-only. Four tables, prefix rep_ (MANIFEST).
+-- The whole schema of the reports module. It is edited in place until the first public release; docs/SCHEMA.sql
+-- shows the schema of every module together. Forward-only: there is no Down section.
 
 -- The weekly send schedule: one row (id = 1), made on first save. recipients is a JSON array of at most 20 addresses.
 -- armed_at is when the schedule was last saved: a slot before it never counts as missed (a new schedule does not send for last
@@ -25,7 +26,6 @@ CREATE TABLE rep_history (
     error      TEXT CHECK (error IS NULL OR length(error) <= 500),
     report     TEXT NOT NULL CHECK (json_valid(report) AND json_type(report) = 'object')
 );
-CREATE INDEX rep_history_ts ON rep_history (ts DESC);
 
 -- The last AI commentary on the weekly report: one row (id = 1).
 CREATE TABLE rep_weekly_ai (
@@ -39,3 +39,5 @@ CREATE TABLE rep_pdpl (
     org    TEXT CHECK (org IS NULL OR (json_valid(org) AND json_type(org) = 'object')),
     report TEXT CHECK (report IS NULL OR (json_valid(report) AND json_type(report) = 'object'))
 );
+
+CREATE INDEX rep_history_ts ON rep_history (ts DESC);

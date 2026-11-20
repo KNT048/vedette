@@ -29,6 +29,7 @@ var rules = []rule{
 	{"docs/RUNBOOK.md", Result{Go: true}},                                  // deploy/deb/apparmor_test.go keeps the AppArmor repair command equal to the postinst one
 	{"docs/brand/", Result{Web: true}},                                     // web/src/components/brand/Logo.test.tsx holds Logo.tsx to the brand SVGs
 	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env
+	{"docs/SCHEMA.sql", Result{Go: true}},                                  // cmd/vedette/schema_test.go holds it to the migrations (make schema)
 	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files

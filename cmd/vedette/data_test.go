@@ -42,7 +42,7 @@ func moduleSchema(t *testing.T) map[string][][2]string {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	rows, err := db.Reader().QueryContext(ctx, `SELECT m.name, p.name, p.type FROM sqlite_master m, pragma_table_info(m.name) p
-		WHERE m.type = 'table' AND m.name NOT GLOB 'sqlite_*' AND m.name NOT GLOB 'core_migration_*' ORDER BY m.name, p.cid`)
+		WHERE m.type = 'table' AND m.name NOT GLOB 'sqlite_*' AND m.name NOT GLOB 'core_migration_*' AND m.name <> '`+store.EpochTable+`' ORDER BY m.name, p.cid`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -721,7 +721,7 @@ func rowCounts(t *testing.T, path string, migrate bool) map[string]int {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
-	rows, err := db.Reader().QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'core_migration_*'`)
+	rows, err := db.Reader().QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'core_migration_*' AND name <> '`+store.EpochTable+`'`)
 	if err != nil {
 		t.Fatal(err)
 	}

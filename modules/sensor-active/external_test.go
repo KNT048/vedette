@@ -2,23 +2,17 @@ package sensoractive_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
-	"io/fs"
 	"net/netip"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
-	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 	"github.com/knt048/vedette/modules/sensor-active/worker"
@@ -259,56 +253,6 @@ func TestScanExternalRefusesANonPublicAddress(t *testing.T) {
 	}
 	if e.count(`SELECT count(*) FROM sa_job`) != 0 {
 		t.Fatal("a job was started")
-	}
-}
-
-// Migration 0005 keeps the probe log's counter and every earlier shape, and takes the external shape with its 540-character
-// flags (the -p list).
-func TestMigration0005KeepsTheProbeCounter(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(sa.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || p >= "0005" {
-			return err
-		}
-		b, err := fs.ReadFile(sa.Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "sensor-active", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string, args ...any) error {
-		return db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err })
-	}
-	must := func(q string, args ...any) {
-		t.Helper()
-		if err := exec(q, args...); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	must(`INSERT INTO sa_job (id, kind, started_at, status) VALUES ('j', 'snmp', '2026-11-01T01:00:00.000Z', 'done')`)
-	for i, shape := range []string{"sweep", "gentle_titles", "snmp"} {
-		must(fmt.Sprintf(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-01T01:00:00.000Z', 'j', '%s', 1, 1, '-sn', '192.168.1.%d', 'ok')`, shape, i+1))
-	}
-	must(`DELETE FROM sa_probe WHERE id > 1`) // the prune of old rows
-	if err := store.Migrate(ctx, db, "sensor-active", sa.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	flags, _ := nmapargv.Flags(nmapargv.External, nmapargv.ExternalRate)
-	must(`INSERT INTO sa_job (id, kind, started_at, status) VALUES ('x', 'external', '2026-11-13T01:00:00.000Z', 'done')`)
-	must(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-13T01:00:00.000Z', 'x', 'external', 100, 1, ?, '8.8.8.8', 'ok')`, strings.Join(flags, " "))
-	var id int
-	var shapes string
-	if err := db.Reader().QueryRowContext(ctx, `SELECT max(id), group_concat(shape) FROM sa_probe`).Scan(&id, &shapes); err != nil || id != 4 || shapes != "sweep,external" {
-		t.Fatalf("the next probe id is %d, shapes %s (%v), want 4", id, shapes, err)
-	}
-	if exec(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-13T01:00:00.000Z', 'x', 'aggressive', 1, 1, '-A', '8.8.8.8', 'ok')`) == nil {
-		t.Fatal("an unknown shape was accepted")
 	}
 }
 

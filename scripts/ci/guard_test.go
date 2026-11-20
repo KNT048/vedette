@@ -249,7 +249,9 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	}
 	saved := map[string]string{} // key -> path
 	for _, s := range save {
-		if got := field(s, "if"); got != "github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')" {
+		// "always() && " may lead: a step that failed still leaves a valid cache (lint's analysis cache), and saving it on main
+		// keeps the next run warm.
+		if got := strings.TrimPrefix(field(s, "if"), "always() && "); got != "github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')" {
 			t.Errorf("a cache must be saved on main only (push or schedule), not when %q:\n%s", got, s)
 		}
 		k := field(s, "key")

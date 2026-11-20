@@ -611,6 +611,8 @@ func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error)
 // rev (turned on or off) of the feeds that write them (each written in the pull's own transaction), and the count and newest change
 // of the exploited-list entries and of their catalogue rows. findings (through cmd/vedette) keeps one read of the list per stamp,
 // instead of reading the ranges once per device.
+// The public-exploit feeds (metasploit, exploit-db, poc-in-github) are not in it yet: nothing it keys reads their signals. The
+// urgency read of the findings (Signals) must add them, as nuclei-templates is.
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM

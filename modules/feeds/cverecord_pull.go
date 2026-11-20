@@ -238,7 +238,17 @@ var errRecordsLater = errors.New("feeds: the CVE records pull goes on later")
 // refuses (any other HTTP error that is not "busy") or that Vedette cannot read is counted, stamped (asked again after recordRecheck)
 // and skipped, its stored data kept; a source that stays busy ends this part with what it read.
 func (s *Service) recordsByID(ctx context.Context, run *recordRun, now time.Time) error {
-	due, err := s.st.recordDue(ctx, now.Add(-recordRecheck), recordPerPull)
+	// Many listed CVEs without a record (a new signal source named thousands of older CVEs): those come from the next read of the
+	// whole list (recordsBulk), not one file each; only the exploited lists' CVEs are still asked for by ID meanwhile.
+	listed := publicListedSQL
+	never, err := s.st.recordUnread(ctx)
+	if err != nil {
+		return err
+	}
+	if never >= recordRescanUnread {
+		listed = missingKEVSQL
+	}
+	due, err := s.st.recordDueOf(ctx, listed, now, recordPerPull)
 	if err != nil || len(due) == 0 {
 		return err
 	}
@@ -477,7 +487,39 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 	if cur.Until.After(until) { // a re-read of the whole list does not move back what the changes brought
 		until = cur.Until
 	}
+	if err := s.stampNotInList(ctx, run, now); err != nil {
+		return err
+	}
 	return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeDone, From: midnight, To: time.Time{}, Until: until})
+}
+
+// stampNotInList stamps the kept CVEs a complete read of the whole list did not hold (an id the CVE Program never published, or one a
+// list names wrongly), as a by-ID ask that found no record does: they no longer count as unread, so they neither hold back the by-ID
+// asks nor start another read of the whole list a week later. Unless the feed was edited or turned off meanwhile.
+func (s *Service) stampNotInList(ctx context.Context, run *recordRun, now time.Time) error {
+	return s.DB.Write(ctx, func(tx *sql.Tx) error {
+		row, err := sourceTx(ctx, tx, run.src.ID)
+		if err != nil || row.Rev != run.src.Rev || !row.Enabled {
+			return err
+		}
+		missing, err := stringSet(ctx, tx, `SELECT i.cve FROM (`+importantSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`)
+		if err != nil {
+			return err
+		}
+		ts := store.FormatTS(now)
+		for cve := range missing {
+			if !cveRE.MatchString(cve) {
+				continue
+			}
+			if err := ensureCVE(ctx, tx, cve, ts); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET record_at = ? WHERE cve = ?`, ts, cve); err != nil {
+				return fmt.Errorf("feeds: CVE record %s: %w", cve, err)
+			}
+		}
+		return nil
+	})
 }
 
 // saveRecordCursor writes where the CVE records stand, unless the feed was edited or turned off meanwhile. The row is selectorRecord of

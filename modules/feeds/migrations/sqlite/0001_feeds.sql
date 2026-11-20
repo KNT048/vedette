@@ -28,34 +28,9 @@ CREATE TABLE feeds_source (
     error           TEXT,
     etag            TEXT,
     last_modified   TEXT,
-    catalog_version TEXT, rev INTEGER NOT NULL DEFAULT 0 CHECK (rev >= 0), answered_by TEXT, mirror_etag TEXT, mirror_last_modified TEXT, distro_packages TEXT CHECK (distro_packages IS NULL OR (json_valid(distro_packages) AND json_type(distro_packages) = 'array')), full_due INTEGER NOT NULL DEFAULT 0 CHECK (full_due IN (0, 1)), kev_copies TEXT, catalog_released TEXT, stale_watch_from TEXT, stale_alerted_at TEXT, stale_failed_since TEXT, stale_failed_checks INTEGER NOT NULL DEFAULT 0, content_version INTEGER NOT NULL DEFAULT 0 CHECK (content_version >= 0),
+    catalog_version TEXT, rev INTEGER NOT NULL DEFAULT 0 CHECK (rev >= 0), answered_by TEXT, mirror_etag TEXT, mirror_last_modified TEXT, distro_packages TEXT CHECK (distro_packages IS NULL OR (json_valid(distro_packages) AND json_type(distro_packages) = 'array')), kev_copies TEXT, catalog_released TEXT, stale_watch_from TEXT, stale_alerted_at TEXT, stale_failed_since TEXT, stale_failed_checks INTEGER NOT NULL DEFAULT 0,
     CHECK (builtin = 1 OR parser IS NOT NULL),
     CHECK (secret_id IS NULL OR auth_type <> 'none')
-);
-
-CREATE TABLE feeds_vuln (
-    cve             TEXT    NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*'),
-    vendor          TEXT    NOT NULL,
-    product         TEXT    NOT NULL,
-    product_key     TEXT    NOT NULL, -- lower(vendor)|lower(product): the inventory matching key
-    name            TEXT    NOT NULL,
-    description     TEXT    NOT NULL DEFAULT '',
-    required_action TEXT    NOT NULL DEFAULT '',
-    links           TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(links) AND json_type(links) = 'array'),
-    date_added      TEXT    NOT NULL CHECK (date_added GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    due_date        TEXT    CHECK (due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    ransomware      INTEGER NOT NULL DEFAULT 0 CHECK (ransomware IN (0, 1)),
-    epss            REAL    CHECK (epss IS NULL OR (epss >= 0 AND epss <= 1)),
-    epss_7d_ago     REAL    CHECK (epss_7d_ago IS NULL OR (epss_7d_ago >= 0 AND epss_7d_ago <= 1)),
-    has_template    INTEGER NOT NULL DEFAULT 0 CHECK (has_template IN (0, 1)),
-    source_id       TEXT    NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
-    updated_at      TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, kev_announced_at TEXT CHECK (kev_announced_at IS NULL OR kev_announced_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'));
-
--- The CVEs that have a nuclei template. Kept on their own so a CVE that reaches KEV after the nuclei pull
--- still gets has_template at once (scan re-checks within 60 minutes only when it has one).
-CREATE TABLE feeds_template (
-    cve TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*')
 );
 
 -- One row per indicator, merged over all feeds that list it. An IP is its exact address, never a /24.
@@ -103,34 +78,8 @@ CREATE TABLE feeds_weekly_answer (
     answered_at TEXT NOT NULL CHECK (answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 , device_added INTEGER NOT NULL DEFAULT 0 CHECK (device_added IN (0, 1)), device_id TEXT CHECK (device_id IS NULL OR length(device_id) BETWEEN 1 AND 64), have_since TEXT CHECK (have_since IS NULL OR have_since GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'));
 
-CREATE TABLE feeds_affected_cve (
-    cve        TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    updated_at TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, source TEXT NOT NULL DEFAULT 'nvd' CHECK (source IN ('nvd', 'cve.org', 'cve.org-partial')));
-
-CREATE TABLE feeds_affected (
-    cve        TEXT NOT NULL REFERENCES feeds_affected_cve (cve) ON DELETE CASCADE,
-    cpe        TEXT NOT NULL CHECK (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500),
-    start_incl TEXT NOT NULL CHECK (length(start_incl) <= 100),
-    start_excl TEXT NOT NULL CHECK (length(start_excl) <= 100),
-    end_incl   TEXT NOT NULL CHECK (length(end_incl) <= 100),
-    end_excl   TEXT NOT NULL CHECK (length(end_excl) <= 100)
-);
-
-CREATE TABLE feeds_cveorg_checked (
-    cve        TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    checked_at TEXT NOT NULL CHECK (checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
--- The data of CVE tiers 2 (likely to be exploited, EPSS) and 3 (published in the last 12 months).
--- feeds_epss: FIRST's EPSS score of every CVE (built-in feed epss-all, the daily file of all scores); gen is the pull that
--- wrote the row, so a pull that read the whole file drops the CVEs it no longer lists.
--- feeds_recent_cve: the NVD record of each CVE published in the last 12 months (built-in feed nvd-recent): dates, NVD's
--- status and the CVSS severity; its vulnerable CPE match entries are in feeds_recent_affected (the shape of feeds_affected,
--- kept apart so nvd-kev's full pull never deletes them and the KEV matcher never reads them).
--- feeds_recent_cursor (one row at most): how far an unfinished paged pull of nvd-recent got (mode fill or update), so the next
--- pull goes on; after a finished pull, mode done and until = the time the data is complete up to, where the next update starts.
--- Forward-only.
+-- feeds_epss: FIRST's EPSS score of every CVE (built-in feed epss-all, the daily file of all scores); gen is the pull that wrote the
+-- row, so a pull that read the whole file drops the CVEs it no longer lists. The one store of EPSS scores.
 CREATE TABLE feeds_epss (
     cve        TEXT    NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     epss       REAL    NOT NULL CHECK (epss BETWEEN 0 AND 1),
@@ -144,57 +93,118 @@ CREATE TABLE feeds_epss_baseline (
     count INTEGER NOT NULL CHECK (count >= 0)
 , score_date TEXT CHECK (score_date IS NULL OR score_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'));
 
-CREATE TABLE feeds_recent_cve (
-    cve           TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    published     TEXT NOT NULL CHECK (published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_modified TEXT NOT NULL CHECK (last_modified GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    status        TEXT NOT NULL CHECK (length(status) BETWEEN 1 AND 40),
-    severity      TEXT CHECK (severity IS NULL OR severity IN ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE')),
-    score         REAL CHECK (score IS NULL OR score BETWEEN 0 AND 10)
-, cvss_score REAL CHECK (cvss_score IS NULL OR cvss_score BETWEEN 0 AND 10), cvss_version TEXT CHECK (cvss_version IS NULL OR cvss_version IN ('4.0', '3.1', '3.0', '2.0')), cvss_source TEXT CHECK (cvss_source IS NULL OR cvss_source IN ('nvd', 'cna')), cvss_vector TEXT CHECK (cvss_vector IS NULL OR (length(cvss_vector) <= 200 AND (cvss_vector GLOB 'CVSS:[34].[01]/*' OR cvss_vector GLOB 'AV:[LAN]/*'))));
+-- The daily EPSS score of the CVEs that have an exploited-list entry or a signal, for the last days only (epssHistKeep): the
+-- "rising" display compares today's score with the one of a week ago.
+CREATE TABLE feeds_epss_hist (
+    cve  TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    day  TEXT NOT NULL CHECK (day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    epss REAL NOT NULL CHECK (epss BETWEEN 0 AND 1),
+    PRIMARY KEY (cve, day)
+) WITHOUT ROWID;
 
-CREATE TABLE feeds_recent_affected (
-    cve        TEXT NOT NULL REFERENCES feeds_recent_cve (cve) ON DELETE CASCADE,
-    cpe        TEXT NOT NULL CHECK (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500),
-    start_incl TEXT NOT NULL CHECK (length(start_incl) <= 100),
-    start_excl TEXT NOT NULL CHECK (length(start_excl) <= 100),
-    end_incl   TEXT NOT NULL CHECK (length(end_incl) <= 100),
-    end_excl   TEXT NOT NULL CHECK (length(end_excl) <= 100)
-, platforms TEXT CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array')));
+-- The vulnerability catalogue: one row per CVE the box keeps, whichever source brought it. Which CVEs it holds is a rule, not a
+-- table (retainedCVE): published inside the window, or on an exploited list (feeds_kev), or with a qualifying signal
+-- (feeds_signal) of any age, or pinned by an open finding. nvd_status and nvd_at are NULL until NVD answered for the CVE;
+-- record_at is when the CVE Program record was last read. A row an exploited list creates before NVD answers has only its id.
+CREATE TABLE feeds_cve (
+    cve               TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    published         TEXT CHECK (published IS NULL OR published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    modified          TEXT CHECK (modified IS NULL OR modified GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    nvd_status        TEXT CHECK (nvd_status IS NULL OR length(nvd_status) BETWEEN 1 AND 40),
+    nvd_at            TEXT CHECK (nvd_at IS NULL OR nvd_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    record_at         TEXT CHECK (record_at IS NULL OR record_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    title             TEXT NOT NULL DEFAULT '' CHECK (length(title) <= 500),
+    description       TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 4000),
+    cwe               TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(cwe) AND json_type(cwe) = 'array'),
+    solution          TEXT NOT NULL DEFAULT '' CHECK (length(solution) <= 4000),
+    workaround        TEXT NOT NULL DEFAULT '' CHECK (length(workaround) <= 4000),
+    ssvc_exploitation TEXT CHECK (ssvc_exploitation IS NULL OR (length(ssvc_exploitation) BETWEEN 1 AND 40 AND ssvc_exploitation NOT GLOB '*[^a-z0-9_]*')),
+    ssvc_automatable  TEXT CHECK (ssvc_automatable IS NULL OR (length(ssvc_automatable) BETWEEN 1 AND 40 AND ssvc_automatable NOT GLOB '*[^a-z0-9_]*')),
+    ssvc_impact       TEXT CHECK (ssvc_impact IS NULL OR (length(ssvc_impact) BETWEEN 1 AND 40 AND ssvc_impact NOT GLOB '*[^a-z0-9_]*')),
+    updated_at        TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
 
-CREATE TABLE feeds_recent_cursor (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+-- The CVSS base scores of a CVE, one per scorer and version: source nvd (NVD's own), cna (the CVE Numbering Authority) or adp
+-- (CISA's ADP). PickCVSS chooses the one every page shows. A score is kept only with a valid vector of its version.
+CREATE TABLE feeds_cve_metric (
+    cve     TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    source  TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    version TEXT NOT NULL CHECK (version IN ('4.0', '3.1', '3.0', '2.0')),
+    score   REAL NOT NULL CHECK (score BETWEEN 0 AND 10),
+    vector  TEXT NOT NULL CHECK (length(vector) <= 200 AND (vector GLOB 'CVSS:[34].[01]/*' OR vector GLOB 'AV:[LAN]/*')),
+    PRIMARY KEY (cve, source, version)
+) WITHOUT ROWID;
+
+-- The affected versions of a CVE as each origin states them: nvd (NVD's vulnerable CPE match entries, with the "running on"
+-- operating systems of an AND configuration in platforms), cna (the CNA's affected[] list of the CVE record, complete) or
+-- cna_partial (a CNA list that does not say what an unlisted version is). NVD's rows win when NVD has any (rangeOrigin).
+-- part, vendor and product are the CPE's, lower case; cpe is the full match criteria when the origin gave one.
+CREATE TABLE feeds_cve_range (
+    id           INTEGER NOT NULL PRIMARY KEY,
+    cve          TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    origin       TEXT    NOT NULL CHECK (length(origin) BETWEEN 1 AND 40 AND origin NOT GLOB '*[^a-z0-9_]*'),
+    part         TEXT    NOT NULL CHECK (length(part) <= 1),
+    vendor       TEXT    NOT NULL CHECK (length(vendor) <= 200),
+    product      TEXT    NOT NULL CHECK (length(product) <= 200),
+    cpe          TEXT    NOT NULL CHECK (cpe = '' OR (cpe GLOB 'cpe:2.3:*' AND length(cpe) <= 500)),
+    start_incl   TEXT    NOT NULL CHECK (length(start_incl) <= 100),
+    start_excl   TEXT    NOT NULL CHECK (length(start_excl) <= 100),
+    end_incl     TEXT    NOT NULL CHECK (length(end_incl) <= 100),
+    end_excl     TEXT    NOT NULL CHECK (length(end_excl) <= 100),
+    fixed        TEXT    NOT NULL DEFAULT '' CHECK (length(fixed) <= 100),
+    version_type TEXT    NOT NULL DEFAULT '' CHECK (length(version_type) <= 40),
+    platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
+);
+
+-- An entry of an exploited list, in the list's own words: list cisa (the CISA KEV catalog), vulncheck (VulnCheck KEV) or
+-- custom:<feed id> (a custom vulnerability feed). The same CVE may be on several lists; the CISA list's entry is the one the pages
+-- name (ownerOrder). announced_at is when the box announced a CISA entry as new (feeds.vuln.new_kev).
+CREATE TABLE feeds_kev (
+    cve             TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    list            TEXT    NOT NULL CHECK (length(list) BETWEEN 1 AND 110),
+    source_id       TEXT    NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    vendor          TEXT    NOT NULL,
+    product         TEXT    NOT NULL,
+    name            TEXT    NOT NULL,
+    description     TEXT    NOT NULL DEFAULT '',
+    required_action TEXT    NOT NULL DEFAULT '',
+    links           TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(links) AND json_type(links) = 'array'),
+    date_added      TEXT    NOT NULL CHECK (date_added GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    due_date        TEXT    CHECK (due_date IS NULL OR due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    ransomware      INTEGER NOT NULL DEFAULT 0 CHECK (ransomware IN (0, 1)),
+    announced_at    TEXT    CHECK (announced_at IS NULL OR announced_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_at      TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (cve, list)
+);
+
+-- Why a CVE is urgent, and since when: one row per CVE, kind (exploited, public_exploit, ids_rule …) and source (the feed id).
+-- first_seen is the date the source gives, else when this box first saw it; qualifies is whether the row passes its kind's quality
+-- rule (a row that does not yet keeps its first_seen for later). An exploited-list entry is also a signal row, written with it.
+CREATE TABLE feeds_signal (
+    cve        TEXT    NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    source     TEXT    NOT NULL CHECK (length(source) BETWEEN 1 AND 96),
+    first_seen TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    stored_at  TEXT    NOT NULL CHECK (stored_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen  TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    qualifies  INTEGER NOT NULL CHECK (qualifies IN (0, 1)),
+    url        TEXT    NOT NULL DEFAULT '' CHECK (length(url) <= 500),
+    detail     TEXT    CHECK (detail IS NULL OR (json_valid(detail) AND json_type(detail) = 'object' AND length(detail) <= 500)),
+    PRIMARY KEY (cve, kind, source)
+) WITHOUT ROWID;
+
+-- Where each paged NVD pull stands, one row per selector: recent (the CVEs published inside the window, then the records NVD changed)
+-- and walk (one pass over the whole NVD set for the kept CVEs older than the window). mode fill/walk/update is an unfinished pull;
+-- after a finished one, mode done and until = the time the data is complete up to, where the next update starts.
+CREATE TABLE feeds_nvd_cursor (
+    selector   TEXT    NOT NULL PRIMARY KEY CHECK (length(selector) BETWEEN 1 AND 40 AND selector NOT GLOB '*[^a-z0-9_]*'),
     url        TEXT    NOT NULL CHECK (length(url) <= 2048),
-    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'update', 'done')),
+    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'walk', 'update', 'done')),
     win_from   TEXT    NOT NULL,
     win_to     TEXT    NOT NULL,
     until      TEXT    NOT NULL,
     next_index INTEGER NOT NULL CHECK (next_index >= 0),
     total      INTEGER NOT NULL CHECK (total >= 0)
-);
-
-CREATE TABLE feeds_published (
-    cve       TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    published TEXT NOT NULL CHECK (published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
-, source TEXT NOT NULL DEFAULT 'nvd' CHECK (source IN ('nvd', 'cve.org'))) WITHOUT ROWID;
-
--- #825 (INV-28): the CVSS base score every finding shows next to its exploited status, from the NVD records the box already pulls
--- (the `metrics` of the same CVE API 2.0 answers; no new request). Rule (feeds cvssOf): the newest CVSS version present (4.0, 3.1,
--- 3.0, then 2.0 when NVD has nothing newer), NVD's own score ("Primary", source nvd) before another scorer's ("Secondary", source cna:
--- the CNA or CISA's ADP); an entry counts only with a valid vector of its version (FIRST: a score is shown with its vector), else the
--- next one is tried. A CVE without a score has no row ("No CVSS score", never 0).
--- feeds_cvss: the score of each CVE of the exploited lists, written by nvd-kev. feeds_source.full_due = 1 asks for one full pull of
--- nvd-kev at the next 5-minute check (so every KEV CVE gets its score; about 20 requests), cleared by the first full pull that is
--- stored: a one-time mark, not "the table is empty".
--- feeds_recent_cve.cvss_*: the same pick for nvd-recent (a CVE not on the exploited lists), kept apart from severity/score, which tier 3
--- reads by its own rule (INV-24). No refill: a row stored before gets them when NVD changes the record, or at the next
--- full fill; until then it has no CVSS score. Forward-only.
-CREATE TABLE feeds_cvss (
-    cve     TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    score   REAL NOT NULL CHECK (score BETWEEN 0 AND 10),
-    version TEXT NOT NULL CHECK (version IN ('4.0', '3.1', '3.0', '2.0')),
-    source  TEXT NOT NULL CHECK (source IN ('nvd', 'cna')),
-    vector  TEXT NOT NULL CHECK (length(vector) <= 200 AND (vector GLOB 'CVSS:[34].[01]/*' OR vector GLOB 'AV:[LAN]/*'))
 ) WITHOUT ROWID;
 
 -- The Windows releases Microsoft's release information pages list (feed windows-releases), handed to core/winrel, which answers
@@ -237,28 +247,28 @@ CREATE UNIQUE INDEX feeds_source_name_uq ON feeds_source (lower(name));
 
 CREATE INDEX feeds_source_kind_idx ON feeds_source (kind, enabled);
 
-CREATE INDEX feeds_vuln_key_idx ON feeds_vuln (product_key);
-
-CREATE INDEX feeds_vuln_date_idx ON feeds_vuln (date_added DESC, cve DESC);
-
-CREATE INDEX feeds_vuln_source_idx ON feeds_vuln (source_id);
-
 CREATE INDEX feeds_ioc_last_seen_idx ON feeds_ioc (last_seen);
 
 CREATE INDEX feeds_ioc_source_src_idx ON feeds_ioc_source (source_id);
 
 CREATE INDEX feeds_fetch_log_source_idx ON feeds_fetch_log (source_id, started_at DESC);
 
-CREATE INDEX feeds_vuln_kev_announced ON feeds_vuln (kev_announced_at, cve) WHERE kev_announced_at IS NOT NULL;
-
-CREATE INDEX feeds_affected_cve_idx ON feeds_affected (cve);
-
-CREATE INDEX feeds_recent_cve_published_idx ON feeds_recent_cve (published);
-
-CREATE INDEX feeds_recent_affected_cve_idx ON feeds_recent_affected (cve);
-
-CREATE INDEX feeds_recent_affected_cpe_idx ON feeds_recent_affected (cpe);
-
 CREATE INDEX feeds_distro_fix_cve_idx ON feeds_distro_fix (cve);
 
 CREATE INDEX feeds_distro_fix_package_idx ON feeds_distro_fix (distro, package);
+
+CREATE INDEX feeds_cve_published_idx ON feeds_cve (published);
+
+CREATE INDEX feeds_cve_range_cve_idx ON feeds_cve_range (cve);
+
+CREATE INDEX feeds_cve_range_product_idx ON feeds_cve_range (vendor, product, cpe);
+
+CREATE INDEX feeds_kev_list_idx ON feeds_kev (list, date_added DESC, cve DESC);
+
+CREATE INDEX feeds_kev_source_idx ON feeds_kev (source_id);
+
+CREATE INDEX feeds_kev_announced_idx ON feeds_kev (announced_at, cve) WHERE announced_at IS NOT NULL;
+
+CREATE INDEX feeds_signal_kind_idx ON feeds_signal (kind, qualifies, cve);
+
+CREATE INDEX feeds_signal_source_idx ON feeds_signal (source, kind);

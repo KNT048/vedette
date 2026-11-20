@@ -32,6 +32,13 @@ func custom(r schedule.Rule, from, to string, days ...int) schedule.Rule {
 	return r
 }
 
+// everyDaysAt is "every n days at hhmm".
+func everyDaysAt(n int, hhmm string) schedule.Rule {
+	r := schedule.Every(n * schedule.MinuteOfDay)
+	r.At = &hhmm
+	return r
+}
+
 // everyDaysAt230 is "every n days at 02:30".
 func everyDaysAt230(n int) schedule.Rule {
 	r := schedule.Every(n * schedule.MinuteOfDay)
@@ -91,7 +98,17 @@ func TestNext(t *testing.T) {
 		{"a time outside the window waits for it to open", custom(schedule.DailyAt("20:00"), "23:00", "05:00", 5), hcm, "2026-11-18T00:00:00Z", "2026-11-20T16:00:00Z"},
 		{"inside a window opened the day before", custom(schedule.Every(60), "22:00", "06:00", 1, 2, 3, 4, 5, 6, 7), hcm, "2026-11-20T21:30:00Z", "2026-11-20T22:30:00Z"},
 		{"past the end of a window over midnight waits for the evening", custom(schedule.Every(60), "22:00", "06:00", 1, 2, 3, 4, 5, 6, 7), hcm, "2026-11-20T22:30:00Z", "2026-11-21T15:00:00Z"},
-		{"the morning after a window day that is not a window day is outside", custom(schedule.DailyAt("04:00"), "23:00", "05:00", 5), hcm, "2026-11-21T00:00:00Z", "2026-11-27T16:00:00Z"},
+		{"the morning after a window day that is not a window day is outside: the regular time in the next opening runs", custom(schedule.DailyAt("04:00"), "23:00", "05:00", 5), hcm, "2026-11-21T00:00:00Z", "2026-11-27T21:00:00Z"},
+		// One opening never starts the work twice: a time moved to an opening gives way to a regular time inside it.
+		{"daily 03:00 in Friday 23:00-05:00 runs Saturday 03:00 only", custom(schedule.DailyAt("03:00"), "23:00", "05:00", 5), hcm, "2026-11-18T00:00:00Z", "2026-11-20T20:00:00Z"},
+		{"daily 03:00 in Friday 23:00-05:00 the week after", custom(schedule.DailyAt("03:00"), "23:00", "05:00", 5), hcm, "2026-11-20T20:00:00Z", "2026-11-27T20:00:00Z"},
+		{"daily 02:00 in Monday to Friday 22:00-06:00 runs Tuesday 02:00 after a weekend", custom(schedule.DailyAt("02:00"), "22:00", "06:00", 1, 2, 3, 4, 5), hcm, "2026-11-21T00:00:00Z", "2026-11-23T19:00:00Z"},
+		{"every day at 02:00 in Monday to Friday 22:00-06:00 the same", custom(everyDaysAt(1, "02:00"), "22:00", "06:00", 1, 2, 3, 4, 5), hcm, "2026-11-21T00:00:00Z", "2026-11-23T19:00:00Z"},
+		{"a regular time outside the opening keeps the opening", custom(schedule.DailyAt("12:00"), "22:00", "06:00", 1, 2, 3, 4, 5, 6, 7), hcm, "2026-11-20T06:00:00Z", "2026-11-21T15:00:00Z"},
+		// Every N days at a time: the first run is today when the time is still ahead, like daily.
+		{"every 1 day at 22:00 changed in the morning runs that evening", everyDaysAt(1, "22:00"), hcm, "2026-11-20T03:00:00Z", "2026-11-20T15:00:00Z"},
+		{"every 3 days at 22:00 changed in the morning runs in two days", everyDaysAt(3, "22:00"), hcm, "2026-11-20T03:00:00Z", "2026-11-22T15:00:00Z"},
+		{"every 3 days at 02:30 fired late counts three days from the day it fired", everyDaysAt230(3), hcm, "2026-11-19T22:00:00Z", "2026-11-22T19:30:00Z"},
 		{"the morning after a window day is inside", custom(schedule.DailyAt("04:00"), "23:00", "05:00", 5), hcm, "2026-11-20T00:00:00Z", "2026-11-20T21:00:00Z"},
 		{"every 3 days at 02:30 in a Monday to Friday window", custom(everyDaysAt230(3), "00:00", "00:00", 1, 2, 3, 4, 5), hcm, "2026-11-18T19:30:00Z", "2026-11-22T17:00:00Z"},
 		{"a window that opens at a skipped time opens when the clocks jump", custom(schedule.DailyAt("01:00"), "02:00", "04:00", 7), ny, "2026-03-07T17:00:00Z", "2026-03-08T07:00:00Z"},

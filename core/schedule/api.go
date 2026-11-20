@@ -74,8 +74,19 @@ func (s *Service) Get(ctx context.Context, key string) (View, error) {
 	return s.view(ctx, o, r, true, org, now), nil
 }
 
+// future refuses a once rule whose time has passed: it would be saved on and never run.
+func future(r Rule, now time.Time) error {
+	if r.Freq == Once && r.OnceAt != nil && !r.OnceAt.After(now) {
+		return ruleErr("once_at", "Choose a date and time in the future.")
+	}
+	return nil
+}
+
 func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org string, now time.Time) View {
 	loc := zoneOf(r.Rule.TZ, org)
+	if r.PausedUntil != nil && !r.PausedUntil.After(now) {
+		r.PausedUntil = nil // a pause that has ended is no pause
+	}
 	v := View{
 		OwnerKey: r.OwnerKey, Module: o.Module, Saved: saved, Enabled: r.Enabled, PausedUntil: r.PausedUntil, Rule: r.Rule,
 		Zone: loc.String(), NextDueAt: r.NextDueAt, Upcoming: []time.Time{}, LastDueAt: r.LastDueAt, LastRunID: r.LastRunID,
@@ -145,8 +156,11 @@ func (s *Service) Preview(ctx context.Context, key string, rl Rule, pausedUntil 
 		return nil, "", err
 	}
 	now := s.now()
+	if err := future(rl, now); err != nil {
+		return nil, "", err
+	}
 	loc := zoneOf(rl.TZ, org)
-	first := Next(rl, Reference(nil, now, pausedUntil), loc)
+	first := Due(rl, nil, now, pausedUntil, loc)
 	return s.upcoming(ctx, rl, first, now, loc), loc.String(), nil
 }
 
@@ -200,6 +214,11 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, o Owner, key string, s
 		return err
 	}
 	now := s.now()
+	if st.Enabled {
+		if err := future(rl, now); err != nil {
+			return err
+		}
+	}
 	r, err := getRow(ctx, tx, key)
 	if errors.Is(err, errNoRow) {
 		r = row{ID: store.NewID("sch"), OwnerModule: o.Module, OwnerKey: key}

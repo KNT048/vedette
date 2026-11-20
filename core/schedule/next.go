@@ -23,7 +23,31 @@ func Next(r Rule, after time.Time, loc *time.Location) time.Time {
 	if loc == nil {
 		loc = time.UTC
 	}
-	var t time.Time
+	t := regular(r, after, loc)
+	if t.IsZero() {
+		return t
+	}
+	if w, ok := r.window(); ok {
+		start, end, ok := w.opening(t, loc)
+		switch {
+		case !ok || !t.Before(start): // never opens, or open at t
+		case r.Freq != Interval || r.At != nil:
+			// Moved to the opening: when a regular time falls in the same opening it is the one that runs, so one opening
+			// never starts the work twice (daily 03:00 in Friday 23:00-05:00 runs Saturday 03:00, not also Friday 23:00).
+			if n := regular(r, start.Add(-time.Nanosecond), loc); !n.IsZero() && n.Before(end) {
+				t = n
+			} else {
+				t = start
+			}
+		default:
+			t = start
+		}
+	}
+	return t.UTC()
+}
+
+// regular is the first time of a rule strictly after after, without its window.
+func regular(r Rule, after time.Time, loc *time.Location) time.Time {
 	at, _ := clockOf(r.At)
 	switch r.Freq {
 	case Interval:
@@ -31,33 +55,53 @@ func Next(r Rule, after time.Time, loc *time.Location) time.Time {
 			return time.Time{}
 		}
 		n := *r.EveryMinutes
-		if r.At != nil && n%MinuteOfDay == 0 {
-			d := after.In(loc)
-			t = localAt(d.Year(), d.Month(), d.Day()+n/MinuteOfDay, at, loc)
-		} else {
-			t = after.Add(time.Duration(n) * time.Minute)
+		if r.At == nil || n%MinuteOfDay != 0 {
+			return after.Add(time.Duration(n) * time.Minute)
 		}
+		// Every N days at HH:MM: the first HH:MM at least N-1 calendar days after the day of after, compared on the wall
+		// clock (so every 1 day is daily, and a change in the morning runs that evening).
+		d := after.In(loc)
+		days := n/MinuteOfDay - 1
+		if at*60 <= d.Hour()*3600+d.Minute()*60+d.Second() {
+			days++
+		}
+		t := localAt(d.Year(), d.Month(), d.Day()+days, at, loc)
+		if !t.After(after) {
+			t = localAt(d.Year(), d.Month(), d.Day()+days+1, at, loc)
+		}
+		return t
 	case Daily:
-		t = firstDay(after, loc, at, func(time.Time) bool { return true })
+		return firstDay(after, loc, at, func(time.Time) bool { return true })
 	case Weekly:
-		t = firstDay(after, loc, at, func(d time.Time) bool { return slices.Contains(r.Weekdays, isoWeekday(d)) })
+		return firstDay(after, loc, at, func(d time.Time) bool { return slices.Contains(r.Weekdays, isoWeekday(d)) })
 	case Monthly:
 		if r.MonthDay == nil {
 			return time.Time{}
 		}
-		t = monthly(after, loc, at, *r.MonthDay)
+		return monthly(after, loc, at, *r.MonthDay)
 	case Once:
 		if r.OnceAt != nil && r.OnceAt.After(after) {
-			t = *r.OnceAt
+			return *r.OnceAt
 		}
 	}
-	if t.IsZero() {
-		return t
+	return time.Time{}
+}
+
+// Due is the next due time of a schedule (zero: never): Next from Reference. A pause that ends after the last due time and the
+// last change starts an interval at its end ("every 7 days, paused until Monday" runs Monday; with a time of day, at the first
+// such time after the end); a calendar rule runs at its first regular time after the end.
+func Due(r Rule, lastDue *time.Time, updated time.Time, pausedUntil *time.Time, loc *time.Location) time.Time {
+	ref := Reference(lastDue, updated, pausedUntil)
+	if r.Freq == Interval && r.EveryMinutes != nil && pausedUntil != nil && ref.Equal(*pausedUntil) && pausedUntil.After(updated) &&
+		(lastDue == nil || pausedUntil.After(*lastDue)) {
+		if r.At != nil {
+			one := MinuteOfDay
+			r.EveryMinutes = &one
+			return Next(r, ref, loc)
+		}
+		return Next(r, ref.Add(-time.Duration(*r.EveryMinutes)*time.Minute), loc)
 	}
-	if w, ok := r.window(); ok {
-		t = w.OpenAt(t, loc)
-	}
-	return t.UTC()
+	return Next(r, ref, loc)
 }
 
 func clockOf(s *string) (int, bool) {
@@ -194,21 +238,27 @@ func (w Window) Contains(t time.Time, loc *time.Location) bool {
 	return false
 }
 
+// opening returns the opening of the window that contains t, or the next one after t; ok is false when it never opens.
+func (w Window) opening(t time.Time, loc *time.Location) (start, end time.Time, ok bool) {
+	l := t.In(loc)
+	for i := -1; i <= 8; i++ { // one that opened yesterday and crosses midnight, then today and the days after
+		day := time.Date(l.Year(), l.Month(), l.Day()+i, 12, 0, 0, 0, loc)
+		if s, e, ok := w.span(day, loc); ok && t.Before(e) {
+			return s, e, true
+		}
+	}
+	return time.Time{}, time.Time{}, false
+}
+
 // OpenAt returns t when the window is open at t, otherwise the next time it opens; t itself when it never opens (no valid day or
 // hours), so a broken window never stops a schedule for good.
 func (w Window) OpenAt(t time.Time, loc *time.Location) time.Time {
 	if loc == nil {
 		loc = time.UTC
 	}
-	if w.Contains(t, loc) {
+	s, _, ok := w.opening(t, loc)
+	if !ok || !t.Before(s) {
 		return t
 	}
-	l := t.In(loc)
-	for i := 0; i <= 8; i++ {
-		day := time.Date(l.Year(), l.Month(), l.Day()+i, 12, 0, 0, 0, loc)
-		if s, _, ok := w.span(day, loc); ok && s.After(t) {
-			return s.UTC()
-		}
-	}
-	return t
+	return s.UTC()
 }

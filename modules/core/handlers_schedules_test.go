@@ -101,7 +101,7 @@ func TestSchedules_GetSavePreviewAndRunOnce(t *testing.T) {
 		t.Fatalf("a viewer's save = %d, want 403", code)
 	}
 	code, v = s.call("PUT", "/schedules/exposure.target:tgt-1", "operator", `{"enabled":true,"paused_until":"2026-11-24T00:00:00Z","rule":`+rule+`}`)
-	if code != http.StatusOK || v["saved"] != true || v["next_due_at"] != "2026-11-27T01:30:00Z" || v["paused_until"] == nil {
+	if code != http.StatusOK || v["saved"] != true || v["next_due_at"] != "2026-11-24T01:30:00Z" || v["paused_until"] == nil {
 		t.Fatalf("PUT = %d %v", code, v)
 	}
 	if code, e := s.call("POST", "/schedules/exposure.target:tgt-1/run", "operator", ""); code != http.StatusConflict || e["error"].(map[string]any)["code"] != "not_started" {
@@ -115,7 +115,7 @@ func TestSchedules_GetSavePreviewAndRunOnce(t *testing.T) {
 	if code, e := s.call("POST", "/schedules/exposure.target:tgt-1/run", "operator", ""); code != http.StatusConflict || e["error"].(map[string]any)["code"] != "busy" {
 		t.Fatalf("second run once = %d %v", code, e)
 	}
-	if code, v = s.call("GET", "/schedules/exposure.target:tgt-1", "viewer", ""); code != http.StatusOK || v["last_run_id"] != r["run_id"] || v["next_due_at"] != "2026-11-27T01:30:00Z" {
+	if code, v = s.call("GET", "/schedules/exposure.target:tgt-1", "viewer", ""); code != http.StatusOK || v["last_run_id"] != r["run_id"] || v["next_due_at"] != "2026-11-24T01:30:00Z" {
 		t.Fatalf("after run once = %d %v", code, v)
 	}
 	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action IN ('schedule.save', 'schedule.run_now')`); n != 2 {

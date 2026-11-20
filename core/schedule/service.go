@@ -9,6 +9,8 @@
 // Firing rules:
 //   - a schedule fired within LateAfter of its due time counts from that due time, so an interval does not drift; one fired later
 //     (the box was off, the scan window was closed) counts from the moment it fired, so missed times start one run, not a burst;
+//   - a late start whose rule has a regular time within MergeWithin gives way to it, so the work runs once;
+//   - an interval paused until a time starts at that time; a pause that has ended is cleared at the next due time;
 //   - a schedule whose last run has not ended (queued, running or waiting) skips the due time and says why;
 //   - a schedule of a module that is off skips the due time and says why;
 //   - a schedule in the scan window (WindowGlobal) is held while the window is closed and starts when it opens.
@@ -35,7 +37,10 @@ import (
 const (
 	TickEvery = 30 * time.Second // how often the ticker looks for due schedules without being kicked
 	LateAfter = 2 * time.Minute  // a due time fired later than this counts as missed (see the package comment)
-	Upcoming  = 3                // how many next start times the API shows
+	// MergeWithin: a missed due time whose rule has a regular time this close after the late start waits for that time
+	// instead of starting now, so the box coming back at 01:59 runs the daily 02:00 work once, not twice.
+	MergeWithin = time.Hour
+	Upcoming    = 3 // how many next start times the API shows
 )
 
 // The errors of the Service. The API maps them to answers (modules/core handlers_schedules.go).
@@ -350,12 +355,18 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 			return err
 		}
 		last := *r.NextDueAt
-		if now.Sub(last) > LateAfter {
+		late := now.Sub(last) > LateAfter
+		if late {
 			last = now
+		}
+		if r.PausedUntil != nil && !r.PausedUntil.After(now) {
+			r.PausedUntil = nil // the pause has ended; the new last due time is after it, so the next due time is the same
 		}
 		skip, runID := "", ""
 		o, subject, ok := s.owner(key)
 		switch {
+		case late && mergesLate(r.Rule) && within(Next(r.Rule, now, zoneOf(r.Rule.TZ, org)), now, MergeWithin):
+			// The regular time just after starts the work: count from now, start nothing, skip nothing.
 		case !ok:
 			skip = "Nothing in this version of Vedette starts this schedule."
 		case s.cfg.Gate != nil && !s.cfg.Gate.Enabled(o.Module):
@@ -387,6 +398,12 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 		return upsert(ctx, tx, r, org)
 	})
 }
+
+// mergesLate reports whether a late start of r gives way to its next regular time: every rule but an elapsed interval (whose next
+// time is a whole interval away by definition).
+func mergesLate(r Rule) bool { return r.Freq != Interval || r.At != nil }
+
+func within(t, now time.Time, d time.Duration) bool { return !t.IsZero() && t.Sub(now) <= d }
 
 // liveRun returns when the run started (or was queued) while it has not ended; nil otherwise or when there is no such run.
 func liveRun(ctx context.Context, tx *sql.Tx, id *string) (*time.Time, error) {

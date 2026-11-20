@@ -476,3 +476,48 @@ func TestOwnersKeysAndLimits(t *testing.T) {
 	}
 	b.runStatus(id)
 }
+
+// Review cases: a late start gives way to a regular time just after it; a paused interval starts at the end of the pause; a
+// once time in the past is refused; a pause that has ended is not shown.
+func TestLateStartsPausesAndPastOnceTimes(t *testing.T) {
+	b := newBox(t, "")
+	// Daily 02:00 (19:00Z), missed: the box comes back at 01:59 the next night.
+	b.save("scan.vuln", schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:00")}) // due 2026-11-20T19:00Z
+	b.clock.Set("2026-11-21T18:59:00Z")
+	b.tick(1)
+	v := b.get("scan.vuln")
+	if len(b.starts) != 0 || v.LastSkipReason != nil || !v.NextDueAt.Equal(utc("2026-11-21T19:00:00Z")) {
+		t.Fatalf("late start merged %+v (starts %d)", v, len(b.starts))
+	}
+	b.holds()
+	b.clock.Set("2026-11-21T19:00:00Z")
+	b.tick(1)
+	if len(b.starts) != 1 {
+		t.Fatalf("starts %d, want 1", len(b.starts))
+	}
+	b.holds()
+
+	// Every 7 days, paused until Monday 00:00 local (Sunday 17:00Z): the first run is at the end of the pause.
+	v = b.save("exposure.target:tgt-1", schedule.Setting{Enabled: true, PausedUntil: ptr(utc("2026-11-22T17:00:00Z")), Rule: schedule.Every(7 * schedule.MinuteOfDay)})
+	if !v.NextDueAt.Equal(utc("2026-11-22T17:00:00Z")) {
+		t.Fatalf("paused interval %+v", v)
+	}
+	b.holds()
+	b.clock.Set("2026-11-22T17:00:30Z")
+	b.tick(1)
+	v = b.get("exposure.target:tgt-1")
+	if v.PausedUntil != nil || !v.NextDueAt.Equal(utc("2026-11-29T17:00:00Z")) {
+		t.Fatalf("after the pause %+v", v)
+	}
+	b.holds()
+
+	// A once time in the past is refused, saved on or previewed.
+	past := schedule.Rule{Freq: schedule.Once, OnceAt: ptr(utc("2026-11-01T00:00:00Z"))}
+	var re *schedule.RuleError
+	if _, err := b.svc.Save(t.Context(), "exposure.target:tgt-2", schedule.Setting{Enabled: true, Rule: past}, "ann@example.com"); !errors.As(err, &re) || re.Field != "once_at" {
+		t.Fatalf("past once saved: %v", err)
+	}
+	if _, _, err := b.svc.Preview(t.Context(), "", past, nil); !errors.As(err, &re) || re.Field != "once_at" {
+		t.Fatalf("past once previewed: %v", err)
+	}
+}

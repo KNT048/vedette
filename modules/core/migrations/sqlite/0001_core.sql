@@ -297,7 +297,7 @@ CREATE INDEX core_run_schedule_idx ON core_run (schedule_id);
 -- ('scan.vuln', 'exposure.target:<id>', ...); its owner registers in code what it allows. freq is an open vocabulary owned by
 -- core/schedule (shape check only); the rule columns a frequency does not use are NULL. next_due_at is written by core/schedule
 -- alone, in the same transaction as any change of the rule or any due time: it is Next(rule) from the latest of last_due_at,
--- updated_at and paused_until, and NULL while the schedule is off or never comes due again.
+-- updated_at and paused_until (schedule.Due), and NULL while the schedule is off or never comes due again.
 -- ---------------------------------------------------------------------------------------------------------------------------
 
 CREATE TABLE core_schedule (

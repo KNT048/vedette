@@ -87,7 +87,8 @@ function next(r: Rule, after: number): number | null {
   }
   switch (r.freq) {
     case 'interval':
-      if (r.at_time && r.every_minutes && r.every_minutes % 1440 === 0) { const dd = day(after, tz, r.every_minutes / 1440); t = localAt(dd.y, dd.m, dd.d, at, tz) } else t = after + (r.every_minutes ?? 60) * 60000
+      // every N days at a time: the first such time at least N-1 days on (every 1 day is daily)
+      if (r.at_time && r.every_minutes && r.every_minutes % 1440 === 0) { const n = r.every_minutes / 1440 - 1 + (at <= wall(after, tz).min ? 1 : 0); const dd = day(after, tz, n); t = localAt(dd.y, dd.m, dd.d, at, tz) } else t = after + (r.every_minutes ?? 60) * 60000
       break
     case 'daily': t = firstDay(() => true); break
     case 'weekly': t = firstDay((wd) => (r.weekdays ?? []).includes(wd)); break
@@ -100,7 +101,12 @@ function next(r: Rule, after: number): number | null {
       break
     case 'once': t = r.once_at && Date.parse(r.once_at) > after ? Date.parse(r.once_at) : null
   }
-  return t === null ? null : windowOpen(r, t, tz)
+  if (t === null) return null
+  const open = windowOpen(r, t, tz)
+  if (open === t || (r.freq === 'interval' && !r.at_time)) return open
+  // moved to the window's opening: a regular time in that opening runs instead, so one opening never starts the work twice
+  const regular = next({ ...r, window: 'none' }, open - 1)
+  return regular !== null && windowOpen(r, regular, tz) === regular && regular - open < 24 * 36e5 ? regular : open
 }
 
 /** The scan window of Settings › Scanning › Safety, in the organization's zone. */
@@ -167,6 +173,7 @@ function check(raw: Partial<Rule> | undefined, o: Owner | null): Rule | Response
   }
   if (r.freq === 'once') {
     if (!raw.once_at || Number.isNaN(Date.parse(raw.once_at))) return invalid('once_at', 'Choose the date and time.')
+    if (Date.parse(raw.once_at) <= Date.now()) return invalid('once_at', 'Choose a date and time in the future.')
     r.once_at = new Date(raw.once_at).toISOString()
   }
   if (!WINDOWS.includes(r.window)) return invalid('window', 'The window is the scan window, none, or its own days and hours.')

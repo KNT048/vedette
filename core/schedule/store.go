@@ -73,7 +73,7 @@ func (r row) due(org string) *time.Time {
 	if !r.Enabled {
 		return nil
 	}
-	t := Next(r.Rule, Reference(r.LastDueAt, r.UpdatedAt, r.PausedUntil), zoneOf(r.Rule.TZ, org))
+	t := Due(r.Rule, r.LastDueAt, r.UpdatedAt, r.PausedUntil, zoneOf(r.Rule.TZ, org))
 	if t.IsZero() {
 		return nil
 	}

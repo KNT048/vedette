@@ -746,12 +746,12 @@ CREATE TABLE sa_all_ports (
     outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed')),
     -- observe.Service[] of the open ports outside nmapargv.ExtraPorts that the last done weekly run found, at extra_at
     extra        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra) AND json_type(extra) = 'array' AND length(extra) <= 262144),
-    -- [{port, software}] the weekly follow-ups read, kept by port and product (review r2 M2)
+    -- [{port, software}] the weekly follow-ups read, kept by port and product
     extra_sw     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra_sw) AND json_type(extra_sw) = 'array' AND length(extra_sw) <= 262144),
     extra_at     TEXT CHECK (extra_at IS NULL OR extra_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    -- {"port": time} when the follow-up last read each open port with -sV (review r2 L3)
+    -- {"port": time} when the follow-up last read each open port with -sV
     versioned    TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(versioned) AND json_type(versioned) = 'object' AND length(versioned) <= 65536),
-    -- the TCP ports and the software the last normal or versions scan found (NULL software: none recorded since D-592)
+    -- the TCP ports and the software the last normal or versions scan found (NULL software: none recorded by an older scan)
     normal_ports TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(normal_ports) AND json_type(normal_ports) = 'array' AND length(normal_ports) <= 16384),
     normal_sw    TEXT CHECK (normal_sw IS NULL OR (json_valid(normal_sw) AND json_type(normal_sw) = 'array' AND length(normal_sw) <= 262144))
 );
@@ -844,7 +844,7 @@ CREATE TABLE hp_trap_ips (
     services   TEXT    NOT NULL CHECK (json_valid(services) AND json_type(services) = 'array'),
     enabled    INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     -- The last MAC the host gave the address (it derives it from the address and the vendor, so it is the same next time): a device
-    -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address (B2 lab). NULL until the host says.
+    -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address. NULL until the host says.
     mac        TEXT    CHECK (mac IS NULL OR length(mac) = 17),
     -- When the address last became a Trap IP that is on (added, switched on, moved); NULL = created_at. A device row the inventory
     -- made at the address or of its MAC after this is a ghost of the decoy and is forgotten; one from before is a real machine.
@@ -1570,7 +1570,7 @@ CREATE INDEX exp_attempt_ts_idx ON exp_attempt (ts);
 
 CREATE TABLE scan_setting (
     id                   INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    -- ISO weekdays, 1 = Monday ... 7 = Sunday (D-57 (9))
+    -- ISO weekdays, 1 = Monday ... 7 = Sunday
     days                 TEXT NOT NULL DEFAULT '[1,2,3,4,5,6,7]' CHECK (json_valid(days) AND json_type(days) = 'array' AND json_array_length(days) BETWEEN 1 AND 7),
     win_from             TEXT NOT NULL DEFAULT '22:00' CHECK (win_from GLOB '[0-2][0-9]:[0-5][0-9]' AND win_from < '24:00'),
     win_to               TEXT NOT NULL DEFAULT '05:00' CHECK (win_to GLOB '[0-2][0-9]:[0-5][0-9]' AND win_to < '24:00'),
@@ -1597,7 +1597,7 @@ CREATE TABLE scan_run (
     started_by        TEXT NOT NULL CHECK (length(started_by) BETWEEN 1 AND 320),
     ended_at          TEXT CHECK (ended_at IS NULL OR ended_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     status            TEXT NOT NULL CHECK (status IN ('running', 'stopping', 'done', 'stopped', 'auto_stopped')),
-    -- the ids a person picked in Scan now that needed the pick (pick_only when the run started): the consent of D-126 (2),
+    -- the ids a person picked in Scan now that needed the pick (pick_only when the run started): the person's consent,
     -- per device; every other device of the run is checked again without it
     picked            TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(picked) AND json_type(picked) = 'array'),
     target_ids        TEXT NOT NULL CHECK (json_valid(target_ids) AND json_type(target_ids) = 'array' AND json_array_length(target_ids) BETWEEN 1 AND 200),

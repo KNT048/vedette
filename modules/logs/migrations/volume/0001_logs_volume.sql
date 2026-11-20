@@ -27,7 +27,7 @@ CREATE TABLE logs_source_seen (
 
 -- How many bytes of line text logs_events holds: the byte bound of the purge (M2) is checked by Ingest on every batch, and a
 -- sum over millions of rows is not something a batch can afford. Ingest adds to it in the batch's own transaction, the purge
--- subtracts in the transaction that deletes. One row. Add-only (D-151): an older binary ignores the table.
+-- subtracts in the transaction that deletes. One row. Add-only: an older binary ignores the table.
 CREATE TABLE logs_volume (
     id         INTEGER PRIMARY KEY CHECK (id = 1),
     line_bytes INTEGER NOT NULL CHECK (line_bytes >= 0)
@@ -83,7 +83,7 @@ CREATE TABLE logs_anomaly_sent (
     PRIMARY KEY (source_id, kind, signature, ref)
 ) WITHOUT ROWID;
 
--- Remote addresses per signature (D-210, #338): the read port TopAddresses of response's log_threshold ("10 failed VPN logins from one
+-- Remote addresses per signature: the read port TopAddresses of response's log_threshold ("10 failed VPN logins from one
 -- address"). One row per 5-minute bucket, source, signature (the same 64-bit hash as logs_signature_buckets) and address: the address
 -- is the remote peer the line is about (modules/logs/signature, never the device that sent the log), as bytes. Bounded
 -- per source and bucket (a device is untrusted, and so is the address it names): at most 50 addresses per signature and 500 rows

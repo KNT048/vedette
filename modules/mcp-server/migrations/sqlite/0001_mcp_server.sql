@@ -2,7 +2,7 @@
 -- The whole schema of the mcp-server module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 
--- Read-only MCP tokens (modules/mcp-server/CONTRACT.md INV-2..INV-4, D-231). Forward-only (DATA_MODEL 6, rule 1).
+-- Read-only MCP tokens (modules/mcp-server/CONTRACT.md INV-2..INV-4). Forward-only (DATA_MODEL 6, rule 1).
 -- The token itself is never stored: token_hash is the SHA-256 (hex) of the whole token, as core_session does for session ids.
 -- The token carries 128 random bits, so the hash in a backup cannot be turned back into a token. Revoking deletes the row.
 CREATE TABLE mcp_tokens (

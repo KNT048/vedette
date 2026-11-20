@@ -83,7 +83,7 @@ CREATE TABLE "inv_asset" (
     approved_at    TEXT    CHECK (approved_at IS NULL OR approved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 , agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
 
--- D-474 (MK-1, B9a): when each source first reported to this box, so inventory.asset.discovered can say a device was found while the
+-- When each source first reported to this box, so inventory.asset.discovered can say a device was found while the
 -- source that found it was still learning the network (its first 36 hours). One row per source (agent, snmp, nmap, passive, scan;
 -- never manual), written once by the first observation, software or service list of that source; it only moves back to now when it
 -- was stored while the box clock was ahead. The box's own data (EnsureBox, its dpkg list) is no source's contact.
@@ -92,7 +92,7 @@ CREATE TABLE inv_source (
     first_seen TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );
 
--- D-599: two devices a person said are two machines ("Keep separate"): the pair is never offered as "possibly the same device" again.
+-- Two devices a person said are two machines ("Keep separate"): the pair is never offered as "possibly the same device" again.
 -- One row per pair, the smaller id first. Deleting either device (by hand, or a join or merge that took it into another) drops the
 -- row: a different pair is a new question. Forward-only (DATA_MODEL 6).
 CREATE TABLE inv_separate (
@@ -104,10 +104,10 @@ CREATE TABLE inv_separate (
     CHECK (a < b)
 );
 
--- #829 (J2, N100 n71): a device added by hand with its address only binds the MAC a sensor sees at that address only when that MAC is
+-- A device added by hand with its address only binds the MAC a sensor sees at that address only when that MAC is
 -- the first and only one seen there since the person added it. Each MAC seen at the address of such a device (no MAC, no agent) is
 -- kept here, by any source: a second MAC means the address is not the person's machine alone (DHCP gave it to another one), so a later
--- machine there is a new, announced device, offered as "possibly the same device" (D-599) instead of silently inheriting the row.
+-- machine there is a new, announced device, offered as "possibly the same device" instead of silently inheriting the row.
 -- Deleting the device drops its rows. Forward-only (DATA_MODEL 6).
 CREATE TABLE inv_hand_seen (
     asset_id   TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
@@ -161,12 +161,12 @@ CREATE INDEX inv_asset_last_seen_ix ON inv_asset (last_seen);
 
 CREATE UNIQUE INDEX inv_asset_agent_key ON inv_asset (agent_key) WHERE agent_key IS NOT NULL;
 
--- #849 (review #855 r1 L3): the Devices page reads which sources reported each device (DISTINCT asset_id, source of inv_software,
+-- The Devices page reads which sources reported each device (DISTINCT asset_id, source of inv_software,
 -- with inv_observation and inv_service). This index lets that pass read the index instead of every software row (an osquery or
 -- Wazuh host carries about 1,500). inv_observation is covered by inv_observation_uq; inv_service is small. Forward-only (DATA_MODEL 6).
 CREATE INDEX inv_software_asset_source_ix ON inv_software (asset_id, source);
 
--- D-598 (4), n69: every device a batch touched looks for the one other row a sensor saw last with the same private MAC (sameMAC,
+-- Every device a batch touched looks for the one other row a sensor saw last with the same private MAC (sameMAC,
 -- macHolders). That reads mac observations by value across devices; inv_observation_uq starts with asset_id, so without this index each
 -- lookup reads the whole table. Forward-only (DATA_MODEL 6).
 CREATE INDEX inv_observation_mac_ix ON inv_observation (value) WHERE field = 'mac';

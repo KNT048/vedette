@@ -50,7 +50,7 @@ CREATE TABLE exp_setting (
     CHECK ((last_run_at IS NULL) = (last_run_ok IS NULL) AND (last_run_at IS NULL) = (last_run_message IS NULL))
 );
 
--- The Ignored list (D-79 (3), INV-14): public IPs a person removed and chose not to add again, for example the address of a
+-- The Ignored list (INV-14): public IPs a person removed and chose not to add again, for example the address of a
 -- security gateway, a VPN exit or a mobile backup line that the box sometimes uses but that is not the company's.
 -- The list only blocks: detection never adds these addresses and nothing scans them. Restoring one deletes its row, which
 -- lets detection add the address again; it never creates or approves a target. Forward-only (DATA_MODEL 6, rule 1).
@@ -60,7 +60,7 @@ CREATE TABLE exp_ignored (
     ignored_at TEXT NOT NULL CHECK (ignored_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );
 
--- What the Internet sees (D-558, INV-21): the last answer of Shodan InternetDB about one of the box's own public IPs, asked only
+-- What the Internet sees (INV-21): the last answer of Shodan InternetDB about one of the box's own public IPs, asked only
 -- when an administrator clicks. One row per target, replaced by the next check, gone with its target; the audit log keeps every
 -- request that was sent. answer is {ports, hostnames, cpes, tags, vulns}, already limited and checked when it was read (INV-10):
 -- it is Shodan's claim, never a finding of Vedette. Forward-only (DATA_MODEL 6, rule 1).

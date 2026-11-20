@@ -2,7 +2,7 @@
 -- The whole schema of the findings module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 
--- D-500: a software whose product is on the exploited list but whose version is missing or unreadable gets ONE row here
+-- A software whose product is on the exploited list but whose version is missing or unreadable gets ONE row here
 -- ("add the version to check N exploited CVEs") instead of one finding per CVE. Rewritten for the device on every match
 -- of it (UpsertFromMatch), removed with the device (OnAssetDeleted, reconcile). Not a finding: no status, no history.
 -- asset_id and software_id have no foreign key (inventory owns them, rules/modules.md). Forward-only (DATA_MODEL 6, rule 1).
@@ -32,7 +32,7 @@ CREATE TABLE fnd_reach_run (
     added       TEXT    NOT NULL CHECK (json_valid(added) AND json_type(added) = 'object')
 );
 
--- D-602 (review r1 H2 of #939): the (device, CVE) pairs the "could not be checked" list has ever held for a device, or that had a
+-- The (device, CVE) pairs the "could not be checked" list has ever held for a device, or that had a
 -- finding: a pair new here is announced once (findings.unchecked.added, one event per device and match write, notify sends one
 -- notice listing the CVEs), never again. Seeded with every pair the box already listed or had a finding for, so the upgrade itself
 -- (old product findings closing into the list) announces nothing. Removed with the device; moved on a merge. No foreign keys

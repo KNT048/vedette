@@ -4,7 +4,7 @@
 
 CREATE TABLE scan_setting (
     id                   INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    -- ISO weekdays, 1 = Monday ... 7 = Sunday (D-57 (9))
+    -- ISO weekdays, 1 = Monday ... 7 = Sunday
     days                 TEXT NOT NULL DEFAULT '[1,2,3,4,5,6,7]' CHECK (json_valid(days) AND json_type(days) = 'array' AND json_array_length(days) BETWEEN 1 AND 7),
     win_from             TEXT NOT NULL DEFAULT '22:00' CHECK (win_from GLOB '[0-2][0-9]:[0-5][0-9]' AND win_from < '24:00'),
     win_to               TEXT NOT NULL DEFAULT '05:00' CHECK (win_to GLOB '[0-2][0-9]:[0-5][0-9]' AND win_to < '24:00'),
@@ -31,7 +31,7 @@ CREATE TABLE scan_run (
     started_by        TEXT NOT NULL CHECK (length(started_by) BETWEEN 1 AND 320),
     ended_at          TEXT CHECK (ended_at IS NULL OR ended_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     status            TEXT NOT NULL CHECK (status IN ('running', 'stopping', 'done', 'stopped', 'auto_stopped')),
-    -- the ids a person picked in Scan now that needed the pick (pick_only when the run started): the consent of D-126 (2),
+    -- the ids a person picked in Scan now that needed the pick (pick_only when the run started): the person's consent,
     -- per device; every other device of the run is checked again without it
     picked            TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(picked) AND json_type(picked) = 'array'),
     target_ids        TEXT NOT NULL CHECK (json_valid(target_ids) AND json_type(target_ids) = 'array' AND json_array_length(target_ids) BETWEEN 1 AND 200),

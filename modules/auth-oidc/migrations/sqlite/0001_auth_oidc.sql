@@ -16,7 +16,7 @@ CREATE TABLE oidc_config (
     updated_at    TEXT    NOT NULL
 , ca_pem TEXT NOT NULL DEFAULT '' CHECK (length(ca_pem) <= 65536));
 
--- A sign-in that started and has not come back (D-194 (4)): only SHA-256 of state and binding; nonce and the PKCE verifier are
+-- A sign-in that started and has not come back: only SHA-256 of state and binding; nonce and the PKCE verifier are
 -- needed in the clear at the callback. Single use (deleted at the first callback), 10 minutes, at most 1000 rows (oldest dropped).
 -- issuer, client_id and redirect_uri are the configuration at start: a change in between makes the callback sso_expired.
 CREATE TABLE oidc_flow (

@@ -60,7 +60,7 @@ CREATE TABLE notify_incident_device (
     PRIMARY KEY (incident_id, asset_id)
 );
 
--- A vulnerability notice (D-52): created when it is sendable; the finding ids it covers are in notify_notice_finding.
+-- A vulnerability notice: created when it is sendable; the finding ids it covers are in notify_notice_finding.
 CREATE TABLE notify_notice (
     id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
     created_at TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -149,7 +149,7 @@ CREATE TABLE notify_slack_final (
     at         TEXT NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );
 
--- D-483: when notify first ran on this box (the first discovery of devices is summarised for 36 hours from then) and when the
+-- When notify first ran on this box (the first discovery of devices is summarised for 36 hours from then) and when the
 -- summary incident last told people. A box upgraded to this version takes the earliest notify record it has, so an old box never
 -- opens a first-discovery window; a new box starts now.
 CREATE TABLE notify_box (

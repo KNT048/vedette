@@ -34,7 +34,7 @@ CREATE TABLE intake_osquery_nodes (
 -- the hex SHA-256 of the leaf's public key (trust on first use). generation grows at every Save, so a pull that started before a Save
 -- does not write its result over the new connection. next_pull is when the pull job may run next (Save sets it to now).
 -- agents and packages are the counts of the last pull that finished; error is its plain-words reason when status = 'error'. A pass that
--- does not fit in one pull's 10 minutes goes on at the next tick after the agent resume_after, adding to pass_packages (D-306).
+-- does not fit in one pull's 10 minutes goes on at the next tick after the agent resume_after, adding to pass_packages.
 CREATE TABLE intake_wazuh (
     id                 INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     url                TEXT    NOT NULL CHECK (url GLOB 'https://*' AND length(url) <= 200),
@@ -58,7 +58,7 @@ CREATE TABLE intake_wazuh (
 
 -- One row (id = 1): when the node-prune job last ran. A node is pruned after 90 days of silence while the job runs; time the module was
 -- off, or the box was down, is not silence. At the first run after a gap of more than 3 hours the job adds the gap to every node's
--- last_seen, so a restart or an upgrade (D-260) no longer starts the count again and nodes of a box that is updated are still pruned.
+-- last_seen, so a restart or an upgrade no longer starts the count again and nodes of a box that is updated are still pruned.
 CREATE TABLE intake_prune_clock (
     id       INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     last_run TEXT    NOT NULL

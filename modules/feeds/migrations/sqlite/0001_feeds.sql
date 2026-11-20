@@ -122,7 +122,7 @@ CREATE TABLE feeds_cveorg_checked (
     checked_at TEXT NOT NULL CHECK (checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 );
 
--- D-613, D-614: the data of CVE tiers 2 (likely to be exploited, EPSS) and 3 (published in the last 12 months).
+-- The data of CVE tiers 2 (likely to be exploited, EPSS) and 3 (published in the last 12 months).
 -- feeds_epss: FIRST's EPSS score of every CVE (built-in feed epss-all, the daily file of all scores); gen is the pull that
 -- wrote the row, so a pull that read the whole file drops the CVEs it no longer lists.
 -- feeds_recent_cve: the NVD record of each CVE published in the last 12 months (built-in feed nvd-recent): dates, NVD's
@@ -185,9 +185,9 @@ CREATE TABLE feeds_published (
 -- next one is tried. A CVE without a score has no row ("No CVSS score", never 0).
 -- feeds_cvss: the score of each CVE of the exploited lists, written by nvd-kev. feeds_source.full_due = 1 asks for one full pull of
 -- nvd-kev at the next 5-minute check (so every KEV CVE gets its score; about 20 requests), cleared by the first full pull that is
--- stored: a one-time mark, not "the table is empty" (review r1 L1, r2 M1).
+-- stored: a one-time mark, not "the table is empty".
 -- feeds_recent_cve.cvss_*: the same pick for nvd-recent (a CVE not on the exploited lists), kept apart from severity/score, which tier 3
--- reads by its own rule (INV-24). No refill (review r2 M2): a row stored before gets them when NVD changes the record, or at the next
+-- reads by its own rule (INV-24). No refill: a row stored before gets them when NVD changes the record, or at the next
 -- full fill; until then it has no CVSS score. Forward-only.
 CREATE TABLE feeds_cvss (
     cve     TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
@@ -197,7 +197,7 @@ CREATE TABLE feeds_cvss (
     vector  TEXT NOT NULL CHECK (length(vector) <= 200 AND (vector GLOB 'CVSS:[34].[01]/*' OR vector GLOB 'AV:[LAN]/*'))
 ) WITHOUT ROWID;
 
--- D-603: the Windows releases Microsoft's release information pages list (feed windows-releases), handed to core/winrel, which answers
+-- The Windows releases Microsoft's release information pages list (feed windows-releases), handed to core/winrel, which answers
 -- from its own table first. Replaced whole by each good pull; a failed pull or a feed turned off keeps the last good list. Server or
 -- client by build, the NVD name Vedette gives it, the first build of its line (the release whose monthly update it shares), the day
 -- of general availability and the revision of its first public build (0: not known). Forward-only.

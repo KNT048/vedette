@@ -2,7 +2,7 @@
 -- The whole schema of the sensor-passive module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 
--- The sensor of this box (one row, D-24). interface and span are what the admin chose; the interface list
+-- The sensor of this box (one row). interface and span are what the admin chose; the interface list
 -- and online/offline are computed on read.
 CREATE TABLE sp_sensor (
     id            TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),

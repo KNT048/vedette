@@ -136,7 +136,7 @@ CREATE TABLE resp_events (
     processed   BOOLEAN NOT NULL DEFAULT 0 CHECK (processed IN (0, 1))
 );
 
--- The tamper-evident log (INV-19, D-48): append-only hash chain, one formula for every chain (core/chain).
+-- The tamper-evident log (INV-19): append-only hash chain, one formula for every chain (core/chain).
 CREATE TABLE resp_log (
     seq       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id        TEXT    NOT NULL UNIQUE CHECK (length(id) BETWEEN 1 AND 96),
@@ -165,7 +165,7 @@ CREATE TABLE resp_tokens (
     CHECK ((kind = 'link' AND channel IN ('email', 'zalo') AND decision IS NULL AND key_id IS NOT NULL) OR (kind = 'code' AND channel = 'zalo-personal' AND decision IS NOT NULL AND key_id IS NULL))
 );
 
--- WP-31 R3 (D-191, S-RESP-2): an approver proves the address or ID an administrator typed for them on a notify channel. A proof counts
+-- An approver proves the address or ID an administrator typed for them on a notify channel. A proof counts
 -- only while the channel's list (and, for email, the sign-in email) still holds exactly this address. One proof per person and channel.
 CREATE TABLE resp_identity (
     user_id   TEXT NOT NULL,

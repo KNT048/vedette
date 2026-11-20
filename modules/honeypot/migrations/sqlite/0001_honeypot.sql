@@ -20,10 +20,10 @@ CREATE TABLE hp_ignored_day (
     count INTEGER NOT NULL CHECK (count >= 0)
 ) STRICT;
 
--- D-466: a Trap IP is a profile (name, address, preset, vendor, its own services). One table replaces the secondary IP (hp_config key
+-- A Trap IP is a profile (name, address, preset, vendor, its own services). One table replaces the secondary IP (hp_config key
 -- "config"), the five box-wide trap switches (hp_trap) and the decoy personalities (hp_decoys). Forward-only: no Down section.
 -- No address answers a port after this migration that it did not answer before: the secondary IP keeps the traps that were on; a decoy
--- keeps the services of its preset that were on (a decoy used to answer every trap that was on, which D-466 ends); a profile left with
+-- keeps the services of its preset that were on (a decoy used to answer every trap that was on, which Trap IPs end); a profile left with
 -- nothing that was on keeps its preset's services and is switched off. Vendor is NULL, so every address keeps the MAC it has. Hits stay.
 CREATE TABLE hp_trap_ips (
     id         TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
@@ -34,7 +34,7 @@ CREATE TABLE hp_trap_ips (
     services   TEXT    NOT NULL CHECK (json_valid(services) AND json_type(services) = 'array'),
     enabled    INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     -- The last MAC the host gave the address (it derives it from the address and the vendor, so it is the same next time): a device
-    -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address (B2 lab). NULL until the host says.
+    -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address. NULL until the host says.
     mac        TEXT    CHECK (mac IS NULL OR length(mac) = 17),
     -- When the address last became a Trap IP that is on (added, switched on, moved); NULL = created_at. A device row the inventory
     -- made at the address or of its MAC after this is a ghost of the decoy and is forgotten; one from before is a real machine.

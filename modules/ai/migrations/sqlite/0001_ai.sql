@@ -178,7 +178,7 @@ CREATE TABLE ai_knowledge_chunk (
 -- "Tường". The triggers keep it in step with the chunk table, in the same transaction as every insert and delete.
 CREATE VIRTUAL TABLE ai_knowledge_chunk_fts USING fts5 (text, content = 'ai_knowledge_chunk', content_rowid = 'id', tokenize = 'unicode61 remove_diacritics 2');
 
--- ai_read of slice 7 (D-311, D-119): one row per read the box itself made through a connection read tool (core/conn/read), written by
+-- ai_read: one row per read the box itself made through a connection read tool (core/conn/read), written by
 -- the tool runner after the read answered, never from text the model produced. response looks a row up by id as config_read evidence
 -- of an AI proposal; only rows at most 24 hours old count. Rows older than that are removed when a new read is recorded, and at most
 -- the newest 500 are kept. The output of the read is not stored: only which connection and which tool, and when. Forward-only.

@@ -56,7 +56,7 @@ CREATE TABLE "sa_job" (
     error       TEXT    CHECK (error IS NULL OR length(error) <= 1000)
 , asset_id TEXT CHECK (asset_id IS NULL OR length(asset_id) BETWEEN 1 AND 96), found TEXT CHECK (found IS NULL OR (json_valid(found) AND json_type(found) = 'object' AND length(found) <= 8000)));
 
--- D-592 (kf-scan item 1, review r1): three new LAN shapes. 'extra_ports' follows every normal or versions scan of a device (the
+-- Three new LAN shapes. 'extra_ports' follows every normal or versions scan of a device (the
 -- surface list and the reviewed admin ports, nmapargv.ExtraPorts); 'all_ports' is the weekly port discovery over every TCP port of
 -- each LAN device that is not fragile (its job is of kind 'device', reason 'all_ports'); 'port_versions' is its -sV follow-up on
 -- at most 20 of the ports it found. For them sa_probe is rebuilt with the same columns and ids the way 0006 did it, the
@@ -73,12 +73,12 @@ CREATE TABLE sa_all_ports (
     outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed')),
     -- observe.Service[] of the open ports outside nmapargv.ExtraPorts that the last done weekly run found, at extra_at
     extra        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra) AND json_type(extra) = 'array' AND length(extra) <= 262144),
-    -- [{port, software}] the weekly follow-ups read, kept by port and product (review r2 M2)
+    -- [{port, software}] the weekly follow-ups read, kept by port and product
     extra_sw     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra_sw) AND json_type(extra_sw) = 'array' AND length(extra_sw) <= 262144),
     extra_at     TEXT CHECK (extra_at IS NULL OR extra_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    -- {"port": time} when the follow-up last read each open port with -sV (review r2 L3)
+    -- {"port": time} when the follow-up last read each open port with -sV
     versioned    TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(versioned) AND json_type(versioned) = 'object' AND length(versioned) <= 65536),
-    -- the TCP ports and the software the last normal or versions scan found (NULL software: none recorded since D-592)
+    -- the TCP ports and the software the last normal or versions scan found (NULL software: none recorded by an older scan)
     normal_ports TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(normal_ports) AND json_type(normal_ports) = 'array' AND length(normal_ports) <= 16384),
     normal_sw    TEXT CHECK (normal_sw IS NULL OR (json_valid(normal_sw) AND json_type(normal_sw) = 'array' AND length(normal_sw) <= 262144))
 );

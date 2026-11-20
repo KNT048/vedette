@@ -152,7 +152,7 @@
 
 ## Modifying: `content/zap/vedette-baseline.conf`, `content/zap/header-cpe.json`, `parseZAPWithRules`, `webOnRead`, `withWebVersions`, `ExploitedLookup`, `WebFindingRow.Group`/`Software`, basis `js_library` (INV-24 (5))
 - **host** (`host/ops/zap.go`): ghi đúng file `zapdata.Baseline` vào workdir của ZAP và truyền `-c vedette-baseline.conf`; sai định dạng làm zap-baseline.py thoát 3 (không báo cáo): `content/zap` `TestBaseline_IsZAPConfig` giữ định dạng của `load_config`. Đổi trạng thái một luật = đổi cái khách thấy ở cả hai phía, kể cả ảnh chụp cũ (áp lúc đọc).
-- **cmd/vedette** `exposurematch.go`: `exposureMatcher.Exploited` (hiện thực `ExploitedLookup`) đọc cùng danh sách KEV như `Match`; header đi qua `Match` với CPE từ `header-cpe.json` và alias `content/catalog/nmap-cpe.json`. Đổi CPE trong `header-cpe.json` = đổi so khớp; `TestExposureMatcher_ZAPVersions`.
+- **cmd/vedette** `exposurematch.go`: `exposureMatcher.Exploited` (hiện thực `ExploitedLookup`) đọc cùng danh sách KEV như `Match`; header đi qua `Match` với CPE từ `header-cpe.json` và alias `content/catalog/products`. Đổi CPE trong `header-cpe.json` = đổi so khớp; `TestExposureMatcher_ZAPVersions`.
 - **web/features/exposure**: `contract.ts` (`WebFinding.group`, `software`; `VulnBasis` thêm `js_library`) là nguồn OpenAPI (`api/openapi.json`, `core/api/oas`); `WebPanel.tsx` vẽ hai nhóm "Fix this" rồi "Hardening"; `ServicesPanel.tsx`/`ResultsPanel.tsx` hiện "Exploited vulnerabilities" cho domain khi có hàng; nhãn `vulns.basis.js_library`; mock `data.ts` (`JS_ALERT`, `jsVulns`).
 - **Diff** và mọi chỗ đọc `vulns` (`entries`, `markTemplates`, `markBackports`) thấy hàng `js_library` và hàng header như mọi hàng; `Vulns` vẫn không lưu.
 

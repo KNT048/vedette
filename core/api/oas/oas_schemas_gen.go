@@ -244101,7 +244101,7 @@ type ScanningGetRunsIDOK struct {
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKSubject `json:"subject"`
 	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
-	// starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
 	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
 	// addresses". Pages show it as it is.
 	Summary string `json:"summary"`
@@ -244484,7 +244484,7 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKChildrenItemSubject `json:"subject"`
 	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
-	// starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
 	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
 	// addresses". Pages show it as it is.
 	Summary string `json:"summary"`
@@ -245535,7 +245535,7 @@ type ScanningGetRunsOKItemsItem struct {
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsOKItemsItemSubject `json:"subject"`
 	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
-	// starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
 	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
 	// addresses". Pages show it as it is.
 	Summary string `json:"summary"`
@@ -250354,7 +250354,7 @@ type ScanningPostRunsIDResumeOK struct {
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDResumeOKSubject `json:"subject"`
 	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
-	// starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
 	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
 	// addresses". Pages show it as it is.
 	Summary string `json:"summary"`
@@ -250863,7 +250863,7 @@ type ScanningPostRunsIDStopOK struct {
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDStopOKSubject `json:"subject"`
 	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
-	// starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
 	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
 	// addresses". Pages show it as it is.
 	Summary string `json:"summary"`

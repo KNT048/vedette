@@ -176,7 +176,7 @@ export const Run = z.object({
   queued_at: iso, started_at: iso.nullable().describe('The first start; null while it never ran'), ended_at: iso.nullable().describe('Set exactly when the state is final'), updated_at: iso,
   can_stop: z.boolean().describe('Queued, waiting or running, and the person asking may stop it (an operator)'),
   can_resume: z.boolean().describe('Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator\'s, a LAN sweep)'),
-  summary: z.string().describe('The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends", "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254 addresses". Pages show it as it is'),
+  summary: z.string().describe('The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254 addresses". Pages show it as it is'),
   blocked_by: z.object({ id: z.string(), title: z.string() }).nullable().describe('With queued: the run that holds the lane it waits for; null otherwise'),
 })
 export const RunStep = z.object({

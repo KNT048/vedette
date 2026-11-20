@@ -11,7 +11,6 @@ slow	TestE2EBoxHarnessHost	cmd/vedette	slow: 17 s wall time; daily run	2026-11-1
 slow	TestContract_Container_AnInvalidJournalIsMovedAsideAtStartKeepingTheLastThree	modules/host	slow: 14 s wall time; daily run	2026-11-12
 slow	TestSwitchingTheSensorModulesMovesTheirContainers	cmd/vedette	slow: 13 s wall time; daily run	2026-11-12
 slow	TestUpdateCoreSwitchStopsAfterRepeatedSnapshotRefusals	modules/core	slow: 10 s wall time; daily run	2026-11-12
-slow	TestQueueDeviceCutByTheDeadlineGoesToTheBack	modules/sensor-active	slow: 9 s wall time; daily run	2026-11-12
 slow	TestContract_Container_StateParsesHostileOutputStrictlyAndBounded	modules/host	slow: 9 s wall time; daily run	2026-11-12
 slow	TestContract_Container_StopIsJudgedByTheOutputOfIsActive	modules/host	slow: 7 s wall time; daily run	2026-11-12
 slow	TestHoneypotHostStaysInsideTheHostLimits	cmd/vedette	slow: 6.5 s wall time; daily run	2026-11-12

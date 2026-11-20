@@ -91341,7 +91341,7 @@
                           },
                           "summary": {
                             "type": "string",
-                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
                           },
                           "blocked_by": {
                             "anyOf": [
@@ -91637,7 +91637,7 @@
                     },
                     "summary": {
                       "type": "string",
-                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
                     },
                     "blocked_by": {
                       "anyOf": [
@@ -92017,7 +92017,7 @@
                           },
                           "summary": {
                             "type": "string",
-                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
                           },
                           "blocked_by": {
                             "anyOf": [
@@ -92335,7 +92335,7 @@
                     },
                     "summary": {
                       "type": "string",
-                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
                     },
                     "blocked_by": {
                       "anyOf": [
@@ -92616,7 +92616,7 @@
                     },
                     "summary": {
                       "type": "string",
-                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens Mon 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
                     },
                     "blocked_by": {
                       "anyOf": [

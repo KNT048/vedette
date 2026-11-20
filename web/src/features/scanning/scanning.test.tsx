@@ -141,7 +141,7 @@ describe('Settings › Scanning: every engine on one page', () => {
       view.unmount()
     }
     const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins: the run's own page
-    expect(await screen.findByText('You pressed Stop now.', {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByText(/^Stopped: You pressed Stop now\./, {}, { timeout: 4000 })).toBeInTheDocument() // the run's own line, from the box
     v2.unmount()
     renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
     expect(await screen.findByRole('button', { name: 'Check this device now' }, { timeout: 4000 })).toBeInTheDocument()

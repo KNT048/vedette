@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/run"
 )
 
@@ -310,13 +311,14 @@ func (s *Service) laneBusy(ctx context.Context, except string) (string, string, 
 	return id, title, nil
 }
 
-// windowWait is what a run of the window waits for while it is closed: "the scan window (opens Mon 23:00)".
+// windowWait is what a run of the window waits for while it is closed: "the scan window (opens 23 Nov 2026, 23:00)", in the
+// organization's zone.
 func (s *Service) windowWait(st Settings) string {
 	at := st.nextOpening(s.local())
 	if at == nil {
 		return "the scan window (no window is set)"
 	}
-	return "the scan window (opens " + at.Format("Mon 15:04") + ")"
+	return "the scan window (opens " + orgtime.Stamp(*at, s.zone()) + ")"
 }
 
 // label is how a run names a device: its name and address, its address, or its id.

@@ -241,6 +241,14 @@ type Line struct {
 	Text     string
 }
 
+// StoredLine is a line Ingest stored, as Config.Received is handed it: the sanitized text and the receive time, with the source's kind
+// and name.
+type StoredLine struct {
+	SourceID, SourceName, Kind string
+	At                         time.Time
+	Text                       string
+}
+
 // IngestResult says what Ingest did with a batch.
 type IngestResult struct {
 	Stored  int // lines stored

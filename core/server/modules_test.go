@@ -128,11 +128,9 @@ var contractRoutes = map[string][]string{
 		"PATCH /core/updates/os/settings",
 		"PATCH /core/users/{id}",
 		"PATCH /modules/{id}",
-		"GET /detection/overview",    // answers while any detection module is off
-		"GET /detection/alerts",      // the ids module's once it exists; core's fallback answers 501 until then
-		"GET /detection/alerts/{id}", // as above
-		"GET /scanning",              // #850: Settings › Scanning answers with every engine module off (core INV-40)
-		"GET /scanning/history",      // History of the runs that are not vulnerability checks (core INV-40 (5))
+		"GET /detection/overview", // answers while any detection module is off
+		"GET /scanning",           // #850: Settings › Scanning answers with every engine module off (core INV-40)
+		"GET /scanning/history",   // History of the runs that are not vulnerability checks (core INV-40 (5))
 		"PUT /scanning/safety",
 		"POST /scanning/safety/ranges", // #842: the inline adds of the safety block
 		"POST /scanning/safety/exclusions",
@@ -285,6 +283,10 @@ var contractRoutes = map[string][]string{
 		"PUT /inventory/devices/{id}/sources",
 		"PUT /inventory/notify-new",
 		"PUT /inventory/settings",
+	},
+	"ids": {
+		"GET /detection/alerts",
+		"GET /detection/alerts/{id}",
 	},
 	"logs": {
 		"DELETE /logs/sources/{id}",

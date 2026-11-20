@@ -6,6 +6,10 @@
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (nút Respond ở `/response?incident=<id>`). Đổi khoá gộp = đổi số incident người dùng thấy.
 
+## Modifying: kind `intrusion`, `IncidentOf`, `KindCounts`
+- **ids** (`cmd/vedette/ids.go` `idsIncidents`): liên kết cảnh báo với sự cố qua `IncidentOf` và cùng khoá gộp (`dedupeKey`); đổi cách tính khoá → cảnh báo mất `incident`.
+- **core** (`cmd/vedette/detection.go`): tổng quan Intrusion detection đếm `KindCounts` theo thứ tự `IncidentKinds` (= `DetectionKind` của web); thêm kind → thêm vào cả `web/src/features/notify/contract.ts` `IncidentKind` và `detection/contract.ts`.
+
 ## Modifying: `notify.Service.EmailReady() (bool, reason)` và `SendEmailCode(ctx, to, code)`
 - **core** (đăng nhập 2FA email, `/core/account` `twofa_email.available`). Đổi lý do trả về làm sai thông báo ở trang đăng nhập; không bao giờ để rơi về chỉ mật khẩu (core INV-8).
 

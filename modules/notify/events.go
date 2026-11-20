@@ -37,6 +37,7 @@ const (
 	EventHoneypotHit     = "honeypot.hit.created"
 	EventLogAnomaly      = "logs.anomaly.detected"
 	EventLogBadAddress   = "logs.bad_address.detected"
+	EventIntrusion       = "ids.alert.detected" // {alert_id, source, target, title, what, action, severity, link, at, devices}
 )
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: notify does not
@@ -77,6 +78,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
+	on(EventIntrusion, s.intrusionEvent)
 	on(EventDecisionMade, s.decisionEvent)
 	return func() {
 		for _, u := range undo {
@@ -930,6 +932,32 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 	}
 	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: kind, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity, What: e.What, Action: e.Action,
 		Link: "/logs", Devices: e.Devices, Attempt: e.Blocked && kind == IncidentBadAddress})
+	return err
+}
+
+// intrusionEvent opens or counts the incident of kind intrusion of an IPS or IDS alert (ids.alert.detected). The ids module sends the
+// description ready-made; source (the attacking address) and target (the CVE ids or the rule) make the dedupe key, and the link is the
+// alert's page (or /detection for the hourly summary). A repeat with a higher severity raises the open incident (OpenIncident).
+func (s *Service) intrusionEvent(ctx context.Context, data any) error {
+	var e struct {
+		Source   string    `json:"source"`
+		Target   string    `json:"target"`
+		Title    string    `json:"title"`
+		What     string    `json:"what"`
+		Action   string    `json:"action"`
+		Severity Severity  `json:"severity"`
+		Link     string    `json:"link"`
+		At       time.Time `json:"at"`
+		Devices  []Device  `json:"devices"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.Link != "/detection" && !strings.HasPrefix(e.Link, "/detection/") {
+		return fmt.Errorf("%w: an intrusion event links to its alert or to /detection", ErrInvalidNotice)
+	}
+	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentIntrusion, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity,
+		What: e.What, Action: e.Action, Link: e.Link, Devices: e.Devices, At: e.At})
 	return err
 }
 

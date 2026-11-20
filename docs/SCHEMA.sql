@@ -1268,7 +1268,7 @@ CREATE TABLE notify_setting (
 
 CREATE TABLE notify_incident (
     id         TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind       TEXT    NOT NULL CHECK (kind IN ('trap', 'bad_address', 'log_anomaly', 'unknown_device')),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
     title      TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 400),
     link       TEXT    NOT NULL CHECK (length(link) BETWEEN 1 AND 400),
     severity   TEXT    NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),
@@ -1822,6 +1822,42 @@ CREATE TABLE logs_siem (
 );
 
 CREATE UNIQUE INDEX logs_sources_sender_uq ON logs_sources (sender_ip);
+
+-- module ids
+
+CREATE TABLE ids_alert (
+    id           TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 64),
+    source       TEXT    NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    sid          INTEGER CHECK (sid IS NULL OR sid >= 0),
+    signature    TEXT    NOT NULL CHECK (length(signature) BETWEEN 1 AND 300),
+    category     TEXT    NOT NULL DEFAULT '' CHECK (length(category) <= 120),
+    priority     INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 4),
+    src_ip       TEXT    NOT NULL CHECK (length(src_ip) BETWEEN 2 AND 45),
+    dst_ip       TEXT    NOT NULL CHECK (length(dst_ip) BETWEEN 2 AND 45),
+    dst_port     INTEGER CHECK (dst_port IS NULL OR dst_port BETWEEN 0 AND 65535),
+    proto        TEXT    NOT NULL DEFAULT '' CHECK (length(proto) <= 16),
+    src_asset_id TEXT    REFERENCES inv_asset (id) ON DELETE SET NULL,
+    dst_asset_id TEXT    REFERENCES inv_asset (id) ON DELETE SET NULL,
+    first_ts     TEXT    NOT NULL CHECK (first_ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_ts      TEXT    NOT NULL CHECK (last_ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    count        INTEGER NOT NULL CHECK (count >= 1),
+    dedupe_key   TEXT    NOT NULL UNIQUE CHECK (length(dedupe_key) = 64),
+    CHECK (last_ts >= first_ts)
+) STRICT;
+
+CREATE INDEX ids_alert_last_ix ON ids_alert (last_ts);
+
+CREATE INDEX ids_alert_src_asset_ix ON ids_alert (src_asset_id) WHERE src_asset_id IS NOT NULL;
+
+CREATE INDEX ids_alert_dst_asset_ix ON ids_alert (dst_asset_id) WHERE dst_asset_id IS NOT NULL;
+
+CREATE TABLE ids_alert_cve (
+    alert_id TEXT NOT NULL REFERENCES ids_alert (id) ON DELETE CASCADE,
+    cve      TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 20),
+    PRIMARY KEY (alert_id, cve)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX ids_alert_cve_cve_ix ON ids_alert_cve (cve);
 
 -- module ai
 

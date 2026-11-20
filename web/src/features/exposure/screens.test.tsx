@@ -1,0 +1,159 @@
+// The exposure screens on the target tree: the tree with whose proof covers what, add and edit in dialogs, rows with first
+// and last seen, issue handling in the shared vocabulary, the names of a chosen scope, and a scan stopped through its run.
+import { describe, expect, it } from 'vitest'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { usersStore } from '@/mocks/stores'
+
+const tree = () => screen.findByRole('table', { name: 'Targets' })
+const rowOf = async (table: HTMLElement, text: string) => (await within(table).findByRole('link', { name: text })).closest('tr')!
+
+describe('exposure screens: the target tree', () => {
+  it('a name under a domain sits under it and says whose proof covers it; the counts open the target; axe clean', async () => {
+    renderApp('/exposure')
+    const table = await tree()
+    const names = within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('link')[0]!.textContent)
+    expect(names).toEqual(['198.51.100.2', '198.51.100.3', 'example.com', 'git.example.com', 'shop.example.net'])
+    const git = await rowOf(table, 'git.example.com')
+    expect(git).toHaveTextContent('under example.com')
+    expect(git).toHaveTextContent('Covered')
+    expect(git).toHaveTextContent('by the proof of example.com')
+    expect(within(git).getByRole('link', { name: '2 open issues on git.example.com' })).toHaveAttribute('href', '/exposure/xt-12?tab=issues')
+    expect(await rowOf(table, 'shop.example.net')).toHaveTextContent('Needs ownership proof')
+    await expectNoA11yViolations()
+  })
+
+  it('Add target is a dialog: a name under a proven domain is said to be covered, and the scope chosen is sent', async () => {
+    renderApp('/exposure')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add target' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add a target' })
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Domain' }), 'api.example.com')
+    expect(within(dialog).getByRole('status')).toHaveTextContent('It goes under example.com, whose ownership proof covers it')
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Only api\.example\.com/ }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }))
+    // covered by its parent: no proof to do, so the page opens on its issues, with its place in the tree
+    expect(await screen.findByRole('heading', { name: 'api.example.com is ready for its first scan' })).toBeInTheDocument()
+    expect(screen.getByText('This name only')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'example.com' }).map((a) => a.getAttribute('href'))).toEqual(['/exposure/xt-11', '/exposure/xt-11'])
+    expect(screen.getByText('Covered')).toBeInTheDocument()
+  })
+})
+
+describe('exposure screens: a target page', () => {
+  it('a target without proof opens on Ownership with its TXT record; Scan now says why it is locked', async () => {
+    renderApp('/exposure/xt-13')
+    expect(await screen.findByRole('tab', { name: /Ownership/, selected: true })).toBeInTheDocument()
+    expect(screen.getByTestId('proof-host')).toHaveTextContent('@ (that is example.net)')
+    expect(screen.getByText('vedette-verify=0f3b6c2d9a8e7145')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+    expect(screen.getByText(/Cannot scan yet: shop\.example\.net has no ownership proof/)).toBeInTheDocument()
+  })
+
+  it('services and names are rows with first and last seen; a name that is its own target links there', async () => {
+    renderApp('/exposure/xt-11?tab=services')
+    const services = await screen.findByRole('table', { name: 'Services of example.com' })
+    expect(within(services).getAllByRole('row')).toHaveLength(4)
+    expect(within(services).getByText('198.51.100.21:25/tcp').closest('tr')).toHaveTextContent('Certificate for mail.example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Closed (1)' }))
+    expect(within(await screen.findByRole('table', { name: 'Services of example.com' })).getByText('198.51.100.22:443/tcp')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Names' }))
+    const names = await screen.findByRole('table', { name: 'Names under example.com' })
+    const git = within(names).getByText('git.example.com', { selector: 'span' }).closest('tr')!
+    expect(within(git).getByRole('link', { name: 'git.example.com' })).toHaveAttribute('href', '/exposure/xt-12')
+    expect(git).toHaveTextContent('Scanned as its own target')
+    expect(within(names).getByText('vpn.example.com').closest('tr')).toHaveTextContent(/\d{1,2} \w{3,4} 2026 – \d{1,2} \w{3,4} 2026/)
+  })
+
+  it('with the scope "names I choose", picked names are added to the choice', async () => {
+    renderApp('/exposure/xt-13?tab=names')
+    const names = await screen.findByRole('table', { name: 'Names under shop.example.net' })
+    expect(screen.getByText(/shop\.example\.net and 1 chosen name are scanned/)).toBeInTheDocument()
+    expect(within(names).getByText('staging.shop.example.net').closest('tr')).toHaveTextContent('Not in scope')
+    await userEvent.click(within(names).getByRole('checkbox', { name: 'Select staging.shop.example.net' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Scan this name' }))
+    await waitFor(() => expect(screen.getByText(/shop\.example\.net and 2 chosen names are scanned/)).toBeInTheDocument())
+  })
+
+  it('Edit is a dialog: turning a target off locks Scan now with the reason', async () => {
+    renderApp('/exposure/xt-12')
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit git.example.com' })
+    await userEvent.click(within(dialog).getByRole('switch', { name: 'Scan this target' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('heading', { name: 'git.example.com is turned off: nothing scans it' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  })
+
+  it('Scan now shows the live run with a link to it; Stop goes through the shared run', async () => {
+    renderApp('/exposure/xt-12', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
+    const live = await screen.findByText(/Surface scan started/)
+    const line = live.closest('[role="status"]') as HTMLElement
+    expect(within(line).getByText('Running')).toBeInTheDocument()
+    expect(within(line).getByRole('link', { name: 'Open the run' }).getAttribute('href')).toMatch(/^\/runs\/run-/)
+    await userEvent.click(within(line).getByRole('button', { name: 'Stop' }))
+    expect(await screen.findByText(/^Stopped by it@acme\.example$/)).toBeInTheDocument()
+  })
+
+  it("an administrator's first Scan now shows the sentence it records; without two-step the server's refusal says what to do", async () => {
+    usersStore.update((l) => l.map((u) => (u.id === 'u-admin' ? { ...u, twofa: false } : u)))
+    renderApp('/exposure/xt-15?tab=ownership')
+    // the mock finds the proof file at this check: the page then offers the first scan with the sentence it records
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    const note = await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })
+    expect(note).toHaveTextContent('my company owns 198.51.100.3')
+    await userEvent.click(screen.getByRole('button', { name: 'Scan now' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Turn on two-step sign-in for your account before the first scan of 198.51.100.3')
+  })
+})
+
+describe('exposure screens: issues', () => {
+  it('accepting a risk needs a note and a last day; the handled view shows the shared badge and who handled it; reopen brings it back', async () => {
+    renderApp('/exposure/xt-11')
+    const table = await screen.findByRole('table', { name: 'Issues of example.com' })
+    await userEvent.click(within(table).getByRole('button', { name: 'Mark Content Security Policy (CSP) header not set as handled' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Mark the issue as handled' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Risk accepted/ }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as handled' }))
+    expect(within(dialog).getByText('Write why (at least 3 characters), so the next person understands.')).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Note (required)' }), 'Only reachable through the VPN')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as handled' }))
+    expect(within(dialog).getByText('Choose a last day from tomorrow up to one year ahead.')).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: '90 days' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as handled' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Handled (2)' }))
+    const handled = await screen.findByRole('table', { name: 'Issues of example.com' })
+    const row = within(handled).getByRole('button', { name: 'Content Security Policy (CSP) header not set' }).closest('tr')!
+    expect(row.querySelector('[data-status="accepted"]')).toHaveTextContent(/^Risk accepted until \d{1,2} \w{3,4} 20\d\d$/)
+    expect(row).toHaveTextContent(/by admin@acme\.example \(\d{1,2} \w{3,4}\): Only reachable through the VPN/)
+    await userEvent.click(within(row).getByRole('button', { name: 'Reopen Content Security Policy (CSP) header not set' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open (2)' })).toBeInTheDocument())
+  })
+
+  it('several issues are handled at once; the CVEs of an issue show their severity; the details are one click away', async () => {
+    renderApp('/exposure/xt-12')
+    const table = await screen.findByRole('table', { name: 'Issues of git.example.com' })
+    expect(within(table).getByRole('list', { name: 'CVEs of Vulnerable JS library: DOMPurify 3.2.3' })).toHaveTextContent('CVE-2025-26791Medium4.5')
+    await userEvent.click(within(table).getByRole('button', { name: 'Vulnerable JS library: DOMPurify 3.2.3' }))
+    const detail = await screen.findByRole('dialog', { name: 'Vulnerable JS library: DOMPurify 3.2.3' })
+    expect(detail).toHaveTextContent('Update GitLab, which ships the library.')
+    expect(detail).toHaveTextContent('https://git.example.com:10443/assets/webpack/main.chunk.js')
+    await userEvent.click(within(detail).getByRole('button', { name: 'Close' }))
+    await userEvent.click(within(table).getByRole('checkbox', { name: 'Select all 2 issues shown' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mark 2 as handled…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Mark 2 issues as handled' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Mitigated/ }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as handled' }))
+    expect(await screen.findByText('Marked 2 issues as handled.')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Handled (2)' })).toBeInTheDocument()
+  })
+
+  it('a viewer sees the issues but cannot handle them', async () => {
+    renderApp('/exposure/xt-11', { role: 'viewer' })
+    const table = await screen.findByRole('table', { name: 'Issues of example.com' })
+    expect(within(table).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(table).getAllByRole('button', { name: /^Mark .* as handled$/ })[0]).toBeDisabled()
+  })
+})

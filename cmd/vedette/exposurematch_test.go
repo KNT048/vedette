@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
 	zapdata "github.com/knt048/vedette/content/zap"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
@@ -86,7 +85,7 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// nginx is igor_sysoev:nginx to nmap and f5:nginx to NVD: compared through the nmap-cpe.json alias (before it was
+	// nginx is igor_sysoev:nginx to nmap and f5:nginx to NVD: compared through the catalogue's nmap name (before it was
 	// "not compared"). Without a version it can only need one: a gap on port 443, no finding.
 	if got.Compared != 2 || got.Listed != len(vulns) || len(got.Unlisted) != 0 {
 		t.Fatalf("compared %d, listed %d, unlisted %v", got.Compared, got.Listed, got.Unlisted)
@@ -241,7 +240,7 @@ func TestExposureMatcher_CuratedCatalogKevKeys(t *testing.T) {
 }
 
 // nmap names nginx igor_sysoev:nginx, the list keeps it under F5 (NVD f5:nginx): the alias of
-// content/catalog/nmap-cpe.json compares it, and the version is checked against F5's ranges.
+// the product catalogue compares it, and the version is checked against F5's ranges.
 func TestExposureMatcher_NginxAliasReachesF5(t *testing.T) {
 	t.Parallel()
 	vulns := []findings.Vuln{{CVE: "CVE-2026-0001", Vendor: "F5", Product: "NGINX", Name: "F5 NGINX test flaw",
@@ -258,31 +257,6 @@ func TestExposureMatcher_NginxAliasReachesF5(t *testing.T) {
 		if c.hit && (got.Vulns[0].CVE != "CVE-2026-0001" || got.Vulns[0].Basis != "version") {
 			t.Errorf("nginx %s: %+v", c.version, got.Vulns[0])
 		}
-	}
-}
-
-func TestNmapAliases_DataIsValid(t *testing.T) {
-	t.Parallel()
-	var rows map[string]json.RawMessage
-	if err := json.Unmarshal(catalogdata.NmapCPE, &rows); err != nil {
-		t.Fatal(err)
-	}
-	for k, raw := range rows {
-		if k == "_about" {
-			continue
-		}
-		var l []string
-		if err := json.Unmarshal(raw, &l); err != nil || len(l) == 0 || strings.Count(k, ":") != 2 {
-			t.Errorf("%s: %s %v", k, raw, err)
-		}
-		for _, alt := range l {
-			if strings.Count(alt, ":") != 2 || alt == k {
-				t.Errorf("%s: alias %q is not part:vendor:product", k, alt)
-			}
-		}
-	}
-	if len(nmapAliases) != len(rows)-1 {
-		t.Errorf("loaded %d of %d rows", len(nmapAliases), len(rows)-1)
 	}
 }
 

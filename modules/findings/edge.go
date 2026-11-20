@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Microsoft Edge Legacy. Two different browsers have been called "Microsoft Edge": the EdgeHTML
@@ -42,7 +44,7 @@ var edgeChromium = identity{vendor: "microsoft", product: "edgechromium"}
 // only microsoft:edge: Chromium Edge's ranges would put every Edge Legacy version inside.
 func edgeIDs(vendor, product, ver string) []identity {
 	m := chromiumVersion.FindStringSubmatch(strings.TrimSpace(ver))
-	if m == nil || norm(vendor) != "microsoft" || norm(product) != "edge" {
+	if m == nil || productid.Norm(vendor) != "microsoft" || productid.Norm(product) != "edge" {
 		return nil
 	}
 	if major, _ := strconv.Atoi(m[1]); major < chromiumEdgeFirst {
@@ -55,7 +57,7 @@ func edgeIDs(vendor, product, ver string) []identity {
 // ranges under microsoft:edge as well ("< 86.0.622.63" for the V8 flaw CVE-2020-16009), and every EdgeHTML version is below them.
 func edgeLegacyRow(s Software, in swInfo) bool {
 	n, ok := edgeMajor(in.ver)
-	return ok && n < chromiumEdgeFirst && norm(s.Vendor) == "microsoft" && norm(s.Product) == "edge"
+	return ok && n < chromiumEdgeFirst && productid.Norm(s.Vendor) == "microsoft" && productid.Norm(s.Product) == "edge"
 }
 
 // edgeMajor is the first number of a version ("157.0.4341.46" → 157, "44" → 44); false when it does not start with one.
@@ -68,7 +70,7 @@ func edgeMajor(v string) (int, bool) {
 // edgeLegacyOnly says whether the CVE is about Edge Legacy only and the row is a Chromium Edge build. why names the proof for
 // the page.
 func edgeLegacyOnly(s Software, in swInfo, v Vuln) (why string, out bool) {
-	if KevKey(v.Vendor, v.Product) != "microsoft|edge" {
+	if productid.Key(v.Vendor, v.Product) != "microsoft|edge" {
 		return "", false
 	}
 	m := chromiumVersion.FindStringSubmatch(strings.TrimSpace(in.ver))
@@ -89,10 +91,10 @@ func edgeLegacyOnly(s Software, in swInfo, v Vuln) (why string, out bool) {
 		}
 		vendor, _ := c.Vendor.Literal()
 		product, _ := c.Product.Literal()
-		if norm(vendor) != "microsoft" || !strings.HasPrefix(norm(product), "edge") {
+		if productid.Norm(vendor) != "microsoft" || !strings.HasPrefix(productid.Norm(product), "edge") {
 			continue // another product of the list (Windows, ChakraCore): not a Microsoft Edge entry
 		}
-		if norm(product) != "edge" || !edgeLegacyEntry(c, af.Range) {
+		if productid.Norm(product) != "edge" || !edgeLegacyEntry(c, af.Range) {
 			return "", false
 		}
 		legacy++

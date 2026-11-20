@@ -67,7 +67,7 @@ func sqlRows(t *testing.T, rows []row) []observe.Software {
 func with(rows []row, more ...row) []row { return append(slices.Clone(rows), more...) }
 
 // The umbrella row takes the build of the instance's setup registry, cumulative update included, at the
-// confidence of a version the machine stated; the RsFx Driver, a component pkgmap maps to the same product, keeps its own name
+// confidence of a version the machine stated; the RsFx Driver, a component the product catalogue maps to the same product, keeps its own name
 // (its RTM build would keep open what the update fixed). The setup value is no software row.
 func TestSQLServer_SetupRegistryGivesTheRelease(t *testing.T) {
 	got := sqlRows(t, with([]row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4")}, labSQL()...))

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -477,8 +478,8 @@ func (s *Store) HasTemplate(ctx context.Context, cve string) (bool, error) {
 // Product is a vendor and product pair as KEV writes them.
 type Product struct{ Vendor, Product string }
 
-// Key is ProductKey of the pair.
-func (p Product) Key() string { return ProductKey(p.Vendor, p.Product) }
+// Key is productid.Key of the pair.
+func (p Product) Key() string { return productid.Key(p.Vendor, p.Product) }
 
 // KevPairs lists every vendor and product pair of the CISA list (cisa-kev rows only), for the inventory
 // catalog. A custom feed's products are not KEV entries.

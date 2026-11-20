@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
@@ -595,7 +596,7 @@ func (s *Service) AllDevices(ctx context.Context) ([]Device, error) {
 type ProductQuery struct{ Vendor, Product string }
 
 // Key is the matching key (lower(vendor)|lower(product)) of the pair.
-func (p ProductQuery) Key() string { return kevKey(p.Vendor, p.Product) }
+func (p ProductQuery) Key() string { return productid.Key(p.Vendor, p.Product) }
 
 // DeviceMatch is a device that runs a product (Exact) or may run it (a "Multiple products" entry that only
 // the vendor matches).
@@ -771,7 +772,7 @@ type ManualDevice struct {
 // data from the CISA list, not something a person typed. The events are kept until the caller calls Settle. It returns
 // the new device's id: feeds scopes "I have this" to that one device.
 func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, in ManualDevice) (string, error) {
-	if in.Key != kevKey(in.Vendor, in.Product) {
+	if in.Key != productid.Key(in.Vendor, in.Product) {
 		return "", badRequest("bad_product", "The product key does not match the vendor and product.")
 	}
 	c, err := s.Catalog(ctx)

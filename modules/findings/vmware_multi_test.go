@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 )
 
-// vmwareToolsPC is a Windows test device: VMware Tools 13.0.10 as the agent maps it (pkgmap
+// vmwareToolsPC is a Windows test device: VMware Tools 13.0.10 as the agent maps it (the product catalogue
 // "vmware tools" → VMware|Tools).
 func vmwareToolsPC() Asset {
 	return Asset{ID: "a-win", Name: "win11", OS: "Microsoft Windows 11 Pro", Software: []Software{

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Juniper Junos OS. A Junos version is a release ("15.1"), a release type and number ("R7": the 7th
@@ -131,7 +133,7 @@ func junosRelCmp(v, b junosVer) int {
 func isJunos(c CPE) bool {
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
-	return okV && okP && norm(v) == "juniper" && norm(p) == "junos"
+	return okV && okP && productid.Norm(v) == "juniper" && productid.Norm(p) == "junos"
 }
 
 // junosEval decides a Junos configuration for a Junos version. ok is false when the rule does not apply (not
@@ -363,7 +365,7 @@ var (
 // Series and EX9200 Series", review M1 of #703): the device is ruled out only when its own series appears nowhere in the
 // name. An unknown model, a name without "Series", or another vendor's entry never rules anything out.
 func otherSeries(model string, v Vuln) (named []string, out bool) {
-	if norm(v.Vendor) != "juniper" || !strings.Contains(v.Name, "Series") {
+	if productid.Norm(v.Vendor) != "juniper" || !strings.Contains(v.Name, "Series") {
 		return nil, false
 	}
 	m := modelSeriesRe.FindStringSubmatch(strings.TrimSpace(model))

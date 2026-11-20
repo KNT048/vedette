@@ -41,7 +41,7 @@ func (s *Store) KevProducts(ctx context.Context) (version string, list []Product
 	return fmt.Sprintf("%d@%s", n, newest), list, rows.Err()
 }
 
-// KevCVEsByKeys returns the CVEs of the CISA list for these product keys (ProductKey form, lower case). A
+// KevCVEsByKeys returns the CVEs of the CISA list for these product keys (productid.Key form, lower case). A
 // "Multiple products" entry of a vendor matches every key of that vendor (INV-11).
 func (s *Store) KevCVEsByKeys(ctx context.Context, keys []string) ([]string, error) {
 	want := map[string]bool{}

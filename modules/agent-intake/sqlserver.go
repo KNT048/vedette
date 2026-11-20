@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // SQL Server's own version. SQL Server setup writes one Uninstall entry for a whole release, "Microsoft SQL Server 2022
@@ -25,7 +27,7 @@ import (
 //     installed with (RTM), so this source can only be lower than the machine's build: findings then over-reports what a later
 //     update fixed, the safe side, and the registry source replaces it as soon as the agent reports it.
 //
-// With the registry's build, the release's other rows that pkgmap maps to the same product (the RsFx Driver: "Microsoft SQL Server 2022
+// With the registry's build, the release's other rows that the product catalogue maps to the same product (the RsFx Driver: "Microsoft SQL Server 2022
 // RsFx Driver", 16.0.1000.6 after any update) keep their own name instead: their version is a component's, not the release's, and would
 // keep the CVEs an update fixed open.
 
@@ -139,9 +141,9 @@ func sqlComponents(rows []row, rel string) (string, bool) {
 	return build, build != "" && engine
 }
 
-// authoritative says whether a row pkgmap maps to p is a component of a release whose umbrella row took the setup registry's version:
+// authoritative says whether a row the product catalogue maps to p is a component of a release whose umbrella row took the setup registry's version:
 // such a row keeps its own name (its version is a component's).
-func (s sqlVersions) authoritative(name string, p pkgPair) bool {
+func (s sqlVersions) authoritative(name string, p productid.Product) bool {
 	if p.Vendor != "Microsoft" || p.Product != "SQL Server" {
 		return false
 	}

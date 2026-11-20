@@ -1,68 +1,32 @@
 package agentintake
 
 import (
-	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 )
 
-// catalogKeys is every lower(vendor)|lower(product) the inventory can match: the KEV pairs and the curated products and match keys.
-func catalogKeys(t *testing.T) map[string]bool {
-	t.Helper()
-	var kev []struct{ Vendor, Product string }
-	if err := json.Unmarshal(catalogdata.KEVProducts, &kev); err != nil {
-		t.Fatal(err)
-	}
-	var cur []struct {
-		Vendor, Product string
-		KevMatch        []string `json:"kev_match"`
-	}
-	if err := json.Unmarshal(catalogdata.Curated, &cur); err != nil {
-		t.Fatal(err)
-	}
-	keys := map[string]bool{}
-	for _, k := range kev {
-		keys[strings.ToLower(k.Vendor)+"|"+strings.ToLower(k.Product)] = true
-	}
-	for _, c := range cur {
-		keys[strings.ToLower(c.Vendor)+"|"+strings.ToLower(c.Product)] = true
-		for _, m := range c.KevMatch {
-			keys[m] = true
+// Every product the old package map named is still named by the same package and program names (the catalogue took them over).
+func TestCatalogueKeepsThePackageNames(t *testing.T) {
+	t.Parallel()
+	for name, key := range map[string]string{
+		"openssh-server": "openbsd|openssh", "libssl3t64": "openssl|openssl", "libc6": "gnu|gnu c library", "policykit-1": "red hat|polkit",
+		"linux-image-6.8.0-45-generic": "linux|kernel", "php8.3": "php|php", "google-chrome-stable": "google|chrome", "tomcat9": "apache|tomcat",
+	} {
+		if p, ok := linuxProduct(name); !ok || p.Key != key {
+			t.Errorf("package %q = %v %q, want %q", name, ok, p.Key, key)
 		}
 	}
-	return keys
-}
-
-// No dead key in the table: every pair is one the catalog knows.
-func TestPkgmapPairsExistInTheCatalog(t *testing.T) {
-	keys := catalogKeys(t)
-	check := func(where, vendor, product string) {
-		if k := strings.ToLower(vendor) + "|" + strings.ToLower(product); !keys[k] {
-			t.Errorf("%s: %q is in no catalog", where, k)
+	for name, key := range map[string]string{
+		"7-Zip 24.08 (x64)": "7-zip|7-zip", "Java 8 Update 491 (64-bit)": "oracle|java se", "Microsoft Edge": "microsoft|edge",
+		"Veeam Backup & Replication": "veeam|backup & replication", "Microsoft SQL Server 2022 (64-bit)": "microsoft|sql server",
+	} {
+		if p, ok := productid.Resolve(productid.Windows, name, "", ""); !ok || p.Key != key {
+			t.Errorf("program %q = %v %q, want %q", name, ok, p.Key, key)
 		}
-	}
-	for _, tb := range []struct {
-		name string
-		t    pkgTable
-	}{{"linux", pkgmap.Linux}, {"windows", pkgmap.Windows}} {
-		for n, p := range tb.t.Exact {
-			if n != strings.ToLower(n) {
-				t.Errorf("%s %q is not lower case", tb.name, n)
-			}
-			check(tb.name+" "+n, p.Vendor, p.Product)
-		}
-		for _, p := range tb.t.Prefix {
-			if p.Prefix != strings.ToLower(p.Prefix) || p.Prefix == "" {
-				t.Errorf("%s prefix %q is empty or not lower case", tb.name, p.Prefix)
-			}
-			check(tb.name+" prefix "+p.Prefix, p.Vendor, p.Product)
-		}
-	}
-	if n := len(pkgmap.Linux.Exact) + len(pkgmap.Linux.Prefix) + len(pkgmap.Windows.Exact) + len(pkgmap.Windows.Prefix); n < 60 {
-		t.Errorf("only %d entries", n)
 	}
 }
 
@@ -124,7 +88,7 @@ func TestMapPackagesGolden(t *testing.T) {
 		{"Microsoft", "Office", "16.0.10412.20002", "microsoft|office"},
 		{"Git", "Git", "2.46.0", "git|git"},
 		{"GitHub, Inc.", "GitHub Desktop", "3.4", ""},
-		{"Notepad++ Team", "Notepad++ (64-bit x64)", "8.6.9", ""},
+		{"Notepad++", "Notepad++", "8.6.9", "notepad++|notepad++"},
 		{"Mystery Tool", "Mystery Tool", "1.0", ""},
 	}
 	if len(items) != len(want) {
@@ -313,6 +277,34 @@ func TestMapPackagesVendorBuildIsNotTheDistributions(t *testing.T) {
 		k := it.Product + " " + it.Version
 		if p, ok := want[k]; !ok || it.Packaged != p || !p && (it.PkgVersion != "" || it.PkgSource != "") || len(it.KevKeys) != 1 {
 			t.Errorf("%s: packaged %v pkg %q/%q keys %v", k, it.Packaged, it.PkgVersion, it.PkgSource, it.KevKeys)
+		}
+	}
+}
+
+// A JDK of any distribution is the one Java product, with the release its name states: Windows lists Temurin 21.0.7+6 as
+// 21.0.7.6, which compared as a number would be newer than 21.0.7 and miss every fix in 21.0.8.
+func TestMapPackages_JDKDistributions(t *testing.T) {
+	t.Parallel()
+	items, _ := mapPackages(map[string][]row{"programs": {
+		{"name": "Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "version": "21.0.7.6", "publisher": "Eclipse Adoptium"},
+		{"name": "Java 8 Update 491 (64-bit)", "version": "8.0.4910.10", "publisher": "Oracle Corporation"},
+		{"name": "Zulu JDK 17.44, 64-bit", "version": "17.44.15", "publisher": "Azul Systems, Inc."},
+		{"name": "Java Auto Updater", "version": "2.8.491.10", "publisher": "Oracle Corporation"},
+	}}, 100)
+	want := []struct{ display, product, version string }{
+		{"Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "Java SE", "21.0.7"},
+		{"Java 8 Update 491 (64-bit)", "Java SE", "8.0.4910.10"},
+		{"Zulu JDK 17.44, 64-bit", "Java SE", ""}, // Zulu's own build number is not Java's release
+		{"Java Auto Updater", "Java Auto Updater", "2.8.491.10"},
+	}
+	if len(items) != len(want) {
+		t.Fatalf("%d items: %+v", len(items), items)
+	}
+	for i, w := range want {
+		it := items[i]
+		java := w.product == "Java SE"
+		if it.Display != w.display || it.Product != w.product || it.Version != w.version || java != slices.Contains(it.KevKeys, "oracle|java se") {
+			t.Errorf("item %d = %+v, want %+v", i, it, w)
 		}
 	}
 }

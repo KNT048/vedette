@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -36,7 +36,7 @@ func sshFeeds(t *testing.T, s *stack) {
 		}{
 			{`INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
 				VALUES (?, 'OpenBSD', 'OpenSSH', ?, 'OpenBSD OpenSSH flaw', ?, 0, 0, 'cisa-kev', ?)`,
-				[]any{sshKEVCVE, feeds.ProductKey("OpenBSD", "OpenSSH"), now.AddDate(0, 0, -11).Format("2006-01-02"), store.FormatTS(now)}},
+				[]any{sshKEVCVE, productid.Key("OpenBSD", "OpenSSH"), now.AddDate(0, 0, -11).Format("2006-01-02"), store.FormatTS(now)}},
 			{`INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, []any{sshKEVCVE, store.FormatTS(now)}},
 			{`INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, []any{sshKEVCVE}},
 			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 8.1)`,

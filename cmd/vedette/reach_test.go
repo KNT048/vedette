@@ -24,8 +24,8 @@ import (
 // end_excl]).
 const reachFixture = "testdata/kev-nvd-2026-11-16.json.gz"
 
-// reachGolden is the class of every CVE of the fixture against the software Vedette produces today (reachRows: pkgmap.json, the
-// Windows release rows of core/winrel, the curated catalog with its KEV keys, nvd-cpe.json aliases, network-os.json), one
+// reachGolden is the class of every CVE of the fixture against the software Vedette produces today (reachRows: the product catalogue of
+// core/productid, the Windows release rows of core/winrel, the curated catalog with its KEV keys, network-os.json), one
 // "CVE class" line each, sorted. A code or map change that moves any entry turns this red and names each move ("CVE-2010-4344:
 // 3v -> 5"), so a swap (one entry lost, another gained) fails too (#910). A change that makes more entries
 // reachable regenerates it in the same PR (go test ./cmd/vedette -run TestReachability_910_Fixture -args -update-reach) and
@@ -38,10 +38,10 @@ var updateReach = flag.Bool("update-reach", false, "rewrite "+reachGolden+" from
 var reachWant = map[findings.ReachClass]int{
 	findings.ReachNoNVDData:     1,
 	findings.ReachNoNVDVersions: 72,
-	findings.ReachKeyedVersion:  786,
-	findings.ReachKeyedOnly:     165,
-	findings.ReachViaNVD:        119,
-	findings.ReachNone:          638,
+	findings.ReachKeyedVersion:  788,
+	findings.ReachKeyedOnly:     166,
+	findings.ReachViaNVD:        121,
+	findings.ReachNone:          633,
 }
 
 func TestReachability_910_Fixture(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // "What do I upgrade on this device to clear its CVEs" (Ask my AI; the Findings page and the device's Software tab):
@@ -257,7 +259,7 @@ func productKey(s Software) string {
 	if s.Vendor == "" && s.Product == "" {
 		return ""
 	}
-	return strings.ToLower(strings.TrimSpace(s.Vendor) + "|" + strings.TrimSpace(s.Product))
+	return productid.Key(s.Vendor, s.Product)
 }
 
 // proofRow is the row whose source says how a finding is known: the row it matched on (MatchAsset), the fix group's row only when it

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -123,7 +124,7 @@ func tierInfo(a Asset, s Software) (in swInfo, pkg, ok bool) {
 	return in, false, true
 }
 
-// tierKey is the product key of an NVD CPE as the plan indexes it: norm(vendor) "|" norm(product), read without a full parse (an
+// tierKey is the product key of an NVD CPE as the plan indexes it: productid.Norm(vendor) "|" productid.Norm(product), read without a full parse (an
 // escaped colon makes a key that matches nothing, which only drops). "" when the string is not a CPE 2.3 name.
 func tierKey(cpe string) string {
 	rest, ok := strings.CutPrefix(cpe, cpePrefix)
@@ -146,7 +147,7 @@ func tierKey(cpe string) string {
 func normed(s string) string {
 	for i := 0; i < len(s); i++ {
 		if c := s[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') {
-			return norm(s)
+			return productid.Norm(s)
 		}
 	}
 	return s
@@ -182,7 +183,7 @@ func newTierScope(assets []Asset, skip map[string]map[string]bool) *TierScope {
 			if in.hasCPE {
 				v, _ := in.cpe.Vendor.Literal()
 				p, _ := in.cpe.Product.Literal()
-				t.keys[norm(v)+"|"+norm(p)] = true
+				t.keys[productid.Norm(v)+"|"+productid.Norm(p)] = true
 			}
 			for _, id := range in.ids {
 				if id.prefix {
@@ -329,7 +330,7 @@ func (x *tierIndex) candidates(in swInfo, win bool) []int {
 	if in.hasCPE {
 		v, _ := in.cpe.Vendor.Literal()
 		p, _ := in.cpe.Product.Literal()
-		add(x.byKey[norm(v)+"|"+norm(p)])
+		add(x.byKey[productid.Norm(v)+"|"+productid.Norm(p)])
 	}
 	for _, id := range in.ids {
 		if !id.prefix {
@@ -351,7 +352,7 @@ func (x *tierIndex) candidates(in swInfo, win bool) []int {
 // device evidence can then satisfy (review r1 #6 of #804: drop when unsure).
 func platformIDs(vendorProduct string) []string {
 	v, p, _ := strings.Cut(vendorProduct, ":")
-	switch v, p = norm(v), norm(p); {
+	switch v, p = productid.Norm(v), productid.Norm(p); {
 	case v == "microsoft" && strings.HasPrefix(p, "windows"):
 		return []string{"windows"}
 	case v == "apple" && (strings.HasPrefix(p, "macos") || strings.HasPrefix(p, "macosx")):

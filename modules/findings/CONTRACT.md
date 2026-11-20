@@ -75,6 +75,9 @@ Tách từ `mitigation`: phát hiện (finding) là module riêng, tắt `mitiga
 | `POST /findings/{id}/status` | operator |
 | `POST /findings/status` (hàng loạt, INV-10) | operator |
 | `POST /findings/plan/done`, `POST /findings/plan/undone` (INV-29) | operator |
+| Findings model, contracted and answered `501 not_implemented` (the default handler) until the backend implements them: `GET /findings/devices`, `GET /findings/fixes`, `GET /findings/input`, `GET /findings/handled`, `GET /findings/overview`, `GET /findings/{id}/view` | viewer |
+| Same: `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer` | operator |
+| Same: `POST /findings/{id}/verify` | admin |
 
 `POST /findings/{id}/applied|ai` nằm dưới cùng tiền tố `/findings` nhưng do `mitigation` định tuyến, mất khi `mitigation` tắt.
 

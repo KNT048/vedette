@@ -286,6 +286,271 @@ export const HomeSummary = z.object({
   generated_at: iso.describe('When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change)'),
 })
 
+// ---------- The findings model: one row per (device, CVE, software line); one status per finding, computed on the server ----------
+// Detection (whether and how we know), handling (what was done, by whom, how) and urgency (why it matters now) are three separate
+// facts; the status code below is derived from them by one function on the server and rendered by one component in the GUI.
+
+const cve = z.string().regex(/^CVE-\d{4}-\d{4,}$/)
+/** The ten finding statuses. The first five are the open ones, urgency layers 1 to 5 in that order (most urgent first); the last five
+ *  are the handled ones and equal the handling resolution. */
+export const STATUS_CODES = ['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended', 'patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'] as const
+export const StatusCode = z.enum(STATUS_CODES).describe('under_attack = someone on your network sent this exploit and this device is affected (layer 1); exploited = attackers use it in real attacks (layer 2); public_exploit = working exploit code is public (layer 3); critical_edge = critical, no login needed, on a device class attackers target first (layer 4); update_recommended = a known flaw, no sign of exploitation yet (layer 5); patched, mitigated, accepted, not_relevant, false_positive = handled, as the handling resolution says')
+export const OPEN_STATUSES = ['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'] as const
+export const OpenStatus = z.enum(OPEN_STATUSES).describe('The open statuses: OPEN_STATUSES[layer - 1]')
+export const Resolution = z.enum(['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'])
+  .describe('patched = the fixed version is installed or the software is gone; mitigated = a workaround is in place, the flaw is still in the software; accepted = a person decided to live with it until a day; not_relevant = it does not apply to this device; false_positive = the match was wrong')
+export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed'])
+  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed')
+export const Verified = z.enum(['no', 'device', 'scan', 'person'])
+  .describe('no = not confirmed yet; device = the device itself reports the affected version (agent, SNMP, package list); scan = a safe check confirmed it; person = a person confirmed it')
+export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_version', 'statement', 'person'])
+  .describe('What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected')
+export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'none_yet', 'unknown'])
+  .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
+export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
+export const DEVICE_STATUS_CODES = [...OPEN_STATUSES, 'needs_input'] as const
+export const DeviceStatusCode = z.enum(DEVICE_STATUS_CODES)
+export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data'])
+  .describe('version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution\'s package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions ("Possibly affected: check the version")')
+export const EventKind = z.enum(['created', 'confirmed', 'unconfirmed', 'handled', 'reopened', 'urgency_changed', 'fix_changed', 'redetected', 'no_longer_detected', 'acceptance_expired'])
+/** Most findings one handle request may touch. */
+export const MAX_HANDLE = 500
+/** Cards (By device, By fix) or rows (Needs your input, Handled) of one page: the default and the largest. */
+export const PAGE_DEFAULT = 20
+export const PAGE_MAX = 100
+/** Home's "Fix first" list and its trend. */
+export const FIRST_TOP = 5
+export const TREND_DAYS = 30
+
+export const DeviceRef = z.object({
+  id: z.string(),
+  name: z.string().describe('The name the Devices page shows; never the internal id'),
+  ip: z.string().nullable().describe('null when the device has no IP address'),
+  kind: AssetKind,
+  added: z.boolean().describe('false = "Not added yet": nobody added this device; its card offers Add device and Ignore'),
+  ignored: z.boolean().describe('A person ignored the device: its findings are left out of every list and count except the Ignored devices tab'),
+})
+export const SoftwareRef = z.object({
+  id: z.string().describe('The software line of the device (inventory)'),
+  name: z.string().describe('Display name, as on the device page'),
+  version: z.string().nullable().describe('The version the match compared'),
+})
+export const CveSeverity = z.object({
+  band: SeverityBand,
+  score: z.number().min(0).max(10),
+  version: z.enum(['4.0', '3.1', '3.0', '2.0']),
+  vector: z.string().min(1).max(200),
+}).describe('The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes the status. null = "Not scored yet", never 0')
+export const Reason = z.object({
+  layer: z.number().int().min(1).max(4),
+  source: z.string().regex(/^[a-z0-9-]{1,40}$/).describe('The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4 (computed)'),
+  name: z.string().describe('The source as people name it: "CISA KEV", "Rapid7", "GitHub"'),
+  date: z.iso.date().describe('When the source said so (or the box first saw it say so); layer 1: the newest alert; layer 4: since when the rule holds'),
+  url: z.url().nullable(),
+  detail: z.string().max(120).nullable().describe('A short fact of the signal: "244 stars" for a public exploit, the attacker address for layer 1; null when none'),
+  due: z.iso.date().nullable().describe('Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise'),
+}).describe('One urgency layer that applies, with its evidence')
+export const Urgency = z.object({
+  layer: z.number().int().min(1).max(5).describe('The most urgent layer that applies; the open status is OPEN_STATUSES[layer - 1]'),
+  since: iso.describe('When the finding entered this layer'),
+  reasons: z.array(Reason).describe('Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5. The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry'),
+  internet: z.iso.date().nullable().describe('"Reachable from the Internet (seen <date>)": the day an exposure scan last saw the affected service from outside; raises the order inside a layer, never the layer'),
+})
+export const Verification = z.object({
+  verified: Verified,
+  basis: Basis,
+  by: z.string().nullable().describe('verified person: who confirmed it'),
+  at: iso.nullable().describe('When it was confirmed; null while not confirmed'),
+}).describe('The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this version", "Confirmed by <user>", "Not confirmed yet: based on a scan banner"')
+export const Handled = z.object({
+  resolution: Resolution,
+  via: Via,
+  by: z.string().describe('"system" when Vedette handled it; else the person'),
+  at: iso,
+  note: z.string().nullable(),
+  until: z.iso.date().nullable().describe('accepted: the last day; the finding reopens by itself after it. null otherwise'),
+  from_version: z.string().nullable().describe('via version_moved: the version that was affected'),
+  to_version: z.string().nullable().describe('via version_moved: the version now installed'),
+}).describe('Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)", "Mitigated by <user> (17 Nov): <note>"')
+export const Reopened = z.object({
+  why: z.enum(['still_detected', 'detected_again', 'acceptance_expired']).describe('still_detected = a person marked it patched and a newer reading still shows the affected version; detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk reached its last day'),
+  at: iso.describe('still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened'),
+}).describe('An open finding that was handled before: the line that says why it is open again')
+export const Fix = z.object({
+  key: z.string().min(1).max(400).describe('The "By fix" group (the same key on every device the same fix applies to); opaque'),
+  kind: FixKind,
+  product: z.string().describe('The product the fix is for, as people name it ("OpenSSH")'),
+  version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known'),
+  ref: z.string().nullable().describe('os_update: the KB number; none_yet: the advisory id when known'),
+  url: z.url().nullable().describe('The vendor advisory or release notes'),
+})
+export const CveRow = z.object({
+  id: z.string().describe('The finding'),
+  cve,
+  status: StatusCode,
+  severity: CveSeverity.nullable(),
+  verified: Verified,
+}).describe('One CVE of a list, a link to its finding')
+export const SeverityCounts = z.object({
+  critical: z.number().int().min(0), high: z.number().int().min(0), medium: z.number().int().min(0), low: z.number().int().min(0),
+  none: z.number().int().min(0), unscored: z.number().int().min(0).describe('No CVSS score yet'),
+}).describe('Findings by severity band: "2 Critical · 18 High · 5 Medium"')
+export const StatusCounts = z.object({
+  under_attack: z.number().int().min(0), exploited: z.number().int().min(0), public_exploit: z.number().int().min(0),
+  critical_edge: z.number().int().min(0), update_recommended: z.number().int().min(0),
+}).describe('Open findings by status')
+export const DeviceStatus = z.object({
+  code: DeviceStatusCode,
+  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items of the Needs your input queue for the device'),
+}).nullable().describe('The device badge: the most urgent open status of its findings with a count, else needs_input when only questions wait, else null. A link to the device\'s findings with that status. The Devices list, the device page and Home show the same value')
+export const FixBlock = z.object({
+  fix: Fix,
+  software: SoftwareRef.nullable().describe('The software line the fix is for; null only for a safe-check finding on a device with no row for that product'),
+  status: OpenStatus.describe('The most urgent status inside the block'),
+  cause: cve.describe('The CVE that gives the block its status'),
+  severity: SeverityCounts,
+  findings: z.array(CveRow).min(1).describe('Every open finding of the block, the most severe first (no score last), then the most urgent, then the CVE id'),
+}).describe('One fix on one device: "Update OpenSSH 10.2p1 → 10.6: fixes 25 CVEs"; "No fix known yet" when fix.kind is none_yet')
+export const DeviceCard = z.object({
+  device: DeviceRef,
+  status: DeviceStatus,
+  counts: StatusCounts,
+  findings: z.number().int().min(1).describe('Open findings of the device'),
+  cves: z.number().int().min(1).describe('Distinct CVEs among them (a CVE on two software lines is two findings, one CVE)'),
+  blocks: z.array(FixBlock).min(1).describe('The most urgent first, then the most findings'),
+})
+export const DeviceCards = z.object({
+  items: z.array(DeviceCard),
+  total: z.number().int().min(0).describe('Devices that match, every page'),
+  findings: z.number().int().min(0).describe('Open findings of those devices, every page: equals the sum over By fix and Overview.open.findings for the same filter'),
+})
+export const FixDevice = z.object({
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  status: OpenStatus,
+  severity: SeverityCounts,
+  findings: z.number().int().min(1),
+})
+export const FixCard = z.object({
+  fix: Fix,
+  status: OpenStatus.describe('The most urgent status inside the card'),
+  cause: cve,
+  devices: z.number().int().min(1),
+  findings: z.number().int().min(1),
+  severity: SeverityCounts,
+  items: z.array(FixDevice).min(1).describe('Every device the fix applies to, the most urgent first. A device\'s CVEs: its card in GET /findings/devices?device=<id> (the block with the same fix key)'),
+}).describe('One fix across devices: "Update OpenSSH to 10.6: 3 devices, 61 findings"')
+export const FixCards = z.object({
+  items: z.array(FixCard),
+  total: z.number().int().min(0).describe('Fixes that match, every page'),
+  findings: z.number().int().min(0).describe('Open findings of those fixes, every page'),
+})
+export const InputItem = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('device_not_added'),
+    id: z.string().describe('The item: "device:<device id>"'),
+    device: DeviceRef,
+    status: DeviceStatus,
+    findings: z.number().int().min(1),
+  }).describe('A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)'),
+  z.object({
+    kind: z.literal('unconfirmed'),
+    id: z.string().describe('The finding'),
+    cve,
+    device: DeviceRef,
+    software: SoftwareRef.nullable(),
+    status: z.enum(['under_attack', 'exploited', 'public_exploit', 'critical_edge']).describe('Only layers 1 to 4 ask for confirmation; update_recommended never does'),
+    severity: CveSeverity.nullable(),
+    basis: Basis,
+    safe_check: z.boolean().describe('A safe check exists for the CVE and can reach the device: "Run the safe check" (POST /scans/runs) comes first'),
+  }).describe('An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)'),
+  z.object({
+    kind: z.literal('question'),
+    id: z.string().describe('The question'),
+    question: QuestionKind,
+    device: DeviceRef,
+    software: SoftwareRef.nullable(),
+    cve: cve.nullable().describe('The CVE the question is about; null when it decides several (version_needed, not_comparable)'),
+    cves: z.number().int().min(1).describe('CVEs that wait on the answer'),
+    asked_at: iso,
+    url: z.url().nullable().describe('The advisory to read'),
+    command: z.string().nullable().describe('What prints the answer on the device ("apk info -e -v openssh-server"); null when none'),
+    choices: z.array(UncheckedAnswer).describe('platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data: POST /findings/questions/{id}/answer)'),
+  }).describe('What Vedette cannot decide without a person'),
+])
+export const InputList = z.object({
+  items: z.array(InputItem).describe('Devices not added yet first, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true'),
+  total: z.number().int().min(0).describe('The queue length: the tab count'),
+})
+export const HandledRow = z.object({
+  id: z.string(),
+  cve,
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  status: Resolution,
+  severity: CveSeverity.nullable(),
+  handled: Handled,
+})
+export const HandledList = z.object({
+  items: z.array(HandledRow).describe('The newest handling first'),
+  total: z.number().int().min(0),
+})
+export const FindingEvent = z.object({
+  ts: iso,
+  actor: z.string().describe('"system" or the person'),
+  kind: EventKind,
+  layer: z.number().int().min(1).max(5).nullable().describe('urgency_changed: the new layer'),
+  resolution: Resolution.nullable().describe('handled: the resolution'),
+  via: Via.nullable().describe('handled: how'),
+  note: z.string().nullable(),
+})
+export const View = z.object({
+  id: z.string(),
+  cve,
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  status: StatusCode,
+  urgency: Urgency.describe('Kept while handled: the layer the finding had'),
+  severity: CveSeverity.nullable(),
+  verification: Verification,
+  handled: Handled.nullable().describe('null while open'),
+  reopened: Reopened.nullable().describe('null unless the finding is open again after a handling'),
+  fix: Fix,
+  same_cve: z.array(z.object({ id: z.string(), software: SoftwareRef.nullable(), status: StatusCode })).describe('The other findings of this CVE on this device (another software line, as Java 8 beside Java 21): handling the CVE from this page acts on them too and says how many'),
+  first_seen: iso,
+  last_seen: iso.describe('The last match that still detected it'),
+  events: z.array(FindingEvent).describe('Oldest first, append-only'),
+}).describe('A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields')
+export const FirstItem = z.object({ device: DeviceRef, block: FixBlock })
+export const Overview = z.object({
+  open: z.object({
+    findings: z.number().int().min(0).describe('Open findings on devices that are not ignored'),
+    by_status: StatusCounts,
+  }),
+  devices: z.object({
+    total: z.number().int().min(0).describe('Devices on the Devices page'),
+    not_added: z.number().int().min(0).describe('Devices nobody added yet'),
+    by_status: z.object({
+      under_attack: z.number().int().min(0), exploited: z.number().int().min(0), public_exploit: z.number().int().min(0),
+      critical_edge: z.number().int().min(0), update_recommended: z.number().int().min(0), needs_input: z.number().int().min(0),
+    }).describe('Devices by their badge (DeviceStatus.code)'),
+  }),
+  input: z.number().int().min(0).describe('The Needs your input queue length'),
+  first: z.array(FirstItem).max(FIRST_TOP).describe('Fix first: the most urgent fix blocks across devices, then the most findings'),
+  trend: z.array(z.number().int().min(0)).length(TREND_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
+  alerts: HomeSummary.shape.alerts,
+  incidents: HomeSummary.shape.incidents,
+  generated_at: iso,
+}).describe('Home at a glance, from the same status function as the lists')
+
+// Query parameters of the paged lists (API_CONVENTIONS section 4: offset and limit, a numbered pager).
+const offset = z.string().regex(/^[0-9]{1,6}$/).optional().describe('Items to skip (default 0)')
+const limit = z.string().regex(/^[0-9]{1,3}$/).optional().describe(`Items of the page, 1 to ${PAGE_MAX} (default ${PAGE_DEFAULT}; above: ${PAGE_MAX})`)
+const q = z.string().max(200).optional().describe('Search: device name or address, software, CVE id')
+const statusFilter = z.string().max(200).optional().describe('Comma-separated open statuses (OpenStatus); an unknown value: 400 bad_filter')
+const deviceFilter = z.string().max(96).optional().describe('One device')
+const handleNote = z.string().max(500).describe('Required (at least 3 characters) for false_positive, not_relevant and accepted')
+
 const idParams = z.object({ id: findingId })
 
 /** One update or action on one device, from findings.DeviceUpdates (the same groupings as FindingRow.fix and the plan). */
@@ -327,6 +592,38 @@ export const ToFix = z.object({
 })
 
 export const endpoints = defineEndpoints([
+  // The findings model: lists grouped on the server, the finding's View, handling, Home.
+  { method: 'get', path: '/findings/devices', summary: 'By device: one card per device with open findings (devices not added yet included, ignored ones only with ignored=true), the most urgent first; inside, one block per fix with its CVEs', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
+    query: z.object({ q, status: statusFilter, device: deviceFilter.describe('One device: its Findings tab'), ignored: z.enum(['true', 'false']).optional().describe('true: only ignored devices (the Ignored devices tab); default false: none of them'), offset, limit }),
+    response: DeviceCards, example: { query: {} } },
+  { method: 'get', path: '/findings/fixes', summary: 'By fix: one card per fix across devices (ignored devices left out), the most urgent first, each with the devices it applies to', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
+    query: z.object({ q, status: statusFilter, offset, limit }), response: FixCards, example: { query: {} } },
+  { method: 'get', path: '/findings/input', summary: 'Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and questions only a person can answer; one queue', stories: ['S-MIT-1', 'S-INV-3'], role: 'viewer',
+    query: z.object({ device: deviceFilter, offset, limit }), response: InputList, example: { query: {} } },
+  { method: 'get', path: '/findings/handled', summary: 'Handled: findings by handling, the newest first, each with who and how', stories: ['S-MIT-1'], role: 'viewer',
+    query: z.object({ q, resolution: z.string().max(200).optional().describe('Comma-separated resolutions; an unknown value: 400 bad_filter'), device: deviceFilter,
+      from: iso.optional().describe('Handled at or after'), to: iso.optional().describe('Handled at or before'), offset, limit }),
+    response: HandledList, example: { query: {} } },
+  { method: 'get', path: '/findings/overview', summary: 'Home: open findings and devices by status, the queue length, the fixes to do first and the 30-day trend', stories: ['S-MIT-1', 'S-UI-1'], role: 'viewer',
+    response: Overview },
+  { method: 'get', path: '/findings/{id}/view', summary: 'One finding as every place shows it: status, urgency with reasons, severity, verification, handling, fix and history', stories: ['S-MIT-1', 'S-MIT-3'], role: 'viewer',
+    params: idParams, response: View, example: { params: { id: 'fv-fw01-ssh-1' } } },
+  { method: 'post', path: '/findings/handle', summary: `Mark findings of one device as handled, with one note: by ids (at most ${MAX_HANDLE}) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing`, stories: ['S-MIT-1'], role: 'operator',
+    body: z.object({
+      ids: z.array(findingId).min(1).max(MAX_HANDLE).optional().describe('These findings; all of one device (else 400 many_devices). Not with device and fix'),
+      device: z.string().max(96).optional().describe('With fix: that device'),
+      fix: z.string().max(400).optional().describe('With device: the Fix.key whose open findings on the device are handled'),
+      resolution: Resolution, note: handleNote,
+      until: z.iso.date().optional().describe('accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)'),
+    }),
+    response: z.object({ handled: z.number().int().min(0), skipped: z.number().int().min(0).describe('Already handled this way') }) },
+  { method: 'post', path: '/findings/{id}/reopen', summary: 'Open a handled finding again (a person\'s handling was a mistake); history and audit', stories: ['S-MIT-1'], role: 'operator',
+    params: idParams, body: z.object({ note: z.string().max(500) }), response: View },
+  { method: 'post', path: '/findings/{id}/verify', summary: 'Confirm vulnerability on your own word: verified by a person; the note says what makes you sure; history and audit', stories: ['S-MIT-1'], role: 'admin',
+    params: idParams, body: z.object({ note: z.string().max(500).describe('At least 3 characters') }), response: View },
+  { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not affected (the question closes); history and audit', stories: ['S-MIT-1'], role: 'operator',
+    params: z.object({ id: z.string().min(1).max(96) }), body: z.object({ answer: z.enum(['affected', 'not_affected']), note: z.string().max(500) }),
+    response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
   { method: 'get', path: '/findings', summary: 'List findings (CVE x device), optionally for one device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',
     query: z.object({ asset: z.string().optional() }), response: FindingList },
   { method: 'get', path: '/findings/to-fix', summary: 'To fix: every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',

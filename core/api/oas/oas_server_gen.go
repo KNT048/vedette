@@ -1190,12 +1190,53 @@ type Handler interface {
 	//
 	// GET /findings
 	FindingsGetFindings(ctx context.Context, params FindingsGetFindingsParams) (*FindingsGetFindingsOK, error)
+	// FindingsGetFindingsDevices implements findings_get_findings_devices operation.
+	//
+	// By device: one card per device with open findings (devices not added yet included, ignored ones only
+	// with ignored=true), the most urgent first; inside, one block per fix with its CVEs.
+	//
+	// GET /findings/devices
+	FindingsGetFindingsDevices(ctx context.Context, params FindingsGetFindingsDevicesParams) (*FindingsGetFindingsDevicesOK, error)
+	// FindingsGetFindingsFixes implements findings_get_findings_fixes operation.
+	//
+	// By fix: one card per fix across devices (ignored devices left out), the most urgent first, each with
+	// the devices it applies to.
+	//
+	// GET /findings/fixes
+	FindingsGetFindingsFixes(ctx context.Context, params FindingsGetFindingsFixesParams) (*FindingsGetFindingsFixesOK, error)
+	// FindingsGetFindingsHandled implements findings_get_findings_handled operation.
+	//
+	// Handled: findings by handling, the newest first, each with who and how.
+	//
+	// GET /findings/handled
+	FindingsGetFindingsHandled(ctx context.Context, params FindingsGetFindingsHandledParams) (*FindingsGetFindingsHandledOK, error)
 	// FindingsGetFindingsID implements findings_get_findings_id operation.
 	//
 	// One finding: evidence, recommendation, compromise indicators, AI results.
 	//
 	// GET /findings/{id}
 	FindingsGetFindingsID(ctx context.Context, params FindingsGetFindingsIDParams) (*FindingsGetFindingsIDOK, error)
+	// FindingsGetFindingsIDView implements findings_get_findings_id_view operation.
+	//
+	// One finding as every place shows it: status, urgency with reasons, severity, verification, handling,
+	// fix and history.
+	//
+	// GET /findings/{id}/view
+	FindingsGetFindingsIDView(ctx context.Context, params FindingsGetFindingsIDViewParams) (*FindingsGetFindingsIDViewOK, error)
+	// FindingsGetFindingsInput implements findings_get_findings_input operation.
+	//
+	// Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and
+	// questions only a person can answer; one queue.
+	//
+	// GET /findings/input
+	FindingsGetFindingsInput(ctx context.Context, params FindingsGetFindingsInputParams) (*FindingsGetFindingsInputOK, error)
+	// FindingsGetFindingsOverview implements findings_get_findings_overview operation.
+	//
+	// Home: open findings and devices by status, the queue length, the fixes to do first and the 30-day
+	// trend.
+	//
+	// GET /findings/overview
+	FindingsGetFindingsOverview(ctx context.Context) (*FindingsGetFindingsOverviewOK, error)
 	// FindingsGetFindingsPlan implements findings_get_findings_plan operation.
 	//
 	// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
@@ -1217,6 +1258,14 @@ type Handler interface {
 	//
 	// GET /findings/to-fix
 	FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (*FindingsGetFindingsToFixOK, error)
+	// FindingsPostFindingsHandle implements findings_post_findings_handle operation.
+	//
+	// Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
+	// one fix on one device; findings that already have this handling are skipped; one history and audit
+	// row per finding, all or nothing.
+	//
+	// POST /findings/handle
+	FindingsPostFindingsHandle(ctx context.Context, req *FindingsPostFindingsHandleReq) (*FindingsPostFindingsHandleOK, error)
 	// FindingsPostFindingsIDAi implements findings_post_findings_id_ai operation.
 	//
 	// Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.
@@ -1236,6 +1285,12 @@ type Handler interface {
 	//
 	// POST /findings/{id}/confirm
 	FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (*FindingsPostFindingsIDConfirmOK, error)
+	// FindingsPostFindingsIDReopen implements findings_post_findings_id_reopen operation.
+	//
+	// Open a handled finding again (a person's handling was a mistake); history and audit.
+	//
+	// POST /findings/{id}/reopen
+	FindingsPostFindingsIDReopen(ctx context.Context, req *FindingsPostFindingsIDReopenReq, params FindingsPostFindingsIDReopenParams) (*FindingsPostFindingsIDReopenOK, error)
 	// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 	//
 	// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -1250,6 +1305,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/unconfirm
 	FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (*FindingsPostFindingsIDUnconfirmOK, error)
+	// FindingsPostFindingsIDVerify implements findings_post_findings_id_verify operation.
+	//
+	// Confirm vulnerability on your own word: verified by a person; the note says what makes you sure;
+	// history and audit.
+	//
+	// POST /findings/{id}/verify
+	FindingsPostFindingsIDVerify(ctx context.Context, req *FindingsPostFindingsIDVerifyReq, params FindingsPostFindingsIDVerifyParams) (*FindingsPostFindingsIDVerifyOK, error)
 	// FindingsPostFindingsPlanDone implements findings_post_findings_plan_done operation.
 	//
 	// Mark a recommended update as done (operator, audited): it leaves the plan, the device's To fix card
@@ -1264,6 +1326,13 @@ type Handler interface {
 	//
 	// POST /findings/plan/undone
 	FindingsPostFindingsPlanUndone(ctx context.Context, req *FindingsPostFindingsPlanUndoneReq) (*FindingsPostFindingsPlanUndoneOK, error)
+	// FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer operation.
+	//
+	// Answer a question about one CVE on one device: affected (a finding confirmed by the person) or not
+	// affected (the question closes); history and audit.
+	//
+	// POST /findings/questions/{id}/answer
+	FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (*FindingsPostFindingsQuestionsIDAnswerOK, error)
 	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
 	//
 	// Change the status of the open findings among the ids (at most 500) with one note; one history and

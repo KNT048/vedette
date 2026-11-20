@@ -20,6 +20,8 @@ var countSaysItself = map[string]string{
 	recentFeedID:       "CVEs of the last 12 months; its note says how many have affected versions",
 	vulnCheckFeedID:    "entries of VulnCheck KEV",
 	"nuclei-templates": "CVEs with a check template",
+	metasploitFeedID:   "CVEs with a Metasploit module",
+	exploitDBFeedID:    "CVEs with an Exploit-DB entry",
 	"ipsum":            "indicators",
 	"et-open":          "indicators",
 	"abusech-feodo":    "indicators",
@@ -118,6 +120,10 @@ func fillHeld(t *testing.T, db *store.DB) {
 (?1, 'debian', '12', 'openssh', 'CVE-2026-0001', 'fixed', '1.1'), (?1, 'debian', '13', 'openssh', 'CVE-2026-0001', 'fixed', '1.2'), (?1, 'debian', '12', 'curl', 'CVE-2025-1111', 'fixed', '8.0')`, id); err != nil {
 				return err
 			}
+		}
+		if err := applyPublicSignals(t.Context(), tx, epoch0, pocGitHubFeedID, []publicSignal{{CVE: "CVE-2026-0001", Date: epoch0, Qualifies: true, Rule: epoch0},
+			{CVE: "CVE-2026-0002", Date: epoch0}}); err != nil {
+			return err
 		}
 		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_winrel (build, server, product, display, line, ga, ga_rev) VALUES (26100, 1, 'windows_server_2025', 'Windows Server 2025', 26100, '2024-11-01', 2314)`)
 		return err

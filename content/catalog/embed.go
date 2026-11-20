@@ -41,3 +41,9 @@ var NetworkOS []byte
 //
 //go:embed esxi-builds.json
 var ESXiBuilds []byte
+
+// ExploitAuthors is exploit-authors.json: the GitHub accounts whose proof-of-concept repositories pass the public-exploit quality rule
+// on their own, read by feeds (the PoC-in-GitHub feed).
+//
+//go:embed exploit-authors.json
+var ExploitAuthors []byte

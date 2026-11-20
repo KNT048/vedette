@@ -161,6 +161,9 @@ type pullPlan struct {
 	winRel    []winrel.Release // windows-releases: the releases Microsoft's pages list, replaced whole
 	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
 	hasWinRel bool
+
+	signals    []publicSignal // metasploit, exploit-db, poc-in-github: the index's CVEs, replaced whole (applyPublicSignals)
+	hasSignals bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -302,6 +305,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildRecent(ctx, src, p)
 	case DecoderWinRel:
 		return s.buildWinRel(ctx, src, p)
+	case DecoderMetasploit, DecoderExploitDB, DecoderPoCGitHub:
+		return s.buildPublicExploit(ctx, src, p, dec)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -592,6 +597,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_packages = ? WHERE id = ?`, kept, src.ID); err != nil {
 					return fmt.Errorf("feeds: distro print: %w", err)
+				}
+			case p.hasSignals:
+				if err := applyPublicSignals(ctx, tx, p.out.Finished, src.ID, p.signals); err != nil {
+					return err
 				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed
 				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {

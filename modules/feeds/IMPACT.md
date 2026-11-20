@@ -45,6 +45,12 @@
 - **cmd/vedette**: `Deps.DataDir` (tệp làm việc); export policy `feeds_cve_ref`; allow-list cột JSON `feeds_cve_ref.tags`.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts`.
 
+## Modifying: `signal_public.go`, `signal_metasploit.go`, `signal_exploitdb.go`, `signal_pocgithub.go` (feeds `metasploit`, `exploit-db`, `poc-in-github`), `content/catalog/exploit-authors.json`
+
+- **Danh mục** (`retention`, `keepSetSQL`): CVE có hàng `public_exploit` đạt được giữ ở mọi tuổi ⇒ thêm khoảng 25.000 CVE cũ, 153.000 khoảng phiên bản, 64 MB (đo 21/11/2026) (bản ghi NVD qua lượt đi qua toàn bộ của `nvd-recent`, `publicListedSQL`). Đổi luật `qualifies` hay danh sách tác giả ⇒ đổi số CVE giữ và số bản ghi NVD/CVE record kéo về.
+- **findings** (urgency lớp 3, `Store.Signals`): `first_seen` là ngày hiện trên lý do; `qualifies = 0` không bao giờ là lớp 3.
+- **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục chỉ mục exploit công khai), `sourcesMock.ts` + `conformance.test.ts` (20 feed có sẵn), `sources_test.go` (host `gitlab.com`, `codeload.github.com`), `heldnote.go` (`poc-in-github`: bao nhiêu CVE đạt).
+
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads
 
 - **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.

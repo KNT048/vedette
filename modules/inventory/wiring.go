@@ -96,37 +96,33 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 	return out, nil
 }
 
-// MatchSoftware is one software row with the KEV keys it was matched to.
+// MatchSoftware is one reading of a software line the matcher compares, with the line's match keys: the line's effective reading,
+// or another reading the resolver keeps for matching (the same ID).
 type MatchSoftware struct {
 	ID, Display, Vendor, Product, Version, CPE string
 	KevKeys                                    []string
-	// Source is who reported the row (MK-2): "agent" (osquery, Wazuh, the box's dpkg list), "manual" (a person), "scan" (the
-	// vulnerability scan), or a sensor ("nmap", "snmp", "passive").
+	// Source is the class of who read it (MK-2): "agent" (osquery, Wazuh, the box's package list), "manual" (a person's entry),
+	// "scan" (the vulnerability scan), or a sensor ("nmap", "snmp", "passive").
 	Source string
-	// Packaged: an agent row read from the operating system's package database (deb/rpm), so the distribution ships its fixes.
+	// Packaged: an agent's reading from the operating system's package database (deb/rpm/apk), so the distribution ships its fixes.
 	Packaged bool
-	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise; on a person's
-	// correction, the package release the person gave or kept (INV-41).
+	// PkgVersion and PkgSource: a packaged reading's full package release and source package, "" otherwise; on a person's entry, the
+	// package release the person gave or kept (INV-41).
 	PkgVersion, PkgSource string
-	// ReportedSource is, on a person's correction of a reported row (Source "manual", INV-41), the source of the row it replaces, so
-	// the matcher keeps that row's distribution and platform rules (#950); "" otherwise and when the person changed the
-	// product. Correction names the person's correction for the findings history: who, from what, to what, when.
+	// ReportedSource is, on a person's entry (Source "manual", INV-41), the class of the strongest source that reads the line, so the
+	// matcher keeps that source's distribution and platform rules; "" otherwise. Correction names the person's entry for the findings
+	// history: who, from what, to what, when.
 	ReportedSource, Correction string
-	// Superseded, on a reported row, names a person's correction of an earlier reading of the same product from the same source that
-	// rests since the source moved on (#950): "op corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on 17 Nov 2026;
-	// nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again"; "" otherwise.
+	// Superseded is "" (an entry holds or lapses; it never rests). Kept for the findings port.
 	Superseded string
-	// Key is the row's identity: its source, lower(vendor), lower(product) and version, joined by char(31) (rowKey; a correction's
-	// own source is manual). On a row of MatchDevice.NotInstalled it is the key the mark covers: a later row with the same Key is that
-	// very row back (the person cleared the mark), anything else is a new reading.
+	// Key is the line's id on its effective reading and on a line of MatchDevice.NotInstalled; on another reading, the line's id,
+	// source and instance joined by char(31).
 	Key string
-	// MarkedAt is, on a row of MatchDevice.NotInstalled, when the person said it is not installed (the mark's time, RFC 3339); "".
+	// MarkedAt is, on a line of MatchDevice.NotInstalled, when the person said it is not installed (RFC 3339); "" otherwise.
 	MarkedAt string
-	// SeenAt is when the row's source last reported it (inv_software.seen_at, RFC 3339): for an agent's row, the day of the list the
-	// version comes from (findings names it once no agent reports the device).
+	// SeenAt is when the reading's source last read it (RFC 3339): for an agent's reading, the time of the list the version comes from.
 	SeenAt string
-	// ShadowedBy is the id of the effective row (EffectiveSoftware, INV-50) that describes this software when this row is not it.
-	// MatchInput leaves such rows out, so it is "" on every row it returns.
+	// ShadowedBy is "" on every row MatchInput returns. Kept for the findings port.
 	ShadowedBy string
 }
 
@@ -157,13 +153,11 @@ type MatchDevice struct {
 	// OSCorrection names a person's corrected OS for the findings history ("it@acme.example set the OS to Alpine Linux 3.23 on 17 Nov
 	// 2026", INV-41); "" when none.
 	OSCorrection string
-	// StaleCorrections names every resting correction of the device (Superseded's sentences, and "…; nmap reports it no more" for a
-	// product its source stopped reporting), for the history of a finding that stops matching because of it; nil when none.
+	// StaleCorrections is nil: a person's entry holds or lapses (INV-52), it never rests. Kept for the findings port.
 	StaleCorrections []string
-	// NotInstalled are the reported rows a person said are not installed on the device, while that correction is in use (INV-41 (6)):
-	// matching leaves them out (they are not in Software), and findings closes the open findings only they produce. Each is the row as
-	// its source reports it, with Correction naming the person ("op@example.com said OpenSSH 10.2 (nmap) is not installed on 17 Nov
-	// 2026"); nil when none.
+	// NotInstalled are the lines a person said are not installed on the device (INV-41 (6)): matching leaves them out (they are not in
+	// Software), and findings closes the open findings only they produce. Each is the line as its strongest source reads it, with
+	// Correction naming the person ("op@example.com said OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026"); nil when none.
 	NotInstalled []MatchSoftware
 }
 
@@ -205,99 +199,81 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 			}
 		}
 	}
-	rows, err := q.QueryContext(ctx, matchSoftwareSQL, id)
-	if err != nil {
-		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	prefix := map[string]string{} // row id -> its productKey
-	for rows.Next() {
-		var sw MatchSoftware
-		var key sql.NullString
-		var corrects, setBy, seenAt, lv, lp, pk string
-		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource,
-			&corrects, &setBy, &seenAt, &lv, &lp, &pk, &sw.Key, &key); err != nil {
-			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
-		}
-		sw.SeenAt = seenAt
-		if corrects != "" {
-			if src, v, p, _ := correctedFrom(corrects); v == lv && p == lp { // the same product: its source's rules still hold
-				sw.ReportedSource = src
-			}
-			sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, seenAt, false, loc)
-		}
-		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {
-			d.Software[n-1].KevKeys = append(d.Software[n-1].KevKeys, key.String)
-			continue
-		}
-		sw.KevKeys = []string{}
-		if key.Valid {
-			sw.KevKeys = append(sw.KevKeys, key.String)
-		}
-		if sw.Source != "manual" {
-			prefix[sw.ID] = pk
-		}
-		d.Software = append(d.Software, sw)
-	}
-	if err := rows.Err(); err != nil {
-		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
-	}
-	if err := restingCorrections(ctx, q, id, &d, prefix, loc); err != nil {
-		return MatchDevice{}, false, err
-	}
-	if err := markShadowed(ctx, q, id, &d); err != nil {
-		return MatchDevice{}, false, err
-	}
-	if d.NotInstalled, err = notInstalledRows(ctx, q, id, loc); err != nil {
+	if d.Software, d.NotInstalled, err = matchSoftware(ctx, q, id, loc); err != nil {
 		return MatchDevice{}, false, err
 	}
 	return d, true, nil
 }
 
-// notInstalledRows reads the reported rows a "not installed" correction in use replaces (INV-41 (6)), with their keys and the person's
-// words, for MatchDevice.NotInstalled.
-func notInstalledRows(ctx context.Context, q querier, id string, loc *time.Location) ([]MatchSoftware, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),
-		ifnull(s.pkg_source, ''), c.corrects, ifnull(c.set_by, ''), c.seen_at, k.kev_key
-		FROM inv_software c JOIN inv_software s ON s.asset_id = c.asset_id AND s.source <> 'manual' AND `+rowKey("s")+` = c.corrects
-		LEFT JOIN inv_software_kev k ON k.software_id = s.id
-		WHERE c.asset_id = ? AND c.not_installed = 1 ORDER BY s.display, s.id, k.kev_key`, id)
+// matchSoftware reads what the matcher compares of a device: each present line's effective reading, then every other reading
+// Resolve keeps for matching (an older second install, another port: the line's id, the reading's version and source); and the
+// lines a person said are not installed, for MatchDevice.NotInstalled.
+func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location) (live, notInstalled []MatchSoftware, err error) {
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.product_key, s.state, ifnull(s.not_installed_by, ''), ifnull(s.not_installed_at, ''),
+		`+guessLine+`, `+readingCols+`
+		FROM inv_software s JOIN inv_software_reading r ON r.software_id = s.id
+		WHERE s.asset_id = ? AND (`+liveSW+` OR `+notInstalledSW+`) ORDER BY s.display, s.id, r.source, r.instance`, id)
 	if err != nil {
-		return nil, fmt.Errorf("inventory: read software a person said is not installed: %w", err)
+		return nil, nil, fmt.Errorf("inventory: read software: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	var out []MatchSoftware
+	type line struct {
+		id, vendor, product, key, state, markedBy, markedAt string
+		guess                                               bool
+		readings                                            []Reading
+	}
+	var lines []*line
 	for rows.Next() {
-		var sw MatchSoftware
-		var corrects, setBy, setAt string
-		var key sql.NullString
-		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource,
-			&corrects, &setBy, &setAt, &key); err != nil {
-			return nil, fmt.Errorf("inventory: read software a person said is not installed: %w", err)
+		var l line
+		var r Reading
+		if err := rows.Scan(&l.id, &l.vendor, &l.product, &l.key, &l.state, &l.markedBy, &l.markedAt, &l.guess,
+			&r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt); err != nil {
+			_ = rows.Close()
+			return nil, nil, fmt.Errorf("inventory: read software: %w", err)
 		}
-		if n := len(out); n > 0 && out[n-1].ID == sw.ID {
-			out[n-1].KevKeys = append(out[n-1].KevKeys, key.String)
+		if n := len(lines); n > 0 && lines[n-1].id == l.id {
+			lines[n-1].readings = append(lines[n-1].readings, r)
 			continue
 		}
-		sw.KevKeys = []string{}
-		if key.Valid {
-			sw.KevKeys = append(sw.KevKeys, key.String)
-		}
-		sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, setAt, true, loc)
-		sw.Key, sw.MarkedAt = corrects, setAt
-		out = append(out, sw)
+		l.readings = []Reading{r}
+		lines = append(lines, &l)
 	}
-	return out, rows.Err()
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, nil, fmt.Errorf("inventory: read software: %w", err)
+	}
+	live = []MatchSoftware{}
+	for _, l := range lines {
+		res := Resolve(LineState{State: statePresent}, l.readings)
+		keys := matchKeys(l.key, l.guess)
+		row := func(r Reading) MatchSoftware {
+			return MatchSoftware{ID: l.id, Display: r.Display, Vendor: l.vendor, Product: l.product, Version: r.Version, CPE: r.CPE, KevKeys: slices.Clone(keys),
+				Source: sourceClass(r.Source), Packaged: r.Packaged, PkgVersion: r.PkgVersion, PkgSource: r.PkgSource, Key: l.id, SeenAt: r.SeenAt}
+		}
+		entry, det := entryOf(l.readings), detectedOf(l.readings)
+		if l.state == stateNotInstalled {
+			base := res.Effective
+			if det != nil {
+				base = *det
+			}
+			sw := row(base)
+			sw.MarkedAt = l.markedAt
+			sw.Correction = correctionNote(entry, det, base.Display, l.markedBy, l.markedAt, true, loc)
+			notInstalled = append(notInstalled, sw)
+			continue
+		}
+		sw := row(res.Effective)
+		if res.Effective.entry() && det != nil {
+			sw.Correction = correctionNote(entry, det, entry.Display, entry.SetBy, entry.FirstSeen, false, loc)
+			sw.ReportedSource = sourceClass(det.Source) // the product its source reads: that source's distribution and platform rules hold
+		}
+		live = append(live, sw)
+		for _, r := range res.Matched {
+			o := row(r)
+			o.Key = l.id + "\x1f" + r.Source + "\x1f" + r.Instance
+			live = append(live, o)
+		}
+	}
+	return live, notInstalled, nil
 }
-
-// matchSoftwareSQL reads the software MatchInput gives: every row liveSW keeps, with its correction and its productKey.
-var matchSoftwareSQL = matchSoftwareCols + productKey("s") + ", " + rowKey("s") + ", k.kev_key " + matchSoftwareFrom + liveSW + " ORDER BY s.display, s.id, k.kev_key" //nolint:gosec // G202: fixed SQL fragments, no input
-
-const (
-	matchSoftwareCols = `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),
-	ifnull(s.pkg_source, ''), ifnull(s.corrects, ''), ifnull(s.set_by, ''), s.seen_at, lower(s.vendor), lower(s.product), `
-	matchSoftwareFrom = `FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? AND `
-)
 
 // statedOS is the newest OS observation of the device from its own statement (LLDP, SNMP: sources passive and snmp).
 func statedOS(ctx context.Context, q querier, id string) (string, error) {
@@ -365,7 +341,7 @@ func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) 
 	args = append(args, vendor, vendor)
 	var n int
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_asset a WHERE a.kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`)
-		AND (lower(a.vendor) = ? OR EXISTS (SELECT 1 FROM inv_software s WHERE s.asset_id = a.id AND lower(s.vendor) = ? AND NOT `+hiddenGuess+`))`, args...).Scan(&n)
+		AND (lower(a.vendor) = ? OR EXISTS (SELECT 1 FROM inv_software s WHERE s.asset_id = a.id AND lower(s.vendor) = ? AND s.state <> 'removed' AND NOT `+hiddenGuess+`))`, args...).Scan(&n)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read vendors: %w", err)
 	}
@@ -617,34 +593,56 @@ const multiProducts = "multiple products"
 func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (map[string][]DeviceMatch, error) {
 	out := map[string][]DeviceMatch{}
 	var ignored map[string]bool
+	var lines []keyedLine
 	for _, p := range products {
 		key := p.Key()
 		if _, done := out[key]; done {
 			continue
 		}
+		if lines == nil {
+			var err error
+			if lines, err = s.keyedLines(ctx); err != nil {
+				return nil, err
+			}
+		}
 		vendor, product := strings.ToLower(p.Vendor), strings.ToLower(p.Product)
 		multi := strings.TrimSpace(product) == multiProducts
-		exact, err := s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW, key, boolInt(multi), product)
-		if err != nil {
-			return nil, err
+		prefix := productid.Key(p.Vendor, "")
+		shown := map[string]string{}
+		var exact, byVendor []string
+		for _, l := range lines {
+			hit, vendorHit := false, false
+			for _, k := range l.keys {
+				hit = hit || k == key && (!multi || l.product == product)
+				vendorHit = vendorHit || multi && strings.HasPrefix(k, prefix)
+			}
+			switch {
+			case hit: // an exact match names its own line before a vendor-only one
+				if !slices.Contains(exact, l.assetID) {
+					exact = append(exact, l.assetID)
+					delete(shown, l.assetID)
+				}
+			case vendorHit && !slices.Contains(exact, l.assetID):
+				if !slices.Contains(byVendor, l.assetID) {
+					byVendor = append(byVendor, l.assetID)
+				}
+			default:
+				continue
+			}
+			if d, ok := shown[l.assetID]; !ok || l.display < d {
+				shown[l.assetID] = l.display
+			}
 		}
-		shown, err := s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) AND `+liveSW+` GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
-		if err != nil {
-			return nil, err
-		}
-		var byVendor []string
+		byVendor = slices.DeleteFunc(byVendor, func(id string) bool { return slices.Contains(exact, id) })
 		if multi {
-			prefix := productid.Key(p.Vendor, "")
-			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+`
-				UNION SELECT id FROM inv_asset WHERE lower(vendor) = ?`, len(prefix), prefix, vendor)
+			makers, err := s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE lower(vendor) = ?`, vendor)
 			if err != nil {
 				return nil, err
 			}
-			if shown, err = s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-				WHERE substr(k.kev_key, 1, ?) = ? AND `+liveSW+` GROUP BY s.asset_id`, shown, len(prefix), prefix); err != nil {
-				return nil, err
+			for _, id := range makers {
+				if !slices.Contains(byVendor, id) {
+					byVendor = append(byVendor, id)
+				}
 			}
 		}
 		refs, err := s.DeviceRefs(ctx, slices.Concat(exact, byVendor))
@@ -674,6 +672,34 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		}
 	}
 	return out, nil
+}
+
+// keyedLine is a software line that counts for matching (liveSW) with its match keys.
+type keyedLine struct {
+	assetID, product, display string // product lower case
+	keys                      []string
+}
+
+// keyedLines reads every software line that counts for matching, with its match keys (matchKeys), ordered by device.
+func (s *Service) keyedLines(ctx context.Context) ([]keyedLine, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.asset_id, lower(s.product), s.display, s.product_key, `+guessLine+` FROM inv_software s WHERE `+liveSW+` ORDER BY s.asset_id, s.display`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read match keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []keyedLine{}
+	for rows.Next() {
+		var l keyedLine
+		var key string
+		var guess bool
+		if err := rows.Scan(&l.assetID, &l.product, &l.display, &key, &guess); err != nil {
+			return nil, fmt.Errorf("inventory: read match keys: %w", err)
+		}
+		if l.keys = matchKeys(key, guess); len(l.keys) > 0 {
+			out = append(out, l)
+		}
+	}
+	return out, rows.Err()
 }
 
 // IgnoredIDs lists the devices a person ignored, ordered by id, no cap; a read error is an error, never a short list. findings'
@@ -707,36 +733,6 @@ func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 		out[id] = true
 	}
 	return out, nil
-}
-
-func boolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-// softwareNames adds to into (a new map when nil) the software display of each asset the query returns (asset_id, display), keeping
-// one already there: an exact match names its own row before a vendor-only one.
-func (s *Service) softwareNames(ctx context.Context, query string, into map[string]string, args ...any) (map[string]string, error) {
-	if into == nil {
-		into = map[string]string{}
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("inventory: match products: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var id, display string
-		if err := rows.Scan(&id, &display); err != nil {
-			return nil, fmt.Errorf("inventory: match products: %w", err)
-		}
-		if _, ok := into[id]; !ok {
-			into[id] = display
-		}
-	}
-	return into, rows.Err()
 }
 
 func (s *Service) assetIDs(ctx context.Context, query string, args ...any) ([]string, error) {
@@ -851,29 +847,21 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 	if s.kev == nil {
 		return 0, nil
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.asset_id, k.kev_key FROM inv_software s JOIN inv_software_kev k ON k.software_id = s.id ORDER BY s.asset_id, k.kev_key`)
+	lines, err := s.keyedLines(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("inventory: read match keys: %w", err)
+		return 0, err
 	}
 	keys := map[string][]string{}
 	var order []string
-	for rows.Next() {
-		var id, key string
-		if err := rows.Scan(&id, &key); err != nil {
-			_ = rows.Close()
-			return 0, fmt.Errorf("inventory: read match keys: %w", err)
+	for _, l := range lines {
+		if _, ok := keys[l.assetID]; !ok {
+			order = append(order, l.assetID)
 		}
-		if _, ok := keys[id]; !ok {
-			order = append(order, id)
-		}
-		if l := keys[id]; len(l) == 0 || l[len(l)-1] != key {
-			keys[id] = append(l, key)
-		}
+		keys[l.assetID] = append(keys[l.assetID], l.keys...)
 	}
-	err = rows.Err()
-	_ = rows.Close()
-	if err != nil {
-		return 0, err
+	for id, k := range keys {
+		slices.Sort(k)
+		keys[id] = slices.Compact(k)
 	}
 	n := 0
 	for _, id := range order {
@@ -902,12 +890,12 @@ func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
 	}
 	first := map[string]string{}
 	var order []string
+	lines, err := s.keyedLines(ctx)
+	if err != nil {
+		return 0, err
+	}
 	for _, r := range refs {
-		ids, err := s.devicesOf(ctx, r.Vendor, r.Product)
-		if err != nil {
-			return 0, err
-		}
-		for _, id := range ids {
+		for _, id := range devicesIn(lines, r.Vendor, r.Product) {
 			if c, ok := first[id]; !ok || r.CVE < c {
 				if !ok {
 					order = append(order, id)
@@ -924,11 +912,25 @@ func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
 
 // devicesOf lists the devices with software keyed to vendor|product, or to any product of vendor for "Multiple products".
 func (s *Service) devicesOf(ctx context.Context, vendor, product string) ([]string, error) {
+	lines, err := s.keyedLines(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return devicesIn(lines, vendor, product), nil
+}
+
+// devicesIn is devicesOf over lines already read.
+func devicesIn(lines []keyedLine, vendor, product string) []string {
 	prefix := productid.Key(vendor, "")
 	multi := strings.EqualFold(strings.TrimSpace(product), multiProducts)
-	return s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, productid.Key(vendor, product), productid.Key(vendor, multiProducts),
-		boolInt(multi), len(prefix), prefix)
+	exact, multiKey := productid.Key(vendor, product), productid.Key(vendor, multiProducts)
+	var out []string
+	for _, l := range lines {
+		if slices.ContainsFunc(l.keys, func(k string) bool { return k == exact || k == multiKey || multi && strings.HasPrefix(k, prefix) }) && !slices.Contains(out, l.assetID) {
+			out = append(out, l.assetID)
+		}
+	}
+	return out
 }
 
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just

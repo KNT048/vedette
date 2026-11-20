@@ -26,7 +26,7 @@ func TestWiringCVEPageNotAffected(t *testing.T) {
 	}
 	id := addrs[ip.String()]
 	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1",
-		KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}}, "agent"); err != nil {
+		KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}}, "osquery"); err != nil {
 		t.Fatal(err)
 	}
 	fi := feedsInventory{s.d.Inventory}

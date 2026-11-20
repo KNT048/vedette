@@ -130,9 +130,14 @@ func dropContradictedOS(list []obs, best map[string]obs) {
 	}
 }
 
-// osGuessRow is the SQL condition on a software row (alias s) that nmap stored it as an OS guess: source nmap, an OS CPE, no match
-// key (observe.Software.Guess).
-const osGuessRow = `(s.source = 'nmap' AND s.cpe LIKE 'cpe:/o:%' AND NOT EXISTS (SELECT 1 FROM inv_software_kev gk WHERE gk.software_id = s.id))`
+// guessLine is the SQL condition on a software line (alias s) that its value is a guess (observe.Software.Guess): nmap read it only
+// as its OS fingerprint or as the Windows release a device named in its NTLM answer (the reading's instance os_guess), and no other
+// reading of nmap backs it. Such a line has no match key.
+const guessLine = `(s.source = 'nmap' AND EXISTS (SELECT 1 FROM inv_software_reading gr WHERE gr.software_id = s.id AND gr.source = 'nmap' AND gr.instance = '` +
+	instanceOSGuess + `') AND NOT EXISTS (SELECT 1 FROM inv_software_reading gr WHERE gr.software_id = s.id AND gr.source = 'nmap' AND gr.instance <> '` + instanceOSGuess + `'))`
+
+// osGuessRow is the SQL condition on a software line (alias s) that it is nmap's OS guess: a guess line of an OS CPE.
+const osGuessRow = `(s.cpe LIKE 'cpe:/o:%' AND ` + guessLine + `)`
 
 // outrankedGuess (rule 1): a person, the agent, SNMP or the device's LLDP statement gave the device's OS. A passive OS wins over
 // nmap's only as the device's LLDP statement (INV-44); a passive hint (a DHCP client's OS family) never outranks a guess.

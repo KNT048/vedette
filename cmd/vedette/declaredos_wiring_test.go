@@ -30,7 +30,7 @@ func TestWiringDeclaredOSPageIsTheMatchersOS(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(rows) > 0 {
-			if err := s.d.Inventory.ReplaceSoftware(t.Context(), observe.AssetHint{IP: h.IP, Agent: h.Agent}, observe.Agent, rows); err != nil {
+			if err := s.d.Inventory.ReplaceSoftware(t.Context(), observe.AssetHint{IP: h.IP, Agent: h.Agent}, observe.Osquery, nil, rows); err != nil {
 				t.Fatal(err)
 			}
 		}

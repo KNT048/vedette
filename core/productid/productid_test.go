@@ -221,3 +221,24 @@ func TestCuratedProductsResolve(t *testing.T) {
 		t.Errorf("classes = %v", classes)
 	}
 }
+
+// The OS a network device states is a product of the catalogue with the exploited-list keys of network-os.json.
+func TestStatedOS(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ text, key, version, lldp string }{
+		{"JUNOS 15.1R7.9", "juniper|junos os", "15.1R7.9", "Juniper Networks"},
+		{"FortiOS 7.0.1", "fortinet|fortios", "7.0.1", ""},
+	} {
+		p, v, lldp, ok := StatedOS(c.text)
+		if !ok || p.Key != c.key || v != c.version || lldp != c.lldp {
+			t.Fatalf("%q: %q %q %q %v", c.text, p.Key, v, lldp, ok)
+		}
+		q, ok := ByKey(p.Key)
+		if !ok || !slices.Contains(q.KEV, p.Key) || c.key == "fortinet|fortios" && !slices.Contains(q.KEV, "fortinet|multiple products") {
+			t.Fatalf("%q: ByKey %v %v", c.text, q.KEV, ok)
+		}
+	}
+	if _, _, _, ok := StatedOS("Linux 4.15 - 5.19"); ok {
+		t.Fatal("a fingerprint is no statement")
+	}
+}

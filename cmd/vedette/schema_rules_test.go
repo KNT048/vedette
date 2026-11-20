@@ -121,7 +121,6 @@ var longValueListAllowList = []string{
 	"inv_observation.source",
 	"inv_service.source",
 	"inv_setting.key",
-	"inv_software.source",
 	"notify_channel.type",
 	"notify_incident.unsent_channel",
 	"notify_pending.channel",

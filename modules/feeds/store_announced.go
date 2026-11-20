@@ -27,9 +27,10 @@ func (s *Store) NewKEVSince(ctx context.Context, at time.Time, cve string, limit
 		return nil, fmt.Errorf("feeds: NewKEVSince: limit %d is outside 1..%d", limit, MaxNewKEVPage)
 	}
 	ts := store.FormatTS(at)
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, vendor, product, has_template, date_added, kev_announced_at FROM feeds_vuln
-WHERE source_id = 'cisa-kev' AND kev_announced_at IS NOT NULL AND (kev_announced_at > ? OR (kev_announced_at = ? AND cve > ?))
-ORDER BY kev_announced_at, cve LIMIT ?`, ts, ts, cve, limit)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT k.cve, k.vendor, k.product,
+EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = k.cve AND s.kind = 'public_exploit' AND s.source = 'nuclei-templates'), k.date_added, k.announced_at
+FROM feeds_kev k WHERE k.list = 'cisa' AND k.announced_at IS NOT NULL AND (k.announced_at > ? OR (k.announced_at = ? AND k.cve > ?))
+ORDER BY k.announced_at, k.cve LIMIT ?`, ts, ts, cve, limit)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read announced KEV entries: %w", err)
 	}
@@ -55,7 +56,7 @@ func markAnnounced(ctx context.Context, tx *sql.Tx, fresh []VulnRow, at time.Tim
 	if len(fresh) == 0 {
 		return nil
 	}
-	stmt, err := tx.PrepareContext(ctx, `UPDATE feeds_vuln SET kev_announced_at = ? WHERE cve = ? AND kev_announced_at IS NULL`)
+	stmt, err := tx.PrepareContext(ctx, `UPDATE feeds_kev SET announced_at = ? WHERE cve = ? AND list = 'cisa' AND announced_at IS NULL`)
 	if err != nil {
 		return fmt.Errorf("feeds: record new KEV entries: %w", err)
 	}

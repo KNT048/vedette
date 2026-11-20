@@ -7,6 +7,12 @@
 - **`?asset=`**: the device page's Last checks (`scanning/LastChecks.tsx`) and History opened from it (`?asset=&job=`) read it; `ScanningConfig.History` takes the device id ("" = every run). The jobs record addresses, not devices: the match is the device's address now.
 - **Cost**: the SPA reads it every 30 s while the History tab (or a device page) is open; the sources are bounded (sensor-active one indexed read per kind, exposure one read of `exp_snapshot`), core keeps the newest 200.
 
+## Modifying: schedules (`core/schedule`, `ScheduleHandlers`; INV-42)
+- **A module adopting schedules** registers a `schedule.Owner` on `deps.Schedules` in `buildServices` (before `serve` calls `Start`, which saves the defaults that are on). An owner with one schedule per subject calls `EnsureTx` when it creates the subject and `schedule.DeleteTx` when it deletes it, in the same transaction. Its `Start` runs inside the schedule's transaction: queue a run with `CreateTx` and pass `f.Trigger`, `f.By`, `f.ScheduleID`; return `schedule.Skip(reason)` to skip with a reason.
+- **`Next`** is the one function of a due time: a change of it changes every stored `next_due_at`, which `Start` brings up to date with `Recompute` at the next start (the self-check fails until then). Its table test covers summer time, month ends and windows over midnight.
+- **The organization's time zone**: whatever writes `core_org.timezone` calls `schedule.Recompute` in the same transaction (today `PUT /core/general`).
+- **`core/server/modules.go`** maps `/schedules` to core (and `web/src/lib/apiModules.ts`, `api/route-modules.json`).
+
 ## Modifying: runs (`core/run`, `RunHandlers`; INV-41)
 - **A module adopting runs** registers its `run.Kind` on `deps.Runs` while it is built in `buildServices` (before `serve` calls `Start`: the restart recovery resumes only the kinds it knows), queues with `CreateTx` in the transaction that writes its own rows keyed by `run_id`, and reports through `Exec` (steps, items, log). A resumable kind must skip the steps that are `done` when `Exec.Resumed`.
 - **The lane** is the database's guard: two kinds that must never run together share a lane; a kind with its own lane runs beside the others. Changing a kind's lane changes what can run at once.

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
@@ -30,24 +29,23 @@ func sshFeeds(t *testing.T, s *stack) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		for _, q := range []struct {
-			sql  string
-			args []any
-		}{
-			{`INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
-				VALUES (?, 'OpenBSD', 'OpenSSH', ?, 'OpenBSD OpenSSH flaw', ?, 0, 0, 'cisa-kev', ?)`,
-				[]any{sshKEVCVE, productid.Key("OpenBSD", "OpenSSH"), now.AddDate(0, 0, -11).Format("2006-01-02"), store.FormatTS(now)}},
-			{`INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, []any{sshKEVCVE, store.FormatTS(now)}},
-			{`INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6')`, []any{sshKEVCVE}},
-			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 8.1)`,
-				[]any{sshTierCVE, store.FormatTS(now.AddDate(0, 0, -30)), store.FormatTS(now.AddDate(0, 0, -20))}},
-			{`INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES (?, 'cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*', '', '', '', '10.6', '[]')`, []any{sshTierCVE}},
-			{`INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://services.nvd.nist.gov/rest/json/cves/2.0', 'done', ?, ?, ?, 0, 0)`,
-				[]any{store.FormatTS(now), store.FormatTS(now), store.FormatTS(now)}},
-		} {
-			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
-				return err
-			}
+		if err := seedKEVRow(ctx, tx, sshKEVCVE, "OpenBSD", "OpenSSH", "OpenBSD OpenSSH flaw", now.AddDate(0, 0, -11), false, false); err != nil {
+			return err
+		}
+		if err := seedNVD(ctx, tx, sshKEVCVE, now.AddDate(-1, 0, 0), 0); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, sshKEVCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6"); err != nil {
+			return err
+		}
+		if err := seedNVD(ctx, tx, sshTierCVE, now.AddDate(0, 0, -30), 8.1); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, sshTierCVE, "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6"); err != nil {
+			return err
+		}
+		if err := seedRecentDone(ctx, tx, now); err != nil {
+			return err
 		}
 		// The distribution feeds are on and have been read: each completed a pull and holds a row, of a package no device here runs. A
 		// feed that has never completed a pull is still loading, and the plan compares no package of its distribution until it has loaded.
@@ -370,8 +368,9 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 			sql  string
 			args []any
 		}{
-			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 7.5)`,
+			{`INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES (?1, ?2, ?3, 'Analyzed', ?3, ?3)`,
 				[]any{ubuntuCVE, store.FormatTS(now.AddDate(0, 0, -15)), store.FormatTS(now.AddDate(0, 0, -10))}},
+			{`INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES (?, 'nvd', '3.1', 7.5, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N')`, []any{ubuntuCVE}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '24.04', 'openssh', ?, 'fixed', '1:10.2p1-2ubuntu3.9')`, []any{ubuntuCVE}},
 			{`INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '22.04', 'zlib', 'CVE-2026-69998', 'fixed', '1.0-1')`, nil},
 		} {

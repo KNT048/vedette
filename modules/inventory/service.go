@@ -77,6 +77,9 @@ type Config struct {
 	SNMPOf func(ctx context.Context, id string) (SNMPFact, error)
 	// AgentOf is what agent-intake says of the agent that reads a device, for the device's source rows. nil: not known.
 	AgentOf func(ctx context.Context, id string) (AgentFact, error)
+	// AskAgent asks the device's agent to send its data now, after a person turned the agent on again (ChangeSources): best effort,
+	// after the commit, the actor is the person. nil: the agent's next report brings it.
+	AskAgent func(ctx context.Context, actor, id string)
 	// Lifecycle are the other modules' parts of a device merge or delete, called inside the inventory's write (core/lifecycle). nil:
 	// none (the inventory alone).
 	Lifecycle *lifecycle.Hooks
@@ -105,6 +108,7 @@ type Service struct {
 	readVersion func(v string) string
 	snmpOf      func(ctx context.Context, id string) (SNMPFact, error)
 	agentOf     func(ctx context.Context, id string) (AgentFact, error)
+	askAgent    func(ctx context.Context, actor, id string)
 	lifecycle   *lifecycle.Hooks
 	ownedHit    atomic.Int64 // observations ignored because their address is box-owned
 	clock       func() time.Time
@@ -126,7 +130,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, snmpOf: cfg.SNMPOf, agentOf: cfg.AgentOf, lifecycle: cfg.Lifecycle, clock: cfg.Clock, zone: cfg.Zone, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, boxPorts: cfg.BoxPorts, findings: cfg.Findings, risk: cfg.Risk, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, declared: cfg.DeclaredOS, readVersion: cfg.OSVersion, snmpOf: cfg.SNMPOf, agentOf: cfg.AgentOf, askAgent: cfg.AskAgent, lifecycle: cfg.Lifecycle, clock: cfg.Clock, zone: cfg.Zone, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}

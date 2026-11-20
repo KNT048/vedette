@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/lifecycle"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -387,8 +388,9 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 // Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources): SourceOn or SourceOff each, the
 // default resolved (on for a device a sensor found, off for one added by hand).
 type Sources struct {
-	Scan string `json:"scan_source"`
-	SNMP string `json:"snmp_source"`
+	Scan  string `json:"scan_source"`
+	SNMP  string `json:"snmp_source"`
+	Agent string `json:"agent_source"` // the agents' data of the device: on unless a person turned it off
 }
 
 // SetSources turns the network scan and the SNMP reads of one device on or off; a nil value is left alone, and at least one is
@@ -397,27 +399,40 @@ type Sources struct {
 // the device stops (inventory.asset.updated), and what that source found stays. One audit row per source changed says who, which device,
 // which source and on or off. The box itself is 409 box_device: nothing automatic ever probes it.
 func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *string) (Sources, error) {
-	for _, v := range []*string{scan, snmp} {
+	return s.ChangeSources(ctx, actor, id, SourcesChange{Scan: scan, SNMP: snmp})
+}
+
+// SourcesChange is what PUT /inventory/devices/{id}/sources changes: nil leaves a source alone.
+type SourcesChange struct{ Scan, SNMP, Agent *string }
+
+// ChangeSources is SetSources with the agent switch too. Turning the agent off refuses every agent's data for the device from then on
+// (the sinks drop it: ReplaceSoftware, ReplaceServices, Record) and what the agents read stops counting at once: their software readings
+// go (each line is settled again, so a line only an agent read is removed and the history says so) and so do their open ports.
+// Turning it on takes their data again; the agent's next report brings it back, and Config.AskAgent asks an osquery agent for it now.
+func (s *Service) ChangeSources(ctx context.Context, actor, id string, ch SourcesChange) (Sources, error) {
+	scan, snmp, agent := ch.Scan, ch.SNMP, ch.Agent
+	for _, v := range []*string{scan, snmp, agent} {
 		if v != nil && *v != SourceOn && *v != SourceOff {
 			return Sources{}, badRequest("bad_source", "Each source is on or off.")
 		}
 	}
-	if scan == nil && snmp == nil {
-		return Sources{}, badRequest("bad_source", "Say which source to turn on or off: scan, snmp or both.")
+	if scan == nil && snmp == nil && agent == nil {
+		return Sources{}, badRequest("bad_source", "Say which source to turn on or off: scan, snmp, agent or more than one.")
 	}
 	var out Sources
+	agentOn := false
 	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		var origin, curScan, curSNMP, ip string
+		var origin, curScan, curSNMP, curAgent, ip string
 		var box, ignored bool
-		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(ip, ''), ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).
-			Scan(&origin, &box, &curScan, &curSNMP, &ip, &ignored)
+		err := tx.QueryRowContext(ctx, `SELECT origin, is_box, coalesce(scan_source, ''), coalesce(snmp_source, ''), coalesce(agent_source, ''), coalesce(ip, ''), ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).
+			Scan(&origin, &box, &curScan, &curSNMP, &curAgent, &ip, &ignored)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
 			return fmt.Errorf("inventory: read device: %w", err)
 		}
 		if box {
-			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own.")
+			return conflict("box_device", "This is the Vedette box itself: Vedette never scans or reads it on its own, and it reads its own packages.")
 		}
 		if ignored && (deref(scan) == SourceOn || deref(snmp) == SourceOn) { // An ignored device is not watched
 			return conflict("device_ignored", "This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.")
@@ -428,7 +443,7 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			col, label string
 			cur        *string
 			next       *string
-		}{{"scan_source", "network scan", &curScan, scan}, {"snmp_source", "SNMP", &curSNMP, snmp}} {
+		}{{"scan_source", "network scan", &curScan, scan}, {"snmp_source", "SNMP", &curSNMP, snmp}, {"agent_source", "agent", &curAgent, agent}} {
 			if c.next == nil {
 				continue
 			}
@@ -448,18 +463,94 @@ func (s *Service) SetSources(ctx context.Context, actor, id string, scan, snmp *
 			}
 			changed = true
 			scanOn = scanOn || (c.col == "scan_source" && *c.next == SourceOn)
+			if c.col == "agent_source" && before != *c.next {
+				if *c.next == SourceOff {
+					if err := s.dropAgentData(ctx, tx, o, id); err != nil {
+						return err
+					}
+				} else {
+					agentOn = true
+				}
+			}
 		}
 		st, err := loadSettings(ctx, tx)
 		if err != nil {
 			return err
 		}
-		out = Sources{Scan: sourceState(curScan, origin), SNMP: snmpState(st, curSNMP, origin, ip)}
+		out = Sources{Scan: sourceState(curScan, origin), SNMP: snmpState(st, curSNMP, origin, ip), Agent: agentState(curAgent)}
 		if changed { // a PUT that changes nothing stops nothing (review r1 L3)
 			o.add(EventAssetUpdated, AssetEvent{AssetID: id, ScanOn: scanOn})
 		}
 		return nil
 	})
+	if err == nil && agentOn && s.askAgent != nil {
+		s.askAgent(ctx, actor, id)
+	}
 	return out, err
+}
+
+// agentState resolves a device's stored agent switch: on unless a person turned it off.
+func agentState(stored string) string {
+	if stored == SourceOff {
+		return SourceOff
+	}
+	return SourceOn
+}
+
+// agentRefused says whether a person turned the agent off for the device: its agents' data is dropped (ChangeSources).
+func agentRefused(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
+	var off bool
+	err := tx.QueryRowContext(ctx, `SELECT coalesce(agent_source, '') = 'off' AND is_box = 0 FROM inv_asset WHERE id = ?`, id).Scan(&off)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("inventory: read the agent switch: %w", err)
+	}
+	return off, nil
+}
+
+// dropAgentData makes what the agents read of a device stop counting: the software readings of every agent source go and the lines
+// they touched are settled again (with their history), and so do the agents' open ports and their observations of the device (OS,
+// name, card, kind), whose fields are chosen again from what the other sources read. What other sources read stays.
+func (s *Service) dropAgentData(ctx context.Context, tx *sql.Tx, o *outbox, id string) error {
+	before, err := deviceKeys(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	touched, err := candidates(ctx, tx, `SELECT DISTINCT r.software_id FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id
+		WHERE w.asset_id = ? AND r.source IN ('osquery', 'wazuh') ORDER BY r.software_id`, id)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE source IN ('osquery', 'wazuh') AND software_id IN (SELECT id FROM inv_software WHERE asset_id = ?)`, id); err != nil {
+		return fmt.Errorf("inventory: drop the agents' readings: %w", err)
+	}
+	now := s.seen(s.clock())
+	for _, l := range touched {
+		if _, err := s.settleLine(ctx, tx, l, now, nil); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_service WHERE asset_id = ? AND source = ?`, id, string(observe.Agent)); err != nil {
+		return fmt.Errorf("inventory: drop the agents' open ports: %w", err)
+	}
+	// what the agents said of the device itself (its OS, name, card, kind): the device's fields are chosen again from the other sources
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND source = ?`, id, string(observe.Agent)); err != nil {
+		return fmt.Errorf("inventory: drop the agents' observations: %w", err)
+	}
+	if changed, err := s.RecomputeAsset(ctx, tx, id); err != nil {
+		return err
+	} else if changed {
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true})
+	}
+	if len(touched) == 0 {
+		return nil
+	}
+	after, err := deviceKeys(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	o.add(EventSoftwareChanged, AssetEvent{AssetID: id})
+	o.after = append(o.after, s.matchEvents(id, before, after))
+	return nil
 }
 
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.

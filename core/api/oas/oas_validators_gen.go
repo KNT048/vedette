@@ -61150,6 +61150,34 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.RhythmS.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rhythm_s",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.State.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -61494,6 +61522,27 @@ func (s *InventoryGetInventoryAgentsOKNodesItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "os",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.RhythmS)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rhythm_s",
 			Error: err,
 		})
 	}
@@ -64531,6 +64580,24 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Token.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "token",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -64647,6 +64714,59 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) Validate() error 
 	case "on":
 		return nil
 	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hosts)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hosts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) Validate() error {
+	switch s {
+	case "osquery":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -68770,6 +68890,34 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.RhythmS.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rhythm_s",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.State.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -69031,6 +69179,36 @@ func (s *InventoryPostInventoryAgentsTokensReq) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.DeviceID.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device_id",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if value, ok := s.ExpiresInDays.Get(); ok {
 			if err := func() error {
@@ -70679,6 +70857,17 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.AgentSource.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "agent_source",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.ScanSource.Validate(); err != nil {
 			return err
 		}
@@ -70704,6 +70893,17 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesOKAgentSource) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryPutInventoryDevicesIDSourcesOKScanSource) Validate() error {
@@ -70734,6 +70934,24 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Agent.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "agent",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if value, ok := s.Scan.Get(); ok {
 			if err := func() error {
@@ -70774,6 +70992,17 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryPutInventoryDevicesIDSourcesReqAgent) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryPutInventoryDevicesIDSourcesReqScan) Validate() error {

@@ -57265,9 +57265,11 @@
                               "quiet",
                               "never_reported",
                               "replaced",
-                              "unavailable"
+                              "unavailable",
+                              "box",
+                              "ignored"
                             ],
-                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now"
+                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
                           },
                           "dot": {
                             "type": "string",
@@ -57305,7 +57307,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when the row has none: SNMP before it is set up, the agent"
+                            "description": "The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when the row has none: SNMP before it is set up, the agent, the box itself and an ignored device"
                           },
                           "action": {
                             "anyOf": [

@@ -279,6 +279,9 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if items, err = s.loadDevices(ctx, db, where, limit, args...); err != nil {
 		return nil, false, err
 	}
+	if f.Q != "" { // the query found the candidates; a device stays when what its row shows holds the text
+		items = slices.DeleteFunc(items, func(d Device) bool { return !d.shows(f.Q) })
+	}
 	if items == nil {
 		items = []Device{}
 	}
@@ -498,11 +501,11 @@ func (r DeviceRef) NameOrHost() *string { return nameOrHost(r.UserName, r.Hostna
 // NameOrHost is AssetCore.NameOrHost of a KindDevice.
 func (k KindDevice) NameOrHost() *string { return nameOrHost(k.UserName, k.Hostname) }
 
-// Name is DisplayName of a listed device; its software is sorted by display name, like firstSoftware.
+// Name is DisplayName of a listed device; its software is sorted by display name, like firstSoftware (what it runs).
 func (d Device) Name() string {
 	product := ""
-	if len(d.Software) > 0 {
-		product = d.Software[0].Display
+	if run := d.Running(); len(run) > 0 {
+		product = run[0].Display
 	}
 	vendor, model := obsValue(d.Vendor), obsValue(d.Model)
 	if d.observedHW != nil {
@@ -512,8 +515,8 @@ func (d Device) Name() string {
 }
 
 // firstSoftware selects the display name of a device's first software, in the order the pages list it; never an nmap
-// OS guess the device does not use (hiddenGuess).
-var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND s.state <> 'removed' AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
+// OS guess the device does not use (hiddenGuess), never a line a person said is not installed.
+var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND s.state = 'present' AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
 
 // Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
 // and reports.

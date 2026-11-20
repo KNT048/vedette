@@ -449,7 +449,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
     && (!risks.length || risks.includes(r.risk?.level ?? 'none'))
-    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.filter((x) => !x.not_installed).map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
@@ -862,13 +862,14 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
   const row = (r: Omit<DeviceSourceRow, 'dot'>): DeviceSourceRow => ({ ...r, dot: dot(r.state) })
   const ip = hasIp(a)
   const scanSwitch = sourceOf(a, 'scan_source')
-  const scan = row({ source: 'scan', last_at: times.get('scan') ?? null, switch: scanSwitch, agent: null,
-    ...(!isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : scanSwitch === 'off' ? { state: 'off', action: null } : !ip ? { state: 'no_address', action: null }
+  const self = a.id === BOX_ID ? 'box' as const : metaStore.get()[a.id]?.ignored_at ? 'ignored' as const : null // no switch, no button
+  const scan = row({ source: 'scan', last_at: times.get('scan') ?? null, switch: self ? null : scanSwitch, agent: null,
+    ...(self ? { state: self, action: null } : !isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : scanSwitch === 'off' ? { state: 'off', action: null } : !ip ? { state: 'no_address', action: null }
       : times.has('scan') ? { state: 'working', action: null } : { state: 'waiting', action: 'scan_now' }) })
   const sn = isOn('sensor-active') && ip && a.approved ? deviceSnmp(a) : null
   const snmpSwitch = sourceOf(a, 'snmp_source')
-  const snmp = row({ source: 'snmp', agent: null, last_at: sn?.last_answer_at ?? null, switch: sn && sn.state !== 'not_set_up' ? snmpSwitch : null,
-    ...(!isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : !ip ? { state: 'no_address', action: null } : !a.approved ? { state: 'not_approved', action: 'approve' }
+  const snmp = row({ source: 'snmp', agent: null, last_at: sn?.last_answer_at ?? null, switch: !self && sn && sn.state !== 'not_set_up' ? snmpSwitch : null,
+    ...(self ? { state: self, action: null } : !isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : !ip ? { state: 'no_address', action: null } : !a.approved ? { state: 'not_approved', action: 'approve' }
       : sn!.state === 'not_set_up' ? { state: 'not_set_up', action: 'set_up' } : snmpSwitch === 'off' ? { state: 'off', action: 'check_now' }
       : { state: sn!.state === 'working' || sn!.state === 'not_answering' ? sn!.state : 'waiting', action: 'check_now' }) })
   const rep = isOn('agent-intake') ? agentReport(a.id) : null

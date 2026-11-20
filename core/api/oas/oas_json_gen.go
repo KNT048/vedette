@@ -223811,6 +223811,10 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemState) Decode(d *jx.Deco
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored
 	default:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemState(v)
 	}

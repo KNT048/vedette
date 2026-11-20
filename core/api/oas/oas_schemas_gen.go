@@ -125831,10 +125831,13 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	// box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
 	// own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
 	// enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-	// unavailable: the module could not say just now.
+	// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
+	// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
+	// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
+	// button).
 	State InventoryGetInventoryDevicesIDSourcesOKRowsItemState `json:"state"`
 	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
-	// the row has none: SNMP before it is set up, the agent.
+	// the row has none: SNMP before it is set up, the agent, the box itself and an ignored device.
 	Switch NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch `json:"switch"`
 }
 
@@ -126165,7 +126168,10 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) UnmarshalText(da
 // box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
 // own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
 // enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-// unavailable: the module could not say just now.
+// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
+// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
+// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
+// button).
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemState string
 
 const (
@@ -126183,6 +126189,8 @@ const (
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateNeverReported InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "never_reported"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced      InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "replaced"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable   InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "unavailable"
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox           InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "box"
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored       InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "ignored"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDSourcesOKRowsItemState values.
@@ -126202,6 +126210,8 @@ func (InventoryGetInventoryDevicesIDSourcesOKRowsItemState) AllValues() []Invent
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateNeverReported,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable,
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox,
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored,
 	}
 }
 
@@ -126235,6 +126245,10 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemState) MarshalText() ([]b
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -126285,6 +126299,12 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemState) UnmarshalText(dat
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable
+		return nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox
+		return nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

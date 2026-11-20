@@ -64633,6 +64633,10 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemState) Validate() error {
 		return nil
 	case "unavailable":
 		return nil
+	case "box":
+		return nil
+	case "ignored":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

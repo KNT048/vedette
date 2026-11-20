@@ -217,10 +217,12 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 		parts := []string{
 			fmt.Sprintf(like, "coalesce(a.user_name, '')"), fmt.Sprintf(like, "coalesce(a.hostname, '')"), "instr(coalesce(a.ip, ''), ?) > 0",
 			fmt.Sprintf(like, "coalesce(a.vendor, '')"), fmt.Sprintf(like, "coalesce(a.model, '')"),
-			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND sq.state <> 'removed' AND " + fmt.Sprintf(like, "sq.display") + "))",
+			"(a.origin = 'manual' AND EXISTS (SELECT 1 FROM inv_software sq WHERE sq.asset_id = a.id AND sq.state = 'present' AND " + fmt.Sprintf(like, "sq.display") + "))",
+			// the maker a person's declared OS row may give the device (INV-45); Device.shows keeps it only when the row shows it
+			"EXISTS (SELECT 1 FROM inv_software sv WHERE sv.asset_id = a.id AND sv.source = 'manual' AND sv.state = 'present' AND " + fmt.Sprintf(like, "sv.vendor") + ")",
 		}
-		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q, f.Q}
-		if keys := modelKeys(f.Q); len(keys) > 0 { // the model a person's declared OS row gives the device (INV-45: "FortiGate")
+		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q, f.Q, f.Q}
+		if keys := modelKeys(f.Q); len(keys) > 0 { // the model a person's declared OS row may give the device (INV-45: "FortiGate"); Device.shows decides
 			parts = append(parts, "EXISTS (SELECT 1 FROM inv_software sm WHERE sm.asset_id = a.id AND sm.source = 'manual' AND sm.state = 'present' AND lower(sm.vendor) || '|' || lower(sm.product) IN (SELECT value FROM json_each(?)))")
 			qa = append(qa, jsonList(keys))
 		}
@@ -317,4 +319,19 @@ func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]st
 		out[id] = list
 	}
 	return out, rows.Err()
+}
+
+// shows says whether what the device's row shows holds the search text q (DeviceFilter.Q, case-insensitive): the name a person gave
+// it, its host name, IP, MAC (any notation), the maker and model the row shows (a person's declared OS row may give them, INV-45),
+// and, for a device added by hand, the products it runs. The query finds candidates by the stored values; this keeps only the devices
+// whose row shows the text, so the search never returns a device for a model, OS or software its row does not show.
+func (d Device) shows(q string) bool {
+	has := func(v string) bool { return strings.Contains(strings.ToLower(v), strings.ToLower(q)) }
+	if has(deref(d.UserName)) || has(deref(d.Hostname)) || d.IP != noIP && strings.Contains(d.IP, q) || has(obsValue(d.Vendor)) || has(obsValue(d.Model)) {
+		return true
+	}
+	if hex, ok := macFragment(q); ok && strings.Contains(deref(d.MAC), hex) {
+		return true
+	}
+	return d.Origin == "manual" && slices.ContainsFunc(d.Running(), func(s Software) bool { return has(s.Display) })
 }

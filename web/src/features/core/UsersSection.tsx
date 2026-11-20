@@ -262,7 +262,7 @@ export default function UsersSection() {
             { id: 'actions', header: t('users.col.actions'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => actions(row.original) },
           ]
           return (
-            <DataTable data={items} columns={columns} caption={t('users.caption')} filterPlaceholder={t('users.filter')}
+            <DataTable urlKey="users" data={items} columns={columns} caption={t('users.caption')} filterPlaceholder={t('users.filter')}
               toolbar={<>
                 <span className="text-meta text-muted tabular-nums">{t('users.count', { count: items.filter((u) => !u.disabled).length })}</span>
                 <Button id="users-add" variant="primary" className="ml-auto" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>

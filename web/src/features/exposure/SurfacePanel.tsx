@@ -62,7 +62,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
         ]} />
       </Panel>
       {!classified && s.hosts.length > 0 ? <Notice tone="off" role="note" title={t('surface.older')} info={t('surface.olderInfo')} /> : null}
-      <DataTable caption={t('surface.caption')} data={s.hosts} columns={cols} pageSize={30} empty={t('hosts.empty')} filterPlaceholder={t('surface.filter')} />
+      <DataTable urlKey="surface" caption={t('surface.caption')} data={s.hosts} columns={cols} pageSize={30} empty={t('hosts.empty')} filterPlaceholder={t('surface.filter')} />
       {lines.length > 0 ? (
         <div>
           <h3 className="mb-2 text-sm font-semibold">{t('checked.notChecked')}</h3>

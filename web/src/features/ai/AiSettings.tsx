@@ -172,7 +172,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
       {profiles.length === 0 ? (
         <EmptyState title={t('profiles.empty')} info={t('profiles.emptyBodyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('profiles.emptyBody')}</EmptyState>
       ) : (
-        <DataTable<AiProfile> caption={t('profiles.caption')} data={profiles}
+        <DataTable<AiProfile> urlKey="ai-profiles" caption={t('profiles.caption')} data={profiles}
           mobileRow={(p) => (
             <div className="grid gap-1.5 text-sm">
               <p className="flex flex-wrap items-center gap-2 font-medium">{p.name} {loc(p)}</p>

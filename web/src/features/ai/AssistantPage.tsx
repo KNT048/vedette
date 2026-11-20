@@ -191,7 +191,7 @@ function Answer({ r }: { r: AskResult }) {
         <div>
           <h3 className="mb-1 text-sm font-medium">{t('ask.tableTitle', { n: r.table.rows.length })}</h3>
           <p className="mb-2 text-meta text-muted">{t('ask.tableNote')}</p>
-          <DataTable caption={t('ask.tableCaption', { q: r.question })} data={r.table.rows} columns={cols} pageSize={20} />
+          <DataTable urlKey="ask-answer" caption={t('ask.tableCaption', { q: r.question })} data={r.table.rows} columns={cols} pageSize={20} />
         </div>
       ) : null}
       {refused === 'refused' ? null : <Card level={3} title={t('ask.toolsTitle')}>
@@ -229,7 +229,7 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
                 {pct >= 80 ? <p className={`text-sm ${u.month.total >= u.monthly_budget ? 'text-danger' : 'text-warn'}`}>{u.month.total >= u.monthly_budget ? t('meter.over', { date }) : t('meter.near')}</p> : null}
                 {pct >= 80 && admin ? <Link to="/settings/ai#ai-cap" className="text-sm font-medium text-accent underline underline-offset-4">{t('budget.home.raise')}</Link> : null}
               </Card>
-              <DataTable caption={t('meter.skillCaption')} data={u.by_skill} pageSize={20}
+              <DataTable urlKey="ai-usage-skills" caption={t('meter.skillCaption')} data={u.by_skill} pageSize={20}
                 columns={[
                   { id: 'skill', header: t('meter.col.skill'), accessorFn: (r: Usage['by_skill'][number]) => t(`skill.${r.skill}`, { defaultValue: r.skill }) },
                   { id: 'runs', header: t('meter.col.runs'), accessorKey: 'runs' },
@@ -260,7 +260,7 @@ function RunLog() {
     <Section title={t('runs.title')} description={t('runs.description')} info={t('runs.descriptionInfo')} stories={['S-AI-4']}>
       <QueryState query={runs}>
         {(r) => (
-          <DataTable<AiRun> caption={t('runs.caption')} data={r.items} filterPlaceholder={t('runs.filter')} initialSort={[{ id: 'ts', desc: true }]} empty={t('runs.empty')}
+          <DataTable<AiRun> urlKey="ai-runs" caption={t('runs.caption')} data={r.items} filterPlaceholder={t('runs.filter')} initialSort={[{ id: 'ts', desc: true }]} empty={t('runs.empty')}
             columns={[
               { id: 'ts', header: t('runs.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'skill', header: t('runs.col.skill'), accessorFn: (x: AiRun) => t(`skill.${x.skill}`, { defaultValue: x.skill }) },

@@ -250,7 +250,7 @@ function Body({ s }: { s: CheckedOs }) {
 
           <div>
             <h3 className="mb-2 text-sm font-semibold">{s.pending.length > 0 ? t('updates.os.pending', { count: s.pending.length, security: sec }) : t('updates.os.pendingNone')}</h3>
-            <DataTable data={s.pending} columns={cols} caption={t('updates.os.pendingCaption')} pageSize={20} empty={t('updates.os.pendingEmpty')}
+            <DataTable urlKey="updates-os-pending" data={s.pending} columns={cols} caption={t('updates.os.pendingCaption')} pageSize={20} empty={t('updates.os.pendingEmpty')}
               mobileRow={(p) => (
                 <div className="grid gap-1">
                   <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-meta font-medium [overflow-wrap:anywhere]">{p.name}</span>{p.security ? <Chip tone="danger">{t('updates.os.col.security')}</Chip> : null}</div>

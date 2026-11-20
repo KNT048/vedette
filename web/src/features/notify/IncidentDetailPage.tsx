@@ -115,7 +115,7 @@ function Content() {
             </Section>
             <Section id="log" title={t('detail.logTitle')}>
               {a.not_sent?.reason === 'failed' ? <Notice tone="warn" title={a.not_sent.text} actions={<NotSentFix notSent={a.not_sent} admin={admin} />} /> : null}
-              {a.sends.length ? <DataTable caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
+              {a.sends.length ? <DataTable urlKey="incident-sends" caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
             </Section>
             <Handle d={d} respond={respond} />
           </>

@@ -70,7 +70,7 @@ function Interfaces({ d }: { d: NetworkState }) {
   ]
   return (
     <Section id="interfaces" title={t('network.interfaces.title')} description={t('network.interfaces.desc')} stories={['S-CORE-8']}>
-      <DataTable caption={t('network.interfaces.caption')} data={d.interfaces} columns={columns}
+      <DataTable urlKey="network-interfaces" caption={t('network.interfaces.caption')} data={d.interfaces} columns={columns}
         mobileRow={(i) => (
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">

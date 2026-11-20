@@ -209,7 +209,7 @@ function HistorySection() {
     <Section id="rep-history" title={t('weekly.history.title')} description={t('weekly.history.description')} stories={['S-REP-1']}>
       <QueryState query={hist}>
         {(h) => h.items.length === 0 ? <EmptyState title={t('weekly.history.empty')} info={t('weekly.history.emptyBodyInfo')}>{t('weekly.history.emptyBody')}</EmptyState> : (
-          <DataTable<Row> caption={t('weekly.history.caption')} data={h.items} initialSort={[{ id: 'ts', desc: true }]}
+          <DataTable<Row> urlKey="weekly-history" caption={t('weekly.history.caption')} data={h.items} initialSort={[{ id: 'ts', desc: true }]}
             columns={[
               { id: 'ts', header: t('weekly.history.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'trigger', header: t('weekly.history.col.trigger'), accessorFn: (r: Row) => t(`weekly.history.trigger.${r.trigger}`) },

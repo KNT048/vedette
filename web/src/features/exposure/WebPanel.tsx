@@ -50,7 +50,7 @@ export function WebSection({ s }: { s: Snapshot }) {
                 <h3 id={`web-${g}-title`} className="text-sm font-semibold">{t(`web.group.${g}.title`)}</h3>
                 <InfoTip topic={t(`web.group.${g}.title`)}>{t(`web.group.${g}.description`)}</InfoTip>
               </div>
-              <DataTable caption={t(`web.group.${g}.caption`)} data={data} columns={cols} pageSize={20} rowTone={(r) => (g === 'fix' || r.risk === 'high' ? 'warn' : undefined)} />
+              <DataTable urlKey={`web-${g}`} caption={t(`web.group.${g}.caption`)} data={data} columns={cols} pageSize={20} rowTone={(r) => (g === 'fix' || r.risk === 'high' ? 'warn' : undefined)} />
             </section>
           ))}
         </div>

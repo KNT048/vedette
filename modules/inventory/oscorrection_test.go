@@ -29,7 +29,7 @@ func matchRows(t *testing.T, e *env, dev string) []inventory.MatchSoftware {
 }
 
 // swViews is the device detail's first line read by a source and the first line whose value is a person's (the last of each).
-func swViews(t *testing.T, e *env, dev string) (scanned, mine inventory.SoftwareView) {
+func swViews(t *testing.T, e *env, dev string) (scanned, mine inventory.SoftwareLine) {
 	t.Helper()
 	d, err := e.svc.Detail(e.ctx(), dev)
 	if err != nil {

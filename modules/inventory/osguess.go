@@ -130,12 +130,6 @@ func dropContradictedOS(list []obs, best map[string]obs) {
 	}
 }
 
-// guessLine is the SQL condition on a software line (alias s) that its value is a guess (observe.Software.Guess): nmap read it only
-// as its OS fingerprint or as the Windows release a device named in its NTLM answer (the reading's instance os_guess), and no other
-// reading of nmap backs it. Such a line has no match key.
-const guessLine = `(s.source = 'nmap' AND EXISTS (SELECT 1 FROM inv_software_reading gr WHERE gr.software_id = s.id AND gr.source = 'nmap' AND gr.instance = '` +
-	instanceOSGuess + `') AND NOT EXISTS (SELECT 1 FROM inv_software_reading gr WHERE gr.software_id = s.id AND gr.source = 'nmap' AND gr.instance <> '` + instanceOSGuess + `'))`
-
 // osGuessRow is the SQL condition on a software line (alias s) that it is nmap's OS guess: a guess line of an OS CPE.
 const osGuessRow = `(s.cpe LIKE 'cpe:/o:%' AND ` + guessLine + `)`
 

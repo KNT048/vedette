@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { notInstalledText, useNotInstalled } from '@/features/findings/notInstalled'
 import { errMsg } from './kinds'
-import type { SoftwareView } from './types'
+import type { SoftwareLine } from './types'
 
 /** INV-41 (6): the person says a row a scan, SNMP or an agent reported is not installed on the device (one confirmation). It is
  *  kept as an inventory correction while the source reads that row: the row stops matching and its findings close (findings INV-6c);
  *  Clear on the row undoes it, and a read at another version is a new install that Vedette checks. */
-export function NotInstalledDialog({ sw, assetId, device, onClose }: { sw: Pick<SoftwareView, 'id' | 'display' | 'version' | 'kev_cves'> | null; assetId: string; device: string; onClose: () => void }) {
+export function NotInstalledDialog({ sw, assetId, device, onClose }: { sw: Pick<SoftwareLine, 'id' | 'display' | 'version' | 'kev_cves'> | null; assetId: string; device: string; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const mark = useNotInstalled(assetId)
   if (!sw) return null

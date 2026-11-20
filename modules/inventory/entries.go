@@ -478,66 +478,6 @@ type SoftwareCorrection struct {
 	NotInstalled bool `json:"not_installed"`
 }
 
-// addCorrections fills the correction fields of a device's software views from the readings of their lines.
-func addCorrections(ctx context.Context, q querier, assetID string, views []SoftwareView) error {
-	rows, err := q.QueryContext(ctx, `SELECT `+readingCols+`, s.id, ifnull(s.pkg_version, ''), s.state, ifnull(s.not_installed_at, ''), ifnull(s.not_installed_by, '')
-		FROM inv_software s JOIN inv_software_reading r ON r.software_id = s.id WHERE s.asset_id = ? ORDER BY s.id, r.source, r.instance`, assetID)
-	if err != nil {
-		return fmt.Errorf("inventory: read corrections: %w", err)
-	}
-	type info struct {
-		pkg, state, markedAt, markedBy string
-		readings                       []Reading
-	}
-	byID := map[string]*info{}
-	for rows.Next() {
-		var id string
-		var i info
-		r, err := scanReading(rows, &id, &i.pkg, &i.state, &i.markedAt, &i.markedBy)
-		if err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("inventory: read corrections: %w", err)
-		}
-		if byID[id] == nil {
-			byID[id] = &i
-		}
-		byID[id].readings = append(byID[id].readings, r)
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("inventory: read corrections: %w", err)
-	}
-	for i := range views {
-		v := &views[i]
-		in := byID[v.ID]
-		if in == nil {
-			continue
-		}
-		if in.pkg != "" {
-			v.PkgVersion = &in.pkg
-		}
-		entry, det := entryOf(in.readings), detectedOf(in.readings)
-		var c *SoftwareCorrection
-		switch {
-		case in.state == stateNotInstalled:
-			c = &SoftwareCorrection{SetAt: in.markedAt, SetBy: in.markedBy, NotInstalled: true, Active: true}
-			v.KevCVEs = []string{} // it matches nothing
-		case entry != nil && det != nil:
-			c = &SoftwareCorrection{SetAt: entry.FirstSeen, SetBy: entry.SetBy, Active: true}
-		default:
-			continue
-		}
-		if det != nil {
-			c.Detected = &SoftwareDetected{ID: v.ID, Display: det.Display, Version: optional(det.Version), PkgVersion: optional(det.PkgVersion), Source: sourceClass(det.Source), SeenAt: det.SeenAt}
-			if entry != nil && !c.NotInstalled {
-				c.Disagrees = !strings.EqualFold(det.Display, entry.Display) || det.Version != entry.Version ||
-					det.PkgVersion != "" && entry.PkgVersion != "" && det.PkgVersion != entry.PkgVersion
-			}
-		}
-		v.Correction = c
-	}
-	return nil
-}
-
 // optional is a text as an optional field: nil when empty.
 func optional(s string) *string {
 	if s == "" {

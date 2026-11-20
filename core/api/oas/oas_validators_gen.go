@@ -63507,6 +63507,34 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.AlsoSeen == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.AlsoSeen {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "also_seen",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Basis.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -63589,6 +63617,48 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) Validate() error {
+	switch s {
+	case "manual":
+		return nil
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "nmap":
+		return nil
+	case "passive":
+		return nil
+	case "scan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemBasis) Validate() error {
@@ -64283,18 +64353,36 @@ func (s InventoryGetInventoryDevicesIDOKRiskLevel) Validate() error {
 	}
 }
 
-func (s *InventoryGetInventoryDevicesIDSoftwareOK) Validate() error {
+func (s *InventoryGetInventoryDevicesIDSourcesOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Items == nil {
+		if value, ok := s.Only.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "only",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Rows == nil {
 			return errors.New("nil is invalid value")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.Items {
+		for i, elem := range s.Rows {
 			if err := func() error {
 				if err := elem.Validate(); err != nil {
 					return err
@@ -64313,7 +64401,7 @@ func (s *InventoryGetInventoryDevicesIDSoftwareOK) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "items",
+			Name:  "rows",
 			Error: err,
 		})
 	}
@@ -64323,112 +64411,222 @@ func (s *InventoryGetInventoryDevicesIDSoftwareOK) Validate() error {
 	return nil
 }
 
-func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.AlsoSeen == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.AlsoSeen {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "also_seen",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Source.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "source",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Source.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "source",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemAlsoSeenItemSource) Validate() error {
+func (s InventoryGetInventoryDevicesIDSourcesOKOnly) Validate() error {
 	switch s {
-	case "manual":
-		return nil
-	case "agent":
-		return nil
-	case "snmp":
-		return nil
-	case "nmap":
-		return nil
 	case "passive":
 		return nil
-	case "scan":
+	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s InventoryGetInventoryDevicesIDSoftwareOKItemsItemSource) Validate() error {
-	switch s {
-	case "manual":
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Action.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
 		return nil
-	case "agent":
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Agent.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "agent",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Dot.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dot",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Switch.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "switch",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) Validate() error {
+	switch s {
+	case "turn_on_module":
+		return nil
+	case "scan_now":
+		return nil
+	case "approve":
+		return nil
+	case "set_up":
+		return nil
+	case "check_now":
+		return nil
+	case "create_token":
+		return nil
+	case "show_setup":
+		return nil
+	case "check":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemAgent) Validate() error {
+	switch s {
+	case "osquery":
+		return nil
+	case "wazuh":
+		return nil
+	case "box":
+		return nil
+	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemDot) Validate() error {
+	switch s {
+	case "green":
+		return nil
+	case "amber":
+		return nil
+	case "red":
+		return nil
+	case "grey":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) Validate() error {
+	switch s {
+	case "scan":
 		return nil
 	case "snmp":
 		return nil
-	case "nmap":
+	case "agent":
 		return nil
-	case "passive":
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemState) Validate() error {
+	switch s {
+	case "module_off":
 		return nil
-	case "scan":
+	case "no_address":
+		return nil
+	case "off":
+		return nil
+	case "waiting":
+		return nil
+	case "working":
+		return nil
+	case "not_approved":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_answering":
+		return nil
+	case "none":
+		return nil
+	case "reporting":
+		return nil
+	case "quiet":
+		return nil
+	case "never_reported":
+		return nil
+	case "replaced":
+		return nil
+	case "unavailable":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

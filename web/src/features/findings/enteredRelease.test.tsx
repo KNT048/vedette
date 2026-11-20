@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { http, HttpResponse } from 'msw'
+import { getResponse, http, HttpResponse } from 'msw'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore } from '@/mocks/stores'
 import { softwareRowIds } from './EnteredRelease'
+import { handlers } from '@/mocks/handlers'
+import type { DeviceDetail } from '@/features/inventory/types'
 
 // A package release a person enters says it was saved and which CVEs it closed: in place on Needs your input, and for good on the
 // device's Software tab (the release, who entered it and when, the result), with the same words wherever the value is saved.
@@ -201,7 +203,9 @@ describe('An entered package release › the result is the answer to this entry'
   }, 30000)
 
   it('when the device\'s software cannot be read it claims nothing, as for a failed read of the findings', async () => {
-    server.use(http.get('*/api/v1/inventory/devices/:id/software', () => HttpResponse.json({ error: { code: 'internal', message: 'down' } }, { status: 500 })))
+    // only the outcome's own read of the device's lines fails (the Needs your input page reads the device too)
+    let reads = 0
+    server.use(http.get('*/api/v1/inventory/devices/:id', ({ request }) => (++reads > 1 ? HttpResponse.json({ error: { code: 'internal', message: 'down' } }, { status: 500 }) : getResponse(handlers, request))))
     box([F({})], () => [F({ status: 'not_relevant', last_seen: '2026-11-18T02:00:00.000Z' })])
     await enterRelease('10.2_p1-r1')
     const saved = await result()
@@ -221,9 +225,13 @@ describe('An entered package release › the result is the answer to this entry'
   })
 
   it('a CVE still open on the row that describes the software now (the agent\'s) is still affected, never "no CVE left"', async () => {
-    server.use(http.get('*/api/v1/inventory/devices/:id/software', () => HttpResponse.json({ items: [{ id: 's-bn340-agent', vendor: 'OpenBSD', product: 'OpenSSH', display: 'OpenSSH',
-      version: '10.2p1', pkg_version: '10.2_p1-r1', packaged: true, cpe: '', source: 'agent', set_by: '', seen_at: '2026-11-18T02:00:00.000Z', differs: false,
-      also_seen: [{ id: 's-bn340-ssh', source: 'nmap', version: '10.2', pkg_version: '', seen_at: '2026-11-18T01:00:00.000Z', same_release: true }] }] })))
+    // the device's one OpenSSH line is the agent's, the edited scan reading under it
+    server.use(http.get('*/api/v1/inventory/devices/:id', async ({ request }) => {
+      const d = await (await getResponse(handlers, request))!.json() as DeviceDetail
+      return HttpResponse.json({ ...d, asset: { ...d.asset, software: [{ id: 's-bn340-agent', vendor: 'OpenBSD', product: 'OpenSSH', display: 'OpenSSH', version: '10.2p1', pkg_version: '10.2_p1-r1',
+        packaged: true, cpe: '', kev_cves: [], source: 'agent', confidence: 0.95, set_by: '', seen_at: '2026-11-18T02:00:00.000Z', not_installed: false, differs: false, corrected: false, corrected_from: null, can_correct: true,
+        also_seen: [{ id: 's-bn340-ssh', source: 'nmap', version: '10.2', pkg_version: '', seen_at: '2026-11-18T01:00:00.000Z', same_release: true }] }] } })
+    }))
     box([F({})], () => [F({ software_id: 's-bn340-agent', last_seen: '2026-11-18T02:00:00.000Z' })])
     await enterRelease('10.2_p1-r1')
     const saved = await result()

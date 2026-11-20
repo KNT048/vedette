@@ -232,7 +232,7 @@ var operationRolesSession = map[string][]string{
 	InventoryGetInventoryCatalogOperation:                    []string{},
 	InventoryGetInventoryDevicesOperation:                    []string{},
 	InventoryGetInventoryDevicesIDOperation:                  []string{},
-	InventoryGetInventoryDevicesIDSoftwareOperation:          []string{},
+	InventoryGetInventoryDevicesIDSourcesOperation:           []string{},
 	InventoryGetInventoryExportCsvOperation:                  []string{},
 	InventoryGetInventoryImportTemplateCsvOperation:          []string{},
 	InventoryGetInventoryPossibleSameOperation:               []string{},

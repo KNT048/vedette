@@ -23,7 +23,8 @@ export const Software = z.object({
   id: z.string(), display: z.string().describe('Commercial name the user recognizes'), vendor: z.string(), product: z.string(), version: z.string().nullable(),
   kev: z.array(z.string()).describe('KEV match keys: lowercase "vendorproject|product"'), source: ObsSource, confidence,
   basis: Basis.optional().describe('guess on the row of nmap\'s OS fingerprint (no version, no match key); absent otherwise'),
-})
+  not_installed: z.boolean().describe('A person said this software is not installed on the device: it matches nothing; what the device runs (the assistant, MCP) leaves it out and the export marks it'),
+}).describe('One software line of the device (one row per product, or per release train of a product whose trains install side by side), its value the strongest reading; the same line and value on every page, the export and the assistant')
 export const Service = z.object({
   port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(),
   detail: z.string().optional().describe('What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject. Evidence only, never software'),
@@ -55,6 +56,25 @@ export const Observation = z.object({ id: z.string(), field: ObsField, value: z.
 export const SourceState = z.enum(['on', 'off'])
 export const SourcesInput = z.object({ scan: SourceState.optional(), snmp: SourceState.optional() }).describe('At least one; a source left out is left alone')
 export const SourcesState = z.object({ scan_source: SourceState, snmp_source: SourceState })
+/** The device page's Sources: three equal rows (network scan, SNMP, agent), each decided on the server. */
+export const SourceRowKind = z.enum(['scan', 'snmp', 'agent'])
+export const SourceRowState = z.enum(['module_off', 'no_address', 'off', 'waiting', 'working', 'not_approved', 'not_set_up', 'not_answering', 'none', 'reporting', 'quiet', 'never_reported', 'replaced', 'unavailable']).describe(
+  'module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window\'s; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now')
+export const SourceDot = z.enum(['green', 'amber', 'red', 'grey']).describe('green: working or reporting; amber: quiet or never reported; red: SNMP not answering; grey: everything else (off, not set up, waiting, module off)')
+export const SourceAction = z.enum(['turn_on_module', 'scan_now', 'approve', 'set_up', 'check_now', 'create_token', 'show_setup', 'check']).describe(
+  'The one button of the row. turn_on_module: the module is off. scan_now: check the device now instead of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST /inventory/snmp/devices/{id}/check). create_token: no agent reads the device: create an agent token for it. show_setup: enrolled, never reported: show the token and the install command again. check: the agent reported at least once: the troubleshooting steps')
+export const DeviceSourceRow = z.object({
+  source: SourceRowKind, state: SourceRowState, dot: SourceDot,
+  last_at: dt.nullable().describe('When the source last read the device: the newest scan result (observation, open port, software banner); SNMP\'s last answer; the agent\'s last call (osquery) or its newest data (Wazuh, the box). null when never'),
+  switch: SourceState.nullable().describe('The person\'s switch of this source for this device (PUT /inventory/devices/{id}/sources); null when the row has none: SNMP before it is set up, the agent'),
+  action: SourceAction.nullable().describe('null when the row offers no button'),
+  agent: z.enum(['osquery', 'wazuh', 'box', 'none']).nullable().describe('Agent row: which agent of this box reads the device (box = the Vedette box itself, which reads its own packages); null on the other rows'),
+})
+export const DeviceSourcesView = z.object({
+  rows: z.array(DeviceSourceRow).describe('Always three rows: scan, snmp, agent, in this order'),
+  only: z.enum(['passive', 'manual']).nullable().describe('What feeds the device when none of the rows does: passive = only heard on the network ("Seen passively"), manual = only what a person entered ("Added by hand"); null otherwise'),
+  manual_at: dt.nullable().describe('When a person last entered or changed something on the device (as DeviceDetail.manual_at)'),
+})
 export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan; never = never actively scanned again, for every kind of device')
 /** A fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; discovery never scans the box itself (only a person's pick in Scan now does). */
 const ScanInfo = z.object({
@@ -115,32 +135,28 @@ export const SoftwareCorrection = z.object({
   not_installed: z.boolean().optional().describe('INV-41 (6): the person said the reported row is not installed on the device. While active it matches nothing and disagrees is false; show "Not installed (you said, <date>)" with Clear. Not active: the source now reads another version (detected), a new install that matches: "You said not installed on <date>; the scan now reads Y"'),
   active: z.boolean().describe('true: the row it corrects is still reported and matching uses the correction. false: the source moved on (detected = what it reads now) or reports the product no more (detected null); matching uses the source\'s reading until the person sets the correction again (PATCH on detected.id, or on this row, which moves it onto what the source reads now). Show it as not in use: "You set X on <date>; the scan now reads Y (Vedette uses that)" with Set again and Clear'),
 })
-export const SoftwareView = Software.omit({ kev: true }).extend({
-  kev_cves: z.array(z.string()),
-  pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged row ("1:9.6p1-3ubuntu13.14") or a person\'s correction ("10.2_p1-r1"); absent when none'),
-  corrected_by: z.string().optional().describe('On a row a sensor or agent reported: the id of the person\'s correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back'),
-  correction: SoftwareCorrection.optional().describe('On a person\'s correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row'),
-  can_correct: z.boolean().describe('A person may correct this row\'s version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source reported it; true on every row'),
-})
-/** INV-50: another source's reading of a software the device has one effective row for. */
+/** INV-50: another source's reading of a software line. */
 export const AlsoSeen = z.object({
-  id: z.string(), source: ObsSource, version: z.string().describe('"" when the source gave none'), pkg_version: z.string().describe('"" when none'), seen_at: dt,
-  same_release: z.boolean().describe('The effective row\'s release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement'),
+  id: z.string().describe('The line\'s id: a reading is not a row of its own'), source: ObsSource, version: z.string().describe('"" when the source gave none'), pkg_version: z.string().describe('"" when none'), seen_at: dt,
+  same_release: z.boolean().describe('The line\'s release with more or less detail (10.2, 10.2p1, 10.2_p1-r1): not a disagreement'),
 })
-/** INV-52: the reading a person's correction replaced, as it was when they set it. */
+/** INV-52: what a source reads of a line a person gave another version. */
 export const CorrectedFrom = z.object({ source: z.string(), version: z.string().describe('"" when none'), pkg_version: z.string().describe('"" when none') })
-/** INV-50: one software of a device, the strongest source\'s reading; every surface reads the device\'s software this way. */
-export const EffectiveSoftware = z.object({
-  id: z.string().describe('The software row the values are read from'),
-  vendor: z.string(), product: z.string(), display: z.string(),
-  version: z.string().describe('"" when none'), pkg_version: z.string().describe('The package release; "" when none'),
+/** One software line of a device as the device page shows it, built on the server: the line's value (the strongest reading), the
+ *  other readings under it, a person's entry or "not installed" mark. The page shows it as it is; nothing is merged in the browser. */
+export const SoftwareLine = Software.omit({ kev: true }).extend({
+  kev_cves: z.array(z.string()).describe('Exploited CVEs of the line\'s product; empty on a line a person said is not installed'),
+  pkg_version: z.string().optional().describe('The full package release: an agent\'s packaged reading ("1:9.6p1-3ubuntu13.14") or a person\'s entry ("10.2_p1-r1"); absent when none'),
   packaged: z.boolean().describe('Read from the operating system\'s package database'),
-  cpe: z.string().describe('"" when none'), source: ObsSource, set_by: z.string().describe('Who entered it (a person\'s entry or correction); "" otherwise'), seen_at: dt,
-  also_seen: z.array(AlsoSeen).describe('The other rows of the same software, strongest source first'),
-  differs: z.boolean().describe('Another reading or another install reads another release than this row (matching keeps it too); never the row a person\'s correction replaces: the first such also_seen with same_release false'),
-  can_correct: z.boolean().describe('A person may correct this line\'s version (INV-52): PATCH /inventory/devices/{id}/software/{id} with { version }, whatever source the line is read from; true on every line'),
-  corrected: z.boolean().describe('The value is a person\'s correction (source manual, set_by says who). It lapses by itself when a source later reads a newer version (the device history says so)'),
-  corrected_from: CorrectedFrom.nullable().describe('What the source read when the person corrected it; null when the line is not a correction'),
+  cpe: z.string().describe('"" when none'),
+  set_by: z.string().describe('Who entered the value, when it is a person\'s entry (source manual); "" otherwise'),
+  seen_at: dt.describe('When the source of the value last read it'),
+  also_seen: z.array(AlsoSeen).describe('The other readings of the line, strongest source first'),
+  differs: z.boolean().describe('Another reading reads another release than the line (matching keeps it too): the first also_seen with same_release false is the one to name'),
+  corrected: z.boolean().describe('The value is a person\'s entry that a source reads otherwise (corrected_from says what). It lapses by itself when a source later reads a newer version (the device history says so)'),
+  corrected_from: CorrectedFrom.nullable().describe('What the strongest source reads; null when the line is not corrected'),
+  correction: SoftwareCorrection.optional().describe('On a line a person gave a version or marked not installed (INV-41): when, by whom, and what the sources read now. Clear = DELETE /inventory/devices/{id}/software/{sid}'),
+  can_correct: z.boolean().describe('A person may give this line a version (INV-52): PATCH /inventory/devices/{id}/software/{sid} with { version }, whatever source it was read from; true on every line'),
 })
 /** INV-41: the OS a person set on the device; it wins over every source and drives matching while it stands. */
 export const OsCorrection = z.object({
@@ -166,7 +182,7 @@ export const PossibleSame = z.object({
 export const SameRef = PossibleSame.omit({ why: true, ignored: true })
 export const DeviceDetail = z.object({
   asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({
-    software: z.array(SoftwareView),
+    software: z.array(SoftwareLine).describe('The device\'s software lines, by name'),
     os_correction: OsCorrection.optional().describe('The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read'),
   }),
   suspicious: z.boolean(),
@@ -408,6 +424,7 @@ export const endpoints = defineEndpoints([
       os: z.string().max(400).optional().describe('Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os'),
     }), response: ok },
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off. On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
+  { method: 'get', path: '/inventory/devices/{id}/sources', summary: 'The device\'s sources as three rows (network scan, SNMP, agent): each with its state, colour, last time it read the device, switch and one button, decided on the server. 404 not_found', stories: ['S-INV-1', 'S-INV-4'], role: 'viewer', params: id, response: DeviceSourcesView, example: { params: { id: 'a-nas02' } } },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
   { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
@@ -417,7 +434,6 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/differs/{field}/keep', summary: 'Keep the person\'s value against the detected one (INV-47): the notice stays hidden until the sources read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409 detected_changed', stories: ['S-INV-1'], role: 'operator', params: id.extend({ field: DetectedField }), body: DetectedChoice, response: ok },
   { method: 'post', path: '/inventory/devices/{id}/ignore', summary: 'Ignore a device that needs no watching, such as a staff phone, or stop ignoring it. Ignored: it stays known (seen again by its MAC or agent, it is the same device) but leaves To review and the Devices list, its new-device alert closes, its network scan and SNMP reads turn off and its open findings close as not relevant ("Closed by Vedette: the device was ignored by <person>.", no notice; findings a person settled keep their status); a trap hit or an intrusion-detection incident from it still alerts. Stopped: it goes back to To review (not approved), its own scan and SNMP settings apply again (they are kept while it is ignored), the findings Ignore closed reopen, matched again. Saying it again changes nothing. 404 not_found. 409 box_device: the Vedette box itself', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ ignored: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
-  { method: 'get', path: '/inventory/devices/{id}/software', summary: 'The device\'s software as one row per software (INV-50): same vendor and product (or CPE application) from several sources is one row, with the values of the strongest source (agent, then a person\'s entry, then SNMP, then a scan banner). A weaker reading that is only a less precise form of the same release is the same release. Each row lists the other sources (also_seen) and says whether one reads another release (differs). 404 not_found', stories: ['S-INV-2'], role: 'viewer', params: id, response: z.object({ items: z.array(EffectiveSoftware) }) },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
   { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change a software row (INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. `not_installed: true` (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a correction of the same kind that replaces the row with nothing while the row stays reported; its open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change; not_installed with another field; not_installed on a row a person added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software; 409 box_device (not_installed on the box\'s own software)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),

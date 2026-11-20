@@ -16,7 +16,7 @@ import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeInput, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
   DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpSimilarResponse, SnmpVersion,
-  SoftwareView, WazuhConnection, WazuhInput,
+  DeviceSourceRow, DeviceSourcesView, SoftwareLine, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
@@ -378,7 +378,47 @@ function agentReport(id: string): AgentReport | null {
   if (src.includes('wazuh') && w) return { ...none, agent: 'wazuh', wazuh_interval_minutes: w.interval_minutes }
   return { ...none, agent: 'none' }
 }
-const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
+/** The device's software lines as the server builds them (one software line per product): the strongest source's value, the other
+ *  readings under it, a person's entry or "not installed" mark. The mock store keeps one row per source and a person's correction as a
+ *  row of its own (corrects); a line's id is its strongest row (a "not installed" mark: the mark, so Clear deletes it), which PATCH and
+ *  DELETE reach. An also_seen id is that store row's id (the mock's findings name rows). */
+const LINE_RANK: Record<string, number> = { agent: 6, manual: 5, snmp: 3, nmap: 2, scan: 2, passive: 1 }
+const upstreamOf = (v: string) => (v.trim().split(/\s+/)[0] ?? '').toLowerCase().replace(/^\d+:/, '').replace(/-[^-]*$/, '').replace(/_p(\d*)/, 'p$1')
+const sameRelease = (x: { version?: string | null; pkg_version?: string | null }, y: typeof x) => {
+  const p = upstreamOf(x.pkg_version || x.version || ''), q = upstreamOf(y.pkg_version || y.version || '')
+  return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
+}
+export function linesOf(a: Asset): SoftwareLine[] {
+  const groups = new Map<string, Software[]>()
+  for (const s of a.software) { const k = `${s.vendor}|${s.product}`.toLowerCase(); groups.set(k, [...(groups.get(k) ?? []), s]) }
+  const lines = [...groups.values()].map((g): SoftwareLine => {
+    const corr = g.find((s) => s.corrects)
+    const marked = corr?.not_installed ? corr : undefined
+    const orig = corr ? g.find((s) => s.id === corr.corrects) : undefined
+    // a "not installed" mark shows the row it marks; else the strongest source (an agent, then a person's version)
+    const top = marked ? (orig ?? marked) : [...g].sort((x, y) => (LINE_RANK[y.source] ?? 0) - (LINE_RANK[x.source] ?? 0))[0]!
+    const at = (x: Software) => x.set_at ?? nowIso()
+    const also = g.filter((o) => o !== top && !o.not_installed).map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: sameRelease(top, o) }))
+    const det = orig ?? null
+    const disagrees = !!det && !marked && (det.version !== corr!.version || (det.pkg_version ?? null) !== (corr!.pkg_version ?? null))
+    return {
+      id: marked?.id ?? top.id, display: top.display, vendor: top.vendor, product: top.product, version: top.version, source: top.source, confidence: top.confidence,
+      kev_cves: marked ? [] : cvesFor(top.kev), ...(top.pkg_version ? { pkg_version: top.pkg_version } : {}), packaged: top.source === 'agent', cpe: '',
+      set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), not_installed: !!marked, also_seen: marked ? [] : also,
+      differs: !marked && g.some((o) => o !== top && o !== det && !o.not_installed && o.source !== 'manual' && !sameRelease(top, o)), corrected: !marked && top === corr && disagrees,
+      corrected_from: !marked && top === corr && disagrees && det ? { source: det.source, version: det.version ?? '', pkg_version: det.pkg_version ?? '' } : null, can_correct: true,
+      ...(corr ? { correction: { set_at: corr.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: true, disagrees, ...(marked ? { not_installed: true } : {}),
+        detected: det ? { id: det.id, display: det.display, version: det.version, pkg_version: det.pkg_version ?? null, source: det.source, seen_at: at(det) } : null } } : {}),
+    }
+  })
+  return lines.sort((x, y) => x.display.localeCompare(y.display) || x.id.localeCompare(y.id))
+}
+/** A line as a row of the device list (contract Software). */
+const listRowOf = (a: Asset) => linesOf(a).map((l) => {
+  const top = a.software.find((s) => s.id === l.id) ?? a.software.find((s) => s.display === l.display)
+  return { id: l.id, display: l.display, vendor: l.vendor, product: l.product, version: l.version, kev: l.not_installed ? [] : (top?.kev ?? []), source: l.source, confidence: l.confidence, not_installed: l.not_installed }
+})
+const toRow = (a: Asset): DeviceRow => ({ ...live(a), software: listRowOf(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
 
 /** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
  * a boolean that is not true or false 400 invalid (the schema's enum). Returns the filter, or the error response. */
@@ -812,6 +852,36 @@ function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?
   return HttpResponse.json({ ok: true })
 }
 
+/** GET /inventory/devices/{id}/sources: the three rows, as inventory DeviceSources decides them. */
+function sourceRowsOf(a: Asset): DeviceSourcesView {
+  const times = new Map<string, string>()
+  const cls = (src: string) => (src === 'nmap' ? 'scan' : src)
+  for (const o of obsOf(a)) times.set(cls(o.source), [times.get(cls(o.source)) ?? '', o.seen_at].sort().at(-1)!)
+  for (const x of [...a.software, ...a.services]) if (!times.has(cls(x.source))) times.set(cls(x.source), 'set_at' in x && x.set_at ? x.set_at : a.last_seen)
+  const dot = (state: DeviceSourceRow['state']): DeviceSourceRow['dot'] => (state === 'working' || state === 'reporting' ? 'green' : state === 'quiet' || state === 'never_reported' ? 'amber' : state === 'not_answering' ? 'red' : 'grey')
+  const row = (r: Omit<DeviceSourceRow, 'dot'>): DeviceSourceRow => ({ ...r, dot: dot(r.state) })
+  const ip = hasIp(a)
+  const scanSwitch = sourceOf(a, 'scan_source')
+  const scan = row({ source: 'scan', last_at: times.get('scan') ?? null, switch: scanSwitch, agent: null,
+    ...(!isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : scanSwitch === 'off' ? { state: 'off', action: null } : !ip ? { state: 'no_address', action: null }
+      : times.has('scan') ? { state: 'working', action: null } : { state: 'waiting', action: 'scan_now' }) })
+  const sn = isOn('sensor-active') && ip && a.approved ? deviceSnmp(a) : null
+  const snmpSwitch = sourceOf(a, 'snmp_source')
+  const snmp = row({ source: 'snmp', agent: null, last_at: sn?.last_answer_at ?? null, switch: sn && sn.state !== 'not_set_up' ? snmpSwitch : null,
+    ...(!isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : !ip ? { state: 'no_address', action: null } : !a.approved ? { state: 'not_approved', action: 'approve' }
+      : sn!.state === 'not_set_up' ? { state: 'not_set_up', action: 'set_up' } : snmpSwitch === 'off' ? { state: 'off', action: 'check_now' }
+      : { state: sn!.state === 'working' || sn!.state === 'not_answering' ? sn!.state : 'waiting', action: 'check_now' }) })
+  const rep = isOn('agent-intake') ? agentReport(a.id) : null
+  const agentKind = a.id === BOX_ID ? 'box' : rep?.agent ?? 'none'
+  const agent = row({ source: 'agent', switch: null, agent: agentKind, last_at: rep?.last_seen ?? times.get('agent') ?? null,
+    ...(a.id === BOX_ID ? { state: 'reporting', action: null } : !isOn('agent-intake') ? { state: 'module_off', action: 'turn_on_module' }
+      : agentKind === 'osquery' ? { state: rep?.state ?? 'reporting', action: rep?.state === 'never_reported' ? 'show_setup' : 'check' }
+      : agentKind === 'wazuh' ? { state: 'reporting', action: 'check' } : { state: 'none', action: 'create_token' }) })
+  const fed = times.has('scan') || times.has('snmp') || times.has('agent')
+  const manual = a.software.filter((x) => x.source === 'manual' && x.set_at).map((x) => x.set_at!).sort().at(-1) ?? (a.origin === 'manual' ? a.first_seen : null)
+  return { rows: [scan, snmp, agent], only: fed ? null : times.has('passive') ? 'passive' : manual || a.origin === 'manual' ? 'manual' : null, manual_at: manual }
+}
+
 export const handlers = [
   // ---- Danh sách thiết bị ----
   http.get(`${API}/inventory/devices`, ({ request }) => {
@@ -853,17 +923,7 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    // INV-41: a reported row a person corrected says which correction replaces it; the correction says when and what the source reads
-    const software: SoftwareView[] = a.software.map((s) => {
-      const by = a.software.find((c) => c.corrects === s.id)
-      const orig = s.corrects ? a.software.find((x) => x.id === s.corrects) : undefined
-      // INV-41 (6): a "not installed" correction matches nothing and, while in use, does not disagree with the row it says is not there
-      const disagrees = !!orig && !s.not_installed && (orig.version !== s.version || (orig.pkg_version ?? null) !== (s.pkg_version ?? null))
-      return { id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: s.not_installed ? [] : cvesFor(s.kev), can_correct: true,
-        ...(s.pkg_version ? { pkg_version: s.pkg_version } : {}), ...(by ? { corrected_by: by.id } : {}),
-        ...(s.corrects ? { correction: { set_at: s.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: !!orig, disagrees: disagrees || !orig, ...(s.not_installed ? { not_installed: true } : {}),
-          detected: orig ? { id: orig.id, display: orig.display, version: orig.version, pkg_version: orig.pkg_version ?? null, source: orig.source, seen_at: nowIso() } : null } } : {}) }
-    })
+    const software = linesOf(a)
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
     // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
     const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
@@ -906,6 +966,14 @@ export const handlers = [
       audit('inventory.keep_separate', nameOf(x!, x!.kind), `${nameOf(y!, y!.kind)} is another device`)
     }
     return HttpResponse.json({ ok: true })
+  }),
+
+  // The device's three source rows (network scan, SNMP, agent), decided as the server does (inventory DeviceSources).
+  http.get(`${API}/inventory/devices/:id/sources`, ({ params, request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    return HttpResponse.json(sourceRowsOf(a))
   }),
 
   // Turn the network scan or the SNMP reads of one device on or off.
@@ -1074,31 +1142,6 @@ export const handlers = [
     metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: b.suspicious } }))
     audit(b.suspicious ? 'inventory.mark_suspicious' : 'inventory.unmark_suspicious', nameOf(a, a.kind), a.id)
     return HttpResponse.json({ ok: true })
-  }),
-
-  // INV-50: one row per software, the strongest source's values, the other sources listed
-  http.get(`${API}/inventory/devices/:id/software`, ({ params, request }) => {
-    const denied = guard('viewer'); if (denied) return denied
-    const a = find(String(params.id))
-    if (!a) return notFound(request)
-    const rank: Record<string, number> = { agent: 6, manual: 5, snmp: 3, nmap: 2, scan: 2, passive: 1 }
-    const upstream = (v: string) => (v.trim().split(/\s+/)[0] ?? '').toLowerCase().replace(/^\d+:/, '').replace(/-[^-]*$/, '').replace(/_p(\d*)/, 'p$1')
-    const same = (x: { version?: string | null; pkg_version?: string | null }, y: typeof x) => {
-      const p = upstream(x.pkg_version || x.version || ''), q = upstream(y.pkg_version || y.version || '')
-      return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
-    }
-    const groups = new Map<string, typeof a.software>()
-    for (const s of a.software.filter((x) => !x.not_installed && !a.software.some((c) => c.not_installed && c.corrects === x.id))) groups.set(`${s.vendor}|${s.product}`.toLowerCase(), [...(groups.get(`${s.vendor}|${s.product}`.toLowerCase()) ?? []), s])
-    const items = [...groups.values()].flatMap((g) => {
-      const [top, ...rest] = [...g].sort((x, y) => (rank[y.source] ?? 0) - (rank[x.source] ?? 0))
-      if (!top) return []
-      const at = (x: typeof top) => x.set_at ?? nowIso()
-      const also = rest.map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: same(top, o) }))
-      return [{ id: top.id, vendor: top.vendor, product: top.product, display: top.display, version: top.version ?? '', pkg_version: top.pkg_version ?? '', packaged: top.source === 'agent', cpe: '', source: top.source,
-        set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), also_seen: also, differs: also.some((o) => !o.same_release && o.source !== 'manual' && o.id !== top.corrects),
-        can_correct: true, corrected: !!top.corrects, corrected_from: null }]
-    })
-    return HttpResponse.json({ items })
   }),
 
   http.post(`${API}/inventory/devices/:id/software`, async ({ params, request }) => {

@@ -285,7 +285,7 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 			t.Fatal(err)
 		}
 		var ssh []string
-		for _, sw := range effectiveDevice(ctx, s.d.Inventory, dev).Software {
+		for _, sw := range dev.Software {
 			if strings.EqualFold(sw.Product, "openssh") && !sw.NotInstalled {
 				ssh = append(ssh, sw.ID)
 			}
@@ -429,7 +429,7 @@ func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, sw := range effectiveDevice(ctx, s.d.Inventory, dev).Software {
+		for _, sw := range dev.Software {
 			if strings.EqualFold(sw.Product, "openssh") {
 				rows = append(rows, sw)
 				if sw.Source == "nmap" {
@@ -442,11 +442,11 @@ func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
 	if rows, banner := sshRowsOf(other); len(rows) != 1 || rows[0].Source != "agent" || banner != "" {
 		t.Fatalf("another release: %+v, want the agent's line alone", rows)
 	}
-	lines, err := s.d.Inventory.EffectiveSoftware(ctx, other)
+	lines, err := s.d.Inventory.SoftwareLines(ctx, other)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ssh *inventory.EffectiveSoftware
+	var ssh *inventory.SoftwareLine
 	for i := range lines {
 		if strings.EqualFold(lines[i].Product, "openssh") {
 			ssh = &lines[i]

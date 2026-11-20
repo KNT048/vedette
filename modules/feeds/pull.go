@@ -164,6 +164,9 @@ type pullPlan struct {
 
 	signals    []publicSignal // metasploit, exploit-db, poc-in-github: the index's CVEs, replaced whole (applyPublicSignals)
 	hasSignals bool
+
+	vendor    vendorRead // msrc, cisco-psirt, fortinet-psirt: the vendor's exploitation claims (applyVendorClaims)
+	hasVendor bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -307,6 +310,12 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildWinRel(ctx, src, p)
 	case DecoderMetasploit, DecoderExploitDB, DecoderPoCGitHub:
 		return s.buildPublicExploit(ctx, src, p, dec)
+	case DecoderMSRC:
+		return s.buildMSRC(ctx, src, p)
+	case DecoderCisco:
+		return s.buildCisco(ctx, src, p)
+	case DecoderFortinet:
+		return s.buildFortinet(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -600,6 +609,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 			case p.hasSignals:
 				if err := applyPublicSignals(ctx, tx, p.out.Finished, src.ID, p.signals); err != nil {
+					return err
+				}
+			case p.hasVendor:
+				if p.out.Records, err = applyVendorClaims(ctx, tx, p.out.Finished, prevGood(src), src.ID, p.vendor); err != nil {
 					return err
 				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed

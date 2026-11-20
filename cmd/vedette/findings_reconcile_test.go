@@ -9,8 +9,6 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
-	"github.com/knt048/vedette/core/productid"
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
@@ -48,11 +46,8 @@ func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 // It has a scan template: a product match on a device a person added stays a finding, the scan's target.
 func (s *stack) kevAdded(cve, vendor, product string, added time.Time) {
 	s.t.Helper()
-	now := time.Now().UTC()
 	err := s.d.DB.Write(s.t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(s.t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, 0, 1, 'cisa-kev', ?)`, cve, vendor, product, productid.Key(vendor, product), vendor+" "+product+" flaw", added.Format("2006-01-02"), store.FormatTS(now))
-		return err
+		return seedKEVRow(s.t.Context(), tx, cve, vendor, product, vendor+" "+product+" flaw", added, false, true)
 	})
 	if err != nil {
 		s.t.Fatal(err)

@@ -83,11 +83,12 @@ func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 			sql  string
 			args []any
 		}{
-			{`INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES ('CVE-2026-50001', ?, ?, 'Analyzed', 'HIGH', 8.1)`,
+			{`INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES ('CVE-2026-50001', ?1, ?2, 'Analyzed', ?2, ?2)`,
 				[]any{store.FormatTS(now.AddDate(0, 0, -30)), store.FormatTS(now.AddDate(0, 0, -20))}},
-			{`INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES ('CVE-2026-50001', 'cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*', '7.2.0', '', '', '7.2.9', '[]')`, nil},
-			{`INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://services.nvd.nist.gov/rest/json/cves/2.0', 'done', ?, ?, ?, 0, 0)`,
-				[]any{store.FormatTS(now), store.FormatTS(now), store.FormatTS(now)}},
+			{`INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES ('CVE-2026-50001', 'nvd', '3.1', 8.1, 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H')`, nil},
+			{`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES ('CVE-2026-50001', 'nvd', 'o', 'fortinet', 'fortios', 'cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*', '7.2.0', '', '', '7.2.9', '[]')`, nil},
+			{`INSERT INTO feeds_nvd_cursor (selector, url, mode, win_from, win_to, until, next_index, total) VALUES ('recent', 'https://services.nvd.nist.gov/rest/json/cves/2.0', 'done', ?1, ?1, ?1, 0, 0)`,
+				[]any{store.FormatTS(now)}},
 		} {
 			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
 				return err

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -32,16 +31,14 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 		{"CVE-2020-0618", "cpe:2.3:a:microsoft:sql_server:2014:sp3:*:*:*:*:*:*", "", "", "", ""},
 		{"CVE-2020-0618", "cpe:2.3:a:microsoft:sql_server:2016:sp2:*:*:*:*:x64:*", "", "", "", ""},
 	}
-	now := store.FormatTS(time.Now().UTC())
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, cve := range []string{"CVE-2019-1068", "CVE-2020-0618"} {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, cve, now); err != nil {
+			if err := seedNVD(ctx, tx, cve, time.Time{}, 0); err != nil {
 				return err
 			}
 		}
 		for _, a := range affected {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, ?, ?, ?, ?, ?)`,
-				a[0], a[1], a[2], a[3], a[4], a[5]); err != nil {
+			if err := seedRange(ctx, tx, a[0], a[1], a[2], a[3], a[4], a[5]); err != nil {
 				return err
 			}
 		}

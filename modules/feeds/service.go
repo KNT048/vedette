@@ -103,6 +103,9 @@ type Deps struct {
 	Clock func() time.Time
 	// Zone is the organization's time zone the times of alerts are written in (orgtime); nil: UTC.
 	Zone orgtime.Source
+	// Pins lists the CVEs an open finding references: the catalogue keeps them whatever their age (the retention rule). nil: none.
+	// They are only kept, never asked of a source by id.
+	Pins func(ctx context.Context) ([]string, error)
 	// Alert sends a notice to the admins through notify (the CISA list cannot be updated, critical; it is up to date again, not
 	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
 	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).
@@ -128,15 +131,10 @@ type Service struct {
 	idleMu     sync.Mutex
 	distroIdle map[string]bool // The distribution feeds the last check found no device for
 
-	// shortReloads counts, per feed, the reloads by new code in a row that were good but did not read the whole source (a page that
-	// failed, a list the box keeps): the version stays and the next try waits the back-off of that count (INV-32). Lost on a restart,
-	// which tries at once.
-	shortMu      sync.Mutex
-	shortReloads map[string]int
-
-	nvdMu  sync.Mutex
-	nvd    *nvdRun         // the NVD pull running now, or paused to go on later; nil when none
-	recent *recentProgress // where an unfinished nvd-recent pull stands, for its progress line; nil when none
+	nvdMu    sync.Mutex
+	nvdAsked map[string]time.Time // when each CVE was last asked of NVD by id (fetchMissing)
+	nvd      *nvdRun              // the NVD pull running now, or paused to go on later; nil when none
+	recent   *recentProgress      // where an unfinished nvd-recent pull stands, for its progress line; nil when none
 	// recentAt is when a paused nvd-recent pull goes on: the retry time NVD's busy answer set (review r2 #6 of #802); zero when it goes
 	// on at the next check.
 	recentAt time.Time
@@ -165,13 +163,34 @@ func NewService(d Deps) (*Service, error) {
 // Store gives other modules the read methods (VulnByCVE, VulnsByProductKey, HasTemplate, IOCLookup, KevPairs).
 func (s *Service) Store() *Store { return s.st }
 
-// Seed merges the built-in feeds into the database and gives every feed never pulled the code's content version (it holds no data
-// another code read: INV-32). Call it after the migrations, every start.
+// Seed merges the built-in feeds into the database. Call it after the migrations, every start.
 func (s *Service) Seed(ctx context.Context) error {
-	if err := s.st.SeedBuiltins(ctx, s.Clock()); err != nil {
+	return s.st.SeedBuiltins(ctx, s.Clock())
+}
+
+// pinned is the CVEs an open finding references (Deps.Pins): the catalogue keeps them whatever their age.
+func (s *Service) pinned(ctx context.Context) ([]string, error) {
+	if s.Pins == nil {
+		return nil, nil
+	}
+	got, err := s.Pins(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: the CVEs open findings reference: %w", err)
+	}
+	return got, nil
+}
+
+// maintain applies the retention rules (Store.maintain, pruneCatalogue). A failure to learn the pinned CVEs skips the catalogue's
+// pruning this time: nothing is ever dropped from under an open finding.
+func (s *Service) maintain(ctx context.Context, now time.Time) error {
+	if err := s.st.maintain(ctx, now); err != nil {
 		return err
 	}
-	return s.st.stampUnpulled(ctx)
+	pinned, err := s.pinned(ctx)
+	if err != nil {
+		return err
+	}
+	return s.DB.Write(ctx, func(tx *sql.Tx) error { return pruneCatalogue(ctx, tx, now, pinned) })
 }
 
 func (s *Service) now() time.Time { return s.Clock().UTC() }

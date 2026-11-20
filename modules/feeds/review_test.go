@@ -33,11 +33,12 @@ func (e *env) addVulnFeed(name, u string) string {
 func TestContract_POST1_CustomFeedIsNotKEV(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)
-	e.only("cisa-kev", "first-epss")
+	e.only("cisa-kev", "nvd-kev")
 	e.mirror("cisa-kev", o.url("/kev.json"))
-	e.mirror("first-epss", o.url("/epss"))
-	maxIDs := 0
-	epssOrigin(o, &maxIDs)
+	e.mirror("nvd-kev", o.url("/nvd"))
+	o.serve("/nvd", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"totalResults":0,"vulnerabilities":[]}`))
+	})
 	kev := testFile(t, "kev.json")
 	o.body("/kev.json", `"v1"`, kev)
 	o.serve("/v.csv", func(w http.ResponseWriter, _ *http.Request) {
@@ -48,13 +49,19 @@ func TestContract_POST1_CustomFeedIsNotKEV(t *testing.T) {
 	if n := len(e.pub.named(EventNewKEV)) + len(e.pub.named(EventVulnUpdated)); n != 0 {
 		t.Fatalf("a custom feed published %d KEV events: %v", n, e.pub.events)
 	}
-	// EPSS is asked only about CVEs of the CISA list
+	// NVD is asked by id only about CVEs of the exploited lists: a custom feed's CVE is the company's own data
 	e.fetch("cisa-kev")
-	e.fetch("first-epss")
+	byID := 0
 	for _, h := range o.all() {
-		if h.path == "/epss" && (strings.Contains(h.query, "CVE-2026-20001") || strings.Contains(h.query, "CVE-2026-10099")) {
-			t.Errorf("a CVE that only a custom feed lists was sent to api.first.org: %s", h.query)
+		if h.path == "/nvd" && strings.Contains(h.query, "cveId=") {
+			byID++
 		}
+		if h.path == "/nvd" && (strings.Contains(h.query, "CVE-2026-20001") || strings.Contains(h.query, "CVE-2026-10099")) {
+			t.Errorf("a CVE that only a custom feed lists was sent to NVD: %s", h.query)
+		}
+	}
+	if byID == 0 {
+		t.Error("NVD was not asked by id for the CISA list's CVEs it did not return")
 	}
 	// the weekly sentences are about the CISA list only
 	_, w := e.get("/feeds/weekly")
@@ -152,8 +159,8 @@ func TestContract_INV3_LongVendorOrProductIsRejectedAtIngest(t *testing.T) {
 		_, _ = w.Write([]byte("cve,vendor\nCVE-2026-20001," + strings.Repeat("A", 600) + "\n"))
 	})
 	e.setNow(e.clock().Add(time.Hour))
-	if _, f = e.fetch(vid); at(f, "status") != "error" || !strings.Contains(at(f, "error").(string), "All 1 rows were rejected") || rowsOf(t, e.db, "feeds_vuln") != 4 {
-		t.Errorf("all rejected: %v, %d rows", f, rowsOf(t, e.db, "feeds_vuln"))
+	if _, f = e.fetch(vid); at(f, "status") != "error" || !strings.Contains(at(f, "error").(string), "All 1 rows were rejected") || rowsOf(t, e.db, "feeds_kev") != 4 {
+		t.Errorf("all rejected: %v, %d rows", f, rowsOf(t, e.db, "feeds_kev"))
 	}
 }
 

@@ -16,7 +16,6 @@ interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; ur
 // Only sources already listed in THIRD_PARTY_NOTICES.md / PRIVACY.md (no new third parties).
 const DEFS: Def[] = [
   { id: 'cisa-kev', name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', license: 'CC0', records: (kev as { vulns: unknown[] }).vulns.length },
-  { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: (kev as { vulns: unknown[] }).vulns.length },
   // The data of CVE tiers 2 and 3: every CVE's EPSS score, and NVD's records of the CVEs of the last 12 months
   { id: 'epss-all', name: 'EPSS, every CVE', kind: 'vulnerabilities', format: 'csv', url: 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz', license: 'Attribution: EPSS by FIRST', records: 406543 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
@@ -52,7 +51,6 @@ const NO_DEBIAN = 'Not updated: no Debian device now. Vedette updates it on the 
 /** As modules/feeds heldNotes: the feeds whose count can be 0 on a healthy box, or counts something else than the name says, say
  * what they hold on every good pull. */
 const HELD: Record<string, string> = {
-  'first-epss': `Scores of ${(kev as { vulns: unknown[] }).vulns.length} of the ${(kev as { vulns: unknown[] }).vulns.length} exploited CVEs on the CISA list, today's and a week ago's.`,
   'nvd-kev': "NVD records of 1,779 exploited CVEs; 1,702 of them name affected versions.",
   'cve-org': '77 exploited CVEs have no affected versions from NVD; CVE.org gives versions Vedette can compare for 41 of them, none for 36.',
   'ubuntu-osv': 'Counts one record per package, release and CVE: 312 exploited CVEs and 1,204 other CVEs of the packages your devices run.',

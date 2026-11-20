@@ -34,6 +34,7 @@ type handler struct {
 	*core.ModuleHandlers
 	*core.ScanningHandlers
 	*core.RunHandlers
+	*core.ScheduleHandlers
 	*core.APIHandlers
 	*authoidc.OIDCHandlers
 	*core.OSHandlers
@@ -68,6 +69,7 @@ func newHandler(ctx context.Context, d deps) handler {
 		ModuleHandlers:   core.NewModuleHandlers(d.DB, d.Reg),
 		ScanningHandlers: scanningHandlers(d), // #850: Settings › Scanning; its ports find the module services when asked
 		RunHandlers:      core.NewRunHandlers(d.Runs),
+		ScheduleHandlers: core.NewScheduleHandlers(d.Schedules),
 		APIHandlers:      d.Core,
 		OIDCHandlers:     authoidc.NewHandlers(d.OIDC),
 		OSHandlers:       d.OS,

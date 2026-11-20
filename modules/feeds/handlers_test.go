@@ -590,12 +590,12 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 17, "id") != "hagezi-tif" || at(b, "items", 18) != nil {
+	if c != 200 || at(b, "items", 16, "id") != "hagezi-tif" || at(b, "items", 17) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 13, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 12, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")
@@ -633,9 +633,6 @@ func TestContract_INV4_BuiltinFeedsCanBeTunedButNotDeleted(t *testing.T) {
 		if c, b = e.put("ipsum", bad); c != 400 || code(b) != "invalid_url" {
 			t.Errorf("%s: %d %v", bad, c, b)
 		}
-	}
-	if c, b = e.put("first-epss", `{"url":"https://mirror.example.net/epss?x=1"}`); c != 400 || code(b) != "invalid_url" {
-		t.Errorf("epss query: %d %v", c, b)
 	}
 	if c, _ = e.put("ipsum", `{"url":"http://10.1.1.5/ipsum.txt"}`); c != 200 {
 		t.Errorf("internal http: %d", c)
@@ -850,7 +847,7 @@ func TestContract_INV4_DeletingACustomFeedDeletesWhatItLoaded(t *testing.T) {
 func TestContract_INV7_ParseTestNeverWritesAndNeverFetches(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t) // its HTTP client fails the test on any request
-	tables := []string{"feeds_source", "feeds_vuln", "feeds_ioc", "feeds_ioc_source", "feeds_fetch_log", "feeds_weekly_answer", "feeds_template", "core_audit", "core_secret"}
+	tables := []string{"feeds_source", "feeds_kev", "feeds_cve", "feeds_signal", "feeds_ioc", "feeds_ioc_source", "feeds_fetch_log", "feeds_weekly_answer", "core_audit", "core_secret"}
 	before := map[string]int{}
 	for _, tb := range tables {
 		before[tb] = rowsOf(t, e.db, tb)

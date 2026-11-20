@@ -2796,7 +2796,7 @@ func encodeInventoryGetInventoryDevicesIDResponse(response *InventoryGetInventor
 	return nil
 }
 
-func encodeInventoryGetInventoryDevicesIDSoftwareResponse(response *InventoryGetInventoryDevicesIDSoftwareOK, w http.ResponseWriter) error {
+func encodeInventoryGetInventoryDevicesIDSourcesResponse(response *InventoryGetInventoryDevicesIDSourcesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

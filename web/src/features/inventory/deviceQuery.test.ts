@@ -15,7 +15,7 @@ function row(p: Partial<DeviceRow> & { id: string }): DeviceRow {
 }
 const SW = row({ id: 'sw', hostname: 'SW-CORE', ip: '192.168.1.3', mac: 'F8:7B:20:30:33:03', kind: 'switch', kind_source: 'snmp', vendor: obs('Cisco', 'snmp'), model: obs('CBS350-24P', 'snmp'), sources: ['passive', 'snmp'] })
 const SRV = row({ id: 'srv', hostname: 'SRV-AD', ip: '192.168.1.10', kind: 'server', vendor: obs('Dell', 'passive'), os: obs('Windows Server 2016', 'agent'),
-  software: [{ id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent', confidence: 1 }], findings_count: 2, sources: ['passive', 'osquery'] })
+  software: [{ id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent', confidence: 1, not_installed: false }], findings_count: 2, sources: ['passive', 'osquery'] })
 const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
 const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', kind: 'firewall', kind_source: 'manual', sources: ['manual'] })
 const ALL = [SW, SRV, CAM, MAN]

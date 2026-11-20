@@ -136,10 +136,12 @@ CREATE TABLE feeds_cve_metric (
 ) WITHOUT ROWID;
 
 -- The affected versions of a CVE as each origin states them: nvd (NVD's vulnerable CPE match entries, with the "running on"
--- operating systems of an AND configuration in platforms), cna (the CNA's affected[] list of the CVE record) or adp. NVD's rows win
--- when NVD has any (rangeOrigin). default_status is the CVE record entry's defaultStatus (affected, unaffected, or unknown when it
--- gives none): a CNA list is complete when every row says affected or unaffected; '' for NVD's rows.
--- part, vendor and product are the CPE's, lower case; cpe is the full match criteria when the origin gave one.
+-- operating systems of an AND configuration in platforms), cna (the CNA's affected[] list of the CVE record) or adp (an ADP's list:
+-- CISA's, a supplier's). NVD's rows win when NVD has any (rangeOrigin). default_status is the CVE record entry's defaultStatus
+-- (affected, unaffected, or unknown when it gives none): a record's list is complete when every row says affected or unaffected; ''
+-- for NVD's rows. part, vendor and product are the CPE's, lower case; a record entry without a CPE has part '' and the key of its own
+-- names (RecordProductKey: "paloalto", "panos"). cpe is the full match criteria when the origin gave one. An exact version is a range
+-- from and to it (start_incl = end_incl). fixed is the release the record says fixes a range; version_type the record's versionType.
 CREATE TABLE feeds_cve_range (
     id           INTEGER NOT NULL PRIMARY KEY,
     cve          TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
@@ -157,6 +159,17 @@ CREATE TABLE feeds_cve_range (
     default_status TEXT  NOT NULL DEFAULT '' CHECK (default_status IN ('', 'affected', 'unaffected', 'unknown')),
     platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
 );
+
+-- The references of a CVE's record (the CNA's, then the ADPs'), with the tags their publisher gave them (vendor-advisory, patch,
+-- mitigation, exploit …; read whole). Kept only for the CVEs that matter to the box: an exploited-list entry, a qualifying signal or an
+-- open finding; source is cna or adp. Written only by the CVE records pull, replaced whole with each record read.
+CREATE TABLE feeds_cve_ref (
+    cve    TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    url    TEXT NOT NULL CHECK (length(url) BETWEEN 9 AND 500 AND (url GLOB 'https://*' OR url GLOB 'http://*')),
+    tags   TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags) AND json_type(tags) = 'array'),
+    source TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    PRIMARY KEY (cve, url)
+) WITHOUT ROWID;
 
 -- An entry of an exploited list, in the list's own words: list cisa (the CISA KEV catalog), vulncheck (VulnCheck KEV) or
 -- custom:<feed id> (a custom vulnerability feed). The same CVE may be on several lists; the CISA list's entry is the one the pages

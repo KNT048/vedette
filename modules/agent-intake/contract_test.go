@@ -796,7 +796,7 @@ func TestContract_INV12_MACClaimCannotWriteOnAnotherDevice(t *testing.T) {
 	if err := w.inv.Record(t.Context(), []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: "dc01", Source: observe.Agent, Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
-	err := w.inv.ReplaceSoftware(t.Context(), hint, observe.Agent, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}})
+	err := w.inv.ReplaceSoftware(t.Context(), hint, observe.Osquery, nil, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95}})
 	if err != nil {
 		t.Fatal(err)
 	}

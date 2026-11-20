@@ -610,12 +610,12 @@ describe('feeds: a distribution feed no device needs is not pulled (LEAN)', () =
 })
 
 describe('feeds: a feed whose count needs words says what it holds', () => {
-  it('CVE.org affected versions shows its note, and Fetch now confirms the pull with that note under it', async () => {
-    const note = /exploited CVEs have no affected versions from NVD; CVE\.org gives versions Vedette can compare for 41 of them/
+  it('CVE records shows its note, and Fetch now confirms the pull with that note under it', async () => {
+    const note = /catalogue CVEs have their record read; .* Exploited: 77 without affected versions from NVD, 41 of them with versions from the record/
     renderApp('/settings/feeds')
     expect((await screen.findAllByText(note)).length).toBeGreaterThan(0)
-    await userEvent.click(screen.getByRole('button', { name: /^Fetch now: CVE\.org affected versions$|^Fetch CVE\.org affected versions now$/ }))
-    expect(await screen.findByText('Fetched CVE.org affected versions: 41 records')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Fetch now: CVE records$|^Fetch CVE records now$/ }))
+    expect(await screen.findByText(/^Fetched CVE records: 107,?276 records$/)).toBeInTheDocument()
   })
 })
 

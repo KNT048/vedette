@@ -20,7 +20,7 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.30.7")}
 	scan := func() {
 		t.Helper()
-		if err := s.d.Inventory.ReplaceSoftware(ctx, hint, observe.Nmap, []observe.Software{
+		if err := s.d.Inventory.ReplaceSoftware(ctx, hint, observe.Nmap, nil, []observe.Software{
 			{Display: "FortiOS", Vendor: "Fortinet", Product: "FortiOS", Version: "7.2.5", KevKeys: []string{"fortinet|fortios"}, Confidence: 0.9},
 		}); err != nil {
 			t.Fatal(err)

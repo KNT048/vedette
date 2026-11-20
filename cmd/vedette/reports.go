@@ -85,7 +85,7 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 		for _, s := range d.Services {
 			r.Ports = append(r.Ports, s.Port)
 		}
-		for _, sw := range d.Software {
+		for _, sw := range d.Running() {
 			r.KevKeys = append(r.KevKeys, sw.Kev...)
 		}
 		out = append(out, r)

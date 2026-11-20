@@ -495,14 +495,16 @@
       "bad_address": "Connection to a known-bad address",
       "bad_address_attempt": "Attempt to reach a known-bad address",
       "log_anomaly": "Log anomaly",
-      "unknown_device": "Unknown device appeared"
+      "unknown_device": "Unknown device appeared",
+      "intrusion": "Intrusion alert"
     },
     "kf": {
       "all": "All kinds",
       "trap": "Trap touches",
       "bad_address": "Bad addresses",
       "log_anomaly": "Log anomalies",
-      "unknown_device": "Unknown devices"
+      "unknown_device": "Unknown devices",
+      "intrusion": "Intrusion alerts"
     },
     "kindFilter": "Filter by kind",
     "notSent": "Not sent",
@@ -550,7 +552,8 @@
       "trap": "Open trap touch",
       "bad_address": "Open related logs",
       "log_anomaly": "Open related logs",
-      "unknown_device": "Open the device"
+      "unknown_device": "Open the device",
+      "intrusion": "Open the alert"
     },
     "respond": "Respond",
     "sentTitle": "Messages sent",

@@ -87,7 +87,7 @@ func TestContract_SetSoftwareVersion(t *testing.T) {
 	kev := fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}
 	e := newEnv(t, withKEV(kev))
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
-	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "Mozilla", Product: "Firefox", Version: "120", Confidence: 0.9}}, "agent"); err != nil {
+	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "Mozilla", Product: "Firefox", Version: "120", Confidence: 0.9}}, "osquery"); err != nil {
 		t.Fatal(err)
 	}
 	var manualSW, agentSW string

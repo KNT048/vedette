@@ -4,9 +4,9 @@
 import { useTranslation } from 'react-i18next'
 import { EnteredOutcome } from '@/features/findings/EnteredRelease'
 import { fmtDateTime } from '@/lib/format'
-import type { SoftwareView } from './types'
+import type { SoftwareLine } from './types'
 
-export function EnteredNote({ assetId, sw }: { assetId: string; sw: SoftwareView }) {
+export function EnteredNote({ assetId, sw }: { assetId: string; sw: SoftwareLine }) {
   const { t } = useTranslation('inventory')
   if (sw.source !== 'manual' || sw.correction?.not_installed) return null
   const c = sw.correction

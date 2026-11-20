@@ -46,7 +46,7 @@ func TestBoxOwnedAddressIsNoDevice(t *testing.T) {
 		t.Fatalf("%d devices, want the one at .50", n)
 	}
 	// Software reported for the address (an agent on the decoy cannot exist) creates nothing either.
-	err := e.svc.ReplaceSoftware(ctx, observe.AssetHint{IP: owned}, observe.Agent, []observe.Software{{Display: "Apache 2.4", Vendor: "Apache", Product: "http_server", Version: "2.4"}})
+	err := e.svc.ReplaceSoftware(ctx, observe.AssetHint{IP: owned}, observe.Osquery, nil, []observe.Software{{Display: "Apache 2.4", Vendor: "Apache", Product: "http_server", Version: "2.4"}})
 	if err != nil {
 		t.Fatal(err)
 	}

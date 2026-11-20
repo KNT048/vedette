@@ -22,9 +22,9 @@ var moduleOverrides = []struct{ prefix, module string }{
 	{"/inventory/sensors", "sensor-passive"},
 	{"/inventory/snmp", "sensor-active"}, // The SNMP credentials of active discovery
 	{"/core/network", "host"},
-	// Intrusion detection: the overview is core's, so it answers while any detection module is off. The alerts are the
-	// ids module's; until that module exists they stay with core, whose fallback answers 501 not_implemented.
+	// Intrusion detection: the overview is core's, so it answers while any detection module is off; the alerts are the ids module's.
 	{"/detection", "core"},
+	{"/detection/alerts", "ids"},
 	{"/auth", "core"},
 	{"/me", "core"},
 	{"/modules", "core"},

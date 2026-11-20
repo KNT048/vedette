@@ -3,7 +3,7 @@ import { api } from './api'
 
 export type ModuleId =
   | 'core' | 'feeds' | 'inventory' | 'notify' | 'sensor-passive' | 'sensor-active' | 'findings' | 'mitigation' | 'exposure' | 'scan'
-  | 'scan-credentialed' | 'honeypot' | 'logs' | 'agent-intake' | 'ai' | 'reports' | 'mcp-server' | 'auth-oidc' | 'response'
+  | 'scan-credentialed' | 'honeypot' | 'logs' | 'ids' | 'agent-intake' | 'ai' | 'reports' | 'mcp-server' | 'auth-oidc' | 'response'
 
 /** appliance: install.sh with the system helper vedette-host; container: container-only install, no helper. */
 export type InstallKind = 'appliance' | 'container'

@@ -152,6 +152,13 @@ func (s *Service) Ingest(ctx context.Context, lines []Line) (IngestResult, error
 	sigs.commit.apply(s) // the exact counts of the addresses that did not get a row, now that the batch is stored
 	s.announceIOC(ctx, fresh)
 	s.announceAuth(ctx, sigs.auth, names, senders)
+	if s.cfg.Received != nil {
+		out := make([]StoredLine, len(keep))
+		for i, l := range keep {
+			out[i] = StoredLine{SourceID: l.SourceID, SourceName: names[l.SourceID], Kind: known[l.SourceID], At: l.At, Text: l.Text}
+		}
+		s.cfg.Received(ctx, out)
+	}
 	res.Stored = len(keep)
 	if stored > s.maxBytes {
 		s.startPurge()

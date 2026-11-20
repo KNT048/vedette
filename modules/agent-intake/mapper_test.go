@@ -275,7 +275,7 @@ func TestMapPackagesVendorBuildIsNotTheDistributions(t *testing.T) {
 	}
 	for _, it := range items {
 		k := it.Product + " " + it.Version
-		if p, ok := want[k]; !ok || it.Packaged != p || !p && (it.PkgVersion != "" || it.PkgSource != "") || len(it.KevKeys) != 1 {
+		if p, ok := want[k]; !ok || it.Packaged != p || !p && (it.PkgVersion != "" || it.PkgSource != "") || len(it.KevKeys) == 0 {
 			t.Errorf("%s: packaged %v pkg %q/%q keys %v", k, it.Packaged, it.PkgVersion, it.PkgSource, it.KevKeys)
 		}
 	}

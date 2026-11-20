@@ -19,7 +19,7 @@ func guessEnv(e *env, ip, osName string, rows ...observe.Software) string {
 	h := observe.AssetHint{IP: addr, MAC: fmt.Sprintf("00:0c:29:aa:bb:%02x", addr.As4()[3])}
 	e.record(observe.Observation{AssetHint: h, Field: observe.OS, Value: osName, Source: observe.Nmap, Confidence: 0.86})
 	rows = append(rows, observe.Software{Display: "OpenSSH 9.6", Vendor: "openbsd", Product: "openssh", Version: "9.6", CPE: "cpe:/a:openbsd:openssh:9.6", Confidence: 0.8})
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, rows); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: h.IP}, observe.Nmap, nil, rows); err != nil {
 		e.t.Fatal(err)
 	}
 	return e.idOf(ip)

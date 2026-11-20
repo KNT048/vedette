@@ -60,6 +60,7 @@ func logsService(d deps) *logs.Service {
 	cfg.NeverCount = logsNeverCount(&d) // TopAddresses never counts the box, its gateway or a decoy
 	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
 	cfg.Hostname = d.BoxName.Name       // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)
+	cfg.Received = idsReceived(d)       // the stored lines go to the ids module, which reads the IPS events among them (while it is on)
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())

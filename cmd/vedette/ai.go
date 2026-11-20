@@ -236,7 +236,6 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 		}
 	}
 	if d, err := m.inv.Device(ctx, req.Finding.AssetID); err == nil {
-		d = effectiveDevice(ctx, m.inv, d) // the software the matcher reads: one row per software (inventory INV-50)
 		dev = &d
 	} else {
 		failed("device", err)
@@ -447,8 +446,8 @@ func aiAttack(c *findings.CVSS) string {
 // aiMatched is the software row the finding is about, with its version: the row the matcher matched it on (findings stores its id,
 // Row.SoftwareID, findings INV-27), else, for a finding no match has reached since, the row whose "<name> <version>" the Evidence
 // states (the matcher writes it so), else the row whose product is the exploited entry's product. Only that row goes, not the
-// device's whole software list (#897); a short name that happens to be inside the Evidence ("Go", "R") does not count. d holds the
-// effective rows only (effectiveDevice), so a weaker source's reading of the same software ("OpenSSH 10.2" from a banner) is never it.
+// device's whole software list (#897); a short name that happens to be inside the Evidence ("Go", "R") does not count. d holds one
+// row per software line (inventory's one line), so a weaker source's reading of the same software ("OpenSSH 10.2" from a banner) is never it.
 func aiMatched(row findings.Row, d inventory.Device) string {
 	if row.SoftwareID != "" {
 		for _, s := range d.Software {
@@ -961,7 +960,6 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 	}
 	out := make([]ai.AssetRow, 0, len(devs))
 	for _, d := range devs {
-		d = effectiveDevice(ctx, a.inv, d) // one row per software, the strongest source's (inventory INV-50)
 		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved,
 			Ignored: d.IgnoredAt != nil, FirstSeen: d.FirstSeen, LastSeen: d.LastSeen, Origin: d.Origin, IsBox: d.IsBox}
 		if d.Summary != nil {
@@ -970,10 +968,8 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 		for _, sv := range aiScanned(d.Services) {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}
-		for _, sw := range d.Software {
-			if !sw.NotInstalled { // a person said it is not on the device (inventory INV-41 (6))
-				r.Software = append(r.Software, strings.TrimSpace(sw.Display+" "+aiStr(sw.Version)))
-			}
+		for _, sw := range d.Running() { // not the software a person said is not on the device (inventory INV-41 (6))
+			r.Software = append(r.Software, strings.TrimSpace(sw.Display+" "+aiStr(sw.Version)))
 		}
 		out = append(out, r)
 	}
@@ -1033,7 +1029,7 @@ func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, err
 	}
 	devs := map[string]inventory.Device{}
 	if d, err := a.inv.Device(ctx, r.AssetID); err == nil {
-		devs[r.AssetID] = effectiveDevice(ctx, a.inv, d)
+		devs[r.AssetID] = d
 	}
 	return aiFindingRow(r, devs), true, nil
 }

@@ -9,7 +9,7 @@ const (
 	DecoderKEV       Decoder = "kev"       // ParseKEV
 	DecoderNuclei    Decoder = "nuclei"    // ParseNucleiCVEs
 	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev: the exploited-list selector)
-	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records)
+	DecoderCVEOrg    Decoder = "cveorg"    // the CVE Program's records (cvelistV5): the daily archive, its changes, CVERecordURL; ParseCVERecord
 	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key)
 	// The distribution backport data: ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
 	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
@@ -72,7 +72,7 @@ func linesParser() *Parser {
 // sentence (https://nvd.nist.gov/developers/terms-of-use).
 const nvdNotice = "Public domain. This product uses the NVD API but is not endorsed or certified by the NVD."
 
-// cveOrgNotice is the licence line of the CVE.org feed: the CVE Program Terms of Use allow copies that reproduce MITRE's
+// cveOrgNotice is the licence line of the CVE records feed: the CVE Program Terms of Use allow copies that reproduce MITRE's
 // copyright designation and the licence (https://www.cve.org/Legal/TermsOfUse; THIRD_PARTY_NOTICES.md has the clause).
 const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corporation."
 
@@ -104,7 +104,7 @@ var builtinSources = []Source{
 	{ID: epssAllFeedID, Name: "EPSS, every CVE", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSSAll},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
 	{ID: recentFeedID, Name: "NVD, CVEs of the last 12 months", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVDRecent},
-	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
+	{ID: cveOrgFeedID, Name: "CVE records", Kind: KindVulnerabilities, Format: FormatJSON, URL: recordsRepo, License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
 	{ID: vulnCheckFeedID, Name: "VulnCheck KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.vulncheck.com/v3/index/vulncheck-kev", License: vulnCheckNotice, IntervalHours: 6, Decoder: DecoderVulnCheck, BYOK: true},
 	{ID: ubuntuOSVFeedID, Name: "Ubuntu fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/osv/osv-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuOSV},
 	{ID: ubuntuVEXFeedID, Name: "Ubuntu not affected", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/vex/vex-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuVEX},
@@ -112,6 +112,9 @@ var builtinSources = []Source{
 	{ID: alpineOSVFeedID, Name: "Alpine fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://osv-vulnerabilities.storage.googleapis.com/Alpine/all.zip", License: alpineNotice, IntervalHours: 24, Decoder: DecoderAlpineOSV},
 	{ID: winRelFeedID, Name: "Windows releases", Kind: KindVulnerabilities, Format: FormatLines, URL: "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information", License: winRelNotice, IntervalHours: 24, Decoder: DecoderWinRel},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
+	{ID: metasploitFeedID, Name: "Metasploit modules", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json", License: metasploitNotice, IntervalHours: 24, Decoder: DecoderMetasploit},
+	{ID: exploitDBFeedID, Name: "Exploit-DB", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv", License: exploitDBNotice, IntervalHours: 24, Decoder: DecoderExploitDB},
+	{ID: pocGitHubFeedID, Name: "PoC-in-GitHub", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://codeload.github.com/nomi-sec/PoC-in-GitHub/tar.gz/refs/heads/master", License: pocGitHubNotice, IntervalHours: 24, Decoder: DecoderPoCGitHub},
 	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
 	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},

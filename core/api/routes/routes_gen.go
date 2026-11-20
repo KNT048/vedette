@@ -248,7 +248,7 @@ var Operations = map[string]Operation{
 	"inventory_get_inventory_catalog":                        {Method: "GET", Path: "/inventory/catalog", MinRole: Viewer, Tag: "inventory"},
 	"inventory_get_inventory_devices":                        {Method: "GET", Path: "/inventory/devices", MinRole: Viewer, Tag: "inventory"},
 	"inventory_get_inventory_devices_id":                     {Method: "GET", Path: "/inventory/devices/{id}", MinRole: Viewer, Tag: "inventory"},
-	"inventory_get_inventory_devices_id_software":            {Method: "GET", Path: "/inventory/devices/{id}/software", MinRole: Viewer, Tag: "inventory"},
+	"inventory_get_inventory_devices_id_sources":             {Method: "GET", Path: "/inventory/devices/{id}/sources", MinRole: Viewer, Tag: "inventory"},
 	"inventory_get_inventory_export_csv":                     {Method: "GET", Path: "/inventory/export.csv", MinRole: Viewer, Tag: "inventory"},
 	"inventory_get_inventory_import_template_csv":            {Method: "GET", Path: "/inventory/import-template.csv", MinRole: Viewer, Tag: "inventory"},
 	"inventory_get_inventory_possible_same":                  {Method: "GET", Path: "/inventory/possible-same", MinRole: Viewer, Tag: "inventory"},

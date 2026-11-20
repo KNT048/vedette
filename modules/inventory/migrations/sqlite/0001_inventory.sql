@@ -26,24 +26,72 @@ CREATE TABLE inv_service (
     seen_at    TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 , detail TEXT CHECK (detail IS NULL OR length(detail) <= 200));
 
+-- One row per installed software line of a device: one product (core/productid), or one release train of a product whose trains
+-- install side by side (line '8' and line '21' of Java). What the sources read are its readings (inv_software_reading); the
+-- columns from cpe to seen_at are the effective reading, written only by the resolver in the same transaction as any reading
+-- change. The id never changes: a version move updates this row, a removal is a state.
 CREATE TABLE inv_software (
-    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    asset_id   TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
-    display    TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
-    vendor     TEXT NOT NULL CHECK (length(vendor) BETWEEN 1 AND 200),
-    product    TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 200),
-    version    TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
-    cpe        TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
-    source     TEXT NOT NULL CHECK (source IN ('manual', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
-    confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
-    seen_at    TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, packaged BOOLEAN NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)), pkg_version TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100), pkg_source TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100), corrects TEXT CHECK (corrects IS NULL OR (source = 'manual' AND length(corrects) BETWEEN 4 AND 520)), set_by TEXT CHECK (set_by IS NULL OR length(set_by) BETWEEN 1 AND 320), not_installed INTEGER NOT NULL DEFAULT 0 CHECK (not_installed IN (0, 1) AND (not_installed = 0 OR corrects IS NOT NULL)), first_seen TEXT);
+    id               TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    asset_id         TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
+    product_key      TEXT NOT NULL CHECK (length(product_key) BETWEEN 1 AND 400),
+    line             TEXT NOT NULL DEFAULT '' CHECK (length(line) <= 20),
+    display          TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    vendor           TEXT NOT NULL CHECK (length(vendor) BETWEEN 1 AND 200),
+    product          TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 200),
+    cpe              TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
+    version          TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
+    pkg_version      TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100),
+    pkg_source       TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100),
+    packaged         INTEGER NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)),
+    source           TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    set_by           TEXT CHECK (set_by IS NULL OR length(set_by) BETWEEN 1 AND 320),
+    confidence       REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    seen_at          TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    differs          INTEGER NOT NULL DEFAULT 0 CHECK (differs IN (0, 1)),
+    state            TEXT NOT NULL DEFAULT 'present' CHECK (state IN ('present', 'not_installed', 'removed')),
+    not_installed_by TEXT CHECK (not_installed_by IS NULL OR length(not_installed_by) BETWEEN 1 AND 320),
+    not_installed_at TEXT CHECK (not_installed_at IS NULL OR not_installed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    first_seen       TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen        TEXT NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    removed_at       TEXT CHECK (removed_at IS NULL OR removed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((state = 'removed') = (removed_at IS NOT NULL)),
+    CHECK (state <> 'not_installed' OR not_installed_at IS NOT NULL) -- a removed line keeps a person's mark: it holds when the software is read again
+);
 
--- Join table of the KEV matcher: "vendorproject|product" keys, lower-case (S-INV-2).
-CREATE TABLE inv_software_kev (
+-- What each source reads now of a software line: one row per source and the source's own discriminator (instance: '' or a
+-- package name, a port, 'os_guess' for nmap's OS fingerprint, 'os' for the OS a network device states). A list replaces the
+-- readings of its source (or only the instances its scope covers). first_seen is when the source first read this release. A
+-- person's entry is the reading of source 'manual'.
+CREATE TABLE inv_software_reading (
     software_id TEXT NOT NULL REFERENCES inv_software (id) ON DELETE CASCADE,
-    kev_key     TEXT NOT NULL CHECK (length(kev_key) BETWEEN 1 AND 400),
-    PRIMARY KEY (software_id, kev_key)
+    source      TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    instance    TEXT NOT NULL DEFAULT '' CHECK (length(instance) <= 120),
+    display     TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    version     TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
+    pkg_version TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100),
+    pkg_source  TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100),
+    packaged    INTEGER NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)),
+    cpe         TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
+    confidence  REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    set_by      TEXT CHECK (set_by IS NULL OR (source = 'manual' AND length(set_by) BETWEEN 1 AND 320)),
+    first_seen  TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    seen_at     TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (software_id, source, instance)
+) WITHOUT ROWID;
+
+-- The history of a software line on a device, append-only. The text copies keep a row readable after its line is pruned.
+CREATE TABLE inv_software_event (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id     TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
+    software_id  TEXT NOT NULL CHECK (length(software_id) BETWEEN 1 AND 96),
+    product_key  TEXT NOT NULL CHECK (length(product_key) BETWEEN 1 AND 400),
+    display      TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    ts           TEXT NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    kind         TEXT NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    from_version TEXT CHECK (from_version IS NULL OR length(from_version) <= 100),
+    to_version   TEXT CHECK (to_version IS NULL OR length(to_version) <= 100),
+    source       TEXT CHECK (source IS NULL OR length(source) BETWEEN 1 AND 40),
+    actor        TEXT CHECK (actor IS NULL OR length(actor) BETWEEN 1 AND 320)
 );
 
 -- One key = one configuration object (DATA_MODEL 5.5). Defaults are data, loaded here (DATA_MODEL 6, rule 8).
@@ -81,7 +129,7 @@ CREATE TABLE "inv_asset" (
     first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     approved_at    TEXT    CHECK (approved_at IS NULL OR approved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
+, agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), agent_source TEXT CHECK (agent_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
 
 -- When each source first reported to this box, so inventory.asset.discovered can say a device was found while the
 -- source that found it was still learning the network (its first 36 hours). One row per source (agent, snmp, nmap, passive, scan;
@@ -137,9 +185,15 @@ CREATE UNIQUE INDEX inv_service_uq ON inv_service (asset_id, port, proto, source
 
 CREATE INDEX inv_service_asset_ix ON inv_service (asset_id);
 
-CREATE INDEX inv_software_asset_ix ON inv_software (asset_id);
+CREATE UNIQUE INDEX inv_software_line_uq ON inv_software (asset_id, product_key, line);
 
-CREATE INDEX inv_software_kev_ix ON inv_software_kev (kev_key);
+CREATE INDEX inv_software_state_ix ON inv_software (asset_id, state);
+
+CREATE INDEX inv_software_product_ix ON inv_software (product_key);
+
+CREATE INDEX inv_software_event_asset_ix ON inv_software_event (asset_id, ts);
+
+CREATE INDEX inv_software_event_line_ix ON inv_software_event (software_id, ts);
 
 -- One IP, one device (409 duplicate_ip). NULL = no IP known (a manual device whose IP is unknown).
 CREATE UNIQUE INDEX inv_asset_ip_uq ON inv_asset (ip) WHERE ip IS NOT NULL;
@@ -161,10 +215,8 @@ CREATE INDEX inv_asset_last_seen_ix ON inv_asset (last_seen);
 
 CREATE UNIQUE INDEX inv_asset_agent_key ON inv_asset (agent_key) WHERE agent_key IS NOT NULL;
 
--- The Devices page reads which sources reported each device (DISTINCT asset_id, source of inv_software,
--- with inv_observation and inv_service). This index lets that pass read the index instead of every software row (an osquery or
--- Wazuh host carries about 1,500). inv_observation is covered by inv_observation_uq; inv_service is small. Forward-only (DATA_MODEL 6).
-CREATE INDEX inv_software_asset_source_ix ON inv_software (asset_id, source);
+-- The Devices page reads which sources reported each device: the sources of the readings of its software lines.
+CREATE INDEX inv_software_reading_source_ix ON inv_software_reading (source, software_id);
 
 -- Every device a batch touched looks for the one other row a sensor saw last with the same private MAC (sameMAC,
 -- macHolders). That reads mac observations by value across devices; inv_observation_uq starts with asset_id, so without this index each
@@ -174,10 +226,6 @@ CREATE INDEX inv_observation_mac_ix ON inv_observation (value) WHERE field = 'ma
 CREATE INDEX inv_separate_b_ix ON inv_separate (b);
 
 CREATE INDEX inv_hand_seen_mac_ix ON inv_hand_seen (mac);
-
-CREATE UNIQUE INDEX inv_software_uq ON inv_software (asset_id, lower(vendor), lower(product), ifnull(version, ''), source) WHERE corrects IS NULL;
-
-CREATE UNIQUE INDEX inv_software_corrects_uq ON inv_software (asset_id, corrects) WHERE corrects IS NOT NULL;
 
 INSERT INTO inv_setting (key, value, updated_at, updated_by) VALUES ('lan_ranges', '[]', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'system');
 INSERT INTO inv_setting (key, value, updated_at, updated_by) VALUES ('active', '{"enabled":false,"days":[1,2,3,4,5,6,7],"from":"22:00","to":"05:00","rate":50,"exclusions":[]}', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'system');
@@ -192,5 +240,17 @@ WHEN NEW.id IS NOT OLD.id OR NEW.asset_id IS NOT OLD.asset_id OR NEW.field IS NO
   OR NEW.source IS NOT OLD.source OR NEW.evidence IS NOT OLD.evidence
 BEGIN
     SELECT RAISE(ABORT, 'inv_observation is append-only');
+END;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- History is append-only. The one change allowed is a merge of two rows of one machine (joinAs, foldSoftware): the history follows the
+-- device and the software line that stay, so only asset_id and software_id may change.
+CREATE TRIGGER inv_software_event_append_only BEFORE UPDATE ON inv_software_event
+WHEN NEW.id IS NOT OLD.id OR NEW.product_key IS NOT OLD.product_key OR NEW.display IS NOT OLD.display OR NEW.ts IS NOT OLD.ts
+  OR NEW.kind IS NOT OLD.kind OR NEW.from_version IS NOT OLD.from_version OR NEW.to_version IS NOT OLD.to_version
+  OR NEW.source IS NOT OLD.source OR NEW.actor IS NOT OLD.actor
+BEGIN
+    SELECT RAISE(ABORT, 'inv_software_event is append-only');
 END;
 -- +goose StatementEnd

@@ -66,16 +66,16 @@ func (e *env) only() inventory.Device {
 // announced, then joined when its name arrives: merged, then deleted, so notify closes its incident.
 func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.145", "Annas-MacBook-Air")...)
-	id := e.idOf("192.168.18.145")
+	e.record(dhcp(privMac1, "10.0.18.145", "Annas-MacBook-Air")...)
+	id := e.idOf("10.0.18.145")
 	if err := e.svc.Approve(e.ctx(), "anna", id); err != nil {
 		t.Fatal(err)
 	}
 	e.ev.reset()
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.18.138", "annas-macbook-air.local")...)
+	e.record(dhcp(privMac2, "10.0.18.138", "annas-macbook-air.local")...)
 	d := e.only()
-	if d.ID != id || !d.Approved || d.IP != "192.168.18.138" || d.MAC == nil || *d.MAC != privMac2 {
+	if d.ID != id || !d.Approved || d.IP != "10.0.18.138" || d.MAC == nil || *d.MAC != privMac2 {
 		t.Errorf("joined device: id %s approved %v ip %s mac %v; want %s, approved, .138, %s", d.ID, d.Approved, d.IP, d.MAC, id, privMac2)
 	}
 	if got := e.ev.named(inventory.EventAssetDiscovered); len(got) != 0 {
@@ -88,15 +88,15 @@ func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	// ARP first: a new device, announced; the name a minute later joins it.
 	e.ev.reset()
 	e.tick(time.Hour)
-	e.record(dhcp(privMac3, "192.168.18.137", "")...)
+	e.record(dhcp(privMac3, "10.0.18.137", "")...)
 	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 {
 		t.Fatalf("ARP only: %d devices, %d announced; want 2 and 1", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
-	arpID := e.idOf("192.168.18.137")
+	arpID := e.idOf("10.0.18.137")
 	e.tick(time.Minute)
-	e.record(dhcp(privMac3, "192.168.18.137", "Annas-MacBook-Air")...)
+	e.record(dhcp(privMac3, "10.0.18.137", "Annas-MacBook-Air")...)
 	d = e.only()
-	if d.ID != id || d.IP != "192.168.18.137" || !d.Approved {
+	if d.ID != id || d.IP != "10.0.18.137" || !d.Approved {
 		t.Errorf("after the name: id %s ip %s approved %v", d.ID, d.IP, d.Approved)
 	}
 	merged := e.ev.named(inventory.EventAssetMerged)
@@ -107,7 +107,7 @@ func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 		t.Errorf("deleted events: %v", e.ev.named(inventory.EventAssetDeleted))
 	}
 	// The same MAC again finds the device: no new row.
-	e.record(dhcp(privMac3, "192.168.18.137", "Annas-MacBook-Air")...)
+	e.record(dhcp(privMac3, "10.0.18.137", "Annas-MacBook-Air")...)
 	e.only()
 }
 
@@ -123,17 +123,17 @@ func TestContract_WhatANameAloneDoesNotJoin(t *testing.T) {
 		then  []observe.Observation
 		more  []observe.Observation
 	}{
-		{"two burned-in MACs", dhcp(burnt1, "192.168.18.10", "accounting-pc"), dhcp(burnt2, "192.168.18.11", "accounting-pc"), nil},
-		{"private address and a burned-in MAC", dhcp(burnt1, "192.168.18.10", "nas01"), dhcp(privMac1, "192.168.18.11", "nas01"), nil},
-		{"private address and a row known only by address", byAddress("10.20.0.5", "erp01.corp.lan"), dhcp(privMac1, "192.168.18.66", "ERP01"), nil},
-		{"generic name", dhcp(privMac1, "192.168.18.10", "iPhone"), dhcp(privMac2, "192.168.18.11", "iPhone"), nil},
-		{"generic name with a Bonjour number", dhcp(privMac1, "192.168.18.10", "MacBook-Pro-2"), dhcp(privMac2, "192.168.18.11", "MacBook-Pro-2"), nil},
-		{"model name", dhcp(privMac1, "192.168.18.10", "Galaxy-A52"), dhcp(privMac2, "192.168.18.11", "Galaxy-A52"), nil},
-		{"Windows default name", dhcp(privMac1, "192.168.18.10", "DESKTOP-7GH2K1L"), dhcp(privMac2, "192.168.18.11", "DESKTOP-7GH2K1L"), nil},
-		{"localhost", dhcp(privMac1, "192.168.18.10", "localhost"), dhcp(privMac2, "192.168.18.11", "localhost.localdomain"), nil},
-		{"name from the address", dhcp(privMac1, "192.168.18.10", "dhcp-192-168-18-10"), dhcp(privMac2, "192.168.18.11", "dhcp-192-168-18-10"), nil},
+		{"two burned-in MACs", dhcp(burnt1, "10.0.18.10", "accounting-pc"), dhcp(burnt2, "10.0.18.11", "accounting-pc"), nil},
+		{"private address and a burned-in MAC", dhcp(burnt1, "10.0.18.10", "nas01"), dhcp(privMac1, "10.0.18.11", "nas01"), nil},
+		{"private address and a row known only by address", byAddress("10.20.0.5", "erp01.corp.lan"), dhcp(privMac1, "10.0.18.66", "ERP01"), nil},
+		{"generic name", dhcp(privMac1, "10.0.18.10", "iPhone"), dhcp(privMac2, "10.0.18.11", "iPhone"), nil},
+		{"generic name with a Bonjour number", dhcp(privMac1, "10.0.18.10", "MacBook-Pro-2"), dhcp(privMac2, "10.0.18.11", "MacBook-Pro-2"), nil},
+		{"model name", dhcp(privMac1, "10.0.18.10", "Galaxy-A52"), dhcp(privMac2, "10.0.18.11", "Galaxy-A52"), nil},
+		{"Windows default name", dhcp(privMac1, "10.0.18.10", "DESKTOP-7GH2K1L"), dhcp(privMac2, "10.0.18.11", "DESKTOP-7GH2K1L"), nil},
+		{"localhost", dhcp(privMac1, "10.0.18.10", "localhost"), dhcp(privMac2, "10.0.18.11", "localhost.localdomain"), nil},
+		{"name from the address", dhcp(privMac1, "10.0.18.10", "dhcp-192-168-18-10"), dhcp(privMac2, "10.0.18.11", "dhcp-192-168-18-10"), nil},
 		{"two rows known only by address", byAddress("10.20.0.5", "erp01"), byAddress("10.20.0.6", "erp01"), nil},
-		{"three rows of one name", dhcp(privMac1, "192.168.18.10", "lab-tablet"), dhcp(privMac2, "192.168.18.11", "lab-tablet"), dhcp(privMac3, "192.168.18.12", "lab-tablet")},
+		{"three rows of one name", dhcp(privMac1, "10.0.18.10", "lab-tablet"), dhcp(privMac2, "10.0.18.11", "lab-tablet"), dhcp(privMac3, "10.0.18.12", "lab-tablet")},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -172,7 +172,7 @@ func TestContract_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "microsoft-office-desktop", Name: "fileserver", IP: "10.30.0.9"})
 	e.ev.reset()
-	e.record(dhcp(privMac1, "192.168.18.60", "FILESERVER")...)
+	e.record(dhcp(privMac1, "10.0.18.60", "FILESERVER")...)
 	if e.devices() != 2 || len(e.discovered()) != 1 {
 		t.Fatalf("%d devices, %d announced; want 2 and 1", e.devices(), len(e.discovered()))
 	}
@@ -187,35 +187,35 @@ func TestContract_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
 // address answered a minute ago waits rotationQuiet (20 minutes), then joins when the old row stayed silent.
 func TestContract_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.10", "Johns-iPhone")...)
+	e.record(dhcp(privMac1, "10.0.18.10", "Johns-iPhone")...)
 	e.tick(time.Second)
-	e.record(dhcp(privMac2, "192.168.18.11", "Johns-iPhone")...)
+	e.record(dhcp(privMac2, "10.0.18.11", "Johns-iPhone")...)
 	for range 3 {
 		e.tick(10 * time.Minute)
-		e.record(dhcp(privMac1, "192.168.18.10", "Johns-iPhone")...)
-		e.record(dhcp(privMac2, "192.168.18.11", "Johns-iPhone")...)
+		e.record(dhcp(privMac1, "10.0.18.10", "Johns-iPhone")...)
+		e.record(dhcp(privMac2, "10.0.18.11", "Johns-iPhone")...)
 	}
 	if n := e.devices(); n != 2 {
 		t.Fatalf("%d devices, want the two phones", n)
 	}
 	// Phone 1 leaves; a printer gets its lease (the row loses its address); phone 2 is seen an hour later: still two phones.
 	e.tick(time.Hour)
-	e.record(dhcp(burnt1, "192.168.18.10", "printer-2f")...)
-	e.record(dhcp(privMac2, "192.168.18.11", "Johns-iPhone")...)
+	e.record(dhcp(burnt1, "10.0.18.10", "printer-2f")...)
+	e.record(dhcp(privMac2, "10.0.18.11", "Johns-iPhone")...)
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE lower(hostname) = 'johns-iphone'`); n != 2 {
 		t.Fatalf("%d Johns-iPhone rows after phone 1 lost its address, want 2", n)
 	}
 
 	r := newEnv(t)
-	r.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...)
+	r.record(dhcp(privMac1, "10.0.18.20", "annas-ipad")...)
 	r.tick(time.Minute)
-	r.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
+	r.record(dhcp(privMac2, "10.0.18.21", "annas-ipad")...)
 	if n := r.devices(); n != 2 {
 		t.Fatalf("a minute after the old address: %d devices, want 2 until the old one is quiet", n)
 	}
 	r.tick(25 * time.Minute)
-	r.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
-	if d := r.only(); d.IP != "192.168.18.21" || d.MAC == nil || *d.MAC != privMac2 {
+	r.record(dhcp(privMac2, "10.0.18.21", "annas-ipad")...)
+	if d := r.only(); d.IP != "10.0.18.21" || d.MAC == nil || *d.MAC != privMac2 {
 		t.Errorf("after the quiet time: %+v", d.AssetCore)
 	}
 }
@@ -224,22 +224,21 @@ func TestContract_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 // reports find that device when the machine's address changes: still one device, at the new address.
 func TestContract_AnAgentFollowsItsDevice(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
+	id := e.idOf("10.0.18.20")
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.20")...)
+	e.record(osq("10.0.18.20")...)
 	if e.devices() != 1 || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 {
 		t.Fatalf("after the first report: %d devices, agent bound %d", e.devices(), e.count(`SELECT count(*) FROM inv_asset WHERE agent_key IS NOT NULL`))
 	}
 	e.tick(time.Hour)
-	e.record(osq("192.168.18.30")...)
+	e.record(osq("10.0.18.30")...)
 	d := e.only()
-	if d.ID != id || d.IP != "192.168.18.30" {
+	if d.ID != id || d.IP != "10.0.18.30" {
 		t.Errorf("after the move: id %s ip %s, want %s at .30", d.ID, d.IP, id)
 	}
 	// Its software list goes to the same device.
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.30"), Agent: "osquery:node-a"}, observe.Agent,
-		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.0.18.30"), Agent: "osquery:node-a"}, observe.Osquery, nil, []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	e.only()
@@ -248,9 +247,9 @@ func TestContract_AnAgentFollowsItsDevice(t *testing.T) {
 // A node reporting on an address that another machine held (a row seen with another MAC) is not bound to that row.
 func TestContract_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt2, "192.168.18.20", "")...)
+	e.record(dhcp(burnt2, "10.0.18.20", "")...)
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.20")...)
+	e.record(osq("10.0.18.20")...)
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE agent_key IS NOT NULL`); n != 0 {
 		t.Errorf("%d rows bound to the node, want none", n)
 	}
@@ -261,20 +260,20 @@ func TestContract_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 // the enrolment's approval (review #831 L5) and the node's binding, and the node's next report finds it.
 func TestContract_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
 	e.tick(time.Hour)
-	e.record(osq("192.168.18.40")...)
+	e.record(osq("10.0.18.40")...)
 	if e.devices() != 2 {
 		t.Fatalf("%d devices before a sensor sees the move, want 2", e.devices())
 	}
-	orphan := e.idOf("192.168.18.40")
-	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.40"), Agent: "osquery:node-a"}, burnt1, "enrolled", false); err != nil || !found {
+	orphan := e.idOf("10.0.18.40")
+	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.0.18.40"), Agent: "osquery:node-a"}, burnt1, "enrolled", false); err != nil || !found {
 		t.Fatalf("ApproveEnrolled: %v %v", found, err)
 	}
 	e.tick(time.Minute)
-	e.record(dhcp(burnt1, "192.168.18.40", "")...)
+	e.record(dhcp(burnt1, "10.0.18.40", "")...)
 	d := e.only()
-	if d.ID != orphan || d.IP != "192.168.18.40" || d.Hostname == nil || *d.Hostname != "build01" || !d.Approved || d.MAC == nil || *d.MAC != burnt1 {
+	if d.ID != orphan || d.IP != "10.0.18.40" || d.Hostname == nil || *d.Hostname != "build01" || !d.Approved || d.MAC == nil || *d.MAC != burnt1 {
 		t.Errorf("device: id %s (want the approved row %s, review #831 L5) ip %s name %v approved %v mac %v", d.ID, orphan, d.IP, d.Hostname, d.Approved, d.MAC)
 	}
 	if e.count(`SELECT count(*) FROM inv_asset WHERE agent_key = 'osquery:node-a'`) != 1 {
@@ -282,7 +281,7 @@ func TestContract_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	}
 	id := d.ID
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.40")...)
+	e.record(osq("10.0.18.40")...)
 	if d := e.only(); d.ID != id {
 		t.Errorf("the next report went to %s, want %s", d.ID, id)
 	}
@@ -292,8 +291,8 @@ func TestContract_AnAgentsRowJoinsItsMachine(t *testing.T) {
 func TestContract_OnlyAnAgentNamesAnAgent(t *testing.T) {
 	e := newEnv(t)
 	for _, o := range []observe.Observation{
-		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "x1", Source: observe.Passive, Confidence: 0.5},
-		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery node"}, Field: observe.Hostname, Value: "x1", Source: observe.Agent, Confidence: 0.5},
+		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "x1", Source: observe.Passive, Confidence: 0.5},
+		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), Agent: "osquery node"}, Field: observe.Hostname, Value: "x1", Source: observe.Agent, Confidence: 0.5},
 	} {
 		err := e.svc.Record(e.ctx(), []observe.Observation{o})
 		if !errors.Is(err, inventory.ErrInvalid) {
@@ -309,10 +308,10 @@ func TestContract_OnlyAnAgentNamesAnAgent(t *testing.T) {
 // does not take it; once agent-intake releases the old node (re-enrolment, revoke, prune), the next node binds.
 func TestContract_ABindingIsNeverStolen(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
-	e.record(osq("192.168.18.20")...)
-	other := []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-b"}, Field: observe.MAC, Value: burnt1, Source: observe.Agent, Confidence: 0.9}}
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
+	id := e.idOf("10.0.18.20")
+	e.record(osq("10.0.18.20")...)
+	other := []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), Agent: "osquery:node-b"}, Field: observe.MAC, Value: burnt1, Source: observe.Agent, Confidence: 0.9}}
 	e.record(other...)
 	if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 || e.count(`SELECT count(*) FROM inv_asset WHERE agent_key = 'osquery:node-b'`) != 0 {
 		t.Fatal("node-b took node-a's device")
@@ -332,25 +331,25 @@ func TestContract_ABindingIsNeverStolen(t *testing.T) {
 // report on a device of its own.
 func TestContract_ASpoofedBindingIsDropped(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt2, "192.168.18.20", "")...)
-	victim := e.idOf("192.168.18.20")
+	e.record(dhcp(burnt2, "10.0.18.20", "")...)
+	victim := e.idOf("10.0.18.20")
 	from := func(ip string) []observe.Observation {
 		h := observe.AssetHint{IP: netip.MustParseAddr(ip), Agent: "osquery:node-x"}
 		return []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: burnt2, Source: observe.Agent, Confidence: 0.9},
 			{AssetHint: h, Field: observe.Hostname, Value: "evil", Source: observe.Agent, Confidence: 0.9}}
 	}
-	e.record(from("192.168.18.20")...)
+	e.record(from("10.0.18.20")...)
 	if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-x'`, victim) != 1 {
 		t.Fatal("setup: the spoof did not bind")
 	}
 	e.tick(time.Minute)
-	e.record(from("192.168.18.77")...) // no evidence yet: the node is followed
+	e.record(from("10.0.18.77")...) // no evidence yet: the node is followed
 	e.tick(time.Minute)
-	e.record(dhcp(burnt2, "192.168.18.20", "")...) // the wire: the machine is at .20
+	e.record(dhcp(burnt2, "10.0.18.20", "")...) // the wire: the machine is at .20
 	e.tick(time.Minute)
-	e.record(from("192.168.18.77")...)
+	e.record(from("10.0.18.77")...)
 	d, err := e.svc.Device(e.ctx(), victim)
-	if err != nil || d.IP != "192.168.18.20" {
+	if err != nil || d.IP != "10.0.18.20" {
 		t.Errorf("the machine moved: %+v %v", d.AssetCore, err)
 	}
 	if e.devices() != 2 || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, victim) != 0 {
@@ -364,18 +363,18 @@ func TestContract_ASpoofedBindingIsDropped(t *testing.T) {
 func TestContract_ANodeFollowsANICChange(t *testing.T) {
 	e := newEnv(t)
 	const wifi = "a4:83:e7:00:00:09" // burned in too
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
-	e.record(osq("192.168.18.20")...)
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
+	id := e.idOf("10.0.18.20")
+	e.record(osq("10.0.18.20")...)
 	e.tick(2 * time.Minute)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...) // still docked: a sensor sees the wired card after the report, at the same address
+	e.record(dhcp(burnt1, "10.0.18.20", "")...) // still docked: a sensor sees the wired card after the report, at the same address
 	e.tick(time.Hour)
-	e.record(dhcp(wifi, "192.168.18.31", "")...)
-	h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.31"), Agent: "osquery:node-a"}
+	e.record(dhcp(wifi, "10.0.18.31", "")...)
+	h := observe.AssetHint{IP: netip.MustParseAddr("10.0.18.31"), Agent: "osquery:node-a"}
 	e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: wifi, Source: observe.Agent, Confidence: 0.9},
 		observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9})
 	d := e.only()
-	if d.ID != id || d.IP != "192.168.18.31" || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 {
+	if d.ID != id || d.IP != "10.0.18.31" || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 {
 		t.Errorf("device: id %s ip %s (want %s at .31, bound)", d.ID, d.IP, id)
 	}
 }
@@ -383,11 +382,11 @@ func TestContract_ANodeFollowsANICChange(t *testing.T) {
 // A batch that names no MAC (agent-intake sends the enrolment's host name alone) keeps the binding.
 func TestContract_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
-	e.record(osq("192.168.18.20")...)
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
+	id := e.idOf("10.0.18.20")
+	e.record(osq("10.0.18.20")...)
 	e.tick(time.Minute)
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9})
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9})
 	if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 || e.devices() != 1 {
 		t.Error("a host-name-only batch dropped the binding")
 	}
@@ -397,17 +396,17 @@ func TestContract_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
 // rotation apart for ever: once the old row is quiet for rotationQuiet, the next sighting of the new row joins them.
 func TestContract_ALateSightingDoesNotBlockARotation(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...)
+	e.record(dhcp(privMac1, "10.0.18.20", "annas-ipad")...)
 	e.tick(2 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...) // too soon after the old address: not joined yet
+	e.record(dhcp(privMac2, "10.0.18.21", "annas-ipad")...) // too soon after the old address: not joined yet
 	e.tick(time.Minute)
-	e.record(dhcp(privMac1, "192.168.18.20", "annas-ipad")...) // a late sighting of the old row, after the new one appeared
+	e.record(dhcp(privMac1, "10.0.18.20", "annas-ipad")...) // a late sighting of the old row, after the new one appeared
 	if e.devices() != 2 {
 		t.Fatalf("setup: %d devices", e.devices())
 	}
 	e.tick(30 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.18.21", "annas-ipad")...)
-	if d := e.only(); d.IP != "192.168.18.21" {
+	e.record(dhcp(privMac2, "10.0.18.21", "annas-ipad")...)
+	if d := e.only(); d.IP != "10.0.18.21" {
 		t.Errorf("device at %s", d.IP)
 	}
 }
@@ -415,10 +414,10 @@ func TestContract_ALateSightingDoesNotBlockARotation(t *testing.T) {
 // ApproveEnrolled finds the device by the node first, wherever its address went.
 func TestContract_ApproveEnrolledFindsTheNodesDevice(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
-	e.record(osq("192.168.18.20")...)
-	found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.99"), Agent: "osquery:node-a"}, burnt1, "enrolled", false)
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
+	id := e.idOf("10.0.18.20")
+	e.record(osq("10.0.18.20")...)
+	found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.0.18.99"), Agent: "osquery:node-a"}, burnt1, "enrolled", false)
 	if err != nil || !found {
 		t.Fatalf("found %v err %v", found, err)
 	}
@@ -431,18 +430,18 @@ func TestContract_ApproveEnrolledFindsTheNodesDevice(t *testing.T) {
 // observation batch does: the agent's address-less row joins the machine's device, one device.
 func TestContract_AListAlsoJoins(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	e.record(dhcp(burnt1, "10.0.18.20", "")...)
 	e.tick(time.Hour)
-	e.record(osq("192.168.18.40")...)
+	e.record(osq("10.0.18.40")...)
 	if e.devices() != 2 {
 		t.Fatalf("setup: %d devices", e.devices())
 	}
 	e.tick(time.Minute)
-	if err := e.svc.AddServices(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.40"), MAC: burnt1}, observe.Nmap,
+	if err := e.svc.AddServices(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.0.18.40"), MAC: burnt1}, observe.Nmap,
 		[]observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
-	if d := e.only(); d.IP != "192.168.18.40" || len(d.Services) != 1 {
+	if d := e.only(); d.IP != "10.0.18.40" || len(d.Services) != 1 {
 		t.Errorf("device: %+v", d.AssetCore)
 	}
 }

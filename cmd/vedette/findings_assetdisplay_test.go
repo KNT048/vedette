@@ -23,7 +23,7 @@ func TestWiringFindingAssetDisplayIsTheOSNotTheFirstSoftware(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, h := range []observe.AssetHint{winlab, bare} {
-		if err := s.d.Inventory.ReplaceSoftware(ctx, h, observe.Agent, []observe.Software{
+		if err := s.d.Inventory.ReplaceSoftware(ctx, h, observe.Osquery, nil, []observe.Software{
 			{Display: "Windows Server 2025", Vendor: "Microsoft", Product: "Windows", Version: "10.0.26100.1742", KevKeys: []string{"microsoft|windows"}, Confidence: 1},
 			{Display: "Microsoft Edge", Vendor: "Microsoft", Product: "Edge", Version: "131.0.2903.70", KevKeys: []string{"microsoft|edge"}, Confidence: 1},
 		}); err != nil {

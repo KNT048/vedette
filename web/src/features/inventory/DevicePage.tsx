@@ -23,7 +23,7 @@ import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
-import { useAgentReport, useAskReport, useDevice, useDeviceAction, useEffectiveSoftware } from './api'
+import { useAgentReport, useAskReport, useDevice, useDeviceAction } from './api'
 import { DetectedNotice } from './DetectedNotice'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
@@ -41,7 +41,7 @@ import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
-import type { AlsoSeen, DeviceDetail, EffectiveSoftware, Observation, RegularScan, SoftwareView } from './types'
+import type { AlsoSeen, DeviceDetail, Observation, RegularScan, SoftwareLine } from './types'
 import { RiskMarker } from './RiskMarker'
 
 /** #944: the fragile line promises a scan only when Vedette may scan the device now, by the one rule
@@ -283,20 +283,6 @@ function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: De
 
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/ // the backend's versionRE: what "edit version" accepts
 
-/** A software the page shows as one line: the row the effective reading comes from, with the other sources (INV-50) when known. */
-type SoftwareLine = { sw: SoftwareView; eff?: EffectiveSoftware }
-
-/** The lines of the Software tab: one per software, from the effective rows; any other row of the device (a "not installed" mark, a
- *  correction that rests) stays a line of its own. Without the effective answer (still loading, or failed) every row is a line. */
-function softwareLines(rows: SoftwareView[], eff: EffectiveSoftware[] | undefined): SoftwareLine[] {
-  const byId = new Map(rows.map((r) => [r.id, r]))
-  const shown = (r: SoftwareView) => !(r.corrected_by && rows.some((c) => c.id === r.corrected_by && c.correction?.not_installed && c.correction.active))
-  if (!eff) return rows.filter(shown).map((sw) => ({ sw }))
-  const covered = new Set(eff.flatMap((e) => [e.id, ...e.also_seen.map((o) => o.id)]))
-  const lines: SoftwareLine[] = eff.flatMap((e) => { const sw = byId.get(e.id); return sw ? [{ sw, eff: e }] : [] })
-  return [...lines, ...rows.filter((r) => !covered.has(r.id) && shown(r)).map((sw) => ({ sw }))]
-}
-
 /** "Also seen by: 10.2 (Active scan, 2 hours ago)": the other sources of the software, quiet evidence under its value. */
 function AlsoSeenLine({ also }: { also: AlsoSeen[] }) {
   const { t } = useTranslation('inventory')
@@ -309,22 +295,18 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
-  const [editing, setEditing] = useState<SoftwareView | null>(null)
-  const [gone, setGone] = useState<SoftwareView | null>(null)
+  const [editing, setEditing] = useState<SoftwareLine | null>(null)
+  const [gone, setGone] = useState<SoftwareLine | null>(null)
   // "Ask the agent now" (agent-intake INV-23) for the agent's rows: only while an osquery agent reads the device and a new ask is possible
   const agentOn = useModuleEnabled('agent-intake')
   const report = useAgentReport(d.asset.id, agentOn === true && !d.asset.is_box && d.asset.software.some((sw) => sw.source === 'agent'))
   const ask = useAskReport(d.asset.id)
   const r = report.data
   const canAsk = r?.agent === 'osquery' && !r.asked_at && !(r.ask_again_at && Date.parse(r.ask_again_at) > Date.now())
-  // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
-  const effective = useEffectiveSoftware(d.asset.id)
-  const lines = softwareLines(d.asset.software, effective.data?.items)
-  const list = lines.map((l) => l.sw)
-  const lineOf = new Map(lines.map((l) => [l.sw.id, l]))
-  // What each software line needs, from the same answer as Findings › To fix. Its actions name the row their findings or plan item
-  // rest on, which may be another source's row of the same software (listed under the line): those count on the line.
-  const lineIdOf = new Map(lines.flatMap((l) => [[l.sw.id, l.sw.id] as const, ...(l.eff?.also_seen ?? []).map((o) => [o.id, l.sw.id] as const)]))
+  // One row per software line, as the server built it: its value, the other readings under it, a person's entry or "not installed".
+  const list = d.asset.software
+  // What each software line needs, from the same answer as Findings › To fix, by the line's id (a reading names its line).
+  const lineIdOf = new Map(list.flatMap((l) => [[l.id, l.id] as const, ...l.also_seen.map((o) => [o.id, l.id] as const)]))
   const needs = needsByLine(useSoftwareNeeds(d.asset.id), lineIdOf)
   // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);
   // a network scan's OS guess, or the OS row a person declared, is its own row, never also a line. The box's own OS is its package list.
@@ -338,9 +320,9 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   ) : null
   if (!list.length) return <>{osBox}<EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState></>
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  const version = (sw: SoftwareView) => {
+  const version = (sw: SoftwareLine) => {
     const c = sw.correction
-    if (c?.not_installed) {
+    if (sw.not_installed && c) {
       const date = fmtDate(c.set_at)
       const now = c.detected ? [c.detected.display, c.detected.version].filter(Boolean).join(' ') : ''
       return (
@@ -351,9 +333,8 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
         </div>
       )
     }
-    const eff = lineOf.get(sw.id)?.eff
     // INV-50: the one notice, only when another source reads another release (`differs`); the same release is quiet evidence below
-    const differing = eff?.differs ? eff.also_seen.find((o) => !o.same_release && o.source !== 'manual') : undefined
+    const differing = sw.differs ? sw.also_seen.find((o) => !o.same_release && o.source !== 'manual') : undefined
     const v = differing?.version ?? ''
     return (
       <div className="grid gap-1">
@@ -370,7 +351,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
             ) : null}
           </span>
         ) : null}
-        <AlsoSeenLine also={eff?.also_seen ?? []} />
+        <AlsoSeenLine also={sw.also_seen} />
       </div>
     )
   }
@@ -378,9 +359,9 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   // reports a newer one. A person's correction can be changed or undone; software a person declared is changed or removed; a reported
   // line can also be marked not installed, and an agent's line can ask the agent to report now. "Not installed" keeps its Clear button.
   // `can_correct` false (the box refuses a correction of that line) hides "Correct version…"; absent, it is offered.
-  const remove = (sw: SoftwareView, done: string) => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t(done, { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })
-  const actions = (sw: SoftwareView) => {
-    if (sw.correction?.not_installed) {
+  const remove = (sw: SoftwareLine, done: string) => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t(done, { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })
+  const actions = (sw: SoftwareLine) => {
+    if (sw.not_installed) {
       return (
         <Button size="sm" variant="secondary" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} busyLabel={t('common:busy.saving')}
           title={needRole} aria-label={t('software.clearLabel', { name: sw.display })}
@@ -422,7 +403,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       </DropdownMenu>
     )
   }
-  const columns: ColumnDef<SoftwareView>[] = [
+  const columns: ColumnDef<SoftwareLine>[] = [
     { id: 'name', header: t('software.name'), accessorFn: (s) => s.display, cell: ({ row }) => {
       const raw = rawProductLine(row.original.display, row.original.vendor, row.original.product)
       return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-caption text-muted">{raw}</span> : null}</div>

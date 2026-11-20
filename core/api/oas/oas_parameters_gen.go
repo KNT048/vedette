@@ -10347,12 +10347,12 @@ func decodeInventoryGetInventoryDevicesIDParams(args [1]string, argsEscaped bool
 	return params, nil
 }
 
-// InventoryGetInventoryDevicesIDSoftwareParams is parameters of inventory_get_inventory_devices_id_software operation.
-type InventoryGetInventoryDevicesIDSoftwareParams struct {
+// InventoryGetInventoryDevicesIDSourcesParams is parameters of inventory_get_inventory_devices_id_sources operation.
+type InventoryGetInventoryDevicesIDSourcesParams struct {
 	ID string
 }
 
-func unpackInventoryGetInventoryDevicesIDSoftwareParams(packed middleware.Parameters) (params InventoryGetInventoryDevicesIDSoftwareParams) {
+func unpackInventoryGetInventoryDevicesIDSourcesParams(packed middleware.Parameters) (params InventoryGetInventoryDevicesIDSourcesParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -10363,7 +10363,7 @@ func unpackInventoryGetInventoryDevicesIDSoftwareParams(packed middleware.Parame
 	return params
 }
 
-func decodeInventoryGetInventoryDevicesIDSoftwareParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventoryDevicesIDSoftwareParams, _ error) {
+func decodeInventoryGetInventoryDevicesIDSourcesParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventoryDevicesIDSourcesParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

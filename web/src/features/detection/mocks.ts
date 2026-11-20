@@ -3,14 +3,13 @@
 // and the severity are resolved when read, like the box.
 // The overview reads the other modules through their own endpoints, as core reads the modules' ports on the box.
 //
-// Until the ids module is in the module list, it counts as on in the sample data and off on a clean install (the box
-// ships it off). The incident of an alert is kept on the alert here; on the box it is the notify incident of kind
+// The incident of an alert is kept on the alert here; on the box it is the notify incident of kind
 // intrusion, handled with PATCH /notify/incidents/{id}.
 import { http, HttpResponse } from 'msw'
 import { API, fail, guard } from '@/mocks/http'
-import { assetsStore, findingsStore, installStore, isOn, moduleAvailable, modulesStore } from '@/mocks/stores'
+import { assetsStore, findingsStore, installStore, isOn, moduleAvailable } from '@/mocks/stores'
 import { networkStore, spanStatusOf } from '@/mocks/network'
-import { collection, dataMode, daysAgo, nowIso, peek } from '@/mocks/db'
+import { collection, daysAgo, nowIso, peek } from '@/mocks/db'
 import { containerSensorStore } from '@/features/inventory/mocks'
 import { accepted } from '@/features/findings/mocks'
 import type { Finding } from '@/lib/types'
@@ -41,11 +40,8 @@ const alerts = collection<Stored[]>('ids_alert', () => [
     src_ip: '198.51.100.9', dst_ip: '10.0.10.1', dst_port: 10443, proto: 'tcp', src_asset_id: null, dst_asset_id: 'a-fw01', cves: ['CVE-2018-13379'], first_seen: at(20, 4), last_seen: at(20, 3), count: 6, incident: { id: 'in-ids-5', status: 'resolved' } },
 ], () => [])
 
-/** On while it is on in the module list; until it is listed there, on with the sample data and off on a clean install. */
-function idsOn(): boolean {
-  const m = modulesStore.get().find((x) => (x.id as string) === 'ids')
-  return m ? m.enabled : dataMode() !== 'clean'
-}
+/** On while it is on in the module list. */
+const idsOn = (): boolean => isOn('ids')
 const offFail = () => fail(404, 'not_found', 'Not found.')
 
 const ref = (a: { id: string; hostname: string | null; ip: string } | undefined): DeviceRef | null => (a ? { id: a.id, name: a.hostname ?? a.ip } : null)
@@ -97,8 +93,8 @@ async function read<T>(path: string): Promise<T | null> {
   return r.ok ? ((await r.json()) as T) : null
 }
 const newest = (xs: Array<string | null | undefined>) => xs.filter((x): x is string => !!x).sort().at(-1) ?? null
-// The log kinds whose device profile reads IPS or IDS events (FortiGate IPS, Suricata or Snort on pfSense and OPNsense).
-const IPS_KINDS = ['fortigate', 'pfsense', 'opnsense', 'suricata']
+// The log kinds of devices that write IPS or IDS events (modules/ids NativeIPS).
+const IPS_KINDS = ['fortigate', 'sophos', 'sonicwall', 'paloalto', 'meraki', 'pfsense', 'opnsense', 'ubiquiti', 'unifi', 'suricata']
 
 async function traps(): Promise<Watcher> {
   const base = { id: 'traps' as const, module: 'honeypot', last_input_at: null, detections_7d: 0 }

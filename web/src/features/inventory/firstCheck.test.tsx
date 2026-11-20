@@ -79,7 +79,7 @@ describe('Device page: the network scan row while the switch is on and nothing h
     await hand('a-hand-fw', '192.168.10.80', 'on')
     renderApp('/devices/a-hand-fw', { role: 'admin' })
     const row = await scanRow()
-    expect(await within(row).findByText(/^On · first check (tonight|tomorrow|on \d+ \w+) at \d\d:\d\d, in the scan window$|^On · first check runs during this scan window/, {}, T)).toBeInTheDocument()
+    expect(await within(row).findByText(/^On · first check (tonight|today|tomorrow|on \d+ \w+) at \d\d:\d\d, in the scan window$|^On · first check runs during this scan window/, {}, T)).toBeInTheDocument()
     expect(row).not.toHaveTextContent('Not set up')
     expect(within(row).getByRole('button', { name: 'Check this device now' })).toBeInTheDocument()
   })

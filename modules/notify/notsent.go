@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,7 +35,15 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 		quiet string // the earliest release of a held message
 	}
 	queue := map[string]*waiting{}
-	rows, err := q.QueryContext(ctx, `SELECT notice_id, reason, MIN(due_at) FROM notify_pending WHERE notice_id IN `+in+` GROUP BY notice_id, reason`, ids...)
+	// The notices of an incident: its own, and those of its raises (raiseIntrusion: <id>-raised-<severity>).
+	noticeIDs := slices.Clone(ids)
+	for _, id := range ids {
+		for _, sev := range []Severity{Critical, High, Medium, Low, Info} {
+			noticeIDs = append(noticeIDs, raisedNoticeID(id.(string), sev))
+		}
+	}
+	nin := "(" + strings.TrimSuffix(strings.Repeat("?,", len(noticeIDs)), ",") + ")"
+	rows, err := q.QueryContext(ctx, `SELECT notice_id, reason, MIN(due_at) FROM notify_pending WHERE notice_id IN `+nin+` GROUP BY notice_id, reason`, noticeIDs...)
 	if err != nil {
 		return fmt.Errorf("notify: read queued incidents: %w", err)
 	}
@@ -44,13 +53,16 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 			_ = rows.Close()
 			return fmt.Errorf("notify: read queued incidents: %w", err)
 		}
+		id = incidentOfNotice(id)
 		w := queue[id]
 		if w == nil {
 			w = &waiting{}
 			queue[id] = w
 		}
 		if reason == "quiet" {
-			w.quiet = due
+			if w.quiet == "" || due < w.quiet {
+				w.quiet = due
+			}
 		} else {
 			w.now = true
 		}

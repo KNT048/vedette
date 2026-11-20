@@ -2,7 +2,7 @@
  "search": [
   {
    "q": "",
-   "total": 883,
+   "total": 885,
    "items": [
     {
      "id": "fortigate",
@@ -835,7 +835,7 @@
   },
   {
    "q": "microsoft",
-   "total": 89,
+   "total": 90,
    "items": [
     {
      "id": "kev:microsoft:microsoft",
@@ -845,13 +845,12 @@
      ]
     },
     {
-     "id": "microsoft-edge-internet-explorer",
-     "kev_count": 42,
+     "id": "microsoft-internet-explorer",
+     "kev_count": 40,
      "kev": [
-      "microsoft|edge",
       "microsoft|edge and internet explorer",
-      "microsoft|internet explorer and edge",
       "microsoft|internet explorer",
+      "microsoft|internet explorer and edge",
       "microsoft|internet explorer scripting engine"
      ]
     },
@@ -907,6 +906,15 @@
      ]
     },
     {
+     "id": "microsoft-edge",
+     "kev_count": 5,
+     "kev": [
+      "microsoft|edge",
+      "microsoft|edge and internet explorer",
+      "microsoft|internet explorer and edge"
+     ]
+    },
+    {
      "id": "kev:microsoft:windows",
      "kev_count": 175,
      "kev": [
@@ -935,18 +943,18 @@
      ]
     },
     {
+     "id": "kev:microsoft:exchange-server",
+     "kev_count": 17,
+     "kev": [
+      "microsoft|exchange server"
+     ]
+    },
+    {
      "id": "microsoft-defender-antivirus",
      "kev_count": 6,
      "kev": [
       "microsoft|defender",
       "microsoft|malware protection engine"
-     ]
-    },
-    {
-     "id": "kev:microsoft:exchange-server",
-     "kev_count": 17,
-     "kev": [
-      "microsoft|exchange server"
      ]
     },
     {
@@ -1052,13 +1060,6 @@
      "kev_count": 2,
      "kev": [
       "microsoft|mshtml"
-     ]
-    },
-    {
-     "id": "kev:microsoft:powerpoint",
-     "kev_count": 2,
-     "kev": [
-      "microsoft|powerpoint"
      ]
     }
    ]
@@ -1948,7 +1949,7 @@
   },
   {
    "q": "a",
-   "total": 358,
+   "total": 359,
    "items": [
     {
      "id": "aruba-hpe-procurve-switch",
@@ -2024,18 +2025,18 @@
      ]
     },
     {
+     "id": "kev:apple:multiple-products",
+     "kev_count": 55,
+     "kev": [
+      "apple|multiple products"
+     ]
+    },
+    {
      "id": "acronis-cyber-protect-backup",
      "kev_count": 2,
      "kev": [
       "acronis|backup",
       "acronis|cyber infrastructure (aci)"
-     ]
-    },
-    {
-     "id": "kev:apple:multiple-products",
-     "kev_count": 55,
-     "kev": [
-      "apple|multiple products"
      ]
     },
     {

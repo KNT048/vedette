@@ -336,7 +336,7 @@ func (s *sink) Record(_ context.Context, o []observe.Observation) error {
 	return nil
 }
 
-func (s *sink) ReplaceSoftware(_ context.Context, h observe.AssetHint, src observe.Source, items []observe.Software) error {
+func (s *sink) ReplaceSoftware(_ context.Context, h observe.AssetHint, src observe.Source, _ []string, items []observe.Software) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if src != observe.Nmap {

@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import { isOpen } from './basis'
 import { useFindings } from './api'
 import type { FindingRow } from './types'
+import type { DeviceDetail, SoftwareLine } from '@/features/inventory/types'
 
 /** Reads of the findings list after a save, and the pause between them: the box matches the device a moment after the save. */
 export const ENTRY_POLLS = 6
@@ -41,18 +42,17 @@ export function enteredResult(items: FindingRow[], rowIds: readonly string[], en
 export const readDeviceFindings = (assetId: string) =>
   api.get<{ items: FindingRow[] }>(`/findings?asset=${encodeURIComponent(assetId)}`).then((d) => d.items, () => null)
 
-/** One software of the device as inventory gives it (GET /inventory/devices/{id}/software, inventory INV-50): the effective row and the
- *  other sources' rows of the same software. */
-type EffectiveRow = { id: string; vendor: string; product: string; also_seen: { id: string }[] }
+/** One software line of the device as inventory gives it (the device's lines, DeviceDetail.asset.software): its id and the ids its
+ *  other readings name. */
+type LineIds = Pick<SoftwareLine, 'id' | 'vendor' | 'product'> & { also_seen: { id: string }[] }
 
-/** The ids of every row of the software the entry was made on: the edited row, its correction, and, from inventory's effective rows,
- *  every row of that software: the row that describes it now, the other sources' rows of it, and any other install of the same vendor
- *  and product (a second agent row at another version). The matcher matches the effective rows (the agent's package row on a device
- *  that has one), so a finding of the software can be on any of them. */
-export function softwareRowIds(rowIds: readonly string[], effective: readonly EffectiveRow[] | undefined): string[] {
+/** The ids of every row of the software the entry was made on: the edited line and, from inventory's lines, every line of that
+ *  software: its other readings and any other line of the same vendor and product (another release train). A finding of the software
+ *  can be on any of them. */
+export function softwareRowIds(rowIds: readonly string[], effective: readonly LineIds[] | undefined): string[] {
   const ids = new Set(rowIds)
-  const rows = (e: EffectiveRow) => [e.id, ...e.also_seen.map((o) => o.id)]
-  const product = (e: EffectiveRow) => `${e.vendor}|${e.product}`.trim().toLowerCase()
+  const rows = (e: LineIds) => [e.id, ...e.also_seen.map((o) => o.id)]
+  const product = (e: LineIds) => `${e.vendor}|${e.product}`.trim().toLowerCase()
   const mine = new Set((effective ?? []).filter((e) => rows(e).some((id) => ids.has(id))).map(product))
   for (const e of effective ?? []) if (mine.has(product(e))) rows(e).forEach((id) => ids.add(id))
   return [...ids]
@@ -97,9 +97,10 @@ function CveLinks({ items }: { items: FindingRow[] }) {
 export function EnteredOutcome({ assetId, rowIds, entered, before, always = false }: { assetId: string; rowIds: readonly string[]; entered: readonly string[]; before?: FindingRow[] | null; always?: boolean }) {
   const { t } = useTranslation('findings')
   const q = useFindings(assetId)
+  // its own copy of the device's lines: reading them again while waiting must not re-render the device page around it
   const eff = useQuery({
-    queryKey: ['inventory', 'effective-software', assetId],
-    queryFn: () => api.get<{ items: EffectiveRow[] }>(`/inventory/devices/${encodeURIComponent(assetId)}/software`).then((d) => d.items),
+    queryKey: ['inventory', 'device', assetId, 'lines'],
+    queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(assetId)}`).then((d) => d.asset.software),
     retry: false,
   })
   const qc = useQueryClient()
@@ -116,7 +117,7 @@ export function EnteredOutcome({ assetId, rowIds, entered, before, always = fals
     const timer = setTimeout(() => {
       setTries((n) => n + 1)
       void qc.invalidateQueries({ queryKey: ['findings', 'list', assetId] })
-      void qc.invalidateQueries({ queryKey: ['inventory', 'effective-software', assetId] })
+      void qc.invalidateQueries({ queryKey: ['inventory', 'device', assetId, 'lines'], exact: true })
     }, tries < ENTRY_POLLS ? ENTRY_POLL_MS : ENTRY_SLOW_MS)
     return () => clearTimeout(timer)
   }, [done, tries, qc, assetId])

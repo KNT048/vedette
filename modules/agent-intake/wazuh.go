@@ -747,7 +747,7 @@ func (s *Service) wazuhSoftware(ctx context.Context, hint observe.AssetHint, id 
 	if len(items) == 0 {
 		return 0, nil
 	}
-	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
+	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Wazuh, nil, items); err != nil {
 		if transient(err) {
 			return 0, fmt.Errorf("agentintake: software: %w", err)
 		}

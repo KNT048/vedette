@@ -130,6 +130,15 @@ func (h *Handlers) InventoryPatchInventoryDevicesID(ctx context.Context, req *oa
 	return &oas.InventoryPatchInventoryDevicesIDOK{Ok: true}, nil
 }
 
+// InventoryGetInventoryDevicesIDSources implements GET /inventory/devices/{id}/sources (viewer): the device's three source rows.
+func (h *Handlers) InventoryGetInventoryDevicesIDSources(ctx context.Context, params oas.InventoryGetInventoryDevicesIDSourcesParams) (*oas.InventoryGetInventoryDevicesIDSourcesOK, error) {
+	v, err := h.svc.DeviceSources(ctx, params.ID)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return convert[oas.InventoryGetInventoryDevicesIDSourcesOK](v)
+}
+
 // InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin).
 func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *oas.InventoryPutInventoryDevicesIDSourcesReq, params oas.InventoryPutInventoryDevicesIDSourcesParams) (*oas.InventoryPutInventoryDevicesIDSourcesOK, error) {
 	who, err := actor(ctx)
@@ -252,17 +261,6 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSuspicious(ctx context.Context
 		return nil, fail(err)
 	}
 	return &oas.InventoryPostInventoryDevicesIDSuspiciousOK{Ok: true}, nil
-}
-
-// InventoryGetInventoryDevicesIDSoftware implements GET /inventory/devices/{id}/software (viewer, INV-50).
-func (h *Handlers) InventoryGetInventoryDevicesIDSoftware(ctx context.Context, params oas.InventoryGetInventoryDevicesIDSoftwareParams) (*oas.InventoryGetInventoryDevicesIDSoftwareOK, error) {
-	rows, err := h.svc.EffectiveSoftware(ctx, params.ID)
-	if err != nil {
-		return nil, fail(err)
-	}
-	return convert[oas.InventoryGetInventoryDevicesIDSoftwareOK](struct {
-		Items []EffectiveSoftware `json:"items"`
-	}{rows})
 }
 
 // InventoryPostInventoryDevicesIDSoftware implements POST /inventory/devices/{id}/software (operator).

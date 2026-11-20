@@ -269,6 +269,10 @@
       "name": "Logs",
       "summary": "Receives firewall and server logs; shows what is new or spiking."
     },
+    "ids": {
+      "name": "Intrusion detection",
+      "summary": "Reads the IPS events in your firewall logs; an attack on a device affected by its CVE raises a critical alert."
+    },
     "agent-intake": {
       "name": "Agent intake",
       "summary": "Receives the software list of your servers from osquery agents or Wazuh."

@@ -184,10 +184,12 @@ func TestContract_INV1_ObservationsAppendOnly(t *testing.T) {
 func ptr[T any](v T) *T { return &v }
 
 // seedsInvRows are the tests outside the module that seed and read inv_* rows on purpose: the device merge tests load a fixture
-// device onto two rows and count what a merge loses, below the inventory's API. Product code is never listed.
+// device onto two rows and count what a merge loses, below the inventory's API; the software-line fixture test stores the fixture's
+// devices by their ids and finds the line a person corrected. Product code is never listed.
 var seedsInvRows = map[string]bool{
-	"../../cmd/vedette/merge_count_test.go":     true,
-	"../../cmd/vedette/devicelifecycle_test.go": true,
+	"../../cmd/vedette/merge_count_test.go":          true,
+	"../../cmd/vedette/devicelifecycle_test.go":      true,
+	"../../cmd/vedette/softwareline_fixture_test.go": true,
 }
 
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
@@ -335,7 +337,7 @@ func TestContract_INV4_ManualDeclaration(t *testing.T) {
 
 	t.Run("only manual software is removable", func(t *testing.T) {
 		box := e.addDevice(inventory.AddInput{CatalogID: "windows-11", IP: "192.168.30.9"})
-		if err := e.svc.UpsertSoftware(e.ctx(), box, []inventory.SoftwareItem{{Vendor: "Mozilla", Product: "Firefox", Version: "120", Confidence: 0.9}}, "agent"); err != nil {
+		if err := e.svc.UpsertSoftware(e.ctx(), box, []inventory.SoftwareItem{{Vendor: "Mozilla", Product: "Firefox", Version: "120", Confidence: 0.9}}, "osquery"); err != nil {
 			t.Fatal(err)
 		}
 		var agentSW, manualSW string
@@ -480,8 +482,8 @@ func TestContract_INV11_DeleteRemovesTheDeviceAndAnnouncesIt(t *testing.T) {
 			t.Fatalf("%s = %d after delete", q, n)
 		}
 	}
-	if n := e.count(`SELECT count(*) FROM inv_software_kev`); n != 0 {
-		t.Fatalf("%d orphan match keys", n)
+	if n := e.count(`SELECT count(*) FROM inv_software_reading`); n != 0 {
+		t.Fatalf("%d orphan software readings", n)
 	}
 	ev := e.ev.named(inventory.EventAssetDeleted)
 	if len(ev) != 1 || ev[0].Data.(inventory.AssetEvent).AssetID != id {

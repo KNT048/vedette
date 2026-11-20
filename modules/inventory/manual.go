@@ -1,7 +1,6 @@
 package inventory
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -143,11 +142,15 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	if a.entry != nil {
 		sw := SoftwareItem{Display: a.entry.display, Vendor: a.entry.vendor, Product: a.entry.product, Version: a.version, KevKeys: a.entry.kev, Confidence: 1}
-		if err := insertSoftware(ctx, tx, id, sw, "manual", now); err != nil {
+		if _, err := s.addEntryTx(ctx, tx, "", id, sw); err != nil {
+			return "", err
+		}
+		after, err := deviceKeys(ctx, tx, id)
+		if err != nil {
 			return "", err
 		}
 		o.add(EventSoftwareChanged, AssetEvent{AssetID: id})
-		o.after = append(o.after, s.matchEvents(id, nil, a.entry.kev))
+		o.after = append(o.after, s.matchEvents(id, nil, after))
 	}
 	o.add(EventAssetUpdated, AssetEvent{AssetID: id})
 	return id, nil
@@ -230,25 +233,19 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 		if !ok {
 			return notFoundDevice()
 		}
-		var dup int
-		// A row with no match key is a sensor's guess (nmap's OS): adding the product by hand is how a person confirms it, so
-		// the guess is no duplicate. Every other row has at least its vendor|product key.
-		err = tx.QueryRowContext(ctx, `SELECT 1 FROM inv_software s WHERE s.asset_id = ? AND lower(s.vendor) = lower(?) AND lower(s.product) = lower(?)
-			AND EXISTS (SELECT 1 FROM inv_software_kev k WHERE k.software_id = s.id) LIMIT 1`, assetID, a.entry.vendor, a.entry.product).Scan(&dup)
-		if err == nil {
-			return conflict("duplicate_software", a.entry.display+" is already on this device. To change the version, remove it and add it again.")
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("inventory: check software: %w", err)
-		}
-		before, err := softwareKeys(ctx, tx, assetID)
+		before, err := deviceKeys(ctx, tx, assetID)
 		if err != nil {
 			return err
 		}
 		sw := SoftwareItem{Display: a.entry.display, Vendor: a.entry.vendor, Product: a.entry.product, Version: a.version, KevKeys: a.entry.kev, Confidence: 1}
-		if err := insertSoftware(ctx, tx, assetID, sw, "manual", s.now()); err != nil {
+		dup, err := s.addEntryTx(ctx, tx, actor, assetID, sw)
+		if err != nil {
 			return err
 		}
-		after, err := softwareKeys(ctx, tx, assetID)
+		if dup {
+			return conflict("duplicate_software", a.entry.display+" is already on this device. To change the version, remove it and add it again.")
+		}
+		after, err := deviceKeys(ctx, tx, assetID)
 		if err != nil {
 			return err
 		}
@@ -258,95 +255,6 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 		return s.auditTx(ctx, tx, actor, "inventory.add_software", deviceName(ctx, tx, assetID)+": "+a.entry.display, "")
 	})
 	return kevCVEs, err
-}
-
-// RemoveSoftware removes software a person declared (INV-4); what a sensor or agent saw is not removable.
-func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID string) error {
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		ok, err := assetExists(ctx, tx, assetID)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return notFoundDevice()
-		}
-		var display, source, corrects string
-		err = tx.QueryRowContext(ctx, `SELECT display, source, ifnull(corrects, '') FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&display, &source, &corrects)
-		if errors.Is(err, sql.ErrNoRows) {
-			return apierr.New(404, apierr.CodeNotFound, "No such software on this device.")
-		} else if err != nil {
-			return fmt.Errorf("inventory: read software: %w", err)
-		}
-		if source != "manual" {
-			return badRequest("not_manual", "Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan.")
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE id = ?`, softwareID); err != nil {
-			return fmt.Errorf("inventory: remove software: %w", err)
-		}
-		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
-		if corrects != "" { // clearing a correction (INV-41): the device is back to what its sources report
-			return s.auditTx(ctx, tx, actor, "inventory.clear_software_correction", deviceName(ctx, tx, assetID)+": "+display, "back to detected")
-		}
-		return s.auditTx(ctx, tx, actor, "inventory.remove_software", deviceName(ctx, tx, assetID)+": "+display, "")
-	})
-}
-
-// SetSoftwareVersion changes the version of software a person declared ("edit version": Accept on the device
-// page's "the device reports X" hint, and findings' "I updated it"); "" removes the version. What a sensor or agent saw
-// is not editable: it changes with its next report. The device's findings are matched again right after the commit.
-func (s *Service) SetSoftwareVersion(ctx context.Context, actor, assetID, softwareID, version string) error {
-	if err := s.requireDevice(ctx, assetID); err != nil { // 404 before 400, like AddSoftware
-		return err
-	}
-	version = strings.TrimSpace(version)
-	if version != "" && !versionRE.MatchString(version) {
-		return badRequest("bad_version", "The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.")
-	}
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		ok, err := assetExists(ctx, tx, assetID)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return notFoundDevice()
-		}
-		var display, source string
-		var old sql.NullString
-		err = tx.QueryRowContext(ctx, `SELECT display, source, version FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&display, &source, &old)
-		if errors.Is(err, sql.ErrNoRows) {
-			return apierr.New(404, apierr.CodeNotFound, "No such software on this device.")
-		} else if err != nil {
-			return fmt.Errorf("inventory: read software: %w", err)
-		}
-		if source != "manual" {
-			return badRequest("not_manual", "Only the version of manually declared software can be changed. Software seen by a sensor or agent updates on its next report.")
-		}
-		if old.String == version {
-			return nil // nothing changes: no audit row, no rematch
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET version = ?, seen_at = ? WHERE id = ?`, nullStr(version), s.now(), softwareID); err != nil {
-			if store.IsUniqueViolation(err) {
-				return conflict("duplicate_software", display+" "+version+" is already on this device.")
-			}
-			return fmt.Errorf("inventory: set software version: %w", err)
-		}
-		keys, err := softwareKeys(ctx, tx, assetID)
-		if err != nil {
-			return err
-		}
-		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
-		// The keys do not change, so matchEvents would say nothing: one match event makes findings read the device again
-		// (OnMatchChanged matches the whole device), as the template pull does.
-		o.after = append(o.after, func(ctx context.Context) []Event {
-			cves, err := s.cves(ctx, keys)
-			if err != nil || len(cves) == 0 {
-				return nil
-			}
-			return []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(cves), Basis: "product"}}}
-		})
-		detail := cmp.Or(old.String, "no version") + " → " + cmp.Or(version, "no version")
-		return s.auditTx(ctx, tx, actor, "inventory.set_software_version", deviceName(ctx, tx, assetID)+": "+display, detail)
-	})
 }
 
 // Patch is PATCH /inventory/devices/{id}; a nil field is left alone.

@@ -82,7 +82,7 @@ func TestINV46_ManualTimeIsTheLastPersonEdit(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.40.20")}
 	report := func(version string) {
 		t.Helper()
-		if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, []observe.Software{
+		if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{
 			{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, CPE: "cpe:/a:openbsd:openssh:" + version, Confidence: 0.9},
 		}); err != nil {
 			t.Fatal(err)

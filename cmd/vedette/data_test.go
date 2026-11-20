@@ -168,7 +168,7 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_nvd_cursor", "notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
+	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_nvd_cursor", "notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
 	if !slices.Equal(skipAll, want) {
 		t.Errorf("tables left out of the export whole:\n got %q\nwant %q", skipAll, want)
 	}

@@ -670,7 +670,7 @@ func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, no
 // missingRecords lists the CVEs the retention rule keeps that a public list names (the CISA list, VulnCheck KEV, a qualifying signal;
 // kevOnly: the lists only) and that have no NVD record in the catalogue, newest ids first, at most limit.
 func (s *Store) missingRecords(ctx context.Context, kevOnly bool, limit int) ([]string, error) {
-	q := missingSQL
+	q := publicListedSQL
 	if kevOnly {
 		q = missingKEVSQL
 	}
@@ -693,17 +693,20 @@ ORDER BY substr(m.cve, 5, 4) DESC, length(m.cve) DESC, m.cve DESC LIMIT ?`, limi
 
 // publicSignalSources are the signal sources whose CVEs may be asked of NVD by id: public lists the box downloads whole. A source built
 // from what the box itself sees (an IDS alert naming a CVE) is never one of them.
-var publicSignalSources = []string{nucleiFeedID}
+var publicSignalSources = []string{nucleiFeedID, metasploitFeedID, exploitDBFeedID, pocGitHubFeedID}
 
 const missingKEVSQL = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
 
-// missingSQL is the CVEs whose missing NVD record may be asked for by id (the sources are constants of this package).
-var missingSQL = missingKEVSQL + ` UNION SELECT cve FROM feeds_signal WHERE qualifies = 1 AND source IN ('` + strings.Join(publicSignalSources, `', '`) + `')`
+// publicListedSQL is the CVEs a public source names: the CISA list, VulnCheck KEV and the qualifying signals of publicSignalSources (the
+// sources are constants of this package). They are the only CVEs Vedette ever asks a source for by ID (an NVD record, a CVE record):
+// the same request goes from every box that loads the same public list, so it says nothing about the customer. A custom list's CVE, a
+// signal a box builds from what it sees, or a finding's CVE is never asked for by ID.
+var publicListedSQL = missingKEVSQL + ` UNION SELECT cve FROM feeds_signal WHERE qualifies = 1 AND source IN ('` + strings.Join(publicSignalSources, `', '`) + `')`
 
 // missingCount is how many kept CVEs a public list names have no NVD record.
 func (s *Store) missingCount(ctx context.Context) (int, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+missingSQL+`) m LEFT JOIN feeds_cve c ON c.cve = m.cve WHERE c.nvd_at IS NULL`).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+publicListedSQL+`) m LEFT JOIN feeds_cve c ON c.cve = m.cve WHERE c.nvd_at IS NULL`).Scan(&n); err != nil {
 		return 0, fmt.Errorf("feeds: missing records: %w", err)
 	}
 	return n, nil

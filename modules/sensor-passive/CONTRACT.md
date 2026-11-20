@@ -61,7 +61,7 @@ Mã: `capture/` (nửa sensor: `Runner`, `Engine`, sổ thiết bị, bộ phân
 - **FORBID-1**: Phát bất kỳ gói nào lên mạng.
 - **FORBID-2**: Lưu payload, cookie, nội dung HTTP/TLS.
 - **FORBID-3**: Ghi trực tiếp `inv_*`.
-- **FORBID-4**: Chạy Zeek/Suricata hoặc bộ IDS khác.
+- **FORBID-4**: Chạy Zeek/Suricata hoặc bộ IDS khác trong module này. Phát hiện xâm nhập là của module `ids` (sự kiện IPS/IDS trong log tường lửa nhận được); metadata SPAN chỉ đi tới khớp địa chỉ xấu của `logs` (POST-2c của logs).
 - **FORBID-5**: Gửi MAC/vân tay thiết bị ra ngoài khi Fingerbank tắt.
 
 ## Dependencies
@@ -87,7 +87,7 @@ Box network (card quản trị/SPAN, hướng dẫn mirror, IP phụ, NTP): `hos
 Không bắt gói, không job (từ SP-4: ba route vai `passive` trả `409 module_off`, sensor dừng ngay và bỏ hàng đợi, host dừng container `sensor`); **container `sensor` chạy đúng khi module bật (SYS-5)**, và chỉ sau cài đặt lần đầu (như `scan`: xem `sensor-active/CONTRACT.md`): lúc `core` khởi động và sau mỗi lần bật, `modreg.OnGuard` gọi `container.start` của `sensor` (thử lại có lùi tới khi host xác nhận); lúc khởi động và sau mỗi lần tắt, `OffGuard` gọi `container.stop` với `persist` (unit mất `[Install]`, reboot không đưa nó lên; bật lại thì `container.start` đặt `[Install]` lại); mỗi hàm kiểm lại module dưới khoá trước khi chạm host (`cmd/vedette/modulecontainer.go`; `TestModuleContainer*`, `TestOnGuard*`); trước khi gửi lệnh ghi, hàm đọc `GET /v1/state/containers` và bỏ qua khi không cần (đang chạy hoặc đang lên với `[Install]`, bất kể sức khoẻ; hay đã dừng và không có `[Install]`); `container.start` chỉ đi khi host nói rõ unit sai (dừng/hỏng, mất `[Install]`, không phải unit của host), log WARN (giới hạn tần suất) ghi trường nào khiến ghi; đọc không được (`rate_limited`, host không trả lời, đọc quá giờ) hay `unit_state` = `unknown` là lỗi để guard đọc lại sau, không ghi — start một container đang chạy mà host thấy chưa khoẻ sẽ khởi động lại nó, và `sensor` không khoẻ khi `core` (nơi nhận heartbeat) đang khởi động lại trong lúc cập nhật (lab 2026-11-12: mỗi lần cập nhật khởi động lại `sensor` thêm một lần); chờ có giới hạn: trạng thái không đọc được liên tục 2 phút (đọc lỗi, host không liệt kê service, `unknown` mãi) kể từ lần đầu thì vẫn gửi `container.start` (WARN `state unreadable for …`), một lần đọc tốt đặt lại; phía tắt thì đọc không được vẫn gửi lệnh dừng; sau reboot khi lần dừng chưa được xác nhận, unit còn `[Install]` nên container lên cho tới khi `core` dừng nó vài giây sau, không route/job/cổng nào mở (`core` trả `409 module_off`): đừng "sửa" bằng cách bỏ `[Install]`; không có host (`-host-socket` rỗng) thì không có gì để theo; thiết bị mới chỉ phát hiện qua quét chủ động/agent/khai tay; mất S-INV-3 "thiết bị lạ" thụ động và S-LOG-4 (khớp IOC từ SPAN). Danh sách thiết bị và quan sát cũ giữ.
 
 ## Story và quyết định
-S-INV-1, S-INV-3, S-LOG-4; SPAN thay Zeek/Suricata; container `sensor`; Box network; giao thức sensor và tách bắt gói sang container `sensor`.
+S-INV-1, S-INV-3, S-LOG-4; SPAN là metadata cho khớp địa chỉ xấu (phát hiện chữ ký ở module `ids`); container `sensor`; Box network; giao thức sensor và tách bắt gói sang container `sensor`.
 
 ## Không khớp / câu hỏi mở
 - `MODULES.md` ghi "Zeek/Suricata EVE reader" và ~~`PRIVACY.md` luồng 2 còn "IDS matches by CVE"~~ Đã đổi sang `cve_matches` (WP-06); phần `MODULES.md` còn mở.

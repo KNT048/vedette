@@ -47,7 +47,7 @@ function Interfaces({ d }: { d: NetworkState }) {
     roles.mutate(Object.fromEntries(d.interfaces.map((i) => [i.name, i.name === name ? role : i.role])), { onError: (e) => setError(errMsg(e, t)), onSuccess: () => toast.success(t('network.interfaces.saved')) })
   }
   // One role per row: the management port is fixed here (409 management_fixed / management_count), so another
-  // card is never offered Management; with SPAN hidden a card that is not the SPAN port has one possible role, shown as text.
+  // card is never offered Management; with SPAN switched off in the GUI a card that is not the SPAN port has one possible role, shown as text.
   const roleControl = (row: { original: NetInterface }) => {
     const r = row.original.role
     // #824: the why is behind ⓘ (reachable by keyboard and touch), not a hover-only title.
@@ -55,7 +55,7 @@ function Interfaces({ d }: { d: NetworkState }) {
     if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
     return (
       <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
-        {/* While SPAN is hidden it is offered only as the role a card already has, so it can be set back to Unused. */}
+        {/* With SPAN switched off in the GUI it is offered only as the role a card already has, so it can be set back to Unused. */}
         {(['span', 'unused'] as const).map((o) => <option key={o} value={o}>{t(`network.role.${o}`)}</option>)}
       </Select>
     )

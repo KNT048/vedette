@@ -4,6 +4,7 @@ import { Pencil, Plus, X } from 'lucide-react'
 import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { ModuleOff, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -16,29 +17,51 @@ import { kindLabel } from '@/lib/deviceTypes'
 
 const RATES = [10, 50, 200, 500]
 
+type Checked = { error: string } | { value: string; note?: string }
+
+/** Add or edit one entry of a list in a dialog over the page. Its form stops the submit from reaching the page's own form behind it. */
+function EntryDialog({ title, label, hint, info, initial, placeholder, submitLabel, check, onSave, onClose }: {
+  title: string; label: string; hint: string; info?: string; initial: string; placeholder: string; submitLabel: string
+  check: (raw: string) => Checked; onSave: (value: string, note?: string) => void; onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState(initial)
+  const [error, setError] = useState<string | undefined>()
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const r = check(draft.trim())
+    if ('error' in r) { setError(r.error); return }
+    onSave(r.value, r.note)
+    onClose()
+  }
+  return (
+    <DialogContent title={title}>
+      <form onSubmit={submit} noValidate className="grid gap-4">
+        <Field label={label} htmlFor="entry-input" hint={hint} info={info} error={error}>
+          <Input id="entry-input" value={draft} placeholder={placeholder} autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'entry-input-error' : 'entry-input-hint'}
+            onChange={(e) => { setDraft(e.target.value); setError(undefined) }} />
+        </Field>
+        <DialogFooter>
+          <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
+          <Button type="submit" variant="primary">{submitLabel}</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  )
+}
+
 function ListEditor({ id, label, listLabel, hint, info, items, onChange, validate, placeholder, addLabel, removeLabel, emptyText }: {
   id: string; label: string; listLabel: string; hint: string; info?: string; items: string[]; onChange: (v: string[]) => void; validate: (v: string) => string | null
   placeholder: string; addLabel: string; removeLabel: (v: string) => string; emptyText: string
 }) {
-  const [draft, setDraft] = useState('')
-  const [error, setError] = useState<string | undefined>()
-  function add() {
-    const v = draft.trim()
-    if (!v) return
-    const err = validate(v)
-    if (err) { setError(err); return }
-    if (items.includes(v)) { setError(undefined); setDraft(''); return }
-    onChange([...items, v]); setDraft(''); setError(undefined)
-  }
+  const [open, setOpen] = useState(false)
   return (
     <div className="grid gap-2">
-      <Field label={label} htmlFor={id} hint={hint} info={info} error={error}>
-        <div className="flex max-w-md gap-2">
-          <Input id={id} value={draft} placeholder={placeholder} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : `${id}-hint`}
-            onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
-          <Button onClick={add}><Plus />{addLabel}</Button>
-        </div>
-      </Field>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm font-medium">{label}</p>
+        <Button id={id} onClick={() => setOpen(true)}><Plus />{addLabel}</Button>
+      </div>
       {items.length ? (
         <ul className="flex flex-wrap gap-2" aria-label={listLabel}>
           {items.map((it) => (
@@ -49,6 +72,13 @@ function ListEditor({ id, label, listLabel, hint, info, items, onChange, validat
           ))}
         </ul>
       ) : <p className="text-meta text-muted">{emptyText}</p>}
+      <Dialog open={open} onOpenChange={setOpen}>
+        {open ? (
+          <EntryDialog title={addLabel} label={label} hint={hint} info={info} initial="" placeholder={placeholder} submitLabel={addLabel} onClose={() => setOpen(false)}
+            check={(v) => { const err = validate(v); return err ? { error: err } : { value: v } }}
+            onSave={(v) => { if (!items.includes(v)) onChange([...items, v]) }} />
+        ) : null}
+      </Dialog>
     </div>
   )
 }
@@ -56,11 +86,11 @@ function ListEditor({ id, label, listLabel, hint, info, items, onChange, validat
 /**
  * Dải mạng quét: gõ "192.168.18.0" thì tự thành 192.168.18.0/24 và nói rõ đã đổi; mỗi dải đã lưu đều sửa/xoá được;
  * dải lưu sai (từ phiên bản cũ hoặc nhập tay) hiện lỗi ngay trên dòng của nó, không chặn thêm/sửa/xoá dải khác.
+ * Add and edit open in a dialog over the list.
  */
 function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: string[]) => void }) {
   const { t } = useTranslation('inventory')
-  const [draft, setDraft] = useState('')
-  const [error, setError] = useState<string | undefined>()
+  const [dlg, setDlg] = useState<{ old: string | null } | null>(null)
   const [note, setNote] = useState<string | undefined>()
   const problemText = (v: string, others: string[]) => {
     const p = rangeProblem(v, others)
@@ -68,25 +98,21 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
     const other = others.find((o) => o !== v && rangeProblem(v, [o]) === 'overlap')
     return t(`network.problem.${p}`, { value: v, net: CIDR_RE_UI.test(v) ? cidrRange(v).network : '', other })
   }
-  function add() {
-    const raw = draft.trim()
-    if (!raw) { setError(t('network.problem.empty')); setNote(undefined); return }
+  function check(raw: string, old: string | null): Checked {
+    if (!raw) return { error: t('network.problem.empty') }
     const n = normalizeRange(raw)
-    if (items.includes(n.value)) { setError(t('network.duplicate', { value: n.value })); setNote(undefined); return }
-    const err = problemText(n.value, items)
-    if (err) { setError(err); setNote(undefined); return }
-    onChange([...items, n.value]); setDraft(''); setError(undefined)
-    setNote(n.note ? t(`network.note.${n.note}`, { from: raw, to: n.value }) : undefined)
+    const others = old === null ? items : items.filter((x) => x !== old)
+    if (others.includes(n.value)) return { error: t('network.duplicate', { value: n.value }) }
+    const err = problemText(n.value, others)
+    if (err) return { error: err }
+    return { value: n.value, note: n.note ? t(`network.note.${n.note}`, { from: raw, to: n.value }) : undefined }
   }
   return (
     <div className="grid gap-2">
-      <Field label={t('network.rangeLabel')} htmlFor="range-input" hint={t('network.rangeHint')} info={t('network.rangeHintInfo')} error={error}>
-        <div className="flex max-w-md gap-2">
-          <Input id="range-input" value={draft} placeholder="192.168.10.0/24" aria-invalid={error ? true : undefined} aria-describedby={error ? 'range-input-error' : 'range-input-hint'}
-            onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
-          <Button onClick={add}><Plus />{t('network.addRange')}</Button>
-        </div>
-      </Field>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm font-medium">{t('network.title')}</p>
+        <Button id="range-input" onClick={() => { setNote(undefined); setDlg({ old: null }) }}><Plus />{t('network.addRange')}</Button>
+      </div>
       {note ? <p role="status" className="max-w-2xl text-meta text-ok">{note}</p> : null}
       {items.length ? (
         <ul className="grid max-w-2xl gap-2" aria-label={t('network.rangeList')}>
@@ -97,7 +123,7 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium [overflow-wrap:anywhere]">{it}</span>
                   <span className="flex gap-1">
-                    <Button size="sm" variant="ghost" aria-label={t('network.editRange', { value: it })} onClick={() => { setDraft(it); setError(undefined); setNote(undefined); onChange(items.filter((x) => x !== it)); document.getElementById('range-input')?.focus() }}><Pencil />{t('network.edit')}</Button>
+                    <Button size="sm" variant="ghost" aria-label={t('network.editRange', { value: it })} onClick={() => { setNote(undefined); setDlg({ old: it }) }}><Pencil />{t('network.edit')}</Button>
                     <Button size="sm" variant="ghost" aria-label={t('network.removeRange', { value: it })} onClick={() => onChange(items.filter((x) => x !== it))}><X />{t('network.remove')}</Button>
                   </span>
                 </div>
@@ -107,6 +133,14 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
           })}
         </ul>
       ) : <p className="text-meta text-muted">{t('network.noRanges')}</p>}
+      <Dialog open={!!dlg} onOpenChange={(o) => { if (!o) setDlg(null) }}>
+        {dlg ? (
+          <EntryDialog title={dlg.old === null ? t('network.addRange') : t('network.editRange', { value: dlg.old })} label={t('network.rangeLabel')} hint={t('network.rangeHint')} info={t('network.rangeHintInfo')}
+            initial={dlg.old ?? ''} placeholder="192.168.10.0/24" submitLabel={dlg.old === null ? t('network.addRange') : t('network.saveRange')} onClose={() => setDlg(null)}
+            check={(raw) => check(raw, dlg.old)}
+            onSave={(v, n) => { onChange(dlg.old === null ? [...items, v] : items.map((x) => (x === dlg.old ? v : x))); setNote(n) }} />
+        ) : null}
+      </Dialog>
     </div>
   )
 }

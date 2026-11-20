@@ -594,6 +594,8 @@ const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbm
 
 describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   const enable = () => modulesStore.update((l) => l.map((m) => (m.id === 'scan-credentialed' ? { ...m, enabled: true } : m)))
+  /** Adding a server opens a dialog over the list; this opens it and gives back its server select. */
+  const openAddServer = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Add a server' })); return screen.findByLabelText('Target server') }
 
   it('v1 offers no Credentialed scan tab: the feature has no backend in this build', async () => {
     credFlag.CREDENTIALED_IN_UI = false
@@ -626,14 +628,14 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     enable()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, kind: 'virtual_machine' } : a)))
     renderApp('/settings/scanning?tab=credentialed')
-    const select = await screen.findByLabelText('Target server')
+    const select = await openAddServer()
     expect(within(select).getByRole('option', { name: /192\.168\.10\.12/ })).toHaveValue('a-web01')
   })
 
   it('thêm máy chủ với khoá riêng: chỉ hiện 4 ký tự cuối, khoá không được lưu hay trả lại; kiểm tra kết nối; xoá', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
-    await userEvent.selectOptions(await screen.findByLabelText('Target server'), 'a-web01')
+    await userEvent.selectOptions(await openAddServer(), 'a-web01')
     const key = screen.getByLabelText('SSH private key')
     await userEvent.click(key)
     await userEvent.paste(KEY)
@@ -663,7 +665,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   it('thử kết nối thất bại nói rõ phải kiểm tra gì', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
-    await userEvent.selectOptions(await screen.findByLabelText('Target server'), 'a-srvad')
+    await userEvent.selectOptions(await openAddServer(), 'a-srvad')
     await userEvent.click(screen.getByLabelText('SSH private key'))
     await userEvent.paste(KEY)
     await userEvent.click(screen.getByRole('button', { name: 'Save key' }))
@@ -676,7 +678,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   it('kiểm tra ở biên: khoá công khai, khoá sai, cổng, tài khoản, trùng, ngoài phạm vi', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
-    await screen.findByLabelText('Target server')
+    await screen.findByRole('button', { name: 'Add a server' })
     as('u-admin')
     const add = (b: object) => fetch(`${base()}/scans/credentialed`, json('POST', { asset_id: 'a-web01', port: 22, username: 'vedette-scan', private_key: KEY, ...b }))
     const pub = await add({ private_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIabc vedette' })
@@ -695,9 +697,9 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   it('vai vận hành thử kết nối được nhưng không thêm hay xoá; chỉ xem thì không làm gì', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed', { role: 'operator' })
-    expect(await screen.findByRole('button', { name: 'Save key' })).toBeDisabled()
-    expect(screen.getByLabelText('SSH private key')).toBeDisabled()
-    expect(screen.getByText('Requires Admin role')).toBeInTheDocument()
+    const open = await screen.findByRole('button', { name: 'Add a server' })
+    expect(open).toBeDisabled()
+    expect(open).toHaveAttribute('title', 'Requires Admin role')
     as('u-view')
     expect((await fetch(`${base()}/scans/credentialed`, json('POST', { asset_id: 'a-web01', port: 22, username: 'x', private_key: KEY }))).status).toBe(403)
   })
@@ -705,7 +707,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   it('tệp khoá được đọc bằng bộ chọn tệp', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
-    await screen.findByLabelText('Target server')
+    await openAddServer()
     const input = screen.getByLabelText('SSH private key file') as HTMLInputElement
     await userEvent.upload(input, new File([KEY], 'vedette_scan_key', { type: 'text/plain' }))
     expect(await screen.findByText('Read file vedette_scan_key')).toBeInTheDocument()

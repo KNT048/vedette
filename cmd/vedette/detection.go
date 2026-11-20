@@ -105,11 +105,7 @@ func watcher(id, module, state, detail, action string) detWatcher {
 
 // DetectionGetDetectionOverview implements detection_get_detection_overview (viewer).
 func (h *detectionHandlers) DetectionGetDetectionOverview(ctx context.Context) (*oas.DetectionGetDetectionOverviewOK, error) {
-	v, err := h.overview(ctx)
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(v)
+	b, err := json.Marshal(h.overview(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("detection: encoding the overview: %w", err)
 	}
@@ -120,7 +116,8 @@ func (h *detectionHandlers) DetectionGetDetectionOverview(ctx context.Context) (
 	return &out, nil
 }
 
-func (h *detectionHandlers) overview(ctx context.Context) (detOverview, error) {
+// overview never fails as a whole: a module that cannot be read makes its own watcher "failed" (and its counts zero).
+func (h *detectionHandlers) overview(ctx context.Context) detOverview {
 	now := clockOf(&h.d).UTC()
 	since := now.Add(-detectionWindow)
 	var v detOverview
@@ -130,8 +127,8 @@ func (h *detectionHandlers) overview(ctx context.Context) (detOverview, error) {
 	counts := map[notify.IncidentKind]notify.KindCount{}
 	if h.on(notify.ModuleID) {
 		kc, err := newNotify(&h.d).KindCounts(ctx, since)
-		if err != nil {
-			return v, err
+		if err != nil { // the counts show zero; the watchers still say what they can (a read error never fails the whole page)
+			h.d.Log.WarnContext(ctx, "detection: counting the incidents by kind", "err", err)
 		}
 		for _, c := range kc {
 			counts[c.Kind] = c
@@ -147,7 +144,7 @@ func (h *detectionHandlers) overview(ctx context.Context) (detOverview, error) {
 	if h.on("logs") && logsSvc != nil {
 		all, err := logsSvc.IocHits(ctx, since, 0)
 		if err != nil {
-			return v, err
+			h.d.Log.WarnContext(ctx, "detection: reading the mirror port hits", "err", err)
 		}
 		for _, x := range all {
 			if !strings.HasPrefix(x.SeenVia, "span_") {
@@ -171,18 +168,12 @@ func (h *detectionHandlers) overview(ctx context.Context) (detOverview, error) {
 	}
 
 	traps := h.traps(ctx)
-	logsW, ipsSources, err := h.logs(ctx, counts)
-	if err != nil {
-		return v, err
-	}
+	logsW, ipsSources := h.logs(ctx, counts)
 	mirror := h.mirror(ctx, len(hits))
-	ipsW, sum, err := h.ips(ctx, since, ipsSources)
-	if err != nil {
-		return v, err
-	}
+	ipsW, sum := h.ips(ctx, since, ipsSources)
 	v.Alerts.Total, v.Alerts.Affected = sum.Alerts, sum.Affected
 	v.Watchers = []detWatcher{traps, logsW, mirror, ipsW}
-	return v, nil
+	return v
 }
 
 // traps is the honeypot's watcher: its Trap IPs and their hits.
@@ -245,18 +236,27 @@ type ipsSource struct {
 }
 
 // logs is the logs module's watcher: the log sources and what they raised. It also returns the sources whose kind writes IPS events.
-func (h *detectionHandlers) logs(ctx context.Context, counts map[notify.IncidentKind]notify.KindCount) (detWatcher, []ipsSource, error) {
+// ipsFeed is what the IPS watcher knows of its input: whether the logs module is on, whether its sources could be read, and the ones
+// of a kind that writes IPS events.
+type ipsFeed struct {
+	logsOn, read bool
+	sources      []ipsSource
+}
+
+func (h *detectionHandlers) logs(ctx context.Context, counts map[notify.IncidentKind]notify.KindCount) (detWatcher, ipsFeed) {
 	const id, mod = "logs", "logs"
 	if !h.on(mod) {
-		return watcher(id, mod, "off", "The Logs module is off.", "turn_on"), nil, nil
+		return watcher(id, mod, "off", "The Logs module is off.", "turn_on"), ipsFeed{}
 	}
+	failed := watcher(id, mod, "failed", "The log sources could not be read.", "fix")
 	svc := logsService(h.d)
 	if svc == nil {
-		return watcher(id, mod, "failed", "The log sources could not be read.", "fix"), nil, nil
+		return failed, ipsFeed{logsOn: true}
 	}
 	sv, err := svc.Sources(ctx)
 	if err != nil {
-		return detWatcher{}, nil, err
+		h.d.Log.WarnContext(ctx, "detection: reading the log sources", "err", err)
+		return failed, ipsFeed{logsOn: true}
 	}
 	det := counts[notify.IncidentBadAddress].Incidents + counts[notify.IncidentLogAnomaly].Incidents
 	var last time.Time
@@ -290,7 +290,7 @@ func (h *detectionHandlers) logs(ctx context.Context, counts map[notify.Incident
 		w = watcher(id, mod, "watching", strconv.Itoa(sending)+" of "+strconv.Itoa(n)+" log sources are sending.", action)
 	}
 	w.Detections, w.LastInputAt = det, tsPtr(last)
-	return w, ips, nil
+	return w, ipsFeed{logsOn: true, read: true, sources: ips}
 }
 
 func maxT(a, b time.Time) time.Time {
@@ -331,15 +331,17 @@ func (h *detectionHandlers) mirror(ctx context.Context, hits int) detWatcher {
 }
 
 // ips is the ids module's watcher: the IPS events read from the firewall logs.
-func (h *detectionHandlers) ips(ctx context.Context, since time.Time, sources []ipsSource) (detWatcher, idsmodule.Summary, error) {
+func (h *detectionHandlers) ips(ctx context.Context, since time.Time, feed ipsFeed) (detWatcher, idsmodule.Summary) {
 	const id, mod = "ips_events", idsmodule.ModuleID
 	if !h.on(mod) {
-		return watcher(id, mod, "off", "Reading IPS events from firewall logs is off.", "turn_on"), idsmodule.Summary{}, nil
+		return watcher(id, mod, "off", "Reading IPS events from firewall logs is off.", "turn_on"), idsmodule.Summary{}
 	}
 	sum, err := idsService(h.d).Summarize(ctx, since)
 	if err != nil {
-		return detWatcher{}, idsmodule.Summary{}, err
+		h.d.Log.WarnContext(ctx, "detection: reading the intrusion alerts", "err", err)
+		return watcher(id, mod, "failed", "The intrusion alerts could not be read.", "fix"), idsmodule.Summary{}
 	}
+	sources := feed.sources
 	var w detWatcher
 	var names, sending []string
 	for _, s := range sources {
@@ -351,6 +353,10 @@ func (h *detectionHandlers) ips(ctx context.Context, since time.Time, sources []
 	slices.SortFunc(names, cmp.Compare)
 	slices.SortFunc(sending, cmp.Compare)
 	switch {
+	case !feed.logsOn: // IPS events arrive in received logs: Logs is what to turn on (its page says how)
+		w = watcher(id, mod, "not_set_up", "The Logs module is off: IPS events are read from the logs your firewalls send to the box.", "set_up")
+	case !feed.read:
+		w = watcher(id, mod, "failed", "The log sources could not be read.", "fix")
 	case len(sources) == 0:
 		w = watcher(id, mod, "not_set_up", "No firewall that writes IPS events sends its logs to the box.", "set_up")
 	case len(sending) == 0:
@@ -359,7 +365,7 @@ func (h *detectionHandlers) ips(ctx context.Context, since time.Time, sources []
 		w = watcher(id, mod, "watching", clip300("IPS events are read from "+strings.Join(sending, ", ")+"."), "view")
 	}
 	w.Detections, w.LastInputAt = sum.Alerts, tsPtr(sum.LastEvent)
-	return w, sum, nil
+	return w, sum
 }
 
 func clip300(s string) string {

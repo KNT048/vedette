@@ -222,8 +222,7 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		}
 	}
 	if n.Kind == KindIncident {
-		id, _, _ := strings.Cut(n.ID, "-raised-")
-		return markUnsent(ctx, tx, id, unsent, floor, lowest)
+		return markUnsent(ctx, tx, n.ID, unsent, floor, lowest)
 	}
 	return nil
 }
@@ -231,6 +230,7 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 // markUnsent keeps why an incident went to no channel, or that one took it (INV-24); ch is the channel to fix, if one. An id that is no
 // incident (a test notice) changes nothing.
 func markUnsent(ctx context.Context, tx *sql.Tx, id string, why NotSentReason, floor Severity, ch channel.Type) error {
+	id = incidentOfNotice(id) // a raise's notice is the incident's
 	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = ?, unsent_channel = ? WHERE id = ?`,
 		string(why), nullable(string(floor)), nullable(string(ch)), id); err != nil {
 		return fmt.Errorf("notify: keep why an incident was not sent: %w", err)
@@ -551,7 +551,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 // refOf is the (kind, ref_id, history link) of the first notice of a send.
 func refOf(n Notice) (kind, ref, link string) {
 	if n.Kind == KindIncident {
-		id, _, _ := strings.Cut(n.ID, "-raised-") // the notice of a raised intrusion incident (raiseIntrusion) is a send of that incident
+		id := incidentOfNotice(n.ID) // the notice of a raised intrusion incident (raiseIntrusion) is a send of that incident
 		return "incident", id, "/incidents/" + id
 	}
 	link = findingsList

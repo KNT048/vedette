@@ -149,3 +149,27 @@ func TestWiringFirewallIPSEventRaisesAnIntrusionIncidentAndTheFindingIsUnderAtta
 		t.Fatalf("events %d, want 4: a line received while off was read", n)
 	}
 }
+
+// The overview never fails as a whole: with Logs off the IPS watcher says that Logs is what is missing, and a watcher whose module
+// cannot be read says failed while the others still answer.
+func TestDetectionOverviewSaysLogsIsOffAndDegradesOnReadErrors(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.enableNotify()
+	s.setModule("logs", true)
+	s.setModule("ids", true)
+	s.setModule("logs", false) // allowed: ids stays on and is listed as affected
+	code, ov := s.do("GET", "/detection/overview", "viewer", "")
+	if code != 200 || at(ov, "watchers", 3, "state") != "not_set_up" || at(ov, "watchers", 3, "action") != "set_up" ||
+		!strings.Contains(at(ov, "watchers", 3, "detail").(string), "The Logs module is off") {
+		t.Fatalf("IPS watcher with Logs off: %d %v", code, at(ov, "watchers", 3))
+	}
+	s.setModule("logs", true)
+	s.exec(`DROP TABLE ids_alert_cve`)
+	s.exec(`DROP TABLE ids_alert`)
+	s.exec(`DROP TABLE logs_sources`)
+	code, ov = s.do("GET", "/detection/overview", "viewer", "")
+	if code != 200 || at(ov, "watchers", 1, "state") != "failed" || at(ov, "watchers", 3, "state") != "failed" || at(ov, "alerts", "total") != float64(0) {
+		t.Fatalf("overview with unreadable logs and alerts: %d %v", code, ov)
+	}
+}

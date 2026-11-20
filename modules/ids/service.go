@@ -129,7 +129,8 @@ type Service struct {
 	annHour    int64
 	annSent    int
 	annTold    map[string]int
-	annSummary int64
+	annLeft    int // alerts of the hour not announced one by one
+	annSumRank int // the severity the hour's summary was announced with; -1 = none yet
 }
 
 // NewService checks the config and returns the service.
@@ -143,7 +144,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
 	}
-	return &Service{cfg: cfg, buf: map[string]*pending{}}, nil
+	return &Service{cfg: cfg, buf: map[string]*pending{}, annSumRank: -1}, nil
 }
 
 func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabled(ModuleID) }
@@ -428,7 +429,7 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 	s.annMu.Lock()
 	hour := s.now().Unix() / 3600
 	if hour != s.annHour {
-		s.annHour, s.annSent, s.annTold = hour, 0, map[string]int{}
+		s.annHour, s.annSent, s.annTold, s.annLeft, s.annSumRank = hour, 0, map[string]int{}, 0, -1
 	}
 	var send []AlertEvent
 	left, leftSev := 0, "info"
@@ -449,9 +450,16 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 		s.annTold[key] = rank
 		send = append(send, ev)
 	}
-	summary := left > 0 && s.annSummary != hour
+	if severityRank[leftSev] < severityRank["medium"] {
+		leftSev = "medium"
+	}
+	// The hour's summary goes out once, and again whenever what was left out is more severe than it said (an attack on an affected
+	// device after the budget ran out): notify raises the summary incident and sends that raise.
+	s.annLeft += left
+	total := s.annLeft
+	summary := left > 0 && severityRank[leftSev] > s.annSumRank
 	if summary {
-		s.annSummary = hour
+		s.annSumRank = severityRank[leftSev]
 	}
 	s.annMu.Unlock()
 	for _, ev := range send {
@@ -466,12 +474,13 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 	if !summary {
 		return
 	}
-	if severityRank[leftSev] < severityRank["medium"] {
-		leftSev = "medium"
+	title := "At least " + strconv.Itoa(total) + " more intrusion alerts this hour, not announced one by one"
+	what := "The limit of " + strconv.Itoa(AlertEventsPerHour) + " announced intrusion alerts an hour was reached; more IPS events were received and are not announced one by one. A flood of events from many addresses can also be forged on the LAN when the firewall sends its logs over UDP."
+	if leftSev == "critical" {
+		title = "At least " + strconv.Itoa(total) + " more intrusion alerts this hour, including attacks on affected devices"
+		what += " Among them are attacks on devices affected by the CVE the attack names."
 	}
-	ev := AlertEvent{Source: "ids", Target: summaryTarget + " " + strconv.FormatInt(hour, 10),
-		Title:    "At least " + strconv.Itoa(left) + " more intrusion alerts this hour, not announced one by one",
-		What:     "The limit of " + strconv.Itoa(AlertEventsPerHour) + " announced intrusion alerts an hour was reached; more IPS events were received and are not announced one by one. A flood of events from many addresses can also be forged on the LAN when the firewall sends its logs over UDP.",
+	ev := AlertEvent{Source: "ids", Target: summaryTarget + " " + strconv.FormatInt(hour, 10), Title: title, What: what,
 		Action:   "Open Intrusion detection and read the alerts of the last 24 hours, the most severe first.",
 		Severity: leftSev, Link: "/detection", At: s.now(), Devices: []DeviceRef{}}
 	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: ev}); err != nil {

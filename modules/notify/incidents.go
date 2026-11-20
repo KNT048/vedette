@@ -784,6 +784,18 @@ func (s *Service) raiseIntrusion(ctx context.Context, tx *sql.Tx, id string, in 
 		}
 		names, ids = append(names, d.Name), append(ids, d.ID)
 	}
-	return s.enqueue(ctx, tx, Notice{ID: id + "-raised-" + string(in.Severity), Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title),
+	return s.enqueue(ctx, tx, Notice{ID: raisedNoticeID(id, in.Severity), Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title),
 		What: in.What, Action: in.Action, Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at})
+}
+
+// raisedNoticeID is the id of the notice of an incident raised to sev (raiseIntrusion). Incident ids are store ids (prefix-base32), so
+// none contains "-raised-".
+func raisedNoticeID(incidentID string, sev Severity) string {
+	return incidentID + "-raised-" + string(sev)
+}
+
+// incidentOfNotice is the incident an incident notice belongs to: its own id, or the incident of a raise's notice.
+func incidentOfNotice(noticeID string) string {
+	id, _, _ := strings.Cut(noticeID, "-raised-")
+	return id
 }

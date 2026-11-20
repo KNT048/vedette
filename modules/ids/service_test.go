@@ -424,6 +424,36 @@ func TestAFloodOfForgedSourcesIsAnnouncedWithinTheHourlyBudgetMostSevereFirst(t 
 	}
 }
 
+// The budget is spent on forged medium alerts, then a real attack on the affected NAS comes in a later flush of the same hour. It is
+// not announced one by one, but the hour's summary is announced again at critical (notify raises it), with the count kept current;
+// a later medium leftover does not announce it again.
+func TestACriticalAlertAfterTheBudgetRaisesTheHoursSummary(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var flood [][2]string
+	for i := range AlertEventsPerHour + 1 {
+		flood = append(flood, fortiLine("198.51.100."+strconv.Itoa(i+1), "10.0.10.150"))
+	}
+	e.offer(2*time.Minute, flood...)
+	if n := len(e.ev.got); n != AlertEventsPerHour+1 || e.ev.got[n-1].Severity != "medium" || !strings.HasPrefix(e.ev.got[n-1].Title, "At least 1 more") {
+		t.Fatalf("after the flood: %d announced, last %+v", n, e.ev.got[n-1])
+	}
+	summary := e.ev.got[AlertEventsPerHour]
+	e.offer(time.Minute, fortiLine("192.0.2.66", "10.0.10.21"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+2 {
+		t.Fatalf("%d announced after the attack on the affected NAS, want the summary again", n)
+	}
+	raised := e.ev.got[AlertEventsPerHour+1]
+	if raised.Source != summary.Source || raised.Target != summary.Target || raised.Severity != "critical" ||
+		!strings.HasPrefix(raised.Title, "At least 2 more intrusion alerts this hour, including attacks on affected devices") {
+		t.Fatalf("raised summary %+v", raised)
+	}
+	e.offer(0, fortiLine("198.51.100.200", "10.0.10.150"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+2 {
+		t.Fatalf("a medium leftover announced the summary again: %d", n)
+	}
+}
+
 // One incident per (CVE, attacker): when the attacker hits a device that is not affected and the affected NAS, the incident is
 // announced critical, in one flush (the affected alert is announced first and the other repeats it) and across flushes (a repeat
 // whose severity rose is announced again, so notify raises the incident; one that did not rise is not).

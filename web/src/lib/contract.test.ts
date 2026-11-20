@@ -23,7 +23,10 @@ describe.each(modules)('hợp đồng %s', (mod) => {
 
   it('mọi handler mock có trong contract.ts và ngược lại', () => {
     const declared = new Set(eps.map((e) => key(e.method, e.path)))
-    expect(handlers.filter((h) => !declared.has(h)), 'handler chưa khai trong contract.ts').toEqual([])
+    // A module's mock may answer part of another module's endpoint for its own rows (e.g. stopping its run through the
+    // shared runs endpoint); that endpoint must still be declared, by its owner.
+    const declaredAnywhere = new Set(allEndpoints.map((e) => key(e.method, e.path)))
+    expect(handlers.filter((h) => !declared.has(h) && !declaredAnywhere.has(h)), 'handler chưa khai trong contract.ts').toEqual([])
     expect([...declared].filter((d) => !handlers.includes(d)), 'endpoint khai mà mock không có').toEqual([])
   })
 

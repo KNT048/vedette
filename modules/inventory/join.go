@@ -822,17 +822,16 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 // to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it. Nothing else is
 // removed: the lines left on from move with their ids.
 func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string) (map[string]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, ''),
-		ifnull(f.version, ''), ifnull(f.pkg_version, ''), f.first_seen
+	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, '')
 		FROM inv_software f JOIN inv_software i ON i.asset_id = ?2 AND i.product_key = f.product_key AND i.line = f.line WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 	}
-	type fold struct{ gone, kept, goneState, keptState, markedAt, markedBy, version, pkg, first string }
+	type fold struct{ gone, kept, goneState, keptState, markedAt, markedBy string }
 	var folds []fold
 	for rows.Next() {
 		var f fold
-		if err := rows.Scan(&f.gone, &f.kept, &f.goneState, &f.keptState, &f.markedAt, &f.markedBy, &f.version, &f.pkg, &f.first); err != nil {
+		if err := rows.Scan(&f.gone, &f.kept, &f.goneState, &f.keptState, &f.markedAt, &f.markedBy); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 		}
@@ -845,20 +844,24 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 	now := s.now()
 	for _, f := range folds {
 		for _, q := range []string{
+			// a release both rows' sources read is one reading of the machine: first seen when either row first read that release
+			// (a person's entry keeps the time the person set it)
+			`UPDATE inv_software_reading SET first_seen = (SELECT min(g.first_seen) FROM inv_software_reading g WHERE g.software_id IN (?1, ?2)
+				AND g.source <> 'manual' AND ifnull(g.version, '') = ifnull(inv_software_reading.version, '') AND ifnull(g.pkg_version, '') = ifnull(inv_software_reading.pkg_version, ''))
+				WHERE software_id IN (?1, ?2) AND source <> 'manual'`,
 			// of two readings of one source and instance, the newer stays
 			`DELETE FROM inv_software_reading WHERE software_id = ?1 AND EXISTS (SELECT 1 FROM inv_software_reading g WHERE g.software_id = ?2
 				AND g.source = inv_software_reading.source AND g.instance = inv_software_reading.instance AND g.seen_at > inv_software_reading.seen_at)`,
 			`DELETE FROM inv_software_reading WHERE software_id = ?2 AND EXISTS (SELECT 1 FROM inv_software_reading k WHERE k.software_id = ?1
 				AND k.source = inv_software_reading.source AND k.instance = inv_software_reading.instance)`,
 			`UPDATE inv_software_reading SET software_id = ?1 WHERE software_id = ?2`,
-			// a release both rows read is one reading of the machine: first seen when either row first read it
-			`UPDATE inv_software_reading SET first_seen = min(first_seen, ?5) WHERE software_id = ?1 AND ifnull(version, '') = ?3 AND ifnull(pkg_version, '') = ?4`,
+
 			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
 				last_seen = max(last_seen, (SELECT last_seen FROM inv_software WHERE id = ?2)) WHERE id = ?1`,
 			`DELETE FROM inv_software WHERE id = ?2`,
 			`UPDATE inv_software_event SET software_id = ?1 WHERE software_id = ?2`, // the folded line's history is the kept line's
 		} {
-			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone, f.version, f.pkg, f.first); err != nil {
+			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
 				return nil, fmt.Errorf("inventory: fold software: %w", err)
 			}
 		}

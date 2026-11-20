@@ -27,7 +27,8 @@ type lineIdentity struct {
 // package or program name with core/productid, and leaves a component of a product unnamed on purpose): an agent's item without a
 // match key is a product of its own. Any other item is core/productid's product when the catalogue knows its name or CPE (its key,
 // its train rule; a version the name states replaces one that is not the product's own release, ".NET Runtime - 6.0.25 (x64)" read
-// as 48.100.4028); else the item's first match key; else the key of its vendor and product.
+// as 48.100.4028) when its exploited-list names hold the item's first match key; else the product that first key belongs to
+// (productid.ByKEV), else that key; else the key of its vendor and product.
 func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	id := lineIdentity{vendor: it.Vendor, product: it.Product}
 	version := it.Version
@@ -36,15 +37,23 @@ func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	if !agentSource(source) || len(it.KevKeys) > 0 {
 		p, ok = productid.ResolveStored(it.Vendor, it.Product, it.Display, it.CPE)
 	}
+	first := ""
+	if len(it.KevKeys) > 0 {
+		first = productid.NormalizeKey(it.KevKeys[0])
+	}
 	switch {
-	case ok && p.Key != "" && (p.ID != "" || len(it.KevKeys) == 0):
+	case ok && p.Key != "" && (p.ID != "" || first == "") && (first == "" || slices.Contains(p.KEV, first)):
 		id.productKey = p.Key
 		if p.VersionNotOwn {
 			version = p.Version
 		}
 		id.line = p.Line(version)
-	case len(it.KevKeys) > 0:
-		id.productKey = productid.NormalizeKey(it.KevKeys[0])
+	case first != "":
+		// the product the item's own exploited-list name belongs to ("Edge and Internet Explorer" is Internet Explorer), else that name
+		id.productKey = first
+		if q, ok := productid.ByKEV(first); ok {
+			id.productKey, id.line = q.Key, q.Line(version)
+		}
 	default:
 		id.productKey = productid.Key(it.Vendor, it.Product)
 		if p, ok := productid.ByKey(id.productKey); ok && agentSource(source) { // the agent's own name of a catalogue product
@@ -198,6 +207,11 @@ func (s *Service) settleLine(ctx context.Context, tx *sql.Tx, lineID, now string
 		}
 		out.lapsed = swText(e.Display, e.Version, e.PkgVersion) + " → " + swText(b.Display, b.Version, b.PkgVersion) + " (" + sourceClass(b.Source) + ")"
 		out.changed = true
+		if e.Instance == instanceOS { // the entry was the person's OS of the device (syncStatedOS): it ends with it, or it would come back
+			if err := s.endOSCorrection(ctx, tx, l.assetID, b); err != nil {
+				return out, err
+			}
+		}
 	}
 	if res.Unmarked {
 		if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, l.display, now, "unmarked", "", res.Effective.Version, res.Effective.Source, ""); err != nil {
@@ -265,4 +279,21 @@ func releaseText(version, pkg string) string {
 		return version
 	}
 	return strings.TrimSpace(version + " (" + pkg + ")")
+}
+
+// endOSCorrection ends a person's OS of a device whose stated-OS line a newer reading outgrew (Resolve rule 1): the manual OS
+// observation goes, the device's columns are folded again, and the audit trail says so as for lapseOS.
+func (s *Service) endOSCorrection(ctx context.Context, tx *sql.Tx, assetID string, by *Reading) error {
+	person, _, _, ok, err := manualOS(ctx, tx, assetID)
+	if err != nil || !ok {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, assetID); err != nil {
+		return fmt.Errorf("inventory: lapse the corrected OS: %w", err)
+	}
+	if _, err := s.recomputeColumns(ctx, tx, assetID); err != nil {
+		return err
+	}
+	return s.auditTx(ctx, tx, systemActor, "inventory.os_correction_lapsed", deviceName(ctx, tx, assetID),
+		person+" → "+swText(by.Display, by.Version, by.PkgVersion)+" ("+sourceClass(by.Source)+")")
 }

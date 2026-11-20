@@ -3,7 +3,11 @@ package inventory_test
 import (
 	"database/sql"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,5 +347,108 @@ func TestSoftwareLines_MergeKeepsTheMarkAndTheHistory(t *testing.T) {
 		return err
 	}); err == nil {
 		t.Fatal("history must stay append-only beyond its device and line ids")
+	}
+}
+
+// A merge dates a reading by when that release was first read on either row, never by when the folded line first appeared: a newer
+// release the other row read after a person's mark or version still ends it.
+func TestSoftwareLines_MergeDatesReadingsByRelease(t *testing.T) {
+	t.Parallel()
+	for _, mark := range []bool{true, false} {
+		e := newEnv(t)
+		a, b := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.85")}, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.86")}
+		send := func(h observe.AssetHint, v string) {
+			t.Helper()
+			e.tick(time.Minute)
+			if err := e.svc.ReplaceSoftware(e.ctx(), h, observe.Nmap, nil, []observe.Software{ssh(v, "tcp/22")}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		send(b, "8.0") // the other row reads an older release first
+		send(a, "9.6")
+		into, from := deviceAt(t, e, a.IP), deviceAt(t, e, b.IP)
+		id := matchRows(t, e, into)[0].ID
+		e.tick(time.Minute)
+		edit := inventory.SoftwareEdit{NotInstalled: true}
+		if !mark {
+			v := "9.6p1"
+			edit = inventory.SoftwareEdit{Version: &v}
+		}
+		if err := e.svc.EditSoftware(e.ctx(), "op@example.com", into, id, edit); err != nil {
+			t.Fatal(err)
+		}
+		send(b, "9.8") // read after the person's word
+		if err := e.svc.Merge(e.ctx(), "op@example.com", into, from); err != nil {
+			t.Fatal(err)
+		}
+		if m := matchRows(t, e, into); len(m) != 1 || m[0].ID != id || m[0].Version != "9.8" || m[0].Source != "nmap" {
+			t.Fatalf("mark %v: after the merge %+v, want the line at 9.8", mark, m)
+		}
+	}
+}
+
+// A newer reading that outgrows the person's OS on its stated-OS line ends the person's OS too, once: later polls of the device
+// neither bring it back nor lapse it again.
+func TestSoftwareLines_PersonsOSLapsesOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.0.2.92")
+	poll := func() {
+		t.Helper()
+		e.tick(time.Minute)
+		if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.OS, Value: "FortiOS 7.0.1", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	poll()
+	dev := deviceAt(t, e, ip)
+	os := "FortiOS 7.4.5"
+	e.tick(time.Minute)
+	if err := e.svc.PatchDevice(e.ctx(), "op@example.com", dev, inventory.Patch{OS: &os}); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: ip}, observe.Nmap, []string{"stated"}, []observe.Software{{Display: "FortiOS 7.4.6", Vendor: "fortinet",
+		Product: "fortios", Version: "7.4.6", CPE: "cpe:2.3:o:fortinet:fortios:7.4.6:*:*:*:*:*:*:*", Instance: "stated", Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		poll()
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software_event WHERE kind = 'entry_lapsed'`); n != 1 {
+		t.Fatalf("%d entry_lapsed rows, want 1", n)
+	}
+	d := e.detail(dev)
+	if d.Asset.OSCorrection != nil || d.Asset.OS == nil || d.Asset.OS.Value != "FortiOS 7.0.1" {
+		t.Fatalf("the person's OS must have ended: %+v %+v", d.Asset.OS, d.Asset.OSCorrection)
+	}
+	// the device's SNMP answer is the line again; the scan's newer release still feeds matching
+	if m := matchRows(t, e, dev); len(m) != 2 || m[0].Version != "7.0.1" || m[1].Version != "7.4.6" {
+		t.Fatalf("matching reads %+v, want SNMP's 7.0.1 and the scan's 7.4.6", m)
+	}
+	if countOf(e.auditActions(), "inventory.os_correction_lapsed") != 1 {
+		t.Fatalf("audit %v", e.auditActions())
+	}
+}
+
+// The software history is append-only; the one change allowed (the device and line ids, on a merge) is made by join.go alone.
+func TestSoftwareLines_OnlyTheMergeRewritesHistory(t *testing.T) {
+	t.Parallel()
+	re := regexp.MustCompile(`(?i)\bupdate\s+inv_software_event\b`)
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") || f == "join.go" {
+			continue
+		}
+		b, err := os.ReadFile(f) //nolint:gosec // the package's own source files
+		if err != nil {
+			t.Fatal(err)
+		}
+		if re.Match(b) {
+			t.Errorf("%s updates inv_software_event: only the merge (join.go) may", f)
+		}
 	}
 }

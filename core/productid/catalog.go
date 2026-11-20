@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 )
@@ -417,6 +418,14 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 	if err := json.Unmarshal(kevData, &kev); err != nil {
 		return err
 	}
+	// the list names a product of the files claims (its key and its kev list) are that product's: a curated row of a neighbour never
+	// gives them to another product ("Edge and Internet Explorer" is Internet Explorer's, "FortiClient EMS" is the EMS server's)
+	claimed := map[string]string{}
+	for _, e := range c.byKey {
+		for _, k := range e.p.KEV {
+			claimed[k] = e.p.ID
+		}
+	}
 	for _, r := range rows {
 		if strings.TrimSpace(r.Vendor) == "" || strings.TrimSpace(r.Product) == "" {
 			return fmt.Errorf("%q has no vendor or product", r.Display)
@@ -430,12 +439,12 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 			if e.p.Class == ClassNone {
 				e.p.Class = class
 			}
-			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev, &e.p)
+			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev, &e.p, claimed)
 			continue
 		}
 		p := Product{ID: "curated-" + strings.Trim(slugRE.ReplaceAllString(strings.ToLower(r.Display), "-"), "-"), Display: r.Display,
 			Vendor: r.Vendor, Product: r.Product, Key: key, KEV: []string{key}, Class: class}
-		p.KEV = curatedKEV(p.KEV, r.KevMatch, kev, nil)
+		p.KEV = curatedKEV(p.KEV, r.KevMatch, kev, nil, claimed)
 		for _, s := range r.CPE {
 			if !cpeRE.MatchString(s) || strings.HasSuffix(s, "*") {
 				return fmt.Errorf("%q: cpe %q is not part:vendor:product", r.Display, s)
@@ -464,9 +473,10 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 // fragment and whose product contains the product fragment, as the inventory's catalogue reads them. For a product the catalogue
 // files list (own set), only the product's own names are taken: a list name that holds the product's name or is held by it
 // ("Connect Secure, Policy Secure, and Neurons", "Pulse Connect Secure" for Connect Secure; "Exchange" for Exchange Server), never a
-// neighbour the fragment also reaches (WinRAR for 7-Zip, FortiOS for FortiClient). Such a product is what agents and scans read,
-// so its keys must name it alone.
-func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }, own *Product) []string {
+// neighbour the fragment also reaches (WinRAR for 7-Zip, FortiOS for FortiClient), nor a name another product of the files claims
+// (claimed: "FortiClient EMS", "Edge and Internet Explorer"). Such a product is what agents and scans read, so its keys must name it
+// alone.
+func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }, own *Product, claimed map[string]string) []string {
 	for _, m := range match {
 		v, pr, _ := strings.Cut(strings.ToLower(m), "|")
 		for _, k := range kev {
@@ -474,7 +484,7 @@ func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }, ow
 			if !strings.Contains(strings.ToLower(k.Vendor), v) || pr != "" && !strings.Contains(spaced(strings.ToLower(k.Product)), pr) || slices.Contains(keys, kk) {
 				continue
 			}
-			if own != nil && !ownName(own.Product, own.Vendor, k.Product) {
+			if own != nil && (!ownName(own.Product, own.Vendor, k.Product) || claimed[kk] != "" && claimed[kk] != own.ID) {
 				continue
 			}
 			keys = append(keys, kk)
@@ -526,6 +536,42 @@ func spaced(s string) string { return strings.NewReplacer("\u00a0", " ", "\u202f
 // ByKey is the product whose Key is key (lower(vendor)|lower(product)), a curated one too.
 func ByKey(key string) (Product, bool) {
 	e, ok := cat.byKey[NormalizeKey(key)]
+	if !ok {
+		return Product{}, false
+	}
+	return e.p, true
+}
+
+var byKEV = sync.OnceValue(func() map[string]*entry {
+	out := map[string]*entry{}
+	keys := make([]string, 0, len(cat.byKey))
+	for k := range cat.byKey {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys { // a product's own key first, then the first product (by key) that lists the name
+		out[k] = cat.byKey[k]
+	}
+	listers := map[string][]*entry{}
+	for _, k := range keys {
+		for _, n := range cat.byKey[k].p.KEV {
+			if !slices.Contains(listers[n], cat.byKey[k]) {
+				listers[n] = append(listers[n], cat.byKey[k])
+			}
+		}
+	}
+	for n, l := range listers {
+		if _, own := out[n]; !own && len(l) == 1 { // a name several products list ("Microsoft|Windows") is no one's
+			out[n] = l[0]
+		}
+	}
+	return out
+})
+
+// ByKEV is the product an exploited-list name belongs to: the product whose key it is, else the one product that lists it among its
+// names (Internet Explorer for "Microsoft|Edge and Internet Explorer"); false for a name several products list ("Microsoft|Windows").
+func ByKEV(key string) (Product, bool) {
+	e, ok := byKEV()[NormalizeKey(key)]
 	if !ok {
 		return Product{}, false
 	}

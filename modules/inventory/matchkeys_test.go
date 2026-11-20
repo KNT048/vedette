@@ -47,6 +47,9 @@ func TestMatchKeys_KeepEveryKeyASourceGives(t *testing.T) {
 		id, _ := identify(it, "")
 		got := matchKeys(id.productKey, false)
 		for _, k := range it.KevKeys {
+			if q, ok := productid.ByKEV(k); ok && q.Key != id.productKey && !slices.Contains(got, k) {
+				continue // another product's name (FortiClient EMS for FortiClient, Edge and Internet Explorer for Edge): its line has it
+			}
 			if !slices.Contains(got, k) && !neighbour[k] {
 				lost++
 				t.Errorf("%q %q: key %q is not a match key of its line %q (%v)", it.Vendor, it.Product, k, id.productKey, got)
@@ -54,4 +57,45 @@ func TestMatchKeys_KeepEveryKeyASourceGives(t *testing.T) {
 		}
 	}
 	t.Logf("%d items, %d keys lost", len(items), lost)
+}
+
+// Names that belong to a neighbour stay off a product's line, so its exploited CVEs never match it: Chromium Edge does not take
+// "Edge and Internet Explorer" or "Internet Explorer" (CVE-2017-0037, CVE-2016-3351, CVE-2020-0878 are Internet Explorer's and the
+// old EdgeHTML's), the FortiClient endpoint does not take "FortiClient EMS" (CVE-2026-21643, CVE-2026-35616, CVE-2023-48788 are the
+// EMS server's), 7-Zip does not take WinRAR. Each of those names is the match key of its own product's line.
+func TestMatchKeys_NeighboursStayOff(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		source string
+		it     SoftwareItem
+		owns   []string
+		never  []string
+	}{
+		{"osquery", SoftwareItem{Display: "Microsoft Edge", Vendor: "Microsoft", Product: "Edge", Version: "131.0.2903.70", KevKeys: []string{"microsoft|edge"}},
+			[]string{"microsoft|edge"}, []string{"microsoft|edge and internet explorer", "microsoft|internet explorer and edge", "microsoft|internet explorer"}},
+		{"osquery", SoftwareItem{Display: "FortiClient", Vendor: "Fortinet", Product: "FortiClient", Version: "7.4.4", KevKeys: []string{"fortinet|forticlient"}},
+			[]string{"fortinet|forticlient"}, []string{"fortinet|forticlient ems", "fortinet|fortios and fortiproxy ssl-vpn"}},
+		{"osquery", SoftwareItem{Display: "7-Zip 23.01 (x64)", Vendor: "7-Zip", Product: "7-Zip", Version: "23.01", KevKeys: []string{"7-zip|7-zip"}},
+			[]string{"7-zip|7-zip"}, []string{"rarlab|winrar", "rarlab|unrar"}},
+		{"manual", SoftwareItem{Display: "FortiClient EMS", Vendor: "Fortinet", Product: "FortiClient EMS", Version: "7.2.2"},
+			[]string{"fortinet|forticlient ems"}, nil},
+		{"manual", SoftwareItem{Display: "Microsoft Internet Explorer", Vendor: "Microsoft", Product: "Internet Explorer", Version: "11"},
+			[]string{"microsoft|internet explorer", "microsoft|edge and internet explorer", "microsoft|internet explorer and edge"}, nil},
+		{"manual", SoftwareItem{Display: "Microsoft Edge and Internet Explorer", Vendor: "Microsoft", Product: "Edge and Internet Explorer", KevKeys: []string{"microsoft|edge and internet explorer"}},
+			[]string{"microsoft|edge and internet explorer"}, nil},
+		{"manual", SoftwareItem{Display: "WinRAR", Vendor: "RARLAB", Product: "WinRAR", Version: "7.01"}, []string{"rarlab|winrar"}, nil},
+	} {
+		id, _ := identify(c.it, c.source)
+		got := matchKeys(id.productKey, false)
+		for _, k := range c.owns {
+			if !slices.Contains(got, k) {
+				t.Errorf("%s: %q missing from %v", c.it.Display, k, got)
+			}
+		}
+		for _, k := range c.never {
+			if slices.Contains(got, k) {
+				t.Errorf("%s: takes %q, a neighbour's name (%v)", c.it.Display, k, got)
+			}
+		}
+	}
 }

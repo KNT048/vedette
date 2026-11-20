@@ -3,6 +3,7 @@
  "products": [
   {"id": "firefox", "display": "Firefox", "vendor": "Mozilla", "product": "Firefox", "cpe": ["a:mozilla:firefox"], "kev": ["mozilla|firefox and thunderbird"], "linux": ["firefox", "firefox-esr"], "windows": ["mozilla firefox"], "windows_prefix": ["mozilla firefox "]},
   {"id": "google-chrome", "display": "Google Chrome", "vendor": "Google", "product": "Chrome", "cpe": ["a:google:chrome"], "linux_upstream": ["google-chrome-stable", "google-chrome-beta", "google-chrome-unstable"], "windows": ["google chrome"]},
+  {"id": "internet-explorer", "display": "Internet Explorer", "vendor": "Microsoft", "product": "Internet Explorer", "kev": ["microsoft|edge and internet explorer", "microsoft|internet explorer and edge", "microsoft|internet explorer scripting engine"], "cpe": ["a:microsoft:internet_explorer"]},
   {"id": "microsoft-edge", "display": "Microsoft Edge", "vendor": "Microsoft", "product": "Edge", "cpe": ["a:microsoft:edge"], "linux_upstream": ["microsoft-edge-stable", "microsoft-edge-beta", "microsoft-edge-dev"], "windows_prefix": ["microsoft edge"]},
   {"id": "teamviewer", "display": "TeamViewer", "vendor": "TeamViewer", "product": "Desktop", "cpe": ["a:teamviewer:teamviewer"], "class": "remote_access", "linux": ["teamviewer"], "windows": ["teamviewer"], "windows_prefix": ["teamviewer "]},
   {"id": "vmware-tools", "display": "VMware Tools", "vendor": "VMware", "product": "Tools", "cpe": ["a:vmware:tools"], "linux": ["open-vm-tools", "vmware-tools"], "windows": ["vmware tools"], "windows_prefix": ["vmware tools "]},
@@ -22,6 +23,7 @@
   {"id": "filezilla-client", "display": "FileZilla", "vendor": "FileZilla", "product": "FileZilla Client", "cpe": ["a:filezilla-project:filezilla_client"], "linux": ["filezilla"], "patterns": [{"re": "(?i)^filezilla (?:client )?(\\d+\\.\\d+\\.\\d+)", "version": "$1"}]},
   {"id": "openvpn-connect", "display": "OpenVPN Connect", "vendor": "OpenVPN", "product": "OpenVPN Connect", "cpe": ["a:openvpn:openvpn_connect"], "windows": ["openvpn connect"]},
   {"id": "forticlient", "display": "FortiClient", "vendor": "Fortinet", "product": "FortiClient", "cpe": ["a:fortinet:forticlient"], "windows_prefix": ["forticlient"]},
+  {"id": "forticlient-ems", "display": "FortiClient EMS", "vendor": "Fortinet", "product": "FortiClient EMS", "cpe": ["a:fortinet:forticlient_enterprise_management_server"], "windows_prefix": ["forticlient ems", "forticlient endpoint management server"]},
   {"id": "keepassxc", "display": "KeePassXC", "vendor": "KeePassXC", "product": "KeePassXC", "cpe": ["a:keepassxc:keepassxc"], "linux": ["keepassxc"], "windows": ["keepassxc"]},
   {"id": "bitwarden", "display": "Bitwarden", "vendor": "Bitwarden", "product": "Bitwarden", "cpe": ["a:bitwarden:bitwarden"], "windows": ["bitwarden"]},
   {"id": "foxit-pdf-reader", "display": "Foxit PDF Reader", "vendor": "Foxit", "product": "PDF Reader", "cpe": ["a:foxit:pdf_reader"], "windows_prefix": ["foxit pdf reader"]},

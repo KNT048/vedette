@@ -77,6 +77,10 @@ type Config struct {
 	// Feeds is where destinations are looked up (iochits.go). Nil: no lookup, no bad connections. The adapter answers ErrFeedsOff while the
 	// feeds module is off (PRE-3). The hits are announced on Events: logs.ioc_hit.detected and logs.bad_address.detected.
 	Feeds Feeds
+	// Received is handed every batch of lines once it is stored, with the kind and name of each line's source: the intrusion detection
+	// module reads the IPS and IDS events among them (cmd/vedette wires it while that module is on). It is called after the batch's
+	// transaction committed and must not block or write the main database in the call (INV-12). Nil: nothing is handed over.
+	Received func(ctx context.Context, lines []StoredLine)
 }
 
 // Service owns logs_sources and logs_retention (main database) and logs_events and the counters (logs.db). Every

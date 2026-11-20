@@ -113,18 +113,23 @@ type HistoryView struct {
 // IncidentKind is what an incident is about (INV-10). There is no vulnerability kind: those are findings.
 type IncidentKind string
 
-// The four incident kinds.
+// The incident kinds. The column is an open vocabulary (a shape check only): a new kind is a value here, never a table change.
 const (
 	IncidentTrap          IncidentKind = "trap"
 	IncidentBadAddress    IncidentKind = "bad_address"
 	IncidentLogAnomaly    IncidentKind = "log_anomaly"
 	IncidentUnknownDevice IncidentKind = "unknown_device"
+	// IncidentIntrusion is an IPS or IDS event (ids.alert.detected): one incident per CVE ids or rule and source address while it repeats.
+	IncidentIntrusion IncidentKind = "intrusion"
 )
 
-// Valid reports whether k is one of the four kinds.
+// IncidentKinds lists every kind, in the order the API documents them.
+var IncidentKinds = []IncidentKind{IncidentTrap, IncidentBadAddress, IncidentLogAnomaly, IncidentUnknownDevice, IncidentIntrusion}
+
+// Valid reports whether k is one of the kinds.
 func (k IncidentKind) Valid() bool {
 	switch k {
-	case IncidentTrap, IncidentBadAddress, IncidentLogAnomaly, IncidentUnknownDevice:
+	case IncidentTrap, IncidentBadAddress, IncidentLogAnomaly, IncidentUnknownDevice, IncidentIntrusion:
 		return true
 	}
 	return false

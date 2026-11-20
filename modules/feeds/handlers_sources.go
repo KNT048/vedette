@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -123,9 +124,6 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if err := purgeLoaded(ctx, tx, cur.ID); err != nil { // the data of a BYOK feed is the customer's licence: off means gone
 				return err
 			}
-			if err := pruneOrphanRanges(ctx, tx); err != nil {
-				return err
-			}
 			if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = NULL, last_success = NULL, records = NULL, status = 'never', error = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, cur.ID); err != nil {
 				return fmt.Errorf("feeds: reset BYOK feed: %w", err)
 			}
@@ -146,6 +144,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	}
 	if row.ID == nvdFeedID && !row.Enabled {
 		h.s.dropNVDRun()
+	}
+	if row.ID == cveOrgFeedID && !row.Enabled { // a download of the whole list that will not go on leaves no file behind
+		if err := os.RemoveAll(h.s.recordWorkDir()); err != nil {
+			h.s.Log.WarnContext(ctx, "removing the CVE records work folder failed", "error", err)
+		}
 	}
 	if len(rematch) > 0 { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again
 		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch})

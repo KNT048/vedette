@@ -28,7 +28,7 @@ const (
 var quietWindows = []struct {
 	kind IncidentKind
 	days int
-}{{IncidentTrap, 7}, {IncidentBadAddress, 7}, {IncidentLogAnomaly, 3}}
+}{{IncidentTrap, 7}, {IncidentBadAddress, 7}, {IncidentLogAnomaly, 3}, {IncidentIntrusion, 7}}
 
 // heldKind is a kind whose low and medium incidents the first-run window holds for the summary (INV-23): on a fresh box the
 // existing state of the network (devices that already talk to listed addresses, a log source read for the first time) all looks

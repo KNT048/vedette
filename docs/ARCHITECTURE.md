@@ -235,7 +235,7 @@ Tham số do kẻ tấn công kiểm soát (IP, domain trong log) được kiể
 | OpenCanary | BSD-3 | tiến trình riêng trong image `honeypot` |
 | Greenbone CE | GPL-2/AGPL-3 | nhóm container upstream riêng, không sửa, không nhúng |
 | Podman, Quadlet, cosign, netavark | Apache-2.0 | công cụ của host, không phân phối lại trong image |
-| Zeek, Suricata | — | **không cài**; log Suricata của khách vẫn vào qua syslog như mọi nguồn |
+| Zeek, Suricata | — | **không cài**; log Suricata của khách vẫn vào qua syslog như mọi nguồn, và sự kiện IPS trong đó thành cảnh báo của module `ids` |
 | Wazuh, osquery | GPL-2 / Apache-2.0+GPL-2 | không ship; osquery gửi về hộp, Wazuh đọc qua API |
 | Dữ liệu feed | theo nguồn | hộp tự kéo trực tiếp; IOC giấy phép hạn chế vẫn do hộp kéo |
 | OpenCVE | BSL 1.1 | không dùng trong lõi |

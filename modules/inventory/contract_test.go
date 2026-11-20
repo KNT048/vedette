@@ -184,10 +184,12 @@ func TestContract_INV1_ObservationsAppendOnly(t *testing.T) {
 func ptr[T any](v T) *T { return &v }
 
 // seedsInvRows are the tests outside the module that seed and read inv_* rows on purpose: the device merge tests load a fixture
-// device onto two rows and count what a merge loses, below the inventory's API. Product code is never listed.
+// device onto two rows and count what a merge loses, below the inventory's API; the software-line fixture test stores the fixture's
+// devices by their ids and finds the line a person corrected. Product code is never listed.
 var seedsInvRows = map[string]bool{
-	"../../cmd/vedette/merge_count_test.go":     true,
-	"../../cmd/vedette/devicelifecycle_test.go": true,
+	"../../cmd/vedette/merge_count_test.go":          true,
+	"../../cmd/vedette/devicelifecycle_test.go":      true,
+	"../../cmd/vedette/softwareline_fixture_test.go": true,
 }
 
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {

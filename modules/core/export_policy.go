@@ -84,6 +84,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_cve":                    {skipAll: true, skip: "cve published modified nvd_status nvd_at record_at title description cwe solution workaround ssvc_exploitation ssvc_automatable ssvc_impact updated_at"}, // Public NVD and CVE Program data, pulled again
 	"feeds_cve_metric":             {skipAll: true, skip: "cve source version score vector"},                                                                                                                        // Public CVSS scores, pulled again
 	"feeds_cve_range":              {skipAll: true, skip: "id cve origin part vendor product cpe start_incl start_excl end_incl end_excl fixed version_type default_status platforms"},                              // Public affected versions, pulled again
+	"feeds_cve_ref":                {skipAll: true, skip: "cve url tags source"},                                                                                                                                    // Public references of CVE records, pulled again
 	"feeds_epss_hist":              {skipAll: true, skip: "cve day epss"},                                                                                                                                           // FIRST's public scores of a few days, pulled again
 	"feeds_kev":                    {export: "cve list source_id vendor product name description required_action date_added due_date ransomware announced_at updated_at", json: "links"},
 	"feeds_nvd_cursor":             {skipAll: true, skip: "selector url mode win_from win_to until next_index total"},        // Where an unfinished pull goes on
@@ -113,6 +114,8 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_hits":                      {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},
 	"hp_ignored_day":               {export: "day count"},
 	"hp_tokens":                    {export: "id type name value plant_at created_at", skip: "secret_id"},
+	"ids_alert":                    {export: "id source sid signature category priority src_ip dst_ip dst_port proto src_asset_id dst_asset_id first_ts last_ts count dedupe_key"},
+	"ids_alert_cve":                {export: "alert_id cve"},
 	"hp_trap_ips":                  {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":                    {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source agent_source ignored_at review_earned_at"},
 	"inv_observation":              {export: "id asset_id field value source confidence seen_at evidence first_seen"},

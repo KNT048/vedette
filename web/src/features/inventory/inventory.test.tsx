@@ -2539,7 +2539,11 @@ describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
     const sw = find(agent.id).software
     expect(sw.find((s) => s.id === asid)!.version).not.toBe('1') // the reported row stays as the source read it
     expect(sw.find((s) => s.corrects === asid)).toMatchObject({ source: 'manual', version: '1' })
-    expect((await call('GET', `/devices/${agent.id}`)).json!.asset.software.find((s: { id: string }) => s.id === asid).corrected_by).toBe(sw.find((s) => s.corrects === asid)!.id)
+    const reported = sw.find((s) => s.id === asid)!
+    const lines = (await call('GET', `/devices/${agent.id}`)).json!.asset.software as { product: string; vendor: string; correction?: { set_at: string } }[]
+    const mine = lines.filter((l) => l.product === reported.product && l.vendor === reported.vendor)
+    expect(mine).toHaveLength(1) // one line of the software, which carries the person's version
+    expect(mine[0]!.correction).toBeDefined()
     expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, {})).json!.error.code).toBe('bad_edit')
     expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { pkg_version: '10.2 p1' })).json!.error.code).toBe('bad_pkg_version')
   })

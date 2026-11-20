@@ -16,7 +16,7 @@ import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 import { MarkDoneButton } from './PlanDone'
-import type { SoftwareView } from '@/features/inventory/types'
+import type { SoftwareLine } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 import { NotAdded, NotAddedChip, notAdded } from './NotAdded'
@@ -113,7 +113,7 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
   )
 }
 
-const updatedOf = (a: ToFixAction): UpdatedSoftware => ({ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareView['source'], kev_cves: a.cves })
+const updatedOf = (a: ToFixAction): UpdatedSoftware => ({ id: a.software_id, display: a.software, version: a.version || null, source: a.source as SoftwareLine['source'], kev_cves: a.cves })
 
 /** The typed (hand-entered) software a device's rows name, once each by its software row: "I updated <software>" saves one version,
  *  however many rows name it (an exploited update and a recommended one of the same product), so it is one button, with the CVEs of

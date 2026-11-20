@@ -36,7 +36,7 @@ var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
 // change with it: they key the sentence counted last (heldNow). TestHeldNotes_FollowTheData checks every feed.
 var heldFrom = map[string][]string{
 	nvdFeedID:           {nvdFeedID},
-	cveOrgFeedID:        {cveOrgFeedID, nvdFeedID, kevFeedID, vulnCheckFeedID},
+	cveOrgFeedID:        {cveOrgFeedID, nvdFeedID, recentFeedID, kevFeedID, vulnCheckFeedID},
 	ubuntuOSVFeedID:     {ubuntuOSVFeedID, kevFeedID, vulnCheckFeedID},
 	ubuntuVEXFeedID:     {ubuntuVEXFeedID, kevFeedID, vulnCheckFeedID},
 	debianTrackerFeedID: {debianTrackerFeedID, kevFeedID, vulnCheckFeedID},
@@ -138,55 +138,37 @@ FROM feeds_cve c WHERE c.nvd_at IS NOT NULL AND c.cve IN (`+kevSet+`)`, nil, &al
 	return fmt.Sprintf("NVD records of %s; %s of them name affected versions.", cves(all, "exploited"), grouped(ranged)), nil
 }
 
-// heldCVEOrg: CVE.org is read only for the exploited CVEs NVD gives no affected versions for, so 0 is a healthy count when NVD has
-// versions for every one, or when the records of the others name none Vedette can compare.
+// heldCVEOrg: the feed counts the catalogue CVEs whose CVE record was read; what matters is how many of those NVD gives no affected
+// versions for get them from their record, for the catalogue and for the exploited CVEs.
 func heldCVEOrg(ctx context.Context, tx *sql.Tx) (string, error) {
-	var kev, gap, read, held int
-	if err := counts(ctx, tx, `SELECT count(*) FROM (`+kevSet+` LIMIT 1)`, nil, &kev); err != nil {
+	var all, read, gap, held int
+	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE c.record_at IS NOT NULL),
+count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd')),
+count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd')
+  AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin IN ('cna', 'adp')))
+FROM feeds_cve c`, nil, &all, &read, &gap, &held); err != nil {
 		return "", err
 	}
-	if kev == 0 { // a fresh box, or the CISA list not loaded yet: nothing to say about NVD
-		return "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.", nil
-	}
-	noNVD := `FROM (SELECT DISTINCT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) v
-WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = v.cve AND r.origin = 'nvd')`
-	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = v.cve AND c.record_at IS NOT NULL)) `+noNVD, nil, &gap, &read); err != nil {
+	var kevGap int
+	if err := counts(ctx, tx, `SELECT count(*) FROM (SELECT DISTINCT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) v
+WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = v.cve AND r.origin = 'nvd')`, nil, &kevGap); err != nil {
 		return "", err
-	}
-	if err := counts(ctx, tx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin = 'cna'
-AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')`, nil, &held); err != nil {
-		return "", err
-	}
-	unread, none := max(gap-read, 0), max(read-held, 0)
-	verb := "have"
-	if gap == 1 {
-		verb = "has"
-	}
-	switch {
-	case gap == 0:
-		return "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now.", nil
-	case held == 0 && unread == 0:
-		if gap == 1 {
-			return "1 exploited CVE has no affected versions from NVD, and CVE.org gives none Vedette can compare for it either; it is asked again every 12 hours.", nil
-		}
-		return fmt.Sprintf("%s have no affected versions from NVD, and CVE.org gives none Vedette can compare for them either; each is asked again every 12 hours.",
-			cves(gap, "exploited")), nil
 	}
 	var parts []string
-	switch {
-	case held > 0 && none > 0:
-		parts = append(parts, fmt.Sprintf("CVE.org gives versions Vedette can compare for %s of them, none for %s", grouped(held), grouped(none)))
-	case held > 0 && gap == 1:
-		parts = append(parts, "CVE.org gives versions Vedette can compare for it")
-	case held > 0:
-		parts = append(parts, fmt.Sprintf("CVE.org gives versions Vedette can compare for %s of them", grouped(held)))
-	case none > 0:
-		parts = append(parts, fmt.Sprintf("CVE.org gives none Vedette can compare for %s", grouped(none)))
+	if read == 0 {
+		parts = append(parts, "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check.")
+	} else {
+		parts = append(parts, fmt.Sprintf("%s of %s catalogue CVEs have their record read; %s without affected versions from NVD, %s of them with versions from the record.",
+			grouped(read), grouped(all), grouped(gap), grouped(held)))
 	}
-	if unread > 0 {
-		parts = append(parts, fmt.Sprintf("%s not read from CVE.org yet", grouped(unread)))
+	if kevGap > 0 {
+		aff, _, err := kevRecordView(ctx, tx)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, fmt.Sprintf("Exploited: %s without affected versions from NVD, %s of them with versions from the record.", grouped(kevGap), grouped(len(aff))))
 	}
-	return fmt.Sprintf("%s %s no affected versions from NVD; %s.", cves(gap, "exploited"), verb, strings.Join(parts, ", ")), nil
+	return strings.Join(parts, " "), nil
 }
 
 // heldDistro: a distribution feed counts one row per package, release and CVE, not CVEs. Grouped by CVE first, so the CISA list is

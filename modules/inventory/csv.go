@@ -435,6 +435,9 @@ func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (
 			if x.Version != nil {
 				t += " " + *x.Version
 			}
+			if x.NotInstalled {
+				t += NotInstalledMark
+			}
 			sw = append(sw, t)
 		}
 		ip := ""

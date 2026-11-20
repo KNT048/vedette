@@ -120,8 +120,8 @@ func TestNext(t *testing.T) {
 	}
 }
 
-// Following Next from its own answer walks a calendar without repeating or skipping a day, through both clock changes of a year.
-func TestNextWalksAYearOfDays(t *testing.T) {
+// Following Next from its own answer steps through a calendar without repeating or skipping a day, through both clock changes of a year.
+func TestNextStepsThroughAYearOfDays(t *testing.T) {
 	for _, name := range []string{"America/New_York", "Europe/Berlin", "Australia/Lord_Howe", "Asia/Ho_Chi_Minh"} {
 		loc := zone(t, name)
 		for _, at := range []string{"00:00", "01:30", "02:00", "02:30", "23:59"} {

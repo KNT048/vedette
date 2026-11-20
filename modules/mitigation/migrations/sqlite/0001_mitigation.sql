@@ -1,7 +1,6 @@
 -- +goose Up
--- "What to do" data of a finding (docs/DATA_MODEL.md 4.3, modules/mitigation/CONTRACT.md).
--- Forward-only (DATA_MODEL 6, rule 1). Runs after the migrations of findings: the foreign keys
--- point at fnd_finding, so a finding that goes away takes its applied log and AI results with it.
+-- The whole schema of the mitigation module. It is edited in place until the first public release; docs/SCHEMA.sql
+-- shows the schema of every module together. Forward-only: there is no Down section.
 
 -- Items marked "Applied" on a finding (INV-1). One row per item; it never changes the finding's status.
 CREATE TABLE mit_applied (
@@ -37,3 +36,11 @@ CREATE TABLE mit_pack (
     drafted_with TEXT NOT NULL CHECK (length(drafted_with) BETWEEN 1 AND 200),
     pack_version TEXT NOT NULL CHECK (length(pack_version) BETWEEN 1 AND 64)
 ) WITHOUT ROWID;
+
+-- The version of the update the loaded packs came from (one row), so an older or repeated update
+-- cannot be installed again (replay protection of Loader.Install).
+CREATE TABLE mit_pack_state (
+    id           INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    version      TEXT    NOT NULL CHECK (length(version) BETWEEN 1 AND 64),
+    installed_at TEXT    NOT NULL CHECK (installed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);

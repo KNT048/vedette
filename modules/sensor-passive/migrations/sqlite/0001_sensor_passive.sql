@@ -1,7 +1,6 @@
 -- +goose Up
--- Passive sensor tables (docs/DATA_MODEL.md 4.2). Forward-only (DATA_MODEL 6, rule 1): no Down section.
--- Only sensorpassive.Service writes these tables. Observations never land here: they go to the inventory
--- through core/observe (INV-5, FORBID-3), and no packet content is stored (INV-3).
+-- The whole schema of the sensor-passive module. It is edited in place until the first public release; docs/SCHEMA.sql
+-- shows the schema of every module together. Forward-only: there is no Down section.
 
 -- The sensor of this box (one row, D-24). interface and span are what the admin chose; the interface list
 -- and online/offline are computed on read.

@@ -3,17 +3,13 @@ package feeds
 import (
 	"database/sql"
 	"fmt"
-	"io/fs"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // countSaysItself are the built-in feeds whose count needs no words: the entries of a list, or the indicators or scores it gives.
@@ -268,110 +264,6 @@ func TestHeldNotes_FollowTheData(t *testing.T) {
 	for id := range heldNotes {
 		if !slices.Contains(heldFrom[id], id) {
 			t.Errorf("%s: heldFrom %v leaves the feed out", id, heldFrom[id])
-		}
-	}
-}
-
-// Migration 0023 on a box whose rows were written by the version that stored the sentence of what a feed holds in front of its
-// pull's note: the sentence goes (it is counted when read now), the pull's note stays; a note stored before held notes, an error,
-// and a feed whose count says itself are left as they are.
-func TestMigration0023TakesTheStoredHeldSentenceOff(t *testing.T) {
-	t.Parallel()
-	before := fstest.MapFS{}
-	entries, err := fs.ReadDir(Migrations, ".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if e.Name() >= "0023" {
-			continue
-		}
-		b, err := fs.ReadFile(Migrations, e.Name())
-		if err != nil {
-			t.Fatal(err)
-		}
-		before[e.Name()] = &fstest.MapFile{Data: b}
-	}
-	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
-	s := &Store{db: db}
-	if err := s.SeedBuiltins(t.Context(), epoch0); err != nil {
-		t.Fatal(err)
-	}
-	const pull = "2 of 10 rows were rejected. Most often: x. A few bad lines in a public list are normal; they are skipped."
-	set := func(id, status string, note *string) {
-		t.Helper()
-		write(t, db, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET status = ?, error = ? WHERE id = ?`, status, note, id)
-			return err
-		})
-	}
-	// every sentence the previous version could store, on an empty box and on a filled one, alone and before the pull's note
-	var cases []struct{ id, stored, want string }
-	sentences := func() {
-		for id, count := range heldNotes {
-			var held string
-			write(t, db, func(tx *sql.Tx) (err error) {
-				held, err = count(t.Context(), tx)
-				return err
-			})
-			if held != "" {
-				cases = append(cases, struct{ id, stored, want string }{id, held, ""}, struct{ id, stored, want string }{id, held + " " + pull, pull})
-			}
-		}
-	}
-	sentences()
-	fillHeld(t, db)
-	write(t, db, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_winrel_update (build, server, rev, kb, day) VALUES (26100, 1, 4652, 'KB5060001', '2026-11-11')`)
-		return err
-	})
-	sentences()
-	write(t, db, func(tx *sql.Tx) error { // the cases of CVE.org: none read, all read with nothing comparable, NVD covers every one
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2026-0001', '2026-11-05T12:00:00.000Z')`)
-		return err
-	})
-	sentences()
-	write(t, db, func(tx *sql.Tx) error {
-		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
-		return err
-	})
-	sentences()
-	kept := []struct{ id, status, stored string }{
-		{cveOrgFeedID, "ok", "Read 3 CVE.org records of exploited CVEs NVD has no versions for: 1 with affected versions from their CNA."},
-		{"first-epss", "ok", pull},
-		{nvdFeedID, "error", "NVD records of the box could not be read. Check the disk space and the box logs."},
-		{"ipsum", "ok", pull},
-	}
-	for _, c := range cases {
-		db2 := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
-		s2 := &Store{db: db2}
-		if err := s2.SeedBuiltins(t.Context(), epoch0); err != nil {
-			t.Fatal(err)
-		}
-		stored := c.stored
-		write(t, db2, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET status = 'ok', error = ? WHERE id = ?`, stored, c.id)
-			return err
-		})
-		if err := store.Migrate(t.Context(), db2, "feeds", Migrations); err != nil {
-			t.Fatal(err)
-		}
-		if r, err := s2.source(t.Context(), c.id); err != nil || orEmpty(r.Error) != c.want {
-			t.Errorf("%s %q: after 0023 %q, want %q (%v)", c.id, c.stored, orEmpty(r.Error), c.want, err)
-		}
-	}
-	if len(cases) < 2*len(heldNotes) {
-		t.Fatalf("only %d stored sentences tried", len(cases))
-	}
-	for _, k := range kept {
-		set(k.id, k.status, &k.stored)
-	}
-	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	for _, k := range kept {
-		if r, err := s.source(t.Context(), k.id); err != nil || orEmpty(r.Error) != k.stored {
-			t.Errorf("%s %s %q: after 0023 %q (%v)", k.id, k.status, k.stored, orEmpty(r.Error), err)
 		}
 	}
 }

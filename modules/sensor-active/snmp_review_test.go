@@ -3,14 +3,12 @@ package sensoractive_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"io/fs"
 	"net/netip"
 	"slices"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -111,46 +109,6 @@ func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 	}
 	if len(r.sent()) == 0 || !has || time.Until(deadline) > 61*time.Second {
 		t.Fatalf("%d jobs, deadline in %v (has %v), want at most the minute left of the window", len(r.sent()), time.Until(deadline), has)
-	}
-}
-
-// L5: migration 0004 keeps the probe log's counter: the id of a pruned probe row is never handed out again.
-func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(sa.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || p >= "0004" { // 0004 and every later one (0005)
-			return err
-		}
-		b, err := fs.ReadFile(sa.Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "sensor-active", before); err != nil {
-		t.Fatal(err)
-	}
-	exec := func(q string) {
-		t.Helper()
-		if err := db.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q); return err }); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	exec(`INSERT INTO sa_job (id, kind, started_at, status) VALUES ('j', 'sweep', '2026-11-01T01:00:00.000Z', 'done')`)
-	for i := 1; i <= 3; i++ {
-		exec(fmt.Sprintf(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-01T01:00:00.000Z', 'j', 'sweep', 1, 1, '-sn', '192.168.1.%d', 'ok')`, i))
-	}
-	exec(`DELETE FROM sa_probe WHERE id > 1`) // the prune of old rows
-	if err := store.Migrate(ctx, db, "sensor-active", sa.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	exec(`INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES ('2026-11-13T01:00:00.000Z', 'j', 'snmp', 1, 1, 'GET', '192.168.1.9', 'ok')`)
-	var id int
-	if err := db.Reader().QueryRowContext(ctx, `SELECT max(id) FROM sa_probe`).Scan(&id); err != nil || id != 4 {
-		t.Fatalf("the next probe id is %d (%v), want 4", id, err)
 	}
 }
 

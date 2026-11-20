@@ -561,19 +561,24 @@ func (s *Store) CVSSOf(ctx context.Context, cves []string) (map[string]CVSS, err
 }
 
 // KevAffected returns the affected entries of the exploited lists' CVEs, for findings: NVD's when NVD gives any, else those of the
-// CNA's CVE record (RangesFromCVEOrg names them). A CVE NVD has not answered for and the record gave nothing for is absent; one NVD
+// CNA's CVE record for the product the list's entry names (kevRecordView; RangesFromCVEOrg names them). A CVE NVD has not answered for and the record gave nothing for is absent; one NVD
 // answered for without a vulnerable entry is present with an empty list.
 func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, error) {
 	db := s.db.Reader()
-	rows, err := readRanges(ctx, db, `WHERE r.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
+	rows, err := readRanges(ctx, db, `WHERE r.origin = 'nvd' AND r.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string][]AffectedRow{}
-	for _, per := range groupByCVE(rows) {
-		for _, r := range rangeOrigin(per) {
-			out[r.CVE] = append(out[r.CVE], r.AffectedRow())
-		}
+	for _, r := range rows {
+		out[r.CVE] = append(out[r.CVE], r.AffectedRow())
+	}
+	fromRecord, _, err := kevRecordView(ctx, db) // only CVEs without NVD ranges
+	if err != nil {
+		return nil, err
+	}
+	for cve, rs := range fromRecord {
+		out[cve] = rs
 	}
 	answered, err := stringSet(ctx, db, `SELECT c.cve FROM feeds_cve c WHERE c.nvd_at IS NOT NULL AND c.nvd_status <> 'Rejected'
 AND c.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
@@ -595,29 +600,11 @@ const (
 )
 
 // RangesFromCVEOrg returns the exploited-list CVEs whose affected versions (KevAffected) come from the CNA's CVE record, not from NVD,
-// with their source as findings names it: "cve.org" (a complete list: every row says affected or unaffected) or "cve.org-partial" (findings may raise a match on
-// it, never close one).
+// with their source as findings names it: "cve.org" (a complete list: every row says affected or unaffected) or "cve.org-partial"
+// (findings may raise a match on it, never close one). kevRecordView decides both.
 func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.cve, max(r.default_status NOT IN ('affected', 'unaffected')) FROM feeds_cve_range r
-WHERE r.origin = 'cna' AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')
-GROUP BY r.cve`)
-	if err != nil {
-		return nil, fmt.Errorf("feeds: read affected: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := map[string]string{}
-	for rows.Next() {
-		var cve string
-		var partial bool
-		if err := rows.Scan(&cve, &partial); err != nil {
-			return nil, fmt.Errorf("feeds: read affected: %w", err)
-		}
-		out[cve] = rangesCVEOrg
-		if partial { // the list does not say what an unlisted version is (every row's entry says affected or unaffected)
-			out[cve] = rangesCVEOrgPartial
-		}
-	}
-	return out, rows.Err()
+	_, src, err := kevRecordView(ctx, s.db.Reader())
+	return src, err
 }
 
 // MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and

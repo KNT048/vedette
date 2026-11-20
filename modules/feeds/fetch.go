@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -67,12 +68,26 @@ type Request struct {
 	// HeaderTimeout, when longer than the client's, is how long the source may take before it starts to answer
 	// (NVD). The whole request is then bounded by the context deadline only.
 	HeaderTimeout time.Duration
-	// Stream, when set, reads the body as it arrives instead of Response.Body (the distribution archives are
+	// Stream, when set, reads the body as it arrives instead of Response.Body (when it fails, Fetch returns its error with the Response
+	// of the answer's headers) (the distribution archives are
 	// tens of megabytes and are parsed while they download). The reader stops with ErrTooLarge past MaxBytes, counted
 	// after the transport's gzip decoding; the client's whole-request timeout is lifted, so the context deadline is the
 	// bound. Its error is the error of the fetch.
 	Stream func(io.Reader) error `json:"-"`
+	// RedirectHosts are the other hosts a redirect may lead to (exact names, lower case): a source that serves its files from a
+	// storage host of its own (GitHub's release files). Every hop still passes the address guard and never leaves https.
+	RedirectHosts []string
+	// From, when above zero, asks for the body from that byte on (Range: bytes=From-), to resume a download: Response.Partial says
+	// the source answered with that part. A source that answers the whole body (200) is read from that byte on too, the bytes before
+	// it skipped, so the caller always gets the body from From on.
+	From int64
+	// WantTotal, when above zero, is the whole body's size a resumed download expects: a source whose file now has another size
+	// fails with ErrFileChanged before anything is read, so a replaced file is never joined to the part read before.
+	WantTotal int64
 }
+
+// ErrFileChanged is a resumed download whose file changed since the part already read (Request.WantTotal).
+var ErrFileChanged = errors.New("feeds: the file changed since the part already read")
 
 // Response is what came back.
 type Response struct {
@@ -82,6 +97,10 @@ type Response struct {
 	LastModified string
 	FinalURL     string    // may carry a query string: do not log it
 	Date         time.Time // the server's Date header (zero when missing or unreadable): its clock, for the CISA list's plausibility (#946 r2)
+	// Partial: the source answered the part asked for by Request.From (206). Total is the whole body's size when the source said it
+	// (Content-Range of a part, Content-Length of a whole answer), else -1.
+	Partial bool
+	Total   int64
 }
 
 // Fetcher performs the HTTPS GET of a feed. The zero value works.
@@ -189,6 +208,11 @@ func (c *capReader) Read(p []byte) (int, error) {
 const fetchURLMaxLen = 2048
 
 func checkRedirect(req *http.Request, via []*http.Request) error {
+	return checkRedirectTo(req, via, nil)
+}
+
+// checkRedirectTo is checkRedirect allowing a hop to one of hosts too.
+func checkRedirectTo(req *http.Request, via []*http.Request, hosts []string) error {
 	if len(via) > maxRedirects {
 		return fail(ErrRedirect, "The feed redirected more than %d times.", maxRedirects)
 	}
@@ -200,10 +224,27 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 	if prev.URL.Scheme == "https" && req.URL.Scheme != "https" {
 		return fail(ErrRedirect, "The feed redirected from https to http.")
 	}
-	if !strings.EqualFold(req.URL.Host, via[0].URL.Host) {
+	if !strings.EqualFold(req.URL.Host, via[0].URL.Host) && (req.URL.Port() != "" || !slices.Contains(hosts, strings.ToLower(req.URL.Hostname()))) {
 		return fail(ErrRedirect, "The feed redirected to another host (%s). Set the feed address to the final address.", quoteVal(req.URL.Hostname()))
 	}
 	return nil
+}
+
+// rangeTotal reads "bytes <from>-<last>/<total>" of a part asked from from on: the whole body's size; ok false for another part.
+func rangeTotal(h string, from int64) (int64, bool) {
+	spec, ok := strings.CutPrefix(strings.TrimSpace(h), "bytes ")
+	if !ok {
+		return 0, false
+	}
+	span, size, ok := strings.Cut(spec, "/")
+	first, last, ok2 := strings.Cut(span, "-")
+	a, e1 := strconv.ParseInt(first, 10, 64)
+	b, e2 := strconv.ParseInt(last, 10, 64)
+	n, e3 := strconv.ParseInt(size, 10, 64)
+	if !ok || !ok2 || e1 != nil || e2 != nil || e3 != nil || a != from || b < a || b != n-1 {
+		return 0, false
+	}
+	return n, true
 }
 
 func validValidator(s string) bool {
@@ -269,6 +310,13 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 		client = *NewClient(DefaultFetchTimeout)
 	}
 	client.CheckRedirect = checkRedirect
+	if len(req.RedirectHosts) > 0 {
+		hosts := req.RedirectHosts
+		client.CheckRedirect = func(r *http.Request, via []*http.Request) error { return checkRedirectTo(r, via, hosts) }
+	}
+	if req.From > 0 {
+		hreq.Header.Set("Range", "bytes="+strconv.FormatInt(req.From, 10)+"-")
+	}
 	if req.Stream != nil {
 		client.Timeout = 0 // the context deadline bounds a streamed body (Fetch always has one)
 	}
@@ -290,7 +338,7 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	out := &Response{ETag: resp.Header.Get("ETag"), LastModified: resp.Header.Get("Last-Modified"), FinalURL: resp.Request.URL.String()}
+	out := &Response{ETag: resp.Header.Get("ETag"), LastModified: resp.Header.Get("Last-Modified"), FinalURL: resp.Request.URL.String(), Total: resp.ContentLength}
 	if d, derr := http.ParseTime(resp.Header.Get("Date")); derr == nil {
 		out.Date = d.UTC()
 	}
@@ -304,28 +352,43 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	case resp.StatusCode == http.StatusNotModified && conditional:
 		out.NotModified = true
 		return out, nil
+	case resp.StatusCode == http.StatusPartialContent && req.From > 0:
+		total, ok := rangeTotal(resp.Header.Get("Content-Range"), req.From)
+		if !ok {
+			return nil, fail(ErrBadSample, "The source answered a part Vedette did not ask for.")
+		}
+		out.Partial, out.Total = true, total
 	case resp.StatusCode != http.StatusOK:
 		return nil, &StatusError{Code: resp.StatusCode, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	}
 	if resp.ContentLength > limit {
 		return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
 	}
+	if req.WantTotal > 0 && out.Total >= 0 && out.Total != req.WantTotal {
+		return nil, ErrFileChanged
+	}
+	var body io.Reader = resp.Body
+	if req.From > 0 && !out.Partial { // the whole body came: what was asked for starts at From
+		if n, err := io.CopyN(io.Discard, body, req.From); err != nil || n != req.From {
+			return nil, fmt.Errorf("feeds: fetch %s: the answer is shorter than the part already read", host)
+		}
+	}
 	if req.Stream != nil {
-		if err := req.Stream(newCapReader(resp.Body, limit)); err != nil {
+		if err := req.Stream(newCapReader(body, limit)); err != nil {
 			if errors.Is(err, ErrTooLarge) {
 				return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
 			}
-			return nil, err
+			return out, err // what the answer said (its size: a download that stops goes on from there) with why it stopped
 		}
 		return out, nil
 	}
-	body, err := io.ReadAll(newCapReader(resp.Body, limit))
+	data, err := io.ReadAll(newCapReader(body, limit))
 	if err != nil {
 		if errors.Is(err, ErrTooLarge) {
 			return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
 		}
 		return nil, fmt.Errorf("feeds: fetch %s: reading the answer: %w", host, err)
 	}
-	out.Body = body
+	out.Body = data
 	return out, nil
 }

@@ -1,7 +1,7 @@
 cve | CVE-2016-4655 | 2016-08-25T21:59:00.133Z | 2026-06-17T00:47:58.357Z | Analyzed | 2026-11-09T08:00:00.000Z | - | The kernel in Apple iOS before 9.3.5 allows attackers to obt
 cve | CVE-2021-3493 | 2021-04-17T05:15:14.630Z | 2026-06-17T04:05:12.177Z | Analyzed | 2026-11-09T08:00:00.000Z | - | The overlayfs implementation in the linux kernel did not pro
 cve | CVE-2024-21762 | 2024-02-09T09:15:08.087Z | 2026-10-22T19:20:41.990Z | Analyzed | 2026-11-09T08:00:00.000Z | - | A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.
-cve | CVE-2024-3400 | - | - | - | - | 2026-11-09T08:00:00.000Z | 
+cve | CVE-2024-3400 | 2024-04-12T07:20:00.707Z | - | - | - | 2026-11-09T08:00:00.000Z | A command injection as a result of arbitrary file creation v
 cve | CVE-2026-10001 | - | - | - | - | - | 
 cve | CVE-2026-10002 | - | - | - | - | - | 
 cve | CVE-2026-10003 | - | - | - | - | - | 
@@ -28,9 +28,9 @@ range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:forti
 range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.0.0 |  |  | 7.0.14 |  | []
 range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.2.0 |  |  | 7.2.7 |  | []
 range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.4.0 |  |  | 7.4.3 |  | []
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 10.2.0 |  |  | 10.2.9-h1 | unaffected | -
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.0.0 |  |  | 11.0.4-h1 | unaffected | -
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.1.0 |  |  | 11.1.2-h3 | unaffected | -
+range | CVE-2024-3400 | cna |  | paloalto | panos |  | 10.2.0 |  |  | 10.2.9-h1 | unaffected | -
+range | CVE-2024-3400 | cna |  | paloalto | panos |  | 11.0.0 |  |  | 11.0.4-h1 | unaffected | -
+range | CVE-2024-3400 | cna |  | paloalto | panos |  | 11.1.0 |  |  | 11.1.2-h3 | unaffected | -
 kev | CVE-2016-4655 | cisa | cisa-kev | Apple | iOS | 2021-11-03 | 2026-12-01 | 0 | ["https://example.com/CVE-2016-4655"]
 kev | CVE-2021-3493 | cisa | cisa-kev | Linux | Kernel | 2022-10-20 | 2026-12-01 | 0 | ["https://example.com/CVE-2021-3493"]
 kev | CVE-2024-21762 | cisa | cisa-kev | Fortinet | FortiOS | 2024-02-09 | 2026-12-01 | 0 | ["https://example.com/CVE-2024-21762"]

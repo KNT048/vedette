@@ -37,57 +37,18 @@
 - **PRIVACY.md** luồng 1 và `locales/en/core.json` `privacy.flow.1`: các yêu cầu NVD (cửa sổ, đi qua toàn bộ danh sách, `cveId`).
 - Thêm nguồn tín hiệu mới: ghi `feeds_signal` qua `putSignal`, luật `qualifies` của loại đó; CVE có tín hiệu đạt được giữ ở mọi tuổi và được lấy bản ghi NVD (`missingSQL`).
 
-## Modifying: `CVEOrgRecordURL`/`ParseCVERecord`, feed `cve-org`, `feeds_affected_cve.source`, `Store.RangesFromCVEOrg`
+## Modifying: `cverecord*.go` (`ParseCVERecord`, `recordRanges`, `RecordProductKey`, the archives), feed `cve-org`, `Store.RangesFromCVEOrg`, `KEVRecordRows`
 
-- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`, `rangesFrom`): CVE có hàng `source='cve.org'`/`'cve.org-partial'` mang `Vuln.RangesFrom = findings.RangesCVEOrg`/`RangesCVEOrgPartial` (partial: không bao giờ đóng finding); `FixedIn.Source` thành "CVE.org affected versions (from the CVE record's CNA)" và trang hiện đúng nguồn đó (`Recommendation.tsx`), câu bằng chứng nói "the CVE.org record" thay "NVD" (`TestCVEOrgRangesNameTheirSource`). CPE của hàng là hãng/sản phẩm CISA đã chuẩn hoá: findings khớp nó qua `norm` của hãng/sản phẩm thiết bị và khoá KEV; đổi cách dựng CPE ⇒ finding đổi.
-- **nvd-kev**: `applyAffected` đếm và xoá chỉ hàng `source='nvd'`; `records` và lượt đầu (`first`) của NVD chỉ tính hàng NVD.
-- **cmd/vedette**: `Store.MatchStamp` thêm `cve-org`; export policy (`feeds_affected_cve.source`, `feeds_cveorg_checked`) trong `modules/core/export_policy.go`.
-- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts` và `conformance.test.ts` (danh sách có sẵn: 13).
-
-## Modifying: những gì một feed lưu hay cách nó đọc nguồn (`contentVersions`, `feeds_source.content_version`, INV-32)
-
-- **Mọi feed**: thêm bảng/cột mà lượt kéo ghi, đổi parser, đổi trang hay tệp đọc ⇒ tăng số của decoder trong `contentVersions` **cùng thay đổi**; mọi hộp đọc lại feed đó ở lần kiểm 5 phút sau khi cập nhật (feed đọc trọn: không `ETag`/`Last-Modified`; feed tăng dần: lượt nạp lại của nó qua `contentResets`). Quên tăng số ⇒ dữ liệu cũ ở lại tới chu kỳ kế, hoặc mãi mãi khi nguồn trả 304 hay feed chỉ hỏi phần đổi. Không cần migration riêng chỉ để kích kéo lại (trước đây 0011, 0013, 0015 làm việc này từng lần).
-- Feed tăng dần mới: thêm hàm nạp lại vào `contentResets` (một giao dịch cùng số mới) và vào lớp trong `TestContentVersion_EveryFeedHasAReloadPath`.
-- **findings**: kế hoạch so lại khi `TierStamp` đổi, khớp lại theo sự kiện và lượt kiểm mỗi giờ: không đổi gì phía findings.
-- **Quyền riêng tư**: một lượt đọc thêm mỗi feed sau một bản cập nhật như vậy (cùng địa chỉ, cùng luật bật/tắt và thiết bị); PRIVACY.md luồng 1 + Settings → Privacy (`core.json` `privacy.flow.1`) nói câu này. Lượt nạp lại NVD tốn như ngày đầu (`nvd-kev` khoảng 20 request, `nvd-recent` khoảng 105): chỉ tăng số đó khi thật cần.
-- **core** export policy: cột `content_version` (xuất).
-
-## Modifying: feed `windows-releases`, `parseWinRelPage`, `winRelReleases`, `feeds_winrel`
-- **core/winrel** (`Learn`): mọi bản `winRelReleases` suy ra đi vào `ByBuild`/`ByProduct`/`Releases` sau bảng tay. Đổi cách đặt tên NVD, line hay GA ⇒ đổi dòng hệ điều hành mà agent-intake `windowsRow` ghi (CPE `windows_11_26h2`) và cách findings `windowsDecide` đọc hàng NVD (anh em cùng line, luật tháng, bằng chứng "ra sau khi CISA liệt kê" theo GA). Line sai = so revision với line khác: chỉ gán line khi cùng KB **và** cùng revision.
-- **agent-intake**: dòng hệ điều hành của máy có build mới đổi ở lần báo kế (programs, 3600 s) từ "Windows (build 26300)" sang "Windows 11 26H2" có CPE; inventory đánh dấu, findings khớp lại máy đó.
-- **findings**: `feeds.ranges.updated` sau lượt đổi bảng phát hành **hoặc** bảng bản vá hằng tháng (`applyWinRel` so cả hai: bản vá mới đổi build so sánh của máy hotpatch `core/winrel.Baseline` và build/KB đích); câu "could not be checked" của build không biết nói "not a Windows release Vedette knows (an Insider …)".
-- **findings** (`winLatest`): bản vá hằng tháng (`parseWinRelUpdates`, `feeds_winrel_update` → `core/winrel.LearnUpdates`/`Updates`) là build đích của mục kế hoạch Windows, `RowFix` và `ToFixAction` khi mới hơn build vá của NVD, và `nvd_lag` ("fixes at least N CVEs"). Đổi loại hàng giữ (chỉ `B`), cách gán build hay server/client ⇒ build đích đổi (`TestParseWinRelUpdates`, `TestWinRelPull_MonthlyUpdates`, findings `TestPlan_WindowsTargetIsMicrosoftsNewestUpdate`). `TierStamp` có `windows-releases`: mỗi lượt kéo (một lần/ngày) cho findings một lượt so đầy đủ.
-- **Pháp lý/quyền riêng tư**: host `learn.microsoft.com` (ba trang: Windows 11, Windows Server, Windows 10) trong PRIVACY.md luồng 1 + Settings → Privacy (`core.json`), THIRD_PARTY_NOTICES (điều khoản Microsoft, chỉ dữ kiện).
-
-## Modifying: feeds `ubuntu-osv`, `ubuntu-vex`, `debian-tracker`, `ParseUbuntuOSV`/`ParseUbuntuVEX`/`ParseDebianTracker`, `Store.DistroFixes`, `Request.Stream`
-
-- **findings** (qua `cmd/vedette` `findingsFeeds.readVulns` → `Vuln.Distro`): một dòng gói deb của agent trên Ubuntu/Debian được đóng hay giữ theo các hàng này (`modules/findings` `TestDistroDecidesForAPackagedRow`, `cmd/vedette` `TestDistroFixReachesFindings`). Đổi nghĩa `status`, `release` (số, không phải tên mã) hay `package` (gói **nguồn**) ⇒ finding đổi.
-- **inventory** cung cấp phía thiết bị (`pkg_version`, `pkg_source`, migration 0007 của inventory); tên gói nguồn phải khớp tên ở đây.
-- **cmd/vedette**: `feeds.ranges.updated` dùng chung với khoảng phiên bản (rematch theo CVE; lần đầu trong `notify.WithBaseline`).
-- **PRIVACY.md** luồng 1 + Settings → Privacy (`privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (dữ liệu Canonical CC BY-SA 4.0, Debian không nêu giấy phép; `github.com/ulikunitz/xz`), `sourcesMock.ts`, `conformance.test.ts` (thứ tự feed có sẵn), export policy (`feeds_distro_fix`). `Request.Stream` là đường đọc luồng duy nhất: guard đích, chuyển hướng và trần giống `Fetch`.
-- **INV-22: `DistroLister` (tuỳ chọn trên `Inventory`) do `cmd/vedette` `feedsInventory.Distros` hiện thực bằng `inventory.AssetIDs` + `MatchInput` và `findings.DeviceDistro`; đổi luật "dòng gói deb của agent" của findings là đổi cả lúc feeds kéo. Câu "Not updated: no … device now…" có trong `distroNote`, mock `features/feeds/sourcesMock.ts` (Debian tracker) và test `feeds.test.tsx`. PRIVACY luồng 1 + `privacy.flow.1` nói Canonical/Debian biết họ bản phân phối.
-- Thêm tên mã Ubuntu/Debian mới: `ubuntuCodenames`, `debianReleases` trong `distro.go` (ponytail; thiếu ⇒ lý do "release … is not known" ở Settings → Feeds).
-
-## Modifying: feed `alpine-osv`, `ParseAlpineOSV`/`eachZipEntry`, `DistroLister.Distros` key `alpine` (INV-31)
-
-- **findings** (qua `cmd/vedette` `findingsFeeds.readVulns` → `Vuln.Distro` hàng `Distro: "alpine"`): bản vá theo nhánh của CVE trong danh sách nền tảng (`content/catalog/platform-limits.json`) đọc từ đây; đổi `release` (nhánh "3.23", không phải "v3.23"), `package` (gói **nguồn** "openssh", không phải "openssh-server") hay luật giữ bản cao hơn ⇒ finding của thiết bị Alpine đổi. `distroVerdict` của Ubuntu/Debian bỏ qua hàng `alpine` (lọc theo `distroOf`).
-- **cmd/vedette** `feedsInventory.Distros` thêm khoá `alpine` (không gói) theo `findings.StatesAlpine`; đổi luật đó ở findings ⇒ đổi lúc feeds liên lạc OSV.dev (PRIVACY luồng 1).
-- **feeds** `PlatformChecker.NotAffected(ctx, cve, vendor, product, distro, ids)` nhận hàng của CVE từ `Store.DistroFixesOf` (trang CVE agree với finding khi bản phát hành gói quyết); `cmd/vedette` `feedsInventory.NotAffected` hiện thực.
-- **core/apkver**: thứ tự apk dùng chung với findings (`apkver.go`); đổi nó ⇒ đổi bản vá được giữ và phép so ở findings.
-- **PRIVACY.md** luồng 1 + `privacy.flow.1` (host Google Cloud Storage của OSV.dev, chỉ khi có thiết bị Alpine), `THIRD_PARTY_NOTICES.md` (secdb CC BY-SA 4.0 qua OSV.dev; bốn hồ sơ thật trong `testdata/alpine`), `sourcesMock.ts`, `conformance.test.ts` (18 feed có sẵn), migration 0018 (CHECK `distro` thêm `alpine`), export policy (`feeds_distro_fix` không đổi cột).
-
-## Modifying: `DistroWant`, `tierCVEs`, `distro_packages`/`distroBehind` (tên mới, sàn 6 giờ), `DistroLister.Distros` (gói theo bản phân phối), `Store.TierDistroRecords`, `TierStamp` (INV-27)
-
-- **findings** (qua `cmd/vedette` `findingsFeeds.TierDistro` → `Feeds.TierDistro`, `distroTierItems`): mục kế hoạch kind `distro` đọc đúng các hàng tầng này; đổi tập gói giữ hay bỏ hàng `fixed` ⇒ mục kế hoạch đổi (`modules/findings` `TestPlan_DistroPackages`, `TestPlan_DistroThroughTheEndpoint`). `TierStamp` thêm `ubuntu-osv`, `debian-tracker`: lượt kéo hay công tắc của chúng làm job `plan` so lại toàn bộ.
-- **cmd/vedette** `feedsInventory.Distros` hiện thực chữ ký mới bằng `findings.DevicePackages` (tên gói nguồn qua `securitySource`); đổi luật đó ở findings ⇒ đổi tập gói feeds giữ (`TestFeedsInventoryDistros`).
-- **Bất biến KEV**: `DistroFixes` lọc theo danh sách CISA, `distroCVEs` (công tắc) và `rangesChanged` của lượt kéo chỉ nêu CVE CISA. Bỏ lọc đó ⇒ bộ khớp KEV đọc thêm ~100.000 hàng mỗi lượt khớp và `feeds.ranges.updated` mang hàng nghìn CVE tầng (rematch vô ích).
-- **Bộ nhớ**: hàng tầng chỉ cho gói thiết bị chạy; giữ mọi gói = +207 MB (OSV) / +320 MB (VEX) đỉnh RSS. `ubuntu-vex` không giữ CVE tầng.
-- **core** export policy: cột `feeds_source.distro_packages` (migration 0014). **PRIVACY.md** luồng 1 + `privacy.flow.1`: lượt kéo thêm (tối đa mỗi 6 giờ) khi có gói mới.
+- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`, `rangesFrom`): CVE danh sách không có khoảng NVD mang `Vuln.RangesFrom = findings.RangesCVEOrg`/`RangesCVEOrgPartial` từ `kevRecordView` (partial: không bao giờ đóng finding); `FixedIn.Source` "CVE.org affected versions (from the CVE record's CNA)". CPE của hàng là hãng/sản phẩm mục danh sách đã chuẩn hoá (`productid.Norm`), phiên bản đúng nằm trong CPE: đổi cách dựng ⇒ finding đổi (`TestCVEOrgRecordsThroughTheMatcher`).
+- **bộ khớp sau này** (`Store.Ranges`): hàng bản ghi không có CPE mang khoá `RecordProductKey`; muốn thấy chúng phải hỏi cả khoá tên của sản phẩm bên cạnh tên CPE NVD. Đổi `RecordProductKey` ⇒ đổi khoá đã lưu (đọc lại cả danh sách).
+- **nvd-kev / nvd-recent**: `writeNVDRecords` chỉ xoá hàng `origin='nvd'`; hàng bản ghi ở lại, NVD thắng khi đọc.
+- **cmd/vedette**: `Deps.DataDir` (tệp làm việc); export policy `feeds_cve_ref`; allow-list cột JSON `feeds_cve_ref.tags`.
+- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts`.
 
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads
 
 - **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.
-- **cve-org**: `cveOrgTodo`/`applyCVEOrg` dùng cả hai nguồn để chọn và dọn CVE.
+- **cve-org**: `recordDue` và `kevRecordView` đọc cả hai nguồn để chọn CVE hỏi theo ID và CVE findings thấy.
 - **reports** (`cmd/vedette/reports.go` `reportsKEV.Entries`): bỏ hàng không phải `cisa-kev` (không phân phối lại dữ liệu VulnCheck). Home/weekly/announced/EPSS chỉ đọc `cisa-kev`.
 - **handlers_sources.go** `PUT /feeds/sources/{id}`: `api_key` chỉ cho feed BYOK, `isBYOK`, `saveFeedKey`; `toFeedDTO` hiện `auth.secret_last4` của feed BYOK. Contract: `FeedPatch.api_key` (contract.ts, `api/openapi.json`, `core/api/oas`).
 - **cmd/vedette**: `Store.MatchStamp` thêm `vulncheck-kev`; export policy không đổi (không bảng/cột mới; `feeds_vuln` vẫn xuất cả hàng `vulncheck-kev`).

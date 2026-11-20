@@ -480,6 +480,14 @@ CREATE TABLE feeds_cve_range (
     platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
 );
 
+CREATE TABLE feeds_cve_ref (
+    cve    TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    url    TEXT NOT NULL CHECK (length(url) BETWEEN 9 AND 500 AND (url GLOB 'https://*' OR url GLOB 'http://*')),
+    tags   TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags) AND json_type(tags) = 'array'),
+    source TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    PRIMARY KEY (cve, url)
+) WITHOUT ROWID;
+
 CREATE TABLE feeds_kev (
     cve             TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
     list            TEXT    NOT NULL CHECK (length(list) BETWEEN 1 AND 110),

@@ -73,6 +73,13 @@ func (s *Service) RunPull(ctx context.Context) error {
 				due = st.Due(now, r.IntervalHours)
 			}
 		}
+		if r.ID == cveOrgFeedID && r.Enabled && r.Failures == 0 { // The whole list is loading: it goes on at the next check
+			if owed, err := s.st.recordsOwed(ctx, r.URL); err != nil {
+				s.Log.ErrorContext(ctx, "reading where the CVE records stand failed", "error", err)
+			} else if owed {
+				due = true
+			}
+		}
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
 			due = !now.Before(at) // a paused NVD pull goes on when it said it would
 		}
@@ -134,16 +141,10 @@ type pullPlan struct {
 	nvd    []NVDRecord // nvd-kev: the records of the exploited-list selector, written into the catalogue
 	hasNVD bool
 
-	// kevRanges are the exploited-list CVEs whose NVD ranges a pull of nvd-recent changed (it wrote them page by page), kevRangesFirst
-	// whether none of them had NVD's answer before the pull.
+	// kevRanges are the exploited-list CVEs whose ranges a pull of nvd-recent or cve-org changed (they write as they go), kevRangesFirst
+	// whether none of them had an answer before the pull.
 	kevRanges      []string
 	kevRangesFirst bool
-
-	cveOrg        map[string]CVEOrgResult // cve-org: the CVEs whose record gave ranges
-	cveOrgChecked []string                // every CVE whose record was read
-	cveOrgUnread  []string                // CVEs whose record could not be read this time: stamped, stored ranges kept
-	cveOrgDays    map[string]string       // the day each record read says the CVE was published
-	hasCVEOrg     bool
 
 	iocs    []iocInput
 	hasIOCs bool
@@ -290,7 +291,7 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	case DecoderNVD:
 		return s.buildNVD(ctx, src, p)
 	case DecoderCVEOrg:
-		return s.buildCVEOrg(ctx, src, p)
+		return s.buildCVERecords(ctx, src, p)
 	case DecoderVulnCheck:
 		return s.buildVulnCheck(ctx, src, p)
 	case DecoderUbuntuOSV, DecoderUbuntuVEX, DecoderDebianTracker, DecoderAlpineOSV:
@@ -575,17 +576,6 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if p.out.Records, err = kevNVDCountTx(ctx, tx); err != nil { // the exploited CVEs NVD answered for, not only this (incremental) pull's
 					return err
 				}
-			case p.hasCVEOrg:
-				// ranges of CVEs read for the first time are backlog, like NVD's first fill; a new CISA entry still
-				// alerts, by its own new_kev event, published before this one and matched against these ranges
-				var total int
-				if rangesChanged, rangesFirst, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.out.Finished); err != nil {
-					return err
-				}
-				if err = applyCVEOrgPublished(ctx, tx, p.cveOrgDays); err != nil {
-					return err
-				}
-				p.out.Records = total
 			case p.hasDistro:
 				if rangesChanged, rangesFirst, err = applyDistro(ctx, tx, src.ID, p.distro); err != nil {
 					return err
@@ -607,7 +597,8 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
 				}
-			case len(p.kevRanges) > 0: // nvd-recent stored its pages already: the exploited-list CVEs whose ranges changed are news
+			case len(p.kevRanges) > 0: // nvd-recent and cve-org stored as they went: the exploited-list CVEs whose ranges changed are news
+				// (ranges of CVEs read for the first time are backlog; a new CISA entry still alerts by its own new_kev event)
 				rangesChanged, rangesFirst = p.kevRanges, p.kevRangesFirst
 			}
 			return finish(tx, p.out)
@@ -696,7 +687,11 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 			if at, paused := s.nvdResumeAt(); dep == nvdFeedID && paused && s.now().Before(at) {
 				continue
 			}
-			_, _, more, err := s.pullOne(ctx, dep, "")
+			dctx := ctx
+			if dep == cveOrgFeedID { // only the records of the new entries, by ID: no download holds the list's alerts back
+				dctx = context.WithValue(ctx, urgentOnlyKey{}, true)
+			}
+			_, _, more, err := s.pullOne(dctx, dep, "")
 			evs = append(evs, more...)
 			if err != nil && ctx.Err() != nil {
 				break

@@ -30,7 +30,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 		return s, nil
 	}
 	fd := feeds.Deps{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Modules: d.Reg, Log: d.Log,
-		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock, Zone: orgTimeZone(&d)} // built after core (buildServices)
+		Fetcher: feeds.Fetcher{Client: feedsClient, Version: version}, Clock: d.Clock, Zone: orgTimeZone(&d), DataDir: d.DataDir} // built after core (buildServices)
 	fd.Fetcher.BoxAddrs = machineAddrs(&d) // Never Vedette itself; unknown host addresses allow only global unicast pulls
 	fd.Fetcher.Self = vedetteSelf(&d)      // the honeypot's decoys: every port
 	if d.Inventory != nil {

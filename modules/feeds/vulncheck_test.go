@@ -157,10 +157,10 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	if keys, err := e.svc.st.KevCVEsByKeys(t.Context(), []string{"acme|gateway"}); err != nil || !slices.Equal(keys, []string{"CVE-2026-1001"}) {
 		t.Errorf("matching by product: %v %v", keys, err)
 	}
-	// its CVEs are among those CVE.org is asked for ranges (NVD has none)
-	todo, err := e.svc.st.cveOrgTodo(t.Context(), vcNow, 10)
+	// its CVEs are among those whose CVE record is asked for by ID (a public list names them)
+	todo, err := e.svc.st.recordDue(t.Context(), vcNow, 10)
 	if err != nil || len(todo) != 3 {
-		t.Errorf("CVE.org todo: %v %v", todo, err)
+		t.Errorf("CVE records due: %v %v", todo, err)
 	}
 
 	// a new entry later is news, not baseline

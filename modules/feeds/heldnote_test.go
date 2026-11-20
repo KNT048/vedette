@@ -60,7 +60,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		return got
 	}
 	empty := map[string]string{
-		cveOrgFeedID:    "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.",
+		cveOrgFeedID:    "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check.",
 		nvdFeedID:       "",
 		winRelFeedID:    "",
 		ubuntuOSVFeedID: "",
@@ -79,7 +79,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		return err
 	})
 	filled := map[string]string{
-		cveOrgFeedID: "1 exploited CVE has no affected versions from NVD; 1 not read from CVE.org yet.",
+		cveOrgFeedID: "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check. Exploited: 1 without affected versions from NVD, 0 of them with versions from the record.",
 		winRelFeedID: "1 Windows release on Microsoft's release information pages, with 2 monthly updates, the newest of 11 Nov 2026.",
 	}
 	for id, want := range filled {
@@ -92,14 +92,14 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_cve SET record_at = '2026-11-05T12:00:00.000Z' WHERE cve = 'CVE-2026-0001'`)
 		return err
 	})
-	if got, want := held(cveOrgFeedID), "1 exploited CVE has no affected versions from NVD, and CVE.org gives none Vedette can compare for it either; it is asked again every 12 hours."; got != want {
+	if got, want := held(cveOrgFeedID), "1 of 1 catalogue CVEs have their record read; 1 without affected versions from NVD, 0 of them with versions from the record. Exploited: 1 without affected versions from NVD, 0 of them with versions from the record."; got != want {
 		t.Errorf("one CVE read: %q, want %q", got, want)
 	}
 	write(t, e.db, func(tx *sql.Tx) error {
 		_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:o:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
 		return err
 	})
-	if got, want := held(cveOrgFeedID), "Read only for exploited CVEs NVD gives no affected versions for, and NVD gives them for every one now."; got != want {
+	if got, want := held(cveOrgFeedID), "1 of 1 catalogue CVEs have their record read; 0 without affected versions from NVD, 0 of them with versions from the record."; got != want {
 		t.Errorf("NVD covers all: %q, want %q", got, want)
 	}
 }
@@ -173,7 +173,7 @@ func TestHeldNotes_ShownRightAfterAnUpdate(t *testing.T) {
 		if bare := e.heldShown(t); len(bare) > 0 {
 			t.Errorf("stored note %q: %d of %d feeds show a bare count: %v", stored, len(bare), len(heldNotes), bare)
 		}
-		if _, line := e.fetchList(t, cveOrgFeedID); line != withHeld("1 exploited CVE has no affected versions from NVD; 1 not read from CVE.org yet.", stored) {
+		if _, line := e.fetchList(t, cveOrgFeedID); line != withHeld("No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check. Exploited: 1 without affected versions from NVD, 0 of them with versions from the record.", stored) {
 			t.Errorf("CVE.org, stored %q: %q", stored, line)
 		}
 	}
@@ -219,22 +219,22 @@ func TestHeldNotes_FollowTheData(t *testing.T) {
 			_, _, err := applyVulns(t.Context(), tx, epoch0, kevFeedID, []Vuln{vuln("CVE-2025-1111", "Haxx", "curl", "2026-11-03")}, false)
 			return err
 		}, map[string]string{
-			cveOrgFeedID:    "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
+			cveOrgFeedID:    "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check. Exploited: 2 without affected versions from NVD, 0 of them with versions from the record.",
 			ubuntuOSVFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs.",
 		}},
 		{"VulnCheck KEV adds a CVE NVD has no versions for", vulnCheckFeedID, func(tx *sql.Tx) error {
 			_, _, err := applyVulns(t.Context(), tx, epoch0, vulnCheckFeedID, []Vuln{vuln("CVE-2026-0003", "Acme", "Router", "2026-11-04")}, false)
 			return err
-		}, map[string]string{cveOrgFeedID: "3 exploited CVEs have no affected versions from NVD; 3 not read from CVE.org yet."}},
+		}, map[string]string{cveOrgFeedID: "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check. Exploited: 3 without affected versions from NVD, 0 of them with versions from the record."}},
 		{"NVD gives versions for another CVE", nvdFeedID, func(tx *sql.Tx) error {
 			_, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2026-0001": {{CPE: "cpe:2.3:a:acme:gateway:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}}, false, epoch0)
 			return err
 		}, map[string]string{
 			nvdFeedID:    "NVD records of 2 exploited CVEs; 2 of them name affected versions.",
-			cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
+			cveOrgFeedID: "No CVE record read yet: the CVE Program's records of the catalogue's CVEs load at the next check. Exploited: 2 without affected versions from NVD, 0 of them with versions from the record.",
 		}},
 		{"CVE.org reads one", cveOrgFeedID, insert(`UPDATE feeds_cve SET record_at = '2026-11-05T12:00:00.000Z' WHERE cve = 'CVE-2025-1111'`),
-			map[string]string{cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; CVE.org gives none Vedette can compare for 1, 1 not read from CVE.org yet."}},
+			map[string]string{cveOrgFeedID: "1 of 4 catalogue CVEs have their record read; 2 without affected versions from NVD, 0 of them with versions from the record. Exploited: 2 without affected versions from NVD, 0 of them with versions from the record."}},
 		{"Debian drops its rows of the other CVE", debianTrackerFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'debian-tracker' AND release = '13'`),
 			map[string]string{debianTrackerFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs."}},
 		{"Ubuntu VEX, Alpine and Ubuntu OSV each keep one row", ubuntuVEXFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'ubuntu-vex' AND package = 'openssh'`),

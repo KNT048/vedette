@@ -46,6 +46,7 @@ var jsonColumnAllowList = []string{
 	"exp_target.last_check",
 	"feeds_cve.cwe",
 	"feeds_cve_range.platforms",
+	"feeds_cve_ref.tags",
 	"feeds_fetch_log.reject_reasons",
 	"feeds_kev.links",
 	"feeds_signal.detail",

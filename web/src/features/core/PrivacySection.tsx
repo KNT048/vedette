@@ -106,6 +106,10 @@ function Body({ d }: { d: PrivacyState }) {
         <p className="max-w-3xl text-sm">{t('privacy.bugNote.body')}</p>
       </Section>
 
+      <Section id="mirror-port" title={t('privacy.mirrorNote.title')} info={t('privacy.mirrorNote.bodyInfo')} stories={['S-LOG-4']}>
+        <p className="max-w-3xl text-sm">{t('privacy.mirrorNote.body')}</p>
+      </Section>
+
       <Section id="telemetry" title={t('privacy.telemetry.title')} info={t('privacy.telemetry.statementInfo')} stories={['S-CORE-4']}>
         <p className="max-w-3xl text-sm">{t('privacy.telemetry.statement')}</p>
       </Section>

@@ -14,7 +14,7 @@ Cả hai chạy cùng binary `vedette-sensor` (lệnh con `passive`, `active`, `
 
 Ngoài phạm vi hồ sơ này:
 - sensor đặt ở máy khác, enroll, gia hạn qua mạng, thu hồi bằng tay (thiết kế cũ ở phụ lục A);
-- syslog và metadata SPAN (`logs` chưa xây), honeypot (đi qua tệp), osquery (`osquery-intake.md`). (Job nuclei của module `scan` là loại job thứ hai từ bản 2; đọc SNMP là loại thứ ba từ bản 5, xem khối "Đọc SNMP" ở §6.5.)
+- syslog (metadata SPAN đi trên dây từ §6.7, khớp ở `core` bởi `logs`), honeypot (đi qua tệp), osquery (`osquery-intake.md`). (Job nuclei của module `scan` là loại job thứ hai từ bản 2; đọc SNMP là loại thứ ba từ bản 5, xem khối "Đọc SNMP" ở §6.5.)
 
 ## 2. Actors và vai
 
@@ -80,6 +80,7 @@ Thu hồi chủ động không có giao diện; thu hồi = xoay vòng (serial c
 |---|---|---|---|
 | `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` cấu hình + `ETag`, hoặc `304` |
 | `passive` | `POST /sensor/v1/observations` | ≤ 1 MiB | `200 {ack_seq, rejected[]}` |
+| `passive` | `POST /sensor/v1/metadata` (§6.7) | ≤ 512 KiB | `204` |
 | `passive`, `active` | `POST /sensor/v1/heartbeat` | ≤ 64 KiB | `200 {instance}` |
 | `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id[,id]>` (`running` rỗng hoặc bỏ trống khi rảnh; ≤ 2 id, bản 2) | — | `200 {instance, jobs[], cancel[]}` |
 | `active` | `POST /sensor/v1/jobs/{id}/result` | ≤ 11 MiB | `204` |
@@ -100,7 +101,7 @@ Long-poll có điều kiện: sensor gửi `If-None-Match: "<etag>"` của bản
 |---|---|
 | `interface` | tên card hoặc `""` = **không bắt gói** (module chưa cấu hình, hoặc fail-closed) |
 | `span` | card là cổng SPAN/TAP (không IP) |
-| `extract` | bốn công tắc trích metadata SPAN. Metadata **không** đi trên dây ở hồ sơ này: sensor trích theo công tắc cho bộ đếm và hạn mức, rồi bỏ |
+| `extract` | bốn công tắc trích metadata SPAN. sensor trích theo công tắc rồi gửi phần khớp cần qua `POST /metadata` (§6.7) |
 | `filters[]` | luật loại trừ `{type: cidr\|host\|port, value}` (sensor-passive INV-7) |
 
 Fail-closed: `core` không đọc được bộ lọc → `interface: ""`. Sensor nhận `interface` khác bản đang chạy → đóng card cũ, mở card mới; `""` → dừng bắt gói ngay, không xả lô cuối.
@@ -303,6 +304,14 @@ How far a running nmap or nuclei job is, so the scan page shows a phase, a bar a
 - Throttle: the worker keeps only the latest state of a job and posts it as the job starts, then at most every `ProgressEvery` (5 s), one attempt, never retried, never after the job's result (the reporter is joined before the result is posted). `core` enforces it too: a report of a job sooner than `ProgressEvery` − 1 s after the last one it took is answered `204` and dropped. A report takes a body slot like any body, without waiting: none free → `503 store_busy`, unread and dropped (the worker does not retry it).
 - `core`: answered before the body is read like a result (`404 unknown_job` for a job that is not running; a `core` without the receiver answers `404` too, and an older build of protocol 5 without the route `403 forbidden_route`; the worker logs both at debug). The `Dispatcher` passes the report to the `progress.Sink` the probe's context carried (the scan run or the exposure scan waiting for that job), under its lock so no report lands after the job's result, and stores nothing (the first report of a job opens a new pass of its phase); a report of a job being cancelled is dropped. Advisory only: nothing is decided from it.
 
+### 6.7 `POST /sensor/v1/metadata` (passive)
+
+The mirror-port metadata the capture extracted (DNS query names, TLS server names, HTTP hosts, IPv4 flows), reduced to what core's bad-address matching needs. Added to protocol 5 before its first release, like §6.6 (no new number); optional on both sides.
+
+- Body (`MetadataRequest`, ≤ 512 KiB, strict decoding): `{items: [{kind, at, src, dest}]}`, 1 … 1000 items. `kind` ∈ `dns`, `sni`, `http`, `flow`; `at` is when it was seen; `src` is the LAN device's IPv4 address in canonical form; `dest` is the name (lower case, no trailing dot, ≤ 253 bytes of `a-z 0-9 - _` in non-empty labels of ≤ 63 bytes) or, for `flow`, the destination IPv4 address in canonical form. One item that is not of this shape refuses the whole body (`400`): the sensor checks its items with the same rule (`sensorlink.ValidMetadataItem`) before it sends them. No epoch, no seq: a batch sent twice makes the same matches, which core keeps once.
+- Nothing else of a packet is on the wire: no port, no counter, no resolver address, no payload. The sensor sends only flows to an address a feed could list (not private, shared, loopback, link-local, multicast or broadcast), each (kind, src, dest) once per 10 minutes, at most 2 requests per flush (5 s) of at most 1000 items; what core cannot take now (`429`, `503`, no answer) waits in a queue of at most 10,000 items for the next flush; `400`, `403` and `413` drop the batch, `409 module_off` drops the queue. Every failure is counted as `metadata_failed`.
+- `core`: a Backend without the receiver answers `403 forbidden_route` before the body is read. `sensor-passive` hands the batch to the logs module's matching (`logs.MatchMirror`), which looks up each destination in the threat feeds as it does for a firewall line and stores only the matches (`logs_ioc_hits`, `seen_via` `span_dns`, `span_sni`, `span_http`, `span_flow`). With the logs module off the batch is answered `204` and dropped; a matching that cannot store its hits is `503 store_busy` (the sensor sends the batch again).
+
 ## 7. Bảng lỗi
 
 | HTTP | `code` | Khi nào | Sensor làm gì |
@@ -369,6 +378,7 @@ sequenceDiagram
 | Cửa sổ `seen_at` | 24 giờ trước … 5 phút sau giờ `core` |
 | Thân `heartbeat` | 64 KiB; ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card, ≤ 64 khoá `drops` |
 | Thân kết quả job | 11 MiB; XML ≤ 8 MiB, JSONL ≤ 4 MiB sau giải mã base64 |
+| Thân `metadata` (§6.7) | 512 KiB; 1 … 1000 mục; `dest` ≤ 253 byte; at most 2 requests per flush |
 | Thân `progress` (§6.6) | 1 KiB; at most one per job every 5 s (core drops one within 4 s of the last); a body slot taken without waiting, none free → `503`, dropped |
 | Job nmap | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200 |
 | Job nuclei (bản 2) | 1 … 32 id mẫu, 1 … 16 đích IPv4 riêng, `rate` 1 … 20, `max_host_errors` 2 … 20, `timeout_s` 1 … 3600; JSONL ≤ 1024 dòng |
@@ -423,7 +433,7 @@ Rủi ro còn lại:
 1. ~~Không có story cho enroll sensor tách rời~~ **Đã đóng:** không xây; §3.1 cũ chuyển sang phụ lục A; trên appliance không enroll qua mạng, `core` giao khoá bằng tệp.
 2. ~~Cổng listener và CA chung hay tách~~ **Đã đóng:** listener riêng `:8444`, chỉ `127.0.0.1:8444` trên appliance; một CA **riêng cho sensor** ký cả lá máy chủ 8444 và lá sensor, EKU tách vai; tách khỏi chứng chỉ 8443 và CA osquery.
 3. ~~Honeypot có danh tính mTLS riêng hay đi qua sensor~~ **Đã đóng:** không cách nào; hit đi qua tệp JSON-lines một chiều, honeypot không có đường mạng tới `core`.
-4. ~~Khớp IOC ở sensor hay ở `core`~~ **Đã đóng cho hồ sơ này:** không có metadata SPAN hay IOC trên dây tới khi module `logs` được xây; chọn nơi khớp cùng `logs` (deferred).
+4. ~~Khớp IOC ở sensor hay ở `core`~~ **Đã đóng:** khớp ở `core` (module `logs`, như dòng syslog); sensor chỉ gửi (kind, src, dest) qua §6.7, không gửi IOC xuống sensor.
 5. ~~Phân tích syslog ở `core` hay sensor~~ **Đã đóng cho hồ sơ này:** không nhận syslog, không `NET_BIND_SERVICE` tới khi `logs` được xây.
 6. ~~Thời hạn chứng chỉ 90 ngày, trần/WAL chưa đo~~ **Đã đóng:** 7 ngày, cấp mới ở 1/3 cuối; không WAL; trần ở §9 là điểm xuất phát để đo.
 

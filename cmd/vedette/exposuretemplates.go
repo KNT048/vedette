@@ -354,7 +354,7 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 	unreachable := slices.ContainsFunc(o.HostErrors, func(h nucleiout.HostError) bool { return h.Unreachable })
 	var out []exposure.TemplateResult
 	for _, tp := range r.tmpls {
-		seen, matched, failed := false, false, false
+		seen, matched, failed, elsewhere := false, false, false, false
 		for _, l := range o.Results {
 			if l.Template == tp.ID {
 				seen, matched, failed = true, matched || l.Matched, failed || l.Error != ""
@@ -372,11 +372,13 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 			outcome = exposure.OutcomeError
 		case !seen && slices.Contains(o.Skipped.Templates, tp.ID):
 			// review r1 M7: nuclei ran it (it printed lines), but every line named another address or none readable: "no match
-			// reported", with the note on its probe row, never "not run"
+			// reported", with the note on its probe row, never "not run"; those lines may carry an error (a host found unresponsive),
+			// so it does not say the template found nothing on this port
+			elsewhere = true
 		case !seen:
 			continue
 		}
-		res := exposure.TemplateResult{Port: r.port, Template: tp.ID, CVE: tp.CVE, Outcome: outcome}
+		res := exposure.TemplateResult{Port: r.port, Template: tp.ID, CVE: tp.CVE, Outcome: outcome, Elsewhere: elsewhere}
 		if r.full { // A deep result shows the template's name and severity, from the pack index
 			res.Name, res.Severity = tp.Name, tp.Severity
 		}

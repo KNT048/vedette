@@ -133,6 +133,10 @@ type (
 		// Severity are the template's (from the pack index, never from nuclei's output).
 		Name     string
 		Severity string
+		// Elsewhere: every line nuclei printed for the template named another address or port, or none that could be read (a line
+		// that may carry an error, such as a host found unresponsive). It is shown as no match reported, but it does not say the
+		// template found nothing on this port, so it never makes an earlier issue of it gone (TemplatesCovered).
+		Elsewhere bool
 	}
 	// TemplateScan is the answer of one ScanTemplates: a result per template that ran. A CVE the scanner has no safe template
 	// for has no result, which is not an error.
@@ -353,7 +357,7 @@ func TemplatesCovered(ip netip.Addr, jobs []TemplateJob, res TemplateScan) []str
 	seen := map[string]bool{}
 	for _, r := range res.Results {
 		k := portKey(ip.String(), r.Port) + "|" + r.Template
-		if r.Outcome != OutcomeNoMatch || !ports[r.Port] || !templateID.MatchString(r.Template) || seen[k] {
+		if r.Outcome != OutcomeNoMatch || r.Elsewhere || !ports[r.Port] || !templateID.MatchString(r.Template) || seen[k] {
 			continue
 		}
 		seen[k] = true

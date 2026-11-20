@@ -427,3 +427,20 @@ func TestExposureTemplatesCoverOnlyWhatRan(t *testing.T) {
 		t.Fatalf("(c) the safe checks instead of the deep templates: covered %q, %v", cov, err)
 	}
 }
+
+// A template whose only line named another port (here the line nuclei prints for a host it found unresponsive) is shown as no match
+// reported, but it does not cover its port: an earlier issue of that template stays open.
+func TestExposureTemplatesALineOfAnotherPortCoversNothing(t *testing.T) {
+	t.Parallel()
+	jobs := []exposure.TemplateJob{ownJob("CVE-2018-13379")}
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Skipped: nucleiout.Skipped{Lines: 1, Templates: []string{"CVE-2018-13379"}, Template: "CVE-2018-13379", Host: "8.8.8.8", Port: "18444"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, jobs)
+	if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeNoMatch || !got.Results[0].Elsewhere {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if cov := exposure.TemplatesCovered(ownPublicIP, jobs, got); len(cov) != 0 {
+		t.Fatalf("covered %q", cov)
+	}
+}

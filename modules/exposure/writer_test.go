@@ -486,3 +486,37 @@ func TestWriter_ACertificateIssueStaysWhileItsPortIsMissedOnce(t *testing.T) {
 		t.Fatalf("after one miss of 443: service open %d, certificate issues open %d, want 1 and 1", n, cert())
 	}
 }
+
+// Template coverage is per template: one template that ran on a port and found nothing says nothing about another template's issue
+// on the same port, which stays open.
+func TestWriter_TemplateCoverageIsPerTemplate(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO exp_target (id, kind, value, origin, method, token, verified_at, created_at)
+			VALUES ('xt-i', 'ip', '198.51.100.41', 'box', 'box_egress', '', ?, ?)`, store.FormatTS(t0), store.FormatTS(t0))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	const ip = "198.51.100.41"
+	scan := Content{Ports: []PortRow{{IP: ip, Port: 443, Service: "https"}},
+		Services: []ServiceRow{{IP: ip, Port: 443, Name: "https", Method: "probed"}}}
+	first := scan
+	first.Templates = []TemplateRow{
+		{IP: ip, Port: 443, Template: "tpl-a", Outcome: OutcomeMatched, Name: "A", Severity: "medium"},
+		{IP: ip, Port: 443, Template: "tpl-b", Outcome: OutcomeMatched, Name: "B", Severity: "high"},
+	}
+	e.replay("xt-i", "2026-11-19T02:00:00.000Z", first)
+	second := scan
+	second.TemplatesRan = []string{portKey(ip, 443) + "|tpl-a"} // only template A ran there, and found nothing
+	e.replay("xt-i", "2026-11-20T02:00:00.000Z", second)
+	state := func(key string) string {
+		var st string
+		_ = e.db.Reader().QueryRowContext(e.ctx(), `SELECT state FROM exp_issue WHERE engine = 'nuclei' AND key = ?`, key).Scan(&st)
+		return st
+	}
+	if state("tpl-a") != IssueGone || state("tpl-b") != IssueOpen {
+		t.Fatalf("tpl-a %q, tpl-b %q; want gone and open", state("tpl-a"), state("tpl-b"))
+	}
+}

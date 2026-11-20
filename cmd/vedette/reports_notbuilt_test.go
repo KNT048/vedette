@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -21,7 +20,7 @@ func TestPeriodicReportOperationsAnswerNotImplementedUntilBuilt(t *testing.T) {
 		"ReportsGetReportsDefinition", "ReportsPutReportsDefinition", "ReportsGetReportsDocument",
 		"ReportsPostReportsSend", "ReportsGetReportsHistory", "ReportsGetReportsHistoryID",
 	}
-	h := handler{Fallback: server.Fallback{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}}
+	h := handler{Fallback: server.Fallback{Log: slog.New(slog.DiscardHandler)}}
 	own := reflect.TypeOf(&reports.ReportsHandlers{})
 	ctx := context.Background()
 	for _, op := range ops {

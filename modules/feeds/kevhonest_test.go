@@ -68,7 +68,7 @@ func (f fakeNet) RoundTrip(r *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	r = r.Clone(r.Context())
-	if h := r.URL.Hostname(); h == originHost || h == "closed.lan" { // closed.lan: a loopback port nobody listens on
+	if r.URL.Hostname() == originHost {
 		r.URL.Host = net.JoinHostPort("127.0.0.1", r.URL.Port())
 	}
 	return http.DefaultTransport.RoundTrip(r)
@@ -78,18 +78,14 @@ func (f fakeNet) RoundTrip(r *http.Request) (*http.Response, error) {
 // used (as on a test box that blocked cisa.gov for one cycle).
 func TestKEVCopies_CISAUnreachedIsSaidAndTheCopyAnswers(t *testing.T) {
 	t.Parallel()
-	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	closed := "http://closed.lan:" + fmt.Sprint(ln.Addr().(*net.TCPAddr).Port) + "/kev.json"
-	_ = ln.Close()
+	// every failure is the dial error the network gives, never a real closed port: a port closed here can be taken at once by another
+	// test's server, which then answers instead
 	dial := func(err error) error { return &net.OpError{Op: "dial", Net: "tcp", Err: err} }
 	for name, c := range map[string]struct {
 		primary string
 		why     string
 	}{
-		"refused":   {closed, "cisa.gov refused the connection"},
+		"refused":   {"http://closed.lan/kev.json", "cisa.gov refused the connection"},
 		"no name":   {"http://nxdomain.lan/kev.json", "cisa.gov did not resolve on this box"},
 		"sinkholed": {"http://sinkhole.lan/kev.json", "cisa.gov resolved to an address Vedette does not connect to"},
 		"reset":     {"http://reset.lan/kev.json", "cisa.gov cut the connection"},
@@ -97,6 +93,7 @@ func TestKEVCopies_CISAUnreachedIsSaidAndTheCopyAnswers(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: fakeNet{
+				"closed.lan":   dial(syscall.ECONNREFUSED),
 				"nxdomain.lan": dial(&net.DNSError{Err: "no such host", Name: "nxdomain.lan", IsNotFound: true}),
 				"sinkhole.lan": fmt.Errorf("feeds: dial: %w", ErrOwnAddress),
 				"reset.lan":    dial(syscall.ECONNRESET),

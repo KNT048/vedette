@@ -3,6 +3,8 @@ package findings
 import (
 	"slices"
 	"testing"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // Review H1: the version schemes of PAN-OS (hotfix "-hN"), Junos (service release "RxSy") and Ivanti (R-release
@@ -25,7 +27,7 @@ func TestCompareVersions_VendorReleaseSchemes(t *testing.T) {
 }
 
 func device(vendor, product, version string) Asset {
-	return Asset{ID: "a-1", Name: "fw01", Software: []Software{{ID: "s-1", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{KevKey(vendor, product)}}}}
+	return Asset{ID: "a-1", Name: "fw01", Software: []Software{{ID: "s-1", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{productid.Key(vendor, product)}}}}
 }
 
 // Review H1 and L4, golden cases: an exact NVD entry with a hotfix, service release or R-release decides by version;

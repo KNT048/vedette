@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/productid"
 )
 
 // displaySlugs is the vendor_product_slug of DATA_PIPELINE section 3: the name a person recognises for a
@@ -42,7 +43,7 @@ var displaySlugs = map[string]string{
 
 // DisplayOf is the name people recognise for a vendor and product.
 func DisplayOf(vendor, product string) string {
-	if d, ok := displaySlugs[ProductKey(vendor, product)]; ok {
+	if d, ok := displaySlugs[productid.Key(vendor, product)]; ok {
 		return d
 	}
 	if p := strings.ToLower(product); p == strings.ToLower(vendor) || strings.HasPrefix(p, strings.ToLower(vendor)+" ") {

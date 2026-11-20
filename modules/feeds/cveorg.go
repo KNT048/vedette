@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // CVE.org affected versions. NVD lags: an exploited CVE CISA adds today often has no NVD configuration for days,
@@ -109,7 +111,7 @@ type cnaVersion struct {
 // ParseCVERecord reads one CVE JSON 5.x record of cve and converts the affected versions the CNA gives for the CISA KEV
 // entry's vendor and product into NVD-shaped rows. It invents nothing, and when in doubt it skips the CVE
 // (CVEOrgUnusable: no rows, findings keeps its product match):
-//   - only a CNA product whose vendor and product clearly are CISA's (cnaVendorKey, cnaProductKey) is read; a record
+//   - only a CNA product whose vendor and product clearly are CISA's (productid.NormVendor, productid.NormProduct) is read; a record
 //     that names only others, or a KEV entry for "Multiple Products", is CVEOrgNoMatch; a vendor of cveOrgSkipVendors
 //     is CVEOrgUnusable;
 //   - the rows' CPE carries CISA's own vendor and product (normalised, the names findings already matches the entry by),
@@ -163,15 +165,15 @@ func parseCVEAffected(r cveRecord, kevVendor, kevProduct string) CVEOrgResult {
 	if len(aff) > cveOrgMaxProducts {
 		return CVEOrgResult{Outcome: CVEOrgUnusable}
 	}
-	vk, pk := cnaVendorKey(kevVendor), cnaProductKey(kevProduct, kevVendor)
-	cpeVendor, cpeProduct := normKey(kevVendor), normKey(kevProduct)
+	vk, pk := productid.NormVendor(kevVendor), productid.NormProduct(kevProduct, kevVendor)
+	cpeVendor, cpeProduct := productid.Norm(kevVendor), productid.Norm(kevProduct)
 	if vk == "" || pk == "" || cpeProduct == "multipleproducts" {
 		return CVEOrgResult{Outcome: CVEOrgNoMatch}
 	}
 	matched, complete := false, true
 	var rows []AffectedRow
 	for _, a := range aff {
-		if len(a.Vendor) > cveOrgMaxName || len(a.Product) > cveOrgMaxName || cnaVendorKey(a.Vendor) != vk || cnaProductKey(a.Product, a.Vendor) != pk {
+		if len(a.Vendor) > cveOrgMaxName || len(a.Product) > cveOrgMaxName || productid.NormVendor(a.Vendor) != vk || productid.NormProduct(a.Product, a.Vendor) != pk {
 			continue
 		}
 		matched = true
@@ -389,46 +391,6 @@ func cpeEscape(s string) string {
 		sb.WriteByte(b)
 	}
 	return sb.String()
-}
-
-// normKey keeps only [a-z0-9], as findings compares names ("Palo Alto Networks" -> "paloaltonetworks").
-func normKey(s string) string {
-	var sb strings.Builder
-	for _, r := range strings.ToLower(s) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			sb.WriteRune(r)
-		}
-	}
-	return sb.String()
-}
-
-// vendorSuffixes are the company words a CNA adds to a vendor CISA writes without them ("Progress Software Corporation"
-// is CISA's "Progress", "Juniper Networks" its "Juniper").
-var vendorSuffixes = map[string]bool{
-	"inc": true, "incorporated": true, "corp": true, "corporation": true, "co": true, "company": true, "ltd": true,
-	"limited": true, "llc": true, "gmbh": true, "ag": true, "se": true, "sa": true, "plc": true, "software": true,
-	"foundation": true, "technologies": true, "technology": true, "systems": true, "networks": true,
-}
-
-// cnaVendorKey is a vendor without its trailing company words, normalised.
-func cnaVendorKey(s string) string {
-	words := strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') })
-	for len(words) > 1 && vendorSuffixes[words[len(words)-1]] {
-		words = words[:len(words)-1]
-	}
-	return strings.Join(words, "")
-}
-
-// cnaProductKey is a product normalised, without the vendor's name in front ("Apache HTTP Server" of "Apache Software
-// Foundation" and CISA's "HTTP Server" of "Apache" are both "httpserver").
-func cnaProductKey(product, vendor string) string {
-	p := normKey(product)
-	for _, v := range []string{cnaVendorKey(vendor), normKey(vendor)} {
-		if v != "" && len(p) > len(v) && strings.HasPrefix(p, v) {
-			return p[len(v):]
-		}
-	}
-	return p
 }
 
 func isAlnumByte(b byte) bool {

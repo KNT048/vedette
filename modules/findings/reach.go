@@ -43,7 +43,7 @@ type ReachReport struct {
 // Reachability classes every entry of vulns against the software Vedette can produce: rows (what cmd/vedette assembles from
 // agent-intake's package map and Windows release rows and inventory's curated catalog, with their KEV keys) plus the network OS
 // rows of network-os.json (deviceOS). It reads them through the matcher's own predicates, never a copy of its rules: newSWInfo
-// (names and nvd-cpe.json aliases), keyedTo (CISA's key), entryFor (the entries decide reads for a keyed row: the row's own names
+// (names and content/catalog/products aliases), keyedTo (CISA's key), entryFor (the entries decide reads for a keyed row: the row's own names
 // and CISA's key) and versionEvidence, nvdCandidates and nvdReaches (viaNVD's gate, for every row the key does not reach, as
 // matchOne). Pure: no clock, no DB.
 func Reachability(vulns []Vuln, rows []Software) ReachReport {

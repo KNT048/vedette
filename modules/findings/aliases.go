@@ -1,45 +1,42 @@
 package findings
 
 import (
-	"encoding/json"
 	"strings"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/productid"
 )
 
-// cpeAliases maps the identity of an inventory product (vendor and product as the catalog and the osquery
-// package map store them) to the NVD CPE products that name the same thing: "Apple iOS" is
-// "apple:iphone_os" and "apple:ipados" in NVD, "GNU Bash" is "gnu:bash", so without this the version of an
-// iPhone or of bash is never compared with the ranges. The data is content/catalog/nvd-cpe.json (
-// knowledge about products is data). A trailing "*" in the product matches a prefix ("f5:big-ip_*").
-var cpeAliases, cpeAliasErr = loadAliases(catalogdata.NVDCPE)
+// cpeAliases maps the identity of an inventory product (its vendor and product, or another name the catalogue gives it) to the
+// NVD CPE products that name the same thing: "Apple iOS" is "apple:iphone_os" and "apple:ipados" in NVD, "GNU Bash" is "gnu:bash",
+// Temurin and Oracle's JDK are one Java, so without this the version of an iPhone, of bash or of a JDK is never compared with the
+// ranges. The data is the product catalogue of core/productid (content/catalog/products). A prefix name matches every product
+// starting with it ("f5:big-ip_*").
+var cpeAliases = loadAliases(productid.Products())
 
-func loadAliases(data []byte) (map[identity][]identity, error) {
-	var rows map[string]json.RawMessage
-	if err := json.Unmarshal(data, &rows); err != nil {
-		return map[identity][]identity{}, err // TestAliases_DataIsValid fails on it; the matcher only loses aliases
-	}
+func loadAliases(products []productid.Product) map[identity][]identity {
 	out := map[identity][]identity{}
-	for k, raw := range rows {
-		vendor, product, ok := strings.Cut(k, "|")
-		if !ok {
-			continue // "_about"
-		}
-		var cpes []string
-		if err := json.Unmarshal(raw, &cpes); err != nil {
-			return out, err
-		}
-		key := identity{vendor: norm(vendor), product: norm(product)}
-		for _, a := range cpes {
-			v, p, ok := strings.Cut(a, ":")
-			if !ok {
-				continue
+	for _, p := range products {
+		var ids []identity
+		for _, c := range p.CPEs {
+			if id := (identity{vendor: productid.Norm(c.Vendor), product: productid.Norm(c.Product), prefix: c.Prefix}); id.ok() {
+				ids = append(ids, id)
 			}
-			id := identity{vendor: norm(v), product: norm(strings.TrimSuffix(p, "*")), prefix: strings.HasSuffix(p, "*")}
-			if key.ok() && id.ok() {
-				out[key] = append(out[key], id)
+		}
+		if len(ids) == 0 {
+			continue
+		}
+		names := [][2]string{{p.Vendor, p.Product}}
+		for _, a := range p.Also {
+			v, pr, _ := strings.Cut(a, "|")
+			names = append(names, [2]string{v, pr})
+		}
+		for _, n := range names {
+			if key := (identity{vendor: productid.Norm(n[0]), product: productid.Norm(n[1])}); key.ok() {
+				if _, taken := out[key]; !taken {
+					out[key] = ids
+				}
 			}
 		}
 	}
-	return out, nil
+	return out
 }

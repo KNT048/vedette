@@ -30,7 +30,7 @@ type ManualDevice struct {
 	Vendor  string
 	Product string
 	Display string // the name people recognise
-	Key     string // ProductKey of vendor and product, the KEV matching key
+	Key     string // productid.Key of vendor and product, the KEV matching key
 }
 
 // Inventory is what feeds needs from the inventory module (FORBID-4: feeds never reads inv_* itself). The

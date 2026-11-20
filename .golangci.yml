@@ -3,7 +3,8 @@
 version: "2"
 
 run:
-  timeout: 5m
+  # A run with no analysis cache (evicted, or a new linter) takes 6-8 minutes on the CI runner; the job's own limit is 20.
+  timeout: 15m
 
 linters:
   default: standard # errcheck, govet, ineffassign, staticcheck, unused

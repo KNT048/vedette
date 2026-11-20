@@ -67,6 +67,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_run_item":                {export: "run_id seq subject_kind subject_id label outcome note"},
 	"core_run_log":                 {export: "id run_id ts level text"},
 	"core_run_step":                {export: "run_id seq name status total done note started_at ended_at"},
+	"core_schedule":                {export: "id owner_module owner_key enabled paused_until freq every_minutes at_time month_day once_at tz window_mode window_from window_to next_due_at last_due_at last_run_id last_skip_reason last_skip_at updated_by updated_at", json: "weekdays window_days"}, // schedules (core/schedule): when each kind of work runs
 	"core_secret":                  {skipAll: true, skip: "id purpose nonce ciphertext key_version last4 created_at rotated_at"},
 	"core_sensor_cert":             {skipAll: true, skip: "serial role not_after retired_at"},
 	"core_session":                 {skipAll: true, skip: "id user_id token_hash csrf_hash device ip started_at last_seen expires_at revoked_at"},

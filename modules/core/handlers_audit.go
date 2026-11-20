@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -382,6 +383,9 @@ func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCo
 		}
 		if n == 0 {
 			return apierr.NotFound() // setup has not run: nothing to change
+		}
+		if _, err := schedule.Recompute(ctx, tx); err != nil { // the schedules read in the organization's zone move with it
+			return err
 		}
 		return h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: "core.general", Target: name, Detail: "time zone " + req.Timezone})
 	})

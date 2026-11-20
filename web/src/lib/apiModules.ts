@@ -20,6 +20,7 @@ const prefixOverrides: ReadonlyArray<readonly [string, string]> = [
   ['/modules', 'core'],
   ['/runs', 'core'], // every engine's runs answer while any engine's module is off (core/server/modules.go)
   ['/scanning', 'core'], // #850: Settings › Scanning (core/server/modules.go)
+  ['/schedules', 'core'], // every schedule a person can set (core/schedule)
   ['/setup', 'core'],
 ]
 

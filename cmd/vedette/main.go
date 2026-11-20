@@ -393,6 +393,12 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	defer d.Runs.Close()
+	// Schedules: the defaults that are on are saved, every next due time is brought up to date, then the ticker starts what
+	// comes due as runs. Closed before the runs, so nothing is started on a manager that is closing.
+	if err := d.Schedules.Start(ctx); err != nil {
+		return err
+	}
+	defer d.Schedules.Close()
 	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
 		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)
 	}

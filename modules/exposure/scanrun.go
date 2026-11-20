@@ -55,10 +55,6 @@ var stepNames = map[string]string{StepNuclei: stepNameNuclei, StepZAP: stepNameZ
 
 var stepStatus = map[string]corerun.Status{StepOK: corerun.Done, StepPartial: corerun.Partial, StepFailed: corerun.Failed, StepStopped: corerun.Stopped}
 
-// regateAfter is how long the gate a scan passed when it was asked stands for its start: a scan that waited in the queue longer is
-// checked again (the proof, the commitment, the box's IP) right before it starts.
-const regateAfter = time.Minute
-
 // saveTimeout bounds the write of a finished scan, which must not depend on the request that started it.
 const saveTimeout = 30 * time.Second
 
@@ -109,10 +105,7 @@ type scanExec struct {
 	gaps     []GapRow
 	gbRun    GreenboneRun
 	written  bool // its rows are written
-	// gated is the target as the gate passed it when the scan was asked, at gatedAt: a scan that starts within regateAfter of it
-	// does not ask DNS again; one that waited in the queue longer runs the gate again.
-	gated   *Target
-	gatedAt time.Time
+	started  bool // its work began in this process (a queued scan has not)
 	err     error
 	done    chan struct{}
 }
@@ -378,9 +371,8 @@ func (s *Service) queueScan(ctx context.Context, user string, t Target) (string,
 			return fmt.Errorf("recording the scan: %w", err)
 		}
 		x = s.waiter(runID) // before the commit: the run cannot start before it, so a caller that waits never misses its end
-		gated := t
 		s.runMu.Lock()
-		x.gated, x.gatedAt = &gated, now
+		x.targetID = t.ID // a terms change finds a queued scan too; it reads the terms again when it starts
 		s.runMu.Unlock()
 		return nil
 	})
@@ -433,7 +425,7 @@ func (s *Service) runScan(ctx context.Context, x *corerun.Exec) (corerun.Result,
 	}
 	ex := s.waiter(x.ID())
 	s.runMu.Lock()
-	ex.targetID = targetID
+	ex.targetID, ex.started = targetID, true
 	s.runMu.Unlock()
 	defer func() {
 		s.runMu.Lock()
@@ -470,21 +462,14 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if err := s.waitFeedSync(ctx); err != nil {
 		return corerun.Result{}, err
 	}
-	var t Target
-	var reason BlockedReason
-	s.runMu.Lock()
-	g, gatedAt := ex.gated, ex.gatedAt
-	s.runMu.Unlock()
-	if g != nil && g.ID == id && s.clock().Sub(gatedAt) < regateAfter {
-		t = *g // the gate and the safety block passed it moments ago, when the scan was asked
-	} else {
-		t, reason, err = s.gate(ctx, user, id)
-		if err == nil && reason != "" {
-			err = s.refusal(t, reason, s.clock())
-		}
-		if err == nil {
-			err = s.checkSafety(ctx, t)
-		}
+	// Every scan is checked again right before it starts, however short its wait in the queue: the ownership proof (a domain's TXT
+	// record), the box's own IP and the safety block may have changed since it was asked.
+	t, reason, err := s.gate(ctx, user, id)
+	if err == nil && reason != "" {
+		err = s.refusal(t, reason, s.clock())
+	}
+	if err == nil {
+		err = s.checkSafety(ctx, t)
 	}
 	r := s.scanRunner()
 	if err == nil && r == nil {
@@ -534,7 +519,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
+	wr, err := s.save(ctx, x.ID(), user, t, ex.mode, content, steps)
 	if err != nil {
 		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
 		s.auditFailedScan(ctx, user, t, err)
@@ -545,6 +530,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	_ = x.EndStep(ctx, surface, corerun.Done, fmt.Sprintf("%d open services (%d new, %d closed), %d open issues (%d new)",
 		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
 	s.recordSteps(ctx, x, steps, runOn)
+	s.recordCoverage(ctx, x, wr.checked)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
 			if a.Deep != "" {
@@ -630,7 +616,7 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 }
 
 // save writes the rows of a scan (writeScan) and publishes what changed.
-func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
+func (s *Service) save(ctx context.Context, runID, user string, t Target, mode ScanMode, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
 	c = unresolvedLine(sanitize(c))
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
@@ -651,15 +637,16 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	for _, x := range prevOpen {
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID),
-		how: s.coveredBy(wctx, user, t, c, prevPorts, prevHosts), ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
+	checked, gone := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID), deep: mode.Full,
+		checked: checked, gone: gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		var err error
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		out.final = m
+		out.final, out.checked = m, checked
 		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.opened), NewIssues: nz(out.newIssues)})
 		return nil
 	})
@@ -715,15 +702,16 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	ex.content.Greenbone = append(ex.content.Greenbone, o.rows...)
 	ex.content.Checks = append(ex.content.Checks, o.checks...)
 	ex.content.NotChecked = append(slices.DeleteFunc(ex.content.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && n.Text == gbPending }), o.not...)
-	finished := o.state == GBRunDone || o.state == GBRunPartial || o.state == GBRunEnded
 	werr := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
-		if err := s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, finished); err != nil {
+		if err := s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, openVASCoverage(t, o, c.Ports)); err != nil {
 			return err
 		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
 	})
-	if werr != nil {
+	if werr != nil { // its results are not stored: the step and the run say so, never done
 		s.cfg.Log.ErrorContext(wctx, "exposure: storing OpenVAS's results failed", "target", t.Value, "error", werr)
+		_ = x.EndStep(wctx, seq, corerun.Failed, clipText("External scan of "+t.Value+": OpenVAS's results could not be stored", 500))
+		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS's results could not be stored"}, nil
 	}
 	st2 := corerun.Done
 	if s, ok := stepStatus[outcome]; ok {
@@ -735,6 +723,31 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS did not finish"}, nil
 	}
 	return corerun.Result{}, nil
+}
+
+// openVASCoverage is where OpenVAS finished in one step: each address it scanned to the end (done, partial or ended by its cap), on
+// the ports it was given (the open ports this scan found there) and the address as a whole; nil when it finished nowhere.
+func openVASCoverage(t Target, o gbOutcome, ports []PortRow) coverFunc {
+	done := func(st string) bool { return st == GBRunDone || st == GBRunPartial || st == GBRunEnded }
+	addrs := map[string]bool{}
+	if t.Kind == KindIP && done(o.state) {
+		addrs[ipKey(t.Value)] = true
+	}
+	for _, a := range o.addrs {
+		if done(a.State) {
+			addrs[ipKey(a.IP)] = true
+		}
+	}
+	if len(addrs) == 0 {
+		return nil
+	}
+	open := map[string]bool{}
+	for _, p := range ports {
+		open[portKey(p.IP, p.Port)] = true
+	}
+	return func(x issueWhere) bool {
+		return addrs[ipKey(x.ip)] && (x.port == 0 || open[portKey(x.ip, x.port)])
+	}
 }
 
 // gbStoppedLine is the OpenVAS line of a step that was stopped: why, when it is known, and that the rows of a domain's addresses that
@@ -786,7 +799,7 @@ var errScanPanicked = errors.New("exposure: the scan panicked")
 // scanning says a scan of this process runs now (it has started its work). The caller holds runMu.
 func (s *Service) scanning() bool {
 	for _, x := range s.execs {
-		if x.targetID != "" {
+		if x.started {
 			return true
 		}
 	}
@@ -1017,6 +1030,21 @@ func (s *Service) recordSteps(ctx context.Context, x *corerun.Exec, l *stepLog, 
 		}
 		if err != nil {
 			s.cfg.Log.ErrorContext(wctx, "exposure: recording an engine step failed", "run", x.ID(), "engine", r.Engine, "error", err)
+		}
+	}
+}
+
+// recordCoverage writes, as items of the run, which ports the scan probed on each address it reached: the next scan closes a service
+// only when this one, which probed it, missed it too (INV-22). A failure is logged: the next scan then waits one scan more.
+func (s *Service) recordCoverage(ctx context.Context, x *corerun.Exec, checked map[string]string) {
+	ips := make([]string, 0, len(checked))
+	for ip := range checked {
+		ips = append(ips, ip)
+	}
+	slices.Sort(ips)
+	for _, ip := range ips {
+		if err := x.AddItem(ctx, corerun.Item{SubjectKind: "address", SubjectID: ip, Label: ip, Outcome: checked[ip]}); err != nil {
+			s.cfg.Log.WarnContext(ctx, "exposure: recording what a scan checked", "run", x.ID(), "address", ip, "error", err)
 		}
 	}
 }

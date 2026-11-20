@@ -506,9 +506,11 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			switch {
 			case perr == nil:
 				c.WebFindings = append(c.WebFindings, rows...)
+				c.WebPages = append(c.WebPages, page.URL)
 				scanned, alerts = append(scanned, page.URL), alerts+len(rows)
 				steps.end(StepZAP, callRan, len(rows), s.clock())
 			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there
+				c.WebPages = append(c.WebPages, page.URL)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebNoPage, maxLineText)})
 				steps.end(StepZAP, callEmpty, 0, s.clock())
 			default:

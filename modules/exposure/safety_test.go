@@ -175,7 +175,7 @@ type lateSafety struct{ reads int }
 
 func (l *lateSafety) ScanSafety(context.Context) (Safety, error) {
 	l.reads++
-	if l.reads == 1 {
+	if l.reads <= 2 { // the checks when the scan is asked and right before it starts
 		return Safety{}, nil
 	}
 	return Safety{Exclusions: []netip.Prefix{netip.MustParsePrefix(ipA + "/32")}}, nil

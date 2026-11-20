@@ -328,6 +328,9 @@ type Content struct {
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
 	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
+	// WebPages are the pages ZAP scanned this run (it answered for them): a ZAP alert of another page that no longer comes is not
+	// "gone", since ZAP did not look there.
+	WebPages []string `json:"-"`
 	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): their rows keep what the scan before
 	// saw, and their addresses are not taken as checked.
 	Unresolved []string `json:"-"`

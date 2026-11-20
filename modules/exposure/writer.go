@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // The scan writer: the one writer of exp_host, exp_address, exp_service and exp_issue. A scan's content is merged into the rows of its
@@ -33,16 +32,22 @@ type scanWrite struct {
 	runID  string
 	user   string
 	at     time.Time
-	c      Content          // sanitized
-	how    map[string]scope // what this scan did with each address of an open service it did not report (coverage)
-	ran    engineSet        // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
-	vulns  []VulnRow        // the exploited CVEs matched on its services (withVulns)
-	first  bool             // the target had no rows before this scan
+	c      Content // sanitized
+	// checked is which ports this scan probed on each address it reached (coverage: coverAll, coverList, coverWeb); gone is the
+	// addresses of the services open before that no name of the domain points at any more.
+	checked map[string]string
+	gone    map[string]bool
+	ran     engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
+	vulns   []VulnRow // the exploited CVEs matched on its services (withVulns)
+	deep    bool      // the scan ran at the testing terms' depth
+	first   bool      // the target had no rows before this scan
 }
 
 // written is what a write changed.
 type written struct {
-	final     vulnSet // the content as written, with the exploited CVEs matched on it
+	closed    []string          // the services this scan closed
+	checked   map[string]string // which ports this scan probed on each address it reached: the run items of the next scans' INV-22
+	final     vulnSet  // the content as written, with the exploited CVEs matched on it
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string
@@ -75,9 +80,10 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 		return written{}, err
 	}
 	var out written
-	if out.opened, out.counts.ClosedServices, err = s.writeServices(ctx, tx, w, at); err != nil {
+	if out.opened, out.closed, err = s.writeServices(ctx, tx, w, at); err != nil {
 		return written{}, err
 	}
+	out.counts.ClosedServices = len(out.closed)
 	issues := surfaceIssues(w.c, w.at)
 	ran := engineSet{EngineSurface: true}
 	for e, ok := range w.ran {
@@ -92,7 +98,11 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if ran[EngineMatch] {
 		issues = append(issues, matchIssues(w.vulns)...)
 	}
-	if out.newIssues, err = writeIssues(ctx, tx, w.target.ID, w.runID, at, hostAddrs(w.target, w.c.Hosts), issues, ran); err != nil {
+	hosts := hostAddrs(w.target, w.c.Hosts)
+	if out.newIssues, err = writeIssues(ctx, tx, w.target.ID, w.runID, at, hosts, issues, ran, scanCoverage(w)); err != nil {
+		return written{}, err
+	}
+	if err := goneWithService(ctx, tx, out.closed); err != nil {
 		return written{}, err
 	}
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
@@ -111,9 +121,10 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	return out, s.audit(ctx, tx, w.user, "exposure.scan", w.target.Value, detail)
 }
 
-// writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written: ran says OpenVAS finished (done, partial or
-// ended by its cap), so an OpenVAS issue it no longer reports is gone; a step that failed or was stopped only adds what it found.
-func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, ran bool) error {
+// writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the
+// addresses it scanned to the end, done, partial or ended by its cap, and their open ports): an OpenVAS issue it no longer reports is
+// gone only there; nil (a step that failed or was stopped) only adds what it found.
+func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) error {
 	if _, err := loadTarget(ctx, tx, t.ID); err != nil {
 		return err
 	}
@@ -125,18 +136,25 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	if err != nil {
 		return err
 	}
-	fresh, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: ran})
+	fresh, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: covered != nil}, map[IssueEngine]coverFunc{EngineOpenVAS: covered})
 	if err != nil {
 		return err
 	}
-	return updateSummary(ctx, tx, runID, func(sum *scanSummary) {
+	var countErr error
+	err = updateSummary(ctx, tx, runID, func(sum *scanSummary) {
 		not := slices.DeleteFunc(sum.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && n.Text == gbPending })
 		sum.NotChecked, sum.Checks = append(not, o.not...), append(sum.Checks, o.checks...)
 		if sum.Counts != nil {
 			sum.Counts.NewIssues += len(fresh)
-			_ = rowCounts(ctx, tx, t.ID, sum.Counts)
+			if err := rowCounts(ctx, tx, t.ID, sum.Counts); err != nil {
+				countErr = err
+			}
 		}
 	})
+	if err == nil {
+		err = countErr
+	}
+	return err
 }
 
 // ---- hosts and addresses ----
@@ -279,7 +297,7 @@ func storedHosts(ctx context.Context, q querier, target string) ([]HostRow, erro
 
 // writeServices upserts the services a scan reported open and closes the open ones it no longer finds on an address it checked. It
 // returns the services open now that were not before, and how many it closed.
-func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, int, error) {
+func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, []string, error) {
 	svc := map[string]ServiceRow{}
 	for _, r := range w.c.Services {
 		svc[portKey(r.IP, r.Port)] = r
@@ -306,13 +324,13 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 				store.NewID("xs"), w.target.ID, row.IP, row.Port, row.Name, row.Product, row.Version, row.CPE, row.Title, certDoc(row.Cert), boolInt(row.IsWeb), row.Ident,
 				at, at, w.runID)
 			if err != nil {
-				return nil, 0, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+				return nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 			}
 			opened = append(opened, p)
 			continue
 		}
 		if err != nil {
-			return nil, 0, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, nil, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		// What this scan read wins; what it did not read (a lighter scan, a probe that got no answer) keeps the earlier reading.
 		ident := row.Ident
@@ -326,7 +344,7 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 			firstOf(row.Name, prevName), firstOf(row.Product, prevProduct), firstOf(row.Version, prevVersion), firstOf(row.CPE, prevCPE), firstOf(row.Title, prevTitle),
 			cert, boolInt(web), ident, at, w.runID, id)
 		if err != nil {
-			return nil, 0, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		if state == ServiceClosed {
 			opened = append(opened, p)
@@ -336,51 +354,69 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 	return opened, closed, err
 }
 
-// closeVanished closes each open service of the target that this scan did not report, on an address (and a port) the scan checked.
-// A service on an address the scan did not check is left open as it was: the scan says nothing about it (INV-22).
-func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) (int, error) {
+// closeVanished closes each open service of the target that this scan did not report (INV-22): a service on an address that left the
+// domain at once; one on an address and port this scan probed when the scan before that probed it missed it too (its last_seen is
+// older than that scan's start), so one scan that could not reach a port (packet loss, a slow host) never reads as a fix. A service
+// on an address or port the scan did not probe is left as it was: the scan says nothing about it. It returns the ids it closed.
+func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) ([]string, error) {
 	open, err := servicesOf(ctx, tx, w.target.ID, true)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	// A scan that says it did not probe every TCP port (not deep, a deep nmap that did not finish) checked only the runner's fixed
-	// list on an address it did not deep-scan: a port outside that list stays as it was.
-	partial := slices.ContainsFunc(w.c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
-	deepNow := map[string]bool{}
-	for _, h := range w.c.Hosts {
-		for _, a := range h.IPs {
-			if a.Deep == DeepScanned {
-				deepNow[ipKey(a.IP)] = true
-			}
-		}
-	}
-	n := 0
+	var closed []string
 	for _, x := range open {
+		k := ipKey(x.IP)
 		if reported[portKey(x.IP, x.Port)] {
 			continue
 		}
-		sc, ok := w.how[ipKey(x.IP)]
-		if !ok {
-			continue
-		}
-		if sc == scopeByName {
-			sc = scopeKept
-			if x.Port == 80 || x.Port == 443 {
-				sc = scopeChecked
+		shut := w.gone[k]
+		if !shut && covers(w.checked[k], x.Port) {
+			prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
+			if err != nil {
+				return nil, err
 			}
+			shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
 		}
-		if sc == scopeChecked && partial && !deepNow[ipKey(x.IP)] && !slices.Contains(commonports.Numbers(), x.Port) {
-			sc = scopeKept
-		}
-		if sc == scopeKept {
+		if !shut {
 			continue
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET state = 'closed' WHERE id = ?`, x.ID); err != nil {
-			return 0, fmt.Errorf("closing the service %s:%d: %w", x.IP, x.Port, err)
+			return nil, fmt.Errorf("closing the service %s:%d: %w", x.IP, x.Port, err)
 		}
-		n++
+		closed = append(closed, x.ID)
 	}
-	return n, nil
+	return closed, nil
+}
+
+// previousCheck is the start of the newest scan of target before run that probed port on ip (its run item of the address says so).
+func previousCheck(ctx context.Context, q querier, target, run, ip string, port int) (string, bool, error) {
+	outcomes := coverOutcomes(port)
+	args := []any{ModuleID, RunKind, target, run, run, ip}
+	marks := make([]string, len(outcomes))
+	for i, o := range outcomes {
+		marks[i] = "?"
+		args = append(args, o)
+	}
+	var at sql.NullString
+	err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
+		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ?
+		AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?)
+		AND i.subject_kind = 'address' AND i.subject_id = ? AND i.outcome IN (`+strings.Join(marks, ", ")+`)`, args...).Scan(&at)
+	if err != nil {
+		return "", false, fmt.Errorf("the scan before of %s:%d: %w", ip, port, err)
+	}
+	return at.String, at.Valid, nil
+}
+
+// goneWithService marks gone the open issues of the services a scan closed: what was found on a port that is closed is no longer
+// exposed, whichever engine found it.
+func goneWithService(ctx context.Context, tx *sql.Tx, closed []string) error {
+	for _, id := range closed {
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET state = 'gone' WHERE service_id = ? AND state = 'open'`, id); err != nil {
+			return fmt.Errorf("the issues of a closed service: %w", err)
+		}
+	}
+	return nil
 }
 
 // serviceRow is a service as the writer stores it.
@@ -555,7 +591,7 @@ func surfaceIssues(c Content, at time.Time) []issueIn {
 				continue
 			}
 			title := firstOf(f.Title, r.ID)
-			out = append(out, issueIn{engine: EngineSurface, key: keyScript + r.ID + ":" + clipText(title, 200), ip: r.IP, port: r.Port, severity: "high",
+			out = append(out, issueIn{engine: EngineSurface, key: keyScript + ipKey(r.IP) + " " + r.ID + ":" + clipText(title, 200), ip: r.IP, port: r.Port, severity: "high",
 				title: clipText(title, 300), cves: f.CVEs,
 				detail: IssueDetail{Description: "The nmap script " + r.ID + " confirmed this finding.", Evidence: []string{clipText(r.Output, 500)}}})
 		}
@@ -655,7 +691,7 @@ func openvasIssue(r GreenboneRow) issueIn {
 	case r.Severity > 0:
 		sev = "low"
 	}
-	return issueIn{engine: EngineOpenVAS, key: firstOf(r.OID, r.Name), ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
+	return issueIn{engine: EngineOpenVAS, key: firstOf(r.OID, r.Name) + "@" + ipKey(r.IP), ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
 		title:  clipText(firstOf(r.Name, r.OID), 300),
 		detail: IssueDetail{Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
 }
@@ -663,7 +699,7 @@ func openvasIssue(r GreenboneRow) issueIn {
 // writeIssues upserts the issues of one write and marks gone the open issues of the engines in ran that it did not report, when their
 // service was seen by this scan or they are about the target as a whole. It returns the ids of the issues that are open now and were
 // not before.
-func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, hosts map[string][]string, issues []issueIn, ran engineSet) ([]string, error) {
+func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, hosts map[string][]string, issues []issueIn, ran engineSet, cov map[IssueEngine]coverFunc) ([]string, error) {
 	svcIDs, seenNow, err := serviceIndex(ctx, tx, target, runID)
 	if err != nil {
 		return nil, err
@@ -718,19 +754,29 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		if !ok {
 			continue
 		}
-		rows, err := tx.QueryContext(ctx, `SELECT id, service_id FROM exp_issue WHERE target_id = ? AND engine = ? AND state = 'open'`, target, string(e))
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0) FROM exp_issue i
+			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.target_id = ? AND i.engine = ? AND i.state = 'open'`, target, string(e))
 		if err != nil {
 			return nil, fmt.Errorf("issues of %s: %w", e, err)
 		}
 		var gone []string
 		for rows.Next() {
 			var id string
-			var svc sql.NullString
-			if err := rows.Scan(&id, &svc); err != nil {
+			var w issueWhere
+			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port); err != nil {
 				_ = rows.Close()
 				return nil, err
 			}
-			if !reported[id] && (!svc.Valid || seenNow[svc.String]) {
+			if w.service {
+				w.seen = seenNow[svcIDs[portKey(w.ip, w.port)]]
+			} else {
+				w.ip = keyAddr(e, w.key)
+			}
+			covered := cov[e]
+			if covered == nil { // the default: the issue's service was seen by this scan, or it is about the target as a whole
+				covered = func(w issueWhere) bool { return !w.service || w.seen }
+			}
+			if !reported[id] && covered(w) {
 				gone = append(gone, id)
 			}
 		}
@@ -744,6 +790,108 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		}
 	}
 	return fresh, nil
+}
+
+// issueWhere is where an open issue is, for the coverage of the engine that reported it.
+type issueWhere struct {
+	key     string
+	service bool   // it is about a service
+	seen    bool   // its service was seen open by this scan
+	ip      string // the service's address, or the address its key names; "" when neither
+	port    int    // the service's port; 0 when none
+}
+
+// coverFunc says the engine probed where the issue is in this run: only then does an issue it no longer reports go.
+type coverFunc func(issueWhere) bool
+
+// keyAddr is the address an issue's key names when it is about no service: OpenVAS's "<oid>@<ip>", a script finding's
+// "nse:<ip> <script>:<title>".
+func keyAddr(e IssueEngine, key string) string {
+	switch {
+	case e == EngineOpenVAS:
+		if i := strings.LastIndex(key, "@"); i >= 0 {
+			return key[i+1:]
+		}
+	case e == EngineSurface && strings.HasPrefix(key, keyScript):
+		ip, _, _ := strings.Cut(strings.TrimPrefix(key, keyScript), " ")
+		return ip
+	}
+	return ""
+}
+
+// scanCoverage is where each engine of one scan probed, from what the scan handed over: an issue an engine no longer reports is gone
+// only there (a domain's deep engines reach a few rotated addresses per run, ZAP its pages).
+func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
+	c := w.c
+	deep, scripted, tplAt := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	resolved := map[string]bool{}
+	for _, h := range c.Hosts {
+		resolved[h.Name] = !h.LookupFailed
+		for _, a := range h.IPs {
+			if a.Deep == DeepScanned {
+				deep[ipKey(a.IP)] = true
+			}
+		}
+	}
+	if w.target.Kind == KindIP && w.deep {
+		deep[ipKey(w.target.Value)] = true
+	}
+	for _, r := range c.Scripts {
+		scripted[ipKey(r.IP)] = true
+	}
+	for _, r := range c.Templates {
+		if r.Outcome != OutcomeError {
+			tplAt[portKey(r.IP, r.Port)] = true
+		}
+	}
+	pages := map[string]bool{}
+	for _, u := range c.WebPages {
+		pages[siteOf(u)] = true
+	}
+	open := map[string]bool{}
+	for _, p := range c.Ports {
+		open[portKey(p.IP, p.Port)] = true
+	}
+	return map[IssueEngine]coverFunc{
+		EngineSurface: func(x issueWhere) bool {
+			switch {
+			case strings.HasPrefix(x.key, keyScript):
+				return scripted[ipKey(x.ip)] && (!x.service || x.seen)
+			case strings.HasPrefix(x.key, keyCertExpiry):
+				host := strings.TrimPrefix(x.key, keyCertExpiry)
+				if _, _, err := net.SplitHostPort(host); err == nil {
+					return open[host]
+				}
+				return resolved[host] || (w.target.Kind == KindIP && host == w.target.Value)
+			}
+			return !x.service || x.seen
+		},
+		EngineNuclei: func(x issueWhere) bool {
+			// a template that ran on the port, or the deep templates on an address and a port open this run
+			return x.ip != "" && (tplAt[portKey(x.ip, x.port)] || (deep[ipKey(x.ip)] && (!x.service || x.seen)))
+		},
+		EngineZAP: func(x issueWhere) bool {
+			_, site, ok := strings.Cut(x.key, "@")
+			return ok && pages[siteOf(site)]
+		},
+		EngineMatch: func(x issueWhere) bool { return !x.service || x.seen },
+	}
+}
+
+// siteOf is the scheme, host and port of a web address, the one spelling a page and a ZAP site are compared by.
+func siteOf(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" {
+		return raw
+	}
+	port := u.Port()
+	if port == "" {
+		port = "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+	}
+	return u.Scheme + "://" + net.JoinHostPort(strings.ToLower(u.Hostname()), port)
 }
 
 // serviceIndex maps "ip:port" to the service id of every service of the target, and says which ones this run saw open.

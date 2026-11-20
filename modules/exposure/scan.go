@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"net/netip"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // ScanIDPrefix is how the scan module names an external target ("ext:<id>").
@@ -349,20 +352,33 @@ func sanitize(c Content) Content {
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
-		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)}
+		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages)}
 }
 
-// scope says what the scan did with an address whose ports the previous observation listed (INV-22).
-type scope int
-
+// The ports a scan probed on one address (the outcome of the run item of the address, INV-22): a service a scan checked and did not
+// find is missed; one missed by two scans in a row that checked it is closed.
 const (
-	scopeChecked scope = iota // the scan port-scanned it: a port it does not report was missed
-	scopeKept                 // still the domain's address but not scannable now (lapsed, paused, deleted, skipped): the scan did not check it
-	scopeGone                 // no longer an address of the domain: its ports leave with the host
-	// scopeByName: a domain's address that is not the box's and got only the check by name (ports 80 and 443) this run: those
-	// two ports were checked, any other (found by an earlier deep scan) was not.
-	scopeByName
+	coverAll  = "checked_all"  // every TCP port: a deep scan of the address, or the runner's port scan when it says it probed them all
+	coverList = "checked_list" // the runner's fixed list of common ports (a scan that says it did not probe every port)
+	coverWeb  = "checked_web"  // ports 80 and 443, by name: a domain's address that is not the box's, checked by name only
 )
+
+// coverOutcomes are the coverages that probe a port.
+func coverOutcomes(port int) []string {
+	out := []string{coverAll}
+	if slices.Contains(commonports.Numbers(), port) {
+		out = append(out, coverList)
+	}
+	if port == 80 || port == 443 {
+		out = append(out, coverWeb)
+	}
+	return out
+}
+
+// covers says a scan with coverage class probed port.
+func covers(class string, port int) bool {
+	return class != "" && slices.Contains(coverOutcomes(port), class)
+}
 
 // ipKey is the one spelling of an address that two scans are compared by (an IPv4-mapped form is the same address).
 func ipKey(s string) string {
@@ -372,56 +388,74 @@ func ipKey(s string) string {
 	return s
 }
 
-// coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
-// An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
-// scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run. A scan that did not check an address says nothing about its ports.
+// coverage says, for each address this scan reached, which ports it probed there (coverAll, coverList or coverWeb), and which
+// addresses of the services open before left the domain (gone: no name of the domain points at them any more). An IP target is
+// checked by every scan that wrote its rows; a domain scan port-scans the addresses its names point at that are scannable IP
+// targets (the gate the runner asked, ScannableIP) and the addresses its deep scan reached, and checks the others by name on 80 and
+// 443. An address the scan did not reach has no entry: the scan says nothing about its ports.
 //
 // prevPorts are the services open before this scan, prevHosts the names and addresses the scans before left.
-func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prevPorts []PortRow, prevHosts []HostRow) map[string]scope {
-	reported := map[string]bool{}
+func (s *Service) coverage(ctx context.Context, user string, t Target, c Content, prevPorts []PortRow, prevHosts []HostRow) (checked map[string]string, gone map[string]bool) {
+	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
+	reported, deep, pointed := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
 		reported[ipKey(p.IP)] = true
 	}
-	pointed, deep := map[string]bool{}, map[string]bool{}
 	for _, h := range c.Hosts {
 		pointed[ipKey(h.IP)] = true
 		for _, a := range h.IPs {
+			pointed[ipKey(a.IP)] = true
 			if a.Deep == DeepScanned { // This run's deep scan port-scanned it
 				deep[ipKey(a.IP)] = true
 			}
 		}
 	}
-	out := map[string]scope{}
-	for _, p := range prevPorts {
-		k := ipKey(p.IP)
-		if _, done := out[k]; done {
-			continue
+	full := func(ip string) string {
+		if deep[ip] || !partial {
+			return coverAll
 		}
-		box := func() bool {
-			a, err := netip.ParseAddr(k)
-			if err != nil {
-				return false
-			}
-			ok, err := s.ScannableIP(ctx, user, a)
-			return err == nil && ok
+		return coverList
+	}
+	checked, gone = map[string]string{}, map[string]bool{}
+	if t.Kind == KindIP {
+		checked[ipKey(t.Value)] = full(ipKey(t.Value))
+		return checked, gone
+	}
+	box := func(k string) bool {
+		a, err := netip.ParseAddr(k)
+		if err != nil {
+			return false
+		}
+		ok, err := s.ScannableIP(ctx, user, a)
+		return err == nil && ok
+	}
+	consider := func(k string, contacted bool) {
+		if _, done := checked[k]; done {
+			return
 		}
 		switch {
-		case (t.Kind == KindIP && k == ipKey(t.Value)) || deep[k] || (reported[k] && t.Kind != KindDomain):
-			out[k] = scopeChecked
-		case reported[k] && box():
-			out[k] = scopeChecked
-		case reported[k]:
-			out[k] = scopeByName
-		case t.Kind != KindDomain || moved(k, pointed, prevHosts, c.Hosts):
-			out[k] = scopeGone
-		default:
-			out[k] = scopeKept
-			if box() {
-				out[k] = scopeChecked
+		case deep[k] || box(k):
+			checked[k] = full(k)
+		case contacted || reported[k]:
+			checked[k] = coverWeb
+		}
+	}
+	for _, h := range c.Hosts {
+		for _, a := range h.IPs {
+			if a.Class != ClassPrivate {
+				consider(ipKey(a.IP), a.Contacted)
 			}
 		}
 	}
-	return out
+	for k := range reported {
+		consider(k, false)
+	}
+	for _, p := range prevPorts {
+		if k := ipKey(p.IP); !pointed[k] && moved(k, pointed, prevHosts, c.Hosts) {
+			gone[k] = true
+		}
+	}
+	return checked, gone
 }
 
 // moved says an address left a domain: it had names in the previous observation, and each of them is in this scan with another
@@ -446,4 +480,15 @@ func moved(ip string, pointed map[string]bool, before, now []HostRow) bool {
 		}
 	}
 	return named
+}
+
+// sanitizeWebPages keeps the scanned pages that are web addresses, bounded.
+func sanitizeWebPages(in []string) []string {
+	var out []string
+	for _, p := range in {
+		if u, err := url.Parse(p); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && len(p) <= maxContentText && len(out) < maxContentRows {
+			out = append(out, p)
+		}
+	}
+	return out
 }

@@ -77,7 +77,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.dns.lookups() != before+1 || run.calls != 1 || snap.Counts.Subdomains != 3 {
+	if e.dns.lookups() != before+2 || run.calls != 1 || snap.Counts.Subdomains != 3 { // checked when asked, and again right before it starts
 		t.Fatalf("lookups %d->%d, runner calls %d, counts %+v", before, e.dns.lookups(), run.calls, snap.Counts)
 	}
 

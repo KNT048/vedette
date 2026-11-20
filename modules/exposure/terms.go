@@ -275,8 +275,8 @@ func (a ScanMode) above(b ScanMode) bool {
 	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
 }
 
-// stopRunAbove stops the live or queued scan of target id when its mode is above m: withdrawing or lowering the terms must
-// reach a scan that runs now, the case where the service is being hurt. Every step reads the run's context: the OpenVAS step stops
+// stopRunAbove stops the scan of target id that runs now when its mode is above m: withdrawing or lowering the terms must reach a
+// scan that runs now, the case where the service is being hurt. A queued scan has no mode yet: it reads the terms when it starts. Every step reads the run's context: the OpenVAS step stops
 // gvmd's task (stop_task) and keeps the rows the earlier steps wrote, as a Stop does. Only a run really stopped gets its own audit
 // row, on the action of the terms change.
 func (s *Service) stopRunAbove(ctx context.Context, id, value string, m ScanMode, user, action, why string) {

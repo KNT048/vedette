@@ -1506,7 +1506,7 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 	}
 	e.advance(GreenboneSyncEvery)
 	e.svc.runMu.Lock()
-	e.svc.execs["run-1"] = &scanExec{targetID: "xt-1", done: make(chan struct{})}
+	e.svc.execs["run-1"] = &scanExec{targetID: "xt-1", started: true, done: make(chan struct{})}
 	e.svc.runMu.Unlock()
 	run()
 	if h.syncCount() != 0 {

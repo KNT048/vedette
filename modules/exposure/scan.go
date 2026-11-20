@@ -494,11 +494,12 @@ func sanitizeWebPages(in []string) []string {
 	return out
 }
 
-// boundedKeys keeps at most maxContentRows short keys ("ip" or "ip:port") the engines made themselves.
+// boundedKeys keeps at most maxContentRows short keys ("ip", or "ip:port|template") the engines made themselves; one over the bound
+// is left out, which only keeps an issue open.
 func boundedKeys(in []string) []string {
 	var out []string
 	for _, k := range in {
-		if len(k) <= 64 && len(out) < maxContentRows {
+		if len(k) <= 300 && len(out) < 4*maxContentRows {
 			out = append(out, k)
 		}
 	}

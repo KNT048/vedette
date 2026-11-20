@@ -313,9 +313,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case err == nil:
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
-		for _, j := range jobs { // the ports the templates ran on to the end: there, a template that no longer matches is fixed
-			c.TemplatesRan = append(c.TemplatesRan, portKey(ip.String(), j.Port))
-		}
+		c.TemplatesRan = append(c.TemplatesRan, TemplatesCovered(ip, jobs, res)...)
 		line := templatesLine(jobs, rows, sentIDs(res.Sent), notKept)
 		if st.Mode.Full {
 			line = fullLine(jobs, rows, sentIDs(res.Sent))
@@ -339,6 +337,29 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesFail})
 	}
 	return c, nil
+}
+
+// TemplatesCovered is where a template call's templates ran to the end and found nothing: "ip:port|template" of each result with the
+// outcome no_match on a port of jobs. Only there does a template issue that is not reported again count as fixed. A matched result is
+// a finding (its issue is reported again); an error, a template nuclei printed nothing for, a port whose run never went out (a later
+// run that failed or ran out of time) and the templates a deep scan did not send (it fell back to the safe checks) have no such
+// result, so they say nothing about what was found there before.
+func TemplatesCovered(ip netip.Addr, jobs []TemplateJob, res TemplateScan) []string {
+	ports := map[int]bool{}
+	for _, j := range jobs {
+		ports[j.Port] = true
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, r := range res.Results {
+		k := portKey(ip.String(), r.Port) + "|" + r.Template
+		if r.Outcome != OutcomeNoMatch || !ports[r.Port] || !templateID.MatchString(r.Template) || seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, k)
+	}
+	return out
 }
 
 // buildJobs makes the jobs of a scan: one or more per port that has an exploited CVE, none for any other port, each with at most

@@ -415,18 +415,37 @@ func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 	}
 }
 
-// The templates count as having looked at a port only when their call answered: a call that failed or was refused leaves the port
-// unchecked, so a template issue there is not taken as fixed.
+// A template counts as having looked at a port only when it ran there and found nothing: a match is a finding, and a call that
+// failed or was refused leaves every port unchecked, so a template issue there is not taken as fixed.
 func TestTemplatesRanOnlyWhereTheCallAnswered(t *testing.T) {
 	t.Parallel()
 	e, f := tplEnv(t)
-	f.results = []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched}}
-	if s := e.scanIP(Content{}); !slices.Equal(s.TemplatesRan, []string{ipA + ":80"}) {
+	f.results = []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched},
+		{Port: 80, Template: "CVE-2021-42013", CVE: "CVE-2021-42013", Outcome: OutcomeNoMatch}}
+	if s := e.scanIP(Content{}); !slices.Equal(s.TemplatesRan, []string{ipA + ":80|CVE-2021-42013"}) {
 		t.Fatalf("answered: ran on %q", s.TemplatesRan)
 	}
 	e2, f2 := tplEnv(t)
 	f2.err = errors.New("nuclei timed out")
 	if s := e2.scanIP(Content{}); len(s.TemplatesRan) != 0 {
 		t.Fatalf("failed: ran on %q", s.TemplatesRan)
+	}
+}
+
+// Only the results the scanner reports decide what ran: a port whose run never went out, an error outcome and a template that is not
+// a known template id give no coverage.
+func TestTemplatesCoveredOnlyNoMatchResults(t *testing.T) {
+	t.Parallel()
+	ip := netip.MustParseAddr(ipA)
+	jobs := []TemplateJob{{Port: 80}, {Port: 443}}
+	got := TemplatesCovered(ip, jobs, TemplateScan{Results: []TemplateResult{
+		{Port: 80, Template: "CVE-2021-41773", Outcome: OutcomeNoMatch},
+		{Port: 80, Template: "CVE-2021-42013", Outcome: OutcomeError},
+		{Port: 80, Template: "CVE-2021-44228", Outcome: OutcomeMatched},
+		{Port: 8080, Template: "CVE-2021-41773", Outcome: OutcomeNoMatch},
+		{Port: 80, Template: "../x", Outcome: OutcomeNoMatch},
+	}})
+	if !slices.Equal(got, []string{ipA + ":80|CVE-2021-41773"}) {
+		t.Fatalf("covered %q", got)
 	}
 }

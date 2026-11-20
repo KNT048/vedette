@@ -331,9 +331,9 @@ type Content struct {
 	// WebPages are the pages ZAP scanned this run (it answered for them): a ZAP alert of another page that no longer comes is not
 	// "gone", since ZAP did not look there.
 	WebPages []string `json:"-"`
-	// TemplatesRan are the "ip:port" the templates ran on to the end this run (the jobs of a template call that answered); ScriptsRan
-	// the addresses whose deep nmap step ran its scripts to the end. An issue of those engines elsewhere is not "gone": they did not
-	// look there.
+	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);
+	// ScriptsRan the addresses whose deep nmap step ran its scripts to the end. An issue of those engines elsewhere is not "gone":
+	// they did not look there.
 	TemplatesRan []string `json:"-"`
 	ScriptsRan   []string `json:"-"`
 	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): their rows keep what the scan before

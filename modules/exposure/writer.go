@@ -857,8 +857,8 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 			}
 			return !x.service || x.seen
 		},
-		EngineNuclei: func(x issueWhere) bool { // the templates ran to the end on this port
-			return x.ip != "" && tplRan[portKey(x.ip, x.port)]
+		EngineNuclei: func(x issueWhere) bool { // this template ran to the end on this port and found nothing (TemplatesCovered)
+			return x.ip != "" && tplRan[portKey(x.ip, x.port)+"|"+x.key]
 		},
 		EngineZAP: func(x issueWhere) bool {
 			_, site, ok := strings.Cut(x.key, "@")

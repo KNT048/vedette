@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/selfcheck"
@@ -112,9 +111,11 @@ func (e *env) replay(target, startedAt string, c Content, gbAddrs ...GreenboneAd
 			c.WebPages = append(c.WebPages, w.Site)
 		}
 	}
-	if c.TemplatesRan == nil { // the stored scans' template rows are the ports their templates ran on
+	if c.TemplatesRan == nil { // the stored scans' template rows that found nothing are where their templates ran to the end
 		for _, r := range c.Templates {
-			c.TemplatesRan = append(c.TemplatesRan, portKey(r.IP, r.Port))
+			if r.Outcome == OutcomeNoMatch {
+				c.TemplatesRan = append(c.TemplatesRan, portKey(r.IP, r.Port)+"|"+r.Template)
+			}
 		}
 	}
 	if c.ScriptsRan == nil {
@@ -381,14 +382,14 @@ func TestWriter_DeepEnginesGoneOnlyWhereTheyRan(t *testing.T) {
 	}
 	// the next run's rotation reaches b only, which is clean now
 	second := content(b)
-	second.TemplatesRan = []string{portKey(b, 443)}
+	second.TemplatesRan = []string{portKey(b, 443) + "|tls-weak"}
 	e.replay("xt-d", "2026-11-20T02:00:00.000Z", second, GreenboneAddr{IP: b, State: GBRunDone}, GreenboneAddr{IP: a, State: GBRunNotRun})
 	if openOn("nuclei", a) != 1 || openOn("openvas", a) != 2 || openOn("nuclei", b) != 0 || openOn("openvas", b) != 0 {
 		t.Fatalf("second run: a nuclei %d openvas %d, b nuclei %d openvas %d", openOn("nuclei", a), openOn("openvas", a), openOn("nuclei", b), openOn("openvas", b))
 	}
 	// both deep-scanned the run after, but the templates timed out on a and OpenVAS was cut by its cap there: a stays as it was
 	third := content(a, b)
-	third.TemplatesRan = []string{portKey(b, 443)}
+	third.TemplatesRan = []string{portKey(b, 443) + "|tls-weak"}
 	e.replay("xt-d", "2026-11-21T02:00:00.000Z", third, GreenboneAddr{IP: b, State: GBRunDone}, GreenboneAddr{IP: a, State: GBRunPartial})
 	if openOn("nuclei", a) != 1 || openOn("openvas", a) != 2 {
 		t.Errorf("a, where the engines did not finish: nuclei %d, openvas %d open, want 1 and 2", openOn("nuclei", a), openOn("openvas", a))
@@ -453,32 +454,35 @@ func TestWriter_IssuesGoOnlyWhenTheirEngineRanAgain(t *testing.T) {
 	}
 }
 
-// A certificate that expires soon is read again only when its service answers: a scan that missed the port once (the port stays
-// open, INV-22) leaves the certificate's issue open.
+// A certificate that expires soon is read again only when its service answers: a domain scan whose name still resolves but that
+// missed the name's 443 once (the port stays open, INV-22) did not read the certificate, so its issue stays open.
 func TestWriter_ACertificateIssueStaysWhileItsPortIsMissedOnce(t *testing.T) {
 	t.Parallel()
-	f := loadReplay(t)
-	e := replayEnv(t, f)
-	var last Content
-	for _, s := range f.Scans {
-		if s.Target == "xt-ip" {
-			last = s.Content.content()
-		}
+	e := newEnv(t)
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO exp_target (id, kind, value, origin, scope_mode, method, token, verified_at, created_at)
+			VALUES ('xt-d', 'domain', 'example.com', 'person', 'all', 'dns_txt', '0123456789abcdef', ?, ?)`, store.FormatTS(t0), store.FormatTS(t0))
+		return err
+	}); err != nil {
+		t.Fatal(err)
 	}
-	e.replay("xt-ip", "2026-12-20T02:00:00.000Z", last) // its certificates now expire within 30 days
+	const ip = "198.51.100.31"
+	scan := Content{
+		Hosts: []HostRow{{Name: "www.example.com", IP: ip, Source: "ct", IPs: []HostIP{{IP: ip, Family: "ipv4", Class: ClassPublic, Contacted: true}}}},
+		Ports: []PortRow{{IP: ip, Port: 443, Service: "https"}},
+		Certs: []CertRow{{Host: "www.example.com", Issuer: "Example CA", ExpiresAt: "2026-12-01T00:00:00.000Z"}},
+	}
 	cert := func() int {
-		return e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'surface' AND key >= 'cert_expiry:' AND key < 'cert_expiry;' AND state = 'open'`)
+		return e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'surface' AND key = 'cert_expiry:www.example.com' AND state = 'open'`)
 	}
-	before := cert()
-	if before == 0 {
-		t.Fatal("no certificate issue to start with")
+	e.replay("xt-d", "2026-11-19T02:00:00.000Z", scan)
+	if cert() != 1 {
+		t.Fatalf("%d certificate issues open after the first scan", cert())
 	}
-	without := last
-	without.Ports = slices.DeleteFunc(slices.Clone(last.Ports), func(p PortRow) bool { return p.Port == 10443 })
-	without.Services = slices.DeleteFunc(slices.Clone(last.Services), func(r ServiceRow) bool { return r.Port == 10443 })
-	without.Certs = slices.DeleteFunc(slices.Clone(last.Certs), func(c CertRow) bool { return strings.HasSuffix(c.Host, ":10443") })
-	e.replay("xt-ip", "2026-12-21T02:00:00.000Z", without)
-	if n := cert(); n != before {
-		t.Fatalf("after one miss of 10443: %d certificate issues open, want %d", n, before)
+	missed := scan
+	missed.Ports, missed.Certs = []PortRow{}, nil // the name resolves, its 443 did not answer this time
+	e.replay("xt-d", "2026-11-20T02:00:00.000Z", missed)
+	if n := e.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND port = 443 AND state = 'open'`, ip); n != 1 || cert() != 1 {
+		t.Fatalf("after one miss of 443: service open %d, certificate issues open %d, want 1 and 1", n, cert())
 	}
 }

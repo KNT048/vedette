@@ -414,3 +414,19 @@ func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 		t.Fatalf("%d lines: %+v", n, s.NotChecked)
 	}
 }
+
+// The templates count as having looked at a port only when their call answered: a call that failed or was refused leaves the port
+// unchecked, so a template issue there is not taken as fixed.
+func TestTemplatesRanOnlyWhereTheCallAnswered(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	f.results = []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched}}
+	if s := e.scanIP(Content{}); !slices.Equal(s.TemplatesRan, []string{ipA + ":80"}) {
+		t.Fatalf("answered: ran on %q", s.TemplatesRan)
+	}
+	e2, f2 := tplEnv(t)
+	f2.err = errors.New("nuclei timed out")
+	if s := e2.scanIP(Content{}); len(s.TemplatesRan) != 0 {
+		t.Fatalf("failed: ran on %q", s.TemplatesRan)
+	}
+}

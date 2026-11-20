@@ -372,7 +372,7 @@ func (s *Service) queueScan(ctx context.Context, user string, t Target) (string,
 		}
 		x = s.waiter(runID) // before the commit: the run cannot start before it, so a caller that waits never misses its end
 		s.runMu.Lock()
-		x.targetID = t.ID // a terms change finds a queued scan too; it reads the terms again when it starts
+		x.targetID = t.ID // known before it starts; a queued scan has no mode yet and reads the terms when it starts
 		s.runMu.Unlock()
 		return nil
 	})
@@ -519,7 +519,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	wr, err := s.save(ctx, x.ID(), user, t, ex.mode, content, steps)
+	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
 	if err != nil {
 		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
 		s.auditFailedScan(ctx, user, t, err)
@@ -616,7 +616,7 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 }
 
 // save writes the rows of a scan (writeScan) and publishes what changed.
-func (s *Service) save(ctx context.Context, runID, user string, t Target, mode ScanMode, c Content, steps *stepLog) (written, error) {
+func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
 	c = unresolvedLine(sanitize(c))
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
@@ -638,7 +638,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, mode S
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
 	checked, gone := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID), deep: mode.Full,
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID),
 		checked: checked, gone: gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
@@ -725,10 +725,11 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	return corerun.Result{}, nil
 }
 
-// openVASCoverage is where OpenVAS finished in one step: each address it scanned to the end (done, partial or ended by its cap), on
-// the ports it was given (the open ports this scan found there) and the address as a whole; nil when it finished nowhere.
+// openVASCoverage is where OpenVAS finished in one step: each address it scanned to the end (done; a scan its cap or OpenVAS itself
+// cut short did not look everywhere), on the ports it was given (the open ports this scan found there) and the address as a whole;
+// nil when it finished nowhere.
 func openVASCoverage(t Target, o gbOutcome, ports []PortRow) coverFunc {
-	done := func(st string) bool { return st == GBRunDone || st == GBRunPartial || st == GBRunEnded }
+	done := func(st string) bool { return st == GBRunDone }
 	addrs := map[string]bool{}
 	if t.Kind == KindIP && done(o.state) {
 		addrs[ipKey(t.Value)] = true

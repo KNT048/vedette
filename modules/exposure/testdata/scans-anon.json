@@ -1,5 +1,5 @@
 {
- "_note": "Anonymised scans of a test network (addresses, names and domains replaced; certificate and host-key fingerprints, ids and cookie values replaced with fakes; public product strings kept), in the order they ran. Each content is what the engines handed over for one scan.",
+ "_note": "Anonymised scans of a test network (addresses, names and domains replaced; certificate and host-key fingerprints, ids and cookie values replaced with fakes; certificate validity moved and rounded to the day; public product strings kept), in the order they ran. Each content is what the engines handed over for one scan.",
  "targets": [
   {
    "id": "xt-ip",
@@ -44,7 +44,7 @@
      {
       "host": "198.51.100.2:10443",
       "issuer": "YE2",
-      "expires_at": "2027-01-06T06:51:32.000Z"
+      "expires_at": "2027-01-15T00:00:00.000Z"
      }
     ],
     "web_findings": [],
@@ -98,7 +98,7 @@
      {
       "host": "198.51.100.2:10443",
       "issuer": "YE2",
-      "expires_at": "2027-01-06T06:51:32.000Z"
+      "expires_at": "2027-01-15T00:00:00.000Z"
      }
     ],
     "web_findings": [
@@ -234,7 +234,7 @@
       "ip": "198.51.100.2",
       "port": 10022,
       "id": "ssh-hostkey",
-      "output": "256 d2:6c:4d:c4:2d:0a:d9:c6:57:06:ae:48:0d:cb:61:f4 (ECDSA)\n  256 29:e3:50:c1:d3:26:e4:61:af:6a:47:d8:34:8b:0c:8a (ED25519)",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
       "findings": []
      },
      {
@@ -248,7 +248,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-headers",
-      "output": "Server: nginx\n  Date: Sat, 14 Nov 2026 21:52:34 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"f942f43927f77c99926d2311d0080bca\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=a25ae396f45406d00e2889f0421f93d2; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"VMVWVJF25GR6BS0XRZCRF4D01H\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 8a8482ca012af16a8113fa893e\n  X-Runtime: 0.132494\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "output": "Server: nginx\n  Date: Sat, 14 Nov 2026 21:52:34 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"e48063478befbde799e358a0533df014\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=3e83a9c98ab1eef1273788120bdfa24b; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"c23ac431d037dc606f942a29d2\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: eb14bd021ad63ee234b12d506c\n  X-Runtime: 0.132494\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
       "findings": []
      },
      {
@@ -367,14 +367,14 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T06:51:33\nNot valid after:  2027-01-06T06:51:32\nMD5:   4991:1599:f14d:781d:3fd5:0228:2078:b7d6\nSHA-1: faaf:f598:d021:0efa:158a:0695:f7dd:64d7:1b79:c47c",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
       "findings": []
      },
      {
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 13712942c0166867a1ac9252a560757f",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
       "findings": []
      },
      {
@@ -402,7 +402,7 @@
       "ip": "198.51.100.2",
       "port": 11443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-22T13:45:48\nNot valid after:  2028-08-24T13:45:48\nMD5:   4e2a:2d75:1e2b:0c29:03d7:4de5:1bd2:f305\nSHA-1: 4fb3:da7e:de8b:2be6:165b:5f50:a1c3:5c9f:5dd8:c112",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
       "findings": []
      },
      {
@@ -664,7 +664,7 @@
      {
       "host": "198.51.100.2:10443",
       "issuer": "YE2",
-      "expires_at": "2027-01-06T06:51:32.000Z"
+      "expires_at": "2027-01-15T00:00:00.000Z"
      }
     ],
     "web_findings": [
@@ -793,7 +793,7 @@
       "ip": "198.51.100.2",
       "port": 10022,
       "id": "ssh-hostkey",
-      "output": "256 d2:6c:4d:c4:2d:0a:d9:c6:57:06:ae:48:0d:cb:61:f4 (ECDSA)\n  256 29:e3:50:c1:d3:26:e4:61:af:6a:47:d8:34:8b:0c:8a (ED25519)",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
       "findings": []
      },
      {
@@ -849,14 +849,14 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T06:51:33\nNot valid after:  2027-01-06T06:51:32\nMD5:   4991:1599:f14d:781d:3fd5:0228:2078:b7d6\nSHA-1: faaf:f598:d021:0efa:158a:0695:f7dd:64d7:1b79:c47c",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
       "findings": []
      },
      {
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 13712942c0166867a1ac9252a560757f",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
       "findings": []
      },
      {
@@ -905,7 +905,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-headers",
-      "output": "Server: nginx\n  Date: Mon, 16 Nov 2026 23:19:03 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"18d2d37a30b3638b4e3367f3eb864f13\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=1e056871f9bb22dfc3a0fb2c3c87003d; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"0AQ0E4TAN8969QV1PHTWQ3SGG8\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 447b855b52266d10e0325735c8\n  X-Runtime: 0.136558\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "output": "Server: nginx\n  Date: Mon, 16 Nov 2026 23:19:03 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"57bba8f7fda940ef2c7be9d3ee1bdaa1\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=1d29561822af5dfff8f087a308e79392; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"cec5597fca6c76708b25dad787\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 3979ba66f4f470629825f36f4c\n  X-Runtime: 0.136558\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
       "findings": []
      },
      {
@@ -954,7 +954,7 @@
       "ip": "198.51.100.2",
       "port": 11443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-22T13:45:48\nNot valid after:  2028-08-24T13:45:48\nMD5:   4e2a:2d75:1e2b:0c29:03d7:4de5:1bd2:f305\nSHA-1: 4fb3:da7e:de8b:2be6:165b:5f50:a1c3:5c9f:5dd8:c112",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
       "findings": []
      },
      {
@@ -1228,7 +1228,7 @@
      {
       "host": "198.51.100.2:10443",
       "issuer": "YE2",
-      "expires_at": "2027-01-06T06:51:32.000Z"
+      "expires_at": "2027-01-15T00:00:00.000Z"
      }
     ],
     "web_findings": [
@@ -1345,7 +1345,7 @@
       "ip": "198.51.100.2",
       "port": 10022,
       "id": "ssh-hostkey",
-      "output": "256 d2:6c:4d:c4:2d:0a:d9:c6:57:06:ae:48:0d:cb:61:f4 (ECDSA)\n  256 29:e3:50:c1:d3:26:e4:61:af:6a:47:d8:34:8b:0c:8a (ED25519)",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
       "findings": []
      },
      {
@@ -1373,7 +1373,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T06:51:33\nNot valid after:  2027-01-06T06:51:32\nMD5:   4991:1599:f14d:781d:3fd5:0228:2078:b7d6\nSHA-1: faaf:f598:d021:0efa:158a:0695:f7dd:64d7:1b79:c47c",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
       "findings": []
      },
      {
@@ -1387,7 +1387,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-headers",
-      "output": "Server: nginx\n  Date: Tue, 17 Nov 2026 14:17:31 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"207cf1a2592bac4ded349aef8909cb99\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=ccdbdfb88c5ee1c75e6218bdae09cdbb; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"KY08BCBQT9MKRE8GZVT3AVAJP2\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 558380638730cd97d688576e50\n  X-Runtime: 0.365767\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "output": "Server: nginx\n  Date: Tue, 17 Nov 2026 14:17:31 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"d10640f4034f01b9d9a7704b980cb6be\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=ec70511d5ac594c33e2d7863ca77aded; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"6cd08682aff2d950e69dd9c022\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 5f42b06cea376dda6aec7daa0e\n  X-Runtime: 0.365767\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
       "findings": []
      },
      {
@@ -1436,7 +1436,7 @@
       "ip": "198.51.100.2",
       "port": 11443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-22T13:45:48\nNot valid after:  2028-08-24T13:45:48\nMD5:   4e2a:2d75:1e2b:0c29:03d7:4de5:1bd2:f305\nSHA-1: 4fb3:da7e:de8b:2be6:165b:5f50:a1c3:5c9f:5dd8:c112",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
       "findings": []
      },
      {
@@ -1747,12 +1747,12 @@
      {
       "host": "198.51.100.2:10443",
       "issuer": "YE2",
-      "expires_at": "2027-01-06T06:51:32.000Z"
+      "expires_at": "2027-01-15T00:00:00.000Z"
      },
      {
       "host": "198.51.100.2:11443",
       "issuer": "Self-signed",
-      "expires_at": "2028-08-24T13:45:48.000Z"
+      "expires_at": "2028-09-02T00:00:00.000Z"
      }
     ],
     "web_findings": [
@@ -1902,7 +1902,7 @@
       "ip": "198.51.100.2",
       "port": 10022,
       "id": "ssh-hostkey",
-      "output": "256 d2:6c:4d:c4:2d:0a:d9:c6:57:06:ae:48:0d:cb:61:f4 (ECDSA)\n  256 29:e3:50:c1:d3:26:e4:61:af:6a:47:d8:34:8b:0c:8a (ED25519)",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
       "findings": []
      },
      {
@@ -1951,7 +1951,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T06:51:33\nNot valid after:  2027-01-06T06:51:32\nMD5:   4991:1599:f14d:781d:3fd5:0228:2078:b7d6\nSHA-1: faaf:f598:d021:0efa:158a:0695:f7dd:64d7:1b79:c47c",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
       "findings": []
      },
      {
@@ -1986,7 +1986,7 @@
       "ip": "198.51.100.2",
       "port": 11443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-22T13:45:48\nNot valid after:  2028-08-24T13:45:48\nMD5:   4e2a:2d75:1e2b:0c29:03d7:4de5:1bd2:f305\nSHA-1: 4fb3:da7e:de8b:2be6:165b:5f50:a1c3:5c9f:5dd8:c112",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
       "findings": []
      },
      {
@@ -2718,72 +2718,72 @@
      {
       "host": "example.com",
       "issuer": "YE1",
-      "expires_at": "2026-12-19T21:46:49.000Z"
+      "expires_at": "2026-12-28T00:00:00.000Z"
      },
      {
       "host": "sub-02.example.com",
       "issuer": "YE2",
-      "expires_at": "2026-12-19T00:47:48.000Z"
+      "expires_at": "2026-12-28T00:00:00.000Z"
      },
      {
       "host": "ftp.example.com",
       "issuer": "YE1",
-      "expires_at": "2026-12-19T21:46:49.000Z"
+      "expires_at": "2026-12-28T00:00:00.000Z"
      },
      {
       "host": "sub-03.example.com",
       "issuer": "YE2",
-      "expires_at": "2027-01-17T06:48:03.000Z"
+      "expires_at": "2027-01-26T00:00:00.000Z"
      },
      {
       "host": "sub-05.example.com",
       "issuer": "YE2",
-      "expires_at": "2027-01-24T22:48:00.000Z"
+      "expires_at": "2027-02-02T00:00:00.000Z"
      },
      {
       "host": "sub-06.example.com",
       "issuer": "YE2",
-      "expires_at": "2026-12-13T00:26:27.000Z"
+      "expires_at": "2026-12-22T00:00:00.000Z"
      },
      {
       "host": "sub-07.example.com",
       "issuer": "YE2",
-      "expires_at": "2026-12-27T07:09:23.000Z"
+      "expires_at": "2027-01-05T00:00:00.000Z"
      },
      {
       "host": "sub-08.example.com",
       "issuer": "YE2",
-      "expires_at": "2026-12-28T00:53:06.000Z"
+      "expires_at": "2027-01-06T00:00:00.000Z"
      },
      {
       "host": "sub-09.example.com",
       "issuer": "YE1",
-      "expires_at": "2027-01-03T01:14:58.000Z"
+      "expires_at": "2027-01-12T00:00:00.000Z"
      },
      {
       "host": "sub-10.example.com",
       "issuer": "YE1",
-      "expires_at": "2027-01-13T22:51:24.000Z"
+      "expires_at": "2027-01-22T00:00:00.000Z"
      },
      {
       "host": "www.example.com",
       "issuer": "YE1",
-      "expires_at": "2026-12-19T21:46:49.000Z"
+      "expires_at": "2026-12-28T00:00:00.000Z"
      },
      {
       "host": "sub-12.example.com",
       "issuer": "YE2",
-      "expires_at": "2027-01-24T05:48:09.000Z"
+      "expires_at": "2027-02-02T00:00:00.000Z"
      },
      {
       "host": "sub-14.example.com",
       "issuer": "YE1",
-      "expires_at": "2027-01-24T22:48:11.000Z"
+      "expires_at": "2027-02-02T00:00:00.000Z"
      },
      {
       "host": "sub-15.example.com",
       "issuer": "YE1",
-      "expires_at": "2026-12-19T00:47:36.000Z"
+      "expires_at": "2026-12-28T00:00:00.000Z"
      }
     ],
     "web_findings": [],
@@ -2905,7 +2905,7 @@
       "ip": "198.51.100.12",
       "port": 443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 9977b90b7abf98ee78dac27011e3ec14",
+      "output": "Unknown favicon MD5: dcf019866480f5aeb692dd4d67e2e9fe",
       "findings": []
      },
      {
@@ -2940,7 +2940,7 @@
       "ip": "198.51.100.12",
       "port": 443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=sub-07.example.com\nSubject Alternative Name: DNS:sub-07.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-09-28T07:09:24\nNot valid after:  2026-12-27T07:09:23\nMD5:   cd9e:6942:6a08:bdab:dfc3:bbe6:8b8b:4779\nSHA-1: 4729:3aa0:a306:38c3:1a74:b459:a45c:1511:9a4c:e137",
+      "output": "Subject: commonName=sub-07.example.com\nSubject Alternative Name: DNS:sub-07.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-07T00:00:00\nNot valid after:  2027-01-05T00:00:00\nMD5:   6421:7224:e151:b516:635f:8d8a:80c8:ca2f\nSHA-1: 5130:3da8:74aa:cf81:ef3d:e212:3a11:5770:8c49:7b4b",
       "findings": []
      },
      {
@@ -3094,7 +3094,7 @@
       "ip": "198.51.100.13",
       "port": 443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 9977b90b7abf98ee78dac27011e3ec14",
+      "output": "Unknown favicon MD5: dcf019866480f5aeb692dd4d67e2e9fe",
       "findings": []
      },
      {
@@ -3129,7 +3129,7 @@
       "ip": "198.51.100.13",
       "port": 443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-09-29T00:53:07\nNot valid after:  2026-12-28T00:53:06\nMD5:   0088:cdfa:3519:dffb:661a:81be:aae7:ed1c\nSHA-1: 1857:9eb3:1033:f147:3fd6:9bd1:3a69:3cee:d22b:b022",
+      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T00:00:00\nNot valid after:  2027-01-06T00:00:00\nMD5:   4029:0659:b041:a949:eea3:5133:4c1e:f337\nSHA-1: 4730:9fc8:edcd:127a:a329:2ac0:70f0:f1cb:5262:28c5",
       "findings": []
      },
      {
@@ -3220,7 +3220,7 @@
       "ip": "198.51.100.13",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-09-29T00:53:07\nNot valid after:  2026-12-28T00:53:06\nMD5:   0088:cdfa:3519:dffb:661a:81be:aae7:ed1c\nSHA-1: 1857:9eb3:1033:f147:3fd6:9bd1:3a69:3cee:d22b:b022",
+      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T00:00:00\nNot valid after:  2027-01-06T00:00:00\nMD5:   4029:0659:b041:a949:eea3:5133:4c1e:f337\nSHA-1: 4730:9fc8:edcd:127a:a329:2ac0:70f0:f1cb:5262:28c5",
       "findings": []
      },
      {
@@ -3772,14 +3772,14 @@
       "ip": "198.51.100.2",
       "port": 9443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nSubject Alternative Name: DNS:org-firewall, DNS:localhost, IP Address:127.0.0.1\nIssuer: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA256\nNot valid before: 2026-08-07T05:51:33\nNot valid after:  2036-08-04T05:51:33\nMD5:   f657:cefe:d0c3:b9bc:bdf6:dfc0:a418:c9f5\nSHA-1: d524:777b:1e28:1092:d0a4:1313:3c1e:949c:c882:23fc",
+      "output": "Subject: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nSubject Alternative Name: DNS:org-firewall, DNS:localhost, IP Address:127.0.0.1\nIssuer: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA256\nNot valid before: 2026-08-16T00:00:00\nNot valid after:  2036-08-13T00:00:00\nMD5:   e95b:d723:c1dc:8bb7:b905:5653:0300:8165\nSHA-1: 57b4:29e0:9dc3:35c7:6bf7:0422:0114:05cc:2944:853c",
       "findings": []
      },
      {
       "ip": "198.51.100.2",
       "port": 9443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 78c4f2fe522509541f840b687df4da48",
+      "output": "Unknown favicon MD5: 352a459cd772b058de61826c7fbb72c6",
       "findings": []
      },
      {
@@ -3912,7 +3912,7 @@
       "ip": "198.51.100.2",
       "port": 10022,
       "id": "ssh-hostkey",
-      "output": "256 d2:6c:4d:c4:2d:0a:d9:c6:57:06:ae:48:0d:cb:61:f4 (ECDSA)\n  256 29:e3:50:c1:d3:26:e4:61:af:6a:47:d8:34:8b:0c:8a (ED25519)",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
       "findings": []
      },
      {
@@ -3954,14 +3954,14 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-favicon",
-      "output": "Unknown favicon MD5: 13712942c0166867a1ac9252a560757f",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
       "findings": []
      },
      {
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T06:51:33\nNot valid after:  2027-01-06T06:51:32\nMD5:   4991:1599:f14d:781d:3fd5:0228:2078:b7d6\nSHA-1: faaf:f598:d021:0efa:158a:0695:f7dd:64d7:1b79:c47c",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
       "findings": []
      },
      {
@@ -4052,7 +4052,7 @@
       "ip": "198.51.100.2",
       "port": 10443,
       "id": "http-headers",
-      "output": "Server: nginx\n  Date: Wed, 18 Nov 2026 09:33:51 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"fdafe7eb14ce54f6b076b337a82a0775\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=0ab98b10bc822524bdadc3ff6f6aef99; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"K6ZJ62H6JEXF56DS1XPKZK23NG\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 2afa23bb224cc19eb64ac0c730\n  X-Runtime: 0.116204\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "output": "Server: nginx\n  Date: Wed, 18 Nov 2026 09:33:51 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"1f1abec03c0f83fd5885078aceee5d21\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=a70f9f6099b500f47049433aa0c7302e; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"36984fce676444b9fc318cb3d3\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 24331157fca33efa65d67daf98\n  X-Runtime: 0.116204\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
       "findings": []
      },
      {
@@ -4080,7 +4080,7 @@
       "ip": "198.51.100.2",
       "port": 11443,
       "id": "ssl-cert",
-      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-22T13:45:48\nNot valid after:  2028-08-24T13:45:48\nMD5:   4e2a:2d75:1e2b:0c29:03d7:4de5:1bd2:f305\nSHA-1: 4fb3:da7e:de8b:2be6:165b:5f50:a1c3:5c9f:5dd8:c112",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
       "findings": []
      },
      {

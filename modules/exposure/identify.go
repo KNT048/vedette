@@ -324,6 +324,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // the script results of the deep scan, kept apart from the services
+			c.ScriptsRan = append(c.ScriptsRan, ip.String())
 			vuln := 0
 			for _, r := range sanitizeScripts(res.Scripts) {
 				if r.IP == ip.String() {

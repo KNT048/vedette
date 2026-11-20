@@ -313,6 +313,9 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case err == nil:
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
+		for _, j := range jobs { // the ports the templates ran on to the end: there, a template that no longer matches is fixed
+			c.TemplatesRan = append(c.TemplatesRan, portKey(ip.String(), j.Port))
+		}
 		line := templatesLine(jobs, rows, sentIDs(res.Sent), notKept)
 		if st.Mode.Full {
 			line = fullLine(jobs, rows, sentIDs(res.Sent))

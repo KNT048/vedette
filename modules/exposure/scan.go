@@ -352,7 +352,8 @@ func sanitize(c Content) Content {
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
-		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages)}
+		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages),
+		TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan)}
 }
 
 // The ports a scan probed on one address (the outcome of the run item of the address, INV-22): a service a scan checked and did not
@@ -488,6 +489,17 @@ func sanitizeWebPages(in []string) []string {
 	for _, p := range in {
 		if u, err := url.Parse(p); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && len(p) <= maxContentText && len(out) < maxContentRows {
 			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// boundedKeys keeps at most maxContentRows short keys ("ip" or "ip:port") the engines made themselves.
+func boundedKeys(in []string) []string {
+	var out []string
+	for _, k := range in {
+		if len(k) <= 64 && len(out) < maxContentRows {
+			out = append(out, k)
 		}
 	}
 	return out

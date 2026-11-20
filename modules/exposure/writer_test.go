@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/selfcheck"
@@ -111,7 +112,17 @@ func (e *env) replay(target, startedAt string, c Content, gbAddrs ...GreenboneAd
 			c.WebPages = append(c.WebPages, w.Site)
 		}
 	}
-	out, err := e.svc.save(e.ctx(), runID, "admin@acme.example", t, ScanMode{Full: true}, c, steps)
+	if c.TemplatesRan == nil { // the stored scans' template rows are the ports their templates ran on
+		for _, r := range c.Templates {
+			c.TemplatesRan = append(c.TemplatesRan, portKey(r.IP, r.Port))
+		}
+	}
+	if c.ScriptsRan == nil {
+		for _, r := range c.Scripts {
+			c.ScriptsRan = append(c.ScriptsRan, r.IP)
+		}
+	}
+	out, err := e.svc.save(e.ctx(), runID, "admin@acme.example", t, c, steps)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -326,8 +337,9 @@ func TestWriter_TheIssuesOfAClosedPortAreGone(t *testing.T) {
 	}
 }
 
-// A domain's deep engines reach a few rotated addresses per run: an issue nuclei or OpenVAS no longer reports is gone only on an
-// address that engine scanned this run; the issues of an address it did not reach stay open until a run reaches it again.
+// A domain's deep engines reach a few rotated addresses per run, and on an address they reach they may not finish: an issue nuclei or
+// OpenVAS no longer reports is gone only where that engine ran to the end this run (nuclei's templates on the port, OpenVAS done on
+// the address); the issues of an address it did not reach or did not finish stay open.
 func TestWriter_DeepEnginesGoneOnlyWhereTheyRan(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -368,9 +380,18 @@ func TestWriter_DeepEnginesGoneOnlyWhereTheyRan(t *testing.T) {
 		t.Fatalf("first run: nuclei %d/%d, openvas %d/%d", openOn("nuclei", a), openOn("nuclei", b), openOn("openvas", a), openOn("openvas", b))
 	}
 	// the next run's rotation reaches b only, which is clean now
-	e.replay("xt-d", "2026-11-20T02:00:00.000Z", content(b), GreenboneAddr{IP: b, State: GBRunDone}, GreenboneAddr{IP: a, State: GBRunNotRun})
+	second := content(b)
+	second.TemplatesRan = []string{portKey(b, 443)}
+	e.replay("xt-d", "2026-11-20T02:00:00.000Z", second, GreenboneAddr{IP: b, State: GBRunDone}, GreenboneAddr{IP: a, State: GBRunNotRun})
+	if openOn("nuclei", a) != 1 || openOn("openvas", a) != 2 || openOn("nuclei", b) != 0 || openOn("openvas", b) != 0 {
+		t.Fatalf("second run: a nuclei %d openvas %d, b nuclei %d openvas %d", openOn("nuclei", a), openOn("openvas", a), openOn("nuclei", b), openOn("openvas", b))
+	}
+	// both deep-scanned the run after, but the templates timed out on a and OpenVAS was cut by its cap there: a stays as it was
+	third := content(a, b)
+	third.TemplatesRan = []string{portKey(b, 443)}
+	e.replay("xt-d", "2026-11-21T02:00:00.000Z", third, GreenboneAddr{IP: b, State: GBRunDone}, GreenboneAddr{IP: a, State: GBRunPartial})
 	if openOn("nuclei", a) != 1 || openOn("openvas", a) != 2 {
-		t.Errorf("a, not reached this run: nuclei %d, openvas %d open, want 1 and 2", openOn("nuclei", a), openOn("openvas", a))
+		t.Errorf("a, where the engines did not finish: nuclei %d, openvas %d open, want 1 and 2", openOn("nuclei", a), openOn("openvas", a))
 	}
 	if openOn("nuclei", b) != 0 || openOn("openvas", b) != 0 {
 		t.Errorf("b, scanned and clean: nuclei %d, openvas %d still open", openOn("nuclei", b), openOn("openvas", b))
@@ -429,5 +450,35 @@ func TestWriter_IssuesGoOnlyWhenTheirEngineRanAgain(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'zap' AND state = 'handled'`); n != 1 {
 		t.Errorf("the person's decision was undone: %d handled", n)
+	}
+}
+
+// A certificate that expires soon is read again only when its service answers: a scan that missed the port once (the port stays
+// open, INV-22) leaves the certificate's issue open.
+func TestWriter_ACertificateIssueStaysWhileItsPortIsMissedOnce(t *testing.T) {
+	t.Parallel()
+	f := loadReplay(t)
+	e := replayEnv(t, f)
+	var last Content
+	for _, s := range f.Scans {
+		if s.Target == "xt-ip" {
+			last = s.Content.content()
+		}
+	}
+	e.replay("xt-ip", "2026-12-20T02:00:00.000Z", last) // its certificates now expire within 30 days
+	cert := func() int {
+		return e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'surface' AND key >= 'cert_expiry:' AND key < 'cert_expiry;' AND state = 'open'`)
+	}
+	before := cert()
+	if before == 0 {
+		t.Fatal("no certificate issue to start with")
+	}
+	without := last
+	without.Ports = slices.DeleteFunc(slices.Clone(last.Ports), func(p PortRow) bool { return p.Port == 10443 })
+	without.Services = slices.DeleteFunc(slices.Clone(last.Services), func(r ServiceRow) bool { return r.Port == 10443 })
+	without.Certs = slices.DeleteFunc(slices.Clone(last.Certs), func(c CertRow) bool { return strings.HasSuffix(c.Host, ":10443") })
+	e.replay("xt-ip", "2026-12-21T02:00:00.000Z", without)
+	if n := cert(); n != before {
+		t.Fatalf("after one miss of 10443: %d certificate issues open, want %d", n, before)
 	}
 }

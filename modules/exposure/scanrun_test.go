@@ -168,3 +168,37 @@ func TestScanRun_CloseEndsTheRunWithItsAuditRow(t *testing.T) {
 	_, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, "")
 	wantAPI(t, err, 409, "module_off")
 }
+
+// A scan that waits in the queue is checked again when it starts: the ownership record removed meanwhile refuses it, and nothing of it
+// reaches the runner. Consent and ownership are checked right before anything is sent, never only when the scan was asked.
+func TestScanRun_AQueuedScanIsCheckedAgainWhenItStarts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	run := &blockingRunner{fakeRunner: fakeRunner{content: sampleContent()}, hold: make(chan struct{}), in: make(chan struct{})}
+	e.svc.SetRunner(run)
+	ip := e.detect(ipA)[0]
+	if _, err := e.commit(ip.ID); err != nil {
+		t.Fatal(err)
+	}
+	first, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, ip.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-run.in
+	dom := e.committedDomain()
+	queued, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, dom.ID, "")
+	if err != nil || queued.Status != RunQueued {
+		t.Fatalf("queued: %+v %v", queued, err)
+	}
+	e.dns.put("acme.example") // the TXT record is removed while the scan waits
+	close(run.hold)
+	e.waitScan(first.ID)
+	e.waitScan(queued.ID)
+	got, ok, err := e.svc.runOf(e.ctx(), queued.ID)
+	if err != nil || !ok || got.Status != RunFailed || got.Error == nil || !strings.Contains(got.Error.Message, "TXT record") {
+		t.Fatalf("the queued scan: %+v %v", got, err)
+	}
+	if run.calls != 1 {
+		t.Fatalf("the runner was called %d times, want 1 (the first scan only)", run.calls)
+	}
+}

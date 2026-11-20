@@ -39,7 +39,6 @@ type scanWrite struct {
 	gone    map[string]bool
 	ran     engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
 	vulns   []VulnRow // the exploited CVEs matched on its services (withVulns)
-	deep    bool      // the scan ran at the testing terms' depth
 	first   bool      // the target had no rows before this scan
 }
 
@@ -122,8 +121,8 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 }
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the
-// addresses it scanned to the end, done, partial or ended by its cap, and their open ports): an OpenVAS issue it no longer reports is
-// gone only there; nil (a step that failed or was stopped) only adds what it found.
+// addresses it scanned to the end, and their open ports): an OpenVAS issue it no longer reports is gone only there; nil (a step that
+// failed, was stopped or was cut short everywhere) only adds what it found.
 func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) error {
 	if _, err := loadTarget(ctx, tx, t.ID); err != nil {
 		return err
@@ -823,58 +822,51 @@ func keyAddr(e IssueEngine, key string) string {
 // only there (a domain's deep engines reach a few rotated addresses per run, ZAP its pages).
 func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 	c := w.c
-	deep, scripted, tplAt := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	resolved := map[string]bool{}
+	scripted, tplRan, resolved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, h := range c.Hosts {
 		resolved[h.Name] = !h.LookupFailed
-		for _, a := range h.IPs {
-			if a.Deep == DeepScanned {
-				deep[ipKey(a.IP)] = true
-			}
-		}
 	}
-	if w.target.Kind == KindIP && w.deep {
-		deep[ipKey(w.target.Value)] = true
+	for _, ip := range c.ScriptsRan {
+		scripted[ipKey(ip)] = true
 	}
-	for _, r := range c.Scripts {
-		scripted[ipKey(r.IP)] = true
-	}
-	for _, r := range c.Templates {
-		if r.Outcome != OutcomeError {
-			tplAt[portKey(r.IP, r.Port)] = true
-		}
+	for _, k := range c.TemplatesRan {
+		tplRan[k] = true
 	}
 	pages := map[string]bool{}
 	for _, u := range c.WebPages {
 		pages[siteOf(u)] = true
 	}
-	open := map[string]bool{}
+	open, compared := map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
 		open[portKey(p.IP, p.Port)] = true
+	}
+	for _, r := range c.Services { // the services the comparison with exploited CVEs read this run
+		compared[portKey(r.IP, r.Port)] = true
 	}
 	return map[IssueEngine]coverFunc{
 		EngineSurface: func(x issueWhere) bool {
 			switch {
 			case strings.HasPrefix(x.key, keyScript):
 				return scripted[ipKey(x.ip)] && (!x.service || x.seen)
-			case strings.HasPrefix(x.key, keyCertExpiry):
+			case strings.HasPrefix(x.key, keyCertExpiry): // the certificate was read again: its name resolved, and its service answered
 				host := strings.TrimPrefix(x.key, keyCertExpiry)
 				if _, _, err := net.SplitHostPort(host); err == nil {
-					return open[host]
+					return open[host] && (!x.service || x.seen)
 				}
-				return resolved[host] || (w.target.Kind == KindIP && host == w.target.Value)
+				return (resolved[host] || (w.target.Kind == KindIP && host == w.target.Value)) && (!x.service || x.seen)
 			}
 			return !x.service || x.seen
 		},
-		EngineNuclei: func(x issueWhere) bool {
-			// a template that ran on the port, or the deep templates on an address and a port open this run
-			return x.ip != "" && (tplAt[portKey(x.ip, x.port)] || (deep[ipKey(x.ip)] && (!x.service || x.seen)))
+		EngineNuclei: func(x issueWhere) bool { // the templates ran to the end on this port
+			return x.ip != "" && tplRan[portKey(x.ip, x.port)]
 		},
 		EngineZAP: func(x issueWhere) bool {
 			_, site, ok := strings.Cut(x.key, "@")
 			return ok && pages[siteOf(site)]
 		},
-		EngineMatch: func(x issueWhere) bool { return !x.service || x.seen },
+		EngineMatch: func(x issueWhere) bool { // the comparison read the service again this run
+			return x.service && x.seen && compared[portKey(x.ip, x.port)]
+		},
 	}
 }
 

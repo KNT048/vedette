@@ -68,7 +68,9 @@ func loadNetOS(c *catalogue, data []byte) ([]netOS, error) {
 			if k = NormalizeKey(k); !slices.Contains(e.p.KEV, k) {
 				e.p.KEV = append(e.p.KEV, k)
 			}
+			e.name(k)
 		}
+		e.name(r.key)
 		if n := (CPEName{Part: f3[0], Vendor: f3[1], Product: f3[2]}); !slices.Contains(e.p.CPEs, n) {
 			e.p.CPEs = append(e.p.CPEs, n)
 		}

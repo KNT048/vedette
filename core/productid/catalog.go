@@ -143,6 +143,18 @@ type pattern struct {
 type entry struct {
 	p        Product
 	patterns []pattern
+	// named are the exploited-list names the catalogue really gives the product: its key, its entry's own list (products files,
+	// network OS rows) and the curated names that pass ownName. A curated-only product (a picker row) names its key alone: the names
+	// its fragments reach are for the row, never a reason to move another product's item onto it (ByKEV).
+	named map[string]bool
+}
+
+// name records that the product names an exploited-list name (entry.named).
+func (e *entry) name(k string) {
+	if e.named == nil {
+		e.named = map[string]bool{}
+	}
+	e.named[k] = true
 }
 
 type prefixRow struct {
@@ -215,6 +227,9 @@ func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
 			}
 			ids[e.p.ID], keys[e.p.Key] = true, true
 			c.byKey[e.p.Key] = e
+			for _, k := range e.p.KEV { // the key and the entry's own list
+				e.name(k)
+			}
 		}
 	}
 	if err := c.addCurated(curated, kev); err != nil {
@@ -440,6 +455,9 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 				e.p.Class = class
 			}
 			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev, &e.p, claimed)
+			for _, k := range e.p.KEV { // own names only (curatedKEV checked them)
+				e.name(k)
+			}
 			continue
 		}
 		p := Product{ID: "curated-" + strings.Trim(slugRE.ReplaceAllString(strings.ToLower(r.Display), "-"), "-"), Display: r.Display,
@@ -453,6 +471,7 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 			p.CPEs = append(p.CPEs, CPEName{Part: f[0], Vendor: f[1], Product: f[2]})
 		}
 		e = &entry{p: p}
+		e.name(key) // a picker row names its key alone
 		c.byKey[key] = e
 		c.curated = append(c.curated, e)
 		if k := NormKey(r.Vendor, r.Product); len(k) > 2 {
@@ -555,6 +574,9 @@ var byKEV = sync.OnceValue(func() map[string]*entry {
 	listers := map[string][]*entry{}
 	for _, k := range keys {
 		for _, n := range cat.byKey[k].p.KEV {
+			if !cat.byKey[k].named[n] || strings.HasSuffix(n, "|multiple products") {
+				continue // a name the product's picker row reaches but the product does not name; a vendor's "Multiple Products" is no one product
+			}
 			if !slices.Contains(listers[n], cat.byKey[k]) {
 				listers[n] = append(listers[n], cat.byKey[k])
 			}
@@ -568,8 +590,9 @@ var byKEV = sync.OnceValue(func() map[string]*entry {
 	return out
 })
 
-// ByKEV is the product an exploited-list name belongs to: the product whose key it is, else the one product that lists it among its
-// names (Internet Explorer for "Microsoft|Edge and Internet Explorer"); false for a name several products list ("Microsoft|Windows").
+// ByKEV is the product an exploited-list name belongs to: the product whose key it is, else the one product that names it (entry.named:
+// Internet Explorer for "Microsoft|Edge and Internet Explorer", Office for "Microsoft|Word"); false for a name several products name
+// ("Microsoft|Windows") or only a picker row reaches ("Cisco|Identity Services Engine" is no RV router's).
 func ByKEV(key string) (Product, bool) {
 	e, ok := byKEV()[NormalizeKey(key)]
 	if !ok {

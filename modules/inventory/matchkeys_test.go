@@ -99,3 +99,58 @@ func TestMatchKeys_NeighboursStayOff(t *testing.T) {
 		}
 	}
 }
+
+// A product picked by its exploited-list name in the add-software list lands on another product's line only when that product names
+// it; otherwise it keeps a line of its own and gains no other product's names (a Cisco ISE server never matches RV-router CVEs).
+func TestMatchKeys_PickedNameGainsNoOtherProductsNames(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ vendor, product, line string }{
+		{"Cisco", "Identity Services Engine", "cisco|identity services engine"},
+		{"Cisco", "Secure Firewall Management Center (FMC)", "cisco|secure firewall management center (fmc)"},
+		{"Cisco", "IOS XR", "cisco|ios xr"},
+		{"SolarWinds", "Serv-U", "solarwinds|serv-u"},
+		{"SonicWall", "SMA1000 Appliance", "sonicwall|sma1000 appliance"},
+		{"D-Link", "DNS-320 Storage Device", "d-link|dns-320 storage device"},
+		{"Check Point", "SmartConsole", "check point|smartconsole"},
+		{"DrayTek", "VigorConnect", "draytek|vigorconnect"},
+		{"Fortinet", "FortiMail", "fortinet|fortimail"},
+		{"Microsoft", "Edge and Internet Explorer", "microsoft|internet explorer"}, // names the catalogue gives their product
+		{"Mozilla", "Firefox and Thunderbird", "mozilla|firefox"},
+		{"Microsoft", "Word", "microsoft|office"},
+	} {
+		key := productid.Key(c.vendor, c.product)
+		for _, source := range []string{"manual", "nmap", "snmp"} {
+			id, _ := identify(SoftwareItem{Display: c.vendor + " " + c.product, Vendor: c.vendor, Product: c.product, KevKeys: []string{key}}, source)
+			if id.productKey != c.line {
+				t.Errorf("%s (%s): line %q, want %q", key, source, id.productKey, c.line)
+			}
+			if got := matchKeys(id.productKey, false); id.productKey == key && !slices.Equal(got, []string{key}) {
+				t.Errorf("%s (%s): its own line gained %v", key, source, got)
+			}
+		}
+	}
+}
+
+// Every product of the add-software list's exploited-list rows lands on its own line or on a line whose product names it; the
+// count of names that move elsewhere is the guard (core/productid TestByKEV_MovesANameOnlyToAProductThatNamesIt counts the rule).
+func TestMatchKeys_PickerEntriesStayOnTheirProduct(t *testing.T) {
+	t.Parallel()
+	_, kev, err := EmbeddedKEV{}.Products(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved, wrong := 0, 0
+	for _, r := range kev {
+		key := productid.Key(r.Vendor, r.Product)
+		id, _ := identify(SoftwareItem{Display: r.Vendor + " " + r.Product, Vendor: r.Vendor, Product: r.Product, KevKeys: []string{key}}, "manual")
+		if id.productKey == key {
+			continue
+		}
+		moved++
+		if !slices.Contains(matchKeys(id.productKey, false), key) {
+			wrong++
+			t.Errorf("%s lands on %s, whose names do not hold it", key, id.productKey)
+		}
+	}
+	t.Logf("%d of %d exploited-list rows land on another product's line (each names them); %d wrong", moved, len(kev), wrong)
+}

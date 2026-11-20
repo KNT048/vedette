@@ -114,6 +114,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if resetAdminCommand(args) { // The console's way back in for a locked-out administrator
 		return runResetAdmin(ctx, args[1:], stdout, stderr)
 	}
+	if selfcheckCommand(args) {
+		return runSelfcheck(ctx, args[1:], stdout, stderr)
+	}
 	var o options
 	flags, showVersion := newFlags(&o, stdout)
 	if err := flags.Parse(args); err != nil {

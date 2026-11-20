@@ -454,10 +454,11 @@ func (s *Service) alertEvent(ctx context.Context, r stored) AlertEvent {
 // DeviceMerged moves the alerts of the merged device to the device it joined, in the inventory's transaction.
 // (A deleted device needs nothing: the foreign keys set its alerts' device to NULL.)
 func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) error {
-	for _, col := range []string{"src_asset_id", "dst_asset_id"} {
-		if _, err := tx.ExecContext(ctx, `UPDATE ids_alert SET `+col+` = ? WHERE `+col+` = ?`, m.Into, m.From); err != nil {
-			return fmt.Errorf("ids: moving the alerts of a merged device: %w", err)
-		}
+	if _, err := tx.ExecContext(ctx, `UPDATE ids_alert SET src_asset_id = ? WHERE src_asset_id = ?`, m.Into, m.From); err != nil {
+		return fmt.Errorf("ids: moving the alerts of a merged device: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE ids_alert SET dst_asset_id = ? WHERE dst_asset_id = ?`, m.Into, m.From); err != nil {
+		return fmt.Errorf("ids: moving the alerts of a merged device: %w", err)
 	}
 	return nil
 }

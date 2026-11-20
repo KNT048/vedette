@@ -2,8 +2,8 @@ package ids
 
 import (
 	"context"
-	"errors"
 	"database/sql"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -122,10 +122,10 @@ func (e *env) exec(q string, args ...any) {
 	}
 }
 
-func (e *env) count(q string, args ...any) int {
+func (e *env) count(q string) int {
 	e.t.Helper()
 	var n int
-	if err := e.db.Reader().QueryRowContext(e.t.Context(), q, args...).Scan(&n); err != nil {
+	if err := e.db.Reader().QueryRowContext(e.t.Context(), q).Scan(&n); err != nil {
 		e.t.Fatal(err)
 	}
 	return n
@@ -216,7 +216,7 @@ func TestFixtureLinesBecomeAlertsWithTheirCVEs(t *testing.T) {
 
 // findingsLayerOne stands in for the findings module's consumer of the port (its urgency function, layer 1): an open finding is under
 // attack when an alert in the last 14 days names its CVE aimed at its device, or at any address while the device is affected.
-func findingsLayerOne(attacks []Attack, now time.Time, device, cve string, open bool) string {
+func findingsLayerOne(attacks []Attack, now time.Time, cve string, open bool) string {
 	if !open {
 		return "handled"
 	}
@@ -241,13 +241,13 @@ func TestAttackedPortRaisesAnAffectedFindingToUnderAttack(t *testing.T) {
 	if len(attacks) != 1 || attacks[0].CVE != "CVE-2021-44228" || attacks[0].DstIP != "10.0.10.21" || attacks[0].DstAssetID != "a-nas" || attacks[0].Events != 1 || attacks[0].LastAlertID == "" {
 		t.Fatalf("attacks %+v", attacks)
 	}
-	if got := findingsLayerOne(attacks, e.now, "a-nas", "CVE-2021-44228", true); got != "under_attack" {
+	if got := findingsLayerOne(attacks, e.now, "CVE-2021-44228", true); got != "under_attack" {
 		t.Fatalf("the NAS's Log4Shell finding is %s", got)
 	}
-	if got := findingsLayerOne(attacks, e.now, "a-other", "CVE-2021-44228", true); got != "under_attack" {
+	if got := findingsLayerOne(attacks, e.now, "CVE-2021-44228", true); got != "under_attack" {
 		t.Fatalf("another affected device is %s (any address while affected)", got)
 	}
-	if got := findingsLayerOne(attacks, e.now, "a-nas", "CVE-2017-0144", true); got != "exploited" {
+	if got := findingsLayerOne(attacks, e.now, "CVE-2017-0144", true); got != "exploited" {
 		t.Fatalf("a CVE nobody fired is %s", got)
 	}
 	// 15 days later the attack is no longer recent
@@ -399,4 +399,10 @@ func TestMergeMovesAndRetentionDeletes(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM ids_alert_cve`); n != 0 {
 		t.Fatalf("%d CVE rows left", n)
 	}
+}
+
+func TestContract_TablesUseThePrefix(t *testing.T) {
+	t.Parallel()
+	storetest.AssertMigrationsUsePrefix(t, ModuleID, Migrations, "ids_", storetest.Migration{Module: "core", FS: core.Migrations},
+		storetest.Migration{Module: "inventory", FS: inventory.Migrations})
 }

@@ -128,8 +128,8 @@ describe('detection API conformance (contract.ts + mock = approved behaviour)', 
   it('the mock follows its own script', async () => { expect(await run('mock')).toEqual([]) })
 
   it('the overview says which watcher is off, and the alerts are not there while the ids module is off', async () => {
-    modulesStore.update((l) => l.map((m) => (m.id === 'honeypot' || m.id === 'logs' ? { ...m, enabled: false } : m)))
-    modulesStore.update((l) => [...l, { id: 'ids' as never, enabled: false, tier: 'optional', depends: ['logs'], enabled_at: null }])
+    const off = ['honeypot', 'logs', 'ids']
+    modulesStore.update((l) => l.map((m) => (off.includes(m.id) ? { ...m, enabled: false } : m)))
     try {
       sessionStore.set({ userId: USER.viewer })
       const o = Overview.parse(await (await fetch('http://localhost/api/v1/detection/overview')).json())
@@ -137,7 +137,7 @@ describe('detection API conformance (contract.ts + mock = approved behaviour)', 
       expect(o.alerts.total).toBe(0)
       expect((await fetch('http://localhost/api/v1/detection/alerts?window=7d')).status).toBe(404)
     } finally {
-      modulesStore.update((l) => l.filter((m) => (m.id as string) !== 'ids').map((m) => (m.id === 'honeypot' || m.id === 'logs' ? { ...m, enabled: true } : m)))
+      modulesStore.update((l) => l.map((m) => (off.includes(m.id) ? { ...m, enabled: true } : m)))
     }
   })
 

@@ -125,7 +125,7 @@ func finish(e Event) (Event, bool) {
 	e.Signature = clipText(e.Signature, MaxSignatureLen)
 	e.Category = clipText(e.Category, MaxCategoryLen)
 	e.Proto = strings.ToLower(e.Proto)
-	if len(e.Proto) > 16 || strings.IndexFunc(e.Proto, func(r rune) bool { return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') }) >= 0 {
+	if len(e.Proto) > 16 || strings.IndexFunc(e.Proto, notProtoRune) >= 0 {
 		e.Proto = ""
 	}
 	if e.Signature == "" || !e.Src.IsValid() || !e.Dst.IsValid() || e.Priority < 1 || e.Priority > 4 || e.DstPort < -1 || e.DstPort > 65535 || e.SID < -1 {
@@ -135,6 +135,8 @@ func finish(e Event) (Event, bool) {
 	e.CVEs = normCVEs(e.CVEs)
 	return e, true
 }
+
+func notProtoRune(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' }
 
 // clipText makes a display value of an untrusted one: control and format characters become spaces, runs of spaces one, and it is
 // cut to n characters.

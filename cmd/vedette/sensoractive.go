@@ -93,7 +93,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober, ru
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
 	}
-	svc, err := sensoractive.New(cfg)
+	svc, err := sensoractive.New(cfg) //nolint:contextcheck // a run manager of the service's own (tests) lives as long as the service, not a request
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober, ru
 		d.Log.WarnContext(ctx, "sensor-active is unavailable", "reason", h.Message)
 	}
 	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now
-		d.Reg.OnChange(func(id string, enabled bool) {
+		d.Reg.OnChange(func(id string, enabled bool) { //nolint:contextcheck // a module switch has no context; Stop ends the module's runs on their own
 			switch {
 			case id != "sensor-active":
 			case enabled:
@@ -119,7 +119,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober, ru
 			}
 		})
 		if !d.Reg.Enabled("sensor-active") {
-			svc.Stop() // off at start: nothing SNMP leaves until the module is turned on
+			svc.Stop() //nolint:contextcheck // off at start: nothing SNMP leaves until the module is turned on
 		}
 	}
 	if d.Bus == nil {

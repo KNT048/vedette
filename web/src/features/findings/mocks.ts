@@ -16,6 +16,7 @@ import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { SUMMARY_DAYS, SUMMARY_TOP } from './contract'
+import { modelHandlers } from './modelMocks'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
@@ -588,6 +589,7 @@ function toFix(asset: string | null): ToFix {
 }
 
 export const handlers = [
+  ...modelHandlers, // first: /findings/devices and the other new paths must not be read as /findings/:id
   http.get(`${API}/findings`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
     expireAccepted()

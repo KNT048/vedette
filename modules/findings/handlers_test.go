@@ -395,3 +395,26 @@ func TestContract_ListDoesNotGuessSoftwareOrProof(t *testing.T) {
 		t.Fatalf("list with the device unreadable: %d", code)
 	}
 }
+
+// The findings model operations are in the contract before the server has them: each one, with a valid request, answers
+// 501 not_implemented (behind the module gate and the role check) until its handler is written.
+func TestHandlers_ModelOperationsAre501UntilBuilt(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	for _, c := range []struct{ method, path, body string }{
+		{"GET", "/findings/devices", ""},
+		{"GET", "/findings/fixes", ""},
+		{"GET", "/findings/input", ""},
+		{"GET", "/findings/handled", ""},
+		{"GET", "/findings/overview", ""},
+		{"GET", "/findings/fv-1/view", ""},
+		{"POST", "/findings/handle", `{"ids":["fv-1"],"resolution":"patched","note":""}`},
+		{"POST", "/findings/fv-1/reopen", `{"note":""}`},
+		{"POST", "/findings/fv-1/verify", `{"note":"checked on the device"}`},
+		{"POST", "/findings/questions/fq-1/answer", `{"answer":"affected","note":"listed in the advisory"}`},
+	} {
+		if code, b := e.call(c.method, c.path, "admin", c.body); code != 501 || errCode(b) != "not_implemented" {
+			t.Errorf("%s %s: %d %v", c.method, c.path, code, b)
+		}
+	}
+}

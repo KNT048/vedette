@@ -14,15 +14,16 @@ import (
 )
 
 // newSensorPassive builds the passive sensor service once, in buildServices (deps.SensorPassive): the sensor
-// link (sensorBackend) and the HTTP handler must share it. No metadata consumer yet (the `logs` module, S-LOG-4): the default
-// sink drops it.
+// link (sensorBackend) and the HTTP handler must share it. The mirror-port metadata a sensor posts goes to the logs module's
+// bad-address matching (logsMirror).
 func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	var sink observe.Sink // a nil *inventory.Service must stay a nil interface so New reports it
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
 	// Name: the box's name (#471), not the container's; Cached never asks the host (ensureSensor runs on every batch, beat and GET).
-	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version, Name: d.BoxName.Cached}
+	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version, Name: d.BoxName.Cached,
+		Mirror: logsMirror(d)}
 	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
 		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
 	}

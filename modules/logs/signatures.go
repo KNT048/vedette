@@ -122,7 +122,7 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 			for _, d := range c.Dests {
 				k := connKey{c.Local, d.Kind, d.Value}
 				if o := b.conns[k]; o.source == "" {
-					b.conns[k] = connObs{l.SourceID, l.At, c.Blocked}
+					b.conns[k] = connObs{source: l.SourceID, at: l.At, blocked: c.Blocked}
 				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection
 					o.blocked = false
 					b.conns[k] = o

@@ -130,7 +130,8 @@ type connKey struct {
 type connObs struct {
 	source  string
 	at      time.Time
-	blocked bool // every line of the batch that showed it says the device stopped it
+	blocked bool   // every line of the batch that showed it says the device stopped it
+	via     string // how it was seen when not in a log line (span_dns, …: MatchMirror); "" is syslog:<the source's name>
 }
 
 // iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "".
@@ -213,7 +214,11 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		if s.hasRecentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff) {
 			continue
 		}
-		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: "syslog:" + names[o.source], source: o.source, at: o.at,
+		via := o.via
+		if via == "" {
+			via = "syslog:" + names[o.source]
+		}
+		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: via, source: o.source, at: o.at,
 			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed})
 	}
 	return out
@@ -511,7 +516,15 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 	if listed != "" {
 		as = " (listed as " + listed + ", with all of its subdomains)"
 	}
-	what := fmt.Sprintf("%s %s %s (%s), which %s%s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), as, int(h.Confidence*100+0.5), via)
+	seen := "Seen in the log of " + via + "."
+	if m, ok := mirrorSeen[h.SeenVia]; ok { // seen on the mirror port, not in a log: no device logged it, nothing says it was blocked
+		seen = m
+		if h.SeenVia == "span_dns" {
+			verb = "looked up"
+			title = clipRunes(who, 100) + " " + verb + " " + h.Dest
+		}
+	}
+	what := fmt.Sprintf("%s %s %s (%s), which %s%s. Confidence %d%%. %s", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), as, int(h.Confidence*100+0.5), seen)
 	title += ", which a threat feed lists"
 	return BadAddressEvent{
 		Source: "logs", Target: clipRunes("ioc:"+cmp.Or(listed, h.Dest), MaxEventKey),
@@ -521,6 +534,14 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 		Severity: sev, Devices: devices,
 		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID, Blocked: h.Blocked, ListedAs: h.ListedAs,
 	}
+}
+
+// mirrorSeen is the last sentence of a bad-address event seen on the mirror port, by seen_via.
+var mirrorSeen = map[string]string{
+	"span_dns":  "Seen on the mirror port: a DNS query for the name.",
+	"span_sni":  "Seen on the mirror port: the server name of a TLS connection.",
+	"span_http": "Seen on the mirror port: the host of a web request.",
+	"span_flow": "Seen on the mirror port: a network flow to the address.",
 }
 
 func destWord(kind string) string {

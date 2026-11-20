@@ -36,7 +36,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,SensorsSection}` (`/inve
 - **Nửa `capture`** (`modules/sensor-passive/capture`, chạy trong container `sensor`): `Source`, `Engine`, sổ thiết bị (`book.go`), xả và gửi qua `Uplink{Config, Submit, Heartbeat}`; **không** nhập `core/store` hay gói nào dưới `core/` chạm DB. Hạn mức của sổ (60/200 MAC mới, 4 giá trị mỗi MAC mỗi trường mỗi giờ) vẫn chạy ở đây làm lớp thứ nhất. Hàng đợi chỉ trong bộ nhớ, không WAL: sensor khởi động lại mất tối đa một lần xả (≤ 5 s) và một `epoch` mới bắt đầu.
 - **Nửa `core`** (`modules/sensor-passive`, trong `core`): bảng `sp_*`, `SubmitBatch`, `Status`, `SetInterface`, handler của ba route vai `passive`. `SpanStats()` và `Status()` lấy từ **heartbeat** (không còn đọc `Engine` trong tiến trình): `online` khi có heartbeat trong 90 s, `last_seen`/`version`/`devices_seen`/`interfaces` từ heartbeat mới nhất; verdict SPAN tính ở `core` (`off`, `no_link`, `no_traffic`, `own_only`, `ok`; sensor `offline` → `no_traffic`).
 - **Hạn mức phía `core`**: handler `observations` áp lại MAC mới ≤ 60/phút và 200/giờ, giá trị mới ≤ 4 mỗi (MAC, trường) mỗi giờ, map trong bộ nhớ theo MAC; mục vượt → `rejected[]` với `budget_exhausted` (sensor bị chiếm bỏ qua được lớp thứ nhất, không bỏ qua được lớp này). `core` đặt `source=passive` theo vai (thân có `source` → `400`) và kẹp `confidence` theo trần của thang thụ động cho từng trường. Lớp thứ ba vẫn là trần 32 dòng của inventory (INV-16 của inventory).
-- **Cấu hình** tới sensor: `{interface, span, extract, filters}` qua long-poll `config`; bộ lọc không đọc được → `interface: ""` (không bắt gói). Metadata SPAN **không** đi trên dây tới khi `logs` được xây; sensor trích theo công tắc rồi bỏ (`MetadataSink` mặc định).
+- **Cấu hình** tới sensor: `{interface, span, extract, filters}` qua long-poll `config`; bộ lọc không đọc được → `interface: ""` (không bắt gói). Metadata SPAN đi qua `POST /sensor/v1/metadata` (sensor-protocol §6.7): `capture.LinkMetadata` rút mỗi mục về `{kind, at, src, dest}` (không cổng, không bộ đếm, không địa chỉ resolver; luồng chỉ khi đích là địa chỉ công khai), mỗi bộ ba gửi một lần mỗi 10 phút, tối đa 2 request mỗi lần xả, hàng đợi ≤ 10.000 mục; lỗi đếm `metadata_failed`. Nửa `core` (`Service.Metadata`, `sensorlink.MetadataReceiver`) **không lưu gì**: chuyển lô cho `Config.Mirror` (`MirrorMatcher`; `cmd/vedette` nối tới `logs.MatchMirror`), module tắt → `409 module_off`, matcher lỗi → `503 store_busy`.
 - **Lát**: SP-1 `core/pki` + `core/sensorlink` (máy chủ, client, chưa nối module); SP-4 tách `capture`, handler nửa `core`, `cmd/vedette-sensor passive`, `Status`/`SpanStats` từ heartbeat, hạn mức phía `core`; SP-5 đóng gói, profile compose `dev` (phát lại pcap), gỡ job `capture` khỏi `core` sản xuất, nguồn địa chỉ của hộp; SP-6 unit `sensor` trong `vedette-host`. Test: phát lại pcap → `capture` → client thật → handler qua mTLS loopback → kho SQLite tạm; mọi `TestContract_*` hiện có chạy trên bản tách.
 
 ## SP-4 xong
@@ -80,7 +80,7 @@ Box network (card quản trị/SPAN, hướng dẫn mirror, IP phụ, NTP): `hos
 `sp_sensor` (id, name, interface, span, version, last_seen), `sp_span_stat` (đo SPAN), `sp_seq` (seq đã nhận). Khoá của dòng là `SensorID` (hằng); `name` **chỉ để hiển thị** (`Sensor.name` của GET), không phải danh tính: liên kết sensor xác thực bằng mTLS của vai `passive` (`core/sensorlink`), không theo tên. `Config.Name` là hàm hỏi lại mỗi lần `ensureSensor`, phải rẻ và không chặn (#471: `core` đưa tên hộp do vedette-host báo, đọc từ bộ nhớ `boxHostName.Cached`, `cmd/vedette/boxname.go`); tên khác lần ghi trước thì cùng dòng được ghi lại tên mới, không đổi gì khác; `nil` → tên máy của chính tiến trình, rỗng → `vedette` (`TestSensorsHandler`).
 
 ## Events
-- **Phát**: `sensor.status.changed {id, online}`, `sensor.span.metadata_batch {seq, items[]}` (tiêu thụ bởi `logs`).
+- **Phát**: `sensor.status.changed {id, online}`, (metadata SPAN không đi qua bus: lời gọi trực tiếp `Config.Mirror`, xem Cấu hình).
 - **Nhận**: `host.network.changed` (mở lại bắt gói; nhóm B), `core.module.disabled`.
 
 ## Behaviour khi tắt
@@ -92,5 +92,5 @@ S-INV-1, S-INV-3, S-LOG-4; SPAN thay Zeek/Suricata; container `sensor`; Box netw
 ## Không khớp / câu hỏi mở
 - `MODULES.md` ghi "Zeek/Suricata EVE reader" và ~~`PRIVACY.md` luồng 2 còn "IDS matches by CVE"~~ Đã đổi sang `cve_matches` (WP-06); phần `MODULES.md` còn mở.
 - `MODULES.md` ghi bảng `inv_*` cho sensor; rule `modules.md` cấm module đọc bảng module khác nên đề xuất `sp_` + ghi qua `inventory`.
-- Ai khớp IOC từ metadata SPAN: đề xuất `logs` nhận `sensor.span.metadata_batch`.
+- ~~Ai khớp IOC từ metadata SPAN~~ Đã đóng: `logs.MatchMirror` qua `Config.Mirror` (không qua bus).
 - Fingerbank chưa nằm trong bảng luồng PRIVACY (luồng 4 chỉ nói IP/domain/hash).

@@ -15,6 +15,7 @@ const prefixOverrides: ReadonlyArray<readonly [string, string]> = [
   ['/inventory/snmp', 'sensor-active'],
   ['/core/network', 'host'],
   ['/detection', 'core'], // the overview answers while any detection module is off (core/server/modules.go)
+  ['/detection/alerts', 'ids'],
   ['/auth', 'core'],
   ['/me', 'core'],
   ['/modules', 'core'],

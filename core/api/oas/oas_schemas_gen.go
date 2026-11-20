@@ -16036,6 +16036,7 @@ const (
 	CoreGetCoreSetupModulesOKModulesItemDependsItemScanCredentialed CoreGetCoreSetupModulesOKModulesItemDependsItem = "scan-credentialed"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemHoneypot         CoreGetCoreSetupModulesOKModulesItemDependsItem = "honeypot"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemLogs             CoreGetCoreSetupModulesOKModulesItemDependsItem = "logs"
+	CoreGetCoreSetupModulesOKModulesItemDependsItemIds              CoreGetCoreSetupModulesOKModulesItemDependsItem = "ids"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake      CoreGetCoreSetupModulesOKModulesItemDependsItem = "agent-intake"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemAi               CoreGetCoreSetupModulesOKModulesItemDependsItem = "ai"
 	CoreGetCoreSetupModulesOKModulesItemDependsItemReports          CoreGetCoreSetupModulesOKModulesItemDependsItem = "reports"
@@ -16060,6 +16061,7 @@ func (CoreGetCoreSetupModulesOKModulesItemDependsItem) AllValues() []CoreGetCore
 		CoreGetCoreSetupModulesOKModulesItemDependsItemScanCredentialed,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemHoneypot,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemLogs,
+		CoreGetCoreSetupModulesOKModulesItemDependsItemIds,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemAi,
 		CoreGetCoreSetupModulesOKModulesItemDependsItemReports,
@@ -16097,6 +16099,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemDependsItem) MarshalText() ([]byte, 
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemHoneypot:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemLogs:
+		return []byte(s), nil
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemIds:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake:
 		return []byte(s), nil
@@ -16157,6 +16161,9 @@ func (s *CoreGetCoreSetupModulesOKModulesItemDependsItem) UnmarshalText(data []b
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemLogs:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemLogs
 		return nil
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemIds:
+		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemIds
+		return nil
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake
 		return nil
@@ -16196,6 +16203,7 @@ const (
 	CoreGetCoreSetupModulesOKModulesItemIDScanCredentialed CoreGetCoreSetupModulesOKModulesItemID = "scan-credentialed"
 	CoreGetCoreSetupModulesOKModulesItemIDHoneypot         CoreGetCoreSetupModulesOKModulesItemID = "honeypot"
 	CoreGetCoreSetupModulesOKModulesItemIDLogs             CoreGetCoreSetupModulesOKModulesItemID = "logs"
+	CoreGetCoreSetupModulesOKModulesItemIDIds              CoreGetCoreSetupModulesOKModulesItemID = "ids"
 	CoreGetCoreSetupModulesOKModulesItemIDAgentIntake      CoreGetCoreSetupModulesOKModulesItemID = "agent-intake"
 	CoreGetCoreSetupModulesOKModulesItemIDAi               CoreGetCoreSetupModulesOKModulesItemID = "ai"
 	CoreGetCoreSetupModulesOKModulesItemIDReports          CoreGetCoreSetupModulesOKModulesItemID = "reports"
@@ -16220,6 +16228,7 @@ func (CoreGetCoreSetupModulesOKModulesItemID) AllValues() []CoreGetCoreSetupModu
 		CoreGetCoreSetupModulesOKModulesItemIDScanCredentialed,
 		CoreGetCoreSetupModulesOKModulesItemIDHoneypot,
 		CoreGetCoreSetupModulesOKModulesItemIDLogs,
+		CoreGetCoreSetupModulesOKModulesItemIDIds,
 		CoreGetCoreSetupModulesOKModulesItemIDAgentIntake,
 		CoreGetCoreSetupModulesOKModulesItemIDAi,
 		CoreGetCoreSetupModulesOKModulesItemIDReports,
@@ -16257,6 +16266,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemID) MarshalText() ([]byte, error) {
 	case CoreGetCoreSetupModulesOKModulesItemIDHoneypot:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemIDLogs:
+		return []byte(s), nil
+	case CoreGetCoreSetupModulesOKModulesItemIDIds:
 		return []byte(s), nil
 	case CoreGetCoreSetupModulesOKModulesItemIDAgentIntake:
 		return []byte(s), nil
@@ -16316,6 +16327,9 @@ func (s *CoreGetCoreSetupModulesOKModulesItemID) UnmarshalText(data []byte) erro
 		return nil
 	case CoreGetCoreSetupModulesOKModulesItemIDLogs:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDLogs
+		return nil
+	case CoreGetCoreSetupModulesOKModulesItemIDIds:
+		*s = CoreGetCoreSetupModulesOKModulesItemIDIds
 		return nil
 	case CoreGetCoreSetupModulesOKModulesItemIDAgentIntake:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDAgentIntake
@@ -19406,6 +19420,7 @@ const (
 	CoreGetModulesOKModulesItemDependsItemScanCredentialed CoreGetModulesOKModulesItemDependsItem = "scan-credentialed"
 	CoreGetModulesOKModulesItemDependsItemHoneypot         CoreGetModulesOKModulesItemDependsItem = "honeypot"
 	CoreGetModulesOKModulesItemDependsItemLogs             CoreGetModulesOKModulesItemDependsItem = "logs"
+	CoreGetModulesOKModulesItemDependsItemIds              CoreGetModulesOKModulesItemDependsItem = "ids"
 	CoreGetModulesOKModulesItemDependsItemAgentIntake      CoreGetModulesOKModulesItemDependsItem = "agent-intake"
 	CoreGetModulesOKModulesItemDependsItemAi               CoreGetModulesOKModulesItemDependsItem = "ai"
 	CoreGetModulesOKModulesItemDependsItemReports          CoreGetModulesOKModulesItemDependsItem = "reports"
@@ -19430,6 +19445,7 @@ func (CoreGetModulesOKModulesItemDependsItem) AllValues() []CoreGetModulesOKModu
 		CoreGetModulesOKModulesItemDependsItemScanCredentialed,
 		CoreGetModulesOKModulesItemDependsItemHoneypot,
 		CoreGetModulesOKModulesItemDependsItemLogs,
+		CoreGetModulesOKModulesItemDependsItemIds,
 		CoreGetModulesOKModulesItemDependsItemAgentIntake,
 		CoreGetModulesOKModulesItemDependsItemAi,
 		CoreGetModulesOKModulesItemDependsItemReports,
@@ -19467,6 +19483,8 @@ func (s CoreGetModulesOKModulesItemDependsItem) MarshalText() ([]byte, error) {
 	case CoreGetModulesOKModulesItemDependsItemHoneypot:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemDependsItemLogs:
+		return []byte(s), nil
+	case CoreGetModulesOKModulesItemDependsItemIds:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemDependsItemAgentIntake:
 		return []byte(s), nil
@@ -19527,6 +19545,9 @@ func (s *CoreGetModulesOKModulesItemDependsItem) UnmarshalText(data []byte) erro
 	case CoreGetModulesOKModulesItemDependsItemLogs:
 		*s = CoreGetModulesOKModulesItemDependsItemLogs
 		return nil
+	case CoreGetModulesOKModulesItemDependsItemIds:
+		*s = CoreGetModulesOKModulesItemDependsItemIds
+		return nil
 	case CoreGetModulesOKModulesItemDependsItemAgentIntake:
 		*s = CoreGetModulesOKModulesItemDependsItemAgentIntake
 		return nil
@@ -19566,6 +19587,7 @@ const (
 	CoreGetModulesOKModulesItemIDScanCredentialed CoreGetModulesOKModulesItemID = "scan-credentialed"
 	CoreGetModulesOKModulesItemIDHoneypot         CoreGetModulesOKModulesItemID = "honeypot"
 	CoreGetModulesOKModulesItemIDLogs             CoreGetModulesOKModulesItemID = "logs"
+	CoreGetModulesOKModulesItemIDIds              CoreGetModulesOKModulesItemID = "ids"
 	CoreGetModulesOKModulesItemIDAgentIntake      CoreGetModulesOKModulesItemID = "agent-intake"
 	CoreGetModulesOKModulesItemIDAi               CoreGetModulesOKModulesItemID = "ai"
 	CoreGetModulesOKModulesItemIDReports          CoreGetModulesOKModulesItemID = "reports"
@@ -19590,6 +19612,7 @@ func (CoreGetModulesOKModulesItemID) AllValues() []CoreGetModulesOKModulesItemID
 		CoreGetModulesOKModulesItemIDScanCredentialed,
 		CoreGetModulesOKModulesItemIDHoneypot,
 		CoreGetModulesOKModulesItemIDLogs,
+		CoreGetModulesOKModulesItemIDIds,
 		CoreGetModulesOKModulesItemIDAgentIntake,
 		CoreGetModulesOKModulesItemIDAi,
 		CoreGetModulesOKModulesItemIDReports,
@@ -19627,6 +19650,8 @@ func (s CoreGetModulesOKModulesItemID) MarshalText() ([]byte, error) {
 	case CoreGetModulesOKModulesItemIDHoneypot:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemIDLogs:
+		return []byte(s), nil
+	case CoreGetModulesOKModulesItemIDIds:
 		return []byte(s), nil
 	case CoreGetModulesOKModulesItemIDAgentIntake:
 		return []byte(s), nil
@@ -19686,6 +19711,9 @@ func (s *CoreGetModulesOKModulesItemID) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetModulesOKModulesItemIDLogs:
 		*s = CoreGetModulesOKModulesItemIDLogs
+		return nil
+	case CoreGetModulesOKModulesItemIDIds:
+		*s = CoreGetModulesOKModulesItemIDIds
 		return nil
 	case CoreGetModulesOKModulesItemIDAgentIntake:
 		*s = CoreGetModulesOKModulesItemIDAgentIntake
@@ -23325,6 +23353,7 @@ const (
 	CorePatchModulesIDOKAffectedItemScanCredentialed CorePatchModulesIDOKAffectedItem = "scan-credentialed"
 	CorePatchModulesIDOKAffectedItemHoneypot         CorePatchModulesIDOKAffectedItem = "honeypot"
 	CorePatchModulesIDOKAffectedItemLogs             CorePatchModulesIDOKAffectedItem = "logs"
+	CorePatchModulesIDOKAffectedItemIds              CorePatchModulesIDOKAffectedItem = "ids"
 	CorePatchModulesIDOKAffectedItemAgentIntake      CorePatchModulesIDOKAffectedItem = "agent-intake"
 	CorePatchModulesIDOKAffectedItemAi               CorePatchModulesIDOKAffectedItem = "ai"
 	CorePatchModulesIDOKAffectedItemReports          CorePatchModulesIDOKAffectedItem = "reports"
@@ -23349,6 +23378,7 @@ func (CorePatchModulesIDOKAffectedItem) AllValues() []CorePatchModulesIDOKAffect
 		CorePatchModulesIDOKAffectedItemScanCredentialed,
 		CorePatchModulesIDOKAffectedItemHoneypot,
 		CorePatchModulesIDOKAffectedItemLogs,
+		CorePatchModulesIDOKAffectedItemIds,
 		CorePatchModulesIDOKAffectedItemAgentIntake,
 		CorePatchModulesIDOKAffectedItemAi,
 		CorePatchModulesIDOKAffectedItemReports,
@@ -23386,6 +23416,8 @@ func (s CorePatchModulesIDOKAffectedItem) MarshalText() ([]byte, error) {
 	case CorePatchModulesIDOKAffectedItemHoneypot:
 		return []byte(s), nil
 	case CorePatchModulesIDOKAffectedItemLogs:
+		return []byte(s), nil
+	case CorePatchModulesIDOKAffectedItemIds:
 		return []byte(s), nil
 	case CorePatchModulesIDOKAffectedItemAgentIntake:
 		return []byte(s), nil
@@ -23445,6 +23477,9 @@ func (s *CorePatchModulesIDOKAffectedItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchModulesIDOKAffectedItemLogs:
 		*s = CorePatchModulesIDOKAffectedItemLogs
+		return nil
+	case CorePatchModulesIDOKAffectedItemIds:
+		*s = CorePatchModulesIDOKAffectedItemIds
 		return nil
 	case CorePatchModulesIDOKAffectedItemAgentIntake:
 		*s = CorePatchModulesIDOKAffectedItemAgentIntake
@@ -23556,6 +23591,7 @@ const (
 	CorePatchModulesIDOKModulesItemDependsItemScanCredentialed CorePatchModulesIDOKModulesItemDependsItem = "scan-credentialed"
 	CorePatchModulesIDOKModulesItemDependsItemHoneypot         CorePatchModulesIDOKModulesItemDependsItem = "honeypot"
 	CorePatchModulesIDOKModulesItemDependsItemLogs             CorePatchModulesIDOKModulesItemDependsItem = "logs"
+	CorePatchModulesIDOKModulesItemDependsItemIds              CorePatchModulesIDOKModulesItemDependsItem = "ids"
 	CorePatchModulesIDOKModulesItemDependsItemAgentIntake      CorePatchModulesIDOKModulesItemDependsItem = "agent-intake"
 	CorePatchModulesIDOKModulesItemDependsItemAi               CorePatchModulesIDOKModulesItemDependsItem = "ai"
 	CorePatchModulesIDOKModulesItemDependsItemReports          CorePatchModulesIDOKModulesItemDependsItem = "reports"
@@ -23580,6 +23616,7 @@ func (CorePatchModulesIDOKModulesItemDependsItem) AllValues() []CorePatchModules
 		CorePatchModulesIDOKModulesItemDependsItemScanCredentialed,
 		CorePatchModulesIDOKModulesItemDependsItemHoneypot,
 		CorePatchModulesIDOKModulesItemDependsItemLogs,
+		CorePatchModulesIDOKModulesItemDependsItemIds,
 		CorePatchModulesIDOKModulesItemDependsItemAgentIntake,
 		CorePatchModulesIDOKModulesItemDependsItemAi,
 		CorePatchModulesIDOKModulesItemDependsItemReports,
@@ -23617,6 +23654,8 @@ func (s CorePatchModulesIDOKModulesItemDependsItem) MarshalText() ([]byte, error
 	case CorePatchModulesIDOKModulesItemDependsItemHoneypot:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemDependsItemLogs:
+		return []byte(s), nil
+	case CorePatchModulesIDOKModulesItemDependsItemIds:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemDependsItemAgentIntake:
 		return []byte(s), nil
@@ -23677,6 +23716,9 @@ func (s *CorePatchModulesIDOKModulesItemDependsItem) UnmarshalText(data []byte) 
 	case CorePatchModulesIDOKModulesItemDependsItemLogs:
 		*s = CorePatchModulesIDOKModulesItemDependsItemLogs
 		return nil
+	case CorePatchModulesIDOKModulesItemDependsItemIds:
+		*s = CorePatchModulesIDOKModulesItemDependsItemIds
+		return nil
 	case CorePatchModulesIDOKModulesItemDependsItemAgentIntake:
 		*s = CorePatchModulesIDOKModulesItemDependsItemAgentIntake
 		return nil
@@ -23716,6 +23758,7 @@ const (
 	CorePatchModulesIDOKModulesItemIDScanCredentialed CorePatchModulesIDOKModulesItemID = "scan-credentialed"
 	CorePatchModulesIDOKModulesItemIDHoneypot         CorePatchModulesIDOKModulesItemID = "honeypot"
 	CorePatchModulesIDOKModulesItemIDLogs             CorePatchModulesIDOKModulesItemID = "logs"
+	CorePatchModulesIDOKModulesItemIDIds              CorePatchModulesIDOKModulesItemID = "ids"
 	CorePatchModulesIDOKModulesItemIDAgentIntake      CorePatchModulesIDOKModulesItemID = "agent-intake"
 	CorePatchModulesIDOKModulesItemIDAi               CorePatchModulesIDOKModulesItemID = "ai"
 	CorePatchModulesIDOKModulesItemIDReports          CorePatchModulesIDOKModulesItemID = "reports"
@@ -23740,6 +23783,7 @@ func (CorePatchModulesIDOKModulesItemID) AllValues() []CorePatchModulesIDOKModul
 		CorePatchModulesIDOKModulesItemIDScanCredentialed,
 		CorePatchModulesIDOKModulesItemIDHoneypot,
 		CorePatchModulesIDOKModulesItemIDLogs,
+		CorePatchModulesIDOKModulesItemIDIds,
 		CorePatchModulesIDOKModulesItemIDAgentIntake,
 		CorePatchModulesIDOKModulesItemIDAi,
 		CorePatchModulesIDOKModulesItemIDReports,
@@ -23777,6 +23821,8 @@ func (s CorePatchModulesIDOKModulesItemID) MarshalText() ([]byte, error) {
 	case CorePatchModulesIDOKModulesItemIDHoneypot:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemIDLogs:
+		return []byte(s), nil
+	case CorePatchModulesIDOKModulesItemIDIds:
 		return []byte(s), nil
 	case CorePatchModulesIDOKModulesItemIDAgentIntake:
 		return []byte(s), nil
@@ -23836,6 +23882,9 @@ func (s *CorePatchModulesIDOKModulesItemID) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchModulesIDOKModulesItemIDLogs:
 		*s = CorePatchModulesIDOKModulesItemIDLogs
+		return nil
+	case CorePatchModulesIDOKModulesItemIDIds:
+		*s = CorePatchModulesIDOKModulesItemIDIds
 		return nil
 	case CorePatchModulesIDOKModulesItemIDAgentIntake:
 		*s = CorePatchModulesIDOKModulesItemIDAgentIntake
@@ -29149,6 +29198,7 @@ const (
 	CorePostCoreSetupReqModulesItemScanCredentialed CorePostCoreSetupReqModulesItem = "scan-credentialed"
 	CorePostCoreSetupReqModulesItemHoneypot         CorePostCoreSetupReqModulesItem = "honeypot"
 	CorePostCoreSetupReqModulesItemLogs             CorePostCoreSetupReqModulesItem = "logs"
+	CorePostCoreSetupReqModulesItemIds              CorePostCoreSetupReqModulesItem = "ids"
 	CorePostCoreSetupReqModulesItemAgentIntake      CorePostCoreSetupReqModulesItem = "agent-intake"
 	CorePostCoreSetupReqModulesItemAi               CorePostCoreSetupReqModulesItem = "ai"
 	CorePostCoreSetupReqModulesItemReports          CorePostCoreSetupReqModulesItem = "reports"
@@ -29173,6 +29223,7 @@ func (CorePostCoreSetupReqModulesItem) AllValues() []CorePostCoreSetupReqModules
 		CorePostCoreSetupReqModulesItemScanCredentialed,
 		CorePostCoreSetupReqModulesItemHoneypot,
 		CorePostCoreSetupReqModulesItemLogs,
+		CorePostCoreSetupReqModulesItemIds,
 		CorePostCoreSetupReqModulesItemAgentIntake,
 		CorePostCoreSetupReqModulesItemAi,
 		CorePostCoreSetupReqModulesItemReports,
@@ -29210,6 +29261,8 @@ func (s CorePostCoreSetupReqModulesItem) MarshalText() ([]byte, error) {
 	case CorePostCoreSetupReqModulesItemHoneypot:
 		return []byte(s), nil
 	case CorePostCoreSetupReqModulesItemLogs:
+		return []byte(s), nil
+	case CorePostCoreSetupReqModulesItemIds:
 		return []byte(s), nil
 	case CorePostCoreSetupReqModulesItemAgentIntake:
 		return []byte(s), nil
@@ -29269,6 +29322,9 @@ func (s *CorePostCoreSetupReqModulesItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePostCoreSetupReqModulesItemLogs:
 		*s = CorePostCoreSetupReqModulesItemLogs
+		return nil
+	case CorePostCoreSetupReqModulesItemIds:
+		*s = CorePostCoreSetupReqModulesItemIds
 		return nil
 	case CorePostCoreSetupReqModulesItemAgentIntake:
 		*s = CorePostCoreSetupReqModulesItemAgentIntake
@@ -168023,6 +168079,7 @@ const (
 	NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress    NotifyGetNotifyIncidentsIDOKIncidentKind = "bad_address"
 	NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly    NotifyGetNotifyIncidentsIDOKIncidentKind = "log_anomaly"
 	NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice NotifyGetNotifyIncidentsIDOKIncidentKind = "unknown_device"
+	NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion     NotifyGetNotifyIncidentsIDOKIncidentKind = "intrusion"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentKind values.
@@ -168032,6 +168089,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentKind) AllValues() []NotifyGetNotifyInc
 		NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress,
 		NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly,
 		NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice,
+		NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion,
 	}
 }
 
@@ -168045,6 +168103,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentKind) MarshalText() ([]byte, error) 
 	case NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -168065,6 +168125,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) er
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -168953,6 +169016,7 @@ const (
 	NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress    NotifyGetNotifyIncidentsOKIncidentsItemKind = "bad_address"
 	NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly    NotifyGetNotifyIncidentsOKIncidentsItemKind = "log_anomaly"
 	NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice NotifyGetNotifyIncidentsOKIncidentsItemKind = "unknown_device"
+	NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion     NotifyGetNotifyIncidentsOKIncidentsItemKind = "intrusion"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemKind values.
@@ -168962,6 +169026,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemKind) AllValues() []NotifyGetNotify
 		NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress,
 		NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly,
 		NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice,
+		NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion,
 	}
 }
 
@@ -168975,6 +169040,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) MarshalText() ([]byte, erro
 	case NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -168995,6 +169062,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte)
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -170430,6 +170500,7 @@ const (
 	NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress    NotifyPatchNotifyIncidentsIDOKIncidentKind = "bad_address"
 	NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly    NotifyPatchNotifyIncidentsIDOKIncidentKind = "log_anomaly"
 	NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice NotifyPatchNotifyIncidentsIDOKIncidentKind = "unknown_device"
+	NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion     NotifyPatchNotifyIncidentsIDOKIncidentKind = "intrusion"
 )
 
 // AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentKind values.
@@ -170439,6 +170510,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentKind) AllValues() []NotifyPatchNotif
 		NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress,
 		NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly,
 		NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice,
+		NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion,
 	}
 }
 
@@ -170452,6 +170524,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) MarshalText() ([]byte, error
 	case NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -170472,6 +170546,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) 
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

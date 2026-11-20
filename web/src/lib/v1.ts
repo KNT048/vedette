@@ -12,7 +12,7 @@ import { useModules } from './modules'
 import { CREDENTIALED_IN_UI } from './credentialed'
 import { POST_V1_IN_UI } from './postV1'
 
-export const PREVIEW_MODULES: readonly ModuleId[] = ['scan', 'honeypot', 'logs', 'ai', 'reports']
+export const PREVIEW_MODULES: readonly ModuleId[] = ['scan', 'honeypot', 'logs', 'ids', 'ai', 'reports']
 export const POST_V1_MODULES: readonly ModuleId[] = ['response', 'mcp-server', 'auth-oidc', 'scan-credentialed']
 
 /** true: the GUI does not offer this module in this build. scan-credentialed keeps its own switch: it has no

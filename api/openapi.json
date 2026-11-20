@@ -14983,6 +14983,7 @@
                         "scan-credentialed",
                         "honeypot",
                         "logs",
+                        "ids",
                         "agent-intake",
                         "ai",
                         "reports",
@@ -15081,6 +15082,7 @@
                               "scan-credentialed",
                               "honeypot",
                               "logs",
+                              "ids",
                               "agent-intake",
                               "ai",
                               "reports",
@@ -15115,6 +15117,7 @@
                                 "scan-credentialed",
                                 "honeypot",
                                 "logs",
+                                "ids",
                                 "agent-intake",
                                 "ai",
                                 "reports",
@@ -63002,6 +63005,7 @@
                               "scan-credentialed",
                               "honeypot",
                               "logs",
+                              "ids",
                               "agent-intake",
                               "ai",
                               "reports",
@@ -63039,6 +63043,7 @@
                                 "scan-credentialed",
                                 "honeypot",
                                 "logs",
+                                "ids",
                                 "agent-intake",
                                 "ai",
                                 "reports",
@@ -63179,6 +63184,7 @@
                               "scan-credentialed",
                               "honeypot",
                               "logs",
+                              "ids",
                               "agent-intake",
                               "ai",
                               "reports",
@@ -63216,6 +63222,7 @@
                                 "scan-credentialed",
                                 "honeypot",
                                 "logs",
+                                "ids",
                                 "agent-intake",
                                 "ai",
                                 "reports",
@@ -63271,6 +63278,7 @@
                           "scan-credentialed",
                           "honeypot",
                           "logs",
+                          "ids",
                           "agent-intake",
                           "ai",
                           "reports",
@@ -64640,7 +64648,8 @@
                               "trap",
                               "bad_address",
                               "log_anomaly",
-                              "unknown_device"
+                              "unknown_device",
+                              "intrusion"
                             ]
                           },
                           "attempt": {
@@ -64945,7 +64954,8 @@
                             "trap",
                             "bad_address",
                             "log_anomaly",
-                            "unknown_device"
+                            "unknown_device",
+                            "intrusion"
                           ]
                         },
                         "attempt": {
@@ -65306,7 +65316,8 @@
                             "trap",
                             "bad_address",
                             "log_anomaly",
-                            "unknown_device"
+                            "unknown_device",
+                            "intrusion"
                           ]
                         },
                         "attempt": {

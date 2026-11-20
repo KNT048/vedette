@@ -33313,6 +33313,8 @@ func (s *CoreGetCoreSetupModulesOKModulesItemDependsItem) Decode(d *jx.Decoder) 
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemHoneypot
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemLogs:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemLogs
+	case CoreGetCoreSetupModulesOKModulesItemDependsItemIds:
+		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemIds
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake:
 		*s = CoreGetCoreSetupModulesOKModulesItemDependsItemAgentIntake
 	case CoreGetCoreSetupModulesOKModulesItemDependsItemAi:
@@ -33387,6 +33389,8 @@ func (s *CoreGetCoreSetupModulesOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CoreGetCoreSetupModulesOKModulesItemIDHoneypot
 	case CoreGetCoreSetupModulesOKModulesItemIDLogs:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDLogs
+	case CoreGetCoreSetupModulesOKModulesItemIDIds:
+		*s = CoreGetCoreSetupModulesOKModulesItemIDIds
 	case CoreGetCoreSetupModulesOKModulesItemIDAgentIntake:
 		*s = CoreGetCoreSetupModulesOKModulesItemIDAgentIntake
 	case CoreGetCoreSetupModulesOKModulesItemIDAi:
@@ -39216,6 +39220,8 @@ func (s *CoreGetModulesOKModulesItemDependsItem) Decode(d *jx.Decoder) error {
 		*s = CoreGetModulesOKModulesItemDependsItemHoneypot
 	case CoreGetModulesOKModulesItemDependsItemLogs:
 		*s = CoreGetModulesOKModulesItemDependsItemLogs
+	case CoreGetModulesOKModulesItemDependsItemIds:
+		*s = CoreGetModulesOKModulesItemDependsItemIds
 	case CoreGetModulesOKModulesItemDependsItemAgentIntake:
 		*s = CoreGetModulesOKModulesItemDependsItemAgentIntake
 	case CoreGetModulesOKModulesItemDependsItemAi:
@@ -39290,6 +39296,8 @@ func (s *CoreGetModulesOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CoreGetModulesOKModulesItemIDHoneypot
 	case CoreGetModulesOKModulesItemIDLogs:
 		*s = CoreGetModulesOKModulesItemIDLogs
+	case CoreGetModulesOKModulesItemIDIds:
+		*s = CoreGetModulesOKModulesItemIDIds
 	case CoreGetModulesOKModulesItemIDAgentIntake:
 		*s = CoreGetModulesOKModulesItemIDAgentIntake
 	case CoreGetModulesOKModulesItemIDAi:
@@ -46168,6 +46176,8 @@ func (s *CorePatchModulesIDOKAffectedItem) Decode(d *jx.Decoder) error {
 		*s = CorePatchModulesIDOKAffectedItemHoneypot
 	case CorePatchModulesIDOKAffectedItemLogs:
 		*s = CorePatchModulesIDOKAffectedItemLogs
+	case CorePatchModulesIDOKAffectedItemIds:
+		*s = CorePatchModulesIDOKAffectedItemIds
 	case CorePatchModulesIDOKAffectedItemAgentIntake:
 		*s = CorePatchModulesIDOKAffectedItemAgentIntake
 	case CorePatchModulesIDOKAffectedItemAi:
@@ -46427,6 +46437,8 @@ func (s *CorePatchModulesIDOKModulesItemDependsItem) Decode(d *jx.Decoder) error
 		*s = CorePatchModulesIDOKModulesItemDependsItemHoneypot
 	case CorePatchModulesIDOKModulesItemDependsItemLogs:
 		*s = CorePatchModulesIDOKModulesItemDependsItemLogs
+	case CorePatchModulesIDOKModulesItemDependsItemIds:
+		*s = CorePatchModulesIDOKModulesItemDependsItemIds
 	case CorePatchModulesIDOKModulesItemDependsItemAgentIntake:
 		*s = CorePatchModulesIDOKModulesItemDependsItemAgentIntake
 	case CorePatchModulesIDOKModulesItemDependsItemAi:
@@ -46501,6 +46513,8 @@ func (s *CorePatchModulesIDOKModulesItemID) Decode(d *jx.Decoder) error {
 		*s = CorePatchModulesIDOKModulesItemIDHoneypot
 	case CorePatchModulesIDOKModulesItemIDLogs:
 		*s = CorePatchModulesIDOKModulesItemIDLogs
+	case CorePatchModulesIDOKModulesItemIDIds:
+		*s = CorePatchModulesIDOKModulesItemIDIds
 	case CorePatchModulesIDOKModulesItemIDAgentIntake:
 		*s = CorePatchModulesIDOKModulesItemIDAgentIntake
 	case CorePatchModulesIDOKModulesItemIDAi:
@@ -59025,6 +59039,8 @@ func (s *CorePostCoreSetupReqModulesItem) Decode(d *jx.Decoder) error {
 		*s = CorePostCoreSetupReqModulesItemHoneypot
 	case CorePostCoreSetupReqModulesItemLogs:
 		*s = CorePostCoreSetupReqModulesItemLogs
+	case CorePostCoreSetupReqModulesItemIds:
+		*s = CorePostCoreSetupReqModulesItemIds
 	case CorePostCoreSetupReqModulesItemAgentIntake:
 		*s = CorePostCoreSetupReqModulesItemAgentIntake
 	case CorePostCoreSetupReqModulesItemAi:
@@ -275147,6 +275163,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) Decode(d *jx.Decoder) error {
 		*s = NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly
 	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice
+	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion
 	default:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentKind(v)
 	}
@@ -276594,6 +276612,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) Decode(d *jx.Decoder) erro
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly
 	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice
+	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion
 	default:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemKind(v)
 	}
@@ -279386,6 +279406,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) Decode(d *jx.Decoder) error
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly
 	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice
+	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion
 	default:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentKind(v)
 	}

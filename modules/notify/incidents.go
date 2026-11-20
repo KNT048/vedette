@@ -31,7 +31,7 @@ func (in IncidentInput) validate() error {
 	bad := func(why string) error { return fmt.Errorf("%w: %s", ErrInvalidNotice, why) }
 	switch {
 	case !in.Kind.Valid():
-		return bad("kind must be trap, bad_address, log_anomaly or unknown_device")
+		return bad("kind must be trap, bad_address, log_anomaly, unknown_device or intrusion")
 	case !in.Severity.Valid():
 		return bad("unknown severity")
 	case strings.TrimSpace(in.Title) == "" || utf8.RuneCountInString(in.Title) > 200:
@@ -702,4 +702,66 @@ func (s *Service) resendApproverProblem(ctx context.Context, ch channel.Type, ad
 		return "", apierr.New(http.StatusServiceUnavailable, "approver_check_unavailable", "Vedette could not check the approver just now. Try again in a moment.").With("retry_after", 5)
 	}
 	return why, nil
+}
+
+// IncidentRef is the id and handling state of one incident.
+type IncidentRef struct {
+	ID     string
+	Status IncidentStatus
+}
+
+// IncidentOf finds the incident a producer's event counted on: the newest incident of the kind, source and target (OpenIncident's
+// dedupe key) opened at or before at, whatever its status now. The ids module links an alert to its intrusion incident with it.
+// ok is false when there is none.
+func (s *Service) IncidentOf(ctx context.Context, kind IncidentKind, source, target string, at time.Time) (IncidentRef, bool, error) {
+	var r IncidentRef
+	var status string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT id, status FROM notify_incident WHERE dedupe_key = ? AND first_seen <= ? ORDER BY first_seen DESC, id DESC LIMIT 1`,
+		dedupeKey(IncidentInput{Kind: kind, Source: source, Target: target}), store.FormatTS(at)).Scan(&r.ID, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return IncidentRef{}, false, nil
+	}
+	if err != nil {
+		return IncidentRef{}, false, fmt.Errorf("notify: find incident: %w", err)
+	}
+	r.Status = IncidentStatus(status)
+	return r, true, nil
+}
+
+// KindCount is how many incidents of a kind had activity in a window, and how many of them nobody acknowledged or resolved yet.
+type KindCount struct {
+	Kind       IncidentKind
+	Incidents  int
+	New        int
+	LastSeenAt time.Time // the newest activity of the kind in the window; zero when none
+}
+
+// KindCounts counts the incidents of every kind with activity (last_seen) at or after since, in the order of IncidentKinds.
+func (s *Service) KindCounts(ctx context.Context, since time.Time) ([]KindCount, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT kind, count(*), sum(status = 'new'), max(last_seen) FROM notify_incident WHERE last_seen >= ? GROUP BY kind`, store.FormatTS(since))
+	if err != nil {
+		return nil, fmt.Errorf("notify: count incidents by kind: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	got := map[IncidentKind]KindCount{}
+	for rows.Next() {
+		var k string
+		var c KindCount
+		var last string
+		if err := rows.Scan(&k, &c.Incidents, &c.New, &last); err != nil {
+			return nil, fmt.Errorf("notify: count incidents by kind: %w", err)
+		}
+		c.LastSeenAt, _ = time.Parse(time.RFC3339Nano, last)
+		got[IncidentKind(k)] = c
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("notify: count incidents by kind: %w", err)
+	}
+	out := make([]KindCount, 0, len(IncidentKinds))
+	for _, k := range IncidentKinds {
+		c := got[k]
+		c.Kind = k
+		out = append(out, c)
+	}
+	return out, nil
 }

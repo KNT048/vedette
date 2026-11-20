@@ -9232,6 +9232,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "logs":
 		return nil
+	case "ids":
+		return nil
 	case "agent-intake":
 		return nil
 	case "ai":
@@ -9276,6 +9278,8 @@ func (s CoreGetCoreSetupModulesOKModulesItemID) Validate() error {
 	case "honeypot":
 		return nil
 	case "logs":
+		return nil
+	case "ids":
 		return nil
 	case "agent-intake":
 		return nil
@@ -10885,6 +10889,8 @@ func (s CoreGetModulesOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "logs":
 		return nil
+	case "ids":
+		return nil
 	case "agent-intake":
 		return nil
 	case "ai":
@@ -10929,6 +10935,8 @@ func (s CoreGetModulesOKModulesItemID) Validate() error {
 	case "honeypot":
 		return nil
 	case "logs":
+		return nil
+	case "ids":
 		return nil
 	case "agent-intake":
 		return nil
@@ -13100,6 +13108,8 @@ func (s CorePatchModulesIDOKAffectedItem) Validate() error {
 		return nil
 	case "logs":
 		return nil
+	case "ids":
+		return nil
 	case "agent-intake":
 		return nil
 	case "ai":
@@ -13207,6 +13217,8 @@ func (s CorePatchModulesIDOKModulesItemDependsItem) Validate() error {
 		return nil
 	case "logs":
 		return nil
+	case "ids":
+		return nil
 	case "agent-intake":
 		return nil
 	case "ai":
@@ -13251,6 +13263,8 @@ func (s CorePatchModulesIDOKModulesItemID) Validate() error {
 	case "honeypot":
 		return nil
 	case "logs":
+		return nil
+	case "ids":
 		return nil
 	case "agent-intake":
 		return nil
@@ -16034,6 +16048,8 @@ func (s CorePostCoreSetupReqModulesItem) Validate() error {
 	case "honeypot":
 		return nil
 	case "logs":
+		return nil
+	case "ids":
 		return nil
 	case "agent-intake":
 		return nil
@@ -75496,6 +75512,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentKind) Validate() error {
 		return nil
 	case "unknown_device":
 		return nil
+	case "intrusion":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -75876,6 +75894,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) Validate() error {
 	case "log_anomaly":
 		return nil
 	case "unknown_device":
+		return nil
+	case "intrusion":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -76611,6 +76631,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) Validate() error {
 	case "log_anomaly":
 		return nil
 	case "unknown_device":
+		return nil
+	case "intrusion":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

@@ -722,3 +722,17 @@ func TestTheInvariantsCountBrokenRows(t *testing.T) {
 		t.Errorf("invariants not registered: %v", want)
 	}
 }
+
+// An off quickly followed by an on stops nothing: the stops read the switch again, off the goroutine that published the change.
+func TestAModuleTurnedBackOnKeepsItsRuns(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := &gate{}
+	p := b.process(g, newGated().kind("scan", "vuln_check", "nuclei", false))
+	id := create(t, p, spec("scan", "vuln_check", "Vulnerability checks"))
+	p.ModuleChanged("scan", false) // the off, published while the switch already reads on again
+	p.Close()                      // waits for the stops of the module
+	if d := b.get(p, id); d.Status != run.Queued {
+		t.Errorf("run of a module turned off then on = %s %v, want queued", d.Status, d.StopReason)
+	}
+}

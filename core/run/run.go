@@ -70,6 +70,9 @@ type Kind struct {
 	// Resumable says a stopped run with work left can go on from its steps: after a restart it is queued again, and a person
 	// can resume it. Its Run must then skip the steps that are done (Exec.Steps).
 	Resumable bool
+	// AdminResume makes Resume an administrator's, for a kind whose start is one (a LAN sweep only an admin may start);
+	// otherwise an operator may resume it.
+	AdminResume bool
 	// Run does the work. It ends when ctx ends (a stop, or the box stopping) and returns how the run ended. An error makes
 	// the run failed with the error's text, so the text must be fit for the person who reads the run page.
 	Run func(ctx context.Context, x *Exec) (Result, error)
@@ -133,6 +136,7 @@ type Manager struct {
 	kick    chan struct{}
 	loop    sync.WaitGroup  // the dispatcher
 	runs    sync.WaitGroup  // the executing runs
+	bg      sync.WaitGroup  // the stops of a module turned off
 	ended   func(id string) // test hook: called after a run's end is recorded
 }
 
@@ -214,6 +218,7 @@ func (m *Manager) Close() {
 	m.closed = true
 	started := m.started
 	m.mu.Unlock()
+	m.bg.Wait() // no Add after closed is set: ModuleChanged checks it under mu
 	if !started {
 		return
 	}

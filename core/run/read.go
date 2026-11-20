@@ -214,6 +214,12 @@ func (m *Manager) getTx(ctx context.Context, q querier, id string) (Run, error) 
 	return r, nil
 }
 
+// AdminResume says the run's kind lets only an administrator resume it (Kind.AdminResume); an unknown kind says false.
+func (m *Manager) AdminResume(r Run) bool {
+	k, ok := m.kind(r.Module, r.Kind)
+	return ok && k.AdminResume
+}
+
 // Read returns a run without its steps, items, log and children.
 func (m *Manager) Read(ctx context.Context, id string) (Run, error) {
 	return m.getTx(ctx, m.cfg.DB.Reader(), id)

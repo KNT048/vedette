@@ -6,17 +6,25 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/knt048/vedette/core/store"
 )
 
+// retryEvery is how often the dispatcher looks at the queue without being kicked.
+const retryEvery = time.Minute
+
 // dispatchLoop starts queued runs whenever it is kicked, until Close.
 func (m *Manager) dispatchLoop() {
 	defer m.loop.Done()
+	tick := time.NewTicker(retryEvery) // a dispatch that failed (a busy or failed write) is tried again without waiting for a kick
+	defer tick.Stop()
 	for {
 		select {
 		case <-m.base.Done():
 			return
+		case <-tick.C:
+			m.Kick()
 		case <-m.kick:
 			if err := m.dispatch(m.base); err != nil && m.base.Err() == nil {
 				m.cfg.Log.Error("runs: could not start the queued runs", "error", err)
@@ -137,9 +145,13 @@ func (m *Manager) launch(s starting) {
 		}
 		x := &Exec{m: m, id: s.id, Resumed: s.resumed}
 		res, err := m.execute(ctx, s.kind, x)
-		m.mu.Lock()
-		delete(m.live, s.id)
-		m.mu.Unlock()
+		// The executor leaves the live map only once its end is recorded: a stop in between finds it (and its stopping row is
+		// then ended by finish) instead of recording a stop over work that finished.
+		defer func() {
+			m.mu.Lock()
+			delete(m.live, s.id)
+			m.mu.Unlock()
+		}()
 		if errors.Is(context.Cause(ctx), errShutdown) {
 			return // left running on purpose: Recover records it at the next start
 		}

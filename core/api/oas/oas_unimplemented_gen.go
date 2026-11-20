@@ -3686,8 +3686,9 @@ func (UnimplementedHandler) ScanningPatchScanningEnginesID(ctx context.Context, 
 // ScanningPostRunsIDResume implements scanning_post_runs_id_resume operation.
 //
 // Resume a run that waits, or one that was stopped with work left when its engine can go on from its
-// steps (can_resume): it is queued again and continues from the first step that is not done. Audited
-// (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable.
+// steps (can_resume): it is queued again and continues from the first step that is not done. A run
+// whose start needs an administrator (a LAN sweep) needs one to resume (403 forbidden otherwise).
+// Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable.
 //
 // POST /runs/{id}/resume
 func (UnimplementedHandler) ScanningPostRunsIDResume(ctx context.Context, params ScanningPostRunsIDResumeParams) (r *ScanningPostRunsIDResumeOK, _ error) {

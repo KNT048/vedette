@@ -91057,7 +91057,7 @@
                           },
                           "title": {
                             "type": "string",
-                            "description": "What it does, e.g. \"LAN sweep of 192.168.18.0/24, 100.65.0.0/16\""
+                            "description": "What it does, e.g. \"LAN sweep of 192.0.2.0/24, 10.20.0.0/16\""
                           },
                           "trigger": {
                             "type": "string",
@@ -91323,7 +91323,7 @@
                     },
                     "title": {
                       "type": "string",
-                      "description": "What it does, e.g. \"LAN sweep of 192.168.18.0/24, 100.65.0.0/16\""
+                      "description": "What it does, e.g. \"LAN sweep of 192.0.2.0/24, 10.20.0.0/16\""
                     },
                     "trigger": {
                       "type": "string",
@@ -91493,7 +91493,7 @@
                           },
                           "name": {
                             "type": "string",
-                            "description": "A phase or a range: \"192.168.18.0/24\", \"identify services\", \"ZAP passive scan\""
+                            "description": "A phase or a range: \"192.0.2.0/24\", \"identify services\", \"ZAP passive scan\""
                           },
                           "status": {
                             "type": "string",
@@ -91675,7 +91675,7 @@
                           },
                           "title": {
                             "type": "string",
-                            "description": "What it does, e.g. \"LAN sweep of 192.168.18.0/24, 100.65.0.0/16\""
+                            "description": "What it does, e.g. \"LAN sweep of 192.0.2.0/24, 10.20.0.0/16\""
                           },
                           "trigger": {
                             "type": "string",
@@ -91915,7 +91915,7 @@
     "/runs/{id}/resume": {
       "post": {
         "operationId": "scanning_post_runs_id_resume",
-        "summary": "Resume a run that waits, or one that was stopped with work left when its engine can go on from its steps (can_resume): it is queued again and continues from the first step that is not done. Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable",
+        "summary": "Resume a run that waits, or one that was stopped with work left when its engine can go on from its steps (can_resume): it is queued again and continues from the first step that is not done. A run whose start needs an administrator (a LAN sweep) needs one to resume (403 forbidden otherwise). Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable",
         "tags": [
           "scanning"
         ],
@@ -91961,7 +91961,7 @@
                     },
                     "title": {
                       "type": "string",
-                      "description": "What it does, e.g. \"LAN sweep of 192.168.18.0/24, 100.65.0.0/16\""
+                      "description": "What it does, e.g. \"LAN sweep of 192.0.2.0/24, 10.20.0.0/16\""
                     },
                     "trigger": {
                       "type": "string",
@@ -92212,7 +92212,7 @@
                     },
                     "title": {
                       "type": "string",
-                      "description": "What it does, e.g. \"LAN sweep of 192.168.18.0/24, 100.65.0.0/16\""
+                      "description": "What it does, e.g. \"LAN sweep of 192.0.2.0/24, 10.20.0.0/16\""
                     },
                     "trigger": {
                       "type": "string",

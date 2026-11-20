@@ -20735,7 +20735,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = ScanningPostRunsIDResumeOperation
-										r.summary = "Resume a run that waits, or one that was stopped with work left when its engine can go on from its steps (can_resume): it is queued again and continues from the first step that is not done. Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable"
+										r.summary = "Resume a run that waits, or one that was stopped with work left when its engine can go on from its steps (can_resume): it is queued again and continues from the first step that is not done. A run whose start needs an administrator (a LAN sweep) needs one to resume (403 forbidden otherwise). Audited (scanning.run_resume). Answers the run as it is now. 404 not_found; 409 not_resumable"
 										r.operationID = "scanning_post_runs_id_resume"
 										r.operationGroup = ""
 										r.pathPattern = "/runs/{id}/resume"

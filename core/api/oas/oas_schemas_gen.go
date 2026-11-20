@@ -241125,7 +241125,7 @@ type ScanningGetRunsIDOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKSubject `json:"subject"`
-	// What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16".
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
 	Total int `json:"total"`
@@ -241454,7 +241454,7 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKChildrenItemSubject `json:"subject"`
-	// What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16".
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
 	Total int `json:"total"`
@@ -242120,7 +242120,7 @@ func (s *ScanningGetRunsIDOKStatus) UnmarshalText(data []byte) error {
 type ScanningGetRunsIDOKStepsItem struct {
 	Done    int         `json:"done"`
 	EndedAt NilDateTime `json:"ended_at"`
-	// A phase or a range: "192.168.18.0/24", "identify services", "ZAP passive scan".
+	// A phase or a range: "192.0.2.0/24", "identify services", "ZAP passive scan".
 	Name      string      `json:"name"`
 	Note      NilString   `json:"note"`
 	Seq       int         `json:"seq"`
@@ -242451,7 +242451,7 @@ type ScanningGetRunsOKItemsItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsOKItemsItemSubject `json:"subject"`
-	// What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16".
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
 	Total int `json:"total"`
@@ -247216,7 +247216,7 @@ type ScanningPostRunsIDResumeOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDResumeOKSubject `json:"subject"`
-	// What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16".
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
 	Total int `json:"total"`
@@ -247671,7 +247671,7 @@ type ScanningPostRunsIDStopOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDStopOKSubject `json:"subject"`
-	// What it does, e.g. "LAN sweep of 192.168.18.0/24, 100.65.0.0/16".
+	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
 	Total int `json:"total"`

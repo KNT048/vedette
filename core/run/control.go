@@ -88,8 +88,8 @@ func (m *Manager) stopTx(ctx context.Context, tx *sql.Tx, id, reason, now string
 	return false, logTx(ctx, tx, id, now, Warn, "Stopped: "+reason)
 }
 
-// Resume queues again a run that is waiting, or that was stopped or failed with work left when its kind can go on from its
-// steps (CanResume). A person's resume is audited (scanning.run_resume). ErrNotFound or ErrNotResumable.
+// Resume queues again a run that is waiting, or that was stopped with work left when its kind can go on from its steps
+// (CanResume). A person's resume is audited (scanning.run_resume). ErrNotFound or ErrNotResumable.
 func (m *Manager) Resume(ctx context.Context, id, by string) error {
 	err := m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		r, err := m.getTx(ctx, tx, id)
@@ -142,17 +142,17 @@ func (m *Manager) Recover(ctx context.Context) error {
 	err := m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		resumed = 0
 		type left struct {
-			id, module, kind string
-			st               Status
+			id, module, kind, reason string
+			st                       Status
 		}
 		var ls []left
-		rows, err := tx.QueryContext(ctx, `SELECT id, module, kind, status FROM core_run WHERE status IN (?, ?) ORDER BY queued_at, rowid`, string(Running), string(Stopping))
+		rows, err := tx.QueryContext(ctx, `SELECT id, module, kind, status, COALESCE(stop_reason, '') FROM core_run WHERE status IN (?, ?) ORDER BY queued_at, rowid`, string(Running), string(Stopping))
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
 			var l left
-			if err := rows.Scan(&l.id, &l.module, &l.kind, &l.st); err != nil {
+			if err := rows.Scan(&l.id, &l.module, &l.kind, &l.st, &l.reason); err != nil {
 				_ = rows.Close()
 				return err
 			}
@@ -175,7 +175,11 @@ func (m *Manager) Recover(ctx context.Context) error {
 			if err := settleSteps(ctx, tx, l.id, Stopped, now); err != nil {
 				return err
 			}
-			if err := logTx(ctx, tx, l.id, now, Warn, "Stopped: "+RestartReason); err != nil {
+			logReason := RestartReason
+			if l.st == Stopping && l.reason != "" {
+				logReason = l.reason
+			}
+			if err := logTx(ctx, tx, l.id, now, Warn, "Stopped: "+logReason); err != nil {
 				return err
 			}
 			if l.st != Running {
@@ -208,17 +212,39 @@ func (m *Manager) Recover(ctx context.Context) error {
 }
 
 // ModuleChanged is the modreg.OnChange subscriber: turning a module off stops its runs that have not ended (reason
-// ModuleOffReason); turning one on starts its queued runs.
+// ModuleOffReason); turning one on starts its queued runs. It never blocks the goroutine that publishes the change: the stops
+// run on their own goroutine, which reads the switch again (Gate) before each one, so an off quickly followed by an on stops
+// nothing of a module that is on.
 func (m *Manager) ModuleChanged(id string, enabled bool) {
 	if enabled {
 		m.Kick()
 		return
 	}
-	ctx := context.Background()
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return
+	}
+	m.bg.Add(1)
+	m.mu.Unlock()
+	go func() {
+		defer m.bg.Done()
+		m.stopModule(context.Background(), id)
+	}()
+}
+
+// moduleOn reads a module's switch now.
+func (m *Manager) moduleOn(id string) bool { return m.cfg.Gate != nil && m.cfg.Gate.Enabled(id) }
+
+// stopModule stops the runs of a module that is off, as long as it stays off.
+func (m *Manager) stopModule(ctx context.Context, id string) {
+	if m.moduleOn(id) {
+		return
+	}
 	rows, err := m.cfg.DB.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND status IN (?, ?, ?, ?)`,
 		id, string(Queued), string(Waiting), string(Running), string(Stopping))
 	if err != nil {
-		m.cfg.Log.Error("runs: could not read the runs of a module turned off", "module", id, "error", err)
+		m.cfg.Log.ErrorContext(ctx, "runs: could not read the runs of a module turned off", "module", id, "error", err)
 		return
 	}
 	var ids []string
@@ -230,8 +256,11 @@ func (m *Manager) ModuleChanged(id string, enabled bool) {
 	}
 	_ = rows.Close()
 	for _, rid := range ids {
+		if m.moduleOn(id) {
+			return // turned on again meanwhile: its runs go on
+		}
 		if err := m.Stop(ctx, rid, System, ModuleOffReason); err != nil && !errors.Is(err, ErrEnded) {
-			m.cfg.Log.Error("runs: could not stop a run of a module turned off", "run", rid, "error", err)
+			m.cfg.Log.ErrorContext(ctx, "runs: could not stop a run of a module turned off", "run", rid, "error", err)
 		}
 	}
 }

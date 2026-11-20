@@ -35,7 +35,7 @@ func newRunsStack(t *testing.T) (*stack, *run.Manager) {
 	}
 	noop := func(context.Context, *run.Exec) (run.Result, error) { return run.Result{}, nil }
 	for _, k := range []run.Kind{
-		{Module: "sensor-active", Name: "lan_sweep", Lane: "nmap", Resumable: true, Run: noop},
+		{Module: "sensor-active", Name: "lan_sweep", Lane: "nmap", Resumable: true, AdminResume: true, Run: noop},
 		{Module: "sensor-active", Name: "device_check", Lane: "checks", Run: noop},
 	} {
 		if err := m.Register(k); err != nil {
@@ -50,7 +50,8 @@ func newRunsStack(t *testing.T) (*stack, *run.Manager) {
 	return s, m
 }
 
-// The Runs tab and the run page answer with every engine's module off (core serves them); Stop and Resume are an operator's,
+// The Runs tab and the run page answer with every engine's module off (core serves them); Stop and Resume are an operator's (Resume
+// an administrator's for a kind whose start is),
 // audited, and answer the run page; an ended run cannot be stopped and a run with no work left cannot be resumed.
 func TestRuns_ListPageStopAndResume(t *testing.T) {
 	t.Parallel()
@@ -95,7 +96,10 @@ func TestRuns_ListPageStopAndResume(t *testing.T) {
 	if code, body := s.call("POST", "/runs/"+sweep+"/stop", "operator", ""); code != http.StatusConflict || body["error"].(map[string]any)["code"] != "not_running" {
 		t.Fatalf("second stop = %d %v", code, body)
 	}
-	if code, page = s.call("POST", "/runs/"+sweep+"/resume", "operator", ""); code != http.StatusOK || page["status"] != "queued" {
+	if code, _ := s.call("POST", "/runs/"+sweep+"/resume", "operator", ""); code != http.StatusForbidden {
+		t.Fatalf("an operator's resume of a sweep only an admin starts = %d, want 403", code)
+	}
+	if code, page = s.call("POST", "/runs/"+sweep+"/resume", "admin", ""); code != http.StatusOK || page["status"] != "queued" {
 		t.Fatalf("resume = %d %v", code, page)
 	}
 	// A device check cannot go on from where it stopped.

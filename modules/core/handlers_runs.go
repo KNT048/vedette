@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/server"
@@ -62,11 +63,19 @@ func (h *RunHandlers) ScanningPostRunsIDStop(ctx context.Context, params oas.Sca
 	return encode[oas.ScanningPostRunsIDStopOK](r)
 }
 
-// ScanningPostRunsIDResume implements POST /runs/{id}/resume (operator): audited scanning.run_resume by core/run.
+// ScanningPostRunsIDResume implements POST /runs/{id}/resume (operator; admin for a kind with AdminResume): audited
+// scanning.run_resume by core/run.
 func (h *RunHandlers) ScanningPostRunsIDResume(ctx context.Context, params oas.ScanningPostRunsIDResumeParams) (*oas.ScanningPostRunsIDResumeOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
+	}
+	cur, err := h.runs.Read(ctx, params.ID)
+	if err != nil {
+		return nil, runErr(err)
+	}
+	if h.runs.AdminResume(cur) && p.Role != routes.Admin { // its kind's start is an administrator's, so is going on with it
+		return nil, apierr.Forbidden()
 	}
 	if err := h.runs.Resume(ctx, params.ID, p.Email); err != nil {
 		return nil, runErr(err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -150,7 +151,11 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		if !r.Published.IsZero() {
 			published = store.FormatTS(r.Published)
 		}
-		if _, err := st.update.ExecContext(ctx, ts, r.Title, string(cwe), r.Solution, r.Workaround, nullWord(r.SSVC.Exploitation),
+		readAt := ts
+		if !r.asOf.IsZero() && r.asOf.Before(now) {
+			readAt = store.FormatTS(r.asOf)
+		}
+		if _, err := st.update.ExecContext(ctx, readAt, r.Title, string(cwe), r.Solution, r.Workaround, nullWord(r.SSVC.Exploitation),
 			nullWord(r.SSVC.Automatable), nullWord(r.SSVC.Impact), r.Description, published, r.CVE); err != nil {
 			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
@@ -373,6 +378,68 @@ func (s *Store) recordUnread(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("feeds: CVE records unread: %w", err)
 	}
 	return n, nil
+}
+
+// recordWaiting is the record_at of a CVE whose record changed in a day's last hour that no archive of changes held, and that is never
+// asked for by ID (only this box keeps it): the stored record is older than the source's; the next read of the whole list replaces it.
+// A real read time is never this one.
+const recordWaiting = "1970-01-01T00:00:00.000Z"
+
+// markRecordsWaiting marks these CVEs' records waiting (recordWaiting), unless the feed was edited or turned off meanwhile.
+func (s *Service) markRecordsWaiting(ctx context.Context, run *recordRun, cves []string) error {
+	part, err := json.Marshal(cves)
+	if err != nil {
+		return err
+	}
+	return s.DB.Write(ctx, func(tx *sql.Tx) error {
+		row, err := sourceTx(ctx, tx, run.src.ID)
+		if err != nil || row.Rev != run.src.Rev || !row.Enabled {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET record_at = ? WHERE cve IN (SELECT value FROM json_each(?))`, recordWaiting, string(part)); err != nil {
+			return fmt.Errorf("feeds: CVE records waiting: %w", err)
+		}
+		return nil
+	})
+}
+
+// recordWaitingCount is how many records wait for the next read of the whole list.
+func (s *Store) recordWaitingCount(ctx context.Context) (int, error) {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_cve WHERE record_at = ?`, recordWaiting).Scan(&n); err != nil {
+		return 0, fmt.Errorf("feeds: CVE records waiting: %w", err)
+	}
+	return n, nil
+}
+
+// recordReadAt is when the record of each of these CVEs was last read (absent: never; a waiting record reads as never).
+func (s *Store) recordReadAt(ctx context.Context, cves []string) (map[string]time.Time, error) {
+	out := map[string]time.Time{}
+	for chunk := range slices.Chunk(cves, 500) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, err
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, record_at FROM feeds_cve WHERE record_at IS NOT NULL AND record_at <> ? AND cve IN (SELECT value FROM json_each(?))`,
+			recordWaiting, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: CVE records read: %w", err)
+		}
+		for rows.Next() {
+			var cve, at string
+			if err := rows.Scan(&cve, &at); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: CVE records read: %w", err)
+			}
+			if t, err := parseTS(at); err == nil {
+				out[cve] = t
+			}
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: CVE records read: %w", err)
+		}
+	}
+	return out, nil
 }
 
 // recordCount is how many catalogue CVEs have their record read.

@@ -46,7 +46,7 @@ func TestCVERecordURL(t *testing.T) {
 	src, err := recordSourceOf(recordsRepo)
 	if err != nil || src.records != "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves" || !slices.Equal(src.redirect, recordHosts) ||
 		src.archiveURL(time.Date(2026, 11, 20, 13, 0, 0, 0, time.UTC), true) != recordsRepo+"/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip" ||
-		src.archiveURL(time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC), false) != recordsRepo+"/releases/download/cve_2026-11-19_2300Z/2026-11-19_delta_CVEs_at_2300Z.zip" {
+		src.archiveURL(time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC), false) != recordsRepo+"/releases/download/cve_2026-11-19_at_end_of_day/2026-11-19_delta_CVEs_at_end_of_day.zip" {
 		t.Fatalf("GitHub: %+v %v", src, err)
 	}
 	if m, err := recordSourceOf("https://mirror.example.com/cvelist/"); err != nil || m.records != "https://mirror.example.com/cvelist/cves" || m.redirect != nil {
@@ -663,7 +663,7 @@ func TestCVERecords_WholeListThenChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	cur, err := e.svc.st.nvdCursor(t.Context(), selectorRecord)
-	if err != nil || cur == nil || cur.Mode != modeFill || cur.NextIndex != len(archive)/2 {
+	if err != nil || cur == nil || cur.Mode != modeFill || cur.NextIndex != len(archive)/2 || cur.Total != len(archive) { // the size is known from the first answer
 		t.Fatalf("after a cut download: %+v %v", cur, err)
 	}
 	if owed, _ := e.svc.st.recordsOwed(t.Context(), o.url("/repo")); !owed {
@@ -692,17 +692,18 @@ func TestCVERecords_WholeListThenChanges(t *testing.T) {
 	// the changes: 7000 changed yesterday (in the day's archive), 88000 changed in yesterday's last hour (not in it: by ID), 3400 today
 	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T09:00:00.000Z","new":[],"updated":[{"cveId":"CVE-2026-7000","dateUpdated":"2026-11-20T08:59:00.000Z"},{"cveId":"CVE-2019-7000","dateUpdated":"2026-11-20T08:59:00.000Z"}]},` +
 		`{"fetchTime":"2026-11-20T23:40:00.000Z","new":[],"updated":[{"cveId":"CVE-2026-88000","dateUpdated":"2026-11-20T23:39:00.000Z"}]},` +
-		`{"fetchTime":"2026-11-21T08:00:00.000Z","new":[],"updated":[{"cveId":"CVE-2024-3400","dateUpdated":"2026-11-21T07:59:00.000Z"}]}]`
+		`{"fetchTime":"2026-11-21T11:00:00.000Z","new":[],"updated":[{"cveId":"CVE-2024-3400","dateUpdated":"2026-11-21T10:59:00.000Z"}]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
 	changed := recordJSON("CVE-2026-7000", "2026-10-01", `{"vendor":"Acme","product":"Box","versions":[{"version":"1.0","lessThan":"1.3","status":"affected"}]}`)
 	changed = bytes.Replace(changed, []byte(`"dateUpdated":"2026-10-01T12:00:00.000Z"`), []byte(`"dateUpdated":"2026-11-20T08:59:00.000Z"`), 1)
-	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_delta_CVEs_at_2300Z.zip", func(w http.ResponseWriter, _ *http.Request) {
+	o.serve("/repo/releases/download/cve_2026-11-20_at_end_of_day/2026-11-20_delta_CVEs_at_end_of_day.zip", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(zipOf(t, map[string][]byte{"deltaCves/CVE-2026-7000.json": changed}))
 	})
 	o.serve("/repo/cves/2026/88xxx/CVE-2026-88000.json", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(files["cves/2026/88xxx/CVE-2026-88000.json"])
 	})
 	before := o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json")
+	e.setNow(time.Date(2026, 11, 21, 11, 30, 0, 0, time.UTC)) // 3400 was read by ID at 10:00, before its change logged at 11:00
 	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -714,7 +715,7 @@ func TestCVERecords_WholeListThenChanges(t *testing.T) {
 		t.Fatal("leftovers not asked for by ID")
 	}
 	cur, _ = e.svc.st.nvdCursor(t.Context(), selectorRecord)
-	if !cur.Until.Equal(time.Date(2026, 11, 21, 8, 0, 0, 0, time.UTC)) || !cur.To.Equal(e.clock()) {
+	if !cur.Until.Equal(time.Date(2026, 11, 21, 11, 0, 0, 0, time.UTC)) || !cur.To.Equal(e.clock()) {
 		t.Fatalf("cursor after the changes: %+v", cur)
 	}
 	// within recordDeltaEvery the change log is not read again
@@ -840,10 +841,13 @@ func changesEnv(t *testing.T) (*env, *origin) {
 	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
 	e.svc.Pins = func(context.Context) ([]string, error) { return []string{"CVE-2019-7001", "CVE-2019-7002"}, nil }
 	write(t, e.db, func(tx *sql.Tx) error {
-		if err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2026-7000", Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"},
-			{CVE: "CVE-2019-7001", Published: time.Date(2019, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Analyzed"},
-			{CVE: "CVE-2019-7002", Published: time.Date(2019, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Analyzed"}}, e.clock()); err != nil {
+		if err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2026-7000", Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"}}, e.clock()); err != nil {
 			return err
+		}
+		for _, cve := range []string{"CVE-2019-7001", "CVE-2019-7002"} { // old CVEs only a finding keeps
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, nvd_status, updated_at) VALUES (?, '2019-10-01T00:00:00.000Z', 'Analyzed', '2026-11-01T00:00:00.000Z')`, cve); err != nil {
+				return err
+			}
 		}
 		midnight := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
 		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: midnight, Until: midnight})
@@ -860,7 +864,7 @@ func TestCVERecords_ChangesNeverAskForAPinOnlyCVE(t *testing.T) {
 		`{"fetchTime":"2026-11-20T23:40:00.000Z","new":[],"updated":[{"cveId":"CVE-2026-7000","dateUpdated":"2026-11-20T23:39:00.000Z"},{"cveId":"CVE-2019-7001","dateUpdated":"2026-11-20T23:39:00.000Z"}]},` +
 		`{"fetchTime":"2026-11-21T08:00:00.000Z","new":[],"updated":[{"cveId":"CVE-2019-7002","dateUpdated":"2026-11-21T07:59:00.000Z"}]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
-	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_delta_CVEs_at_2300Z.zip", func(w http.ResponseWriter, _ *http.Request) {
+	o.serve("/repo/releases/download/cve_2026-11-20_at_end_of_day/2026-11-20_delta_CVEs_at_end_of_day.zip", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(zipOf(t, map[string][]byte{}))
 	})
 	o.serve("/repo/cves/2026/7xxx/CVE-2026-7000.json", func(w http.ResponseWriter, _ *http.Request) {
@@ -881,8 +885,31 @@ func TestCVERecords_ChangesNeverAskForAPinOnlyCVE(t *testing.T) {
 	if !cur.Until.Equal(time.Date(2026, 11, 20, 23, 40, 0, 0, time.UTC)) { // past yesterday's, before today's pin-only change
 		t.Fatalf("cursor %+v", cur)
 	}
-	if f := e.feed(cveOrgFeedID); !strings.Contains(deref(f.Error), "1 changed records of CVEs no public list names come with the next read of the whole list") {
+	if f := e.feed(cveOrgFeedID); !strings.Contains(deref(f.Error), "1 changed records of CVEs no public list names wait for the next read of the whole list (at most once a week)") {
 		t.Fatalf("note %q", deref(f.Error))
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE cve = 'CVE-2019-7001' AND record_at = ?`, recordWaiting); n != 1 {
+		var at sql.NullString
+		_ = e.db.Reader().QueryRowContext(t.Context(), `SELECT record_at FROM feeds_cve WHERE cve = 'CVE-2019-7001'`).Scan(&at)
+		t.Fatalf("the pin-only record is not marked waiting: %v", at)
+	}
+	// a waiting record brings the whole list within a week of the last one, never a request by ID
+	e.setNow(time.Date(2026, 11, 27, 10, 0, 0, 0, time.UTC))
+	o.serve("/repo/releases/download/cve_2026-11-26_2300Z/2026-11-26_all_CVEs_at_midnight.zip.zip", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{
+			"cves/2019/7xxx/CVE-2019-7001.json": recordJSON("CVE-2019-7001", "2019-10-01", `{"vendor":"Acme","product":"Old","defaultStatus":"affected"}`)})))
+	})
+	recordsCurrent(t, e, o) // the changes are read up to now; the last whole list is a week old
+	write(t, e.db, func(tx *sql.Tx) error {
+		c, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord)
+		c.From = time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+		return saveNVDCursor(t.Context(), tx, selectorRecord, *c)
+	})
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE record_at = ?`, recordWaiting); n != 0 {
+		t.Fatalf("%d records still waiting after the whole list", n)
 	}
 }
 
@@ -891,6 +918,7 @@ func TestCVERecords_ChangesNeverAskForAPinOnlyCVE(t *testing.T) {
 func TestCVERecords_ChangesGoneLoadTheWholeList(t *testing.T) {
 	t.Parallel()
 	e, o := changesEnv(t)
+	e.setNow(time.Date(2026, 11, 22, 10, 0, 0, 0, time.UTC)) // 2026-11-20 is no longer yesterday: its archive is gone, not late
 	var updated []string
 	write(t, e.db, func(tx *sql.Tx) error {
 		var recs []NVDRecord
@@ -903,7 +931,7 @@ func TestCVERecords_ChangesGoneLoadTheWholeList(t *testing.T) {
 	})
 	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T10:00:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
-	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_delta_CVEs_at_2300Z.zip", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	o.serve("/repo/releases/download/cve_2026-11-20_at_end_of_day/2026-11-20_delta_CVEs_at_end_of_day.zip", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
 	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -959,5 +987,154 @@ func TestCVERecords_DiskSpaceAndTurnedOff(t *testing.T) {
 	}
 	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("work folder left: %v", err)
+	}
+}
+
+// More leftovers in one logged hour than one pull asks: each pull asks the next ones (a record read after its change counts, from any
+// pull), none twice, and the cursor passes the hour once all are read.
+func TestCVERecords_ManyLeftoversInOneHour(t *testing.T) {
+	t.Parallel()
+	e, o := changesEnv(t)
+	var updated []string
+	write(t, e.db, func(tx *sql.Tx) error {
+		var recs []NVDRecord
+		for i := range 450 {
+			cve := fmt.Sprintf("CVE-2026-8%04d", i)
+			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
+			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T23:39:00.000Z"}`, cve))
+		}
+		return storeRecords(t.Context(), tx, recs, e.clock())
+	})
+	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T23:40:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
+	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
+	o.serve("/repo/releases/download/cve_2026-11-20_at_end_of_day/2026-11-20_delta_CVEs_at_end_of_day.zip", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(zipOf(t, map[string][]byte{}))
+	})
+	for i := range 450 {
+		cve := fmt.Sprintf("CVE-2026-8%04d", i)
+		o.serve(fmt.Sprintf("/repo/cves/2026/%dxxx/%s.json", (80000+i)/1000, cve), func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write(recordJSON(cve, "2026-10-01", `{"vendor":"Acme","product":"Box","defaultStatus":"affected"}`))
+		})
+	}
+	asked := func() (n, most int) {
+		for i := range 450 {
+			c := o.count(fmt.Sprintf("/repo/cves/2026/%dxxx/CVE-2026-8%04d.json", (80000+i)/1000, i))
+			if c > 0 {
+				n++
+			}
+			most = max(most, c)
+		}
+		return n, most
+	}
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n, most := asked(); n != recordLeftPerPull || most != 1 {
+		t.Fatalf("first pull asked %d (most %d times)", n, most)
+	}
+	if cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord); !cur.Until.Equal(time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("the cursor passed a partly read hour: %+v", cur)
+	}
+	e.setNow(e.clock().Add(recordDeltaEvery))
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n, most := asked(); n != 450 || most != 1 {
+		t.Fatalf("after the second pull asked %d (most %d times)", n, most)
+	}
+	if cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord); !cur.Until.Equal(time.Date(2026, 11, 20, 23, 40, 0, 0, time.UTC)) {
+		t.Fatalf("cursor %+v", cur)
+	}
+}
+
+// Yesterday's end-of-day archive is published about 00:40: before it, yesterday's changes wait like today's (no reload, and many are
+// not asked for one by one).
+func TestCVERecords_YesterdaysArchiveNotYetPublished(t *testing.T) {
+	t.Parallel()
+	e, o := changesEnv(t)
+	e.setNow(time.Date(2026, 11, 21, 0, 20, 0, 0, time.UTC))
+	var updated []string
+	write(t, e.db, func(tx *sql.Tx) error {
+		var recs []NVDRecord
+		for i := range recordLeftPerPull + 1 {
+			cve := fmt.Sprintf("CVE-2026-8%04d", i)
+			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
+			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T10:00:00.000Z"}`, cve))
+		}
+		return storeRecords(t.Context(), tx, recs, e.clock())
+	})
+	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T10:00:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
+	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
+	o.serve("/repo/releases/download/cve_2026-11-20_at_end_of_day/2026-11-20_delta_CVEs_at_end_of_day.zip", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord)
+	if cur.Mode != modeDone || !cur.Until.Equal(time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("cursor %+v", cur)
+	}
+	for _, h := range o.all() {
+		if strings.Contains(h.path, "CVE-2026-8") || strings.Contains(h.path, "_all_CVEs") {
+			t.Fatalf("asked %s", h.path)
+		}
+	}
+}
+
+// A read of the whole list never rolls back a record read after the archive's midnight; a partial download that met a disk error is
+// removed.
+func TestCVERecords_RereadKeepsNewerAndDiskErrorRemovesPart(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, true)
+	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	newer := recordJSON("CVE-2026-7000", "2026-10-01", `{"vendor":"Acme","product":"Box","versions":[{"version":"1.0","lessThan":"1.3","status":"affected"}]}`)
+	older := recordJSON("CVE-2026-7000", "2026-10-01", `{"vendor":"Acme","product":"Box","versions":[{"version":"1.0","lessThan":"1.2","status":"affected"}]}`)
+	write(t, e.db, func(tx *sql.Tx) error {
+		r, err := ParseCVERecord(newer, "CVE-2026-7000")
+		if err != nil {
+			return err
+		}
+		k, err := recordKeepOf(t.Context(), tx, e.clock(), nil)
+		if err != nil {
+			return err
+		}
+		_, err = writeRecords(t.Context(), tx, []CVERecord{r}, k, time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)) // read the day after the midnight below
+		return err
+	})
+	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{"cves/2026/7xxx/CVE-2026-7000.json": older})))
+	})
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	var end string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT end_excl FROM feeds_cve_range WHERE cve = 'CVE-2026-7000'`).Scan(&end); err != nil || end != "1.3" {
+		t.Fatalf("rolled back: %q %v", end, err)
+	}
+
+	e2, o2, _ := recordEnv(t, true)
+	e2.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	dir := e2.svc.recordWorkDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	part := filepath.Join(dir, "2026-11-20_all.zip")
+	if err := os.WriteFile(part, []byte("partial"), 0o400); err != nil { // the box cannot write it any more
+		t.Fatal(err)
+	}
+	write(t, e2.db, func(tx *sql.Tx) error {
+		day := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o2.url("/repo"), Mode: modeFill, From: day, To: day, Until: day, NextIndex: 7, Total: 1000})
+	})
+	if err := e2.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e2.feed(cveOrgFeedID); f.Status != "error" || !strings.Contains(deref(f.Error), "disk") {
+		t.Fatalf("feed %+v %q", f, deref(f.Error))
+	}
+	if _, err := os.Stat(part); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the partial file stayed: %v", err)
+	}
+	if cur, _ := e2.svc.st.nvdCursor(t.Context(), selectorRecord); cur.NextIndex != 0 || cur.Total != 0 {
+		t.Fatalf("cursor %+v", cur)
 	}
 }

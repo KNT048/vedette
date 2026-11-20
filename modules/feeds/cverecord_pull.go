@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,13 +21,13 @@ import (
 )
 
 // The pull of CVE records (feed cve-org, "CVE records"). Transport, measured 2026-11-20 from a 100 Mbit/s line:
-//   - the whole list once: the CVE Program's daily archive (669 MB, downloaded in 61 s; 429,247 records), saved to a work file and
-//     resumed where it stopped (Range), throttled to recordRate, then read entry by entry; only the records the catalogue keeps are
-//     stored;
+//   - the whole list once: the CVE Program's daily archive (669 MB; 429,247 records; 61 s uncapped from that line), saved to a work file
+//     and resumed where it stopped (Range, only while its size is the same), throttled to recordRate, then read entry by entry; only the
+//     records the catalogue keeps are stored;
 //   - then the changes: the repository's change log (deltaLog.json, 30 days of hourly changes, 1.9 MB compressed) says which records
-//     changed since the box's data is complete; each day that is over is read from that day's archive of changes (the 23:00 one,
-//     3 to 13 MB), what the archive does not hold (the last hour of a day) by its ID, a few hundred at most. About 10 to 20 MB a day,
-//     at most every recordDeltaEvery;
+//     changed since the box's data is complete; each day that is over is read from that day's end-of-day archive of changes (3 to 13 MB),
+//     what it does not hold by its ID when every box keeps the CVE (recordKeep.askable), at most recordLeftPerPull a pull. About 10 to
+//     20 MB a day, at most every recordDeltaEvery;
 //   - by ID, every pull: the records of the CVEs an exploited list or a qualifying public signal names that the box has not read, or
 //     that have no NVD ranges and were not read for recordRecheck (a new CISA entry has its vendor's versions at once).
 //
@@ -101,14 +102,14 @@ func recordSourceOf(feedURL string) (recordSource, error) {
 	return src, nil
 }
 
-// archiveURL is a release file of day (UTC) at 23:00: the whole list as of that midnight (whole) or the records changed that day.
+// archiveURL is a release file of day (UTC): the whole list as of that midnight (whole: the 23:00 release carries it), or every record
+// changed that day (the end-of-day release, published about 00:40 the next day).
 func (r recordSource) archiveURL(day time.Time, whole bool) string {
 	d := day.UTC().Format(time.DateOnly)
-	name := d + "_delta_CVEs_at_2300Z.zip"
 	if whole {
-		name = d + "_all_CVEs_at_midnight.zip.zip"
+		return r.releases + "/cve_" + d + "_2300Z/" + d + "_all_CVEs_at_midnight.zip.zip"
 	}
-	return r.releases + "/cve_" + d + "_2300Z/" + name
+	return r.releases + "/cve_" + d + "_at_end_of_day/" + d + "_delta_CVEs_at_end_of_day.zip"
 }
 
 // urgentOnlyKey marks a pull of the CVE records that follows a load of an exploited list: only the records asked for by ID (the
@@ -384,6 +385,10 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 	if err != nil {
 		return err
 	}
+	waiting, err := s.st.recordWaitingCount(ctx)
+	if err != nil {
+		return err
+	}
 	switch {
 	case cur == nil || cur.URL != run.src.URL || now.Sub(cur.Until) > recordArchiveKeep:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
@@ -395,6 +400,10 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 			c = recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: day}
 		}
 		return s.recordsWhole(ctx, run, c, now)
+	case waiting > 0 && now.Sub(cur.From) >= recordRescanAgain:
+		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+		run.notes = append(run.notes, fmt.Sprintf("%s changed records wait for a read of the whole list: reading it again.", grouped(waiting)))
+		return s.recordsWhole(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 	case unread >= recordRescanUnread && now.Sub(cur.From) >= recordRescanAgain:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		run.notes = append(run.notes, fmt.Sprintf("%s listed CVEs had no record: reading the whole list again.", grouped(unread)))
@@ -432,14 +441,21 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 		}
 	}
 	done, err := s.downloadArchive(ctx, run, &cur, path)
+	if errors.Is(err, errWorkFile) { // a full disk: the part downloaded goes, so it does not hold the space
+		_ = os.Remove(path)
+		cur.NextIndex, cur.Total = 0, 0
+	}
 	if serr := s.saveRecordCursor(ctx, run, cur); serr != nil {
 		return serr
 	}
 	if err != nil || !done {
 		if err == nil {
 			err = errRecordsLater
-			run.notes = append(run.notes, fmt.Sprintf("Downloading the CVE Program's whole list: %d of %d MB; Vedette goes on at the next check.",
-				cur.NextIndex>>20, cur.Total>>20))
+			of := ""
+			if cur.Total > 0 {
+				of = fmt.Sprintf(" of %d", cur.Total>>20)
+			}
+			run.notes = append(run.notes, fmt.Sprintf("Downloading the CVE Program's whole list: %d%s MB; Vedette goes on at the next check.", cur.NextIndex>>20, of))
 		}
 		return err
 	}
@@ -447,7 +463,8 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 		run.notes = append(run.notes, "The CVE Program's whole list is downloaded; Vedette reads it at the next check.")
 		return errRecordsLater
 	}
-	if err := s.readArchive(ctx, run, path, now); err != nil {
+	midnight := cur.From.UTC().Truncate(24 * time.Hour)
+	if err := s.readArchive(ctx, run, path, midnight, now); err != nil {
 		if errors.Is(err, errArchive) { // a damaged file: download it again
 			_ = os.Remove(path)
 			cur.NextIndex, cur.Total = 0, 0
@@ -456,7 +473,6 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 		return err
 	}
 	_ = os.Remove(path)
-	midnight := cur.From.UTC().Truncate(24 * time.Hour)
 	until := midnight
 	if cur.Until.After(until) { // a re-read of the whole list does not move back what the changes brought
 		until = cur.Until
@@ -603,7 +619,7 @@ func (s *Service) throttledCopy(ctx context.Context, w io.Writer, r io.Reader) (
 
 // readArchive reads the daily archive at path and stores the records the catalogue keeps, recordBatch a transaction. A record of a CVE
 // the catalogue does not hold is read only to learn whether it was published inside the window.
-func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, now time.Time) error {
+func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, midnight, now time.Time) error {
 	f, err := os.Open(path) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
 		return diskError(err)
@@ -621,6 +637,11 @@ func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, 
 	if err != nil {
 		return err
 	}
+	// a record read after the archive's midnight (by ID, or from a later day's changes) is newer than the archive's: it stays
+	newer, err := stringSet(ctx, s.DB.Reader(), `SELECT cve FROM feeds_cve WHERE record_at > ?`, store.FormatTS(midnight))
+	if err != nil {
+		return err
+	}
 	var batch []CVERecord
 	flush := func() error {
 		err := s.storeRecords(ctx, run, batch, nil, now)
@@ -634,10 +655,14 @@ func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, 
 				return err
 			}
 		}
+		if newer[e.CVE] {
+			return nil
+		}
 		rec, ok, err := readArchived(e, body, k, run)
 		if err != nil || !ok {
 			return err
 		}
+		rec.asOf = midnight
 		run.fromBulk++
 		if batch = append(batch, rec); len(batch) >= recordBatch {
 			return flush()
@@ -804,15 +829,34 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 			days = append(days, d)
 		}
 	}
-	gone := false // the archive of a day that is over is not there (any more)
+	gone := false         // the archive of an earlier day is not there any more
+	notYet := time.Time{} // yesterday, when its end-of-day archive is not published yet: its changes wait like today's
+	yesterday := today.AddDate(0, 0, -1)
 	for _, d := range days {
 		if err := s.readChangeArchive(ctx, run, d, need, covered, k, now); err != nil {
-			if errors.Is(err, errRecordsLater) {
-				gone = true
-				continue
+			if !errors.Is(err, errRecordsLater) {
+				return err
 			}
-			return err
+			if d.Equal(yesterday) {
+				notYet = d
+			} else {
+				gone = true
+			}
 		}
+	}
+	// a change counts as stored once the box read the CVE's current record after it was logged (by ID, or from an archive that holds
+	// it: an archive's older copy is never stored), in this pull or an earlier one
+	readAt, err := s.st.recordReadAt(ctx, slices.Collect(maps.Keys(need)))
+	if err != nil {
+		return err
+	}
+	lastFetch := map[string]time.Time{}
+	for _, c := range pending {
+		lastFetch[c.cve] = c.fetch
+	}
+	done := func(cve string) bool {
+		t, ok := need[cve]
+		return !ok || isCovered(covered, cve, t) || !readAt[cve].IsZero() && !readAt[cve].Before(lastFetch[cve])
 	}
 	isNew := map[string]bool{}
 	for _, c := range pending {
@@ -820,19 +864,20 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 	}
 	// What the archives did not hold is asked for by ID only when every box would ask the same: a new CVE, one published inside the
 	// window, or one a public source names (recordKeep.askable). Any other record (a CVE only this box keeps, for a finding) is never
-	// asked for by ID: today's wait for tomorrow's archive, a past day's for the next read of the whole list.
-	var left []string
-	var todayLeft, closedLeft, waiting int
+	// asked for by ID: today's wait for tomorrow's archive; a past day's (its archive gone) is marked waiting (recordWaiting) and read
+	// with the next whole list, which a waiting record brings about at most once a week.
+	var left, waits []string
+	var todayLeft, closedLeft int
 	for _, c := range pending {
-		t, ok := need[c.cve]
-		if !ok || isCovered(covered, c.cve, t) || slices.Contains(left, c.cve) {
+		if done(c.cve) || slices.Contains(left, c.cve) || slices.Contains(waits, c.cve) {
 			continue
 		}
-		closed := lastChange(pending, c.cve).UTC().Before(today)
+		day := lastChange(pending, c.cve).UTC().Truncate(24 * time.Hour)
+		closed := day.Before(today) && !day.Equal(notYet)
 		if !isNew[c.cve] && !k.askable[c.cve] {
 			if closed {
-				covered[c.cve] = t // passed over: the next whole list brings it
-				waiting++
+				covered[c.cve] = need[c.cve] // passed over now; marked waiting, read with the next whole list
+				waits = append(waits, c.cve)
 			}
 			continue
 		}
@@ -848,18 +893,24 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until})
 	}
-	if waiting > 0 {
-		run.notes = append(run.notes, fmt.Sprintf("%s changed records of CVEs no public list names come with the next read of the whole list.", grouped(waiting)))
+	if len(waits) > 0 {
+		if err := s.markRecordsWaiting(ctx, run, waits); err != nil {
+			return err
+		}
+		run.notes = append(run.notes, fmt.Sprintf("%s changed records of CVEs no public list names wait for the next read of the whole list (at most once a week).", grouped(len(waits))))
 	}
-	if todayLeft > recordLeftPerPull { // today's changes come with tomorrow's archive
-		left = slices.DeleteFunc(left, func(cve string) bool { return !lastChange(pending, cve).UTC().Before(today) })
+	if todayLeft > recordLeftPerPull { // today's changes come with tomorrow's archive (and yesterday's with its own, still to come)
+		left = slices.DeleteFunc(left, func(cve string) bool {
+			d := lastChange(pending, cve).UTC().Truncate(24 * time.Hour)
+			return !d.Before(today) || d.Equal(notYet)
+		})
 	}
 	if len(left) > recordLeftPerPull {
 		left = left[:recordLeftPerPull]
 	}
 	recs, unread, gerr := s.recordsGet(ctx, run, left, recordLeftPause)
-	run.fromBulk += len(recs)
-	if err := s.storeRecords(ctx, run, recs, nil, now); err != nil {
+	run.byID += len(recs)
+	if err := s.storeRecords(ctx, run, recs, unread, now); err != nil { // the unread are stamped too: not asked again for these changes
 		return err
 	}
 	for _, r := range recs {
@@ -874,10 +925,7 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 		for j < len(pending) && pending[j].fetch.Equal(pending[i].fetch) {
 			j++
 		}
-		if slices.ContainsFunc(pending[i:j], func(c deltaChange) bool {
-			t, ok := need[c.cve]
-			return ok && !isCovered(covered, c.cve, t)
-		}) {
+		if slices.ContainsFunc(pending[i:j], func(c deltaChange) bool { return !done(c.cve) }) {
 			break
 		}
 		until, i = pending[i].fetch, j
@@ -930,10 +978,11 @@ func (s *Service) readChangeArchive(ctx context.Context, run *recordRun, day tim
 			covered[e.CVE] = now // read: the box does not keep it
 			return nil
 		}
-		covered[e.CVE] = rec.Updated
-		if rec.Updated.IsZero() {
-			covered[e.CVE] = need[e.CVE]
+		if !rec.Updated.IsZero() && rec.Updated.Before(need[e.CVE]) {
+			return nil // the archive's copy is older than the change logged: not stored, so its read time never claims the change
 		}
+		covered[e.CVE] = need[e.CVE]
+		rec.asOf = day.AddDate(0, 0, 1) // the end of that day
 		batch = append(batch, rec)
 		run.fromBulk++
 		return nil

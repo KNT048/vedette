@@ -91,6 +91,10 @@ type CVERecord struct {
 	// Skipped is the affected entries whose versions could not be read without guessing (git commits, wildcards, text, holes);
 	// their product has no range from this record.
 	Skipped int
+
+	// asOf is the time an archive's copy is current as of (the daily list's midnight, the end of a day of changes), stored as the record's
+	// read time so it never claims a change logged after it; zero: read by ID now.
+	asOf time.Time
 }
 
 // SSVC is CISA's SSVC decision points for a CVE, lower case as stored ("" = not given).

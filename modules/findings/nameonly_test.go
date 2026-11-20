@@ -328,9 +328,7 @@ func TestContract_NewUncheckedIsAnnouncedOnce(t *testing.T) {
 			t.Fatalf("announced twice: %+v", ev)
 		}
 	}
-	if _, err := e.svc.OnAssetDeleted(t.Context(), dev.ID); err != nil {
-		t.Fatal(err)
-	}
+	e.deleteDevice(t, dev.ID)
 	if n := e.count(`SELECT count(*) FROM fnd_unchecked_seen`); n != 0 {
 		t.Fatalf("seen rows left after the delete: %d", n)
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
@@ -36,8 +37,12 @@ type ServiceConfig struct {
 	// that one device is scoped, never the same product on other devices. nil: no such scope.
 	HaveSince func(ctx context.Context) (map[string]Have, error)
 	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log): such a
-	// finding counts as decided when a merge must keep one of two findings of a CVE. nil: none has.
-	Applied func(ctx context.Context, findingIDs []string) (map[string]bool, error)
+	// finding counts as decided when a merge must keep one of two findings of a CVE. It reads through tx, the merge's own
+	// transaction, so a merge sees what the same write changed before it. nil: none has.
+	Applied func(ctx context.Context, tx *sql.Tx, findingIDs []string) (map[string]bool, error)
+	// Lifecycle holds the other modules' parts of a device merge (core/lifecycle): when a merge folds two findings of one CVE into one,
+	// their FindingFolded moves the rows they keep by finding id (mitigation, response) before the folded finding is deleted. nil: none.
+	Lifecycle *lifecycle.Hooks
 	// SafeCheck says whether a safe vulnerability check exists for a CVE: the binary answers from the template pack the scan
 	// itself plans with (scan Pack.ForCVE), never the nuclei-templates feed flag, which is off on an offline box and lists
 	// templates the pack does not ship. The Feeds port's KevInfo.HasTemplate is the same answer. nil: Vuln.HasTemplate as given.
@@ -84,7 +89,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 // publishTimeout bounds the delivery of the events of one committed change.
 const publishTimeout = 5 * time.Second
 
-// eventWriteTimeout bounds how long a handler of an incoming event (OnMatchChanged, OnAssetDeleted) waits for the one
+// eventWriteTimeout bounds how long a handler of an incoming event (OnMatchChanged, OnAssetIgnored) waits for the one
 // writer. The bus gives a handler 5 s, but a long write elsewhere (the first KEV pull) holds the writer longer, and an
 // event that failed at "store: begin: context deadline exceeded" is not delivered again: the finding would never be
 // created, or the findings of a deleted device would stay. So these handlers run on their own deadline, cut loose from
@@ -183,7 +188,7 @@ func (s *Service) RiskMap(ctx context.Context, feedsOn bool) (map[string]AssetRi
 }
 
 // CountByAsset returns how many findings each asset has, every status included: the number inventory shows as findings_count, which
-// is also what deleting the device deletes (OnAssetDeleted). One grouped read; an asset with none is absent.
+// is also what deleting the device deletes (DeviceDeleted). One grouped read; an asset with none is absent.
 func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding GROUP BY asset_id`)
 	if err != nil {
@@ -1186,16 +1191,6 @@ func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, act
 	return loadByID(ctx, tx, r.ID)
 }
 
-// OnAssetDeleted handles inventory.asset.deleted: the device's findings, their history and, through
-// the foreign keys of mitigation, their applied log and AI results go with it (INV-7). It returns
-// how many findings were removed.
-func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, error) {
-	ctx, cancel := eventContext(ctx)
-	defer cancel()
-	s.dropPlan(assetID)
-	return s.deleteAsset(ctx, assetID)
-}
-
 // OnAssetIgnored handles inventory.asset.ignored (inventory INV-38): a person said the device needs no watching. Its open
 // findings close (Finding.IgnoreClose: not_relevant by the system user, "Closed by Vedette: the device was ignored by <person>."),
 // each with its history row, an audit row findings.status and a status_changed event with ReasonDeviceIgnored (notify sends
@@ -1277,179 +1272,6 @@ func (s *Service) forAssetFindings(ctx context.Context, assetID, reason string, 
 		return nil
 	})
 	return n, err
-}
-
-// OnAssetMerged handles inventory.asset.merged: device from was the same device as into, so its findings become into's,
-// with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the finding
-// that ranks higher stays and the other goes: decided (a person closed it, wrote its history, or marked a mitigation item applied)
-// over confirmed over suspected; on a tie into's stays, and when both were decided the people's history rows of the one that goes
-// (their notes) move onto the one that stays. Version-needed items move too. One audit row findings.merged_with_asset
-// names both devices, how many findings moved and every decided finding that lost to another decided one. It runs before into is
-// matched again, which then finds the moved findings and creates and announces nothing new. It returns how many findings moved.
-func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
-	ctx, cancel := eventContext(ctx)
-	defer cancel()
-	s.dropPlan(from)
-	s.markPlan(into)
-	var n int64
-	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
-		type pair struct{ cve, fromID, intoID string }
-		rows, err := tx.QueryContext(ctx, `SELECT f.cve, f.id, t.id FROM fnd_finding f JOIN fnd_finding t ON t.cve = f.cve AND t.asset_id = ?2 WHERE f.asset_id = ?1 ORDER BY f.cve`, from, into)
-		if err != nil {
-			return fmt.Errorf("findings: reading the findings of a merged device: %w", err)
-		}
-		var both []pair
-		var ids []string
-		for rows.Next() {
-			var p pair
-			if err := rows.Scan(&p.cve, &p.fromID, &p.intoID); err != nil {
-				_ = rows.Close()
-				return fmt.Errorf("findings: reading the findings of a merged device: %w", err)
-			}
-			both = append(both, p)
-			ids = append(ids, p.fromID, p.intoID)
-		}
-		if err := rows.Close(); err != nil {
-			return err
-		}
-		applied := map[string]bool{}
-		if s.cfg.Applied != nil && len(ids) > 0 {
-			if applied, err = s.cfg.Applied(ctx, ids); err != nil {
-				return fmt.Errorf("findings: reading the applied mitigation items: %w", err)
-			}
-		}
-		rank := func(id string) (int, error) {
-			var decided bool
-			var status string
-			err := tx.QueryRowContext(ctx, `SELECT status, (resolved_by IS NOT NULL AND resolved_by <> ?2)
-				OR EXISTS (SELECT 1 FROM fnd_finding_history h WHERE h.finding_id = fnd_finding.id AND h.user <> ?2) FROM fnd_finding WHERE id = ?1`, id, SystemUser).Scan(&status, &decided)
-			switch {
-			case err != nil:
-				return 0, fmt.Errorf("findings: reading a finding of a merged device: %w", err)
-			case decided || applied[id]:
-				return 2, nil
-			case status == string(StatusConfirmed):
-				return 1, nil
-			}
-			return 0, nil
-		}
-		var lost []string // decided findings that lost to another decided one
-		for _, p := range both {
-			rf, err := rank(p.fromID)
-			if err != nil {
-				return err
-			}
-			ri, err := rank(p.intoID)
-			if err != nil {
-				return err
-			}
-			loser, winner := p.fromID, p.intoID
-			if rf > ri {
-				loser, winner = p.intoID, p.fromID
-			}
-			if rf == 2 && ri == 2 {
-				lost = append(lost, p.cve+" "+loser)
-				// The person's notes on the losing copy stay readable on the kept one: deleting it cascades its history, and history is
-				// append-only, so its people's rows are copied, same time, user, action and note.
-				if err := copyPeoplesHistory(ctx, tx, loser, winner); err != nil {
-					return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
-				}
-			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE id = ?`, loser); err != nil {
-				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
-			}
-		}
-		res, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ?2 WHERE asset_id = ?1`, from, into)
-		if err != nil {
-			return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
-		}
-		if n, err = res.RowsAffected(); err != nil {
-			return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
-		}
-		for _, q := range []string{
-			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
-			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
-			`DELETE FROM fnd_unchecked WHERE asset_id IN (?1, ?2)`,                                                                                        // not moved: recomputed when "into" is matched (one place per CVE)
-			`INSERT OR IGNORE INTO fnd_unchecked_seen (asset_id, cve, first_seen) SELECT ?2, cve, first_seen FROM fnd_unchecked_seen WHERE asset_id = ?1`, // announced once per device
-			`DELETE FROM fnd_unchecked_seen WHERE asset_id = ?1`,
-		} {
-			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
-				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
-			}
-		}
-		if n == 0 && len(both) == 0 {
-			return nil
-		}
-		detail := fmt.Sprintf("from %s: %d findings moved, %d held by both", from, n, len(both))
-		if len(lost) > 0 {
-			detail += "; decided findings removed: " + strings.Join(lost, ", ")
-		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into, Detail: detail})
-	})
-	return int(n), err
-}
-
-// copyPeoplesHistory appends to finding to the history rows people wrote on finding from (merge of two decided copies).
-func copyPeoplesHistory(ctx context.Context, tx *sql.Tx, from, to string) error {
-	rows, err := tx.QueryContext(ctx, `SELECT ts, user, action, note FROM fnd_finding_history WHERE finding_id = ? AND user <> ? ORDER BY ts, rowid`, from, SystemUser)
-	if err != nil {
-		return err
-	}
-	type row struct {
-		ts, user, action string
-		note             sql.NullString
-	}
-	var rs []row
-	for rows.Next() {
-		var r row
-		if err := rows.Scan(&r.ts, &r.user, &r.action, &r.note); err != nil {
-			_ = rows.Close()
-			return err
-		}
-		rs = append(rs, r)
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	for _, r := range rs {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_finding_history (id, finding_id, ts, user, action, note) VALUES (?, ?, ?, ?, ?, ?)`,
-			store.NewID("fh"), to, r.ts, r.user, r.action, r.note); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// deleteAsset removes the findings of a device under the caller's context (Reconcile keeps its own cancellation).
-func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) {
-	var n int64
-	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
-		res, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE asset_id = ?`, assetID)
-		if err != nil {
-			return fmt.Errorf("findings: deleting findings of device: %w", err)
-		}
-		if n, err = res.RowsAffected(); err != nil {
-			return fmt.Errorf("findings: deleting findings of device: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_version_needed WHERE asset_id = ?`, assetID); err != nil {
-			return fmt.Errorf("findings: deleting version-needed items of device: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
-			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked_seen WHERE asset_id = ?`, assetID); err != nil {
-			return fmt.Errorf("findings: deleting unchecked rows of device: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_plan_done WHERE asset_id = ?`, assetID); err != nil {
-			return fmt.Errorf("findings: deleting the done marks of device: %w", err)
-		}
-		if n == 0 {
-			return nil
-		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.deleted_with_asset", Target: assetID,
-			Detail: fmt.Sprintf("%d findings removed with the device", n)})
-	})
-	return int(n), err
 }
 
 func cvesOfAsset(ctx context.Context, q querier, assetID string) ([]string, error) {

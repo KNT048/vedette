@@ -39,7 +39,7 @@ type ReconcileResult struct {
 }
 
 // Reconcile heals what a lost event left behind (the bus is best-effort, findings owns the catch-up). It does the
-// work of OnMatchChanged for every device and the work of OnAssetDeleted for every device that findings still has
+// work of OnMatchChanged for every device and the work of DeviceDeleted for every device that findings still has
 // findings for but inventory no longer has. It reads only through Inventory and Feeds, writes one device per transaction
 // (the writer is never held for the run), honours ctx between devices, and is idempotent: a pair that exists is only
 // touched (its last_seen moves), so it publishes findings.finding.created only for findings it creates. Those are

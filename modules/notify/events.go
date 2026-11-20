@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
@@ -28,11 +30,9 @@ const (
 	// {findings, devices, cves, severity, finding_ids, cve_list}; each of them sent no notice of its own.
 	EventDeviceBackfill  = "findings.device_version.backfilled"
 	EventAssetDiscovered = "inventory.asset.discovered"
-	EventAssetDeleted    = "inventory.asset.deleted"
 	EventAssetApproved   = "inventory.asset.approved" // B9: {asset_id, actor}
 	EventAssetIgnored    = "inventory.asset.ignored"  // {asset_id, actor}: a person said the device needs no watching
 	EventAssetUpdated    = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today
-	EventAssetMerged     = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device
 	EventNewKEV          = "feeds.vuln.new_kev"
 	EventHoneypotHit     = "honeypot.hit.created"
 	EventLogAnomaly      = "logs.anomaly.detected"
@@ -71,11 +71,9 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventDeviceBackfill, s.deviceBackfill)
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
-	on(EventAssetDeleted, s.assetDeleted)
 	on(EventAssetApproved, s.assetApproved)
 	on(EventAssetIgnored, s.assetIgnored)
 	on(EventAssetUpdated, s.assetUpdated)
-	on(EventAssetMerged, s.assetMerged)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -529,16 +527,14 @@ func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, 
 	return s.leaveDevice(ctx, tx, assetID, approvedInDevices, &st.ApprovedAt)
 }
 
-// assetDeleted takes a device deleted in Devices off the open new-device incidents (INV-20): see leaveDeviceIncidents.
-func (s *Service) assetDeleted(ctx context.Context, data any) error {
-	var e struct {
-		AssetID string `json:"asset_id"`
-		Actor   string `json:"actor"` // B9 adds who deleted it; older producers leave it out
+// DeviceDeleted is notify's part of deleting a device (core/lifecycle, inside the inventory's write): the device leaves the open
+// new-device incidents (INV-20, see leaveDevice), with who deleted it in the reason. Resolved incidents and the other kinds keep it
+// with the name they stored: they are history. Nothing is sent.
+func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
+	if d.Device == "" {
+		return nil
 	}
-	if err := decode(data, &e); err != nil {
-		return err
-	}
-	return s.leaveDeviceIncidents(ctx, e.AssetID, deletedInDevices+byActor(e.Actor)+".")
+	return s.leaveDevice(ctx, tx, d.Device, deletedInDevices+byActor(d.Actor)+".", nil)
 }
 
 // assetApproved takes a device a person approved in Devices (inventory.asset.approved {asset_id, actor}) off the open
@@ -583,50 +579,49 @@ func (s *Service) assetIgnored(ctx context.Context, data any) error {
 	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was ignored"+byActor(e.Actor)+".")
 }
 
-// deletedInDevices starts the reason of a device's own new-device incident closed by inventory.asset.deleted (assetDeleted).
+// deletedInDevices starts the reason of a device's own new-device incident closed by its delete (DeviceDeleted).
 const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
 
-// mergedInto starts the reason of a device inventory joined into another (assetMerged).
+// FindingFolded is notify's part of a merge that folds finding f.From into f.Into (core/lifecycle, inside the inventory's write): the
+// notices sent for the folded finding are listed on the one that stays, so "who was told" keeps them and an old alert's link to the
+// finding still opens. A notice that already lists the kept finding keeps its row.
+func (s *Service) FindingFolded(ctx context.Context, tx *sql.Tx, f lifecycle.FindingFold) error {
+	for _, q := range []string{
+		`UPDATE OR IGNORE notify_notice_finding SET finding_id = ?2 WHERE finding_id = ?1`,
+		`DELETE FROM notify_notice_finding WHERE finding_id = ?1`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, f.From, f.Into); err != nil {
+			return fmt.Errorf("notify: follow a folded finding: %w", err)
+		}
+	}
+	return nil
+}
+
+// mergedInto starts the reason of a device inventory joined into another (DeviceMerged).
 const mergedInto = "Closed by Vedette: merged into "
 
-// assetMerged takes the row inventory joined into another device (inventory.asset.merged {from, into}) off the open new-device
-// incidents like a delete (INV-20), with the reason that says where it went: "Closed by Vedette: merged into <name>.". The
-// device it joined keeps its own incident: it is still to approve. Inventory also publishes inventory.asset.deleted for from, in
-// either order: when the delete came first and closed from's own incident (within the last minute), only its reason is rewritten, so
-// there is one close and one audit row, as the approver rewrite does.
-func (s *Service) assetMerged(ctx context.Context, data any) error {
-	var e struct {
-		From string `json:"from"`
-		Into string `json:"into"`
+// DeviceMerged is notify's part of a merge (core/lifecycle, inside the inventory's write): the row inventory joined into another
+// device leaves the open new-device incidents like a delete (INV-20), with the reason that says where it went: "Closed by Vedette:
+// merged into <name>.". The device it joined keeps its own incident: it is still to approve. Every other incident that lists the row
+// (a trap hit, a bad connection, a resolved one) lists the device it joined instead, with the name it stored; one that already lists
+// that device keeps its row.
+func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) error {
+	if m.From == "" || m.Into == "" || m.From == m.Into {
+		return nil
 	}
-	if err := decode(data, &e); err != nil {
+	into := clip(cmp.Or(m.IntoName, "another device in Devices"), 200) // the name the inventory passes: no read outside the write
+	if err := s.leaveDevice(ctx, tx, m.From, mergedInto+into+".", nil); err != nil {
 		return err
 	}
-	if e.From == "" || e.From == e.Into {
-		return nil
-	}
-	into := "another device in Devices"
-	if s.cfg.Devices != nil && e.Into != "" {
-		states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.Into})
-		if err != nil {
-			return err
-		}
-		if st, ok := states[e.Into]; ok && st.Name != "" {
-			into = deviceLabel(st)
+	for _, q := range []string{
+		`UPDATE OR IGNORE notify_incident_device SET asset_id = ?2 WHERE asset_id = ?1`,
+		`DELETE FROM notify_incident_device WHERE asset_id = ?1`, // an incident that lists both: into's row stays
+	} {
+		if _, err := tx.ExecContext(ctx, q, m.From, m.Into); err != nil {
+			return fmt.Errorf("notify: move the incidents of a merged device: %w", err)
 		}
 	}
-	reason := mergedInto + into + "."
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := s.leaveDevice(ctx, tx, e.From, reason, nil); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET resolved_reason = ? WHERE dedupe_key = ? AND status = 'resolved'
-			AND handled_by = ? AND handled_at >= ? AND substr(resolved_reason, 1, ?) = ?`,
-			clip(reason, maxNote), newDeviceKey(e.From), systemUser, store.FormatTS(s.now().Add(-time.Minute)), len(deletedInDevices), deletedInDevices); err != nil {
-			return fmt.Errorf("notify: say where a merged device went: %w", err)
-		}
-		return nil
-	})
+	return nil
 }
 
 // byActor is " by <who>" from an event's actor (a user name or email that inventory sends), cut to size and stripped of control

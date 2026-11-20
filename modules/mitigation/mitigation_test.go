@@ -2,6 +2,7 @@ package mitigation
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/core/store"
@@ -618,7 +620,9 @@ func TestDeletingTheDeviceTakesAppliedAndAIWithIt(t *testing.T) {
 	if r.count(`SELECT count(*) FROM mit_applied`) != 1 || r.count(`SELECT count(*) FROM mit_ai_output`) != 1 {
 		t.Fatal("setup failed")
 	}
-	if _, err := r.svc.OnAssetDeleted(t.Context(), "a-1"); err != nil {
+	if err := r.db.Write(t.Context(), func(tx *sql.Tx) error {
+		return r.svc.DeviceDeleted(t.Context(), tx, lifecycle.Delete{Device: "a-1"})
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if r.count(`SELECT count(*) FROM mit_applied`)+r.count(`SELECT count(*) FROM mit_ai_output`) != 0 {

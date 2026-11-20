@@ -218,9 +218,7 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 		t.Fatalf("feeds off: %v", b)
 	}
 	e.gate.Set("feeds", true)
-	if _, err := e.svc.OnAssetDeleted(t.Context(), "a-web"); err != nil {
-		t.Fatal(err)
-	}
+	e.deleteDevice(t, "a-web")
 	if v := e.svc.Plan(); len(v.Items) != 0 || v.Compared != 0 {
 		t.Fatalf("after the delete: %+v", v)
 	}
@@ -425,9 +423,7 @@ func TestPlan_AgeAtRequestStampGapAndDelete(t *testing.T) {
 	// deleted while the next full pass reads it
 	e.feeds.stamp = "s2"
 	e.inv.onMatch = func(id string) {
-		if _, err := e.svc.OnAssetDeleted(t.Context(), id); err != nil {
-			t.Error(err)
-		}
+		e.deleteDevice(t, id)
 	}
 	if err := e.svc.RefreshPlan(t.Context()); err != nil {
 		t.Fatal(err)

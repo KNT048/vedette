@@ -3,6 +3,7 @@ package logs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
@@ -195,4 +196,38 @@ func mapsEqual(a, b map[string]int) bool {
 		}
 	}
 	return true
+}
+
+// A batch that could not be looked at whole asks to be sent again (the sensor resends it): a lookup that failed, or more new hits
+// than one batch stores. The hits already found are kept, and the batch sent again finishes the rest without repeating them.
+func TestMirrorMetadataIncompleteBatchIsSentAgain(t *testing.T) {
+	t.Parallel()
+	e, ff, p := mirrorEnv(t)
+	ff.setErr(errors.New("feeds store locked"))
+	items := []MirrorItem{mi("dns", "10.0.0.5", "bad.example.com")}
+	if err := e.svc.MatchMirror(t.Context(), items); !errors.Is(err, ErrMirrorIncomplete) {
+		t.Fatalf("a failed lookup: %v", err)
+	}
+	ff.setErr(nil)
+	if err := e.svc.MatchMirror(t.Context(), items); err != nil || hitCount(t, e) != 1 {
+		t.Fatalf("sent again: %v, %d hits", err, hitCount(t, e))
+	}
+
+	many := make([]MirrorItem, 0, MaxIocHitsPerBatch+10)
+	for i := range MaxIocHitsPerBatch + 10 {
+		name := fmt.Sprintf("c2-%d.example.com", i)
+		ff.mu.Lock()
+		ff.listed["domain:"+name] = Listing{Feeds: []string{"URLhaus"}, Confidence: 0.9}
+		ff.mu.Unlock()
+		many = append(many, mi("dns", "10.0.0.9", name))
+	}
+	if err := e.svc.MatchMirror(t.Context(), many); !errors.Is(err, ErrMirrorIncomplete) || hitCount(t, e) != 1+MaxIocHitsPerBatch {
+		t.Fatalf("over the hits of a batch: %v, %d hits", err, hitCount(t, e))
+	}
+	if err := e.svc.MatchMirror(t.Context(), many); err != nil || hitCount(t, e) != 1+MaxIocHitsPerBatch+10 {
+		t.Fatalf("sent again: %v, %d hits", err, hitCount(t, e))
+	}
+	if h, _ := p.counts(); h != hitCount(t, e) {
+		t.Errorf("%d hit events for %d hits: a hit was announced twice or not at all", h, hitCount(t, e))
+	}
 }

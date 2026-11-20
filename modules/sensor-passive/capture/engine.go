@@ -44,6 +44,7 @@ const (
 	macWindow   = 5 * time.Minute  // "other MACs" counts sources seen within this window
 	seenWindow  = 24 * time.Hour   // devices_seen counts MACs seen within this window
 	flowWindow  = time.Minute      // flows are summed over this window, then handed out
+	convIdle    = 5 * time.Minute  // a conversation silent this long is forgotten: who started the next one is read again
 )
 
 var mdnsKinds = map[string]struct {
@@ -77,6 +78,25 @@ type flowVal struct {
 	first, last    time.Time
 }
 
+// convVal is what the Engine knows of a conversation (both directions of a flowKey): which direction started it, and when it was
+// last heard. Only the starting direction is a flow (a connection a device opened); the answers to it are not, so a LAN server
+// that answers a scan from a listed address never reads as "connected to" that address.
+type convVal struct {
+	starter flowKey
+	known   bool // false: the start was not seen and the ports do not tell (no direction is a flow)
+	last    time.Time
+}
+
+// convOf is the key of the conversation of k: the same for both directions.
+func convOf(k flowKey) flowKey {
+	if c := k.src.Compare(k.dst); c > 0 || c == 0 && k.sport > k.dport {
+		return flowKey{k.dst, k.src, k.dport, k.sport, k.proto}
+	}
+	return k
+}
+
+func reverse(k flowKey) flowKey { return flowKey{k.dst, k.src, k.dport, k.sport, k.proto} }
+
 type obsKey struct {
 	mac, ip, field, value string
 }
@@ -91,14 +111,16 @@ type Engine struct {
 	ownMAC  map[mac]bool
 	ownIP   map[netip.Addr]bool
 
-	mu         sync.Mutex
-	obs        []observe.Observation
-	meta       []MetaItem
-	flows      map[flowKey]*flowVal
-	flowsSince time.Time
-	sent       map[obsKey]time.Time
-	counters   map[string]uint64
-	secs       [10]struct {
+	mu          sync.Mutex
+	obs         []observe.Observation
+	meta        []MetaItem
+	flows       map[flowKey]*flowVal
+	convs       map[flowKey]*convVal // by convOf
+	convsPruned time.Time
+	flowsSince  time.Time
+	sent        map[obsKey]time.Time
+	counters    map[string]uint64
+	secs        [10]struct {
 		sec int64
 		n   int
 	}
@@ -121,7 +143,7 @@ func newEngine(cfg engineConfig) (*Engine, error) {
 	e := &Engine{
 		clock: clock, span: cfg.Span, extract: cfg.Extract, filt: m,
 		ownMAC: map[mac]bool{}, ownIP: map[netip.Addr]bool{},
-		flows: map[flowKey]*flowVal{}, sent: map[obsKey]time.Time{}, counters: map[string]uint64{},
+		flows: map[flowKey]*flowVal{}, convs: map[flowKey]*convVal{}, sent: map[obsKey]time.Time{}, counters: map[string]uint64{},
 		others: map[mac]time.Time{}, seen: map[mac]time.Time{}, book: cfg.Devices,
 	}
 	if e.book == nil {
@@ -136,6 +158,7 @@ func newEngine(cfg engineConfig) (*Engine, error) {
 		e.ownIP[a.Unmap()] = true
 	}
 	e.flowsSince = clock()
+	e.convsPruned = e.flowsSince
 	return e, nil
 }
 
@@ -507,7 +530,11 @@ func (e *Engine) handleIP(f frame, now time.Time) {
 	}
 	toBox := e.ownIP[ip.dst] || e.ownMAC[f.dst] // traffic to the box is the box's business, not a device's (INV-6)
 	if e.span && e.extract.Flows && !toBox {
-		e.countFlow(ip, sport, dport, now)
+		var flags uint8
+		if ip.proto == protoTCP && ip.firstFrg {
+			flags = tcp.flags
+		}
+		e.countFlow(ip, sport, dport, flags, now)
 	}
 	switch ip.proto {
 	case protoUDP:
@@ -683,8 +710,41 @@ func (e *Engine) handleTCP(f frame, ip ipv4, t tcpSegment, now time.Time) {
 	}
 }
 
-func (e *Engine) countFlow(ip ipv4, sport, dport uint16, now time.Time) {
+// countFlow counts a packet in its flow when its direction started the conversation. The start is read from the first packet
+// seen: a TCP SYN without ACK starts it; a SYN-ACK or a RST answers (the other side started); a TCP packet in the middle of a
+// connection (the capture began after its start) and a UDP datagram from a well-known port to a high one are taken as the
+// side with the higher port being the client. Anything else (UDP, ICMP, other protocols, fragments without ports): the first
+// packet seen starts it. A new SYN restarts the conversation (ports used again).
+func (e *Engine) countFlow(ip ipv4, sport, dport uint16, flags uint8, now time.Time) {
 	k := flowKey{ip.src, ip.dst, sport, dport, ip.proto}
+	ck := convOf(k)
+	syn := ip.proto == protoTCP && flags&(tcpSYN|tcpACK) == tcpSYN
+	c := e.convs[ck]
+	if c == nil || syn || now.Sub(c.last) >= convIdle {
+		if c == nil && len(e.convs) >= maxFlows {
+			e.drop("flows_dropped")
+			return
+		}
+		c = &convVal{starter: k, known: true}
+		switch {
+		case syn:
+		case ip.proto == protoTCP && ip.firstFrg && (flags&tcpSYN != 0 || flags&tcpRST != 0):
+			c.starter = reverse(k) // a SYN-ACK or a RST answers the other side
+		case ip.proto == protoTCP && ip.firstFrg:
+			if sport < dport { // mid-connection: the client is the side with the higher port
+				c.starter = reverse(k)
+			} else if sport == dport {
+				c.known = false
+			}
+		case ip.proto == protoUDP && ip.firstFrg && sport < 1024 && dport >= 1024:
+			c.starter = reverse(k) // a service answering a client
+		}
+		e.convs[ck] = c
+	}
+	c.last = now
+	if !c.known || c.starter != k {
+		return
+	}
 	v := e.flows[k]
 	if v == nil {
 		if len(e.flows) >= maxFlows {
@@ -701,11 +761,12 @@ func (e *Engine) countFlow(ip ipv4, sport, dport uint16, now time.Time) {
 
 // ---- hand-out ----
 
-// Pending is how many observations and metadata items wait to be drained.
+// Pending is how many observations wait to be drained. Metadata is not counted: it never makes the capture flush early (a flood
+// of names would otherwise turn every packet into a flush), it waits for the flush timer, bounded by maxMeta.
 func (e *Engine) Pending() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return len(e.obs) + len(e.meta)
+	return len(e.obs)
 }
 
 // Drain hands out what accumulated and clears it. Flow counters are handed out once a minute (or when final
@@ -724,6 +785,14 @@ func (e *Engine) Drain(now time.Time, final bool) ([]observe.Observation, []Meta
 		}
 		clear(e.flows)
 		e.flowsSince = now
+	}
+	if final || now.Sub(e.convsPruned) >= flowWindow { // once a window: forget the conversations that went quiet
+		e.convsPruned = now
+		for k, c := range e.convs {
+			if final || now.Sub(c.last) >= convIdle {
+				delete(e.convs, k)
+			}
+		}
 	}
 	obs, meta := e.obs, e.meta
 	e.obs, e.meta = nil, nil

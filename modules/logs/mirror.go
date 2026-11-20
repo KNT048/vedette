@@ -39,13 +39,18 @@ const mirrorSeenBack = time.Hour
 // mirrorVia is the seen_via of each kind of item.
 var mirrorVia = map[string]string{"dns": "span_dns", "sni": "span_sni", "http": "span_http", "flow": "span_flow"}
 
+// ErrMirrorIncomplete is returned by MatchMirror when part of the batch was not looked at (a feed lookup failed, or the batch
+// reached MaxIocHitsPerBatch new hits): the hits found are stored, and the caller should send the batch again.
+var ErrMirrorIncomplete = errors.New("logs: part of the mirror batch was not matched; send it again")
+
 // ErrMirrorBatchTooLarge is returned by MatchMirror for more than MaxMirrorBatch items.
 var ErrMirrorBatchTooLarge = errors.New("logs: mirror batch has more than the allowed number of items")
 
 // MatchMirror matches a batch of mirror-port metadata against the threat feeds and stores the hits (one per device and listed
 // destination a day, as for a firewall line), then announces the new ones. Items it cannot use are skipped one by one: an unknown
 // kind, a source that is not a LAN address or is the box, its gateway or a decoy (NeverCount), a destination that no feed can list
-// (a private or reserved address, a name of a bad shape). It fails only when the hits cannot be stored.
+// (a private or reserved address, a name of a bad shape). It fails when the hits cannot be stored, and with ErrMirrorIncomplete
+// when part of the batch could not be looked at.
 func (s *Service) MatchMirror(ctx context.Context, items []MirrorItem) error {
 	if len(items) > MaxMirrorBatch {
 		return ErrMirrorBatchTooLarge
@@ -84,17 +89,21 @@ func (s *Service) MatchMirror(ctx context.Context, items []MirrorItem) error {
 			conns[k] = connObs{source: MirrorSourceID, at: at, via: via}
 		}
 	}
-	hits := s.matchIOC(ctx, conns, nil) // before the transaction: the writer is not held while the feeds are read
-	if len(hits) == 0 {
-		return nil
+	hits, complete := s.matchIOC(ctx, conns, nil) // before the transaction: the writer is not held while the feeds are read
+	if len(hits) > 0 {
+		var fresh []iocRow
+		if err := s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
+			fresh = fresh[:0]
+			return s.storeIOC(ctx, tx, hits, &fresh)
+		}); err != nil {
+			return err
+		}
+		s.announceIOC(ctx, fresh)
 	}
-	var fresh []iocRow
-	if err := s.cfg.Volume.Write(ctx, func(tx *sql.Tx) error {
-		fresh = fresh[:0]
-		return s.storeIOC(ctx, tx, hits, &fresh)
-	}); err != nil {
-		return err
+	if !complete {
+		// The hits found so far are stored; the batch comes again and the stored pairs are skipped as repeats, so the rest is
+		// looked at then.
+		return ErrMirrorIncomplete
 	}
-	s.announceIOC(ctx, fresh)
 	return nil
 }

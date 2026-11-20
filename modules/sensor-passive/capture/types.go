@@ -94,8 +94,9 @@ type MetaItem struct {
 	First   time.Time
 }
 
-// MetadataSink receives SPAN metadata, everything one flush drained in one call. The sensor binary uses LinkMetadata, which
-// posts it to core (POST /metadata), where the `logs` module matches it against the threat feeds; the default drops everything.
+// MetadataSink receives SPAN metadata, everything one flush drained in one call, from the capture loop: it must not wait for the
+// network. The sensor binary uses LinkMetadata, which queues it and posts it to core (POST /metadata) from its own goroutine,
+// where the `logs` module matches it against the threat feeds; the default drops everything.
 type MetadataSink interface {
 	Metadata(ctx context.Context, seq uint64, items []MetaItem) error
 }

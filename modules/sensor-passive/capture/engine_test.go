@@ -852,3 +852,50 @@ func TestPrintableRefusesInvisibleFormatCharacters(t *testing.T) {
 		t.Error("ordinary text refused")
 	}
 }
+
+// A flow is a connection a device opened: the direction that started the conversation. A LAN server answering a scan from outside
+// (SYN-ACK, RST, a UDP reply) is no flow to the scanner, whether the mirror saw the scanner's packet or only the answer; a
+// connection the device opened is one, also when the capture began in its middle.
+func TestFlowsOnlyInTheDirectionThatStartedThem(t *testing.T) {
+	t.Parallel()
+	scanner := netip.MustParseAddr("198.51.100.7")
+	tcp := func(src, dst netip.Addr, sport, dport uint16, flags byte) Packet {
+		seg := pktgen.TCP(sport, dport, nil)
+		seg[13] = flags
+		return Packet{At: pktgen.T0, Data: pktgen.Eth(pktgen.Router, pktgen.PC, 0x0800, pktgen.IPv4(src, dst, 6, seg))}
+	}
+	udp := func(src, dst netip.Addr, sport, dport uint16) Packet {
+		return Packet{At: pktgen.T0, Data: pktgen.UDPFrame(pktgen.Router, pktgen.PC, src, dst, sport, dport, nil)}
+	}
+	for _, c := range []struct {
+		name    string
+		packets []Packet
+		want    bool // a flow from the PC to the scanner
+	}{
+		{"a scan the server answers", []Packet{tcp(scanner, pktgen.PCIP, 41000, 443, tcpSYN), tcp(pktgen.PCIP, scanner, 443, 41000, tcpSYN|tcpACK)}, false},
+		{"only the answer seen", []Packet{tcp(pktgen.PCIP, scanner, 443, 41000, tcpSYN|tcpACK)}, false},
+		{"a closed port's reset", []Packet{tcp(pktgen.PCIP, scanner, 22, 41000, tcpRST|tcpACK)}, false},
+		{"a server's data in the middle", []Packet{tcp(pktgen.PCIP, scanner, 443, 41000, 0x18)}, false},
+		{"a UDP service answering", []Packet{udp(scanner, pktgen.PCIP, 41000, 51820), udp(pktgen.PCIP, scanner, 51820, 41000)}, false},
+		{"a UDP reply seen alone", []Packet{udp(pktgen.PCIP, scanner, 53, 41000)}, false},
+		{"a connection the PC opens", []Packet{tcp(pktgen.PCIP, scanner, 50000, 443, tcpSYN), tcp(scanner, pktgen.PCIP, 443, 50000, tcpSYN|tcpACK)}, true},
+		{"the PC's connection in the middle", []Packet{tcp(pktgen.PCIP, scanner, 50000, 443, 0x18)}, true},
+		{"a UDP query of the PC", []Packet{udp(pktgen.PCIP, scanner, 50000, 53)}, true},
+		{"ports used again by a new connection", []Packet{tcp(pktgen.PCIP, scanner, 443, 41000, 0x18), tcp(pktgen.PCIP, scanner, 443, 41000, tcpSYN)}, true},
+	} {
+		e, _ := newEngine(spanCfg())
+		for _, p := range c.packets {
+			e.Handle(p)
+		}
+		_, meta := e.Drain(pktgen.T0, true)
+		got := false
+		for _, it := range metaOf(meta, MetaFlow) {
+			if it.SrcIP == pktgen.PCIP && it.DstIP == scanner {
+				got = true
+			}
+		}
+		if got != c.want {
+			t.Errorf("%s: a flow from the PC = %v, want %v (%+v)", c.name, got, c.want, meta)
+		}
+	}
+}

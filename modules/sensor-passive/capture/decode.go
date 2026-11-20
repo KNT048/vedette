@@ -137,8 +137,16 @@ func parseUDP(b []byte) (udpDatagram, error) {
 
 type tcpSegment struct {
 	sport, dport uint16
+	flags        uint8 // the TCP flags byte: tcpSYN, tcpACK, tcpRST, …
 	payload      []byte
 }
+
+// The TCP flags the flow direction is read from.
+const (
+	tcpSYN = 0x02
+	tcpRST = 0x04
+	tcpACK = 0x10
+)
 
 func parseTCP(b []byte) (tcpSegment, error) {
 	if len(b) < 20 {
@@ -148,7 +156,7 @@ func parseTCP(b []byte) (tcpSegment, error) {
 	if off < 20 || off > len(b) {
 		return tcpSegment{}, malformed("tcp: data offset")
 	}
-	return tcpSegment{binary.BigEndian.Uint16(b[0:2]), binary.BigEndian.Uint16(b[2:4]), b[off:]}, nil
+	return tcpSegment{binary.BigEndian.Uint16(b[0:2]), binary.BigEndian.Uint16(b[2:4]), b[13], b[off:]}, nil
 }
 
 // hostnameOK accepts the characters of a host name: letters, digits, '-', '_' and dots between labels.

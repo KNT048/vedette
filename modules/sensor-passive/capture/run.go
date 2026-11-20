@@ -555,13 +555,12 @@ func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 	if len(obs) == 0 {
 		r.failures, r.holdUntil, r.poisonN, r.batchMax, r.retryAfter = 0, time.Time{}, 0, 0, 0
 	}
-	// All of a flush's metadata goes to the sink in one call: the sink decides how many requests it makes (LinkMetadata: a few per
-	// flush at most, so the mirror port never uses the request budget of the observations and the heartbeat). A sink that holds
-	// items it could not deliver is called at every flush, with nothing new or not, until it has sent them.
-	if p, ok := r.meta.(interface{ Pending() bool }); len(meta) > 0 || ok && p.Pending() {
+	// All of a flush's metadata goes to the sink in one call. The sink must not wait for the network here (this is the capture
+	// loop): LinkMetadata only queues, and its own goroutine posts at its own pace.
+	if len(meta) > 0 {
 		if err := r.meta.Metadata(ctx, r.nextSeq(), meta); err != nil {
 			eng.CountDrop("metadata_failed")
-			r.log.WarnContext(ctx, "sensor-passive: metadata not delivered", "count", len(meta), "error", err)
+			r.log.WarnContext(ctx, "sensor-passive: metadata not delivered", "error", err)
 		}
 	}
 }

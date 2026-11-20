@@ -33,8 +33,8 @@ const (
 	MaxResultBody       = 11 << 20
 	MaxProgressBody     = 1 << 10 // a JobProgress (#830): a few numbers
 	// MaxMetadataBody and MaxMetadataItems bound one POST /metadata: an item is at most about 350 bytes of JSON (a 253-byte name),
-	// so MaxMetadataItems of them fit. The capture sends at most MetadataPostsPerFlush of them per flush, so the mirror port never
-	// takes more than a small part of the passive role's request rate.
+	// so MaxMetadataItems of them fit. The capture sends at most MetadataPostsPerFlush of them per 5 seconds, paced by time from a
+	// goroutine of its own, so the mirror port never takes more than a small part of the passive role's request rate.
 	MaxMetadataBody       = 512 << 10
 	MaxMetadataItems      = 1000
 	MetadataPostsPerFlush = 2

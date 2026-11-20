@@ -3,6 +3,7 @@
 // (POST /schedules/preview); nothing here predicts one.
 import type { TFunction } from 'i18next'
 import type { Freq, Schedule, ScheduleLimits, ScheduleRule, ScheduleSave, WindowMode } from './types'
+import { wallIn } from '@/lib/format'
 
 export const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 export type Unit = 'minutes' | 'hours' | 'days'
@@ -35,12 +36,7 @@ export const zoneOf = (tz: string, orgZone: string) => (tz === 'org' ? orgZone :
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** The wall clock of an instant in a zone. */
-function wall(t: number, tz: string) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-    .formatToParts(new Date(t)).map((x) => [x.type, x.value]))
-  return { y: Number(p.year), m: Number(p.month), d: Number(p.day), h: Number(p.hour), min: Number(p.minute) }
-}
+const wall = wallIn
 
 /** An instant as 'YYYY-MM-DDTHH:MM' on the wall clock of a zone (the value of a datetime-local input). */
 export function isoToZoned(iso: string, tz: string): string {

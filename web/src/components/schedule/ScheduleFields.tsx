@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { displayTimeZone } from '@/lib/format'
+import { displayTimeZone, fmtWeekdayDateTimeIn } from '@/lib/format'
 import { TIMEZONES } from '@/features/core/util'
 import { useSchedulePreview } from './api'
 import { DAYS, toSave, unitsFor, zoneOf, type Draft, type Unit } from './rule'
@@ -19,7 +19,7 @@ export const orgZoneOf = (s: Schedule) => (s.rule.tz === 'org' ? s.zone : displa
 
 /** "Sun 23 Nov 2026, 23:00", in the rule's zone; its name added when it is not the zone the app writes dates in. */
 export function fmtInZone(iso: string, zone: string) {
-  const s = new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
+  const s = fmtWeekdayDateTimeIn(iso, zone)
   return zone === (displayTimeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? s : `${s} (${zone})`
 }
 

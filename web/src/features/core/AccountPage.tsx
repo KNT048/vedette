@@ -6,7 +6,7 @@ import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { ApproverIdentities } from '@/features/response/ApproverIdentities'
 import { toast } from 'sonner'
-import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { PageHeader, Section, KeyValue, Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { Card } from '@/components/common/Card'
@@ -238,9 +238,7 @@ function AuthenticatorGuide() {
 function SsoNote() {
   const { t } = useTranslation('core')
   return (
-    <Section title={t('account.sso.title')} info={t('account.sso.bodyInfo')}>
-      <Card className="max-w-xl"><p className="text-sm">{t('account.sso.body')}</p></Card>
-    </Section>
+    <Notice tone="accent" role="note" title={t('account.sso.body')} info={t('account.sso.bodyInfo')} />
   )
 }
 

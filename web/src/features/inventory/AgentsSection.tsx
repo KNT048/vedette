@@ -338,10 +338,6 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
   const [leaving, setLeaving] = useState(false)
   return (
     <div className="grid gap-3 rounded-md border border-rule bg-surface p-4">
-      <div className="grid gap-1">
-        <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.wazuh.title')}</h3><InfoTip topic={t('agents.wazuh.title')}>{t('agents.wazuh.introInfo')}</InfoTip></div>
-        <p className="max-w-3xl text-meta text-muted">{t('agents.wazuh.intro')}</p>
-      </div>
       {w ? (
         <>
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
@@ -374,6 +370,20 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
           {editing ? <WazuhDialog key="new" open onOpenChange={(o) => { if (!o) setEditing(false) }} current={null} /> : null}</div>
       )}
     </div>
+  )
+}
+
+/** The Wazuh tab: Vedette reads agents and packages from the Wazuh server API. Needs module agent-intake. */
+export function WazuhSection() {
+  const { t } = useTranslation('inventory')
+  const on = useModuleEnabled('agent-intake') === true
+  const q = useAgents(on)
+  return (
+    <Section id="wazuh" title={t('agents.wazuh.title')} description={t('agents.wazuh.intro')} info={t('agents.wazuh.introInfo')} stories={['S-INV-4']}>
+      <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
+        <QueryState query={q}>{(d) => <WazuhCard w={d.wazuh} />}</QueryState>
+      </RequireModule>
+    </Section>
   )
 }
 
@@ -453,35 +463,16 @@ export function AgentsSection() {
     ) },
   ]
   return (
-    <Section id="agents" title={t('agents.title')} description={t('agents.description')} info={t('agents.descriptionInfo')} stories={['S-INV-4']}>
+    <Section id="agents" title={t('agents.title')} description={t('agents.description')} info={<><p>{t('agents.descriptionInfo')}</p><p>{t('agents.osquery.introInfo')}</p></>} stories={['S-INV-4']}>
       <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => (
             <div className="grid gap-6">
-              <p className="max-w-3xl rounded-md border border-rule bg-sunken px-3 py-2 text-sm">{t('agents.recommendation')}</p>
               <div className="grid min-w-0 gap-5 [&>*]:min-w-0">
-                <div className="grid gap-1">
-                  <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3><InfoTip topic={t('agents.osquery.title')}>{t('agents.osquery.introInfo')}</InfoTip></div>
-                  <p className="max-w-3xl text-meta text-muted">{t('agents.osquery.intro')}</p>
-                </div>
-                {/* Item 26b: the packages are on the page itself (step 1), not only inside the token dialog; the token is step 2. */}
-                <div className="grid gap-1.5">
-                  <div className="flex items-center gap-1">
-                    <h4 className="text-sm font-medium">{t('agents.page.downloadTitle')}</h4>
-                    {d.install.packages.length ? <InfoTip topic={t('agents.page.downloadTitle')}><p>{t('agents.page.downloadBodyInfo')}</p><p>{t('agents.page.checkHint')}</p></InfoTip> : null}
-                  </div>
-                  {d.install.packages.length ? (
-                    <>
-                      <p className="max-w-3xl text-meta text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p>
-                      <PackageTable packages={d.install.packages} />
-                    </>
-                  ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} info={t('agents.page.noneInfo')} />}
-                </div>
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="grid gap-1">
-                      <div className="flex items-center gap-1"><h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4><InfoTip topic={t('agents.page.tokenTitle')}>{t('agents.page.tokenBodyInfo')}</InfoTip></div>
-                      <p className="max-w-3xl text-meta text-muted">{t('agents.page.tokenBody')}</p>
+                      <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.page.tokenTitle')}</h3><InfoTip topic={t('agents.page.tokenTitle')}><p>{t('agents.page.tokenBody')}</p><p>{t('agents.page.tokenBodyInfo')}</p></InfoTip></div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {/* empty-guard: a toast after the action, not a link or button that leads anywhere */}
@@ -493,8 +484,17 @@ export function AgentsSection() {
                   {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
                 </div>
                 {d.tokens.length ? <MachinesTable nodes={d.nodes} box={d.server_url} /> : null}
+                {/* The packages are one folded line at the bottom: the install command downloads the right one by itself. */}
+                {d.install.packages.length ? (
+                  <details className="rounded-md border border-rule p-3">
+                    <summary className="cursor-pointer text-sm font-medium">{t('agents.page.downloadTitle', { version: d.install.osquery_version })}</summary>
+                    <div className="mt-2 grid gap-2">
+                      <div className="flex items-center gap-1"><p className="max-w-3xl text-meta text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p><InfoTip topic={t('agents.page.downloadTitle', { version: d.install.osquery_version })}><p>{t('agents.page.downloadBodyInfo')}</p><p>{t('agents.page.checkHint')}</p></InfoTip></div>
+                      <PackageTable packages={d.install.packages} />
+                    </div>
+                  </details>
+                ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} info={t('agents.page.noneInfo')} />}
               </div>
-              <WazuhCard w={d.wazuh} />
               <CreateDialog open={creating} onOpenChange={setCreating} data={d} />
               <Dialog open={!!showing} onOpenChange={(o) => { if (!o) setShowing(null) }}>
                 <DialogContent wide title={t('agents.configTitle', { name: showing?.name ?? '' })} description={t('agents.configBody')} info={t('agents.configBodyInfo')}>

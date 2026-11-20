@@ -200,51 +200,6 @@ func FuzzParseNucleiCVEs(f *testing.F) {
 	})
 }
 
-func FuzzParseEPSS(f *testing.F) {
-	f.Add(fixture(f, "epss.json"))
-	f.Add([]byte(`{"total":9,"data":[{"cve":"CVE-2026-1234","epss":"1e-5","percentile":0.5,"date":"2026-01-01"}]}`))
-	f.Add([]byte(`{"data":[{"cve":1,"epss":[],"percentile":{}}]}`))
-	f.Fuzz(func(t *testing.T, data []byte) {
-		d, err := ParseEPSS(data)
-		if err != nil {
-			if !errors.Is(err, ErrBadSample) && !errors.Is(err, ErrTooLarge) {
-				t.Fatalf("unclassified error: %v", err)
-			}
-			return
-		}
-		if d.Accepted != len(d.Scores) || len(d.Rejects) > MaxRejects || len(d.Reasons) > maxReasons+1 {
-			t.Fatalf("accounting: %+v", d.Stats)
-		}
-		for _, s := range d.Scores {
-			if !cveRE.MatchString(s.CVE) || s.Score < 0 || s.Score > 1 || s.Percentile < 0 || s.Percentile > 1 || (s.Date != "" && !strictDateRE.MatchString(s.Date)) {
-				t.Fatalf("bad score accepted: %+v", s)
-			}
-		}
-		for _, x := range d.Rejects {
-			if !printable(x.Reason) {
-				t.Fatalf("unsafe reject text %q", x.Reason)
-			}
-		}
-	})
-}
-
-func FuzzEPSSBatchURLs(f *testing.F) {
-	f.Add("CVE-2026-1234", "2026-01-01")
-	f.Add("CVE-2026-1&x=1", "2026-1-1")
-	f.Fuzz(func(t *testing.T, id, date string) {
-		urls, err := EPSSBatchURLs("https://api.first.org/data/v1/epss", []string{id}, date)
-		if err != nil {
-			return
-		}
-		for _, raw := range urls {
-			u, perr := url.Parse(raw)
-			if perr != nil || u.Host != "api.first.org" || u.Path != "/data/v1/epss" || len(u.Query()) > 2 || !cveRE.MatchString(u.Query().Get("cve")) {
-				t.Fatalf("bad batch URL %q", raw)
-			}
-		}
-	})
-}
-
 // domainOracle is the regular expression validDomain replaced; the loop must answer exactly as it did.
 var domainOracle = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+([a-zA-Z]{2,63}|[xX][nN]--[a-zA-Z0-9-]{0,58}[a-zA-Z0-9])$`)
 

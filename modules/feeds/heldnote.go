@@ -22,7 +22,6 @@ import (
 // heldNotes says, for each built-in feed whose count needs words, what it holds now. TestHeldNotes_EveryBuiltinFeedIsDecided keeps
 // every built-in feed decided: here, or in the test's list of feeds whose count says itself.
 var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
-	"first-epss":        heldKEVScores,
 	nvdFeedID:           heldNVD,
 	cveOrgFeedID:        heldCVEOrg,
 	ubuntuOSVFeedID:     heldDistro(ubuntuOSVFeedID),
@@ -36,7 +35,6 @@ var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
 // of them (in the transaction that records the pull) or by an edit of one of them (a key removed), so their last_fetch and rev
 // change with it: they key the sentence counted last (heldNow). TestHeldNotes_FollowTheData checks every feed.
 var heldFrom = map[string][]string{
-	"first-epss":        {"first-epss", kevFeedID},
 	nvdFeedID:           {nvdFeedID},
 	cveOrgFeedID:        {cveOrgFeedID, nvdFeedID, kevFeedID, vulnCheckFeedID},
 	ubuntuOSVFeedID:     {ubuntuOSVFeedID, kevFeedID, vulnCheckFeedID},
@@ -114,7 +112,7 @@ FROM feeds_source WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id)`, st
 func withHeld(held, note string) string { return strings.TrimSpace(held + " " + note) }
 
 // kevSet is the CVEs of the exploited lists (the CISA list, and VulnCheck KEV when its key is set), as SQL.
-const kevSet = `SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
+const kevSet = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
 
 func counts(ctx context.Context, tx *sql.Tx, q string, args []any, into ...any) error {
 	return tx.QueryRowContext(ctx, q, args...).Scan(into...)
@@ -128,21 +126,10 @@ func cves(n int, what string) string {
 	return grouped(n) + " " + what + " CVEs"
 }
 
-func heldKEVScores(ctx context.Context, tx *sql.Tx) (string, error) {
-	var kev, scored int
-	if err := counts(ctx, tx, `SELECT count(*), count(epss) FROM feeds_vuln WHERE source_id = 'cisa-kev'`, nil, &kev, &scored); err != nil {
-		return "", err
-	}
-	if kev == 0 {
-		return "No score yet: the exploited CVEs are scored once the CISA list is on the box.", nil
-	}
-	return fmt.Sprintf("Scores of %s of the %s on the CISA list, today's and a week ago's.", grouped(scored), cves(kev, "exploited")), nil
-}
-
 func heldNVD(ctx context.Context, tx *sql.Tx) (string, error) {
 	var all, ranged int
-	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_affected r WHERE r.cve = a.cve))
-FROM feeds_affected_cve a WHERE a.source = 'nvd'`, nil, &all, &ranged); err != nil {
+	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd'))
+FROM feeds_cve c WHERE c.nvd_at IS NOT NULL AND c.cve IN (`+kevSet+`)`, nil, &all, &ranged); err != nil {
 		return "", err
 	}
 	if all == 0 {
@@ -161,12 +148,13 @@ func heldCVEOrg(ctx context.Context, tx *sql.Tx) (string, error) {
 	if kev == 0 { // a fresh box, or the CISA list not loaded yet: nothing to say about NVD
 		return "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.", nil
 	}
-	noNVD := `FROM (SELECT DISTINCT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) v
-WHERE NOT EXISTS (SELECT 1 FROM feeds_affected_cve a WHERE a.cve = v.cve AND a.source = 'nvd' AND EXISTS (SELECT 1 FROM feeds_affected r WHERE r.cve = v.cve))`
-	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cveorg_checked c WHERE c.cve = v.cve)) `+noNVD, nil, &gap, &read); err != nil {
+	noNVD := `FROM (SELECT DISTINCT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) v
+WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = v.cve AND r.origin = 'nvd')`
+	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = v.cve AND c.record_at IS NOT NULL)) `+noNVD, nil, &gap, &read); err != nil {
 		return "", err
 	}
-	if err := counts(ctx, tx, `SELECT count(*) FROM feeds_affected_cve WHERE source <> 'nvd'`, nil, &held); err != nil {
+	if err := counts(ctx, tx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin IN ('cna', 'cna_partial')
+AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')`, nil, &held); err != nil {
 		return "", err
 	}
 	unread, none := max(gap-read, 0), max(read-held, 0)

@@ -60,7 +60,6 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		return got
 	}
 	empty := map[string]string{
-		"first-epss":    "No score yet: the exploited CVEs are scored once the CISA list is on the box.",
 		cveOrgFeedID:    "Nothing to read yet: CVE.org is read for the exploited CVEs NVD gives no affected versions for, once the CISA list is on the box.",
 		nvdFeedID:       "",
 		winRelFeedID:    "",
@@ -80,7 +79,6 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 		return err
 	})
 	filled := map[string]string{
-		"first-epss": "Scores of 0 of the 1 exploited CVE on the CISA list, today's and a week ago's.",
 		cveOrgFeedID: "1 exploited CVE has no affected versions from NVD; 1 not read from CVE.org yet.",
 		winRelFeedID: "1 Windows release on Microsoft's release information pages, with 2 monthly updates, the newest of 11 Nov 2026.",
 	}
@@ -91,7 +89,7 @@ func TestHeldNotes_EmptyAndFilled(t *testing.T) {
 	}
 	// read, nothing comparable: one CVE is "it"; NVD gives versions for every exploited CVE: CVE.org has nothing to do
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2026-0001', '2026-11-05T12:00:00.000Z')`)
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_cve SET record_at = '2026-11-05T12:00:00.000Z' WHERE cve = 'CVE-2026-0001'`)
 		return err
 	})
 	if got, want := held(cveOrgFeedID), "1 exploited CVE has no affected versions from NVD, and CVE.org gives none Vedette can compare for it either; it is asked again every 12 hours."; got != want {
@@ -189,7 +187,7 @@ func TestHeldNotes_ShownRightAfterAnUpdate(t *testing.T) {
 	}
 }
 
-// The sentence follows the data whichever feed changed it: the CISA list (first-epss, cve-org, the distribution feeds), VulnCheck KEV,
+// The sentence follows the data whichever feed changed it: the CISA list (cve-org, the distribution feeds), VulnCheck KEV,
 // NVD (nvd-kev, cve-org), and each feed's own pull. A pull is its data and its recorded outcome in one transaction, as pullOne writes.
 func TestHeldNotes_FollowTheData(t *testing.T) {
 	t.Parallel()
@@ -221,7 +219,6 @@ func TestHeldNotes_FollowTheData(t *testing.T) {
 			_, _, err := applyVulns(t.Context(), tx, epoch0, kevFeedID, []Vuln{vuln("CVE-2025-1111", "Haxx", "curl", "2026-11-03")}, false)
 			return err
 		}, map[string]string{
-			"first-epss":    "Scores of 0 of the 3 exploited CVEs on the CISA list, today's and a week ago's.",
 			cveOrgFeedID:    "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
 			ubuntuOSVFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs.",
 		}},
@@ -236,10 +233,8 @@ func TestHeldNotes_FollowTheData(t *testing.T) {
 			nvdFeedID:    "NVD records of 2 exploited CVEs; 2 of them name affected versions.",
 			cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; 2 not read from CVE.org yet.",
 		}},
-		{"CVE.org reads one", cveOrgFeedID, insert(`INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES ('CVE-2025-1111', '2026-11-05T12:00:00.000Z')`),
+		{"CVE.org reads one", cveOrgFeedID, insert(`UPDATE feeds_cve SET record_at = '2026-11-05T12:00:00.000Z' WHERE cve = 'CVE-2025-1111'`),
 			map[string]string{cveOrgFeedID: "2 exploited CVEs have no affected versions from NVD; CVE.org gives none Vedette can compare for 1, 1 not read from CVE.org yet."}},
-		{"EPSS scores the list", "first-epss", insert(`UPDATE feeds_vuln SET epss = 0.5 WHERE source_id = 'cisa-kev'`),
-			map[string]string{"first-epss": "Scores of 3 of the 3 exploited CVEs on the CISA list, today's and a week ago's."}},
 		{"Debian drops its rows of the other CVE", debianTrackerFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'debian-tracker' AND release = '13'`),
 			map[string]string{debianTrackerFeedID: "Counts one record per package, release and CVE: 2 exploited CVEs."}},
 		{"Ubuntu VEX, Alpine and Ubuntu OSV each keep one row", ubuntuVEXFeedID, insert(`DELETE FROM feeds_distro_fix WHERE source_id = 'ubuntu-vex' AND package = 'openssh'`),

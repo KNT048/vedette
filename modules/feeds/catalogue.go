@@ -1,0 +1,708 @@
+package feeds
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/knt048/vedette/core/store"
+)
+
+// The vulnerability catalogue: one row per CVE (feeds_cve) with its scores (feeds_cve_metric) and affected versions
+// (feeds_cve_range), whichever pull brought it. Which CVEs it holds is the retention rule (retained, pruneCatalogue), not a table.
+
+// windowDays is the catalogue's window: every CVE published in the last windowDays days is kept.
+const windowDays = 365
+
+// The origins of a range (feeds_cve_range.origin).
+const (
+	OriginNVD        = "nvd"
+	OriginCNA        = "cna"         // the CNA's affected[] list of the CVE record, complete (says what an unlisted version is)
+	OriginCNAPartial = "cna_partial" // a CNA list that does not say what an unlisted version is: it may raise a match, never close one
+)
+
+// epssHistKeep is how many days of EPSS scores feeds_epss_hist keeps (the "rising" display compares with a week before).
+const epssHistKeep = 8
+
+// keepSetSQL is the CVEs the retention rule keeps whatever their age: an exploited-list entry or a qualifying signal of any kind.
+// Pinned CVEs (an open finding) are added by the caller.
+const keepSetSQL = `SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal WHERE qualifies = 1`
+
+// retention decides which NVD records a pull stores: those published inside the window and those of the keep set.
+type retention struct {
+	cutoff time.Time
+	keep   map[string]bool
+	all    bool // every record (tests that write NVD answers directly)
+}
+
+// retentionOf reads the keep set inside tx (one read per page: a list entry or signal stored meanwhile counts from the next page).
+func retentionOf(ctx context.Context, tx *sql.Tx, now time.Time, pinned []string) (retention, error) {
+	keep, err := stringSet(ctx, tx, keepSetSQL)
+	if err != nil {
+		return retention{}, err
+	}
+	for _, c := range pinned {
+		keep[c] = true
+	}
+	return retention{cutoff: now.AddDate(0, 0, -windowDays), keep: keep}, nil
+}
+
+func (r retention) keeps(rec NVDRecord) bool {
+	return r.all || r.keep[rec.CVE] || !rec.Published.Before(r.cutoff) && !strings.EqualFold(rec.Status, "Rejected")
+}
+
+// nvdWrite is what writeNVDRecords did.
+type nvdWrite struct {
+	Stored     int      // records written
+	KEVChanged []string // CVEs of the exploited lists whose NVD ranges changed (findings matches them again)
+}
+
+// writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
+// description), its scores and its NVD ranges replace what the catalogue had (the CVE record's own rows stay; reads prefer NVD's when
+// there are any). A record NVD rejected keeps only its status, so the retention rule drops it unless a list, a signal or a finding
+// holds it.
+func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret retention, now time.Time) (nvdWrite, error) {
+	var out nvdWrite
+	stamp := store.FormatTS(now)
+	kev, err := stringSet(ctx, tx, `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`)
+	if err != nil {
+		return out, err
+	}
+	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(cve) DO UPDATE SET published = coalesce(excluded.published, published), modified = coalesce(excluded.modified, modified), nvd_status = excluded.nvd_status, nvd_at = excluded.nvd_at,
+description = excluded.description, updated_at = excluded.updated_at`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = upCVE.Close() }()
+	delMetric, err := tx.PrepareContext(ctx, `DELETE FROM feeds_cve_metric WHERE cve = ?`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = delMetric.Close() }()
+	insMetric, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES (?, ?, ?, ?, ?)`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = insMetric.Close() }()
+	delRange, err := tx.PrepareContext(ctx, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin = 'nvd'`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = delRange.Close() }()
+	insRange, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, platforms)
+VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = insRange.Close() }()
+	for i, r := range recs {
+		if i%ctxEvery == 0 {
+			if err := ctx.Err(); err != nil {
+				return out, err
+			}
+		}
+		rejected := strings.EqualFold(r.Status, "Rejected")
+		if !ret.keeps(r) {
+			if !rejected {
+				continue
+			}
+			var n int // a rejected record of a CVE the catalogue holds: its status says so, and the retention rule takes it out
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_cve WHERE cve = ?`, r.CVE).Scan(&n); err != nil {
+				return out, fmt.Errorf("feeds: catalogue: %w", err)
+			}
+			if n == 0 {
+				continue
+			}
+		}
+		if kev[r.CVE] {
+			same, err := sameNVDRanges(ctx, tx, r)
+			if err != nil {
+				return out, err
+			}
+			var known bool
+			if err := tx.QueryRowContext(ctx, `SELECT nvd_at IS NOT NULL FROM feeds_cve WHERE cve = ?`, r.CVE).Scan(&known); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return out, fmt.Errorf("feeds: catalogue: %w", err)
+			}
+			if !same || !known {
+				out.KEVChanged = append(out.KEVChanged, r.CVE)
+			}
+		}
+		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, stamp); err != nil {
+			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+		}
+		if _, err := delMetric.ExecContext(ctx, r.CVE); err != nil {
+			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+		}
+		if _, err := delRange.ExecContext(ctx, r.CVE); err != nil {
+			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+		}
+		out.Stored++
+		if rejected {
+			continue
+		}
+		for _, m := range r.Metrics {
+			if _, err := insMetric.ExecContext(ctx, r.CVE, m.Source, m.Version, m.Score, m.Vector); err != nil {
+				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+			}
+		}
+		for j, a := range r.Affected {
+			plats := []string{}
+			if j < len(r.Platforms) && r.Platforms[j] != nil {
+				plats = r.Platforms[j]
+			}
+			pj, err := json.Marshal(plats)
+			if err != nil {
+				return out, err
+			}
+			part, vendor, product := cpeParts(a.CPE)
+			if _, err := insRange.ExecContext(ctx, r.CVE, part, clipBytes(vendor, maxVendorProduct), clipBytes(product, maxVendorProduct), a.CPE,
+				a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl, string(pj)); err != nil {
+				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+			}
+		}
+	}
+	return out, nil
+}
+
+// tsOrNull is t as stored, NULL for the zero time (a record always has both dates; a test's record may not).
+func tsOrNull(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return store.FormatTS(t)
+}
+
+// clipBytes cuts s to at most n bytes at a rune boundary.
+func clipBytes(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
+}
+
+func utf8RuneStart(b byte) bool { return b&0xC0 != 0x80 }
+
+// sameNVDRanges reports whether the stored NVD ranges of r's CVE are exactly r's (a CVE NVD did not change is not news).
+func sameNVDRanges(ctx context.Context, tx *sql.Tx, r NVDRecord) (bool, error) {
+	have, err := readRanges(ctx, tx, `WHERE r.cve = ? AND r.origin = 'nvd'`, r.CVE)
+	if err != nil {
+		return false, err
+	}
+	if len(have) != len(r.Affected) {
+		return false, nil
+	}
+	for i, h := range have {
+		if h.AffectedRow() != r.Affected[i] {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// pruneCatalogue applies the retention rule: a CVE stays while it was published inside the window (and NVD did not reject it), or
+// is on an exploited list, or has a qualifying signal of any kind and any age, or an open finding pins it. Nothing ages out from under
+// an open finding. It also drops the EPSS history older than epssHistKeep days and of CVEs no list or signal names.
+func pruneCatalogue(ctx context.Context, tx *sql.Tx, now time.Time, pinned []string) error {
+	pins, err := json.Marshal(append([]string{}, pinned...))
+	if err != nil {
+		return fmt.Errorf("feeds: prune catalogue: %w", err)
+	}
+	cutoff := store.FormatTS(now.AddDate(0, 0, -windowDays))
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve WHERE (published IS NULL OR published < ? OR nvd_status = 'Rejected')
+AND NOT EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = feeds_cve.cve)
+AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = feeds_cve.cve AND s.qualifies = 1)
+AND cve NOT IN (SELECT value FROM json_each(?))`, cutoff, string(pins)); err != nil {
+		return fmt.Errorf("feeds: prune catalogue: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss_hist WHERE day < ? OR cve NOT IN (SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal)`,
+		now.UTC().AddDate(0, 0, -epssHistKeep).Format(time.DateOnly)); err != nil {
+		return fmt.Errorf("feeds: prune EPSS history: %w", err)
+	}
+	return nil
+}
+
+// Range is one affected-versions row of the catalogue.
+type Range struct {
+	CVE, Origin                            string
+	Part, Vendor, Product, CPE             string
+	StartIncl, StartExcl, EndIncl, EndExcl string
+	Fixed, VersionType                     string
+	Platforms                              []string // NVD's "running on" operating systems ("microsoft:windows"); empty for none
+}
+
+// AffectedRow is the range as the matcher's CPE entry.
+func (r Range) AffectedRow() AffectedRow {
+	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}
+}
+
+const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.platforms`
+
+func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Range, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+rangeCols+` FROM feeds_cve_range r `+where+` ORDER BY r.cve, r.id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read ranges: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Range
+	for rows.Next() {
+		var (
+			r  Range
+			pl sql.NullString
+		)
+		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &pl); err != nil {
+			return nil, fmt.Errorf("feeds: read ranges: %w", err)
+		}
+		r.Platforms = []string{}
+		if pl.Valid && json.Unmarshal([]byte(pl.String), &r.Platforms) != nil {
+			r.Platforms = []string{}
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// rangeOrigin is the precedence of one CVE's ranges: NVD's rows when NVD gives any, else the CVE record's (origin cna or
+// cna_partial). It returns the rows that count.
+func rangeOrigin(rows []Range) []Range {
+	if slices.ContainsFunc(rows, func(r Range) bool { return r.Origin == OriginNVD }) {
+		return slices.DeleteFunc(rows, func(r Range) bool { return r.Origin != OriginNVD })
+	}
+	return rows
+}
+
+// ProductKey names a product as the catalogue's ranges do: CPE vendor and product, lower case ("apache", "http_server").
+type ProductKey struct{ Vendor, Product string }
+
+// Ranges returns the ranges of every catalogue CVE that names one of these products, with the precedence of rangeOrigin applied per
+// CVE (a CVE NVD gives ranges for counts only NVD's, also when NVD names other products). Sorted by CVE, then as stored.
+func (s *Store) Ranges(ctx context.Context, keys []ProductKey) ([]Range, error) {
+	cves := map[string]bool{}
+	for chunk := range slices.Chunk(keys, 400) {
+		pairs := make([][2]string, len(chunk))
+		for i, k := range chunk {
+			pairs[i] = [2]string{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}
+		}
+		part, err := json.Marshal(pairs)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: ranges: %w", err)
+		}
+		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT r.cve FROM json_each(?) j
+JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product = json_extract(j.value, '$[1]')`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for c := range got {
+			cves[c] = true
+		}
+	}
+	want := map[ProductKey]bool{}
+	for _, k := range keys {
+		want[ProductKey{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}] = true
+	}
+	var out []Range
+	for chunk := range slices.Chunk(slices.Sorted(mapsKeys(cves)), 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, per := range groupByCVE(rows) {
+			for _, r := range rangeOrigin(per) {
+				if want[ProductKey{r.Vendor, r.Product}] {
+					out = append(out, r)
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// groupByCVE splits rows sorted by CVE into one slice per CVE.
+func groupByCVE(rows []Range) [][]Range {
+	var out [][]Range
+	for i := 0; i < len(rows); {
+		j := i + 1
+		for j < len(rows) && rows[j].CVE == rows[i].CVE {
+			j++
+		}
+		out = append(out, rows[i:j:j])
+		i = j
+	}
+	return out
+}
+
+func mapsKeys(m map[string]bool) func(func(string) bool) {
+	return func(yield func(string) bool) {
+		for k := range m {
+			if !yield(k) {
+				return
+			}
+		}
+	}
+}
+
+// Signal is one feeds_signal row: why a CVE is urgent, from which source, since when.
+type Signal struct {
+	CVE, Kind, Source             string
+	FirstSeen, StoredAt, LastSeen time.Time
+	Qualifies                     bool
+	URL                           string
+	Detail                        json.RawMessage // small, for display; nil when none
+}
+
+// Signals returns the signal rows of these CVEs, each CVE's sorted by first sighting.
+func (s *Store) Signals(ctx context.Context, cves []string) (map[string][]Signal, error) {
+	out := map[string][]Signal{}
+	for chunk := range slices.Chunk(cves, 500) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: signals: %w", err)
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, kind, source, first_seen, stored_at, last_seen, qualifies, url, detail FROM feeds_signal
+WHERE cve IN (SELECT value FROM json_each(?)) ORDER BY cve, first_seen, kind, source`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: signals: %w", err)
+		}
+		for rows.Next() {
+			var (
+				g          Signal
+				fs, sa, ls string
+				detail     sql.NullString
+			)
+			if err := rows.Scan(&g.CVE, &g.Kind, &g.Source, &fs, &sa, &ls, &g.Qualifies, &g.URL, &detail); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: signals: %w", err)
+			}
+			var e1, e2, e3 error
+			g.FirstSeen, e1 = parseTS(fs)
+			g.StoredAt, e2 = parseTS(sa)
+			g.LastSeen, e3 = parseTS(ls)
+			if err := errors.Join(e1, e2, e3); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: signals: %w", err)
+			}
+			if detail.Valid {
+				g.Detail = json.RawMessage(detail.String)
+			}
+			out[g.CVE] = append(out[g.CVE], g)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: signals: %w", err)
+		}
+	}
+	return out, nil
+}
+
+// CatalogueEntry is one CVE of the catalogue as the matcher and the pages read it.
+type CatalogueEntry struct {
+	CVE                 string
+	Published, Modified *time.Time
+	NVDStatus           string     // "" until NVD answered
+	NVDAt, RecordAt     *time.Time // when NVD answered, when the CVE record was read; nil: never
+	Title, Description  string
+	CVSS                *CVSS // PickCVSS of the stored scores; nil when none
+	Severity            string
+	EPSS, Percentile    *float64
+	// RangesFrom is the origin of the ranges that count (rangeOrigin): OriginNVD, OriginCNA, OriginCNAPartial, or "" when none.
+	RangesFrom string
+}
+
+// Catalogue returns the catalogue entries of these CVEs; a CVE the catalogue does not hold is absent.
+func (s *Store) Catalogue(ctx context.Context, cves []string) (map[string]CatalogueEntry, error) {
+	out := map[string]CatalogueEntry{}
+	db := s.db.Reader()
+	for chunk := range slices.Chunk(cves, 500) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: catalogue: %w", err)
+		}
+		rows, err := db.QueryContext(ctx, `SELECT c.cve, c.published, c.modified, c.nvd_status, c.nvd_at, c.record_at, c.title, c.description, e.epss, e.percentile,
+(SELECT CASE WHEN EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd') THEN 'nvd'
+             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve) END)
+FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: catalogue: %w", err)
+		}
+		for rows.Next() {
+			var (
+				e                                 CatalogueEntry
+				pub, mod, status, nvdAt, recordAt sql.NullString
+				origin                            sql.NullString
+			)
+			if err := rows.Scan(&e.CVE, &pub, &mod, &status, &nvdAt, &recordAt, &e.Title, &e.Description, &e.EPSS, &e.Percentile, &origin); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: catalogue: %w", err)
+			}
+			e.Published, e.Modified, e.NVDAt, e.RecordAt = optTime(pub), optTime(mod), optTime(nvdAt), optTime(recordAt)
+			e.NVDStatus, e.RangesFrom = status.String, origin.String
+			out[e.CVE] = e
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: catalogue: %w", err)
+		}
+	}
+	scores, err := s.metricsOf(ctx, slices.Collect(mapsKeys(boolKeys(out))))
+	if err != nil {
+		return nil, err
+	}
+	for cve, ms := range scores {
+		if c, ok := PickCVSS(ms); ok {
+			e := out[cve]
+			e.CVSS, e.Severity = &c, Severity(c.Score, c.Version)
+			out[cve] = e
+		}
+	}
+	return out, nil
+}
+
+func boolKeys[V any](m map[string]V) map[string]bool {
+	out := make(map[string]bool, len(m))
+	for k := range m {
+		out[k] = true
+	}
+	return out
+}
+
+func optTime(s sql.NullString) *time.Time {
+	if !s.Valid {
+		return nil
+	}
+	t, err := parseTS(s.String)
+	if err != nil {
+		return nil
+	}
+	return &t
+}
+
+// metricsOf reads the stored scores of these CVEs.
+func (s *Store) metricsOf(ctx context.Context, cves []string) (map[string][]Metric, error) {
+	out := map[string][]Metric{}
+	for chunk := range slices.Chunk(cves, 500) {
+		part, err := json.Marshal(chunk) // one parameter: the CVEs as a JSON array (json_each), no SQL built from strings
+		if err != nil {
+			return nil, fmt.Errorf("feeds: cvss: %w", err)
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, source, version, score, vector FROM feeds_cve_metric WHERE cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: cvss: %w", err)
+		}
+		for rows.Next() {
+			var cve string
+			var m Metric
+			if err := rows.Scan(&cve, &m.Source, &m.Version, &m.Score, &m.Vector); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: cvss: %w", err)
+			}
+			out[cve] = append(out[cve], m)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: cvss: %w", err)
+		}
+	}
+	return out, nil
+}
+
+// CVSSOf returns the CVSS base score of each of these CVEs that has one (PickCVSS of the catalogue's scores), with its version, source
+// and vector. A CVE without a score is absent: the pages say "No CVSS score", never 0. The source is "nvd" or "cna" as the findings
+// API names it: CISA's ADP, another scorer than NVD, reads as "cna" there.
+func (s *Store) CVSSOf(ctx context.Context, cves []string) (map[string]CVSS, error) {
+	scores, err := s.metricsOf(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]CVSS, len(scores))
+	for cve, ms := range scores {
+		if c, ok := PickCVSS(ms); ok {
+			if c.Source == MetricADP {
+				c.Source = MetricCNA
+			}
+			out[cve] = c
+		}
+	}
+	return out, nil
+}
+
+// KevAffected returns the affected entries of the exploited lists' CVEs, for findings: NVD's when NVD gives any, else those of the
+// CNA's CVE record (RangesFromCVEOrg names them). A CVE NVD has not answered for and the record gave nothing for is absent; one NVD
+// answered for without a vulnerable entry is present with an empty list.
+func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, error) {
+	db := s.db.Reader()
+	rows, err := readRanges(ctx, db, `WHERE r.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]AffectedRow{}
+	for _, per := range groupByCVE(rows) {
+		for _, r := range rangeOrigin(per) {
+			out[r.CVE] = append(out[r.CVE], r.AffectedRow())
+		}
+	}
+	answered, err := stringSet(ctx, db, `SELECT c.cve FROM feeds_cve c WHERE c.nvd_at IS NOT NULL AND c.nvd_status <> 'Rejected'
+AND c.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
+	if err != nil {
+		return nil, err
+	}
+	for cve := range answered {
+		if _, ok := out[cve]; !ok {
+			out[cve] = []AffectedRow{}
+		}
+	}
+	return out, nil
+}
+
+// The sources RangesFromCVEOrg names, as findings reads them.
+const (
+	rangesCVEOrg        = "cve.org"
+	rangesCVEOrgPartial = "cve.org-partial"
+)
+
+// RangesFromCVEOrg returns the exploited-list CVEs whose affected versions (KevAffected) come from the CNA's CVE record, not from NVD,
+// with their source: "cve.org" (a complete list) or "cve.org-partial" (findings may raise a match on it, never close one).
+func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.cve, min(r.origin) FROM feeds_cve_range r
+WHERE r.origin IN ('cna', 'cna_partial') AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')
+GROUP BY r.cve`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read affected: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var cve, origin string
+		if err := rows.Scan(&cve, &origin); err != nil {
+			return nil, fmt.Errorf("feeds: read affected: %w", err)
+		}
+		out[cve] = rangesCVEOrg
+		if origin == OriginCNAPartial {
+			out[cve] = rangesCVEOrgPartial
+		}
+	}
+	return out, rows.Err()
+}
+
+// MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and
+// rev (turned on or off) of the feeds that write them (each written in the pull's own transaction), and the count and newest change
+// of the exploited-list entries and of their catalogue rows. findings (through cmd/vedette) keeps one read of the list per stamp,
+// instead of reading the ranges once per device.
+func (s *Store) MatchStamp(ctx context.Context) (string, error) {
+	var stamp sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('alpine-osv', 'cisa-kev', 'cve-org', 'debian-tracker', 'epss-all', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev') ORDER BY id))
+|| ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))
+|| ';' || (SELECT count(*) || '/' || COALESCE(max(c.updated_at), '') FROM feeds_cve c WHERE c.cve IN (SELECT cve FROM feeds_kev))`).Scan(&stamp)
+	if err != nil {
+		return "", fmt.Errorf("feeds: match stamp: %w", err)
+	}
+	return stamp.String, nil
+}
+
+// TierStamp changes whenever what TierRecords and TierDistroRecords return may have changed: the last pull time and rev (turned on or
+// off) of epss-all, nvd-recent, nvd-kev and the distribution feeds ubuntu-osv and debian-tracker (ubuntu-vex keeps no tier row), and
+// of windows-releases, whose monthly updates are the target builds of the plan's Windows items. The hourly exploited-list pulls are
+// not in it: findings' hourly full pass takes their new CVEs out of the plan.
+func (s *Store) TierStamp(ctx context.Context) (string, error) {
+	var stamp sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev || '/' || enabled, ',') FROM
+(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('alpine-osv', 'debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'windows-releases') ORDER BY id)`).Scan(&stamp)
+	if err != nil {
+		return "", fmt.Errorf("feeds: tier stamp: %w", err)
+	}
+	return stamp.String, nil
+}
+
+// kevNVDCount is how many CVEs of the exploited lists NVD answered for.
+func (s *Store) kevNVDCount(ctx context.Context) (int, error) {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, kevNVDCountSQL).Scan(&n); err != nil {
+		return 0, fmt.Errorf("feeds: count NVD answers: %w", err)
+	}
+	return n, nil
+}
+
+func kevNVDCountTx(ctx context.Context, tx *sql.Tx) (int, error) {
+	var n int
+	if err := tx.QueryRowContext(ctx, kevNVDCountSQL).Scan(&n); err != nil {
+		return 0, fmt.Errorf("feeds: count NVD answers: %w", err)
+	}
+	return n, nil
+}
+
+const kevNVDCountSQL = `SELECT count(*) FROM feeds_cve WHERE nvd_at IS NOT NULL AND cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`
+
+// KevPublished returns the day each CVE of the exploited lists was published (NVD's, else the CVE record's). A CVE that is absent has
+// no known day: findings then treats it as recent and never closes a finding on it for its age.
+func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, published FROM feeds_cve WHERE published IS NOT NULL AND cve IN (SELECT cve FROM feeds_kev)`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read published: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]time.Time{}
+	for rows.Next() {
+		var cve, ts string
+		if err := rows.Scan(&cve, &ts); err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
+		}
+		if t, err := parseTS(ts); err == nil {
+			out[cve] = t.UTC().Truncate(24 * time.Hour)
+		}
+	}
+	return out, rows.Err()
+}
+
+// publishedChunk is the most CVEs of one PublishedOf query.
+const publishedChunk = 500
+
+// PublishedOf returns the day each of these CVEs was published ("2017-03-14"); a CVE with no known day is absent. One query per
+// publishedChunk CVEs (the CVEs as one JSON array parameter, json_each), not one per CVE.
+func (s *Store) PublishedOf(ctx context.Context, cves []string) (map[string]string, error) {
+	out := make(map[string]string, len(cves))
+	for chunk := range slices.Chunk(cves, publishedChunk) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT c.cve, c.published FROM json_each(?) j JOIN feeds_cve c ON c.cve = j.value WHERE c.published IS NOT NULL`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
+		}
+		for rows.Next() {
+			var c, ts string
+			if err := rows.Scan(&c, &ts); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: read published: %w", err)
+			}
+			if len(ts) >= 10 {
+				out[c] = ts[:10]
+			}
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
+		}
+	}
+	return out, nil
+}
+
+// publishedOf is the day one CVE was published ("2017-03-14"), nil when the catalogue has none.
+func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
+	got, err := s.PublishedOf(ctx, []string{cve})
+	if err != nil {
+		return nil, err
+	}
+	if d, ok := got[cve]; ok {
+		return &d, nil
+	}
+	return nil, nil
+}

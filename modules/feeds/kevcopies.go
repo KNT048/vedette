@@ -173,7 +173,6 @@ func (s *Service) buildKEVBoth(ctx context.Context, src sourceRow, p pullPlan) (
 	var cands []cand
 	var errs []error
 	loaded := src.LastSuccess != nil
-	reload := src.reload() // new code reads both copies in full and takes the list held again unless a copy is newer (INV-32)
 	heldCount, heldBy := 0, orEmpty(src.AnsweredBy)
 	if loaded && src.Records != nil {
 		heldCount = *src.Records
@@ -186,8 +185,6 @@ func (s *Service) buildKEVBoth(ctx context.Context, src sourceRow, p pullPlan) (
 			return true
 		case held.newer(k):
 			return false // behind the box: never a roll back
-		case reload:
-			return count >= heldCount // the same catalog parsed by this code, never a shorter copy of it
 		}
 		return count > heldCount || (count == heldCount && by == AnsweredCISA && heldBy != AnsweredCISA)
 	}
@@ -204,7 +201,7 @@ func (s *Service) buildKEVBoth(ctx context.Context, src sourceRow, p pullPlan) (
 		label := copyLabel(c.by)
 		c.st.ETag, c.st.LastMod, c.st.CheckedAt = orEmpty(c.etag), orEmpty(c.lm), now // kept unless the copy hands out new ones
 		req := Request{URL: c.url}                                                    // no credentials
-		if loaded && c.st.Read && !reload {                                           // conditional once a body of this copy was read: a 304 then means that body
+		if loaded && c.st.Read {                                                      // conditional once a body of this copy was read: a 304 then means that body
 			req.ETag, req.LastModified = c.st.ETag, c.st.LastMod
 		}
 		resp, err := s.get(ctx, req)

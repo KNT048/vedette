@@ -174,7 +174,7 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	if news := e.pub.named(EventNewKEV); len(news) != 1 || news[0].(NewKEVEvent).CVE != "CVE-2026-1009" {
 		t.Errorf("new_kev: %v", news)
 	}
-	if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'vulncheck-kev'`); n != 2 { // 1003 is no longer listed
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck'`); n != 2 { // 1003 is no longer listed
 		t.Errorf("%d rows", n)
 	}
 
@@ -185,7 +185,7 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	if f := e.feed("vulncheck-kev"); f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "did not accept the API key") || strings.Contains(*f.Error, "ABCDEF") {
 		t.Fatalf("feed = %+v", f)
 	}
-	if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'vulncheck-kev'`); n != 2 {
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck'`); n != 2 {
 		t.Errorf("a refused pull changed the data: %d rows", n)
 	}
 
@@ -194,10 +194,10 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	if c != 200 || at(b, "enabled") != false || at(b, "auth", "type") != "none" || at(b, "auth", "secret_last4") != nil || at(b, "status") != "never" {
 		t.Fatalf("remove key: %d %v", c, b)
 	}
-	if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'vulncheck-kev'`); n != 0 {
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck'`); n != 0 {
 		t.Errorf("%d rows left", n)
 	}
-	if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'cisa-kev'`); n != 1 {
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'cisa'`); n != 1 {
 		t.Errorf("CISA rows: %d", n)
 	}
 	if n := count(t, e.db, `SELECT count(*) FROM core_secret WHERE purpose = 'feeds_source.secret'`); n != 0 {
@@ -261,7 +261,7 @@ func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 			if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "could not be read completely") {
 				t.Fatalf("feed = %+v", f)
 			}
-			if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'vulncheck-kev' AND cve = 'CVE-2026-1099'`); n != 1 {
+			if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck' AND cve = 'CVE-2026-1099'`); n != 1 {
 				t.Fatal("the rows loaded before were deleted")
 			}
 		})
@@ -293,7 +293,7 @@ func TestVulnCheckEntries_OwnershipAndWindow(t *testing.T) {
 	fresh, _ := applyV(t, db, epoch0, "vulncheck-kev", []Vuln{vuln("CVE-2026-4001", "Acme", "A", "2026-11-01"), vuln("CVE-2026-4002", "Acme", "B", "2026-11-01")}, false)
 	owner := func(c string) string {
 		var s string
-		_ = db.Reader().QueryRowContext(t.Context(), `SELECT source_id FROM feeds_vuln WHERE cve = ?`, c).Scan(&s)
+		_ = db.Reader().QueryRowContext(t.Context(), `SELECT k.source_id FROM feeds_kev k WHERE k.cve = ? ORDER BY CASE k.list WHEN 'cisa' THEN 0 WHEN 'vulncheck' THEN 1 ELSE 2 END LIMIT 1`, c).Scan(&s)
 		return s
 	}
 	if owner("CVE-2026-4001") != "vulncheck-kev" || owner("CVE-2026-4002") != "cisa-kev" || len(fresh) != 1 {

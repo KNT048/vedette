@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -34,12 +35,12 @@ type kevTodo struct{ CVE, Vendor, Product string }
 // cveOrgTodo lists the CISA KEV CVEs without NVD ranges (none stored, or NVD's answer has no vulnerable entry) whose
 // record was not read since before: never read first, then the longest ago, newest KEV entries first.
 func (s *Store) cveOrgTodo(ctx context.Context, before time.Time, limit int) ([]kevTodo, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT v.cve, v.vendor, v.product FROM feeds_vuln v
-LEFT JOIN feeds_cveorg_checked c ON c.cve = v.cve
-WHERE v.source_id IN ('cisa-kev', 'vulncheck-kev')
-  AND NOT EXISTS (SELECT 1 FROM feeds_affected_cve a WHERE a.cve = v.cve AND a.source = 'nvd' AND EXISTS (SELECT 1 FROM feeds_affected r WHERE r.cve = v.cve))
-  AND (c.checked_at IS NULL OR c.checked_at < ?)
-ORDER BY c.checked_at IS NOT NULL, c.checked_at, v.date_added DESC, v.cve
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT k.cve, k.vendor, k.product FROM feeds_kev k JOIN feeds_cve c ON c.cve = k.cve
+WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
+  AND k.list = (SELECT k2.list FROM feeds_kev k2 WHERE k2.cve = k.cve AND k2.source_id IN ('cisa-kev', 'vulncheck-kev') ORDER BY `+ownerOrder+` LIMIT 1)
+  AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'nvd')
+  AND (c.record_at IS NULL OR c.record_at < ?)
+ORDER BY c.record_at IS NOT NULL, c.record_at, k.date_added DESC, k.cve
 LIMIT ?`, store.FormatTS(before), limit)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: CVE.org to do: %w", err)
@@ -179,23 +180,28 @@ func cveOrgNote(n int, c map[string]int, rejected int, stopped bool) string {
 	return t
 }
 
-// applyCVEOrg stores the ranges a CVE.org pull found: NVD's ranges win, so a CVE that has NVD rows by now is left
-// alone; a CVE whose record no longer gives ranges loses the CVE.org ones it had. Every CVE read (checked) or not
-// readable this time (unread: its stored ranges stay) is stamped, and the stamps of CVEs CISA no longer lists go. It
-// returns the CVEs whose ranges changed, whether all of them were read for the first time (backlog: matched quietly, a
-// new CISA entry alerts through its own new_kev event; review L2), and how many CVEs have CVE.org ranges.
+// applyCVEOrg stores the ranges a CVE.org pull found (origin cna, or cna_partial for a list that may skip branches): a CVE that has
+// NVD rows by now keeps the CNA rows aside (NVD's win when read); a CVE whose record no longer gives ranges loses the CNA ones it had.
+// Every CVE read (checked) or not readable this time (unread: its stored ranges stay) is stamped (feeds_cve.record_at), and the CNA
+// rows of CVEs no exploited list names any more go. It returns the CVEs whose ranges changed, whether all of them were read for the
+// first time (backlog: matched quietly, a new CISA entry alerts through its own new_kev event), and how many CVEs have CNA ranges.
 func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, checked, unread []string, now time.Time) (changed []string, first bool, total int, err error) {
 	ts := store.FormatTS(now)
 	first = true
 	stamp := func(cve string) (bool, error) {
-		var seen int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_cveorg_checked WHERE cve = ?`, cve).Scan(&seen); err != nil {
+		var seen bool
+		err := tx.QueryRowContext(ctx, `SELECT record_at IS NOT NULL FROM feeds_cve WHERE cve = ?`, cve).Scan(&seen)
+		if errors.Is(err, sql.ErrNoRows) {
+			if err := ensureCVE(ctx, tx, cve, ts); err != nil {
+				return false, err
+			}
+		} else if err != nil {
 			return false, fmt.Errorf("feeds: CVE.org: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cveorg_checked (cve, checked_at) VALUES (?, ?) ON CONFLICT(cve) DO UPDATE SET checked_at = excluded.checked_at`, cve, ts); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET record_at = ? WHERE cve = ?`, ts, cve); err != nil {
 			return false, fmt.Errorf("feeds: CVE.org: %w", err)
 		}
-		return seen > 0, nil
+		return seen, nil
 	}
 	for _, cve := range unread {
 		if _, err := stamp(cve); err != nil {
@@ -207,62 +213,67 @@ func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, c
 		if err != nil {
 			return nil, false, 0, err
 		}
-		src, err := affectedSource(ctx, tx, cve)
+		have, err := readRanges(ctx, tx, `WHERE r.cve = ?`, cve)
 		if err != nil {
 			return nil, false, 0, err
 		}
-		if src == rangesNVD {
-			var n int
-			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected WHERE cve = ?`, cve).Scan(&n); err != nil {
-				return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
-			}
-			if n > 0 {
-				continue // NVD has ranges now: they win
-			}
+		if slices.ContainsFunc(have, func(r Range) bool { return r.Origin == OriginNVD }) {
+			continue // NVD has ranges now: they win
 		}
 		res, ok := got[cve]
-		if !ok {
-			if src == rangesCVEOrg || src == rangesCVEOrgPartial {
-				if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_affected_cve WHERE cve = ?`, cve); err != nil { // its rows go with it (ON DELETE CASCADE)
-					return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
-				}
-				changed, first = append(changed, cve), first && !seen
-			}
+		to := OriginCNAPartial
+		if res.Complete {
+			to = OriginCNA
+		}
+		if ok && len(have) == len(res.Rows) && !slices.ContainsFunc(have, func(r Range) bool { return r.Origin != to }) &&
+			slices.EqualFunc(have, res.Rows, func(h Range, r AffectedRow) bool { return h.AffectedRow() == r }) {
 			continue
 		}
-		to := rangesCVEOrgPartial
-		if res.Complete {
-			to = rangesCVEOrg
-		}
-		same, err := sameAffected(ctx, tx, cve, to, res.Rows)
-		if err != nil {
-			return nil, false, 0, err
-		}
-		if same {
+		if !ok && len(have) == 0 {
 			continue
 		}
 		changed, first = append(changed, cve), first && !seen
-		if err := putAffected(ctx, tx, cve, to, res.Rows, ts); err != nil {
-			return nil, false, 0, err
+		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin IN ('cna', 'cna_partial')`, cve); err != nil {
+			return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 		}
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cveorg_checked WHERE cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
-		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
+		for _, r := range res.Rows {
+			part, vendor, product := cpeParts(r.CPE)
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, to, part, clipBytes(vendor, maxVendorProduct), clipBytes(product, maxVendorProduct), r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
+				return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET updated_at = ? WHERE cve = ?`, ts, cve); err != nil {
+			return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
+		}
 	}
 	if err := pruneOrphanRanges(ctx, tx); err != nil {
 		return nil, false, 0, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source <> 'nvd'`).Scan(&total); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin IN ('cna', 'cna_partial')
+AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')`).Scan(&total); err != nil {
 		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 	}
 	return changed, first && len(changed) > 0, total, nil
 }
 
-// pruneOrphanRanges deletes the CVE.org ranges of CVEs no exploited-list source lists any more (a VulnCheck entry that
-// went), so they are not counted or matched; NVD's rows are left alone.
+// pruneOrphanRanges deletes the CNA ranges of CVEs no exploited-list source lists any more (a VulnCheck entry that went), so they are
+// not counted or matched; NVD's rows are left alone.
 func pruneOrphanRanges(ctx context.Context, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_affected_cve WHERE source <> 'nvd' AND cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE origin IN ('cna', 'cna_partial')
+AND cve NOT IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
 		return fmt.Errorf("feeds: prune CVE.org ranges: %w", err)
+	}
+	return nil
+}
+
+// applyCVEOrgPublished stores the days CVE.org's records give for CVEs NVD has given none for: NVD's day is never replaced, and a day
+// CVE.org gave once stays (a CVE's published day does not change).
+func applyCVEOrgPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
+	for _, cve := range slices.Sorted(maps.Keys(got)) {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET published = ? WHERE cve = ? AND published IS NULL`, got[cve]+"T00:00:00.000Z", cve); err != nil {
+			return fmt.Errorf("feeds: published %s: %w", cve, err)
+		}
 	}
 	return nil
 }

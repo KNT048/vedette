@@ -253,7 +253,6 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 		}
 		if err != nil {
 			s.Log.WarnContext(ctx, "a Windows release page could not be read; the Windows 11 releases are still learned and its stored updates kept", "url", u, "error", err)
-			p.partial = true
 			continue
 		}
 		p.out.Bytes += len(resp.Body)
@@ -319,7 +318,8 @@ ON CONFLICT DO NOTHING`, r.Build, boolInt(r.Server), r.Product, r.Display, r.Lin
 		return nil, false, nil
 	}
 	first = len(updsBefore) == 0 && len(updsAfter) > 0
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_affected WHERE cpe GLOB 'cpe:2.3:o:microsoft:windows*' ORDER BY cve`)
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT r.cve FROM feeds_cve_range r WHERE r.vendor = 'microsoft' AND r.product GLOB 'windows*' AND r.part = 'o'
+AND r.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')) ORDER BY r.cve`)
 	if err != nil {
 		return nil, false, fmt.Errorf("feeds: windows cves: %w", err)
 	}

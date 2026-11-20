@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,9 @@ var (
 	// epssFloor: a file with at least this many scores is never refused as short (the real file has about 406,000).
 	epssFloor = 200_000
 )
+
+// epssNum is a score as FIRST writes it.
+var epssNum = regexp.MustCompile(`^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$`)
 
 // epssBaseline is the count of the last good pull of epss-all from url; 0 when there is none (first pull, another
 // address, or the feed was turned back on).
@@ -204,7 +208,7 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 		read = c.n
 		return err
 	}}
-	if src.Status == "ok" && !src.reload() { // a reload by new code reads the whole file (INV-32)
+	if src.Status == "ok" {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	ctx, cancel := context.WithTimeout(ctx, epssAllTimeout)
@@ -249,7 +253,7 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 // rows held the writer about 0.4 s on a Mac in one transaction; the box is slower), under a new gen; the last transaction
 // drops the rows of CVEs the file no longer lists and records the pull (finish). A feed edited or turned off meanwhile
 // stops the writes (stale): the rows written so far are scores of the same day, and the next full pull settles the rest.
-func applyEPSSAll(ctx context.Context, db *store.DB, src sourceRow, scores []EPSSAllScore, day string, finish func(tx *sql.Tx) error) (stale bool, err error) {
+func applyEPSSAll(ctx context.Context, db *store.DB, now time.Time, src sourceRow, scores []EPSSAllScore, day string, finish func(tx *sql.Tx) error) (stale bool, err error) {
 	live := func(tx *sql.Tx) (bool, error) {
 		cur, err := sourceTx(ctx, tx, src.ID)
 		if err != nil {
@@ -298,6 +302,16 @@ ON CONFLICT(cve) DO UPDATE SET epss = excluded.epss, percentile = excluded.perce
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss WHERE gen <> ?`, gen); err != nil {
 			return fmt.Errorf("feeds: drop old epss: %w", err)
+		}
+		// the day's scores of the CVEs a list or a signal names, kept a few days for the "rising" display (epssHistKeep)
+		hist := day
+		if hist == "" {
+			hist = now.UTC().Format(time.DateOnly)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_epss_hist (cve, day, epss) SELECT e.cve, ?, e.epss FROM feeds_epss e
+WHERE e.cve IN (SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal)
+ON CONFLICT(cve, day) DO UPDATE SET epss = excluded.epss`, hist); err != nil {
+			return fmt.Errorf("feeds: epss history: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_epss_baseline (id, url, count, score_date) VALUES (1, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET url = excluded.url, count = excluded.count, score_date = excluded.score_date`, src.URL, len(scores), sql.NullString{String: day, Valid: day != ""}); err != nil {

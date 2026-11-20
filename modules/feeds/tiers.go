@@ -14,113 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// The day NVD published each KEV CVE (feeds_published), and what the tier feeds epss-all and nvd-recent
-// hold, for the "Updates to plan" page and the CVE page of a CVE on no exploited list.
-
-// applyPublished stores the days NVD published the CVEs of one nvd-kev pull. Rows are only added or corrected: a
-// CVE an update did not return keeps its day. NVD's day replaces a day CVE.org gave.
-func applyPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
-	if len(got) == 0 {
-		return nil
-	}
-	st, err := tx.PrepareContext(ctx, `INSERT INTO feeds_published (cve, published, source) VALUES (?, ?, 'nvd') ON CONFLICT(cve) DO UPDATE SET published = excluded.published, source = 'nvd'`)
-	if err != nil {
-		return fmt.Errorf("feeds: published: %w", err)
-	}
-	defer func() { _ = st.Close() }()
-	for _, cve := range slices.Sorted(maps.Keys(got)) {
-		if _, err := st.ExecContext(ctx, cve, got[cve]); err != nil {
-			return fmt.Errorf("feeds: published %s: %w", cve, err)
-		}
-	}
-	return nil
-}
-
-// applyCVEOrgPublished stores the days CVE.org's records give for exploited CVEs NVD has given none for: a row
-// NVD wrote is never replaced, and a day CVE.org gave once stays (a CVE's published day does not change).
-func applyCVEOrgPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
-	for _, cve := range slices.Sorted(maps.Keys(got)) {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_published (cve, published, source) VALUES (?, ?, 'cve.org') ON CONFLICT(cve) DO NOTHING`, cve, got[cve]); err != nil {
-			return fmt.Errorf("feeds: published %s: %w", cve, err)
-		}
-	}
-	return nil
-}
-
-// publishedCount is how many CVEs have NVD's published day (CVE.org's do not count); 0 makes the next nvd-kev pull a full one.
-func (s *Store) publishedCount(ctx context.Context) (int, error) {
-	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_published WHERE source = 'nvd'`).Scan(&n); err != nil {
-		return 0, fmt.Errorf("feeds: count published: %w", err)
-	}
-	return n, nil
-}
-
-// KevPublished returns the day NVD published each CVE it answered for, else the day its CVE.org record gives. A CVE that is absent has no known day:
-// findings then treats it as recent and never closes a finding on it for its age.
-func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, published FROM feeds_published`)
-	if err != nil {
-		return nil, fmt.Errorf("feeds: read published: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := map[string]time.Time{}
-	for rows.Next() {
-		var cve, day string
-		if err := rows.Scan(&cve, &day); err != nil {
-			return nil, fmt.Errorf("feeds: read published: %w", err)
-		}
-		if t, err := time.Parse(time.DateOnly, day); err == nil {
-			out[cve] = t
-		}
-	}
-	return out, rows.Err()
-}
-
-// PublishedOf returns the day NVD published each of these CVEs ("2017-03-14"); a CVE NVD has not answered for is absent.
-// One query per publishedChunk CVEs (the CVEs as one JSON array parameter, json_each), not one per CVE: GET /findings and Home's
-// GET /findings/summary ask for every open CVE, and 2 000 point reads cost about 40 ms where one read per chunk costs about 1 ms (#825).
-func (s *Store) PublishedOf(ctx context.Context, cves []string) (map[string]string, error) {
-	out := make(map[string]string, len(cves))
-	for chunk := range slices.Chunk(cves, publishedChunk) {
-		part, err := json.Marshal(chunk)
-		if err != nil {
-			return nil, fmt.Errorf("feeds: read published: %w", err)
-		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT p.cve, p.published FROM json_each(?) j JOIN feeds_published p ON p.cve = j.value`, string(part))
-		if err != nil {
-			return nil, fmt.Errorf("feeds: read published: %w", err)
-		}
-		for rows.Next() {
-			var c, d string
-			if err := rows.Scan(&c, &d); err != nil {
-				_ = rows.Close()
-				return nil, fmt.Errorf("feeds: read published: %w", err)
-			}
-			out[c] = d
-		}
-		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-			return nil, fmt.Errorf("feeds: read published: %w", err)
-		}
-	}
-	return out, nil
-}
-
-// publishedChunk is the most CVEs of one PublishedOf query.
-const publishedChunk = 500
-
-// publishedOf is the day NVD published one CVE ("2017-03-14"), nil when it has not answered for it.
-func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
-	var d string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT published FROM feeds_published WHERE cve = ?`, cve).Scan(&d)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("feeds: read published: %w", err)
-	}
-	return &d, nil
-}
+// What the tier feeds epss-all and nvd-recent hold, for the "Updates to plan" page and the CVE page of a CVE on no exploited list.
 
 // TierFeed is the state of one tier feed for the pages that read it.
 type TierFeed string
@@ -139,8 +33,8 @@ type TierStatus struct {
 	RecentSince  time.Time // CVEs published on or after it are in nvd-recent's data; zero unless Recent is ready
 }
 
-// TierStatus reads the two feeds: epss-all is ready once it stored scores, nvd-recent once its first fill finished (its
-// cursor left the fill mode) and it holds records.
+// TierStatus reads the two feeds: epss-all is ready once it stored scores, nvd-recent once the fill of its window finished (its
+// cursor left the fill mode) and the catalogue holds NVD records of the window.
 func (s *Store) TierStatus(ctx context.Context, now time.Time) (TierStatus, error) {
 	var out TierStatus
 	epss, err := s.source(ctx, epssAllFeedID)
@@ -152,7 +46,8 @@ func (s *Store) TierStatus(ctx context.Context, now time.Time) (TierStatus, erro
 		return out, err
 	}
 	var scores, records int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM feeds_epss), (SELECT count(*) FROM feeds_recent_cve)`).Scan(&scores, &records); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM feeds_epss), (SELECT count(*) FROM feeds_cve WHERE nvd_at IS NOT NULL AND published >= ?)`,
+		store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&scores, &records); err != nil {
 		return out, fmt.Errorf("feeds: tier status: %w", err)
 	}
 	out.EPSS, out.Recent = TierOff, TierOff
@@ -220,9 +115,7 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 	}
 	if st.Recent == TierReady {
 		var pub, mod, status string
-		var sev sql.NullString
-		var score sql.NullFloat64
-		err := db.QueryRowContext(ctx, `SELECT published, last_modified, status, severity, score FROM feeds_recent_cve WHERE cve = ?`, cve).Scan(&pub, &mod, &status, &sev, &score)
+		err := db.QueryRowContext(ctx, `SELECT published, modified, nvd_status FROM feeds_cve WHERE cve = ? AND nvd_at IS NOT NULL AND nvd_status <> 'Rejected'`, cve).Scan(&pub, &mod, &status)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 		case err != nil:
@@ -233,12 +126,13 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 			if e1 == nil && e2 == nil && !p.Before(now.AddDate(0, 0, -recentDays)) {
 				found = true
 				out.Published, out.LastModified, out.NVDStatus = &p, &m, &status
-				if sev.Valid {
-					v := strings.ToLower(sev.String)
-					out.Severity = &v
+				scores, err := s.CVSSOf(ctx, []string{cve})
+				if err != nil {
+					return TierCVE{}, false, err
 				}
-				if score.Valid {
-					out.Score = &score.Float64
+				if c, ok := scores[cve]; ok {
+					v, sc := strings.ToLower(Severity(c.Score, c.Version)), c.Score
+					out.Severity, out.Score = &v, &sc
 				}
 				out.Tier = "recent"
 				if out.EPSS != nil && *out.EPSS >= EPSSLikely {
@@ -250,7 +144,7 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 			}
 		}
 	}
-	if out.Published == nil { // not in nvd-recent (older, or the feed not ready): the day nvd-kev or CVE.org gave (feeds_published)
+	if out.Published == nil { // not in the window (older, or the feed not ready): the day the catalogue holds
 		d, err := s.publishedOf(ctx, cve)
 		if err != nil {
 			return TierCVE{}, false, err
@@ -266,7 +160,7 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 
 // recentProducts lists the vendor and product of a CVE's NVD affected entries ("f5 nginx"), at most 10, sorted.
 func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT cpe FROM feeds_recent_affected WHERE cve = ?`, cve)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT cpe FROM feeds_cve_range WHERE cve = ? AND origin = 'nvd'`, cve)
 	if err != nil {
 		return nil, false, fmt.Errorf("feeds: tier products: %w", err)
 	}
@@ -307,8 +201,7 @@ type TierRecord struct {
 	Affected         []AffectedRow
 	// Distro is, for TierDistroRecords, the distributions' rows (fixed, not affected, open) of the packages asked for; nil for TierRecords.
 	Distro []DistroFix
-	// Platforms is, per entry, NVD's "running on" operating systems ("microsoft:windows"); empty for none; ["?"] for an entry stored
-	// before Vedette kept them (migration 0013 refills nvd-recent, so it shows only on a box mid-refill).
+	// Platforms is, per entry, NVD's "running on" operating systems ("microsoft:windows"); empty for none.
 	Platforms [][]string
 }
 
@@ -325,41 +218,43 @@ func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe st
 		return nil, err
 	}
 	db := s.db.Reader()
-	rows, err := db.QueryContext(ctx, `SELECT DISTINCT cpe FROM feeds_recent_affected`)
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT vendor, product, cpe FROM feeds_cve_range WHERE origin = 'nvd'`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: tier products: %w", err)
 	}
-	var want []string
+	kept := map[string]bool{}
+	pairs := map[[2]string]bool{}
 	for rows.Next() {
-		var cpe string
-		if err := rows.Scan(&cpe); err != nil {
+		var vendor, product, cpe string
+		if err := rows.Scan(&vendor, &product, &cpe); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("feeds: tier products: %w", err)
 		}
 		if keep(cpe) {
-			want = append(want, cpe)
+			kept[cpe] = true
+			pairs[[2]string{vendor, product}] = true
 		}
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("feeds: tier products: %w", err)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("feeds: tier products: %w", err)
-	}
+	want := slices.SortedFunc(maps.Keys(pairs), func(a, b [2]string) int { return strings.Compare(a[0]+"|"+a[1], b[0]+"|"+b[1]) })
 	cutoff := store.FormatTS(now.AddDate(0, 0, -recentDays))
 	epssOn := st.EPSS == TierReady
 	at := map[string]int{}
 	var out []TierRecord
+	var cves []string
 	for len(want) > 0 {
 		n := min(len(want), tierChunk)
-		part, err := json.Marshal(want[:n]) // one parameter: the CPEs as a JSON array (json_each), no SQL built from strings
+		part, err := json.Marshal(want[:n]) // one parameter: the products as a JSON array (json_each), no SQL built from strings
 		if err != nil {
 			return nil, fmt.Errorf("feeds: tier records: %w", err)
 		}
 		want = want[n:]
-		rs, err := db.QueryContext(ctx, `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, a.platforms, r.published, r.severity, r.score, e.epss, e.percentile
-FROM feeds_recent_affected a JOIN feeds_recent_cve r ON r.cve = a.cve LEFT JOIN feeds_epss e ON e.cve = a.cve
-WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.cve`, string(part), cutoff)
+		rs, err := db.QueryContext(ctx, `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, a.platforms, r.published, e.epss, e.percentile
+FROM json_each(?) j JOIN feeds_cve_range a ON a.vendor = json_extract(j.value, '$[0]') AND a.product = json_extract(j.value, '$[1]') AND a.origin = 'nvd'
+JOIN feeds_cve r ON r.cve = a.cve LEFT JOIN feeds_epss e ON e.cve = a.cve
+WHERE r.published >= ? AND r.nvd_status <> 'Rejected' ORDER BY a.cve, a.id`, string(part), cutoff)
 		if err != nil {
 			return nil, fmt.Errorf("feeds: tier records: %w", err)
 		}
@@ -367,14 +262,15 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 			var (
 				cve, pub string
 				af       AffectedRow
-				sev      sql.NullString
-				score    sql.NullFloat64
 				ep, pc   sql.NullFloat64
 				pl       sql.NullString
 			)
-			if err := rs.Scan(&cve, &af.CPE, &af.StartIncl, &af.StartExcl, &af.EndIncl, &af.EndExcl, &pl, &pub, &sev, &score, &ep, &pc); err != nil {
+			if err := rs.Scan(&cve, &af.CPE, &af.StartIncl, &af.StartExcl, &af.EndIncl, &af.EndExcl, &pl, &pub, &ep, &pc); err != nil {
 				_ = rs.Close()
 				return nil, fmt.Errorf("feeds: tier records: %w", err)
+			}
+			if !kept[af.CPE] {
+				continue
 			}
 			i, ok := at[cve]
 			if !ok {
@@ -382,10 +278,7 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 				if err != nil {
 					continue // the CHECK keeps this from happening; never a guessed day
 				}
-				r := TierRecord{CVE: cve, Tier: "recent", Published: p, Severity: sev.String}
-				if score.Valid {
-					r.Score = &score.Float64
-				}
+				r := TierRecord{CVE: cve, Tier: "recent", Published: p}
 				if epssOn && ep.Valid && pc.Valid {
 					e, q := ep.Float64, pc.Float64
 					r.EPSS, r.Percentile = &e, &q
@@ -396,22 +289,39 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 				i = len(out)
 				at[cve] = i
 				out = append(out, r)
+				cves = append(cves, cve)
 			}
-			plats := []string{"?"} // stored before the column: not known
+			plats := []string{}
 			if pl.Valid && json.Unmarshal([]byte(pl.String), &plats) != nil {
-				plats = []string{"?"}
+				plats = []string{}
 			}
 			out[i].Affected = append(out[i].Affected, af)
 			out[i].Platforms = append(out[i].Platforms, plats)
 		}
-		if err := rs.Close(); err != nil {
-			return nil, fmt.Errorf("feeds: tier records: %w", err)
-		}
-		if err := rs.Err(); err != nil {
+		if err := errors.Join(rs.Err(), rs.Close()); err != nil {
 			return nil, fmt.Errorf("feeds: tier records: %w", err)
 		}
 	}
+	if err := s.withSeverity(ctx, out, cves); err != nil {
+		return nil, err
+	}
+	slices.SortStableFunc(out, func(a, b TierRecord) int { return strings.Compare(a.CVE, b.CVE) })
 	return out, nil
+}
+
+// withSeverity sets Severity and Score of the records from the catalogue's scores (PickCVSS): the same score the findings show.
+func (s *Store) withSeverity(ctx context.Context, recs []TierRecord, cves []string) error {
+	scores, err := s.CVSSOf(ctx, cves)
+	if err != nil {
+		return err
+	}
+	for i := range recs {
+		if c, ok := scores[recs[i].CVE]; ok {
+			sc := c.Score
+			recs[i].Severity, recs[i].Score = Severity(c.Score, c.Version), &sc
+		}
+	}
+	return nil
 }
 
 // tierCVEs lists the CVEs of nvd-recent published since now minus 365 days while it is ready (the distribution feeds keep
@@ -421,7 +331,7 @@ func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, e
 	if err != nil || st.Recent != TierReady {
 		return nil, err
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_recent_cve WHERE published >= ?`, store.FormatTS(now.AddDate(0, 0, -recentDays)))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_cve WHERE published >= ? AND nvd_at IS NOT NULL AND nvd_status <> 'Rejected'`, store.FormatTS(now.AddDate(0, 0, -recentDays)))
 	if err != nil {
 		return nil, fmt.Errorf("feeds: tier cves: %w", err)
 	}
@@ -444,7 +354,7 @@ func (s *Store) hasTierCVEs(ctx context.Context, now time.Time) (bool, error) {
 		return false, err
 	}
 	var has bool
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_recent_cve WHERE published >= ?)`, store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&has); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_cve WHERE published >= ? AND nvd_at IS NOT NULL AND nvd_status <> 'Rejected')`, store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&has); err != nil {
 		return false, fmt.Errorf("feeds: tier cves: %w", err)
 	}
 	return has, nil
@@ -528,9 +438,10 @@ WHERE s.enabled = 1 AND s.distro_packages IS NOT NULL AND d.distro = ? AND (? = 
 		}
 		out.Covered[rel[0]+"/"+rel[1]] = true
 		if err := eachChunk(byRel[rel], func(part string) error {
-			rs, err := db.QueryContext(ctx, `SELECT d.cve, d.release, d.package, d.status, COALESCE(d.fixed_version, ''), d.pro, r.published, r.severity, r.score, e.epss, e.percentile
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id JOIN feeds_recent_cve r ON r.cve = d.cve LEFT JOIN feeds_epss e ON e.cve = d.cve
+			rs, err := db.QueryContext(ctx, `SELECT d.cve, d.release, d.package, d.status, COALESCE(d.fixed_version, ''), d.pro, r.published, e.epss, e.percentile
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id JOIN feeds_cve r ON r.cve = d.cve LEFT JOIN feeds_epss e ON e.cve = d.cve
 WHERE s.enabled = 1 AND d.distro = ? AND (? = '' OR d.release = ?) AND d.package IN (SELECT value FROM json_each(?)) AND r.published >= ?
+AND r.nvd_at IS NOT NULL AND r.nvd_status <> 'Rejected'
 ORDER BY d.cve, d.release, d.package, d.source_id`, rel[0], rel[1], rel[1], part, cutoff)
 			if err != nil {
 				return err
@@ -540,10 +451,9 @@ ORDER BY d.cve, d.release, d.package, d.source_id`, rel[0], rel[1], rel[1], part
 				var (
 					cve, release, pkg, status, fixed, pub string
 					pro                                   bool
-					sev                                   sql.NullString
-					score, ep, pc                         sql.NullFloat64
+					ep, pc                                sql.NullFloat64
 				)
-				if err := rs.Scan(&cve, &release, &pkg, &status, &fixed, &pro, &pub, &sev, &score, &ep, &pc); err != nil {
+				if err := rs.Scan(&cve, &release, &pkg, &status, &fixed, &pro, &pub, &ep, &pc); err != nil {
 					return err
 				}
 				if k := cve + "/" + rel[0] + "/" + release + "/" + pkg + "/" + status + "/" + fixed; seen[k] {
@@ -557,10 +467,7 @@ ORDER BY d.cve, d.release, d.package, d.source_id`, rel[0], rel[1], rel[1], part
 					if err != nil {
 						continue // the CHECK keeps this from happening; never a guessed day
 					}
-					r := TierRecord{CVE: cve, Tier: "recent", Published: p, Severity: sev.String}
-					if score.Valid {
-						r.Score = &score.Float64
-					}
+					r := TierRecord{CVE: cve, Tier: "recent", Published: p}
 					if epssOn && ep.Valid && pc.Valid {
 						e, q := ep.Float64, pc.Float64
 						r.EPSS, r.Percentile = &e, &q
@@ -579,7 +486,11 @@ ORDER BY d.cve, d.release, d.package, d.source_id`, rel[0], rel[1], rel[1], part
 			return out, fmt.Errorf("feeds: tier distro: %w", err)
 		}
 	}
-	return out, nil
+	cves := make([]string, len(out.Records))
+	for i, r := range out.Records {
+		cves[i] = r.CVE
+	}
+	return out, s.withSeverity(ctx, out.Records, cves)
 }
 
 // eachChunk calls fn with the sorted, distinct names as JSON arrays of at most tierChunk names (one parameter for json_each: no SQL

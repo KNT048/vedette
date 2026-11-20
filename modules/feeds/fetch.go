@@ -185,11 +185,14 @@ func (c *capReader) Read(p []byte) (int, error) {
 // so only same-host redirects are followed; the error names the other host so
 // an admin can set the final address. Each hop must pass INV-2 and never
 // downgrades https to http.
+// fetchURLMaxLen is the longest request address the fetcher accepts.
+const fetchURLMaxLen = 2048
+
 func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) > maxRedirects {
 		return fail(ErrRedirect, "The feed redirected more than %d times.", maxRedirects)
 	}
-	if err := checkURL(req.URL.String(), EPSSURLMaxLen); err != nil {
+	if err := checkURL(req.URL.String(), fetchURLMaxLen); err != nil {
 		return fail(ErrRedirect, "The feed redirected to an address that is not allowed.")
 	}
 	req.Header.Del("Referer") // the previous address may carry a token in its query
@@ -212,7 +215,7 @@ func validValidator(s string) bool {
 // 304 reported as NotModified. Without a context deadline it applies
 // DefaultFetchTimeout.
 func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
-	if err := checkURL(req.URL, EPSSURLMaxLen); err != nil {
+	if err := checkURL(req.URL, fetchURLMaxLen); err != nil {
 		return nil, err
 	}
 	if req.Auth.Type != "" && req.Auth.Type != AuthNone {

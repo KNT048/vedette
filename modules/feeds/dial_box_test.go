@@ -166,9 +166,10 @@ func TestDialGuard_UnknownBoxAddressesFailClosed(t *testing.T) {
 
 func TestDialGuard_HostileFieldValueIsCappedInRowErrors(t *testing.T) {
 	t.Parallel()
-	hostile := strings.Repeat("A\x00\n\r\u202e", 4000) // control characters and a bidi override, 20k runes
-	body := `{"status":"OK","data":[{"cve":` + jsonQuote(hostile) + `,"epss":"0.5","percentile":"0.5"},{"cve":"CVE-2026-1","epss":` + jsonQuote(hostile) + `,"percentile":"0.5"}]}`
-	d, err := ParseEPSS([]byte(body))
+	hostile := strings.Repeat("A\x00\n\r\u202e", 4000)      // control characters and a bidi override, 20k runes
+	hostile = strings.ReplaceAll(hostile[:1200], "\n", " ") // a CSV line is at most 4 KB
+	body := "cve,epss,percentile\n" + strings.ReplaceAll(hostile, "\n", " ") + ",0.5,0.5\nCVE-2026-1," + strings.ReplaceAll(hostile, "\n", " ") + ",0.5\n"
+	d, err := ParseEPSSCSV(strings.NewReader(body))
 	if err != nil || len(d.Rejects) != 2 {
 		t.Fatalf("%v %+v", err, d.Stats)
 	}

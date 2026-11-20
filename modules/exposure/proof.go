@@ -8,10 +8,12 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/domainfence/proofat"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Ownership proof of a domain, the way Google Search Console's domain properties, Detectify and Tenable work:
@@ -524,4 +526,75 @@ func proofMessage(t Target, p proof, when string) string {
 		return fmt.Sprintf("Found the TXT record of %s on %s: it proves %s and every name under it, %s included.", p.via, p.at, p.proven, t.Value)
 	}
 	return fmt.Sprintf("Found the TXT record %s on %s.", txtRecord(t.Token), p.at)
+}
+
+// coveredByAncestor says the record that proved t (p, after stillOwner) is the own record, on its own name, of a target that is an
+// ancestor of t in the tree as stored in tx: t is then covered by that ancestor and has no method of its own (exp_target.method NULL).
+// t's own token (on its name or on a parent name) and another target's token on a name above both prove t by itself (dns_txt).
+func coveredByAncestor(ctx context.Context, tx *sql.Tx, id string, p proof) (bool, error) {
+	if !p.found || p.own || p.reused || p.via == "" || p.proven != p.via {
+		return false, nil
+	}
+	all, err := listTargets(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	byID := map[string]Target{}
+	for _, o := range all {
+		byID[o.ID] = o
+	}
+	for _, a := range ancestors(byID[id], byID) {
+		if a.ID == p.owner && a.Value == p.via {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// recordDomainMethod writes how a domain target is proved after a check that found its record: dns_txt by itself, NULL when an
+// ancestor's record covers it.
+func recordDomainMethod(ctx context.Context, tx *sql.Tx, id string, covered bool) error {
+	m := methodDNS
+	if covered {
+		m = ""
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET method = ? WHERE id = ? AND kind = 'domain'`, nullString(m), id); err != nil {
+		return fmt.Errorf("recording how %s is proved: %w", id, err)
+	}
+	return nil
+}
+
+// settleMethod records, in tx, how the domain target id is proved after a check that found p.
+func settleMethod(ctx context.Context, tx *sql.Tx, id string, p proof) error {
+	if !p.found {
+		return nil
+	}
+	covered, err := coveredByAncestor(ctx, tx, id, p)
+	if err != nil {
+		return err
+	}
+	return recordDomainMethod(ctx, tx, id, covered)
+}
+
+// uncover records, in the transaction that removes the domain target gone, that the targets its record proved at their last check are
+// proved no more: their scans were refused from their next start anyway (the token went with the target), and the page says so now.
+func (s *Service) uncover(ctx context.Context, tx *sql.Tx, gone Target) error {
+	if gone.Kind != KindDomain {
+		return nil
+	}
+	all, err := listTargets(ctx, tx)
+	if err != nil {
+		return err
+	}
+	now := s.clock()
+	for _, o := range all {
+		if o.Kind != KindDomain || o.LastCheck == nil || !o.LastCheck.OK || o.LastCheck.Via != gone.Value {
+			continue
+		}
+		msg := fmt.Sprintf("The TXT record of %s proved this name, and %s was removed from the box, so it needs its own proof: add the record shown, then check again.", gone.Value, gone.Value)
+		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: false, Message: msg}, time.Time{}, ""); err != nil {
+			return err
+		}
+	}
+	return nil
 }

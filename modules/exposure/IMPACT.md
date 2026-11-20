@@ -1,5 +1,12 @@
 # Exposure — Change Impact Map
 
+## Modifying: the tree (`settleTree`, `parentOf`, `ownerOf`, `NamePlan`, `ScanTarget.Names`, `Content.Listed`, `AddNode`, `EditNode`, `uncover`, `exp_target.parent_id/scope_mode/enabled`, `exp_host.child_target_id/selected`) (INV-39)
+- The runner (`cmd/vedette/scan.go` `exposureRunner`) hands `ScanTarget.Names.Scans` to `modules/scan/surface` `Scanner.Domain` and maps `Result.Skipped` to `Content.Listed`; a name it does not own must never be probed (scan INV-12).
+- `deepGate` filters the names of a deep step by the plan; `writeScan` ends with `settleTree`, so its rows follow the tree as it is at write time.
+- The gate's `BlockedDisabled` reaches every scan path (`startScan`, `execute`, `deepGate`, `ModeNow`, the template and OpenVAS steps, `ScannableIP`, `CheckScannable`).
+- Selfcheck: `exposure.subdomain_target_under_its_parent`, `exposure.name_scanned_by_one_target` (`tree.go` counts, `selfcheck.go`).
+- Tests: `tree_test.go`, `tree_count_test.go` with `testdata/tree_targets.json`; the replay of `writer_test.go` expects the child's name in the apex without its address.
+
 ## Modifying: the scan writer (`writeScan`, `writeOpenVAS`, `closeVanished`, `writeIssues`), `exp_host`/`exp_address`/`exp_service`/`exp_issue`/`exp_scan` (INV-37)
 - Readers: `Hosts`, `Addresses`, `Services`, `Issues`, `Scans` (GET `/exposure/tree/{id}/*`), `latestResults` (the old target list), `Outside` (our ports beside Shodan's), `RecentScans` (Settings › Scanning › History).
 - `exposure.scan.written` is read by `cmd/vedette/exposureports.go` (response's new_port trigger): `opened` and `first`.

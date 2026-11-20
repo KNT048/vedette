@@ -72,6 +72,9 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: pr.via}, time.Time{}, ""); err != nil {
 				return err
 			}
+			if err := settleMethod(ctx, tx, id, pr); err != nil { // covered by an ancestor now, or proved by itself
+				return err
+			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
 				return nil
 			}

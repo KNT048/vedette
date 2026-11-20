@@ -324,6 +324,13 @@ func TestTree_ProofIsInheritedOnlyFromAProvenAncestor(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID); err != nil {
 		t.Fatalf("the covered child cannot be scanned: %v", err)
 	}
+	// The row says it: no method of its own, the ancestor's record at its last check
+	if c, _ := loadTarget(e.ctx(), e.db.Reader(), git.ID); c.Method != "" || c.LastCheck == nil || c.LastCheck.Via != "acme.example" {
+		t.Fatalf("the covered child's proof: method %q, check %+v", c.Method, c.LastCheck)
+	}
+	if a, _ := loadTarget(e.ctx(), e.db.Reader(), apex.ID); a.Method != methodDNS {
+		t.Fatalf("the apex's own proof: method %q", a.Method)
+	}
 	if run.last.Proof == nil || run.last.Proof.Domain != "acme.example" {
 		t.Fatalf("the child's scan does not carry the apex's proof: %+v", run.last.Proof)
 	}
@@ -333,13 +340,24 @@ func TestTree_ProofIsInheritedOnlyFromAProvenAncestor(t *testing.T) {
 	e.advance(ScanEvery)
 	_, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID)
 	wantAPI(t, err, 409, "txt_missing")
+	if run.calls != calls {
+		t.Fatalf("a refused scan reached the runner")
+	}
 	// The record back, the apex removed with its token: refused again, and the child moves to the top
 	e.dns.put("acme.example", txtRecord(apex.Token))
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID); err != nil { // covered again
+		t.Fatal(err)
+	}
+	calls = run.calls
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", apex.ID); err != nil {
 		t.Fatal(err)
 	}
 	if p := e.parents()["git.acme.example"]; p != "" {
 		t.Fatalf("the child still sits under %q", p)
+	}
+	if c := e.target(git.ID); c.Scannable || c.LastCheck == nil || c.LastCheck.OK { // the page says it at once, not only at the next scan
+		t.Fatalf("the child still reads as proven after its ancestor left: %+v", c.LastCheck)
 	}
 	e.advance(ScanEvery)
 	_, err = e.svc.Scan(e.ctx(), "admin@acme.example", git.ID)

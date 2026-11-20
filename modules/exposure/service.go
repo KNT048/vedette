@@ -685,6 +685,9 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		if _, err := settleTree(ctx, tx); err != nil { // its children move up to its parent, and its names go back to whoever scans them
 			return err
 		}
+		if err := s.uncover(ctx, tx, t); err != nil { // what its record proved needs a proof of its own now
+			return err
+		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
 			return err
 		}

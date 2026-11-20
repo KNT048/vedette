@@ -238,8 +238,7 @@ func TestContract_AnAgentFollowsItsDevice(t *testing.T) {
 		t.Errorf("after the move: id %s ip %s, want %s at .30", d.ID, d.IP, id)
 	}
 	// Its software list goes to the same device.
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.30"), Agent: "osquery:node-a"}, observe.Agent,
-		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.30"), Agent: "osquery:node-a"}, observe.Osquery, nil, []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	e.only()

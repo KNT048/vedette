@@ -426,23 +426,16 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 		if !ok {
 			e, ok = c.byIdentity[NormKey(r.Vendor, r.Product)]
 		}
-		if ok {
+		if ok { // a product the files list: it takes the curated class when it has none and the keys the curated row names
 			if e.p.Class == ClassNone {
 				e.p.Class = class
 			}
+			e.p.KEV = curatedKEV(e.p.KEV, r.KevMatch, kev)
 			continue
 		}
 		p := Product{ID: "curated-" + strings.Trim(slugRE.ReplaceAllString(strings.ToLower(r.Display), "-"), "-"), Display: r.Display,
 			Vendor: r.Vendor, Product: r.Product, Key: key, KEV: []string{key}, Class: class}
-		for _, m := range r.KevMatch {
-			v, pr, _ := strings.Cut(strings.ToLower(m), "|")
-			for _, k := range kev {
-				if kk := Key(k.Vendor, k.Product); strings.Contains(strings.ToLower(k.Vendor), v) && (pr == "" || strings.Contains(strings.ToLower(k.Product), pr)) &&
-					!slices.Contains(p.KEV, kk) {
-					p.KEV = append(p.KEV, kk)
-				}
-			}
-		}
+		p.KEV = curatedKEV(p.KEV, r.KevMatch, kev)
 		for _, s := range r.CPE {
 			if !cpeRE.MatchString(s) || strings.HasSuffix(s, "*") {
 				return fmt.Errorf("%q: cpe %q is not part:vendor:product", r.Display, s)
@@ -466,6 +459,24 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 	}
 	return nil
 }
+
+// curatedKEV adds to keys the exploited-list keys a curated row's kev_match fragments name: a key whose vendor contains the vendor
+// fragment and whose product contains the product fragment, as the inventory's catalogue reads them.
+func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }) []string {
+	for _, m := range match {
+		v, pr, _ := strings.Cut(strings.ToLower(m), "|")
+		for _, k := range kev {
+			if kk := Key(k.Vendor, k.Product); strings.Contains(strings.ToLower(k.Vendor), v) && (pr == "" || strings.Contains(spaced(strings.ToLower(k.Product)), pr)) &&
+				!slices.Contains(keys, kk) {
+				keys = append(keys, kk)
+			}
+		}
+	}
+	return keys
+}
+
+// spaced writes the no-break spaces a list name may hold ("Commerce and\u202fMagento") as plain spaces.
+func spaced(s string) string { return strings.NewReplacer("\u00a0", " ", "\u202f", " ").Replace(s) }
 
 // ByKey is the product whose Key is key (lower(vendor)|lower(product)), a curated one too.
 func ByKey(key string) (Product, bool) {

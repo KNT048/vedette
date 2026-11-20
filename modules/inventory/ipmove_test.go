@@ -157,8 +157,7 @@ func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 	}
 	e.record(sweepSawRouter()...) // the sweep runs and did not find the device at .20: its silence is news
 	e.record(byAddress("192.168.18.20", "stale-name")...)
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, observe.Nmap,
-		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, observe.Nmap, nil, []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
 	if d := e.device(id); *d.Hostname != "quiet-name" || len(d.Software) != 0 {
@@ -413,8 +412,7 @@ func TestContract_829_AListAtAStaleAddressMakesNoDevice(t *testing.T) {
 	e.tick(73 * time.Hour)
 	e.record(sweepSawRouter()...)
 	e.ev.reset()
-	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, observe.Agent,
-		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, observe.Osquery, nil, []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 0 {

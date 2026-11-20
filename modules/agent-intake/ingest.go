@@ -507,7 +507,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 	if len(in.snaps["programs"]) == 0 || in.snaps["windows_os"] != nil {
 		taken = append(taken, "packages")
 	}
-	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
+	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Osquery, nil, items); err != nil {
 		if transient(err) {
 			return nil, fmt.Errorf("agentintake: software: %w", err)
 		}

@@ -57,6 +57,33 @@ const (
 	Kind     Field = "kind"
 )
 
+// The agents that read a device's software list. Each replaces only its own list (an osquery node's list never removes what a
+// Wazuh server or the box's own package read said); for ranking they are one class, Agent.
+const (
+	Osquery Source = "osquery" // an osquery node, or the package reporter that posts as one
+	Wazuh   Source = "wazuh"   // a Wazuh server's inventory of one of its agents
+	Box     Source = "box"     // the box's own package list
+)
+
+// ValidSoftwareSource reports whether s may send a software list: an agent (Osquery, Wazuh, Box) or a sensor. Agent and Manual
+// may not: an agent list names the agent that read it, and a person's entries are set one by one.
+func ValidSoftwareSource(s Source) bool {
+	switch s {
+	case Osquery, Wazuh, Box, SNMP, Nmap, Scan, Passive:
+		return true
+	}
+	return false
+}
+
+// ClassOf is the class a software source ranks and finds its device as: Agent for the agents, the source itself otherwise.
+func ClassOf(s Source) Source {
+	switch s {
+	case Osquery, Wazuh, Box:
+		return Agent
+	}
+	return s
+}
+
 // ValidSource reports whether s is one of the sources.
 func ValidSource(s Source) bool {
 	switch s {
@@ -149,6 +176,10 @@ type Software struct {
 	// ("10.2_p1-r1") and its source package ("openssh"), so findings can compare it with the version the distribution fixed a CVE in.
 	// "" for every other row.
 	PkgVersion, PkgSource string
+	// Instance tells two readings of one product by the same source apart: the port a banner answered on ("tcp/22"), a package
+	// name, an install. "" when the source has one reading of the product (two readings without one are told apart by version).
+	// At most 120 printable characters.
+	Instance string
 }
 
 // Approver accepts the device an enrolled agent reports on: the person who made the enrolment token and ran the install
@@ -187,10 +218,12 @@ type AgentDevices interface {
 	AgentDevice(ctx context.Context, id string) (d AgentDevice, found bool, err error)
 }
 
-// SoftwareSink receives the full software list of one device from one source. The list replaces the
-// rows that source reported before (rows of other sources are untouched).
+// SoftwareSink receives the software list of one device from one source (ValidSoftwareSource). The list replaces what that
+// source read before; readings of other sources are untouched. scope nil is the whole list of the source; a non-nil scope names
+// the instances (Software.Instance) this list covers, and only readings of those instances are replaced: a scan of a few ports
+// leaves what the source read on the other ports.
 type SoftwareSink interface {
-	ReplaceSoftware(ctx context.Context, hint AssetHint, source Source, items []Software) error
+	ReplaceSoftware(ctx context.Context, hint AssetHint, source Source, scope []string, items []Software) error
 }
 
 // Service is one port a sensor saw open on a device.

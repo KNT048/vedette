@@ -256,7 +256,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return "", fmt.Errorf("inventory: read device: %w", err)
 	}
-	software, err := foldSoftware(ctx, tx, from, into)
+	software, err := foldSoftware(ctx, tx, s, from, into)
 	if err != nil {
 		return "", err
 	}
@@ -288,6 +288,8 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 				ELSE coalesce(scan_source, (SELECT scan_source FROM inv_asset WHERE id = ?2)) END,
 			snmp_source = CASE WHEN 'off' IN (coalesce(snmp_source, ''), (SELECT coalesce(snmp_source, '') FROM inv_asset WHERE id = ?2)) THEN 'off'
 				ELSE coalesce(snmp_source, (SELECT snmp_source FROM inv_asset WHERE id = ?2)) END,
+			agent_source = CASE WHEN 'off' IN (coalesce(agent_source, ''), (SELECT coalesce(agent_source, '') FROM inv_asset WHERE id = ?2)) THEN 'off'
+				ELSE coalesce(agent_source, (SELECT agent_source FROM inv_asset WHERE id = ?2)) END,
 			fragile = CASE WHEN fragile_manual = 0 AND (SELECT fragile_manual FROM inv_asset WHERE id = ?2) = 1 THEN (SELECT fragile FROM inv_asset WHERE id = ?2) ELSE fragile END,
 			fragile_manual = max(fragile_manual, (SELECT fragile_manual FROM inv_asset WHERE id = ?2)),
 			review_earned_at = coalesce(review_earned_at, (SELECT review_earned_at FROM inv_asset WHERE id = ?2)),
@@ -813,67 +815,57 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 	return ids[0], "the agent bound to this device reports the card " + card.String + " and its address went to this device", nil
 }
 
-// foldSoftware folds each software row device from holds that device into holds too into one row, before from's rows move: the same
-// reading (source, vendor, product, version) or a person's correction of the same reading. It returns the id of every row it removed
-// mapped to the row that stays (lifecycle.Merge.Software), so the modules that point at a software row follow it. Of two readings
-// into's row stays: its times widen (first seen the earlier, last seen the later), its confidence is the higher of the two, the details
-// of the newer reading (name, CPE, package) win, and the other row's exploited-list keys join it. Of two corrections the newer one
-// stays, as if the person had edited the older one then. Nothing else is removed: the rows left on from move with their ids.
-func foldSoftware(ctx context.Context, tx *sql.Tx, from, into string) (map[string]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.corrects IS NOT NULL AND f.seen_at > i.seen_at FROM inv_software f JOIN inv_software i ON i.asset_id = ?2
-		AND ((f.corrects IS NULL AND i.corrects IS NULL AND i.source = f.source AND lower(i.vendor) = lower(f.vendor) AND lower(i.product) = lower(f.product)
-			AND ifnull(i.version, '') = ifnull(f.version, '')) OR (f.corrects IS NOT NULL AND i.corrects = f.corrects))
-		WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
+// foldSoftware folds each software line device from holds that device into holds too (the same product and train) into into's line,
+// before from's lines move: every reading of from's line moves to into's line, and of two readings of the same source and instance
+// the newer one stays (a person's entry included). into's line is settled again. It returns the id of every line it removed mapped
+// to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it. Nothing else is
+// removed: the lines left on from move with their ids.
+func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string) (map[string]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, '')
+		FROM inv_software f JOIN inv_software i ON i.asset_id = ?2 AND i.product_key = f.product_key AND i.line = f.line WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 	}
-	type fold struct{ gone, kept string } // two readings: kept takes gone's details; two corrections: the newer stays as it is
+	type fold struct{ gone, kept, goneState, keptState, markedAt, markedBy string }
 	var folds []fold
 	for rows.Next() {
-		var f, i string
-		var fromNewer bool
-		if err := rows.Scan(&f, &i, &fromNewer); err != nil {
+		var f fold
+		if err := rows.Scan(&f.gone, &f.kept, &f.goneState, &f.keptState, &f.markedAt, &f.markedBy); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 		}
-		switch {
-		case fromNewer:
-			folds = append(folds, fold{gone: i, kept: f})
-		default:
-			folds = append(folds, fold{gone: f, kept: i})
-		}
+		folds = append(folds, f)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("inventory: read the software both devices hold: %w", err)
 	}
 	var out map[string]string
+	now := s.now()
 	for _, f := range folds {
-		var corrects sql.NullString
-		if err := tx.QueryRowContext(ctx, `SELECT corrects FROM inv_software WHERE id = ?`, f.kept).Scan(&corrects); err != nil {
-			return nil, fmt.Errorf("inventory: fold software: %w", err)
-		}
-		if !corrects.Valid {
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET
-				display = CASE WHEN g.seen_at > inv_software.seen_at THEN g.display ELSE inv_software.display END,
-				cpe = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.cpe, inv_software.cpe) ELSE coalesce(inv_software.cpe, g.cpe) END,
-				packaged = CASE WHEN g.seen_at > inv_software.seen_at THEN g.packaged ELSE inv_software.packaged END,
-				pkg_version = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.pkg_version, inv_software.pkg_version) ELSE coalesce(inv_software.pkg_version, g.pkg_version) END,
-				pkg_source = CASE WHEN g.seen_at > inv_software.seen_at THEN coalesce(g.pkg_source, inv_software.pkg_source) ELSE coalesce(inv_software.pkg_source, g.pkg_source) END,
-				confidence = max(inv_software.confidence, g.confidence),
-				first_seen = CASE WHEN inv_software.first_seen IS NULL OR g.first_seen IS NULL THEN coalesce(inv_software.first_seen, g.first_seen)
-					ELSE min(inv_software.first_seen, g.first_seen) END,
-				seen_at = max(inv_software.seen_at, g.seen_at)
-				FROM (SELECT * FROM inv_software WHERE id = ?2) AS g WHERE inv_software.id = ?1`, f.kept, f.gone); err != nil {
-				return nil, fmt.Errorf("inventory: fold software: %w", err)
-			}
-		}
 		for _, q := range []string{
-			`INSERT OR IGNORE INTO inv_software_kev (software_id, kev_key) SELECT ?1, kev_key FROM inv_software_kev WHERE software_id = ?2`,
+			// of two readings of one source and instance, the newer stays
+			`DELETE FROM inv_software_reading WHERE software_id = ?1 AND EXISTS (SELECT 1 FROM inv_software_reading g WHERE g.software_id = ?2
+				AND g.source = inv_software_reading.source AND g.instance = inv_software_reading.instance AND g.seen_at > inv_software_reading.seen_at)`,
+			`DELETE FROM inv_software_reading WHERE software_id = ?2 AND EXISTS (SELECT 1 FROM inv_software_reading k WHERE k.software_id = ?1
+				AND k.source = inv_software_reading.source AND k.instance = inv_software_reading.instance)`,
+			`UPDATE inv_software_reading SET software_id = ?1 WHERE software_id = ?2`,
+			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
+				last_seen = max(last_seen, (SELECT last_seen FROM inv_software WHERE id = ?2)) WHERE id = ?1`,
 			`DELETE FROM inv_software WHERE id = ?2`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
 				return nil, fmt.Errorf("inventory: fold software: %w", err)
 			}
+		}
+		// into's line keeps its state; when it was removed, from's "not installed" carries over (from's readings bring it back)
+		if f.goneState == stateNotInstalled && f.keptState == stateRemoved {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'not_installed', removed_at = NULL, not_installed_at = ?, not_installed_by = ? WHERE id = ?`,
+				f.markedAt, nullStr(f.markedBy), f.kept); err != nil {
+				return nil, fmt.Errorf("inventory: fold software: %w", err)
+			}
+		}
+		if _, err := s.settleLine(ctx, tx, f.kept, now, nil); err != nil {
+			return nil, err
 		}
 		if out == nil {
 			out = map[string]string{}

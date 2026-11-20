@@ -379,6 +379,15 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				return err
 			}
 			match := after != before[id] || slices.Contains(joined, id) // findings matches the device again only when its OS or model changed; or another device joined it
+			// the OS a network device states is a software line (statedos.go); what decides it (the address, the MAC there) may move
+			// in any batch
+			moved, err := s.syncStatedOS(ctx, tx, id, s.now())
+			if err != nil {
+				return err
+			}
+			if moved {
+				o.add(EventSoftwareChanged, AssetEvent{AssetID: id})
+			}
 			switch {
 			case created[id] != "":
 				quiet, err := isQuiet(ctx, tx, id) // a rotating private address is announced only once it earns a look (INV-49)

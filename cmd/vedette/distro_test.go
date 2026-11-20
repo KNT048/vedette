@@ -52,7 +52,7 @@ func TestDistroFixReachesFindings(t *testing.T) {
 		t.Helper()
 		it := inventory.SoftwareItem{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95,
 			Packaged: true, PkgVersion: full, PkgSource: "openssh"}
-		if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{it}, "agent"); err != nil {
+		if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{it}, "osquery"); err != nil {
 			t.Fatal(err)
 		}
 		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
@@ -112,7 +112,7 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 			items[i] = inventory.SoftwareItem{Display: x.Display, Vendor: x.Vendor, Product: x.Product, Version: x.Version, KevKeys: x.KevKeys, Confidence: x.Confidence,
 				Packaged: x.Packaged, PkgVersion: x.PkgVersion, PkgSource: x.PkgSource}
 		}
-		if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "agent"); err != nil {
+		if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "osquery"); err != nil {
 			t.Fatal(err)
 		}
 		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
@@ -180,7 +180,7 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if got := distros(); len(got) != 0 {
 		t.Fatalf("a package a scan reported: %v", got)
 	}
-	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "agent"); err != nil {
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "osquery"); err != nil {
 		t.Fatal(err)
 	}
 	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"ubuntu": {"openssh": true}}) {

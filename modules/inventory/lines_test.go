@@ -1,0 +1,256 @@
+package inventory_test
+
+import (
+	"net/netip"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/modules/inventory"
+)
+
+// lineCase drives the software sources of one device.
+type lineCase struct {
+	t    *testing.T
+	e    *env
+	hint observe.AssetHint
+}
+
+func newLineCase(t *testing.T) *lineCase {
+	t.Helper()
+	return &lineCase{t: t, e: newEnv(t), hint: observe.AssetHint{IP: netip.MustParseAddr("192.0.2.70")}}
+}
+
+func (c *lineCase) send(src observe.Source, scope []string, items ...observe.Software) {
+	c.t.Helper()
+	c.e.tick(time.Minute)
+	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, src, scope, items); err != nil {
+		c.t.Fatal(err)
+	}
+}
+
+func (c *lineCase) dev() string { return deviceAt(c.t, c.e, c.hint.IP) }
+
+func ssh(version, instance string) observe.Software {
+	return observe.Software{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, Instance: instance, Confidence: 0.9}
+}
+
+// line is the device's one line of a product as the device page reads it.
+func (c *lineCase) line(product string) inventory.EffectiveSoftware {
+	c.t.Helper()
+	l, err := c.e.svc.EffectiveSoftware(c.e.ctx(), c.dev())
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	var out []inventory.EffectiveSoftware
+	for _, s := range l {
+		if s.Product == product {
+			out = append(out, s)
+		}
+	}
+	if len(out) != 1 {
+		c.t.Fatalf("%d lines of %s: %+v", len(out), product, l)
+	}
+	return out[0]
+}
+
+func (c *lineCase) history(id string) []string {
+	c.t.Helper()
+	rows, err := c.e.db.Reader().QueryContext(c.e.ctx(), `SELECT kind FROM inv_software_event WHERE software_id = ? ORDER BY id`, id)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			c.t.Fatal(err)
+		}
+		out = append(out, k)
+	}
+	return out
+}
+
+// Each agent replaces only its own list; the two rank as one class, and the newer release is the line.
+func TestSoftwareLines_AgentSourcesAreApart(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Osquery, nil, ssh("9.6p1", ""))
+	c.send(observe.Wazuh, nil, ssh("10.2p1", ""))
+	l := c.line("OpenSSH")
+	if l.Version != "10.2p1" || l.Source != "agent" || len(l.AlsoSeen) != 1 || l.AlsoSeen[0].Version != "9.6p1" || !l.Differs {
+		t.Fatalf("line %+v", l)
+	}
+	c.send(observe.Wazuh, nil) // Wazuh's empty list removes only what Wazuh read
+	if l2 := c.line("OpenSSH"); l2.ID != l.ID || l2.Version != "9.6p1" || len(l2.AlsoSeen) != 0 {
+		t.Fatalf("after Wazuh's empty list: %+v", l2)
+	}
+	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Agent, nil, []observe.Software{ssh("1", "")}); err == nil {
+		t.Fatal("a list from the agent class must name its agent")
+	}
+}
+
+// A list with a scope replaces only the instances it covers: a scan of port 80 leaves what the scan read on port 22.
+func TestSoftwareLines_PartialReplacementByScope(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	nginx := func(v string) observe.Software {
+		return observe.Software{Display: "nginx", Vendor: "F5", Product: "nginx", Version: v, Instance: "tcp/80", Confidence: 0.8}
+	}
+	c.send(observe.Nmap, nil, ssh("9.6p1", "tcp/22"), nginx("1.24.0"))
+	c.send(observe.Nmap, []string{"tcp/80"}, nginx("1.26.1"))
+	if l := c.line("OpenSSH"); l.Version != "9.6p1" {
+		t.Fatalf("port 22 must stay: %+v", l)
+	}
+	if l := c.line("nginx"); l.Version != "1.26.1" {
+		t.Fatalf("port 80 must move: %+v", l)
+	}
+	c.send(observe.Nmap, []string{"tcp/80"})
+	if l := c.line("OpenSSH"); l.Version != "9.6p1" {
+		t.Fatalf("an empty list of port 80 leaves port 22: %+v", l)
+	}
+	if n := c.e.count(`SELECT count(*) FROM inv_software WHERE product = 'nginx' AND state = 'removed'`); n != 1 {
+		t.Fatalf("nginx: %d removed lines", n)
+	}
+}
+
+// Removal is a state: the line keeps its id and comes back with it, and its history says so.
+func TestSoftwareLines_RemovalIsAState(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Osquery, nil, ssh("9.6p1", ""), observe.Software{Display: "curl", Vendor: "curl", Product: "curl", Version: "8.5.0", Confidence: 0.9})
+	id := c.line("OpenSSH").ID
+	c.send(observe.Osquery, nil, observe.Software{Display: "curl", Vendor: "curl", Product: "curl", Version: "8.5.0", Confidence: 0.9})
+	if n := c.e.count(`SELECT count(*) FROM inv_software WHERE id = ? AND state = 'removed' AND removed_at IS NOT NULL`, id); n != 1 {
+		t.Fatal("a line no source reads must be removed, not deleted")
+	}
+	if m := matchRows(t, c.e, c.dev()); slices.ContainsFunc(m, func(s inventory.MatchSoftware) bool { return s.ID == id }) {
+		t.Fatal("a removed line must not be matched")
+	}
+	c.send(observe.Osquery, nil, ssh("10.2p1", ""))
+	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2p1" {
+		t.Fatalf("back: %+v, want the same id %s", l, id)
+	}
+	if h := c.history(id); !slices.Equal(h, []string{"appeared", "removed", "reappeared"}) {
+		t.Fatalf("history %v", h)
+	}
+}
+
+// A person's version holds against an older reading and lapses on a newer one read after it, with an audit row and a history row.
+func TestSoftwareLines_EntryLapsesOnANewerReading(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	v := "9.6p1"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &v}); err != nil {
+		t.Fatal(err)
+	}
+	if l := c.line("OpenSSH"); l.Version != "9.6p1" || l.Source != "manual" || l.SetBy != "op@example.com" {
+		t.Fatalf("entry: %+v", l)
+	}
+	c.send(observe.Nmap, nil, ssh("9.5", "tcp/22")) // older: the entry holds; the older reading still matches
+	if l := c.line("OpenSSH"); l.Version != "9.6p1" || !l.Differs {
+		t.Fatalf("an older reading keeps the entry: %+v", l)
+	}
+	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22"))
+	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" || l.Source != "nmap" {
+		t.Fatalf("a newer reading ends the entry: %+v", l)
+	}
+	if countOf(c.e.auditActions(), "inventory.software_correction_lapsed") != 1 || !slices.Contains(c.history(id), "entry_lapsed") {
+		t.Fatalf("audit %v, history %v", c.e.auditActions(), c.history(id))
+	}
+}
+
+// "Not installed" takes the line out of matching (findings read it in NotInstalled) until a source reads something new on it.
+func TestSoftwareLines_NotInstalledHoldsUntilANewReading(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{NotInstalled: true}); err != nil {
+		t.Fatal(err)
+	}
+	m, _, err := c.e.svc.MatchInput(c.e.ctx(), c.dev())
+	if err != nil || len(m.Software) != 0 || len(m.NotInstalled) != 1 || m.NotInstalled[0].ID != id || m.NotInstalled[0].MarkedAt == "" {
+		t.Fatalf("match input %+v %v", m, err)
+	}
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22")) // the reading the person saw: the mark holds
+	if n := c.e.count(`SELECT count(*) FROM inv_software WHERE id = ? AND state = 'not_installed'`, id); n != 1 {
+		t.Fatal("the same reading again must keep the mark")
+	}
+	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22")) // a new release read: a new install
+	if l := c.line("OpenSSH"); l.ID != id || l.Version != "10.2" {
+		t.Fatalf("a new reading ends the mark: %+v", l)
+	}
+	if h := c.history(id); !slices.Contains(h, "marked_not_installed") || !slices.Contains(h, "unmarked") {
+		t.Fatalf("history %v", h)
+	}
+}
+
+// Merging two rows of one machine loses no reading: the readings of the line both hold go to the line that stays, the other lines
+// move with their ids, and the merge maps the folded line to the kept one.
+func TestSoftwareLines_MergeLosesNoReading(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a, b := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.81")}, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.82")}
+	for _, s := range []struct {
+		h     observe.AssetHint
+		src   observe.Source
+		items []observe.Software
+	}{
+		{a, observe.Osquery, []observe.Software{ssh("10.2p1", "")}},
+		{b, observe.Nmap, []observe.Software{ssh("9.6", "tcp/22"), {Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.24.0", Instance: "tcp/80", Confidence: 0.8}}},
+	} {
+		e.tick(time.Minute)
+		if err := e.svc.ReplaceSoftware(e.ctx(), s.h, s.src, nil, s.items); err != nil {
+			t.Fatal(err)
+		}
+	}
+	into, from := deviceAt(t, e, a.IP), deviceAt(t, e, b.IP)
+	readings := e.count(`SELECT count(*) FROM inv_software_reading`)
+	if err := e.svc.Merge(e.ctx(), "op@example.com", into, from); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software_reading`); n != readings {
+		t.Fatalf("%d readings after the merge, want %d", n, readings)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software WHERE asset_id = ?`, into); n != 2 {
+		t.Fatalf("%d lines on the kept device, want OpenSSH and nginx", n)
+	}
+	l, err := e.svc.EffectiveSoftware(e.ctx(), into)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range l {
+		if s.Product == "OpenSSH" && (s.Version != "10.2p1" || len(s.AlsoSeen) != 1 || s.AlsoSeen[0].Version != "9.6") {
+			t.Fatalf("OpenSSH after the merge: %+v", s)
+		}
+	}
+}
+
+// The OS a network device states over SNMP is a software line with the exploited-list keys of that OS.
+func TestSoftwareLines_StatedNetworkOSIsALine(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.0.2.90")
+	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.OS, Value: "FortiOS 7.0.1", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	m := matchRows(t, e, deviceAt(t, e, ip))
+	if len(m) != 1 || m[0].Version != "7.0.1" || m[0].Source != "snmp" || !slices.Contains(m[0].KevKeys, "fortinet|fortios") || !slices.Contains(m[0].KevKeys, "fortinet|multiple products") {
+		t.Fatalf("match input %+v", m)
+	}
+	id := m[0].ID
+	e.tick(time.Minute)
+	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.OS, Value: "FortiOS 7.0.15", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	if m := matchRows(t, e, deviceAt(t, e, ip)); len(m) != 1 || m[0].ID != id || m[0].Version != "7.0.15" {
+		t.Fatalf("the update keeps the line: %+v", m)
+	}
+}

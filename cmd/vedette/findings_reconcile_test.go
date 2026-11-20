@@ -134,7 +134,7 @@ func TestFindingsInputCarriesWhereSoftwareCameFrom(t *testing.T) {
 		t.Fatal(err)
 	}
 	pkg := inventory.SoftwareItem{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.2", KevKeys: []string{"openssl|openssl"}, Confidence: 0.95, Packaged: true}
-	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "agent"); err != nil {
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "osquery"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.d.Inventory.AddSoftware(ctx, "admin@example.com", id, inventory.AddInput{Vendor: "Jenkins", Product: "Jenkins", Version: "2.426.1"}); err != nil {

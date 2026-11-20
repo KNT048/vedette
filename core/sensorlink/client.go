@@ -335,6 +335,13 @@ func (c *Client) PostProgress(ctx context.Context, id string, p *JobProgress) er
 	return err
 }
 
+// PostMetadata makes one attempt to deliver one batch of mirror-port metadata. It never retries: the capture decides what a
+// failure means for what it holds.
+func (c *Client) PostMetadata(ctx context.Context, req *MetadataRequest) error {
+	_, err := c.do(ctx, http.MethodPost, PathPrefix+"/metadata", nil, nil, req, nil, MaxOtherReply, 60*time.Second)
+	return err
+}
+
 // PostObservations makes one attempt to deliver one batch and returns core's answer or the error: an *Error for an answer
 // that is not a 200 (RetryAfter capped at BackoffCap), anything else when there was no usable answer. It never retries and never
 // sleeps: the capture process decides what a failure means for its queue and gives every attempt a seq of its own.

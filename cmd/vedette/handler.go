@@ -12,6 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
+	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 	mcpserver "github.com/knt048/vedette/modules/mcp-server"
@@ -54,6 +55,8 @@ type handler struct {
 	*sensoractive.SNMPHandlers
 	*exposure.ExposureHandlers
 	*logs.LogsHandlers
+	*idsmodule.IDSHandlers
+	*detectionHandlers // GET /detection/overview: core's, it reads the detection modules
 	*scan.ScanHandlers
 	*ai.AIHandlers
 	*mcpserver.McpHandlers
@@ -81,18 +84,20 @@ func newHandler(ctx context.Context, d deps) handler {
 		InstallHandlers:  agentintake.NewInstallHandlers(d.AgentIntake),
 		FeedHandlers:     feedsHandlers(d),
 
-		FindingHandlers:  d.FindingHandlers,
-		ActionHandlers:   d.MitigationHandlers,
-		NotifyHandlers:   notify.NewNotifyHandlers(newNotify(&d)),
-		ResponseHandlers: response.NewResponseHandlers(d.Response),
-		SensorHandlers:   sensorpassive.NewSensorHandlers(d.SensorPassive),
-		SNMPHandlers:     sensoractive.NewSNMPHandlers(snmpService(ctx, d)),
-		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
-		ExposureHandlers: exposure.NewExposureHandlers(exposureService(d)),
-		LogsHandlers:     logs.NewLogsHandlers(logsService(d)),
-		ScanHandlers:     scan.NewScanHandlers(scanService(d)),
-		AIHandlers:       ai.NewAIHandlers(d.AI),
-		McpHandlers:      mcpHandlers(d),
-		ReportsHandlers:  reports.NewReportsHandlers(reportsService(d)),
+		FindingHandlers:   d.FindingHandlers,
+		ActionHandlers:    d.MitigationHandlers,
+		NotifyHandlers:    notify.NewNotifyHandlers(newNotify(&d)),
+		ResponseHandlers:  response.NewResponseHandlers(d.Response),
+		SensorHandlers:    sensorpassive.NewSensorHandlers(d.SensorPassive),
+		SNMPHandlers:      sensoractive.NewSNMPHandlers(snmpService(ctx, d)),
+		HoneypotHandlers:  honeypot.NewHoneypotHandlers(d.Honeypot),
+		ExposureHandlers:  exposure.NewExposureHandlers(exposureService(d)),
+		LogsHandlers:      logs.NewLogsHandlers(logsService(d)),
+		IDSHandlers:       idsmodule.NewIDSHandlers(idsService(d)),
+		detectionHandlers: newDetectionHandlers(d),
+		ScanHandlers:      scan.NewScanHandlers(scanService(d)),
+		AIHandlers:        ai.NewAIHandlers(d.AI),
+		McpHandlers:       mcpHandlers(d),
+		ReportsHandlers:   reports.NewReportsHandlers(reportsService(d)),
 	}
 }

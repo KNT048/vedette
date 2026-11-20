@@ -59,7 +59,7 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 			{Display: "Microsoft SQL Server 2022 (64-bit)", Vendor: "Microsoft", Product: "SQL Server", Version: version, KevKeys: []string{"microsoft|sql server"}, Confidence: 0.95},
 			{Display: "SQL Server 2022 Database Engine Services", Vendor: "Microsoft Corporation", Product: "SQL Server 2022 Database Engine Services", Version: "16.0.1000.6", Confidence: 0.95},
 		}
-		if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "agent"); err != nil {
+		if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "osquery"); err != nil {
 			t.Fatal(err)
 		}
 		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {

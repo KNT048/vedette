@@ -480,6 +480,14 @@ CREATE TABLE feeds_cve_range (
     platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
 );
 
+CREATE TABLE feeds_cve_ref (
+    cve    TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
+    url    TEXT NOT NULL CHECK (length(url) BETWEEN 9 AND 500 AND (url GLOB 'https://*' OR url GLOB 'http://*')),
+    tags   TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags) AND json_type(tags) = 'array'),
+    source TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    PRIMARY KEY (cve, url)
+) WITHOUT ROWID;
+
 CREATE TABLE feeds_kev (
     cve             TEXT    NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
     list            TEXT    NOT NULL CHECK (length(list) BETWEEN 1 AND 110),
@@ -611,22 +619,62 @@ CREATE TABLE inv_service (
 , detail TEXT CHECK (detail IS NULL OR length(detail) <= 200));
 
 CREATE TABLE inv_software (
-    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    asset_id   TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
-    display    TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
-    vendor     TEXT NOT NULL CHECK (length(vendor) BETWEEN 1 AND 200),
-    product    TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 200),
-    version    TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
-    cpe        TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
-    source     TEXT NOT NULL CHECK (source IN ('manual', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
-    confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
-    seen_at    TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, packaged BOOLEAN NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)), pkg_version TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100), pkg_source TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100), corrects TEXT CHECK (corrects IS NULL OR (source = 'manual' AND length(corrects) BETWEEN 4 AND 520)), set_by TEXT CHECK (set_by IS NULL OR length(set_by) BETWEEN 1 AND 320), not_installed INTEGER NOT NULL DEFAULT 0 CHECK (not_installed IN (0, 1) AND (not_installed = 0 OR corrects IS NOT NULL)), first_seen TEXT);
+    id               TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    asset_id         TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
+    product_key      TEXT NOT NULL CHECK (length(product_key) BETWEEN 1 AND 400),
+    line             TEXT NOT NULL DEFAULT '' CHECK (length(line) <= 20),
+    display          TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    vendor           TEXT NOT NULL CHECK (length(vendor) BETWEEN 1 AND 200),
+    product          TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 200),
+    cpe              TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
+    version          TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
+    pkg_version      TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100),
+    pkg_source       TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100),
+    packaged         INTEGER NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)),
+    source           TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    set_by           TEXT CHECK (set_by IS NULL OR length(set_by) BETWEEN 1 AND 320),
+    confidence       REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    seen_at          TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    differs          INTEGER NOT NULL DEFAULT 0 CHECK (differs IN (0, 1)),
+    state            TEXT NOT NULL DEFAULT 'present' CHECK (state IN ('present', 'not_installed', 'removed')),
+    not_installed_by TEXT CHECK (not_installed_by IS NULL OR length(not_installed_by) BETWEEN 1 AND 320),
+    not_installed_at TEXT CHECK (not_installed_at IS NULL OR not_installed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    first_seen       TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen        TEXT NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    removed_at       TEXT CHECK (removed_at IS NULL OR removed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((state = 'removed') = (removed_at IS NOT NULL)),
+    CHECK (state <> 'not_installed' OR not_installed_at IS NOT NULL) -- a removed line keeps a person's mark: it holds when the software is read again
+);
 
-CREATE TABLE inv_software_kev (
+CREATE TABLE inv_software_reading (
     software_id TEXT NOT NULL REFERENCES inv_software (id) ON DELETE CASCADE,
-    kev_key     TEXT NOT NULL CHECK (length(kev_key) BETWEEN 1 AND 400),
-    PRIMARY KEY (software_id, kev_key)
+    source      TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    instance    TEXT NOT NULL DEFAULT '' CHECK (length(instance) <= 120),
+    display     TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    version     TEXT CHECK (version IS NULL OR length(version) BETWEEN 1 AND 100),
+    pkg_version TEXT CHECK (pkg_version IS NULL OR length(pkg_version) BETWEEN 1 AND 100),
+    pkg_source  TEXT CHECK (pkg_source IS NULL OR length(pkg_source) BETWEEN 1 AND 100),
+    packaged    INTEGER NOT NULL DEFAULT 0 CHECK (packaged IN (0, 1)),
+    cpe         TEXT CHECK (cpe IS NULL OR length(cpe) <= 500),
+    confidence  REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    set_by      TEXT CHECK (set_by IS NULL OR (source = 'manual' AND length(set_by) BETWEEN 1 AND 320)),
+    first_seen  TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    seen_at     TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (software_id, source, instance)
+) WITHOUT ROWID;
+
+CREATE TABLE inv_software_event (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id     TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
+    software_id  TEXT NOT NULL CHECK (length(software_id) BETWEEN 1 AND 96),
+    product_key  TEXT NOT NULL CHECK (length(product_key) BETWEEN 1 AND 400),
+    display      TEXT NOT NULL CHECK (length(display) BETWEEN 1 AND 200),
+    ts           TEXT NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    kind         TEXT NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    from_version TEXT CHECK (from_version IS NULL OR length(from_version) <= 100),
+    to_version   TEXT CHECK (to_version IS NULL OR length(to_version) <= 100),
+    source       TEXT CHECK (source IS NULL OR length(source) BETWEEN 1 AND 40),
+    actor        TEXT CHECK (actor IS NULL OR length(actor) BETWEEN 1 AND 320)
 );
 
 CREATE TABLE inv_setting (
@@ -663,7 +711,7 @@ CREATE TABLE "inv_asset" (
     first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     approved_at    TEXT    CHECK (approved_at IS NULL OR approved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
+, agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), agent_source TEXT CHECK (agent_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
 
 CREATE TABLE inv_source (
     source     TEXT NOT NULL PRIMARY KEY CHECK (source IN ('agent', 'snmp', 'nmap', 'passive', 'scan')),
@@ -704,9 +752,15 @@ CREATE UNIQUE INDEX inv_service_uq ON inv_service (asset_id, port, proto, source
 
 CREATE INDEX inv_service_asset_ix ON inv_service (asset_id);
 
-CREATE INDEX inv_software_asset_ix ON inv_software (asset_id);
+CREATE UNIQUE INDEX inv_software_line_uq ON inv_software (asset_id, product_key, line);
 
-CREATE INDEX inv_software_kev_ix ON inv_software_kev (kev_key);
+CREATE INDEX inv_software_state_ix ON inv_software (asset_id, state);
+
+CREATE INDEX inv_software_product_ix ON inv_software (product_key);
+
+CREATE INDEX inv_software_event_asset_ix ON inv_software_event (asset_id, ts);
+
+CREATE INDEX inv_software_event_line_ix ON inv_software_event (software_id, ts);
 
 CREATE UNIQUE INDEX inv_asset_ip_uq ON inv_asset (ip) WHERE ip IS NOT NULL;
 
@@ -724,7 +778,7 @@ CREATE INDEX inv_asset_last_seen_ix ON inv_asset (last_seen);
 
 CREATE UNIQUE INDEX inv_asset_agent_key ON inv_asset (agent_key) WHERE agent_key IS NOT NULL;
 
-CREATE INDEX inv_software_asset_source_ix ON inv_software (asset_id, source);
+CREATE INDEX inv_software_reading_source_ix ON inv_software_reading (source, software_id);
 
 CREATE INDEX inv_observation_mac_ix ON inv_observation (value) WHERE field = 'mac';
 
@@ -732,15 +786,19 @@ CREATE INDEX inv_separate_b_ix ON inv_separate (b);
 
 CREATE INDEX inv_hand_seen_mac_ix ON inv_hand_seen (mac);
 
-CREATE UNIQUE INDEX inv_software_uq ON inv_software (asset_id, lower(vendor), lower(product), ifnull(version, ''), source) WHERE corrects IS NULL;
-
-CREATE UNIQUE INDEX inv_software_corrects_uq ON inv_software (asset_id, corrects) WHERE corrects IS NOT NULL;
-
 CREATE TRIGGER inv_observation_append_only BEFORE UPDATE ON inv_observation
 WHEN NEW.id IS NOT OLD.id OR NEW.asset_id IS NOT OLD.asset_id OR NEW.field IS NOT OLD.field OR NEW.value IS NOT OLD.value
   OR NEW.source IS NOT OLD.source OR NEW.evidence IS NOT OLD.evidence
 BEGIN
     SELECT RAISE(ABORT, 'inv_observation is append-only');
+END;
+
+CREATE TRIGGER inv_software_event_append_only BEFORE UPDATE ON inv_software_event
+WHEN NEW.id IS NOT OLD.id OR NEW.product_key IS NOT OLD.product_key OR NEW.display IS NOT OLD.display OR NEW.ts IS NOT OLD.ts
+  OR NEW.kind IS NOT OLD.kind OR NEW.from_version IS NOT OLD.from_version OR NEW.to_version IS NOT OLD.to_version
+  OR NEW.source IS NOT OLD.source OR NEW.actor IS NOT OLD.actor
+BEGIN
+    SELECT RAISE(ABORT, 'inv_software_event is append-only');
 END;
 
 -- module agent-intake
@@ -1210,7 +1268,7 @@ CREATE TABLE notify_setting (
 
 CREATE TABLE notify_incident (
     id         TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind       TEXT    NOT NULL CHECK (kind IN ('trap', 'bad_address', 'log_anomaly', 'unknown_device')),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
     title      TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 400),
     link       TEXT    NOT NULL CHECK (length(link) BETWEEN 1 AND 400),
     severity   TEXT    NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),
@@ -1866,6 +1924,42 @@ CREATE TABLE logs_siem (
 );
 
 CREATE UNIQUE INDEX logs_sources_sender_uq ON logs_sources (sender_ip);
+
+-- module ids
+
+CREATE TABLE ids_alert (
+    id           TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 64),
+    source       TEXT    NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    sid          INTEGER CHECK (sid IS NULL OR sid >= 0),
+    signature    TEXT    NOT NULL CHECK (length(signature) BETWEEN 1 AND 300),
+    category     TEXT    NOT NULL DEFAULT '' CHECK (length(category) <= 120),
+    priority     INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 4),
+    src_ip       TEXT    NOT NULL CHECK (length(src_ip) BETWEEN 2 AND 45),
+    dst_ip       TEXT    NOT NULL CHECK (length(dst_ip) BETWEEN 2 AND 45),
+    dst_port     INTEGER CHECK (dst_port IS NULL OR dst_port BETWEEN 0 AND 65535),
+    proto        TEXT    NOT NULL DEFAULT '' CHECK (length(proto) <= 16),
+    src_asset_id TEXT    REFERENCES inv_asset (id) ON DELETE SET NULL,
+    dst_asset_id TEXT    REFERENCES inv_asset (id) ON DELETE SET NULL,
+    first_ts     TEXT    NOT NULL CHECK (first_ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_ts      TEXT    NOT NULL CHECK (last_ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    count        INTEGER NOT NULL CHECK (count >= 1),
+    dedupe_key   TEXT    NOT NULL UNIQUE CHECK (length(dedupe_key) = 64),
+    CHECK (last_ts >= first_ts)
+) STRICT;
+
+CREATE INDEX ids_alert_last_ix ON ids_alert (last_ts);
+
+CREATE INDEX ids_alert_src_asset_ix ON ids_alert (src_asset_id) WHERE src_asset_id IS NOT NULL;
+
+CREATE INDEX ids_alert_dst_asset_ix ON ids_alert (dst_asset_id) WHERE dst_asset_id IS NOT NULL;
+
+CREATE TABLE ids_alert_cve (
+    alert_id TEXT NOT NULL REFERENCES ids_alert (id) ON DELETE CASCADE,
+    cve      TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 20),
+    PRIMARY KEY (alert_id, cve)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX ids_alert_cve_cve_ix ON ids_alert_cve (cve);
 
 -- module ai
 

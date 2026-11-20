@@ -7,10 +7,10 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input } from '@/components/ui/input'
 import { useDeviceAction } from './api'
 import { errMsg } from './kinds'
-import type { SoftwareView } from './types'
+import type { SoftwareLine } from './types'
 
 /** "Change the version" of software a person declared (edit version); empty removes it. */
-export function VersionDialog({ sw, assetId, onClose }: { sw: Pick<SoftwareView, 'id' | 'display' | 'version'> & Partial<Pick<SoftwareView, 'pkg_version' | 'correction'>> | null; assetId: string; onClose: () => void }) {
+export function VersionDialog({ sw, assetId, onClose }: { sw: Pick<SoftwareLine, 'id' | 'display' | 'version'> & Partial<Pick<SoftwareLine, 'pkg_version' | 'correction'>> | null; assetId: string; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const act = useDeviceAction(assetId)
   const [value, setValue] = useState(sw?.version ?? '')

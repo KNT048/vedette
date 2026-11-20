@@ -5,7 +5,7 @@
 
 ## Invariants (luôn đúng)
 - **INV-1** Log và metadata là dữ liệu không tin cậy (SYS-6): parser fail-closed (dòng không parse được chỉ lưu thô, không bỏ cả lô), giới hạn kích thước dòng/lô, dòng lỗi được đếm; nội dung dòng không bao giờ được diễn giải thành lệnh. Test: fuzz parser theo từng `SourceKind` (`FuzzSanitizeLine`, `listen` Fuzz*) và `FuzzSignature` (mọi profile gửi kèm và bộ tìm mẫu chung).
-- **INV-2** Không cài IDS/IPS (Zeek, Suricata) trên hộp. Nguồn phát hiện mạng chỉ gồm (1) metadata SPAN: truy vấn DNS, TLS SNI, HTTP Host, luồng IP; không lưu payload; (2) syslog. Giá trị `seen_via`: `span_dns | span_sni | span_http | span_flow | syslog:<tên thiết bị>`.
+- **INV-2** Module logs không chạy IDS/IPS và không đọc sự kiện IPS: phát hiện xâm nhập là của module `ids`, nhận mọi lô dòng đã lưu qua `Config.Received` (POST-6). Nguồn của logs chỉ gồm (1) metadata SPAN: truy vấn DNS, TLS SNI, HTTP Host, luồng IP; không lưu payload; (2) syslog. Giá trị `seen_via`: `span_dns | span_sni | span_http | span_flow | syslog:<tên thiết bị>`.
 - **INV-3** Nguồn log: `name` khớp `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`; `sender_ip` là IPv4 hợp lệ; `proto` ∈ {udp,tcp,tls}; `port` 1..65535 (mặc định 514, tls 6514); `kind` thuộc `KIND_IDS` (danh mục 48 loại, mỗi loại có cấu hình đã đối chiếu tài liệu hãng). `state` ∈ {receiving, silent, never}; `asset_id` là thiết bị trong kho có địa chỉ đó: IP trong danh sách, hoặc địa chỉ đọc SNMP do người dùng gõ cho thiết bị (`asset_via` = `snmp_read` khi không phải IP trong danh sách; địa chỉ đọc mặc định, tức IP lúc lưu, không tính). Địa chỉ đọc do người dùng gõ thắng thiết bị do quét tìm thấy ở cùng địa chỉ (cùng một máy thấy hai lần); thiết bị người dùng đã duyệt ở đó thì cả hai cùng có địa chỉ: `asset_id`/`asset_name` = `null` và `asset_matches` liệt kê cả hai (không bao giờ chọn bừa một). `asset_id` = `null` và `asset_matches` rỗng nếu không có thiết bị nào.
 - **INV-4** Lưu giữ (`retention_days`) ∈ {7, 30, 90, 180}; mặc định 30. Hết hạn → xoá sự kiện. Xoá một nguồn **không** xoá log đã nhận (giữ tới hết lưu giữ).
 - **INV-4b** `GET /logs/sources` trả thêm `logs_bytes` (dung lượng đĩa của `logs.db` + WAL, `store.DB.Size`, hai lần `stat`, không quét hàng) và `disk_free_bytes` (chỗ trống của hệ tập tin chứa thư mục dữ liệu của hộp, `store.DiskFree`, dùng chung với exposure); mỗi số `null` khi không đọc được, trang vẫn trả lời. Test: `TestSourcesCarryLogsSizeAndFreeDisk`.
@@ -32,6 +32,7 @@
 - **POST-4** `POST /logs/siem/test` trả `{ok, at, detail}` và lưu `last_test`.
 - **POST-5** Với SPAN: không có gói nhân bản thật → trạng thái sensor cảnh báo (cấu hình ở Cài đặt → Box network), không âm thầm báo "không có gì".
 
+- **POST-6** (S-IDS-1) Sau khi giao dịch của lô commit, `Ingest` gọi `Config.Received(ctx, []StoredLine)` (nếu có) với mọi dòng đã lưu: văn bản đã làm sạch, giờ nhận, id, tên và `kind` của nguồn. Hàm đó không được chặn hay ghi cơ sở chính (INV-12); `cmd/vedette` nối nó tới `ids.Service.Offer` khi module `ids` bật. Logs không biết dòng nào là sự kiện IPS.
 ## Forbidden (không bao giờ)
 - **FORBID-1** Lưu payload gói SPAN (chỉ metadata, INV-2).
 - **FORBID-2** Trả khoá ký SIEM qua API/export; ghi vào log.

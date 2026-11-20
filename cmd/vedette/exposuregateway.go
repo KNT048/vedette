@@ -138,10 +138,7 @@ func applianceDevice(d inventory.Device, q exposure.ApplianceQuery) bool {
 	if q.Device != nil && q.Device.MatchString(strings.Join(own, " \n ")) {
 		return true
 	}
-	for _, s := range d.Software {
-		if s.NotInstalled {
-			continue
-		}
+	for _, s := range d.Running() {
 		for _, k := range s.Kev {
 			if slices.Contains(q.KevKeys, strings.ToLower(k)) {
 				return true

@@ -34,7 +34,7 @@ export type LinkApprovers = z.infer<typeof C.LinkApprovers>
 
 export const CHANNEL_TYPES: ChannelType[] = ['telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook']
 export const ROUTE_SEVERITIES: RouteSeverity[] = ['critical', 'high', 'medium', 'low']
-export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anomaly', 'unknown_device']
+export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion']
 
 /** Trường không bí mật của từng kênh. Bí mật (token, mật khẩu) tách riêng: chỉ gửi lên, không bao giờ trả về (SYS-4). */
 export const FIELDS: Record<ChannelType, string[]> = {

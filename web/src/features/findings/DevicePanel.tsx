@@ -9,7 +9,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
 import { useFindings, usePlan, useToFix } from './api'
 import { DoneList } from './DoneList'
-import type { SoftwareView } from '@/features/inventory/types'
+import type { SoftwareLine } from '@/features/inventory/types'
 import type { FindingRow, ToFixDevice } from './types'
 import { isOpen, riskRank } from './basis'
 import { RiskChip } from './Risk'
@@ -106,7 +106,7 @@ function DevicePlan({ assetId }: { assetId: string }) {
  *  card's update rows, exploited and recommended, and its findings); a scanned or agent-read one is on the card (DeviceUpdated).
  *  A software shown once stays mounted for the visit, so its dialog can say what the re-match closed after the row is gone; the button
  *  shows only while a row of the card or an open finding names it. */
-function Updated({ card, items = [], software }: { card: ToFixDevice | undefined; items?: FindingRow[]; software: SoftwareView[] | undefined }) {
+function Updated({ card, items = [], software }: { card: ToFixDevice | undefined; items?: FindingRow[]; software: SoftwareLine[] | undefined }) {
   const kept = useRef(new Map<string, UpdatedSoftware>())
   const seen = useRef<FindingRow['asset'] | undefined>(undefined)
   const asset = (seen.current = card?.asset ?? items.find((f) => f.asset)?.asset ?? seen.current)

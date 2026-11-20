@@ -207,6 +207,8 @@ type SoftwareItem struct {
 	// PkgVersion and PkgSource: a deb row's full Debian version and source package. Stored only with Packaged; a value
 	// that is not a Debian version or package name is dropped (the row stays, without a distribution decision).
 	PkgVersion, PkgSource string
+	// Instance tells two readings of one product by one source apart (observe.Software.Instance).
+	Instance string
 }
 
 // Observed is a value with where it came from (contract.ts Observed).
@@ -224,7 +226,7 @@ type Observed struct {
 	SoftwareID string `json:"software_id,omitempty"`
 }
 
-// Software is one software row (contract.ts Software).
+// Software is one software line as a row of a device list (contract.ts Software): SoftwareLine.row.
 type Software struct {
 	ID         string   `json:"id"`
 	Display    string   `json:"display"`
@@ -236,33 +238,12 @@ type Software struct {
 	Confidence float64  `json:"confidence"`
 	// Basis is "guess" on the row of nmap's OS fingerprint (no version, no match key), "" otherwise (INV-44).
 	Basis string `json:"basis,omitempty"`
-	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)): the mark itself, or the reported row it
-	// covers. Readers that tell what the device runs (the Ask context, the MCP asset data) leave it out. Not in the API.
-	NotInstalled bool `json:"-"`
-	// live: the row counts for matching (liveSW); seenAt: when its source last reported it. Read by declaredIdentity.
+	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)). Readers that tell what the device runs
+	// (the assistant, MCP) take Device.Running, which leaves it out.
+	NotInstalled bool `json:"not_installed"`
+	// live: a person's entry that is the line's value on a present line; seenAt: when its source last read it. Read by declaredIdentity.
 	live   bool
 	seenAt string
-}
-
-// SoftwareView is Software with CVE ids instead of keys (contract.ts SoftwareView).
-type SoftwareView struct {
-	ID         string   `json:"id"`
-	Display    string   `json:"display"`
-	Vendor     string   `json:"vendor"`
-	Product    string   `json:"product"`
-	Version    *string  `json:"version"`
-	KevCVEs    []string `json:"kev_cves"`
-	Source     string   `json:"source"`
-	Confidence float64  `json:"confidence"`
-	Basis      string   `json:"basis,omitempty"` // Software.Basis
-	// PkgVersion is the full package release (an agent's packaged row, or a person's correction, INV-41); absent when none.
-	PkgVersion *string `json:"pkg_version,omitempty"`
-	// CorrectedBy, on a row a sensor or agent reported, is the id of the person's correction that replaces it for matching (INV-41).
-	CorrectedBy *string `json:"corrected_by,omitempty"`
-	// Correction, on a person's correction, says when it was set and what the sources read now (INV-41).
-	Correction *SoftwareCorrection `json:"correction,omitempty"`
-	// CanCorrect: a person may correct this row's version (PATCH, INV-52), whatever source reported it. true on every row.
-	CanCorrect bool `json:"can_correct"`
 }
 
 // ServiceRow is a service seen listening on a device (contract.ts Service).
@@ -333,7 +314,7 @@ type Device struct {
 	FindingsCount int         `json:"findings_count"`
 	Risk          *Risk       `json:"risk"` // the device's risk marker, nil when clean
 	Summary       *Summary    `json:"summary"`
-	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, DeviceSources); set by DevicesPage only
+	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, SourceWords); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
 	// observedHW is the maker and model the observations give, before a declared OS row fills them (applyDeclared): the naming rule
 	// reads these, as Names does, so a device is named alike on every page. nil on a Device not read by loadDevices.
@@ -343,7 +324,7 @@ type Device struct {
 // DetailAsset is the asset of a device detail.
 type DetailAsset struct {
 	AssetCore
-	Software []SoftwareView `json:"software"`
+	Software []SoftwareLine `json:"software"`
 	// OSCorrection is the OS a person set (INV-41), with what the sources read now; absent when none.
 	OSCorrection *OSCorrection `json:"os_correction,omitempty"`
 }

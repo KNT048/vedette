@@ -370,16 +370,21 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 			return err
 		}
 		// the CVE record's rows of both: NVD's win for the first, the second has only these
-		cna := map[string]CVEOrgResult{
-			"CVE-2026-0101": {Outcome: CVEOrgRanges, Complete: true, Rows: []AffectedRow{{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", EndExcl: "1.9"}}},
-			"CVE-2026-0102": {Outcome: CVEOrgRanges, Rows: []AffectedRow{{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", StartIncl: "3.0", EndExcl: "3.4"}}},
+		recs := []CVERecord{
+			{CVE: "CVE-2026-0101", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0101", Origin: OriginCNA, Vendor: "acme", Product: "box", EndExcl: "1.9", DefaultStatus: DefaultUnaffected}}},
+			{CVE: "CVE-2026-0102", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0102", Origin: OriginCNA, Vendor: "acme", Product: "box", StartIncl: "3.0", EndExcl: "3.4", DefaultStatus: DefaultUnknown}}},
 		}
-		_, _, _, err = applyCVEOrg(t.Context(), tx, cna, []string{"CVE-2026-0101", "CVE-2026-0102"}, nil, now)
+		k, err := recordKeepOf(t.Context(), tx, now, nil)
+		if err != nil {
+			return err
+		}
+		_, err = writeRecords(t.Context(), tx, recs, k, now)
 		return err
 	})
-	// NVD has ranges for 0101: the CVE record's are not read; 0102's come from the CNA (a partial list: no defaultStatus)
-	if n := count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0101' AND origin <> 'nvd'`); n != 0 {
-		t.Fatalf("CNA rows stored beside NVD's: %d", n)
+	// NVD has ranges for 0101: the CVE record's are kept beside them and never read while NVD's are there; 0102's come from the CNA
+	// (a partial list: no defaultStatus)
+	if n := count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0101' AND origin = 'cna'`); n != 1 {
+		t.Fatalf("CNA rows of 0101: %d", n)
 	}
 	got, err := s.Ranges(t.Context(), []ProductKey{{Vendor: "Acme", Product: "Box"}})
 	if err != nil || len(got) != 2 || got[0].CVE != "CVE-2026-0101" || got[0].Origin != OriginNVD || got[0].EndExcl != "2.0" ||
@@ -432,7 +437,7 @@ func TestGolden_CatalogueTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pan, err := ParseCVERecord(fixture(t, "cveorg/CVE-2024-3400.json"), "CVE-2024-3400", "Palo Alto Networks", "PAN-OS")
+	pan, err := ParseCVERecord(fixture(t, "cveorg/CVE-2024-3400.json"), "CVE-2024-3400")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +451,11 @@ func TestGolden_CatalogueTables(t *testing.T) {
 		if err := storeRecords(t.Context(), tx, nvd.Records, epoch0); err != nil {
 			return err
 		}
-		_, _, _, err := applyCVEOrg(t.Context(), tx, map[string]CVEOrgResult{"CVE-2024-3400": pan}, []string{"CVE-2024-3400"}, nil, epoch0)
+		k, err := recordKeepOf(t.Context(), tx, epoch0, nil)
+		if err != nil {
+			return err
+		}
+		_, err = writeRecords(t.Context(), tx, []CVERecord{pan}, k, epoch0)
 		return err
 	})
 	var b strings.Builder

@@ -361,29 +361,8 @@
     "unverified": "Unverified"
   },
   "risk": {
-    "unverifiedChip": "{{severity}}, unverified",
-    "unverifiedHint": "Unverified: product match only. Vedette knows the product but not its version, so this may not apply to you. Add the version on the device page, or run a scan, to check.",
     "unverifiedLine": "Unverified: product match only.",
-    "unverifiedLineInfo": "The severity applies only if the version on this device is affected.",
-    "unverifiedAgentHint": "Unverified: product match only. The device's agent reports the installed version, but Vedette cannot compare it with the versions NVD lists for this CVE, so this may not apply to you. Compare it with the vendor advisory."
-  },
-  "cvss": {
-    "value": "{{score}} {{band}}",
-    "label": "CVSS {{value}}",
-    "none": "No score",
-    "noneLabel": "No CVSS score",
-    "noneInfo": "No CVSS score in the data this box has. Whether it is exploited does not depend on it.",
-    "info": "CVSS {{version}} base score. Source: {{from}}.",
-    "fromNvd": "NVD",
-    "fromOther": "Another scorer (CNA or CISA ADP)",
-    "first": "CVSS is owned by FIRST and used by permission.",
-    "band": {
-      "critical": "Critical",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low",
-      "none": "None"
-    }
+    "unverifiedLineInfo": "The severity applies only if the version on this device is affected."
   },
   "bulk": {
     "region": "Selected findings",
@@ -414,9 +393,6 @@
     "reopensAfter": "Reopens by itself after {{date}}.",
     "noteRequired": "Say why you accept the risk (at least 3 characters).",
     "untilRequired": "Choose a date from tomorrow up to one year from today.",
-    "chip": "Risk accepted",
-    "chipUntil": "Until {{date}}",
-    "rowUntil": "until {{date}}",
     "line": "Risk accepted until {{date}} by {{who}}."
   },
   "updated": {
@@ -625,8 +601,6 @@
     "risk_accepted": "Risk accepted until {{date}}{{who}}{{when}}. It reopens by itself after that day",
     "before": "Before it was closed: evidence, how to check, what to do"
   },
-  "agentChip": "Detected by the agent",
-  "agentChipHint": "The device's own agent (osquery or Wazuh) reported the installed version, and that version is affected. A safe scan template has not seen it, so the status is still open, not confirmed.",
   "fix": {
     "title_one": "1 update fixes several findings",
     "title_other": "{{count}} updates each fix several findings",
@@ -738,15 +712,7 @@
       "published": "Published",
       "epss": "EPSS",
       "evidence": "How Vedette knows",
-      "notScored": "Not scored by NVD yet",
       "old": "Over 12 months ago"
-    },
-    "sev": {
-      "critical": "Critical",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low",
-      "none": "None"
     },
     "tier": {
       "likely": "Likely to be exploited",

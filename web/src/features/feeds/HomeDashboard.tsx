@@ -12,14 +12,15 @@ import { Sparkline } from '@/components/common/Sparkline'
 import { Illustration } from '@/components/common/Illustration'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
-import { Chip, StatusChip } from '@/components/common/StatusChip'
+import { Chip } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { dayOf as orgDay, fmtDateTime, fmtDayMonth, fmtRelative } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { CvssScore } from '@/features/findings/Cvss'
+import { FindingStatus, legacySeverity } from '@/features/findings/legacyStatus'
 import type { HomeSummary, SummaryItem } from '@/features/findings/types'
 import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
@@ -125,11 +126,11 @@ function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
       aside={(
         <>
           <div className="flex flex-wrap gap-1.5 md:justify-end">
-            <StatusChip status={f.status} />
-            <Chip tone="danger">{f.source === 'vulncheck-kev' ? t('dash.inVulncheck') : f.source ? t('dash.inKev') : t('dash.exploited')}</Chip>
+            <FindingStatus f={f} />
             {f.ransomware ? <Chip tone="danger">{t('dash.ransomwareChip')}</Chip> : null}
           </div>
-          <CvssScore cvss={f.cvss} prefix />
+          {f.source ? <span className="text-meta text-muted">{t(f.source === 'vulncheck-kev' ? 'dash.inVulncheck' : 'dash.inKev')}</span> : null}
+          <SeverityBadge severity={legacySeverity(f)} />
         </>
       )} />
   )

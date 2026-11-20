@@ -248,7 +248,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('the CVE page answers for a CVE on no exploited list, with its devices from Updates to plan', async () => {
     renderApp('/cve/CVE-2026-31001')
     expect(await screen.findByRole('heading', { level: 1, name: 'CVE-2026-31001' })).toBeInTheDocument()
-    expect(screen.getByText('Not on an exploited list')).toBeInTheDocument()
+    expect(screen.getByText('Update recommended')).toBeInTheDocument()
     expect(screen.getByText('F5 nginx')).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'WEB01' })).toHaveAttribute('href', '/devices/a-web01')
   })

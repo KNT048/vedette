@@ -28,7 +28,7 @@ describe('a person confirms a suspected finding', () => {
     // confirmed by a person: the page, the basis and the history say so
     await waitFor(() => expect(row('f-2').status).toBe('confirmed'), T)
     expect(row('f-2').basis).toBe('person')
-    expect(await screen.findByText('Confirmed by a person', undefined, T)).toBeInTheDocument()
+    expect((await screen.findAllByText('Confirmed by a person', undefined, T)).length).toBeGreaterThan(0)
     expect(screen.getByText('Confirmed by admin@acme.example: Logged in to the admin page, it runs 6.4')).toBeInTheDocument()
     expect(screen.queryByTestId('suspected-why')).toBeNull()
     expect(auditStore.get().some((a) => a.action === 'findings.confirm')).toBe(true)

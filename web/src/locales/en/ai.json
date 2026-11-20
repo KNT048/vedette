@@ -250,11 +250,6 @@
     "waiting": "Reading the logs and asking your AI… this can take a minute or two.",
     "tier": "{{tier}} level: {{cadence}}.",
     "cite": "Kinds of log line and their counts on this box, never the lines",
-    "severity": {
-      "high": "High",
-      "medium": "Medium",
-      "info": "Info"
-    },
     "device": "View device",
     "tools": "Read-only tools used to investigate",
     "meta": "Summarised {{time}}.",

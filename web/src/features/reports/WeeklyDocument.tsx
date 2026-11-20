@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
-import { SeverityChip } from '@/components/common/StatusChip'
-import { FindingStatusChip } from '@/features/findings/AcceptRisk'
+import { SeverityBadge } from '@/components/common/status'
+import { FindingStatus } from '@/features/findings/legacyStatus'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { FiltersUsed, useReportFilters, weeklyView } from './filters'
 import { Scroll } from './parts'
@@ -20,7 +20,7 @@ function Rows({ rows, caption }: { rows: FindingRow[]; caption: string }) {
         </tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={r.id} className="border-b border-rule last:border-b-0">
-            <td className="py-1 pr-3">{r.device}</td><td className="py-1 pr-3">{r.cve}</td><td className="py-1 pr-3">{r.product}</td><td className="py-1 pr-3"><FindingStatusChip f={r} /></td><td className="py-1">{fmtDate(r.since)}</td>
+            <td className="py-1 pr-3">{r.device}</td><td className="py-1 pr-3">{r.cve}</td><td className="py-1 pr-3">{r.product}</td><td className="py-1 pr-3"><FindingStatus f={r} /></td><td className="py-1">{fmtDate(r.since)}</td>
           </tr>
         ))}</tbody>
       </table>
@@ -44,7 +44,7 @@ function Risk({ r }: { r: TopRisk }) {
   const { t } = useTranslation('reports')
   return (
     <li className="grid gap-0.5">
-      <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{r.product}</span><SeverityChip severity={r.severity} /></span>
+      <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{r.product}</span><SeverityBadge severity={r.severity} /></span>
       {r.action ? <span>{r.action}</span> : null}
       <span className="text-meta text-muted">{t('doc.weekly.risk', { device: r.device, count: r.open, confirmed: r.confirmed, cve: r.cve })}</span>
     </li>
@@ -99,7 +99,7 @@ export function WeeklyDocument({ report: full, org, aiAction }: { report: Weekly
                 <p>{r.happened.summary}</p>
                 {r.happened.top.length ? (
                   <ul className="ml-5 mt-1 list-disc">
-                    {r.happened.top.map((h, i) => <li key={i}>{h.title} <SeverityChip severity={h.severity} /></li>)}
+                    {r.happened.top.map((h, i) => <li key={i}>{h.title} <SeverityBadge severity={h.severity} /></li>)}
                   </ul>
                 ) : null}
               </section>

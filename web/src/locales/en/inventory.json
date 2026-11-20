@@ -1212,9 +1212,6 @@
     }
   },
   "risk": {
-    "exploited_one": "{{count}} exploited",
-    "exploited_other": "{{count}} exploited",
-    "update": "Update recommended",
     "exploitedAria_one": "{{count}} open exploited finding to fix on this device: open its To fix",
     "exploitedAria_other": "{{count}} open exploited findings to fix on this device: open its To fix",
     "updateAria_one": "No exploited finding, but {{count}} recommended update fixes a CVE likely to be exploited or of high severity: open its To fix",

@@ -12,6 +12,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CveList } from '@/components/common/status'
 import { Input, Label } from '@/components/ui/input'
 import { useFeedSources } from '@/features/feeds/api'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -242,9 +243,8 @@ function UnprovedItem({ a, asset }: { a: ToFixAction; asset: FindingAsset | null
         </p>
         <details>
           <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('toFix.showCves', { count: a.cves.length })}</summary>
-          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta">
-            {a.cves.map((c, i) => <li key={c}><Link to={`/findings/${encodeURIComponent(a.finding_ids[i] ?? '')}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
-          </ul>
+          <CveList all className="mt-1 pl-4" label={t('toFix.cvesOf', { action: a.software || t('toFix.theSoftware') })}
+            items={a.cves.map((cve, i) => ({ cve, id: a.finding_ids[i], to: `/findings/${encodeURIComponent(a.finding_ids[i] ?? '')}` }))} />
         </details>
       </div>
       <NextStep assetId={asset?.id ?? ''} asset={asset} softwareId={a.software_id} software={a.software || t('toFix.theSoftware')} need="proof" sourceHint={a.source} findingIds={a.finding_ids} />

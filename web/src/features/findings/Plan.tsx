@@ -7,6 +7,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -23,9 +24,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 function Severity({ c }: { c: PlanCve }) {
-  const { t } = useTranslation('findings')
-  if (!c.severity) return <span className="text-meta text-muted">{t('plan.cve.notScored')}</span>
-  return <span className="whitespace-nowrap text-meta">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
+  return <SeverityBadge compact severity={c.severity ? { band: c.severity, score: c.score } : null} />
 }
 
 /** The evidence key of a CVE: an agent's row reads "Last reported by an agent" once no agent reports the device (`gone`). */

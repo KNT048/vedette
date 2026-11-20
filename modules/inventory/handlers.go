@@ -372,7 +372,7 @@ func (h *Handlers) InventoryGetInventorySettings(ctx context.Context) (*oas.Inve
 	if err != nil {
 		return nil, err
 	}
-	st.Active.CheckRate, st.Active.ChecksMergedFrom = 0, nil // not part of this contract: /scanning/safety and /scans/config carry it (INV-32)
+	st.Active.CheckRate = 0 // not part of this contract: /scanning/safety and /scans/config carry it (INV-32)
 	return convert[oas.InventoryGetInventorySettingsOK](st)
 }
 
@@ -386,11 +386,11 @@ func (h *Handlers) InventoryPutInventorySettings(ctx context.Context, req *oas.I
 	if err != nil {
 		return nil, apierr.Invalid("The settings are not valid.")
 	}
-	in.Active.CheckRate, in.Active.ChecksMergedFrom = 0, nil // not part of this contract: the stored values stay (INV-32)
+	in.Active.CheckRate = 0 // not part of this contract: the stored values stay (INV-32)
 	st, err := h.svc.SaveSettings(ctx, who, *in)
 	if err != nil {
 		return nil, err
 	}
-	st.Active.CheckRate, st.Active.ChecksMergedFrom = 0, nil
+	st.Active.CheckRate = 0
 	return convert[oas.InventoryPutInventorySettingsOK](st)
 }

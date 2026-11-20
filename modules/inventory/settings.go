@@ -27,16 +27,10 @@ type ActiveWindow struct {
 	To         string   `json:"to"` // earlier than From means the window crosses midnight
 	Rate       int      `json:"rate"`
 	Exclusions []string `json:"exclusions"` // IPv4 or CIDR
-	// CheckRate is the speed of the vulnerability checks (nuclei) on LAN devices, in requests per second (1..MaxCheckRate). 0: the
-	// one-time merge of the scan module's own copy has not run yet (MergeLegacyChecks), read as DefaultCheckRate. Not part of GET/PUT
+	// CheckRate is the speed of the vulnerability checks (nuclei) on LAN devices, in requests per second (1..MaxCheckRate). 0:
+	// nobody saved it yet, read as DefaultCheckRate. Not part of GET/PUT
 	// /inventory/settings (the handlers leave it out): /scanning/safety and /scans/config carry it.
 	CheckRate int `json:"check_rate,omitempty"`
-	// ChecksMergedFrom is the scan module's own copy (scan_setting) last taken in, named by that copy's own updated_at value ("" for
-	// a copy nobody saved): by MergeLegacyChecks at start, or by SaveChecks, whose caller wrote the values it read (the union while
-	// unmerged) and that stamp in the same transaction. nil = never. The copy counts as taken in only while its updated_at is exactly
-	// this value: no two clocks are compared, so a clock that ran ahead never hides a later edit of the copy (scan INV-16, review #857
-	// M1, r2 L1). Not part of GET/PUT /inventory/settings.
-	ChecksMergedFrom *string `json:"checks_merged_from,omitempty"`
 }
 
 // Limits of the vulnerability checks' speed and of the shared exclusions (#850, INV-32).
@@ -271,8 +265,7 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	out := in
 	out.LANRanges = ranges
-	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate,
-		ChecksMergedFrom: act.ChecksMergedFrom}
+	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate}
 	out.FragileKinds, out.RegularScanKinds = fragile, regular
 	return out, adjusted, nil
 }
@@ -344,7 +337,6 @@ func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInp
 		if next.Active.CheckRate == 0 { // PUT /inventory/settings does not carry it: the stored value stays
 			next.Active.CheckRate = prev.Active.CheckRate
 		}
-		next.Active.ChecksMergedFrom = prev.Active.ChecksMergedFrom
 		next.ScopeConfirmedAt, next.ScopeConfirmedBy = nil, nil
 		if in.ScopeConfirmed {
 			at, by := now, actor

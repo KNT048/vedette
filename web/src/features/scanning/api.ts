@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { EngineId, HistoryRun, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
+import type { EngineId, HistoryRun, Run, RunDetail, RunList, RunStatus, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
 import type { z } from 'zod'
 import type { RangeAdd } from './contract'
 
@@ -75,5 +75,50 @@ export function useRunDiscovery() {
       qc.setQueryData<Scanning>(['scanning'], (d) => (d && !d.running.some((r) => r.id === j.id) ? { ...d, running: [...d.running, j] } : d))
       return qc.invalidateQueries({ queryKey: ['scanning'] })
     },
+  })
+}
+
+/** A run that holds its lane now (its progress moves) and one that waits for it (queued, or waiting for a window or another run). */
+export const runMoves = (s: RunStatus) => s === 'running' || s === 'stopping'
+export const runWaits = (s: RunStatus) => s === 'queued' || s === 'waiting'
+
+/** How often a list or a run is read again: every 5 s while one moves, every 30 s while one waits, otherwise not. Tests shorten it. */
+export const runsPoll = { movingMs: 5000, waitingMs: 30_000 }
+const pollFor = (statuses: RunStatus[]): number | false =>
+  statuses.some(runMoves) ? runsPoll.movingMs : statuses.some(runWaits) ? runsPoll.waitingMs : false
+
+/** The filters of the Runs list (the query of GET /runs); empty strings ask for every value. */
+export type RunQuery = { q: string; kind: string; status: string; device: string; offset: number; limit: number }
+
+export function runsUrl(p: RunQuery): string {
+  const qs = new URLSearchParams()
+  if (p.q) qs.set('q', p.q)
+  if (p.kind) qs.set('kind', p.kind)
+  if (p.status) qs.set('status', p.status)
+  if (p.device) { qs.set('subject_kind', 'device'); qs.set('subject_id', p.device) }
+  if (p.offset) qs.set('offset', String(p.offset))
+  qs.set('limit', String(p.limit))
+  return `/runs?${qs}`
+}
+
+/** GET /runs: one page of every run of every engine, newest first. The page stays while the next one loads (lists keep their page),
+ *  and it is read again every 30 s (every 5 s while a run on it moves). */
+export const useRunList = (p: RunQuery, enabled = true) => useQuery({
+  queryKey: ['scanning', 'runs', p], queryFn: () => api.get<RunList>(runsUrl(p)), placeholderData: keepPreviousData, enabled,
+  refetchInterval: (q) => (q.state.data?.items.some((r) => runMoves(r.status)) ? runsPoll.movingMs : runsPoll.waitingMs),
+})
+
+/** GET /runs/{id}: one run with its steps, devices, log tail and the runs under it; read again while it moves or waits. */
+export const useRun = (id: string) => useQuery({
+  queryKey: ['scanning', 'run', id], queryFn: () => api.get<RunDetail>(`/runs/${encodeURIComponent(id)}`), retry: false,
+  refetchInterval: (q) => (q.state.data ? pollFor([q.state.data.status, ...q.state.data.children.map((c) => c.status)]) : false),
+})
+
+/** POST /runs/{id}/stop or /resume: the answer is the run as it is now; every run read (the list, the page, GET /scanning) reads again. */
+export function useRunAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { id: string; action: 'stop' | 'resume' }) => api.post<Run>(`/runs/${encodeURIComponent(v.id)}/${v.action}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scanning'] }),
   })
 }

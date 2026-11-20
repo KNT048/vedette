@@ -207,7 +207,7 @@ func TestContract_POST3_ScheduleInsideTheWindow(t *testing.T) {
 	if err := r.svc.RunSchedule(r.ctx()); err != nil { // 10:00 UTC: yesterday's 23:00 slot, but the window is closed
 		t.Fatal(err)
 	}
-	if r.count(`SELECT count(*) FROM scan_run`) != 0 {
+	if r.count(`SELECT count(*) FROM core_run`) != 0 {
 		t.Fatal("a scheduled run outside the window")
 	}
 	r.advance(13*time.Hour + 30*time.Second) // 23:00:30, inside 22:00-05:00
@@ -222,7 +222,7 @@ func TestContract_POST3_ScheduleInsideTheWindow(t *testing.T) {
 	if err := r.svc.RunSchedule(r.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if r.count(`SELECT count(*) FROM scan_run`) != 1 {
+	if r.count(`SELECT count(*) FROM core_run`) != 1 {
 		t.Fatal("one slot started two runs")
 	}
 }
@@ -240,7 +240,7 @@ func TestSchedule_StopsWhenTheWindowEnds(t *testing.T) {
 	}
 	r.wait()
 	runs, _ := r.svc.Runs(r.ctx())
-	if len(runs) != 1 || runs[0].Status != "stopped" || *runs[0].StopReason != noteWindowEnded {
+	if len(runs) != 1 || runs[0].Status != "auto_stopped" || *runs[0].StopReason != noteWindowEnded {
 		t.Fatalf("%+v", runs)
 	}
 }

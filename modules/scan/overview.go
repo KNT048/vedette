@@ -29,17 +29,17 @@ type RunHead struct {
 	Progress                       *progress.View // the running run's current device; nil otherwise
 }
 
-// Engine reads EngineView: two indexed rows of scan_run and the configuration view, nothing per device.
+// Engine reads EngineView: two indexed rows of core_run and the configuration view, nothing per device.
 func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 	cv, err := s.Config(ctx)
 	if err != nil {
 		return EngineView{}, err
 	}
 	v := EngineView{NextRun: cv.NextRun, BlockReason: cv.BlockReason, ScheduleBlocked: cv.ScheduleBlockedReason}
-	if v.Last, err = s.runHead(ctx, `status NOT IN ('running', 'stopping')`); err != nil {
+	if v.Last, err = s.runHead(ctx, `r.status NOT IN ('queued', 'running', 'stopping')`); err != nil {
 		return EngineView{}, err
 	}
-	if v.Running, err = s.runHead(ctx, `status IN ('running', 'stopping')`); err != nil {
+	if v.Running, err = s.runHead(ctx, `r.status IN ('queued', 'running', 'stopping')`); err != nil {
 		return EngineView{}, err
 	}
 	if v.Running != nil {
@@ -49,14 +49,18 @@ func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 }
 
 func (s *Service) runHead(ctx context.Context, where string) (*RunHead, error) {
-	var h RunHead
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT id, trigger, status, started_at, ended_at, total, done, matched FROM scan_run WHERE `+where+ // where is one of two constants of Engine
-		` ORDER BY started_at DESC, rowid DESC LIMIT 1`).Scan(&h.ID, &h.Trigger, &h.Status, &h.StartedAt, &h.EndedAt, &h.Total, &h.Done, &h.Matched)
+	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT `+runCols+` FROM core_run r WHERE r.module = ? AND r.kind = ? AND `+where+ // where is one of two constants of Engine
+		` ORDER BY r.queued_at DESC, r.rowid DESC LIMIT 1`, ModuleID, runKindName)
+	v, err := scanRunHead(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no such run
 	}
 	if err != nil {
 		return nil, fmt.Errorf("scan: reading the newest run: %w", err)
 	}
-	return &h, nil
+	h := &RunHead{ID: v.ID, Trigger: v.Trigger, Status: v.Status, StartedAt: v.StartedAt, EndedAt: v.EndedAt, Total: v.Total, Done: v.Done}
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run_item WHERE run_id = ? AND subject_kind = 'device' AND outcome = 'matched'`, v.ID).Scan(&h.Matched); err != nil {
+		return nil, fmt.Errorf("scan: reading the newest run: %w", err)
+	}
+	return h, nil
 }

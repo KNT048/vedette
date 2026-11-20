@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Play, ScanSearch } from 'lucide-react'
@@ -12,7 +12,7 @@ import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useRunDiscovery, useScanning } from './api'
 import { ScopeButton } from './Fixes'
-import { runPlace } from './places'
+import { isHere, runHref, runsHref } from './places'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -36,7 +36,7 @@ export type ScanNowJob = Look & {
 }
 /** A LAN check with nmap (POST /scanning/engines/nmap-discovery/run): device ids or IPs (a device page, the Devices list
  *  selection) or the whole LAN scope, which the server resolves (never the box, never outside the scope or the exclusions). */
-export type ScanNowLan = Look & { targets: string[] | 'lan'; /** Show the progress under the button while its run goes on (default true). */ showProgress?: boolean }
+export type ScanNowLan = Look & { targets: string[] | 'lan'; /** Show the progress under the button while its run goes on, and a link to a run in its way (default true); off where the page shows the runs itself or the button repeats on rows. */ showProgress?: boolean }
 
 /**
  * #850: Scan now where the person is (S-INV-1, S-SCAN-1): "Check this device now" (one device), "Scan selected (N)", "Scan the LAN
@@ -99,7 +99,9 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
             <span>{blocked}</span>
             {admin && needsScope ? <ScopeButton /> : null}
             {admin && !needsScope && disc && !disc.enabled ? <Link to="/settings/scanning?tab=engines#engine-nmap-discovery-switch" className="text-accent underline underline-offset-4">{t('scanNow.turnOnDiscovery')}</Link> : null}
-            {other ? <Link to={runPlace(other)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link> : null}
+            {/* the run in the way opens from the button's own place; a row of a list (showProgress off) leaves it to the page, so a
+                list never repeats the same link on every row */}
+            {other && showProgress ? <Link to={runHref(other.id)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link> : null}
           </span>
         ) : null}
       </div>
@@ -108,7 +110,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
         <Card className="grid gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="font-medium">{ours.label}</span>
-            <Link to={runPlace(ours)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
+            <Link to={runHref(ours.id)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
           </div>
           <JobProgress progress={ours.progress} />
         </Card>
@@ -118,22 +120,28 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
 }
 
 /**
- * #850: "1 scan running" in the shell (phone top bar, sidebar foot, `shell.status` slot); it opens the place of the run (the device,
- * the public target, the LAN scan history). Every engine's runs, the public scans included, from the one read of GET /scanning.
+ * #850: "1 scan running" in the shell (phone top bar, sidebar foot, `shell.status` slot): one run opens its run page, several open the
+ * Runs tab with the runs going on. Every engine's runs, the public scans included, from the one read of GET /scanning. On the page it
+ * would open it is a status, not a link to the page you are on.
  */
 export function ScansRunningIndicator({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { t } = useTranslation('scanning')
+  const here = useLocation()
   const q = useScanning()
   const running = q.data?.running ?? []
   if (running.length === 0) return null
-  const to = running.length === 1 ? runPlace(running[0]!) : '/settings/scanning?tab=engines'
+  const to = running.length === 1 ? runHref(running[0]!.id) : runsHref({ status: 'running' })
   const label = t('running.count', { count: running.length })
-  const link = (
-    <Link to={to} aria-label={label} className={cn('inline-flex h-8 items-center gap-2 rounded-md border border-rule bg-accent-soft text-meta font-medium text-ink hover:bg-sunken', compact ? 'px-2' : 'px-3', className)}>
+  const look = cn('inline-flex h-8 items-center gap-2 rounded-md border border-rule bg-accent-soft text-meta font-medium text-ink', compact ? 'px-2' : 'px-3', className)
+  const body = (
+    <>
       <ScanSearch className="size-4 text-accent" aria-hidden />
       <span aria-hidden className={compact ? 'tabular-nums' : undefined}>{compact ? running.length : label}</span>
-    </Link>
+    </>
   )
+  const item = isHere(to, here)
+    ? <span role="status" aria-label={label} className={look}>{body}</span>
+    : <Link to={to} aria-label={label} className={cn(look, 'hover:bg-sunken')}>{body}</Link>
   // compact (the phone top bar, the rail): the number only, its name in the shared Tooltip (the link's own label already says it)
-  return compact ? <Tooltip content={label} describe={false}>{link}</Tooltip> : link
+  return compact ? <Tooltip content={label} describe={false}>{item}</Tooltip> : item
 }

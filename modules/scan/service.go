@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/pack"
 )
@@ -32,6 +33,12 @@ type Inventory interface {
 	// VulnScanPolicies is VulnScanPolicy for many devices in one inventory read. A device that no longer
 	// exists is absent from the map.
 	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]Decision, error)
+	// Checks reads the shared window, check rate and exclusions, the inventory's (INV-16, inventory INV-32): the one home of them.
+	Checks(ctx context.Context) (Checks, error)
+	// SaveChecks writes them inside tx, the transaction of PUT /scans/config; Settle is called once tx is over, with whether it
+	// committed (the inventory announces inventory.settings.changed then).
+	SaveChecks(ctx context.Context, tx *sql.Tx, user string, c Checks) error
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
 }
 
 // Config is what NewService needs. Only DB, Audit, Inventory and Log are required.
@@ -39,6 +46,7 @@ type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
 	Inventory Inventory
+	Runs      *run.Manager                             // every check is a run of this manager (core/run); register the kind before it starts
 	Engine    Engine                                   // nil: the scanner is unavailable (INV-2), nothing is ever sent
 	Pack      *pack.Index                              // the safe template pack of the scan image; nil: the scanner is unavailable
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
@@ -59,6 +67,9 @@ type Service struct {
 
 	mu   sync.Mutex
 	live *live // the run this process executes; one at a time (INV-3)
+	// pending are the runs queued in core/run and not started yet, by id: what each was started with (the picks, the CVEs of a rescan,
+	// the end of a window). They live in this process only.
+	pending map[string]runSpec
 	// dev is the device whose vulnerability check is running now (nil between devices): DeviceChanged stops that part alone when
 	// the device may no longer be scanned (its network scan turned off).
 	dev *devRun
@@ -66,8 +77,6 @@ type Service struct {
 	// busy counts Engine.Run calls that have not returned. After Stop now the run may show stopped before the worker
 	// confirms (stopGrace), but no run starts while nuclei may still be running (POST-2, FORBID-3; review M2).
 	busy atomic.Int32
-	// closing is set by Close: a run that ends now says Vedette shut down, not that a person pressed Stop now.
-	closing atomic.Bool
 }
 
 // NewService returns the service. DB, Audit, Inventory and Log are required.
@@ -79,7 +88,13 @@ func NewService(cfg Config) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now}, nil
+	s := &Service{cfg: cfg, now: now, pending: map[string]runSpec{}}
+	if cfg.Runs != nil {
+		if err := s.registerKind(); err != nil {
+			return nil, fmt.Errorf("scan: creating service: %w", err)
+		}
+	}
+	return s, nil
 }
 
 // loc is the organization's time zone, read at each use so a change in Settings applies at once (review H1). Never
@@ -196,8 +211,6 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 	if p.DangerousChecks != nil && *p.DangerousChecks {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", ErrDangerousLocked)
 	}
-	var saved Settings
-	sh, shared := s.shared()
 	var wtx *sql.Tx // the write transaction, for the inventory's Settle
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		wtx = tx
@@ -209,25 +222,13 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		if err := next.validate(len(cur.Exclusions)); err != nil {
 			return err
 		}
-		copyOf := next // scan_setting's copy holds at most MaxExclusions (its CHECK): a longer shared list leaves the stored copy as it is
-		if len(next.Exclusions) > MaxExclusions {
-			raw, err := loadSettings(ctx, tx)
-			if err != nil {
-				return err
-			}
-			copyOf.Exclusions = raw.Exclusions
-		}
-		at := store.FormatTS(s.now())
-		if err := saveSettings(ctx, tx, copyOf, user, at); err != nil {
+		if err := saveSettings(ctx, tx, next, user, store.FormatTS(s.now())); err != nil {
 			return err
 		}
-		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; every save writes the values it read (the
-		// union while the copy was not merged: review #857 M1) back there, in the same transaction, so the inventory marks the copy
-		// taken in and discovery and Settings › Scanning see the same values.
-		if shared {
-			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, MergedFrom: &at, Version: p.Version}); err != nil {
-				return err
-			}
+		// INV-16: the window, the rate and the exclusions are the inventory's; the save writes them there, in the same transaction,
+		// so discovery and Settings › Scanning see the same values.
+		if err := s.cfg.Inventory.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, Version: p.Version}); err != nil {
+			return err
 		}
 		detail, err := json.Marshal(struct {
 			Rate       int    `json:"rate"`
@@ -239,17 +240,13 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		if err != nil {
 			return fmt.Errorf("scan: encoding the audit detail: %w", err)
 		}
-		saved = next
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "scan.config", Target: "scan", Detail: string(detail)})
 	})
-	if shared && wtx != nil {
-		sh.Settle(ctx, wtx, err == nil)
+	if wtx != nil {
+		s.cfg.Inventory.Settle(ctx, wtx, err == nil)
 	}
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", err)
 	}
-	if shared { // the values and version as stored now, read together (r2 L3): never a version newer than the list it answers
-		return s.Config(ctx)
-	}
-	return s.view(ctx, saved)
+	return s.Config(ctx) // the values and version as stored now, read together (r2 L3): never a version newer than the list it answers
 }

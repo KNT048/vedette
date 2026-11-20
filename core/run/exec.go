@@ -109,16 +109,26 @@ type Item struct {
 }
 
 // AddItem records a device or host the run touched, as it comes.
-func (x *Exec) AddItem(ctx context.Context, it Item) error {
-	label := clip(it.Label, 200)
-	if !wordRE.MatchString(it.SubjectKind) || !wordRE.MatchString(it.Outcome) || label == "" || len(it.SubjectID) > 96 {
-		return fmt.Errorf("%w: item %q %q %q", ErrInvalid, it.SubjectKind, it.Outcome, it.Label)
+func (x *Exec) AddItem(ctx context.Context, it Item) error { return x.AddItems(ctx, it) }
+
+// AddItems records several items in one transaction, in the order given: items that belong together (a row and what follows it)
+// are never separated by another writer's item.
+func (x *Exec) AddItems(ctx context.Context, its ...Item) error {
+	for _, it := range its {
+		if !wordRE.MatchString(it.SubjectKind) || !wordRE.MatchString(it.Outcome) || clip(it.Label, 200) == "" || len(it.SubjectID) > 96 {
+			return fmt.Errorf("%w: item %q %q %q", ErrInvalid, it.SubjectKind, it.Outcome, it.Label)
+		}
 	}
 	return x.write(ctx, func(tx *sql.Tx, _ string) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome, note)
-			VALUES (?1, (SELECT COALESCE(max(seq), 0) + 1 FROM core_run_item WHERE run_id = ?1), ?2, ?3, ?4, ?5, ?6)`,
-			x.id, it.SubjectKind, nullable(it.SubjectID, 96), label, it.Outcome, nullable(it.Note, 500))
-		return err
+		for _, it := range its {
+			_, err := tx.ExecContext(ctx, `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome, note)
+				VALUES (?1, (SELECT COALESCE(max(seq), 0) + 1 FROM core_run_item WHERE run_id = ?1), ?2, ?3, ?4, ?5, ?6)`,
+				x.id, it.SubjectKind, nullable(it.SubjectID, 96), clip(it.Label, 200), it.Outcome, nullable(it.Note, 500))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

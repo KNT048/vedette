@@ -12,7 +12,7 @@
     "tab": {
       "engines": "Engines",
       "safety": "Safety",
-      "history": "History",
+      "runs": "Runs",
       "probes": "Probe log",
       "credentialed": "Credentialed scan"
     }
@@ -339,42 +339,13 @@
     }
   },
   "history": {
-    "title": "Discovery and other runs",
-    "description": "Every LAN sweep, device check, SNMP read and public scan, with what it found.",
-    "descriptionInfo": "The vulnerability checks are listed above with their results. Each line says only what the run stored. A LAN check lists the address it scanned; what the device runs is on its device page. A public target keeps one scan a day: a second scan the same day replaces the first; a public scan that failed before its results were stored is not kept, and who started a public scan is in the audit log. A sweep of the window and Scan the LAN now look the same here.",
-    "caption": "History of discovery runs and public scans",
-    "empty": "No run yet. Runs appear here as soon as discovery, a device check or a public scan starts.",
-    "col": {
-      "started": "Started",
-      "what": "What ran",
-      "outcome": "Outcome"
-    },
-    "kind": {
-      "sweep": "Discovery sweep",
-      "device": "Device check",
-      "snmp": "SNMP read",
-      "external": "Public scan"
-    },
-    "trigger": {
-      "sweep": "in the window or Scan the LAN now",
-      "automatic": "automatic",
-      "person": "started by a person",
-      "scan_now": "first step of Scan now",
-      "test": "credential test"
-    },
     "outcome": {
       "ok": "Done",
       "partial": "Partly done",
       "failed": "Failed",
       "stopped": "Stopped",
       "running": "Running"
-    },
-    "opened": "The run you opened",
-    "openedGone": "That run is no longer kept: the box keeps a year of runs.",
-    "oneDevice": "Only this device’s runs: its device checks and, while SNMP is set up on it, the SNMP reads of its read address.",
-    "seeDevice": "See the device",
-    "showAll": "Show every run",
-    "emptyDevice": "No device check or SNMP read has reached this device yet."
+    }
   },
   "hint": {
     "vulnNone_one": "No suspected finding on this device has a safe check: none exists for its suspected CVE, so a run would confirm nothing. Its installed version, read by SNMP or an agent, decides it, or use Confirm on the finding.",
@@ -388,9 +359,9 @@
   },
   "lastChecks": {
     "title": "Last checks",
-    "description": "When Vedette last checked this device and what it found, as Settings, Scanning, History lists it.",
+    "description": "When Vedette last checked this device and what it found.",
     "when": "{{time}} ({{ago}})",
-    "see": "See it in History",
+    "see": "Open the run",
     "never": "Never",
     "off": "Off",
     "kind": {
@@ -413,6 +384,84 @@
     "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
     "notRun": "Not run yet.",
     "neverSnmp": "An SNMP read runs in the scan window once SNMP is set up on this device.",
-    "neverSnmpLink": "Set it up in Sources"
+    "neverSnmpLink": "Set it up in Sources",
+    "allRuns": "All runs of this device"
+  },
+  "runs": {
+    "pageTitle": "Run",
+    "caption": "Runs of every engine",
+    "filters": "Filter the runs",
+    "search": "Search runs",
+    "kindFilter": "Kind of run",
+    "anyKind": "Every kind",
+    "stateFilter": "State",
+    "anyState": "Every state",
+    "oneDevice": "Only the runs of {{device}}.",
+    "everyDevice": "Show every run",
+    "empty": "No run yet. A run appears here as soon as a sweep, a check or a scan is queued.",
+    "col": {
+      "what": "Run",
+      "state": "State",
+      "when": "Started"
+    },
+    "status": {
+      "queued": "Queued",
+      "waiting": "Waiting",
+      "running": "Running",
+      "stopping": "Stopping",
+      "done": "Done",
+      "partial": "Partly done",
+      "failed": "Failed",
+      "stopped": "Stopped"
+    },
+    "kind": {
+      "lan_sweep": "LAN sweep",
+      "device_check": "Device check",
+      "snmp_read": "SNMP read",
+      "all_ports": "All-ports scan",
+      "vuln_check": "Vulnerability checks",
+      "exposure_scan": "Public scan",
+      "zap_passive": "Web checks (ZAP)",
+      "openvas": "OpenVAS deep scan"
+    },
+    "outcome": {
+      "found": "found",
+      "new": "new",
+      "checked": "checked",
+      "unreachable": "did not answer",
+      "failed": "failed",
+      "skipped": "skipped"
+    },
+    "waitingFor": "Waiting for {{what}}.",
+    "queuedNote": "It starts when the run before it in the same lane ends.",
+    "queuedBehind": "Starts after:",
+    "count": "{{done}} of {{total}}",
+    "progressOf": "Progress of {{title}}",
+    "bySchedule": "Schedule",
+    "byEvent": "Started because {{what}}",
+    "byBox": "Started by Vedette",
+    "about": "About",
+    "partOf": "Part of",
+    "parentRun": "The run this is a step of",
+    "queued": "Queued",
+    "started": "Started",
+    "ended": "Ended",
+    "steps": "Steps",
+    "children": "Engine steps",
+    "items_one": "{{count}} device or address",
+    "items_other": "{{count}} devices and addresses",
+    "itemsFirst": "The first {{shown}} of {{total}} are listed.",
+    "log_one": "Log ({{count}} line)",
+    "log_other": "Log ({{count}} lines)",
+    "stop": "Stop",
+    "stopTitle": "Stop this run?",
+    "stopBody": "Work it has not reached is not done. What it found so far is kept.",
+    "stopConfirm": "Stop the run",
+    "stopped": "Run stopped",
+    "resume": "Resume",
+    "resumed": "Run queued again: it goes on from where it stopped",
+    "goneTitle": "Run not found",
+    "gone": "This run is not kept: it does not exist, or it ended more than 400 days ago.",
+    "seeAll": "See every run"
   }
 }

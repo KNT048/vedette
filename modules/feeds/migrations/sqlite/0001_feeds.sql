@@ -136,8 +136,9 @@ CREATE TABLE feeds_cve_metric (
 ) WITHOUT ROWID;
 
 -- The affected versions of a CVE as each origin states them: nvd (NVD's vulnerable CPE match entries, with the "running on"
--- operating systems of an AND configuration in platforms), cna (the CNA's affected[] list of the CVE record, complete) or
--- cna_partial (a CNA list that does not say what an unlisted version is). NVD's rows win when NVD has any (rangeOrigin).
+-- operating systems of an AND configuration in platforms), cna (the CNA's affected[] list of the CVE record) or adp. NVD's rows win
+-- when NVD has any (rangeOrigin). default_status is the CVE record entry's defaultStatus (affected, unaffected, or unknown when it
+-- gives none): a CNA list is complete when every row says affected or unaffected; '' for NVD's rows.
 -- part, vendor and product are the CPE's, lower case; cpe is the full match criteria when the origin gave one.
 CREATE TABLE feeds_cve_range (
     id           INTEGER NOT NULL PRIMARY KEY,
@@ -153,6 +154,7 @@ CREATE TABLE feeds_cve_range (
     end_excl     TEXT    NOT NULL CHECK (length(end_excl) <= 100),
     fixed        TEXT    NOT NULL DEFAULT '' CHECK (length(fixed) <= 100),
     version_type TEXT    NOT NULL DEFAULT '' CHECK (length(version_type) <= 40),
+    default_status TEXT  NOT NULL DEFAULT '' CHECK (default_status IN ('', 'affected', 'unaffected', 'unknown')),
     platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
 );
 

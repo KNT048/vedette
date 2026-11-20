@@ -440,6 +440,7 @@ CREATE TABLE feeds_cve_range (
     end_excl     TEXT    NOT NULL CHECK (length(end_excl) <= 100),
     fixed        TEXT    NOT NULL DEFAULT '' CHECK (length(fixed) <= 100),
     version_type TEXT    NOT NULL DEFAULT '' CHECK (length(version_type) <= 40),
+    default_status TEXT  NOT NULL DEFAULT '' CHECK (default_status IN ('', 'affected', 'unaffected', 'unknown')),
     platforms    TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array'))
 );
 

@@ -639,20 +639,25 @@ func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, no
 			return out, bytes, err
 		}
 		body, d, err := s.nvdParsedPage(ctx, run, u, 0, MaxBodyBytes)
-		if err != nil {
-			if ctx.Err() != nil {
-				return out, bytes, ctx.Err()
-			}
-			s.Log.InfoContext(ctx, "NVD did not give one CVE's record; it is asked again later", "cve", cve, "error", err)
+		if err != nil && ctx.Err() != nil {
+			return out, bytes, ctx.Err()
+		}
+		if err != nil && nvdRetryable(err) { // NVD busy or unreachable: this CVE and the rest at the next pull
+			s.Log.InfoContext(ctx, "NVD did not answer for one CVE's record; it is asked again at the next pull", "cve", cve, "error", err)
 			break
 		}
-		bytes += body
-		s.nvdMu.Lock() // NVD answered (with the record or without): not asked again for a while; a busy answer is retried sooner
+		// NVD answered (with the record, without it, or with one Vedette refuses): not asked again for a while, and the next CVE goes on
+		s.nvdMu.Lock()
 		if s.nvdAsked == nil {
 			s.nvdAsked = map[string]time.Time{}
 		}
 		s.nvdAsked[cve] = now
 		s.nvdMu.Unlock()
+		if err != nil {
+			s.Log.InfoContext(ctx, "NVD's record of one CVE could not be used; it is asked again in a day", "cve", cve, "error", err)
+			continue
+		}
+		bytes += body
 		for _, r := range d.Records {
 			if r.CVE == cve { // only the record asked for
 				out = append(out, r)

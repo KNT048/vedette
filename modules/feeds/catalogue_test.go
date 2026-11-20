@@ -377,13 +377,13 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 		_, _, _, err = applyCVEOrg(t.Context(), tx, cna, []string{"CVE-2026-0101", "CVE-2026-0102"}, nil, now)
 		return err
 	})
-	// NVD has ranges for 0101: the CVE record's are not read; 0102's come from the CNA (partial: no defaultStatus)
+	// NVD has ranges for 0101: the CVE record's are not read; 0102's come from the CNA (a partial list: no defaultStatus)
 	if n := count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0101' AND origin <> 'nvd'`); n != 0 {
 		t.Fatalf("CNA rows stored beside NVD's: %d", n)
 	}
 	got, err := s.Ranges(t.Context(), []ProductKey{{Vendor: "Acme", Product: "Box"}})
 	if err != nil || len(got) != 2 || got[0].CVE != "CVE-2026-0101" || got[0].Origin != OriginNVD || got[0].EndExcl != "2.0" ||
-		got[1].CVE != "CVE-2026-0102" || got[1].Origin != OriginCNAPartial || got[1].StartIncl != "3.0" {
+		got[1].CVE != "CVE-2026-0102" || got[1].Origin != OriginCNA || got[1].DefaultStatus != DefaultUnknown || got[1].StartIncl != "3.0" {
 		t.Fatalf("Ranges = %+v %v", got, err)
 	}
 	cat, err := s.Catalogue(t.Context(), []string{"CVE-2026-0101", "CVE-2026-0102", "CVE-2099-0001"})
@@ -394,7 +394,7 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 		a.Severity != "HIGH" || a.RangesFrom != OriginNVD || a.NVDAt == nil || a.RecordAt == nil {
 		t.Fatalf("0101 = %+v", a)
 	}
-	if b := cat["CVE-2026-0102"]; b.NVDStatus != "Received" || b.CVSS != nil || b.RangesFrom != OriginCNAPartial {
+	if b := cat["CVE-2026-0102"]; b.NVDStatus != "Received" || b.CVSS != nil || b.RangesFrom != OriginCNA || b.RangesComplete {
 		t.Fatalf("0102 = %+v", b)
 	}
 	sig, err := s.Signals(t.Context(), []string{"CVE-2026-0101", "CVE-2099-0001"})
@@ -453,7 +453,7 @@ func TestGolden_CatalogueTables(t *testing.T) {
 	for _, q := range []string{
 		`SELECT 'cve', cve, coalesce(published, '-'), coalesce(modified, '-'), coalesce(nvd_status, '-'), coalesce(nvd_at, '-'), coalesce(record_at, '-'), substr(description, 1, 60) FROM feeds_cve ORDER BY cve`,
 		`SELECT 'metric', cve, source, version, score, vector FROM feeds_cve_metric ORDER BY cve, version DESC, source`,
-		`SELECT 'range', cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, coalesce(platforms, '-') FROM feeds_cve_range ORDER BY cve, id`,
+		`SELECT 'range', cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status, coalesce(platforms, '-') FROM feeds_cve_range ORDER BY cve, id`,
 		`SELECT 'kev', cve, list, source_id, vendor, product, date_added, coalesce(due_date, '-'), ransomware, links FROM feeds_kev ORDER BY cve, list`,
 		`SELECT 'signal', cve, kind, source, first_seen, qualifies, url FROM feeds_signal ORDER BY cve, kind, source`,
 	} {

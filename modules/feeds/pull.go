@@ -344,13 +344,11 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 			return p, err
 		}
 		// a cut or substituted index must not take the public-exploit signal from the CVEs it no longer names: the retention rule would
-		// then drop thousands of older CVEs, which come back only slowly once the index is whole again
-		held, err := s.st.signalCount(ctx, nucleiFeedID)
-		if err != nil {
-			return p, err
-		}
-		if n := len(n.Templates); held >= nucleiShrinkFloor && 2*n < held {
-			return p, fail(ErrBadSample, "The nuclei index lists %s CVEs, fewer than half of the %s it listed before; Vedette kept the templates it had.", grouped(n), grouped(held))
+		// then drop thousands of older CVEs, which come back only slowly once the index is whole again. The yardstick is the last good
+		// pull from this address (feeds_source.records: cleared by a new address or by turning the feed off and on), and an index at or
+		// above nucleiFloor is always taken.
+		if n, held := len(n.Templates), src.Records; held != nil && *held >= nucleiShrinkFloor && 2*n < *held && n < nucleiFloor {
+			return p, fail(ErrBadSample, "The nuclei index lists %s CVEs, fewer than half of the %s of the last good index; Vedette kept the templates it had. To take this index anyway, turn the feed off and on again.", grouped(n), grouped(*held))
 		}
 		p.templates, p.hasTemplates = n.Templates, true
 		p.out.fill(n.Stats, len(n.Templates))

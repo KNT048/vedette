@@ -21,9 +21,9 @@ const windowDays = 365
 
 // The origins of a range (feeds_cve_range.origin).
 const (
-	OriginNVD        = "nvd"
-	OriginCNA        = "cna"         // the CNA's affected[] list of the CVE record, complete (says what an unlisted version is)
-	OriginCNAPartial = "cna_partial" // a CNA list that does not say what an unlisted version is: it may raise a match, never close one
+	OriginNVD = "nvd"
+	OriginCNA = "cna" // the CNA's affected[] list of the CVE record
+	OriginADP = "adp" // an Authorized Data Publisher's (CISA) list of the CVE record
 )
 
 // epssHistKeep is how many days of EPSS scores feeds_epss_hist keeps (the "rising" display compares with a week before).
@@ -253,7 +253,10 @@ type Range struct {
 	Part, Vendor, Product, CPE             string
 	StartIncl, StartExcl, EndIncl, EndExcl string
 	Fixed, VersionType                     string
-	Platforms                              []string // NVD's "running on" operating systems ("microsoft:windows"); empty for none
+	// DefaultStatus is the CVE record entry's defaultStatus of a CNA or ADP row (DefaultAffected, DefaultUnaffected, DefaultUnknown);
+	// "" for NVD's rows.
+	DefaultStatus string
+	Platforms     []string // NVD's "running on" operating systems ("microsoft:windows"); empty for none
 }
 
 // AffectedRow is the range as the matcher's CPE entry.
@@ -261,7 +264,7 @@ func (r Range) AffectedRow() AffectedRow {
 	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}
 }
 
-const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.platforms`
+const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms`
 
 func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Range, error) {
 	rows, err := q.QueryContext(ctx, `SELECT `+rangeCols+` FROM feeds_cve_range r `+where+` ORDER BY r.cve, r.id`, args...)
@@ -275,7 +278,7 @@ func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Ra
 			r  Range
 			pl sql.NullString
 		)
-		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &pl); err != nil {
+		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &r.DefaultStatus, &pl); err != nil {
 			return nil, fmt.Errorf("feeds: read ranges: %w", err)
 		}
 		r.Platforms = []string{}
@@ -287,8 +290,8 @@ func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Ra
 	return out, rows.Err()
 }
 
-// rangeOrigin is the precedence of one CVE's ranges: NVD's rows when NVD gives any, else the CVE record's (origin cna or
-// cna_partial). It returns the rows that count.
+// rangeOrigin is the precedence of one CVE's ranges: NVD's rows when NVD gives any, else the CVE record's (origin cna or adp). It
+// returns the rows that count.
 func rangeOrigin(rows []Range) []Range {
 	if slices.ContainsFunc(rows, func(r Range) bool { return r.Origin == OriginNVD }) {
 		return slices.DeleteFunc(rows, func(r Range) bool { return r.Origin != OriginNVD })
@@ -432,8 +435,11 @@ type CatalogueEntry struct {
 	CVSS                *CVSS // PickCVSS of the stored scores; nil when none
 	Severity            string
 	EPSS, Percentile    *float64
-	// RangesFrom is the origin of the ranges that count (rangeOrigin): OriginNVD, OriginCNA, OriginCNAPartial, or "" when none.
-	RangesFrom string
+	// RangesFrom is the origin of the ranges that count (rangeOrigin): OriginNVD, OriginCNA, OriginADP, or "" when none;
+	// RangesComplete says, for the CVE record's rows, whether they make a complete list: every row's entry says
+	// affected or unaffected for the versions it does not list.
+	RangesFrom     string
+	RangesComplete bool
 }
 
 // Catalogue returns the catalogue entries of these CVEs; a CVE the catalogue does not hold is absent.
@@ -447,7 +453,8 @@ func (s *Store) Catalogue(ctx context.Context, cves []string) (map[string]Catalo
 		}
 		rows, err := db.QueryContext(ctx, `SELECT c.cve, c.published, c.modified, c.nvd_status, c.nvd_at, c.record_at, c.title, c.description, e.epss, e.percentile,
 (SELECT CASE WHEN EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd') THEN 'nvd'
-             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve) END)
+             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve) END),
+NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin <> 'nvd' AND r.default_status NOT IN ('affected', 'unaffected'))
 FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: catalogue: %w", err)
@@ -458,12 +465,14 @@ FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT 
 				pub, mod, status, nvdAt, recordAt sql.NullString
 				origin                            sql.NullString
 			)
-			if err := rows.Scan(&e.CVE, &pub, &mod, &status, &nvdAt, &recordAt, &e.Title, &e.Description, &e.EPSS, &e.Percentile, &origin); err != nil {
+			var complete bool
+			if err := rows.Scan(&e.CVE, &pub, &mod, &status, &nvdAt, &recordAt, &e.Title, &e.Description, &e.EPSS, &e.Percentile, &origin, &complete); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("feeds: catalogue: %w", err)
 			}
 			e.Published, e.Modified, e.NVDAt, e.RecordAt = optTime(pub), optTime(mod), optTime(nvdAt), optTime(recordAt)
 			e.NVDStatus, e.RangesFrom = status.String, origin.String
+			e.RangesComplete = complete && e.RangesFrom != "" && e.RangesFrom != OriginNVD
 			out[e.CVE] = e
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
@@ -586,10 +595,11 @@ const (
 )
 
 // RangesFromCVEOrg returns the exploited-list CVEs whose affected versions (KevAffected) come from the CNA's CVE record, not from NVD,
-// with their source: "cve.org" (a complete list) or "cve.org-partial" (findings may raise a match on it, never close one).
+// with their source as findings names it: "cve.org" (a complete list: every row says affected or unaffected) or "cve.org-partial" (findings may raise a match on
+// it, never close one).
 func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.cve, min(r.origin) FROM feeds_cve_range r
-WHERE r.origin IN ('cna', 'cna_partial') AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.cve, max(r.default_status NOT IN ('affected', 'unaffected')) FROM feeds_cve_range r
+WHERE r.origin = 'cna' AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')
 GROUP BY r.cve`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read affected: %w", err)
@@ -597,12 +607,13 @@ GROUP BY r.cve`)
 	defer func() { _ = rows.Close() }()
 	out := map[string]string{}
 	for rows.Next() {
-		var cve, origin string
-		if err := rows.Scan(&cve, &origin); err != nil {
+		var cve string
+		var partial bool
+		if err := rows.Scan(&cve, &partial); err != nil {
 			return nil, fmt.Errorf("feeds: read affected: %w", err)
 		}
 		out[cve] = rangesCVEOrg
-		if origin == OriginCNAPartial {
+		if partial { // the list does not say what an unlisted version is (every row's entry says affected or unaffected)
 			out[cve] = rangesCVEOrgPartial
 		}
 	}

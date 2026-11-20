@@ -560,10 +560,22 @@ func TestNucleiIndexThatShrinksSharplyIsRefused(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.feed(nucleiFeedID); f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "fewer than half of the 200") {
+	if f := e.feed(nucleiFeedID); f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "fewer than half of the 200") || !strings.Contains(*f.Error, "turn the feed off and on again") {
 		t.Fatalf("feed %+v %q", f, deref(f.Error))
 	}
 	if n := count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE source = 'nuclei-templates'`); n != 200 {
 		t.Fatalf("%d signals kept", n)
+	}
+	// the way out the message names: off and on again takes the next index as it is
+	for _, body := range []string{`{"enabled":false}`, `{"enabled":true}`} {
+		if c, b := e.put(nucleiFeedID, body); c != 200 {
+			t.Fatalf("%s: %d %v", body, c, b)
+		}
+	}
+	if err := e.svc.Fetch(t.Context(), nucleiFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(nucleiFeedID); f.Status != "ok" || count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE source = 'nuclei-templates'`) != 1 {
+		t.Fatalf("after off and on: %+v", f)
 	}
 }

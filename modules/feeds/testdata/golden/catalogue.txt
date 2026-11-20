@@ -13,24 +13,24 @@ metric | CVE-2021-3493 | nvd | 3.1 | 7.8 | CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/
 metric | CVE-2021-3493 | nvd | 2.0 | 7.2 | AV:L/AC:L/Au:N/C:C/I:C/A:C
 metric | CVE-2024-21762 | cna | 3.1 | 9.8 | CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
 metric | CVE-2024-21762 | nvd | 3.1 | 9.8 | CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
-range | CVE-2016-4655 | nvd | o | apple | iphone_os | cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:* |  |  |  | 9.3.5 | []
-range | CVE-2016-4655 | nvd | o | apple | iphone_os | cpe:2.3:o:apple:iphone_os:10.0:*:*:*:*:*:*:* |  |  |  |  | []
-range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:* |  |  |  | 18.04 | []
-range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:* | 18.04.1 |  |  | 20.04 | []
-range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:-:*:*:* |  |  |  | 20.10 | []
-range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 1.0.0 |  |  | 2.0.14 | []
-range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.0.0 |  |  | 7.0.15 | []
-range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.2.0 |  |  | 7.2.9 | []
-range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.4.0 |  |  | 7.4.3 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.0.0 |  |  | 6.0.18 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.2.0 |  |  | 6.2.16 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.4.0 |  |  | 6.4.15 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.0.0 |  |  | 7.0.14 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.2.0 |  |  | 7.2.7 | []
-range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.4.0 |  |  | 7.4.3 | []
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 10.2.0 |  |  | 10.2.9-h1 | -
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.0.0 |  |  | 11.0.4-h1 | -
-range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.1.0 |  |  | 11.1.2-h3 | -
+range | CVE-2016-4655 | nvd | o | apple | iphone_os | cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:* |  |  |  | 9.3.5 |  | []
+range | CVE-2016-4655 | nvd | o | apple | iphone_os | cpe:2.3:o:apple:iphone_os:10.0:*:*:*:*:*:*:* |  |  |  |  |  | []
+range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:* |  |  |  | 18.04 |  | []
+range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:* | 18.04.1 |  |  | 20.04 |  | []
+range | CVE-2021-3493 | nvd | o | canonical | ubuntu_linux | cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:-:*:*:* |  |  |  | 20.10 |  | []
+range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 1.0.0 |  |  | 2.0.14 |  | []
+range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.0.0 |  |  | 7.0.15 |  | []
+range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.2.0 |  |  | 7.2.9 |  | []
+range | CVE-2024-21762 | nvd | a | fortinet | fortiproxy | cpe:2.3:a:fortinet:fortiproxy:*:*:*:*:*:*:*:* | 7.4.0 |  |  | 7.4.3 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.0.0 |  |  | 6.0.18 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.2.0 |  |  | 6.2.16 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 6.4.0 |  |  | 6.4.15 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.0.0 |  |  | 7.0.14 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.2.0 |  |  | 7.2.7 |  | []
+range | CVE-2024-21762 | nvd | o | fortinet | fortios | cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:* | 7.4.0 |  |  | 7.4.3 |  | []
+range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 10.2.0 |  |  | 10.2.9-h1 | unaffected | -
+range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.0.0 |  |  | 11.0.4-h1 | unaffected | -
+range | CVE-2024-3400 | cna | * | paloaltonetworks | panos | cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:* | 11.1.0 |  |  | 11.1.2-h3 | unaffected | -
 kev | CVE-2016-4655 | cisa | cisa-kev | Apple | iOS | 2021-11-03 | 2026-12-01 | 0 | ["https://example.com/CVE-2016-4655"]
 kev | CVE-2021-3493 | cisa | cisa-kev | Linux | Kernel | 2022-10-20 | 2026-12-01 | 0 | ["https://example.com/CVE-2021-3493"]
 kev | CVE-2024-21762 | cisa | cisa-kev | Fortinet | FortiOS | 2024-02-09 | 2026-12-01 | 0 | ["https://example.com/CVE-2024-21762"]

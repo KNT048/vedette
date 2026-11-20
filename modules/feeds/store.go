@@ -332,6 +332,11 @@ records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
 stale_failed_checks = 0 WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("feeds: restart the watch: %w", err)
 	}
+	if id == nucleiFeedID { // the next index is taken as it is: the way to accept one the shrink guard refused
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET records = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("feeds: forget the last nuclei index: %w", err)
+		}
+	}
 	if id == kevFeedID {
 		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_version = NULL, catalog_released = NULL, records = NULL, kev_copies = NULL,
 etag = NULL, last_modified = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`, id); err != nil {

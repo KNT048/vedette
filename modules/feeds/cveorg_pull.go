@@ -180,7 +180,7 @@ func cveOrgNote(n int, c map[string]int, rejected int, stopped bool) string {
 	return t
 }
 
-// applyCVEOrg stores the ranges a CVE.org pull found (origin cna, or cna_partial for a list that may skip branches): a CVE that has
+// applyCVEOrg stores the ranges a CVE.org pull found (origin cna, each with its entry's defaultStatus): a CVE that has
 // NVD rows by now keeps the CNA rows aside (NVD's win when read); a CVE whose record no longer gives ranges loses the CNA ones it had.
 // Every CVE read (checked) or not readable this time (unread: its stored ranges stay) is stamped (feeds_cve.record_at), and the CNA
 // rows of CVEs no exploited list names any more go. It returns the CVEs whose ranges changed, whether all of them were read for the
@@ -221,25 +221,22 @@ func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, c
 			continue // NVD has ranges now: they win
 		}
 		res, ok := got[cve]
-		to := OriginCNAPartial
-		if res.Complete {
-			to = OriginCNA
-		}
-		if ok && len(have) == len(res.Rows) && !slices.ContainsFunc(have, func(r Range) bool { return r.Origin != to }) &&
-			slices.EqualFunc(have, res.Rows, func(h Range, r AffectedRow) bool { return h.AffectedRow() == r }) {
+		if ok && len(have) == len(res.Rows) && !slices.ContainsFunc(have, func(r Range) bool { return r.Origin != OriginCNA }) &&
+			slices.EqualFunc(have, res.Rows, func(h Range, r AffectedRow) bool { return h.AffectedRow() == r }) &&
+			!slices.ContainsFunc(have, func(h Range) bool { return h.DefaultStatus != res.defaultOf(slices.Index(res.Rows, h.AffectedRow())) }) {
 			continue
 		}
 		if !ok && len(have) == 0 {
 			continue
 		}
 		changed, first = append(changed, cve), first && !seen
-		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin IN ('cna', 'cna_partial')`, cve); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin = 'cna'`, cve); err != nil {
 			return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 		}
-		for _, r := range res.Rows {
+		for i, r := range res.Rows {
 			part, vendor, product := cpeParts(r.CPE)
-			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, to, part, clipBytes(vendor), clipBytes(product), r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status)
+VALUES (?, 'cna', ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, part, clipBytes(vendor), clipBytes(product), r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, res.defaultOf(i)); err != nil {
 				return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 			}
 		}
@@ -250,7 +247,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, to, part, clipBytes(vendor), clipBy
 	if err := pruneOrphanRanges(ctx, tx); err != nil {
 		return nil, false, 0, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin IN ('cna', 'cna_partial')
+	if err := tx.QueryRowContext(ctx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin = 'cna'
 AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')`).Scan(&total); err != nil {
 		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 	}
@@ -260,7 +257,7 @@ AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin
 // pruneOrphanRanges deletes the CNA ranges of CVEs no exploited-list source lists any more (a VulnCheck entry that went), so they are
 // not counted or matched; NVD's rows are left alone.
 func pruneOrphanRanges(ctx context.Context, tx *sql.Tx) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE origin IN ('cna', 'cna_partial')
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_range WHERE origin = 'cna'
 AND cve NOT IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
 		return fmt.Errorf("feeds: prune CVE.org ranges: %w", err)
 	}

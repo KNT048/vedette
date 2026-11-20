@@ -153,7 +153,7 @@ WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = v.cve AND r.orig
 	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = v.cve AND c.record_at IS NOT NULL)) `+noNVD, nil, &gap, &read); err != nil {
 		return "", err
 	}
-	if err := counts(ctx, tx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin IN ('cna', 'cna_partial')
+	if err := counts(ctx, tx, `SELECT count(DISTINCT r.cve) FROM feeds_cve_range r WHERE r.origin = 'cna'
 AND NOT EXISTS (SELECT 1 FROM feeds_cve_range n WHERE n.cve = r.cve AND n.origin = 'nvd')`, nil, &held); err != nil {
 		return "", err
 	}

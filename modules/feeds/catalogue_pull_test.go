@@ -18,6 +18,8 @@ type catalogueNVD struct {
 	mu    sync.Mutex
 	walk  []string        // CVEs of the whole list
 	byID  map[string]bool // CVEs NVD has a record of when asked by id
+	busy  map[string]bool // CVEs NVD answers 503 for when asked by id
+	big   bool            // a walk page of more than recentSmallPage records is not JSON (too large for the proxy, say)
 	asked []string        // "walk <start> <size>", "id <cve>", "window"
 }
 
@@ -35,6 +37,10 @@ func (n *catalogueNVD) serve(o *origin) {
 		case q.Get("cveId") != "":
 			cve := q.Get("cveId")
 			n.asked = append(n.asked, "id "+cve)
+			if n.busy[cve] {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
 			if n.byID[cve] {
 				_, _ = fmt.Fprintf(w, `{"totalResults":1,"vulnerabilities":[%s]}`, fakeNVDRecord(cve))
 				return
@@ -47,6 +53,10 @@ func (n *catalogueNVD) serve(o *origin) {
 			start, _ := strconv.Atoi(q.Get("startIndex"))
 			size, _ := strconv.Atoi(q.Get("resultsPerPage"))
 			n.asked = append(n.asked, fmt.Sprintf("walk %d %d", start, size))
+			if n.big && size > recentSmallPage {
+				_, _ = fmt.Fprint(w, `{"totalResults":`)
+				return
+			}
 			var recs []string
 			for i := start; i < min(start+size, len(n.walk)); i++ {
 				recs = append(recs, fakeNVDRecord(n.walk[i]))
@@ -73,7 +83,7 @@ func catalogueEnv(t *testing.T) (*env, *catalogueNVD) {
 	e, o := pullEnv(t)
 	e.only(recentFeedID)
 	e.mirror(recentFeedID, o.url("/nvd"))
-	n := &catalogueNVD{byID: map[string]bool{}}
+	n := &catalogueNVD{byID: map[string]bool{}, busy: map[string]bool{}}
 	n.serve(o)
 	return e, n
 }
@@ -213,5 +223,57 @@ func TestEPSSAllPull_WritesTheHistoryOfListedAndSignalledCVEs(t *testing.T) {
 	})
 	if got := count(t, e.db, `SELECT count(*) FROM feeds_epss_hist WHERE day = '2026-11-07'`); got != 0 {
 		t.Fatalf("history older than %d days kept: %d", epssHistKeep, got)
+	}
+}
+
+// A walk page that comes back unreadable is asked again with recentSmallPage records, page by page, so one bad page never stalls the
+// walk.
+func TestCataloguePull_WalkAsksASmallerPageAgain(t *testing.T) {
+	t.Parallel()
+	e, n := catalogueEnv(t)
+	var many []string
+	for i := range walkMissing {
+		many = append(many, fmt.Sprintf("CVE-2018-%04d", 1000+i))
+	}
+	signal(t, e, nucleiFeedID, true, many...)
+	n.walk = many[:recentSmallPage+10]
+	n.big = true
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"walk 0 2000", "walk 0 250", "walk 250 2000", "walk 250 250"}
+	if got := n.requests("walk"); !slices.Equal(got, want) {
+		t.Fatalf("walk requests %v, want %v", got, want)
+	}
+	if w, err := e.svc.st.nvdCursor(t.Context(), selectorWalk); err != nil || w == nil || w.Mode != modeDone || w.NextIndex != recentSmallPage+10 {
+		t.Fatalf("walk cursor %+v %v", w, err)
+	}
+	if got := count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE nvd_at IS NOT NULL`); got != recentSmallPage+10 {
+		t.Fatalf("%d records stored", got)
+	}
+}
+
+// A CVE NVD answers busy for is not counted as asked: the next pull asks it again (and stores its record), while one NVD answered for
+// waits a day.
+func TestCataloguePull_BusyByIDAnswerIsAskedAgainNextPull(t *testing.T) {
+	t.Parallel()
+	e, n := catalogueEnv(t)
+	signal(t, e, nucleiFeedID, true, "CVE-2018-0021")
+	n.byID["CVE-2018-0021"], n.busy["CVE-2018-0021"] = true, true
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("id "); len(got) == 0 || count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE cve = 'CVE-2018-0021'`) != 0 {
+		t.Fatalf("first pull: asked %v", got)
+	}
+	n.mu.Lock()
+	n.busy["CVE-2018-0021"] = false
+	n.mu.Unlock()
+	e.setNow(e.clock().Add(time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE cve = 'CVE-2018-0021' AND nvd_at IS NOT NULL`) != 1 {
+		t.Fatalf("the busy CVE was not asked again: %v", n.requests("id "))
 	}
 }

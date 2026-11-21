@@ -20,7 +20,7 @@ import { asAsset, DeviceLine, FixLink, useFixTitle } from './parts'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
-type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; complete?: boolean }
+export type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; complete?: boolean }
 
 function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block: FixBlock; narrowed: boolean; onHandle: (h: Handling) => void }) {
   const { t } = useTranslation('findings')
@@ -52,18 +52,22 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
   )
 }
 
-/** One device: its name line and badge, Add device and Ignore while nobody added it, then its fix blocks. */
-export function DeviceCardView({ card, narrowed, onHandle }: { card: DeviceCard; narrowed: boolean; onHandle: (h: Handling) => void }) {
+/** One device: its name line and badge, Add device and Ignore while nobody added it, then its fix blocks. On the device's own page
+ *  (`own`) the page already names the device and offers those actions: the card is its counts and its fix blocks. */
+export function DeviceCardView({ card, narrowed, onHandle, own = false }: { card: DeviceCard; narrowed: boolean; onHandle: (h: Handling) => void; own?: boolean }) {
   const { t } = useTranslation('findings')
+  const counts = <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
   return (
     <article aria-label={card.device.name} className="grid gap-3 py-1">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="grid gap-0.5">
-          <DeviceLine device={card.device} status={card.status} />
-          <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
+      {own ? counts : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="grid gap-0.5">
+            <DeviceLine device={card.device} status={card.status} />
+            {counts}
+          </div>
+          {!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}
         </div>
-        {!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}
-      </div>
+      )}
       <ul aria-label={t('byDevice.blocksOf', { device: card.device.name })} className="grid divide-y divide-rule">
         {card.blocks.map((b) => <Block key={b.fix.key} device={card.device} block={b} narrowed={narrowed} onHandle={onHandle} />)}
       </ul>

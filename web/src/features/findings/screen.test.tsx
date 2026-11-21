@@ -63,7 +63,7 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     const block = within(table).getByRole('listitem', { name: 'No fix known yet for Brother printer firmware' })
     expect(within(block).getByRole('link', { name: 'Vendor advisory' })).toHaveAttribute('href', 'https://support.brother.example.com/security')
     // the device badge leads to that device's findings with that status
-    expect(within(fw).getByRole('link', { name: /exploited$/ })).toHaveAttribute('href', '/findings?tab=device&device=a-fw01&status=exploited')
+    expect(within(fw).getByRole('link', { name: /exploited$/ })).toHaveAttribute('href', '/devices/a-fw01?tab=findings&status=exploited')
     await expectNoA11yViolations()
   })
 })

@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
-import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
-import { feature } from './index'
 import { accepted, fixes } from './mocks'
 import { AiOutput, FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
@@ -385,23 +382,29 @@ describe('findings: đổi trạng thái và quyền', () => {
   })
 })
 
-describe('findings: slot device.panels', () => {
-  function Panel({ assetId }: { assetId: string }) {
-    const C = feature.slots!['device.panels']!
-    return <QueryClientProvider client={makeQueryClient()}><MemoryRouter><C assetId={assetId} /></MemoryRouter></QueryClientProvider>
-  }
-
-  it('liệt kê phát hiện của đúng thiết bị, link tới chi tiết', async () => {
+describe('findings: the device page\'s Findings tab', () => {
+  it('shows this device\'s card only: its fix blocks, each CVE a link to its finding, Mark as handled… in place', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    render(<Panel assetId="a-nas02" />)
+    renderApp('/devices/a-nas02?tab=findings')
     expect(await screen.findByRole('heading', { name: 'Findings on this device' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
+    const card = await screen.findByRole('article', { name: 'NAS-PHOTOS' })
+    expect(within(card).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/fv-nas02-ps-1')
+    expect(within(card).queryByRole('link', { name: 'NAS-PHOTOS' })).toBeNull() // the page names the device already
+    expect(within(card).getAllByRole('button', { name: /^Mark as handled: CVE-/ }).length).toBeGreaterThan(0)
     expect(screen.queryByText('CVE-2026-119977')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Recommended updates' })).toBeNull()
+    await expectNoA11yViolations()
+  })
+
+  it('a backend from before the findings model (501): the earlier list, each row with when Vedette last matched it', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
+    renderApp('/devices/a-nas02?tab=findings')
+    expect(await screen.findByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
     // the time on each row is when Vedette last matched it, said as such (never "Seen", read as when the device was seen)
     const rows = within(screen.getByRole('list', { name: 'Every finding of this device' })).getAllByRole('listitem')
     for (const r of rows) expect(r).toHaveTextContent(/Last matched .+/)
     expect(screen.queryByText(/^Seen /)).not.toBeInTheDocument()
-    await expectNoA11yViolations()
   })
 
   it('the finding page says when Vedette last matched it and, apart, when its source last gave the version', async () => {
@@ -412,10 +415,13 @@ describe('findings: slot device.panels', () => {
     expect(screen.queryByText(/^First seen|, last seen /)).not.toBeInTheDocument()
   })
 
-  it('thiết bị không có phát hiện thì nói rõ', async () => {
+  it('a device with no open finding says so', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    render(<Panel assetId="a-pc01" />)
-    expect(await screen.findByText('No findings for this device yet.')).toBeInTheDocument()
+    renderApp('/devices/a-srvfile?tab=findings')
+    expect(await screen.findByText('No open findings on this device.')).toBeInTheDocument()
+    // only a question waits: the badge says so and leads to it, as the line under the card does
+    expect(await screen.findByRole('link', { name: '1 question waits for your answer' })).toHaveAttribute('href', '/findings?tab=input&device=a-srvfile')
+    expect(screen.getByRole('link', { name: 'Needs your input' })).toHaveAttribute('href', '/findings?tab=input&device=a-srvfile')
   })
 })
 
@@ -787,7 +793,7 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     fixes.set({ 'f-3': fix, 'f-9': fix })
   }
 
-  it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {
+  it('the finding says the agent detected it and asks nothing to look up', async () => {
     agentWindows()
     // agent-intake on and the device's osquery agent calls: an agent reports the version now
     modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
@@ -812,13 +818,5 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
     renderApp('/findings/f-9')
     expect(await screen.findByText(/^Nothing to look up: an agent last reported the installed version of .* on SRV-AD/)).toBeInTheDocument()
     expect(screen.queryByText(/usually within two hours/)).toBeNull()
-    cleanup()
-    cleanup()
-    renderApp('/devices/a-srvad')
-    // The device page shows the same To fix card as Findings (one grouping), no warning box
-    const todo = await screen.findByRole('list', { name: 'What to do on this device' })
-    expect(within(todo).getByText(/fixes 2 exploited CVEs/)).toBeInTheDocument()
-    expect(within(todo).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
-    expect(screen.queryByRole('list', { name: 'Updates that fix several findings' })).toBeNull()
   })
 })

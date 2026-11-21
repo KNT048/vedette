@@ -5,12 +5,10 @@ import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/common/status'
 import type { DeviceRef, DeviceStatus, Fix, SeverityCounts, SoftwareRef } from './types'
 import { NotAddedChip } from './NotAdded'
+import { deviceFindingsLink } from '@/features/inventory/RiskMarker'
 
-/** Where a device's badge leads: its findings with that status, or its questions. */
-export function deviceStatusLink(device: string, status: NonNullable<DeviceStatus>['code']): string {
-  const d = encodeURIComponent(device)
-  return status === 'needs_input' ? `/findings?tab=input&device=${d}` : `/findings?tab=device&device=${d}&status=${status}`
-}
+/** Where a device's badge leads: the device's Findings tab filtered to that status, or its questions (one rule, inventory's). */
+export const deviceStatusLink = (device: string, status: NonNullable<DeviceStatus>['code']): string => deviceFindingsLink(device, status)
 
 /** The fix as a sentence. On a device (`software` given) the update names the installed version: "Update OpenSSH 10.2p1 → 10.6";
  *  across devices: "Update OpenSSH to 10.6". */

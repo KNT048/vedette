@@ -61,6 +61,7 @@ func (r retention) keeps(rec NVDRecord) bool {
 type nvdWrite struct {
 	Stored     int      // records written
 	KEVChanged []string // CVEs of the exploited lists whose NVD ranges changed (findings matches them again)
+	Catalogue  bool     // the NVD ranges of a CVE on no exploited list changed: findings' match pass reads them again
 }
 
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
@@ -147,6 +148,13 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 			if t, perr := parseTS(mod); err == nil && perr == nil && r.LastModified.Before(t) {
 				continue // the catalogue holds a newer record of this CVE
 			}
+		}
+		if !kev[r.CVE] && !out.Catalogue { // a catalogue CVE's ranges: one change is enough to say so
+			same, err := sameNVDRanges(ctx, tx, r)
+			if err != nil {
+				return out, err
+			}
+			out.Catalogue = !same
 		}
 		if kev[r.CVE] {
 			same, err := sameNVDRanges(ctx, tx, r)
@@ -457,29 +465,73 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	return out, nil
 }
 
-// VendorRangesOf returns the ranges of these CVEs kept in their vendor's notation (Range.Generic false), sorted by CVE, then as
-// stored: only a product's version scheme reads them (RangeScheme).
-func (s *Store) VendorRangesOf(ctx context.Context, cves []string) ([]Range, error) {
+// SchemeRangesOf returns the ranges of these CVEs a product's version scheme reads (RangeScheme): the rows kept in their vendor's
+// notation (Range.Generic false), and the CVE records' rows of a product that has a scheme (SchemeProduct: the vendor's own word,
+// read per release train, never by the generic comparison). Sorted by CVE, then as stored.
+func (s *Store) SchemeRangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	var out []Range
 	for chunk := range slices.Chunk(cves, 400) {
 		part, err := json.Marshal(chunk)
 		if err != nil {
 			return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
 		}
-		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND NOT (`+genericRowSQL+`)`, string(part))
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND (NOT (`+genericRowSQL+`) OR r.origin <> 'nvd')`, string(part))
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, rows...)
+		for _, r := range rows {
+			if !r.Generic() || SchemeProduct(r) {
+				out = append(out, r)
+			}
+		}
 	}
 	return out, nil
 }
 
+// SchemeCVEs returns the CVEs whose CVE record rows (origin cna or adp) name one of these products: a CVE a vendor states in its own
+// notation reaches the match pass before NVD analyses it (Ranges returns only the rows the generic comparison reads). Sorted.
+func (s *Store) SchemeCVEs(ctx context.Context, keys []ProductKey) ([]string, error) {
+	cves := map[string]bool{}
+	for chunk := range slices.Chunk(keys, 400) {
+		pairs := make([][2]string, len(chunk))
+		for i, k := range chunk {
+			pairs[i] = [2]string{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}
+		}
+		part, err := json.Marshal(pairs)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: scheme CVEs: %w", err)
+		}
+		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT r.cve FROM json_each(?) j
+JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product = json_extract(j.value, '$[1]') WHERE r.origin <> 'nvd'`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for c := range got {
+			cves[c] = true
+		}
+	}
+	return slices.Sorted(mapsKeys(cves)), nil
+}
+
+// SchemeProduct says the range names a product whose versions the product catalogue declares a version scheme for (core/productid
+// ByRangeName, field "scheme"): its CVE record rows are read through that scheme only (RangeScheme).
+func SchemeProduct(r Range) bool {
+	p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+	return ok && p.Scheme != ""
+}
+
+// recordSkipped says a CVE record row is left out of the generic comparison's views (MatchRow, KEVRecordRows): its product has a
+// version scheme (the scheme reads it), or its vendor is one whose versions findings compares with rules of its own (recordSkipVendors).
+func recordSkipped(r Range) bool {
+	return r.Origin != OriginNVD && (recordSkipVendors[r.Vendor] || SchemeProduct(r))
+}
+
 // MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as
-// "cpe:2.3:*:<vendor>:<product>:…" of the name the catalogue knows it by (MatchName, kevRecordRow). ok is false for a record row of a vendor whose versions findings
-// compares with rules of its own (recordSkipVendors).
+// "cpe:2.3:*:<vendor>:<product>:…" of the name the catalogue knows it by (MatchName, kevRecordRow). ok is false for a record row the
+// generic comparison does not read (recordSkipped: a product with a version scheme, a vendor whose versions findings compares with
+// rules of its own).
 func (r Range) MatchRow() (AffectedRow, bool) {
-	if r.Origin != OriginNVD && recordSkipVendors[r.Vendor] {
+	if recordSkipped(r) {
 		return AffectedRow{}, false
 	}
 	if r.CPE == "" {

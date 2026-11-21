@@ -242,3 +242,53 @@ func TestContract_NVDRangesPull(t *testing.T) {
 type publishFunc func(events.Event)
 
 func (f publishFunc) Publish(_ context.Context, e events.Event) error { f(e); return nil }
+
+// A pull that changes the ranges of a CVE on no exploited list says so (RangesUpdatedEvent.Catalogue): findings' match pass, the one
+// reader of those CVEs, runs again. The listed CVEs it changed are named as before; a pull that changes only a catalogue CVE sends
+// the event with no CVE named.
+func TestNVDPull_CatalogueChangeIsNews(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only("nvd-kev")
+	e.mirror("nvd-kev", o.url("/nvd"))
+	seedKEV(t, e.db, 1)
+	end := "2.0"
+	o.serve("/nvd", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprintf(w, `{"totalResults":2,"vulnerabilities":[
+		 {"cve":{"id":"CVE-2024-0000","published":"2024-01-15T10:00:00.000","lastModified":"2024-01-16T10:00:00.000","vulnStatus":"Analyzed","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}},
+		 {"cve":{"id":"CVE-2026-0100","published":"2026-11-01T10:00:00.000","lastModified":"%s","vulnStatus":"Analyzed","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:gadget:*:*:*:*:*:*:*:*","versionEndExcluding":"%s"}]}]}]}}]}`,
+			e.clock().Add(-time.Hour).Format("2006-01-02T15:04:05.000"), end)
+	})
+	var got []RangesUpdatedEvent
+	e.svc.Events = publishFunc(func(ev events.Event) {
+		if r, ok := ev.Data.(RangesUpdatedEvent); ok {
+			got = append(got, r)
+		}
+	})
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !slices.Equal(got[0].CVEs, []string{"CVE-2024-0000"}) || !got[0].Catalogue {
+		t.Fatalf("first pull: events %+v", got)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0100'`); n != 1 {
+		t.Fatalf("the catalogue CVE's ranges: %d rows", n)
+	}
+	// the next day only the catalogue CVE changes
+	end = "2.1"
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || len(got[1].CVEs) != 0 || !got[1].Catalogue || got[1].First {
+		t.Fatalf("a catalogue-only change: events %+v", got)
+	}
+	// and a pull that changes no range sends nothing
+	e.setNow(e.clock().Add(25 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("no change: events %+v", got)
+	}
+}

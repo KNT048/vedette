@@ -309,7 +309,7 @@ func declaredOS(d inventory.MatchDevice, candidates []string) (id, version strin
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
 		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
-		Key: s.Key, MarkedBy: s.MarkedBy}
+		Key: s.Key, MarkedBy: s.MarkedBy, Guess: s.Guess}
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
@@ -522,9 +522,11 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 }
 
 // MatchSet is what findings' match pass compares the devices with (findings.Feeds.MatchSet): the exploited lists' entries (Vulns),
-// then every other catalogue CVE whose ranges name a product the devices run (scope.Keep) or that a finding holds (scope.Pinned), with
-// the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE record's), the publication
-// day, EPSS and the distributions' word. Nothing while the feeds module is off.
+// then every other catalogue CVE whose ranges name a product the devices run (scope.Keep), whose vendor states versions of such a
+// product in its own notation (SchemeCVEs), that a distribution fixed in a package the devices run (scope.Packages) or that a finding
+// holds (scope.Pinned), with the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE
+// record's), the vendor's rows read in the product's version scheme (Schemed), the publication day, EPSS and the distributions' word.
+// Every entry, the exploited lists' included, carries the same data whichever of these found it. Nothing while the feeds module is off.
 func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
 	if a.on != nil && !a.on() {
 		return nil, nil
@@ -533,10 +535,24 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	if err != nil {
 		return nil, err
 	}
+	out := slices.Clone(kev) // the cached list is never written: Schemed is added to the copy
 	listed := make(map[string]bool, len(kev))
 	for _, v := range kev {
 		listed[v.CVE] = true
 	}
+	more, err := a.catalogueEntries(ctx, scope, listed)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, more...)
+	if err := a.withSchemed(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// catalogueEntries is MatchSet's part beyond the exploited lists (listed): the catalogue CVEs the scope reaches, each once.
+func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.MatchScope, listed map[string]bool) ([]findings.Vuln, error) {
 	products, err := a.rangeProducts(ctx)
 	if err != nil {
 		return nil, err
@@ -551,6 +567,22 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	ranges, err := a.st.Ranges(ctx, keys)
 	if err != nil {
 		return nil, err
+	}
+	reached := map[string]bool{} // CVEs found by a vendor's own rows or a distribution's word, beside the generic ranges
+	schemeCVEs, err := a.st.SchemeCVEs(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	pkgs := make([]feeds.DistroPackage, len(scope.Packages))
+	for i, p := range scope.Packages {
+		pkgs[i] = feeds.DistroPackage{Distro: p.Distro, Release: p.Release, Package: p.Package}
+	}
+	distroCVEs, err := a.st.DistroCVEs(ctx, pkgs)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range slices.Concat(schemeCVEs, distroCVEs) {
+		reached[c] = true
 	}
 	var pins []string
 	pinSet := map[string]bool{}
@@ -579,8 +611,13 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 			cves = append(cves, c)
 		}
 	}
+	for _, c := range slices.Sorted(maps.Keys(reached)) {
+		if _, ok := byCVE[c]; !ok && !listed[c] && !pinSet[c] {
+			cves = append(cves, c)
+		}
+	}
 	if len(cves) == 0 {
-		return kev, nil
+		return nil, nil
 	}
 	cat, err := a.st.Catalogue(ctx, cves)
 	if err != nil {
@@ -594,7 +631,7 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	if err != nil {
 		return nil, err
 	}
-	out := slices.Clone(kev) // the cached list is never written
+	var out []findings.Vuln
 	for _, cve := range cves {
 		e, inCatalogue := cat[cve]
 		rows := byCVE[cve]
@@ -626,26 +663,28 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 		for _, d := range distro[cve] {
 			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
 		}
-		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] {
+		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] || reached[cve] {
 			out = append(out, v)
 		}
-	}
-	if err := a.withSchemed(ctx, out); err != nil {
-		return nil, err
 	}
 	return out, nil
 }
 
 // withSchemed adds to each entry of vulns the ranges its vendor states in its own notation, read in the version scheme of the
-// product they name (feeds.RangeScheme): what findings.FixOf names the vendor's fixed release of a device's train from.
+// product they name (feeds.RangeScheme): what the matcher and findings.FixOf read the vendor's fixed release of a device's train from.
+// An entry no such range names is left without any.
 func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) error {
+	if len(vulns) == 0 {
+		return nil
+	}
 	cves := make([]string, len(vulns))
 	at := make(map[string]int, len(vulns))
 	for i, v := range vulns {
 		cves[i] = v.CVE
 		at[v.CVE] = i
+		vulns[i].Schemed = nil // a copy of a cached entry shares its slice: never append to it
 	}
-	rows, err := a.st.VendorRangesOf(ctx, cves)
+	rows, err := a.st.SchemeRangesOf(ctx, cves)
 	if err != nil {
 		return err
 	}
@@ -780,9 +819,18 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d)}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Services: d.Inventory, Approver: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
-		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}); err != nil {
+	intakeCfg := agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Services: d.Inventory, Approver: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
+		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}
+	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
+		intakeCfg.Schedules = d.Schedules
+	}
+	if d.AgentIntake, err = agentintake.New(intakeCfg); err != nil {
 		return fmt.Errorf("agent-intake: %w", err)
+	}
+	if d.Schedules != nil { // the Wazuh pull is a core/schedule owner
+		if err := d.Schedules.Register(d.AgentIntake.ScheduleOwner()); err != nil {
+			return fmt.Errorf("agent-intake: %w", err)
+		}
 	}
 	d.Logs = logexport.New()
 	d.PurgeGate = &core.PurgeGate{}
@@ -1009,12 +1057,42 @@ func subscribe(d deps) {
 	}
 	// New NVD affected versions decide findings again for every device; the first fill is backlog.
 	// One event per device; after a later update only the devices of the changed CVEs.
-	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
+	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", rangesUpdated(&d)))
+	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		ctx = notify.WithBaseline(ctx)
+		_, err := d.Inventory.RematchAll(ctx)
+		return err
+	}))
+	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+}
+
+// rangesUpdated is the subscriber of feeds.ranges.updated: new affected versions decide findings again. The first fill rematches every
+// device as backlog; a later update rematches the devices of the changed exploited-list CVEs. A change of a catalogue CVE's ranges
+// (RangesUpdatedEvent.Catalogue, or a CVE no list holds) runs findings' match pass now instead of at its next hour: it is the one
+// reader of those CVEs.
+func rangesUpdated(d *deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
 		ev, _ := data.(feeds.RangesUpdatedEvent)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
-		st, ok := feedsKEV{&d}.store()
+		wake := func() {
+			if d.Wake != nil {
+				d.Wake("findings", "reconcile")
+			}
+		}
+		if len(ev.CVEs) == 0 {
+			if ev.Catalogue {
+				wake()
+			}
+			return nil
+		}
+		st, ok := feedsKEV{d}.store()
 		if ev.First || !ok {
+			if ev.Catalogue { // RematchAll reads the lines of listed CVEs only: the catalogue CVEs need the match pass too
+				wake()
+			}
 			if ev.First {
 				ctx = notify.WithBaseline(ctx)
 			}
@@ -1026,20 +1104,23 @@ func subscribe(d deps) {
 			return err
 		}
 		refs := make([]inventory.KevRef, len(rows))
+		listed := make(map[string]bool, len(rows))
 		for i, r := range rows {
 			refs[i] = inventory.KevRef{CVE: r.CVE, Vendor: r.Vendor, Product: r.Product}
+			listed[r.CVE] = true
+		}
+		if ev.Catalogue || catalogueChanged(ev.CVEs, listed) {
+			wake()
 		}
 		_, err = d.Inventory.RematchMany(ctx, refs)
 		return err
-	}))
-	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
-		defer cancel()
-		ctx = notify.WithBaseline(ctx)
-		_, err := d.Inventory.RematchAll(ctx)
-		return err
-	}))
-	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+	}
+}
+
+// catalogueChanged says a ranges update names a CVE that is on no exploited list (listed): only findings' match pass compares those
+// with the devices.
+func catalogueChanged(cves []string, listed map[string]bool) bool {
+	return slices.ContainsFunc(cves, func(c string) bool { return !listed[c] })
 }
 
 // alpineWake wakes the feeds pull job when a device whose OS changed states Alpine Linux and alpine-osv is on but not loaded yet

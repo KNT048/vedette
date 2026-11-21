@@ -218,18 +218,17 @@ func (s *Service) wazuhReads(ctx context.Context, d observe.AgentDevice) (wazuhR
 	if ip == "" && d.MAC == "" {
 		return wazuhRead{}, nil
 	}
-	var minutes int
-	var seen string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT w.interval_minutes, max(a.seen_at) FROM intake_wazuh w JOIN intake_wazuh_agent a ON a.generation = w.generation
-		WHERE w.id = 1 AND ((?1 <> '' AND a.ip = ?1) OR (?2 <> '' AND lower(a.mac) = lower(?2))) GROUP BY w.interval_minutes`, ip, d.MAC).Scan(&minutes, &seen)
-	if errors.Is(err, sql.ErrNoRows) {
+	var seen sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT max(a.seen_at) FROM intake_wazuh w JOIN intake_wazuh_agent a ON a.generation = w.generation
+		WHERE w.id = 1 AND ((?1 <> '' AND a.ip = ?1) OR (?2 <> '' AND lower(a.mac) = lower(?2)))`, ip, d.MAC).Scan(&seen)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !seen.Valid {
 		return wazuhRead{}, nil
 	}
 	if err != nil {
 		return wazuhRead{}, fmt.Errorf("agentintake: read wazuh agents: %w", err)
 	}
-	t, _ := time.Parse(time.RFC3339Nano, seen)
-	return wazuhRead{minutes: minutes, seen: t}, nil
+	t, _ := time.Parse(time.RFC3339Nano, seen.String)
+	return wazuhRead{minutes: wazuhMinutes(ctx, s.db.Reader()), seen: t}, nil
 }
 
 // errCannotAsk is the 409 of an ask Vedette cannot make: the device has no osquery node of this box (Wazuh only, or no agent).

@@ -46,6 +46,9 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Outside: outside, Log: d.Log, Clock: d.Clock}
+	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
+		cfg.Schedules = d.Schedules
+	}
 	// A snapshot's day and the times in the API's messages are those of the organization's time zone (Settings › General)
 	cfg.Zone = orgLocationAt(d)
 	if d.Auth != nil { // The first scan of a target records the commitment only for an administrator with two-step sign-in
@@ -130,6 +133,11 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	exposureServices[d.DB] = svc
+	if d.Schedules != nil { // the public IP detection is a core/schedule owner; the service is built once per database, so it registers once
+		if err := d.Schedules.Register(svc.PublicIPScheduleOwner()); err != nil {
+			panic("vedette: " + err.Error())
+		}
+	}
 	if d.Reg != nil { // INV-18: switching the module off stops the scan that runs (SYS-5); the registry's goroutine must not wait for it
 		d.Reg.OnChange(func(id string, enabled bool) {
 			if id == exposure.ModuleID {

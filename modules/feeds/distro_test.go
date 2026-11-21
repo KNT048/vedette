@@ -266,8 +266,9 @@ func TestDistroPull(t *testing.T) {
 	if len(got) != 3 || got[2].First || !slices.Equal(got[2].CVEs, []string{"CVE-2026-10001"}) {
 		t.Fatalf("turning the feed off told findings %+v", got)
 	}
-	if c, _ := e.put(debianTrackerFeedID, `{"interval_hours":12}`); c != 200 || len(got) != 3 {
-		t.Fatalf("a schedule change matched again: %d %+v", c, got)
+	e.every(debianTrackerFeedID, 12) // a change of schedule matches nothing again
+	if len(got) != 3 {
+		t.Fatalf("a schedule change matched again: %+v", got)
 	}
 	if c, _ := e.put(debianTrackerFeedID, `{"enabled":true}`); c != 200 || len(got) != 4 {
 		t.Fatalf("turning the feed on did not match again: %d %+v", c, got)
@@ -304,7 +305,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	e.loadKEV()
 	inv := &distroInv{got: map[string]map[string]bool{DistroUbuntu: {"sudo": true}}}
 	e.svc.Inventory = inv
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 { // asked for the packages, not to skip it
@@ -313,7 +314,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
 	for range 2 { // due again (a day later): no Debian device, so nothing is fetched and the next tick asks again
 		e.setNow(e.clock().Add(25 * time.Hour))
-		if err := e.svc.RunPull(t.Context()); err != nil {
+		if err := e.runPull(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -326,7 +327,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 		t.Fatalf("Fetch now without a Debian device: %v, %d requests", err, o.count("/tracker.json"))
 	}
 	inv.got = map[string]map[string]bool{DistroUbuntu: {"sudo": true}, DistroDebian: {"sudo": true}}
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && strings.Contains(*f.Error, note) {
@@ -562,7 +563,7 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET failures = 1, last_fetch = ? WHERE id = ?`, store.FormatTS(e.clock()), debianTrackerFeedID)
 		return err
 	})
-	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/tracker.json") != 2 {
+	if err := e.runPull(t.Context()); err != nil || o.count("/tracker.json") != 2 {
 		t.Fatalf("failing feed: %v, %d requests", err, o.count("/tracker.json"))
 	}
 	write(t, e.db, func(tx *sql.Tx) error {
@@ -572,7 +573,7 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 	if !e.svc.distroBehind(t.Context(), e.feed(debianTrackerFeedID)) {
 		t.Fatal("not behind after a new package")
 	}
-	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/tracker.json") != 3 {
+	if err := e.runPull(t.Context()); err != nil || o.count("/tracker.json") != 3 {
 		t.Fatalf("behind: %v, %d requests", err, o.count("/tracker.json"))
 	}
 	hits := o.all()

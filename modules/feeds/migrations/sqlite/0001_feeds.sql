@@ -11,7 +11,6 @@ CREATE TABLE feeds_source (
     url             TEXT    NOT NULL CHECK (length(url) BETWEEN 1 AND 500),
     default_url     TEXT    CHECK ((builtin = 1) = (default_url IS NOT NULL)),
     enabled         INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-    interval_hours  INTEGER NOT NULL CHECK (interval_hours BETWEEN 1 AND 168),
     auth_type       TEXT    NOT NULL DEFAULT 'none' CHECK (auth_type IN ('none', 'header', 'bearer', 'basic')),
     auth_header_name TEXT,
     auth_username   TEXT,

@@ -67,13 +67,6 @@ func TestContract_INV16_SharedWindowRateAndExclusions(t *testing.T) {
 	if inv.settled[len(inv.settled)-1] {
 		t.Fatalf("settled %v after a failed save", inv.settled)
 	}
-
-	// a window the schedule time is no longer inside (saved on Settings › Scanning) runs nothing scheduled
-	inv.refuse = nil
-	inv.checks.Window = Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "01:00", To: "03:00"}
-	if cv, _ := e.svc.Config(e.ctx()); cv.NextRun != nil || cv.ScheduleBlockedReason == nil {
-		t.Fatalf("next run %v outside the shared window, blocked %v", cv.NextRun, cv.ScheduleBlockedReason)
-	}
 }
 
 // review #857 L7: a list over 200 that a merge left passes a save that does not grow it; growing it is refused.

@@ -18,11 +18,9 @@ func TestMigrations_ConstraintsHold(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for name, q := range map[string]string{
-		"second row":       `INSERT INTO scan_setting (id) VALUES (2)`,
-		"unresponsive 1":   `UPDATE scan_setting SET unresponsive_after = 1`,
-		"frequency hourly": `UPDATE scan_setting SET sched_frequency = 'hourly'`,
-		"weekday 0":        `UPDATE scan_setting SET sched_weekday = 0`,
-		"auto_rescan 2":    `UPDATE scan_setting SET auto_rescan = 2`,
+		"second row":     `INSERT INTO scan_setting (id) VALUES (2)`,
+		"unresponsive 1": `UPDATE scan_setting SET unresponsive_after = 1`,
+		"auto_rescan 2":  `UPDATE scan_setting SET auto_rescan = 2`,
 	} {
 		err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { _, err := tx.ExecContext(e.ctx(), q); return err })
 		if err == nil {
@@ -41,7 +39,7 @@ func TestMigrations_Defaults(t *testing.T) {
 	}
 	c := v.Config
 	if len(c.Window.Days) != 7 || c.Window.From != "22:00" || c.Window.To != "05:00" || c.Rate != 5 || len(c.Exclusions) != 0 || c.Exclusions == nil ||
-		!c.StopOnUnresponsive || c.UnresponsiveAfter != 3 || !c.AutoRescan || c.Schedule != (Schedule{Enabled: true, Frequency: "weekly", Weekday: 7, At: "23:00"}) {
+		!c.StopOnUnresponsive || c.UnresponsiveAfter != 3 || !c.AutoRescan {
 		t.Fatalf("defaults: %+v", c)
 	}
 }

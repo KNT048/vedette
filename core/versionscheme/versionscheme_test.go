@@ -198,3 +198,24 @@ func TestSchemesRefuseOtherNotations(t *testing.T) {
 		}
 	}
 }
+
+// Junos: Juniper's record states the fixed release of each line; a release is placed by its R, service release and respin, the X
+// releases and Junos OS Evolved are lines apart, and "0 lessThan 21.2R3-S8" covers the older lines (their fix is a later line).
+func TestJunos(t *testing.T) {
+	t.Parallel()
+	sp := spans(t, Junos, [3]string{"0", "21.2R3-S8", ""}, [3]string{"21.4", "21.4R3-S7", ""}, [3]string{"22.2", "22.2R3-S3", ""},
+		[3]string{"15.1X49", "15.1X49-D240", ""})
+	runJudge(t, Junos, sp, []judgeCase{
+		{name: "older service release", version: "21.4R3-S5.4", want: Affected, fixLabel: "21.4R3-S7"},
+		{name: "earlier R of the line", version: "21.4R1", want: Affected, fixLabel: "21.4R3-S7"},
+		{name: "the fix", version: "21.4R3-S7", want: NotAffected},
+		{name: "a respin of the fix", version: "21.4R3-S7.2", want: NotAffected},
+		{name: "later service release", version: "22.2R3-S4", want: NotAffected},
+		{name: "older line, fix in a later line", version: "15.1R7.9", want: Affected, fixLabel: "21.2R3-S8"},
+		{name: "X release line", version: "15.1X49-D200.3", want: Affected, fixLabel: "15.1X49-D240"},
+		{name: "not a Junos release", version: "21.4", want: NotComparable},
+	})
+	if v, ok := Junos.Parse("22.4R3-S2-EVO"); !ok || v.Variant != "EVO" || v.Train != "22.4 EVO" {
+		t.Errorf("Junos OS Evolved: %+v %v", v, ok)
+	}
+}

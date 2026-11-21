@@ -498,14 +498,14 @@ func TestContract_INV9_FutureTimestampsMeanDueAndStale(t *testing.T) {
 	now := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
 	future := now.AddDate(10, 0, 0)
 	ok := State{LastSuccess: future, LastAttempt: future}
-	if !ok.Due(now, 6) || !IsStale(now, future, 6) {
-		t.Errorf("future success: due=%v stale=%v", ok.Due(now, 6), IsStale(now, future, 6))
+	if !ok.Due(now, 6, nil) || !IsStale(now, future, 6) {
+		t.Errorf("future success: due=%v stale=%v", ok.Due(now, 6, nil), IsStale(now, future, 6))
 	}
 	failed := State{LastSuccess: now.Add(-time.Hour), LastAttempt: future, Failures: 3}
-	if !failed.Due(now, 6) {
+	if !failed.Due(now, 6, nil) {
 		t.Error("future failed attempt blocks retries")
 	}
-	if (State{LastSuccess: now, LastAttempt: now}).Due(now, 6) || IsStale(now, now, 6) {
+	if (State{LastSuccess: now, LastAttempt: now}).Due(now, 6, nil) || IsStale(now, now, 6) {
 		t.Error("a pull made right now is neither due nor stale")
 	}
 	if !IsStale(now, now.Add(time.Second), 6) {

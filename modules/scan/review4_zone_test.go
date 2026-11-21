@@ -2,17 +2,16 @@ package scan
 
 import (
 	"context"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-// zoneEnv is schedEnv with an organization zone that can be unreadable (nil: the read failed, timed out, or the name
+// zoneEnv is a run environment with an organization zone that can be unreadable (nil: the read failed, timed out, or the name
 // is not a zone).
 func zoneEnv(t *testing.T) (*runEnv, *atomic.Bool) {
 	t.Helper()
-	r := schedEnv(t)
+	r := newRunEnv(t)
 	broken := &atomic.Bool{}
 	cfg := r.svc.cfg
 	cfg.Location = func(context.Context) *time.Location {
@@ -27,30 +26,6 @@ func zoneEnv(t *testing.T) (*runEnv, *atomic.Bool) {
 	}
 	r.svc = svc
 	return r, broken
-}
-
-// #164 review, after H1: when the organization zone cannot be read, the schedule fails closed. The tick is skipped
-// (no run at what may be the wrong hour), next_run is not shown, and the slot runs once the zone is back while its
-// window is open.
-func TestReview4_ZoneUnknownSkipsTheSchedule(t *testing.T) {
-	t.Parallel()
-	r, broken := zoneEnv(t)
-	broken.Store(true)
-	r.schedAt(hm(tue17, 2, 30))
-	if n := r.scheduled(); n != 0 {
-		t.Fatalf("%d scheduled runs while the organization zone is unknown", n)
-	}
-	if got := r.nextRun(); got != "<nil>" {
-		t.Errorf("next_run %s while the zone is unknown", got)
-	}
-	if r.count(`SELECT count(*) FROM scan_setting WHERE sched_last IS NOT NULL`) != 0 {
-		t.Fatal("the slot was used up while the zone was unknown")
-	}
-	broken.Store(false)
-	r.schedAt(hm(tue17, 2, 40))
-	if n := r.scheduled(); n != 1 {
-		t.Fatalf("%d scheduled runs once the zone is back, want 1", n)
-	}
 }
 
 // The KEV rescan follows the same rule: no automated run starts while the zone is unknown; the event waits.
@@ -88,29 +63,5 @@ func TestReview4_ZoneUnknownFor7DaysShowsTheEventAsExpired(t *testing.T) {
 	r.tick()
 	if r.count(`SELECT count(*) FROM scan_event WHERE result = 'expired_zone'`) != 1 || r.count(`SELECT count(*) FROM core_run`) != 0 {
 		t.Fatal("the event was not closed as expired_zone, or a run started")
-	}
-}
-
-// While the zone cannot be read the schedule is on but has no next run, and the view says why.
-func TestReview4_ZoneUnknownGivesTheScheduleAReason(t *testing.T) {
-	t.Parallel()
-	r, broken := zoneEnv(t)
-	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{SchedEnabled: ptr(true)}); err != nil {
-		t.Fatal(err)
-	}
-	v, err := r.svc.Config(r.ctx())
-	if err != nil || v.ScheduleBlockedReason != nil {
-		t.Fatalf("zone readable: %+v %v", v, err)
-	}
-	broken.Store(true)
-	v, err = r.svc.Config(r.ctx())
-	if err != nil || v.NextRun != nil || v.ScheduleBlockedReason == nil || !strings.Contains(*v.ScheduleBlockedReason, "time zone") {
-		t.Fatalf("zone unreadable: %+v %v", v, err)
-	}
-	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{SchedEnabled: ptr(false)}); err != nil {
-		t.Fatal(err)
-	}
-	if v, _ = r.svc.Config(r.ctx()); v.ScheduleBlockedReason != nil {
-		t.Fatal("a schedule that is off has no blocked reason")
 	}
 }

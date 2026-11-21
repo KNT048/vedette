@@ -127,14 +127,10 @@ type ScopeView struct {
 // ConfigView is contract.ts ScanConfigResponse.
 type ConfigView struct {
 	Config          Settings  `json:"config"`
-	NextRun         *string   `json:"next_run"`
 	Scope           ScopeView `json:"scope"`
 	CanScan         bool      `json:"can_scan"`
 	BlockReason     *string   `json:"block_reason"`
 	DangerousChecks bool      `json:"dangerous_checks"` // always false (INV-4)
-	// ScheduleBlockedReason is set while the schedule is on but nothing automated can start because the organization
-	// zone cannot be read; NextRun is nil then.
-	ScheduleBlockedReason *string `json:"schedule_blocked_reason"`
 	// Version is the shared safety block's (INV-16, inventory INV-32): a PUT that sends it back is refused with 409 safety_changed
 	// when the block changed since (review #860 M1). "" without SharedChecks.
 	Version string `json:"version"`
@@ -152,7 +148,7 @@ func (s *Service) ready(ctx context.Context) bool {
 	return true
 }
 
-// Config returns the settings with the scope, the commitment, whether a scan can start and the next scheduled run.
+// Config returns the settings with the scope, the commitment, and whether a scan can start.
 func (s *Service) Config(ctx context.Context) (ConfigView, error) {
 	c, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
@@ -175,23 +171,6 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 		if v.Scope.Commitment.By == "" {
 			v.Scope.Commitment.By = "—" // the mock's placeholder for an unknown name
 		}
-	}
-	if loc, ok := s.loc(ctx); ok { // the zone unknown: no next run is shown, as none would start
-		first, err := firstPending(ctx, s.cfg.DB.Reader()) // the rule RunSchedule uses
-		if err != nil {
-			return ConfigView{}, err
-		}
-		if t := c.NextRun(s.now(), loc, first); t != nil {
-			ts := store.FormatTS(*t)
-			v.NextRun = &ts
-		}
-	} else if c.Schedule.Enabled {
-		v.ScheduleBlockedReason = ptr(msgZoneUnknown)
-	}
-	// #850: the window is shared and saved on Settings › Scanning too, so it can move away from the schedule time (INV-16).
-	if c.Schedule.Enabled && v.ScheduleBlockedReason == nil && hhmmRE.MatchString(c.Schedule.At) && hhmmRE.MatchString(c.Window.From) &&
-		hhmmRE.MatchString(c.Window.To) && !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
-		v.ScheduleBlockedReason = ptr(fmt.Sprintf("The schedule time %s is outside the scan window %s to %s (Settings, Scanning), so no scheduled scan runs. Pick a time inside the window.", c.Schedule.At, c.Window.From, c.Window.To))
 	}
 	switch {
 	case v.Scope.Commitment == nil:
@@ -235,8 +214,7 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 			Window     Window `json:"window"`
 			Exclusions int    `json:"exclusions"`
 			AutoRescan bool   `json:"auto_rescan"`
-			Schedule   bool   `json:"schedule"`
-		}{next.Rate, next.Window, len(next.Exclusions), next.AutoRescan, next.Schedule.Enabled})
+		}{next.Rate, next.Window, len(next.Exclusions), next.AutoRescan})
 		if err != nil {
 			return fmt.Errorf("scan: encoding the audit detail: %w", err)
 		}

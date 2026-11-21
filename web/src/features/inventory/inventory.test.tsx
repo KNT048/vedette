@@ -2108,7 +2108,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(await code({ username: 'bad name' })).toBe('bad_username')
     expect(await code({ username: '' })).toBe('bad_username')
     expect(await code({ password: '' })).toBe('password_required') // first time
-    expect(await code({ interval_minutes: 7 })).toBe('bad_interval')
+    expect(await code({ interval_minutes: 4 })).toBe('bad_interval')
     for (const host of ['wazuh-unreachable', 'wazuh.invalid', 'down']) {
       const r = await call('PUT', '/agents/wazuh', { ...good, url: `https://${host}:55000` })
       expect([r.status, r.json?.error.code], host).toEqual([502, 'wazuh_unreachable'])

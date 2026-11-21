@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/observe"
+	coreschedule "github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -51,8 +52,12 @@ type Config struct {
 	Services observe.ServiceSink  // the inventory: the open ports a machine's agent reports (INV-22); nil: they are not recorded
 	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
 	Conn     *conn.Service        // the HTTPS client and address policy for the Wazuh server
-	Clock    func() time.Time
-	Log      *slog.Logger
+	// Schedules keeps the Wazuh pull's schedule in step with the connection form (core/schedule Service.SaveTx); nil: the form's interval is not stored.
+	Schedules interface {
+		SaveTx(ctx context.Context, tx *sql.Tx, key string, st coreschedule.Setting, by string) error
+	}
+	Clock func() time.Time
+	Log   *slog.Logger
 
 	// The install scripts, the certificate and the package mirror (slice 3). All optional: without TrustAnchor, ca.pem and the scripts
 	// answer 404 no_certificate; without MirrorDir the package files answer 404 mirror_missing; without HostAllowed the request's Host is

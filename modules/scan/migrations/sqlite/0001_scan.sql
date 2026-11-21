@@ -2,20 +2,16 @@
 -- The whole schema of the scan module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 -- A vulnerability check is a core_run (kind vuln_check) with its steps and items; this module keeps only what is its own:
--- the settings of the checks, the log of automatic rescans and the probe log, keyed by the run.
+-- the settings of the checks (when they run is a core_schedule row, scan.vuln), the log of automatic rescans and the probe log, keyed by the run.
 
 CREATE TABLE scan_setting (
     id                   INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     stop_on_unresponsive INTEGER NOT NULL DEFAULT 1 CHECK (stop_on_unresponsive IN (0, 1)),
     unresponsive_after   INTEGER NOT NULL DEFAULT 3 CHECK (unresponsive_after BETWEEN 2 AND 20),
     auto_rescan          INTEGER NOT NULL DEFAULT 1 CHECK (auto_rescan IN (0, 1)),
-    sched_enabled        INTEGER NOT NULL DEFAULT 1 CHECK (sched_enabled IN (0, 1)),
-    sched_frequency      TEXT NOT NULL DEFAULT 'weekly' CHECK (sched_frequency IN ('daily', 'weekly')),
-    sched_weekday        INTEGER NOT NULL DEFAULT 7 CHECK (sched_weekday BETWEEN 1 AND 7),
-    sched_at             TEXT NOT NULL DEFAULT '23:00' CHECK (sched_at GLOB '[0-2][0-9]:[0-5][0-9]' AND sched_at < '24:00'),
     updated_at           TEXT CHECK (updated_at IS NULL OR updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    updated_by           TEXT CHECK (updated_by IS NULL OR length(updated_by) BETWEEN 1 AND 320)
-, sched_last TEXT CHECK (sched_last IS NULL OR sched_last GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_at TEXT CHECK (kev_read_at IS NULL OR kev_read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_cve TEXT NOT NULL DEFAULT '' CHECK (length(kev_read_cve) <= 64));
+    updated_by           TEXT CHECK (updated_by IS NULL OR length(updated_by) BETWEEN 1 AND 320),
+    kev_read_at TEXT CHECK (kev_read_at IS NULL OR kev_read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_cve TEXT NOT NULL DEFAULT '' CHECK (length(kev_read_cve) <= 64));
 
 CREATE TABLE "scan_event" (
     id          TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),

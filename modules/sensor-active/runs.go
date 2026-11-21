@@ -165,6 +165,26 @@ func (s *Service) tell(id string, o outcome) {
 // submit queues a run (or creates it waiting, spec.WaitingFor) with its work, in one transaction with inTx (nil: none). work nil:
 // the kind's own work runs it.
 func (s *Service) submit(ctx context.Context, spec run.Spec, work workFunc, inTx func(tx *sql.Tx, id string) error) (string, error) {
+	var id string
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		id, err = s.submitTx(ctx, tx, spec, work, inTx)
+		return err
+	})
+	if err != nil {
+		if id != "" {
+			s.mu.Lock()
+			delete(s.pend, id)
+			delete(s.waits, id)
+			s.mu.Unlock()
+		}
+		return "", fmt.Errorf("sensoractive: queue the run: %w", err)
+	}
+	return id, nil
+}
+
+// submitTx is submit inside the caller's transaction: the schedule of the sweep queues its run in its own.
+func (s *Service) submitTx(ctx context.Context, tx *sql.Tx, spec run.Spec, work workFunc, inTx func(tx *sql.Tx, id string) error) (string, error) {
 	spec.Module = ModuleID
 	if spec.RequestedBy == "" {
 		spec.RequestedBy = run.System
@@ -175,36 +195,23 @@ func (s *Service) submit(ctx context.Context, spec run.Spec, work workFunc, inTx
 	if spec.ParentID == "" {
 		spec.ParentID = run.IDFrom(ctx) // the work of another module's run (a vulnerability check, an exposure scan) is its step
 	}
-	var id string
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		var err error
-		if id, err = s.runs.CreateTx(ctx, tx, spec); err != nil {
-			return err
-		}
-		if inTx != nil {
-			if err := inTx(tx, id); err != nil {
-				return err
-			}
-		}
-		if spec.Kind == RunCheck || spec.Kind == RunService {
-			s.stopWeekly() // the weekly scan of every port gives the lane up to any other work
-		}
-		if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work and its caller
-			s.mu.Lock()
-			s.pend[id] = &pending{values: context.WithoutCancel(ctx), work: work}
-			s.mu.Unlock()
-			s.expect(id)
-		}
-		return nil
-	})
+	id, err := s.runs.CreateTx(ctx, tx, spec)
 	if err != nil {
-		if id != "" {
-			s.mu.Lock()
-			delete(s.pend, id)
-			delete(s.waits, id)
-			s.mu.Unlock()
+		return "", err
+	}
+	if inTx != nil {
+		if err := inTx(tx, id); err != nil {
+			return id, err
 		}
-		return "", fmt.Errorf("sensoractive: queue the run: %w", err)
+	}
+	if spec.Kind == RunCheck || spec.Kind == RunService {
+		s.stopWeekly() // the weekly scan of every port gives the lane up to any other work
+	}
+	if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work and its caller
+		s.mu.Lock()
+		s.pend[id] = &pending{values: context.WithoutCancel(ctx), work: work}
+		s.mu.Unlock()
+		s.expect(id)
 	}
 	return id, nil
 }

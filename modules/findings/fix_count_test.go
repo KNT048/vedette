@@ -56,8 +56,9 @@ func esxi22225(t testing.TB) Vuln {
 }
 
 func esxiHost(version, build string) Asset {
-	return Asset{ID: "esxi", Name: "esx01", OS: "VMware ESXi " + version + " (build " + build + ")", Software: []Software{{ID: "s-esxi",
-		Display: "VMware ESXi", Vendor: "VMware", Product: "ESXi", Version: version, Source: "snmp", KevKeys: []string{"vmware|esxi"},
+	stated := "VMware ESXi " + version + " (build " + build + ")" // the line keeps the build the host states (sensor-active)
+	return Asset{ID: "esxi", Name: "esx01", OS: stated, Software: []Software{{ID: "s-esxi",
+		Display: stated, Vendor: "VMware", Product: "ESXi", Version: version, Source: "snmp", KevKeys: []string{"vmware|esxi"},
 		CPE: "cpe:2.3:o:vmware:esxi:8.0:update_2:*:*:*:*:*:*"}}} // the CPE the host's own statement is given (its build's update)
 }
 

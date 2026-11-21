@@ -90,7 +90,7 @@ func reachClass(sws []Software, infos []swInfo, named []map[int]bool, vi int, v 
 			}
 			keyed = true
 		case named[i][vi] && !via:
-			via = nvdReaches(s, infos[i], v)
+			via = nvdReaches(Asset{}, s, infos[i], v)
 		}
 	}
 	switch {

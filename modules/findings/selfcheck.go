@@ -1,8 +1,12 @@
 package findings
 
 import (
+	"context"
+	"database/sql"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/core/productid"
 
 	"github.com/knt048/vedette/core/selfcheck"
 )
@@ -41,8 +45,17 @@ var invariants = []selfcheck.Invariant{
 	},
 }
 
-// catalogueInvariants hold between the findings and feeds' catalogue: they read feeds' tables, so they run on a box's whole database.
+// catalogueInvariants hold between the findings and feeds' catalogue (and inventory's software lines): they read other modules'
+// tables, so they run on a box's whole database.
 var catalogueInvariants = []selfcheck.Invariant{
+	{ // a detected finding names a version its software line runs: the line's effective reading or one of its live readings (a
+		// version or a package release), never a version of another line (a safe check's and a person's word name no version of theirs)
+		Name: "findings.matched_version_on_line",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE f.state = 'open' AND f.detected = 1 AND f.software_id IS NOT NULL
+			AND ifnull(f.matched_version, '') <> '' AND f.basis NOT IN ('scan', 'person')
+			AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id AND f.matched_version IN (ifnull(s.version, ''), ifnull(s.pkg_version, '')))
+			AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = f.software_id AND f.matched_version IN (ifnull(r.version, ''), ifnull(r.pkg_version, '')))`,
+	},
 	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
 		Name:  "findings.cve_in_catalogue",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,
@@ -54,11 +67,39 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
 			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
 	},
-	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for
-		Name: "findings.range_precedence",
-		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
-			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`,
+	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for, unless its
+		// line's product has a version scheme: the vendor's own rows decide its trains before NVD's generic rows (vendorscheme.go), and
+		// the generic comparison never reads a scheme product's record rows (feeds recordSkipped). The product is resolved as the
+		// matcher resolves it (productid.ResolveStored of the line), so a line named otherwise (nmap's "netscaler gateway") counts too.
+		Name:  "findings.range_precedence",
+		Count: rangePrecedenceBreaks,
 	},
+}
+
+// rangePrecedenceBreaks counts the detected findings that rest on a CVE record's ranges while NVD has ranges for the CVE, leaving out
+// those whose software line is a product with a version scheme (schemedSpans resolves it the same way).
+func rangePrecedenceBreaks(ctx context.Context, db *sql.DB) (int64, error) {
+	rows, err := db.QueryContext(ctx, `SELECT s.vendor, s.product, s.display, ifnull(s.cpe, ''), s.id IS NOT NULL FROM fnd_finding f
+		LEFT JOIN inv_software s ON s.id = f.software_id
+		WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
+		AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	var n int64
+	for rows.Next() {
+		var vendor, product, display, cpe sql.NullString
+		var line bool
+		if err := rows.Scan(&vendor, &product, &display, &cpe, &line); err != nil {
+			return 0, err
+		}
+		if p, ok := productid.ResolveStored(vendor.String, product.String, display.String, cpe.String); line && ok && p.Scheme != "" {
+			continue
+		}
+		n++
+	}
+	return n, rows.Err()
 }
 
 func init() {

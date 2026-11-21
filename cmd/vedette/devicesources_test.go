@@ -21,8 +21,8 @@ func TestDevicesListSaysWazuhThroughTheWiring(t *testing.T) {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO core_secret (id, purpose, nonce, ciphertext, key_version, created_at) VALUES ('sec-wz', 'intake_wazuh.password', zeroblob(12), zeroblob(16), 1, '2026-11-16T08:00:00.000Z')`); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at)
-			VALUES (1, 'https://wazuh.example:55000', 'vedette', 'sec-wz', '', 60, 'system', '2026-11-16T08:00:00.000Z', '2026-11-16T09:00:00.000Z', '2026-11-16T08:00:00.000Z')`); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, tls_pin, tls_pin_first_seen, next_pull, updated_at)
+			VALUES (1, 'https://wazuh.example:55000', 'vedette', 'sec-wz', '', 'system', '2026-11-16T08:00:00.000Z', '2026-11-16T09:00:00.000Z', '2026-11-16T08:00:00.000Z')`); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at) VALUES ('001', 1, '192.168.10.30', '', '2026-11-16T08:00:00.000Z')`)

@@ -44,7 +44,9 @@ function FirstCheckText({ d }: { d: DeviceDetail }) {
   const check = history.data?.items.find((r) => r.kind === 'device' && r.outcome !== 'stopped') ?? null
   if (check) return <>{t('sources.scan.checked', { when: fmtRelative(check.started_at) })}</>
   if (!q.data) return <>{t('sources.scan.firstNext')}</>
-  const disc = q.data.engines.find((e) => e.id === 'nmap-discovery') ?? null
+  // the checks of new devices run when the scan window opens (the version scans' next run), not when the sweep's schedule comes due
+  const sweep = q.data.engines.find((e) => e.id === 'nmap-discovery')
+  const disc = sweep ? { enabled: sweep.enabled, next_run_at: q.data.engines.find((e) => e.id === 'nmap-versions')?.next_run_at ?? null } : null
   const f = firstCheck({ ip: d.asset.ip, window: q.data.safety.window, scope: q.data.safety.scope, discovery: disc, now: new Date() })
   return <>{f.when === 'waiting' ? t(`sources.scan.waiting.${f.why}`)
     : f.when === 'now' ? t('sources.scan.firstNow')

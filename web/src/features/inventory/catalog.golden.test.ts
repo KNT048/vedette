@@ -3,7 +3,9 @@
 // After changing curated.json, kev-products.json or the search code, regenerate with
 // `pnpm --dir web exec vitest run -u src/features/inventory/catalog.golden.test.ts`, then run `go test ./modules/inventory`.
 import { describe, expect, it } from 'vitest'
-import { findCatalog, searchCatalog } from './catalog'
+import curatedData from '../../../../content/catalog/curated.json'
+import kevProducts from '../../../../content/catalog/kev-products.json'
+import { findCatalog, fragmentMatch, searchCatalog } from './catalog'
 
 const QUERIES = ['', 'forti', 'fortigate 60f', 'synology', 'windows server 2019', 'tuong lua', 'cisco asa', 'wordpress', 'office', 'qnap', 'zzzzqq', 'microsoft', 'apache', 'hikvision', 'camera', 'nas', 'vpn', 'ivanti', 'sophos', 'tường lửa', 'ms exchange', '  FortiGate  ', 'a', 'juniper ex']
 const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server']
@@ -18,5 +20,16 @@ function compute() {
 describe('catalog golden file shared with the Go backend', () => {
   it('matches content/catalog/search-golden.json', async () => {
     await expect(JSON.stringify(compute(), null, 1) + '\n').toMatchFileSnapshot('../../../../content/catalog/search-golden.json')
+  })
+})
+
+// Every fragment of curated.json against every exploited-list name: the Go rule (core/productid/fragment.go) must give the same
+// pairs (modules/inventory TestFragmentMatch_ParityWithTheWeb reads this file).
+describe('kev_match fragments shared with the Go backend', () => {
+  it('matches content/catalog/fragment-parity.txt', async () => {
+    const fragments = [...new Set((curatedData as { kev_match?: string[] }[]).flatMap((r) => r.kev_match ?? []))]
+    const lines = fragments.flatMap((f) => (kevProducts as { vendor: string; product: string }[]).filter((r) => fragmentMatch(f, r.vendor, r.product)).map((r) => `${f} => ${`${r.vendor}|${r.product}`.toLowerCase()}`))
+    lines.sort()
+    await expect(lines.join('\n') + '\n').toMatchFileSnapshot('../../../../content/catalog/fragment-parity.txt')
   })
 })

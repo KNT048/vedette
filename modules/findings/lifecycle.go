@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -129,6 +130,7 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	byKey := map[string]holder{}
 	moved, folded := 0, 0
+	var decidedBoth []string // (CVE, kept finding) both devices held a decided finding for: the events of both are on the kept one
 	place := func(f Finding, line string) error {
 		if f.AssetID == into && f.SoftwareID == line {
 			return nil
@@ -156,6 +158,9 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 				return err
 			}
 		case r > h.rank: // f outranks the one that holds the key: that one folds into f, which then takes the key
+			if h.rank == 3 {
+				decidedBoth = append(decidedBoth, f.CVE+" "+f.ID)
+			}
 			if err := s.foldFinding(ctx, tx, h.f.ID, f.ID); err != nil {
 				return err
 			}
@@ -165,6 +170,9 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 			}
 			folded++
 		default:
+			if r == 3 {
+				decidedBoth = append(decidedBoth, f.CVE+" "+h.f.ID)
+			}
 			if err := s.foldFinding(ctx, tx, f.ID, h.f.ID); err != nil {
 				return err
 			}
@@ -177,8 +185,11 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	if moved == 0 && folded == 0 {
 		return nil
 	}
-	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into,
-		Detail: fmt.Sprintf("from %s: %d findings moved, %d held by both and folded", from, moved, folded)})
+	detail := fmt.Sprintf("from %s: %d findings moved, %d held by both and folded", from, moved, folded)
+	if len(decidedBoth) > 0 {
+		detail += "; decided on both, the history of both kept on: " + strings.Join(decidedBoth, ", ")
+	}
+	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into, Detail: detail})
 }
 
 // MergeCommitted forgets From's plan items and marks Into's to compare again.

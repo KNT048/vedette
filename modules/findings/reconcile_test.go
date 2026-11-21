@@ -51,7 +51,7 @@ func TestContract_INV9_ReconcileRemovesTheFindingsOfADeviceWhoseDeleteEventWasLo
 	if res.Orphans != 1 || res.Devices != 0 {
 		t.Fatalf("result = %+v", res)
 	}
-	if e.count(`SELECT count(*) FROM fnd_finding`) != 0 || e.count(`SELECT count(*) FROM fnd_finding_history`) != 0 {
+	if e.count(`SELECT count(*) FROM fnd_finding`) != 0 || e.count(`SELECT count(*) FROM fnd_finding_event`) != 0 {
 		t.Fatal("the findings of the deleted device are still there")
 	}
 	if got := e.auditActions(); got[len(got)-1] != "findings.deleted_with_asset" {
@@ -70,7 +70,7 @@ func TestContract_INV9_ReconcileTwiceChangesNothing(t *testing.T) {
 	}
 	e.pub.take()
 	counts := func() [4]int {
-		return [4]int{e.count(`SELECT count(*) FROM fnd_finding`), e.count(`SELECT count(*) FROM fnd_finding_history`), e.count(`SELECT count(*) FROM core_audit`), len(e.pub.take())}
+		return [4]int{e.count(`SELECT count(*) FROM fnd_finding`), e.count(`SELECT count(*) FROM fnd_finding_event`), e.count(`SELECT count(*) FROM core_audit`), len(e.pub.take())}
 	}
 	before := counts()
 	res, err := e.svc.Reconcile(t.Context())

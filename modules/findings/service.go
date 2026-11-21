@@ -566,7 +566,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		for _, f := range fs {
 			e := ev
 			d := Detection{SoftwareID: f.SoftwareID, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: f.MatchedVersion,
-				ProductKey: productOfKey(f.FixKey), Fix: f.Fix, Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
+				Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
 			if f.State != "" {
 				d.RangeOrigin = f.RangeOrigin
 			}
@@ -619,14 +619,6 @@ func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 	})
 }
 
-// productOfKey is the product part of a fix key.
-func productOfKey(key string) string {
-	p, _, _ := strings.Cut(key, "|")
-	if p == "unknown" {
-		return ""
-	}
-	return p
-}
 
 // Handle marks findings of one device handled by a person, with one note (POST /findings/handle): all of ids must be findings of one
 // device (else ErrManyDevices). A finding that already has this handling is skipped. One event and one audit row per finding, all

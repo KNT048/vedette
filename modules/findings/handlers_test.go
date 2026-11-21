@@ -87,7 +87,7 @@ func TestContract_POST3_GetFindingWithoutMitigation(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("status %d: %v", code, b)
 	}
-	if b["id"] != id || b["cve"] != "CVE-2022-27593" || b["status"] != "suspected" || b["basis"] != "product" {
+	if b["id"] != id || b["cve"] != "CVE-2022-27593" || b["status"] != "suspected" || b["basis"] != "version" {
 		t.Fatalf("body = %v", b)
 	}
 	// What to do: empty, not missing
@@ -350,15 +350,15 @@ func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != nil || r["proved_version"] != nil {
 		t.Fatalf("open finding = %v", r)
 	}
-	run("6.2.0") // proved outside the range: closed on that version
-	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != ReasonNotAffectedVersion || r["proved_version"] != "6.2.0" || r["status"] != "not_relevant" {
+	run("6.2.0") // the device moved past the range: patched by Vedette, with the version it moved to
+	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != ReasonFixedByUpdate || r["proved_version"] != "6.2.0" || r["status"] != "patched" {
 		t.Fatalf("closed by proof = %v", r)
 	}
-	run("6.3.0") // a later release also proved: the version that proves it follows the entry, with no new history
-	if r := row("/findings?asset=a-1"); r["proved_version"] != "6.3.0" {
+	run("6.3.0") // a later release changes nothing: the credit names the move that fixed it, with no new history
+	if r := row("/findings?asset=a-1"); r["proved_version"] != "6.2.0" {
 		t.Fatalf("proved on = %v", r)
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'not_relevant'`); n != 1 {
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE kind = 'handled'`); n != 1 {
 		t.Fatalf("history rows %d", n)
 	}
 	// the same row on the all-devices list and on the single finding: one stored column, one answer
@@ -366,7 +366,7 @@ func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 		t.Fatalf("all-devices row = %v", r)
 	}
 	id := row("/findings")["id"].(string)
-	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.3.0" {
+	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.2.0" {
 		t.Fatalf("detail = %v", b)
 	}
 }
@@ -378,8 +378,8 @@ func TestContract_ListDoesNotGuessSoftwareOrProof(t *testing.T) {
 	e := newHTTPEnv(t)
 	id := e.seed()
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET status = 'not_relevant', resolved_by = ?, resolved_at = last_seen,
-			resolution_note = 'Closed: product name only.', resolution_reason = ?, software_id = NULL, proved_version = NULL WHERE id = ?`, SystemUser, ReasonNotAffectedVersion, id)
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET state = 'handled', resolution = 'not_relevant', via = 'data_corrected', resolved_by = ?,
+			resolved_at = last_seen, software_id = NULL WHERE id = ?`, SystemUser, id)
 		return err
 	}); err != nil {
 		t.Fatal(err)

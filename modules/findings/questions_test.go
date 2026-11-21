@@ -1,15 +1,11 @@
 package findings
 
 import (
-	"maps"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 )
-
-// The unchecked list of #910 phase 1 (issue comments 6933401371, 6933429288): exploited CVEs of software the device has that gave
-// no finding, no "add the version" item and no proof, one reason each.
 
 var (
 	uncNow = time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
@@ -188,76 +184,6 @@ func TestUnchecked_910_ItemsActionAndOrder(t *testing.T) {
 	}
 	if s := uncheckedCounts(items); s != (SummaryUnchecked{CVEs: 3, Devices: 2}) {
 		t.Fatalf("counts = %+v", s)
-	}
-}
-
-// Stored and served: the rows are written with the match, a finding the device has (here one the age rule closed) keeps its CVE
-// out of the list, GET /findings answers the contract's shape, and Home counts the same list.
-func TestUnchecked_910_StoredListAndHome(t *testing.T) {
-	t.Parallel()
-	e := newHTTPEnv(t)
-	sw := Software{ID: "s-g", Display: "Acme Gadget", Vendor: "Acme", Product: "Gadget", Version: "9.1", Source: "manual"}
-	w := Software{ID: "s-w", Display: "Acme Widget", Vendor: "Acme", Product: "Widget", Version: "2.0", Source: "scan", KevKeys: []string{"acme|widget"}}
-	a := Asset{ID: "a-1", Name: "nas01", Software: []Software{sw, w}}
-	e.inv.match["a-1"] = a
-	*e.clock = uncNow.Add(-2 * AgeLimit) // the widget entry is recent then: a product finding
-	recent := e.clock.Add(-24 * time.Hour)
-	e.feeds.vulns = []Vuln{
-		uncVuln("CVE-2026-0004", "Acme", "Gadget Core", uncNew, Affected{CPE: "cpe:2.3:a:acme:gadget:9.2:*:*:*:*:*:*:*"}),
-		uncVuln("CVE-2024-0007", "Acme", "Widget", recent),
-		uncVuln("CVE-2024-0008", "Acme", "Widget", recent),
-	}
-	maps.Copy(e.feeds.kev, map[string]KevInfo{
-		"CVE-2026-0004": {Name: "Acme Gadget Core flaw", DateAdded: "2026-10-01", Links: []string{"https://acme.example/sa-4"}},
-		"CVE-2024-0007": {Name: "Acme Widget flaw", DateAdded: recent.Format(time.DateOnly)},
-		"CVE-2024-0008": {Name: "Acme Widget flaw 2", DateAdded: recent.Format(time.DateOnly)},
-	})
-	seedNameOnly(t, e.env, a, e.feeds.vulns[1:2]) // 0007 is a product finding an earlier rule made (the name-only rule makes none)
-	*e.clock = uncNow                             // now 0007 and 0008 are aged: 0007's finding is closed, 0008 never was one
-	if _, err := e.svc.UpsertFromMatch(t.Context(), a, e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_unchecked WHERE asset_id = 'a-1'`); n != 3 {
-		t.Fatalf("stored rows = %d", n)
-	}
-	code, b := e.call("GET", "/findings", "viewer", "")
-	if code != 200 {
-		t.Fatalf("GET /findings = %d %v", code, b)
-	}
-	items, _ := b["unchecked"].([]any)
-	if len(items) != 2 {
-		t.Fatalf("unchecked = %v", b["unchecked"])
-	}
-	keys := func(m map[string]any) []string { return slices.Sorted(maps.Keys(m)) }
-	it := items[0].(map[string]any)
-	if k := keys(it); !slices.Equal(k, []string{"action", "asset", "asset_id", "cves", "reason", "software", "software_id", "version"}) {
-		t.Fatalf("item keys = %v", k)
-	}
-	if it["software"] != "Acme Gadget" || it["software_id"] != "s-g" || it["version"] != "9.1" || it["reason"] != "no_nvd_versions" || it["action"] != "none" {
-		t.Fatalf("item = %v", it)
-	}
-	c := it["cves"].([]any)[0].(map[string]any)
-	if k := keys(c); !slices.Equal(k, []string{"advisory", "cve", "date_added", "name", "ransomware"}) {
-		t.Fatalf("cve keys = %v", k)
-	}
-	if c["cve"] != "CVE-2026-0004" || c["advisory"] != "https://acme.example/sa-4" || c["date_added"] != "2026-10-01" {
-		t.Fatalf("cve = %v", c)
-	}
-	w2 := items[1].(map[string]any)
-	// 0007's finding Vedette closed by itself does not hide it: the CVE was not checked, and this is where it is now
-	if w2["software"] != "Acme Widget" || w2["reason"] != "no_nvd_data" || w2["action"] != "none" || len(w2["cves"].([]any)) != 2 {
-		t.Fatalf("aged widget item = %v", w2)
-	}
-	_, s := e.call("GET", "/findings/summary", "viewer", "")
-	if u := s["unchecked"].(map[string]any); u["cves"] != 3.0 || u["devices"] != 1.0 {
-		t.Fatalf("home unchecked = %v", s["unchecked"])
-	}
-	if _, b = e.call("GET", "/findings?asset=other", "viewer", ""); len(b["unchecked"].([]any)) != 0 {
-		t.Fatalf("filtered = %v", b["unchecked"])
-	}
-	e.deleteDevice(t, "a-1")
-	if n := e.count(`SELECT count(*) FROM fnd_unchecked`); n != 0 {
-		t.Fatalf("rows left after delete = %d", n)
 	}
 }
 

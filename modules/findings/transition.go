@@ -62,8 +62,8 @@ type Detection struct {
 	ProductKey     string // the software line's product, for the fix key
 	Fix            Fix
 	Evidence       *Evidence
-	// ReadAt is when the source read the version the match compared (zero: unknown, the time of the trigger). A finding a person
-	// marked patched reopens only on a reading newer than their mark.
+	// ReadAt is when the source read the version the match compared (zero: unknown). A finding a person marked patched reopens only
+	// on a reading known to be newer than their mark.
 	ReadAt time.Time
 	// Urgency is the layer a new finding starts with until the urgency pass sets it (0: 5, update recommended).
 	Urgency int
@@ -171,10 +171,7 @@ func (t *transition) detected(d Detection) error {
 	if d.Fix.Kind == "" {
 		d.Fix.Kind = FixUnknown
 	}
-	read := d.ReadAt.UTC().Truncate(time.Millisecond)
-	if read.IsZero() {
-		read = t.now
-	}
+	read := d.ReadAt.UTC().Truncate(time.Millisecond) // zero: not known, so never newer than a person's mark
 	f := &t.f
 	if f.State == "" { // a new pair
 		f.SoftwareID = d.SoftwareID
@@ -202,10 +199,12 @@ func (t *transition) detected(d Detection) error {
 		f.Verified, f.Basis = d.Verified, d.Basis
 	}
 	f.RangeOrigin, f.MatchedVersion, f.Evidence = d.RangeOrigin, d.MatchedVersion, d.Evidence
-	if key := FixKey(d.ProductKey, d.Fix); key != was.FixKey {
+	switch key := FixKey(d.ProductKey, d.Fix); {
+	case d.ProductKey == "" && d.Fix == Fix{Kind: FixUnknown}: // the detection brings no fix data (a safe check): the fix stays
+	case key != was.FixKey:
 		t.emit(SystemUser, EvFixChanged, EventDetail{From: was.FixKey, To: key})
 		f.Fix, f.FixKey = d.Fix, key
-	} else {
+	default:
 		f.Fix = d.Fix
 	}
 	if t.now.After(f.LastSeen) {

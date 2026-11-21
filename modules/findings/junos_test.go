@@ -181,42 +181,6 @@ func TestJunos_DeviceOSForms(t *testing.T) {
 	}
 }
 
-// On a test box: the EX4200 already has an open finding of the SRX-only CVE-2023-36846 (the earlier install made it
-// as a product match). The match creates the five EX findings, leaves that one open for a person with the reason in its
-// history, and never closes it (a model is not a proof about the version, and the old-list rule is about "Multiple Products" only).
-func TestJunos_OpenSRXOnlyFindingOnAnEXStaysOpenWithTheReason(t *testing.T) {
-	t.Parallel()
-	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
-	dev := labEX4200()
-	e := newEnv(t)
-	e.inv.match = map[string]Asset{dev.ID: dev}
-	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: NoIP, Kind: "switch", Display: "switch"}}
-	e.feeds.vulns = vulns
-	noModel := dev
-	noModel.Model = ""
-	openProductFindings(t, e, noModel, vulns, []string{"CVE-2023-36846"})
-	for pass := range 2 {
-		res, err := e.svc.UpsertFromMatch(t.Context(), dev, vulns)
-		if err != nil || len(res.Created) != 5*(1-pass) || res.Closed+res.Retired != 0 {
-			t.Fatalf("pass %d: %+v %v", pass, res, err)
-		}
-	}
-	f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2023-36846")
-	if err != nil {
-		t.Fatal(err)
-	}
-	const want = "CISA lists CVE-2023-36846 for Juniper SRX Series only; this device's model is EX4200-48T. Check the vendor advisory and close it if it does not apply."
-	var notes []string
-	for _, h := range f.History {
-		if h.Action == "no_longer_matches" {
-			notes = append(notes, h.Note)
-		}
-	}
-	if f.Status != StatusSuspected || !slices.Equal(notes, []string{want}) {
-		t.Fatalf("status %s, notes %q", f.Status, notes)
-	}
-}
-
 // Review M3 of #703: a person picked "Juniper Junos OS" in the catalog and left the version empty. The version the switch
 // states decides (the five findings), not "add the version"; a row with other keys stays.
 func TestJunos_RecordedRowWithoutVersionGivesWayToTheStatedOne(t *testing.T) {

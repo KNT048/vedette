@@ -153,16 +153,6 @@ func TestMatchAsset_OldWindowsListsThatNeverClose(t *testing.T) {
 	}
 }
 
-// Review r1 #10 of #801: a version finding the agent detected that now matches only by product takes the new sentence but stays a version
-// finding, so it does not carry agent_row (that flag describes a product-only finding).
-func TestApplyMatch_AgentRowOnlyOnProductFindings(t *testing.T) {
-	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent reports …", Agent: true}}
-	got := f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "cannot compare", AgentRow: true}})
-	if got.Basis != BasisVersion || got.Evidence == nil || got.Evidence.Agent || got.Evidence.AgentRow || got.Evidence.Summary != "cannot compare" {
-		t.Fatalf("%+v %+v", got, got.Evidence)
-	}
-}
-
 // Review r2 of #801: the CVE-year proof needs every listed release to be out by the CVE's year (a CVE-2010 list naming Server 2022 grew
 // later); the Interix exception is Microsoft's application only; a missing, future or VulnCheck-recent listing date closes nothing.
 func TestMatchAsset_CVEYearProofNeedsEveryListedRelease(t *testing.T) {

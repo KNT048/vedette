@@ -344,7 +344,7 @@ describe('exposure: auto-detect of the box public IPs', () => {
     expect((await state()).box_ip).toMatchObject({ auto: true, interval_min: 60 })
   })
 
-  it.each([1, 15, 60, 1440])('accepts an interval of %i minutes and audits the change', async (n) => {
+  it.each([5, 15, 60, 1440])('accepts an interval of %i minutes and audits the change', async (n) => {
     const r = await call('PUT', '/exposure/box-ip/settings', { auto: true, interval_min: n })
     expect(r.status).toBe(200)
     expect(r.json).toMatchObject({ auto: true, interval_min: n })

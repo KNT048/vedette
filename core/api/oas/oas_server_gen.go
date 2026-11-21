@@ -1224,7 +1224,7 @@ type Handler interface {
 	ExposurePostExposureTreeIDVerify(ctx context.Context, params ExposurePostExposureTreeIDVerifyParams) (*ExposurePostExposureTreeIDVerifyOK, error)
 	// ExposurePutExposureBoxIPSettings implements exposure_put_exposure_box_ip_settings operation.
 	//
-	// Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval).
+	// Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval).
 	// Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
 	// possible here either.
 	//

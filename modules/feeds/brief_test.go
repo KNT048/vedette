@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,10 +91,30 @@ func TestBrief_CVE2025_22225(t *testing.T) {
 		if len(counting) != 55 || b.RangesFrom != OriginNVD || b.RangesComplete {
 			t.Errorf("nvd first %v: %d ranges count, from %q complete %v", nvdFirst, len(counting), b.RangesFrom, b.RangesComplete)
 		}
-		// NVD names exact releases and no fix; VMware's record states the fixed builds in its own notation ("ESXi80U3d-24585383"),
-		// which the record reader does not read yet, so it stores no row of them and no range of this CVE carries a fixed version.
-		if slices.ContainsFunc(b.Ranges, func(r BriefRange) bool { return r.Fixed != "" }) {
-			t.Errorf("nvd first %v: a range carries a fixed version nothing stated in a readable form", nvdFirst)
+		// NVD names exact releases and no fix; VMware's record states the fixed build of each train in its own notation
+		// ("ESXi80U3d-24585383"): kept as stated beside NVD's rows, never counted, read by the ESXi version scheme.
+		if slices.ContainsFunc(counting, func(r BriefRange) bool { return r.Fixed != "" || r.Origin != OriginNVD || r.Train != "" }) {
+			t.Errorf("nvd first %v: a counting row is not NVD's or carries a fixed version", nvdFirst)
+		}
+		wantFixes := []BriefFix{{"vmware", "esxi", OriginCNA, "8.0 U3", "8.0 U3d (build 24585383)"}, {"vmware", "esxi", OriginCNA, "8.0 U2", "8.0 U2d (build 24585300)"},
+			{"vmware", "esxi", OriginCNA, "7.0 U3", "7.0 U3s (build 24585291)"}}
+		if !slices.Equal(b.Fixes, wantFixes) {
+			t.Errorf("nvd first %v: fixes %+v", nvdFirst, b.Fixes)
+		}
+		var esxi []BriefRange
+		for _, r := range b.Ranges {
+			if r.Origin == OriginCNA && r.Product == "esxi" {
+				esxi = append(esxi, r)
+			}
+		}
+		if len(esxi) != 3 || esxi[0].Counts || esxi[0].VersionType != "vendor:custom" || esxi[0].StartIncl != "8.0" || esxi[0].Fixed != "ESXi80U3d-24585383" ||
+			esxi[0].Train != "8.0 U3" || esxi[0].Versions != "from 8.0 before 8.0 U3d (build 24585383)" || esxi[2].Versions != "from 7.0 before 7.0 U3s (build 24585291)" {
+			t.Errorf("nvd first %v: VMware's rows %+v", nvdFirst, esxi)
+		}
+		// the other products of the record, written as text ("5.x, 4.5.x"), are kept as written and read by no scheme
+		if i := slices.IndexFunc(b.Ranges, func(r BriefRange) bool { return r.Product == "cloudfoundation" && r.Origin == OriginCNA }); i < 0 ||
+			b.Ranges[i].Versions != "5.x, 4.5.x" || b.Ranges[i].Counts || b.Ranges[i].Train != "" {
+			t.Errorf("nvd first %v: Cloud Foundation %+v", nvdFirst, b.Ranges)
 		}
 		if got := []string{counting[0].Versions, counting[2].Versions, counting[43].Versions}; !slices.Equal(got, []string{"7.0", "7.0 update_1", "every version"}) {
 			t.Errorf("nvd first %v: versions %q", nvdFirst, got)
@@ -143,7 +164,8 @@ func TestBrief_SignalsAreReadGenerically(t *testing.T) {
 	}
 }
 
-// GET /feeds/cve/{id} answers the brief of any CVE the catalogue holds, 404 not_in_data for one it does not, and the generated
+// GET /feeds/cve/{id} answers the brief of any CVE the catalogue holds (NVD's 55 rows, then VMware's 3 fixed builds and its 3 text
+// rows; the fixed release of each train), 404 not_in_data for one it does not, and the generated
 // server refuses an id that is not a CVE id before the handler runs.
 func TestBriefRoute(t *testing.T) {
 	t.Parallel()
@@ -155,7 +177,9 @@ func TestBriefRoute(t *testing.T) {
 	})
 	c, b := e.get("/feeds/cve/" + briefCVE)
 	if c != http.StatusOK || at(b, "cwe", 0, "name") != "Out-of-bounds Write" || at(b, "references", 0, "group") != "vendor-advisory" ||
-		len(at(b, "ranges").([]any)) != 55 || at(b, "ranges_from") != "nvd" || at(b, "cvss", "severity") != "high" ||
+		len(at(b, "ranges").([]any)) != 61 || at(b, "ranges", 55, "train") != "8.0 U3" || at(b, "ranges", 55, "counts") != false ||
+		at(b, "fixes", 2, "release") != "7.0 U3s (build 24585291)" || at(b, "fixes", 2, "train") != "7.0 U3" ||
+		at(b, "ranges_from") != "nvd" || at(b, "cvss", "severity") != "high" ||
 		at(b, "cvss", "reading", "attack_vector") != "local" || at(b, "cvss", "reading", "user_interaction") != "none" ||
 		at(b, "cvss", "reading", "attack_requirements") != nil || at(b, "matched", 0, "id") != "a1" || at(b, "epss", "score") != 0.42 ||
 		at(b, "epss", "week_ago") != 0.40 || at(b, "epss", "day") != epssDayForTests || at(b, "workaround") != nil || at(b, "title") != nil ||
@@ -352,5 +376,37 @@ func TestCWENames(t *testing.T) {
 	}
 	if got := weaknesses([]string{"CWE-787", "CWE-9999999"}); got[1] != (Weakness{ID: "CWE-9999999"}) {
 		t.Errorf("an id the list does not hold: %+v", got)
+	}
+}
+
+// CVE-2026-88779 (the public record sample): NetScaler states "13.1-64.28" and its FIPS/NDcPP fix "13.1-37.282" without the word, so
+// both end in train 13.1 of ADC: the brief names no train or fixed release for them, and keeps the 14.1 line's (and Gateway's 13.1, stated once).
+func TestBrief_TwoEndsInOneTrainNameNoFix(t *testing.T) {
+	t.Parallel()
+	_, recs := loadRecordSample(t)
+	rec, ok := recs["CVE-2026-88779"]
+	if !ok {
+		t.Fatal("CVE-2026-88779 is not in the sample")
+	}
+	rows, _, _ := briefRanges(rec.Ranges)
+	var trains, plain []string
+	for _, r := range rows {
+		if r.Product != "adc" {
+			continue
+		}
+		if r.Train != "" {
+			trains = append(trains, r.Train+" "+r.FixedRelease)
+		} else {
+			plain = append(plain, r.Versions)
+		}
+	}
+	if !slices.ContainsFunc(trains, func(s string) bool { return strings.HasPrefix(s, "14.1 ") }) || slices.ContainsFunc(trains, func(s string) bool { return strings.HasPrefix(s, "13.1 ") }) ||
+		!slices.Contains(plain, "before 13.1-37.282") {
+		t.Fatalf("trains %q, rows without one %q", trains, plain)
+	}
+	for _, f := range briefFixes(rows) {
+		if f.Product == "adc" && f.Train == "13.1" {
+			t.Fatalf("fix named for the ambiguous train: %+v", f)
+		}
 	}
 }

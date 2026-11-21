@@ -81,6 +81,11 @@ func scanService(d deps) *scan.Service {
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}
+	if d.Schedules != nil { // the regular check is a core/schedule owner; the service is built once, so it registers once
+		if err := d.Schedules.Register(svc.ScheduleOwner()); err != nil {
+			panic("vedette: " + err.Error())
+		}
+	}
 	scanServices[d.DB] = svc
 	return svc
 }

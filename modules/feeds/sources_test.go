@@ -21,6 +21,9 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"github.com":                                 true, // the CVE Program's cvelistV5 release files (which redirect to GitHub's file host) and record files
 		"gitlab.com":                                 true, // the Exploit-DB index (OffSec's public exploitdb repository)
 		"codeload.github.com":                        true, // the PoC-in-GitHub index as one archive
+		"api.msrc.microsoft.com":                     true, // Microsoft's list of the CVEs it flags exploited (Security Update Guide)
+		"sec.cloudapps.cisco.com":                    true, // Cisco's advisory feed and the CSAF documents of its advisories
+		"filestore.fortinet.com":                     true, // FortiGuard's advisory feed and the CSAF documents of its advisories
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -31,11 +34,14 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if err := CheckURL(s.URL); err != nil {
 			t.Errorf("%s: default URL fails INV-2: %v", s.ID, err)
 		}
-		if err := CheckInterval(s.IntervalHours); err != nil {
-			t.Errorf("%s: %v", s.ID, err)
+		if s.IntervalHours < 1 || s.IntervalHours > 168 { // the schedule's limits: an hour to a week
+			t.Errorf("%s: default interval %d is outside the schedule's limits", s.ID, s.IntervalHours)
 		}
 		want := map[Kind]int{KindVulnerabilities: 24, KindIOC: 6}[s.Kind]
 		if s.ID == vulnCheckFeedID { // the customer's own key, 1,000 requests a minute: a few pages every 6 hours
+			want = 6
+		}
+		if vendorClaimFeed(s.ID) { // a vendor's word on exploitation: small lists, read every 6 hours so a claim is not a day late
 			want = 6
 		}
 		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1); a 304 keeps it cheap
@@ -56,8 +62,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 20 {
-		t.Fatalf("expected the 20 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 23 {
+		t.Fatalf("expected the 23 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

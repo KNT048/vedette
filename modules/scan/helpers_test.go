@@ -277,13 +277,13 @@ func errOf(b map[string]any) (code, msg string) {
 
 // seedRun stores a vulnerability check as an earlier process left it: in status st (an end time when it has ended), started at
 // the given time, with one result row (a device item) per id.
-func seedRun(ctx context.Context, tx *sql.Tx, id, trigger, st, at string, ids ...string) error {
+func seedRun(ctx context.Context, tx *sql.Tx, id, st, at string, ids ...string) error {
 	var ended any
 	if st != "running" && st != "stopping" && st != "queued" {
 		ended = at
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, total, done, queued_at, started_at, ended_at, updated_at)
-VALUES (?1, 'scan', 'vuln_check', 'nuclei', 'Vulnerability check', ?2, 'x', ?3, ?4, 0, ?5, ?5, ?6, ?5)`, id, trigger, st, len(ids), at, ended); err != nil {
+VALUES (?1, 'scan', 'vuln_check', 'nuclei', 'Vulnerability check', 'manual', 'x', ?2, ?3, 0, ?4, ?4, ?5, ?4)`, id, st, len(ids), at, ended); err != nil {
 		return err
 	}
 	for i, d := range ids {

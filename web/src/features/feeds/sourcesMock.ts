@@ -34,6 +34,10 @@ const DEFS: Def[] = [
   { id: 'metasploit', name: 'Metasploit modules', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json', license: 'BSD-3-Clause, Rapid7 metasploit-framework module metadata. Facts only; no module code is fetched.', records: 3215 },
   { id: 'exploit-db', name: 'Exploit-DB', kind: 'vulnerabilities', format: 'csv', url: 'https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv', license: 'GPL-2.0, OffSec exploitdb repository index. Facts only; no exploit file is fetched.', records: 25094 },
   { id: 'poc-in-github', name: 'PoC-in-GitHub', kind: 'vulnerabilities', format: 'json', url: 'https://codeload.github.com/nomi-sec/PoC-in-GitHub/tar.gz/refs/heads/master', license: 'CC0, nomi-sec PoC-in-GitHub index. Facts only; no repository is fetched.', records: 11875 },
+  // Vendor exploitation claims: facts only (CVE id, date of the claim, advisory link)
+  { id: 'msrc', name: 'Microsoft exploited CVEs', kind: 'vulnerabilities', format: 'json', url: "https://api.msrc.microsoft.com/sug/v2.0/en-US/vulnerability?$filter=exploited%20eq%20%27Yes%27", license: "Facts from Microsoft's Security Update Guide (the Exploited flag), Microsoft Terms of Use. Not endorsed by Microsoft.", records: 191 },
+  { id: 'cisco-psirt', name: 'Cisco PSIRT advisories', kind: 'vulnerabilities', format: 'rss', url: 'https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml', license: "Facts from Cisco's public security advisories (CSAF), Cisco Terms of Use. Each claim links its advisory.", records: 3 },
+  { id: 'fortinet-psirt', name: 'Fortinet PSIRT advisories', kind: 'vulnerabilities', format: 'rss', url: 'https://filestore.fortinet.com/fortiguard/rss/ir.xml', license: "Facts from Fortinet's public PSIRT advisories (CSAF), Fortinet Terms of Use. Each claim links its advisory.", records: 1 },
   { id: 'ipsum', name: 'IPsum', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt', license: 'Unlicense', records: 41230 },
   { id: 'et-open', name: 'ET Open compromised IPs', kind: 'ioc', format: 'lines', url: 'https://rules.emergingthreats.net/blockrules/compromised-ips.txt', license: 'BSD', records: 1480 },
   { id: 'abusech-feodo', name: 'abuse.ch Feodo Tracker', kind: 'ioc', format: 'lines', url: 'https://feodotracker.abuse.ch/downloads/ipblocklist.txt', license: 'CC0', records: 212 },
@@ -132,7 +136,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
 function toCustom(i: ReturnType<typeof FeedInputSchema.parse>, prev: Feed | null): Feed {
   const last4 = i.auth.type === 'none' ? null : i.auth.secret !== undefined ? i.auth.secret.slice(-4) : prev?.auth.secret_last4 ?? null
   return {
-    id: prev?.id ?? newId('cf'), builtin: false, name: i.name.trim(), kind: i.kind, format: i.parser.format, url: i.url.trim(), default_url: null, enabled: i.enabled, interval_hours: i.interval_hours,
+    id: prev?.id ?? newId('cf'), builtin: false, name: i.name.trim(), kind: i.kind, format: i.parser.format, url: i.url.trim(), default_url: null, enabled: i.enabled, interval_hours: prev?.interval_hours ?? 6,
     auth: { type: i.auth.type, header_name: i.auth.type === 'header' ? i.auth.header_name : null, username: i.auth.type === 'basic' ? (i.auth.username ?? '').trim() : null, secret_last4: last4 },
     parser: i.parser, last_fetch: prev?.last_fetch ?? null, records: prev?.records ?? null, status: prev?.status ?? 'never', error: prev?.error ?? null, license: null, answered_by: null,
   }
@@ -167,12 +171,12 @@ export const sourceHandlers = [
     if (def && key !== undefined) { // saving a key turns the feed on; removing it turns the feed off and drops what it loaded
       config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, key_last4: key ? key.slice(-4) : null, enabled: p.data.enabled ?? !!key, ...(!key && { last_fetch: null, records: null, status: 'never' as const, error: null }) } } }))
     }
-    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
-    else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } : f) }))
+    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(url !== undefined && { url }) } } }))
+    else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(url !== undefined && { url }) } : f) }))
     // The two tier feeds of Updates to plan: on starts their first load, off empties them, as the box's tier state does.
     const tier = id === 'epss-all' ? 'epss' : id === 'nvd-recent' ? 'recent' : null
     if (tier && p.data.enabled !== undefined) tierState.update((st) => ({ ...st, [tier]: p.data.enabled ? (st[tier] === 'off' ? 'loading' : st[tier]) : 'off' }))
-    audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
+    audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), url !== undefined && 'address changed'].filter(Boolean).join(', '))
     return HttpResponse.json(allFeeds(config.get()).find((f) => f.id === id))
   }),
 

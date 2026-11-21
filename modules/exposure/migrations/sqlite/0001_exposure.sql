@@ -156,8 +156,6 @@ CREATE TABLE exp_attempt (
 
 CREATE TABLE exp_setting (
     id               INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    auto             INTEGER NOT NULL DEFAULT 1 CHECK (auto IN (0, 1)),
-    interval_min     INTEGER NOT NULL DEFAULT 60 CHECK (interval_min BETWEEN 1 AND 1440),
     last_run_at      TEXT CHECK (last_run_at IS NULL OR last_run_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_run_ok      INTEGER CHECK (last_run_ok IS NULL OR last_run_ok IN (0, 1)),
     last_run_message TEXT CHECK (last_run_message IS NULL OR length(last_run_message) <= 1000),

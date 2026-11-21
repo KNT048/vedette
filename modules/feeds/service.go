@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/orgtime"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -113,6 +114,9 @@ type Deps struct {
 	// critical). id names the alert; notify does not dedupe such notices once sent, so the watch records an alert before it queues it.
 	// ErrAlertOff (notify off) makes the watch try again later. nil: no alerts (tests, a box without notify).
 	Alert func(ctx context.Context, id, title, text string, critical bool) error
+	// Schedules saves a source's schedule when it is created (core/schedule Service.EnsureTx). nil: sources have none, so only the
+	// first pull and the retries after a failure pull them (tests).
+	Schedules SchedulePort
 }
 
 // Service is the module: the pull logic, the jobs and the data the handlers read. Build it with NewService,
@@ -144,6 +148,9 @@ type Service struct {
 
 	held heldCache // what each feed of heldNotes holds, counted when its row is read
 
+	advMu sync.Mutex
+	adv   map[string]*advisoryMemory // per vendor feed: what the box read of each advisory (readAdvisories)
+
 	nvdGateMu   sync.Mutex
 	nvdNext     time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)
 	nvdBookedAt time.Time // the clock reading the last slot was booked at: a later reading before it is a clock stepped back
@@ -169,7 +176,20 @@ func (s *Service) Store() *Store { return s.st }
 
 // Seed merges the built-in feeds into the database. Call it after the migrations, every start.
 func (s *Service) Seed(ctx context.Context) error {
-	return s.st.SeedBuiltins(ctx, s.Clock())
+	if err := s.st.SeedBuiltins(ctx, s.Clock()); err != nil {
+		return err
+	}
+	if s.Schedules == nil {
+		return nil
+	}
+	return s.DB.Write(ctx, func(tx *sql.Tx) error { // a source without a schedule gets its default; one a person set is left alone
+		for _, b := range BuiltinSources() {
+			if err := s.ensureSchedule(ctx, tx, b.ID, b.IntervalHours, corerun.System); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // pinned is the CVEs an open finding references (Deps.Pins): the catalogue keeps them whatever their age.

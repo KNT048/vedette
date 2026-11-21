@@ -57,6 +57,13 @@
 - **findings** (urgency lớp 3, `Store.Signals`): `first_seen` là ngày hiện trên lý do; `qualifies = 0` không bao giờ là lớp 3.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục chỉ mục exploit công khai), `sourcesMock.ts` + `conformance.test.ts` (20 feed có sẵn), `sources_test.go` (host `gitlab.com`, `codeload.github.com`), `heldnote.go` (`poc-in-github`: bao nhiêu CVE đạt).
 
+## Modifying: `signal_claims.go`, `signal_vendor.go`, `signal_msrc.go`, `signal_csaf.go` (feeds `msrc`, `cisco-psirt`, `fortinet-psirt`)
+
+- **Mẫu câu của hãng** (`claimForm`, `ciscoForms`, `fortinetForms`, `claimReader`): trường có cấu trúc (CSAF `exploit_status`, cờ Exploited của Microsoft) quyết trước; nếu không có, chỉ câu khớp đúng một mẫu câu thật của hãng mới là tuyên bố; câu nói về khai thác mà không khớp mẫu nào bị đếm "unclassified" trên nhật ký feed, không bao giờ đoán. Các nguồn văn bản sau này dùng cùng cách (mẫu riêng từng nguồn). Đổi mẫu ⇒ chạy lại `TestVendorClaims_CountsOfTheFrozenFixtures` (24 Cisco, 7 Fortinet, 0 khớp nhầm, 1 câu unclassified), `TestClaimForms_*` và `TestCSAFClaims_WorkIsLinearInTheDocument`.
+- **findings** (urgency lớp 2, `Store.Signals`): hàng `exploited` của ba nguồn này `qualifies = 1` ngay; `first_seen` là ngày nguồn nói, hoặc lần hộp tự thấy khi ngày nguồn cũ hơn lần kéo tốt trước quá 24 giờ. `MatchStamp` chưa có ba feed này (như các feed public-exploit).
+- **Danh mục** (`keepSetSQL`, `publicListedSQL`): CVE có tuyên bố được giữ ở mọi tuổi và có thể hỏi NVD/CVE record theo ID (danh sách công khai, mọi hộp hỏi như nhau).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục tuyên bố khai thác của hãng), `sourcesMock.ts` + `conformance.test.ts` (23 feed có sẵn), `sources_test.go` (host `api.msrc.microsoft.com`, `sec.cloudapps.cisco.com`, `filestore.fortinet.com`; chu kỳ 6 giờ), `heldnote_test.go`, `store.go` (tắt/bật lại ⇒ đọc lại từ đầu).
+
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads
 
 - **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.
@@ -194,3 +201,12 @@
 
 ## Modifying: `DeviceMerged`, `DeviceDeleted` (`devicelifecycle.go`, INV-33)
 - **inventory** calls them inside its merge or delete transaction (core/lifecycle, registered in `cmd/vedette/devicelifecycle.go`): write only through `tx`; an error rolls the inventory's write back. `HaveSince` (findings) reads `device_id`: a change of what it holds after a merge or delete changes which device an answer scopes.
+
+## Modifying: vendor-notation rows (`statedRows`, `exceptRows`, `Range.Generic`, `genericRowSQL`, `RangeScheme`), `core/versionscheme`, the catalogue's `scheme`/`record` (VN-1…3, BRIEF-3)
+- **Every reader that matches** must read generic rows only (`Range.Generic`, `genericRowSQL`): a new query on `feeds_cve_range` for matching that forgets it compares "8.0" with "ESXi80U3d-24585383" and changes findings. `TestRecordRanges_ExploitedListView` and the findings golden tests hold the line.
+- **findings (the one match pass)**: to use a vendor row, resolve the software's product (`productid`), take its `Scheme`, read the rows with `feeds.RangeScheme` and decide with `versionscheme.Judge` on `Scheme.Installed(version, build)`. ESXi needs the host's build (sensor-active states it in the OS line; the software row keeps the version and the update CPE only).
+- **core/productid**: `scheme` must be a `versionscheme` name (the catalogue refuses to load otherwise); `record` names only feed `ByRangeName`, never inventory identity; `kev_shared` keeps a combined exploited-list name ("ESXi and Workstation") in a product's match keys without `ByKEV` resolving it to that product.
+- **A change of `recordRanges`/`statedRows` output** must bump `recordReader`: records are not stored whole, so only a new whole-list read brings the new rows to boxes that read the records already.
+- **sensor-active**: reads the ESXi build table through `versionscheme.ESXiBuild`; a new release is a row of `esxi-builds.json`.
+- **web**: `CveRange.train`, `CveRange.fixed_release`, `CveBrief.fixes` (`contract.ts`, `briefSamples.ts`); the `vendor:` version types never count.
+- **Storage**: about 0.6 extra rows per record read (650 rows for the 1 092 records of the count sample): a few MB on a full catalogue.

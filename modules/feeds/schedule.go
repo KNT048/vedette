@@ -2,7 +2,8 @@ package feeds
 
 import "time"
 
-// Schedule rules as pure functions of an injected clock (INV-8, INV-9).
+// The back-off after a failed pull and the staleness rule, as pure functions of an injected clock (INV-8, INV-9). When a feed is
+// pulled regularly is its schedule (feedschedule.go).
 const (
 	// BackoffBase is the first retry delay after a failed pull.
 	BackoffBase = 5 * time.Minute
@@ -59,31 +60,35 @@ func interval(hours int) time.Duration {
 	return time.Duration(hours) * time.Hour
 }
 
-// NextAttempt is when the feed is next due. Never pulled: the zero time (due
-// now). After a success: last success plus the interval. After failures: last
-// attempt plus the back-off, which never exceeds the feed's interval.
-func (s State) NextAttempt(intervalHours int) time.Time {
+// RetryAt is when a feed that failed is tried again: the last attempt plus the back-off, which never exceeds the feed's interval.
+func (s State) RetryAt(intervalHours int) time.Time {
 	iv := interval(intervalHours)
-	if s.Failures > 0 {
-		b := Backoff(s.Failures)
-		if b > iv {
-			b = iv
-		}
-		return s.LastAttempt.Add(b)
+	b := Backoff(s.Failures)
+	if b > iv {
+		b = iv
 	}
-	if s.LastSuccess.IsZero() {
-		return time.Time{}
-	}
-	return s.LastSuccess.Add(iv)
+	return s.LastAttempt.Add(b)
 }
 
-// Due reports whether a pull should start at now. A success or attempt time in the
-// future (a clock that was wrong) counts as due, so pulls never wait for the clock.
-func (s State) Due(now time.Time, intervalHours int) bool {
+// Due reports whether a pull should start at now. When the feed's last pull was a success the regular pull is the feed's schedule
+// (core_schedule, feeds.source:<id>): lastDue is when it last came due, and the feed is due when that is after its last pull. A feed
+// that never pulled is due at once, and one that failed is due when its back-off is over. A success or attempt time in the future (a
+// clock that was wrong) counts as due, so pulls never wait for the clock.
+func (s State) Due(now time.Time, intervalHours int, lastDue *time.Time) bool {
 	if s.LastSuccess.After(now) || s.LastAttempt.After(now) { // recorded while the clock was wrong
 		return true
 	}
-	return !now.Before(s.NextAttempt(intervalHours))
+	if s.Failures > 0 {
+		return !now.Before(s.RetryAt(intervalHours))
+	}
+	if s.LastSuccess.IsZero() {
+		return true
+	}
+	last := s.LastSuccess
+	if s.LastAttempt.After(last) {
+		last = s.LastAttempt
+	}
+	return lastDue != nil && lastDue.After(last)
 }
 
 // IsStale is the INV-9 check: an enabled feed is stale when its data is older

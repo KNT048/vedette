@@ -49,7 +49,7 @@ func TestRun_AQueuedCheckAfterARestartDoesNotRun(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	if err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		return seedRun(r.ctx(), tx, "run-queued", "manual", "queued", "2026-11-10T09:00:00.000Z", "a-web01")
+		return seedRun(r.ctx(), tx, "run-queued", "queued", "2026-11-10T09:00:00.000Z", "a-web01")
 	}); err != nil {
 		t.Fatal(err)
 	}

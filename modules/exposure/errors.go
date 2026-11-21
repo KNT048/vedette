@@ -39,7 +39,6 @@ var (
 	ErrNotAnIP        = apiErr(400, "bad_value", "Not an IP address. Example: 203.0.113.10.")
 	ErrKind           = apiErr(400, "bad_value", "Choose Domain or Public IP.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
-	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every minute up to every 24 hours (%d minutes).", MaxIntervalMin)
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)
 	ErrDisagree       = apiErr(502, "unreachable", "%s", msgDisagree)
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")

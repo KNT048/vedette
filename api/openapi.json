@@ -22201,7 +22201,7 @@
     "/exposure/box-ip/settings": {
       "put": {
         "operationId": "exposure_put_exposure_box_ip_settings",
-        "summary": "Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
+        "summary": "Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
         "tags": [
           "exposure"
         ],
@@ -22250,7 +22250,7 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Minutes between automatic checks, 1 to 1440. Default 60"
+                      "description": "Minutes between automatic checks, 5 to 1440. Default 60"
                     },
                     "last_run": {
                       "anyOf": [
@@ -25098,7 +25098,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Minutes between automatic checks, 1 to 1440. Default 60"
+                          "description": "Minutes between automatic checks, 5 to 1440. Default 60"
                         },
                         "last_run": {
                           "anyOf": [
@@ -37921,11 +37921,6 @@
                   "enabled": {
                     "type": "boolean"
                   },
-                  "interval_hours": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 168
-                  },
                   "auth": {
                     "type": "object",
                     "properties": {
@@ -38061,7 +38056,6 @@
                   "kind",
                   "url",
                   "enabled",
-                  "interval_hours",
                   "auth",
                   "parser"
                 ],
@@ -38120,7 +38114,8 @@
                     "interval_hours": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 168
+                      "maximum": 168,
+                      "description": "Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})"
                     },
                     "auth": {
                       "type": "object",
@@ -38425,11 +38420,6 @@
                   "enabled": {
                     "type": "boolean"
                   },
-                  "interval_hours": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 168
-                  },
                   "auth": {
                     "type": "object",
                     "properties": {
@@ -38565,7 +38555,6 @@
                   "kind",
                   "url",
                   "enabled",
-                  "interval_hours",
                   "auth",
                   "parser"
                 ],
@@ -38624,7 +38613,8 @@
                     "interval_hours": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 168
+                      "maximum": 168,
+                      "description": "Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})"
                     },
                     "auth": {
                       "type": "object",
@@ -39467,7 +39457,7 @@
                           },
                           "version_type": {
                             "type": "string",
-                            "description": "The CVE record's versionType (\"semver\", \"custom\" …), else \"\""
+                            "description": "The CVE record's versionType (\"semver\", \"custom\" …), else \"\"; \"vendor:\" and that word for a row kept in the vendor's own notation, which only the product's version scheme reads (it never counts)"
                           },
                           "default_status": {
                             "type": "string",
@@ -39488,7 +39478,15 @@
                           },
                           "versions": {
                             "type": "string",
-                            "description": "The versions in words: \"from 2.0 before 2.4.58\", \"up to 3.1\", \"7.0 update_1\", \"every version\""
+                            "description": "The versions in words: \"from 2.0 before 2.4.58\", \"up to 3.1\", \"7.0 update_1\", \"every version\"; in the version scheme's words when the product has one: \"from 8.0 before 8.0 U3d (build 24585383)\""
+                          },
+                          "train": {
+                            "type": "string",
+                            "description": "The release train the row's end belongs to, as the product's version scheme reads it (\"8.0 U3\"); \"\" when no scheme reads the row"
+                          },
+                          "fixed_release": {
+                            "type": "string",
+                            "description": "The fixed release, as the product's version scheme reads it (\"8.0 U3d (build 24585383)\"); \"\" when none or no scheme reads the row"
                           }
                         },
                         "required": [
@@ -39506,11 +39504,53 @@
                           "version_type",
                           "default_status",
                           "platforms",
-                          "versions"
+                          "versions",
+                          "train",
+                          "fixed_release"
                         ],
                         "additionalProperties": false
                       },
                       "description": "Every affected-versions row, the ones that count first"
+                    },
+                    "fixes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "vendor": {
+                            "type": "string"
+                          },
+                          "product": {
+                            "type": "string"
+                          },
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "nvd",
+                              "cna",
+                              "adp"
+                            ],
+                            "description": "Who stated it"
+                          },
+                          "train": {
+                            "type": "string",
+                            "description": "The release train (\"8.0 U3\")"
+                          },
+                          "release": {
+                            "type": "string",
+                            "description": "Its fixed release (\"8.0 U3d (build 24585383)\")"
+                          }
+                        },
+                        "required": [
+                          "vendor",
+                          "product",
+                          "origin",
+                          "train",
+                          "release"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The fixed release of each product's release train, as its version scheme reads the ranges: the vendor's first, one per product and train; empty for a product without a scheme"
                     },
                     "ranges_from": {
                       "anyOf": [
@@ -39787,6 +39827,7 @@
                     "lists",
                     "signals",
                     "ranges",
+                    "fixes",
                     "ranges_from",
                     "ranges_complete",
                     "references",
@@ -40809,7 +40850,8 @@
                           "interval_hours": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 168
+                            "maximum": 168,
+                            "description": "Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})"
                           },
                           "auth": {
                             "type": "object",
@@ -41068,11 +41110,6 @@
                   "enabled": {
                     "type": "boolean"
                   },
-                  "interval_hours": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 168
-                  },
                   "url": {
                     "description": "Built-in: a mirror address. Empty string resets it to the default",
                     "type": "string",
@@ -41139,7 +41176,8 @@
                     "interval_hours": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 168
+                      "maximum": 168,
+                      "description": "Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})"
                     },
                     "auth": {
                       "type": "object",
@@ -41431,7 +41469,8 @@
                     "interval_hours": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 168
+                      "maximum": 168,
+                      "description": "Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})"
                     },
                     "auth": {
                       "type": "object",
@@ -58866,7 +58905,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise"
+                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server, in minutes (5 or more); null otherwise"
                     }
                   },
                   "required": [
@@ -59054,7 +59093,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise"
+                      "description": "agent wazuh: how often Vedette pulls from the Wazuh server, in minutes (5 or more); null otherwise"
                     }
                   },
                   "required": [
@@ -59499,7 +59538,7 @@
                     "type": "integer",
                     "minimum": -9007199254740991,
                     "maximum": 9007199254740991,
-                    "description": "5, 15, 60, 360 or 1440"
+                    "description": "Minutes between pulls, 5 or more. It is the schedule agent-intake.wazuh, which the schedule editor changes too"
                   }
                 },
                 "required": [
@@ -59689,7 +59728,7 @@
                     "type": "integer",
                     "minimum": -9007199254740991,
                     "maximum": 9007199254740991,
-                    "description": "5, 15, 60, 360 or 1440"
+                    "description": "Minutes between pulls, 5 or more. It is the schedule agent-intake.wazuh, which the schedule editor changes too"
                   }
                 },
                 "required": [
@@ -102151,39 +102190,6 @@
                         },
                         "auto_rescan": {
                           "type": "boolean"
-                        },
-                        "schedule": {
-                          "type": "object",
-                          "properties": {
-                            "enabled": {
-                              "type": "boolean"
-                            },
-                            "frequency": {
-                              "type": "string",
-                              "enum": [
-                                "daily",
-                                "weekly"
-                              ]
-                            },
-                            "weekday": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 7,
-                              "description": "1 = Monday … 7 = Sunday"
-                            },
-                            "at": {
-                              "type": "string",
-                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-                              "description": "HH:MM"
-                            }
-                          },
-                          "required": [
-                            "enabled",
-                            "frequency",
-                            "weekday",
-                            "at"
-                          ],
-                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -102192,22 +102198,9 @@
                         "exclusions",
                         "stop_on_unresponsive",
                         "unresponsive_after",
-                        "auto_rescan",
-                        "schedule"
+                        "auto_rescan"
                       ],
                       "additionalProperties": false
-                    },
-                    "next_run": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
                     },
                     "scope": {
                       "type": "object",
@@ -102268,24 +102261,15 @@
                     "version": {
                       "type": "string",
                       "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
-                    },
-                    "schedule_blocked_reason": {
-                      "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
                     }
                   },
                   "required": [
                     "config",
-                    "next_run",
                     "scope",
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
-                    "version",
-                    "schedule_blocked_reason"
+                    "version"
                   ],
                   "additionalProperties": false
                 }
@@ -102373,33 +102357,6 @@
                   "auto_rescan": {
                     "type": "boolean"
                   },
-                  "schedule": {
-                    "type": "object",
-                    "properties": {
-                      "enabled": {
-                        "type": "boolean"
-                      },
-                      "frequency": {
-                        "type": "string",
-                        "enum": [
-                          "daily",
-                          "weekly"
-                        ]
-                      },
-                      "weekday": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 7,
-                        "description": "1 = Monday … 7 = Sunday"
-                      },
-                      "at": {
-                        "type": "string",
-                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-                        "description": "HH:MM"
-                      }
-                    },
-                    "additionalProperties": false
-                  },
                   "dangerous_checks": {
                     "type": "boolean",
                     "const": false,
@@ -102482,39 +102439,6 @@
                         },
                         "auto_rescan": {
                           "type": "boolean"
-                        },
-                        "schedule": {
-                          "type": "object",
-                          "properties": {
-                            "enabled": {
-                              "type": "boolean"
-                            },
-                            "frequency": {
-                              "type": "string",
-                              "enum": [
-                                "daily",
-                                "weekly"
-                              ]
-                            },
-                            "weekday": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 7,
-                              "description": "1 = Monday … 7 = Sunday"
-                            },
-                            "at": {
-                              "type": "string",
-                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-                              "description": "HH:MM"
-                            }
-                          },
-                          "required": [
-                            "enabled",
-                            "frequency",
-                            "weekday",
-                            "at"
-                          ],
-                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -102523,22 +102447,9 @@
                         "exclusions",
                         "stop_on_unresponsive",
                         "unresponsive_after",
-                        "auto_rescan",
-                        "schedule"
+                        "auto_rescan"
                       ],
                       "additionalProperties": false
-                    },
-                    "next_run": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
                     },
                     "scope": {
                       "type": "object",
@@ -102599,24 +102510,15 @@
                     "version": {
                       "type": "string",
                       "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
-                    },
-                    "schedule_blocked_reason": {
-                      "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
                     }
                   },
                   "required": [
                     "config",
-                    "next_run",
                     "scope",
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
-                    "version",
-                    "schedule_blocked_reason"
+                    "version"
                   ],
                   "additionalProperties": false
                 }

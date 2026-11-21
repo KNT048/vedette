@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	coreschedule "github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -88,15 +89,24 @@ func (s *Service) deepDue(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	now := s.clock()
-	return last.IsZero() || last.After(now.Add(clockSlack)) || now.Sub(last) >= DeepEvery, nil
+	// one job tick of slack: at the default interval of an hour the checks alternate, a full one and a light one
+	return last.IsZero() || last.After(now.Add(clockSlack)) || now.Sub(last) >= DeepEvery+JobTick/2, nil
 }
 
 // SaveSettings turns auto-detect on or off and sets its interval (PUT /exposure/box-ip/settings, INV-11).
 // Turning it on checks at once, unless the box checked within the last EnableGap (so toggling cannot be used to
 // probe over and over). The list of IPs is not touched.
 func (s *Service) SaveSettings(ctx context.Context, user string, auto bool, interval int) (BoxIP, error) {
-	if interval < MinIntervalMin || interval > MaxIntervalMin {
-		return BoxIP{}, ErrBadInterval
+	rule := coreschedule.Every(interval)
+	if err := publicIPLimits.Check(rule); err != nil {
+		var re *coreschedule.RuleError
+		if errors.As(err, &re) {
+			return BoxIP{}, apiErr(400, "bad_interval", "%s", re.Message)
+		}
+		return BoxIP{}, err
+	}
+	if s.cfg.Schedules == nil {
+		return BoxIP{}, errors.New("exposure: no schedule service is wired")
 	}
 	var before BoxIP
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
@@ -104,7 +114,7 @@ func (s *Service) SaveSettings(ctx context.Context, user string, auto bool, inte
 		if before, err = loadBoxIP(ctx, tx); err != nil {
 			return err
 		}
-		if err := saveSettings(ctx, tx, auto, interval); err != nil {
+		if err := s.cfg.Schedules.SaveTx(ctx, tx, PublicIPScheduleKey, coreschedule.Setting{Enabled: auto, Rule: rule}, user); err != nil {
 			return err
 		}
 		state := "off"

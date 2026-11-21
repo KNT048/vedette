@@ -843,7 +843,7 @@ export const handlers = [
     const b = await body<{ auto: boolean; interval_min: number }>(request)
     if (typeof b.auto !== 'boolean') return fail(400, 'invalid_setting', 'Say whether auto-detect is on or off.')
     const n = b.interval_min
-    if (typeof n !== 'number' || !Number.isInteger(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) return fail(400, 'bad_interval', `Choose how often to check: every minute up to every 24 hours (${MAX_INTERVAL} minutes).`)
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) return fail(400, 'bad_interval', `The interval is at least 5 minutes. The lookup services rate-limit; a change is found at the next check.`)
     const before = boxIp.get()
     boxIp.set({ ...before, auto: b.auto, interval_min: n })
     audit('exposure.box_ip_settings', 'box', `auto-detect ${b.auto ? 'on' : 'off'}, every ${n} minutes`)

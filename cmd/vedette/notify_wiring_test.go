@@ -491,6 +491,7 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 	if z := svc.Health(ctx).Zone; z != "America/New_York" {
 		t.Fatalf("zone %q", z)
 	}
+	sweepComesDue(t, *s.d, svc) // the sweep's schedule came due; the pass waits for the window
 	if err := svc.Tick(ctx); err != nil {
 		t.Fatal(err)
 	}

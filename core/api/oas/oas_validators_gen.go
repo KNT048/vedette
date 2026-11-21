@@ -42762,6 +42762,34 @@ func (s *FeedsGetFeedsCveIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Fixes == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Fixes {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fixes",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Lists == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -43805,6 +43833,42 @@ func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *FeedsGetFeedsCveIDOKFixesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FeedsGetFeedsCveIDOKFixesItemOrigin) Validate() error {
+	switch s {
+	case "nvd":
+		return nil
+	case "cna":
+		return nil
+	case "adp":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FeedsGetFeedsCveIDOKListsItem) Validate() error {
@@ -46591,27 +46655,6 @@ func (s *FeedsPostFeedsCustomReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           168,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.IntervalHours)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "interval_hours",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -48547,27 +48590,6 @@ func (s *FeedsPutFeedsCustomIDReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           168,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.IntervalHours)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "interval_hours",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -49421,34 +49443,6 @@ func (s *FeedsPutFeedsSourcesIDReq) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "api_key",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.IntervalHours.Get(); ok {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        true,
-					Max:           168,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "interval_hours",
 			Error: err,
 		})
 	}
@@ -122918,17 +122912,6 @@ func (s *ScanGetScansConfigOKConfig) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Schedule.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "schedule",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           2,
@@ -122964,84 +122947,6 @@ func (s *ScanGetScansConfigOKConfig) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *ScanGetScansConfigOKConfigSchedule) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^([01]\\d|2[0-3]):[0-5]\\d$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.At)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "at",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Frequency.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "frequency",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           7,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Weekday)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "weekday",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ScanGetScansConfigOKConfigScheduleFrequency) Validate() error {
-	switch s {
-	case "daily":
-		return nil
-	case "weekly":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ScanGetScansConfigOKConfigWindow) Validate() error {
@@ -125686,17 +125591,6 @@ func (s *ScanPutScansConfigOKConfig) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Schedule.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "schedule",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           2,
@@ -125732,84 +125626,6 @@ func (s *ScanPutScansConfigOKConfig) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *ScanPutScansConfigOKConfigSchedule) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     0,
-			MaxLengthSet:  false,
-			Email:         false,
-			Hostname:      false,
-			Regex:         regexMap["^([01]\\d|2[0-3]):[0-5]\\d$"],
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.At)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "at",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Frequency.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "frequency",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           7,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Weekday)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "weekday",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ScanPutScansConfigOKConfigScheduleFrequency) Validate() error {
-	switch s {
-	case "daily":
-		return nil
-	case "weekly":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ScanPutScansConfigOKConfigWindow) Validate() error {
@@ -125993,24 +125809,6 @@ func (s *ScanPutScansConfigReq) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Schedule.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "schedule",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if value, ok := s.UnresponsiveAfter.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
@@ -126090,105 +125888,6 @@ func (s *ScanPutScansConfigReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *ScanPutScansConfigReqSchedule) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.At.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     0,
-					MinLengthSet:  false,
-					MaxLength:     0,
-					MaxLengthSet:  false,
-					Email:         false,
-					Hostname:      false,
-					Regex:         regexMap["^([01]\\d|2[0-3]):[0-5]\\d$"],
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "at",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Frequency.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "frequency",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Weekday.Get(); ok {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        true,
-					Max:           7,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "weekday",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ScanPutScansConfigReqScheduleFrequency) Validate() error {
-	switch s {
-	case "daily":
-		return nil
-	case "weekly":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *ScanPutScansConfigReqWindow) Validate() error {

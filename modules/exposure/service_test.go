@@ -709,7 +709,7 @@ func TestContract_INV9_OnlyDetectionsAskTheServices(t *testing.T) {
 	if e.prober.count() != 0 {
 		t.Fatalf("%d rounds asked by reads and domain verification", e.prober.count())
 	}
-	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", false, 1); err != nil {
+	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", false, 5); err != nil {
 		t.Fatal(err)
 	}
 	e.advance(24 * time.Hour)

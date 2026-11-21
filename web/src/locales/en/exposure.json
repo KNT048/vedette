@@ -249,7 +249,6 @@
       "off": "Auto-detect is off: the box checks only when you select Detect now."
     },
     "every": {
-      "1": "every minute",
       "5": "every 5 minutes",
       "10": "every 10 minutes",
       "15": "every 15 minutes",
@@ -261,8 +260,8 @@
       "1440": "every 24 hours",
       "other": "every {{count}} minutes"
     },
+    "limit": "At least 5 minutes, at most 24 hours. The lookup services rate-limit; a change is found at the next check.",
     "option": {
-      "1": "1 minute",
       "5": "5 minutes",
       "10": "10 minutes",
       "15": "15 minutes",

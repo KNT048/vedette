@@ -14907,7 +14907,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "PUT":
 								r.name = ExposurePutExposureBoxIPSettingsOperation
-								r.summary = "Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either"
+								r.summary = "Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either"
 								r.operationID = "exposure_put_exposure_box_ip_settings"
 								r.operationGroup = ""
 								r.pathPattern = "/exposure/box-ip/settings"

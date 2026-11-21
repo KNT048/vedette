@@ -64,7 +64,8 @@ func TestSchedule_EveryTargetHasOne(t *testing.T) {
 	if err := e.svc.EnsureSchedules(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM core_schedule WHERE owner_module = 'exposure'`); n != 2 {
+	// the public IP detection's own schedule is also exposure's; only the targets' schedules count here
+	if n := e.count(`SELECT count(*) FROM core_schedule WHERE owner_module = 'exposure' AND owner_key <> ?`, PublicIPScheduleKey); n != 2 {
 		t.Fatalf("schedules after the start: %d", n)
 	}
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", d.ID); err != nil {

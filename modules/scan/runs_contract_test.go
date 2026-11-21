@@ -166,7 +166,7 @@ func TestContract_INV3_OneRunAndLimits(t *testing.T) {
 	wantAPI(t, err, 409, "already_running")
 	// the database refuses a second live run whatever the code does
 	err = r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		return seedRun(r.ctx(), tx, "run-x", "manual", "running", "2026-11-10T10:00:00.000Z", "a")
+		return seedRun(r.ctx(), tx, "run-x", "running", "2026-11-10T10:00:00.000Z", "a")
 	})
 	if err == nil {
 		t.Fatal("a second live run was stored")
@@ -428,7 +428,7 @@ func TestRun_OrphanFromARestartIsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		if err := seedRun(r.ctx(), tx, "run-old", "manual", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
+		if err := seedRun(r.ctx(), tx, "run-old", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request) VALUES ('pr-1', '2026-11-10T09:00:00.000Z', 'run-old', '192.168.10.12', 'WEB01', 't.yaml', 'GET / HTTP/1.1')`)
@@ -547,11 +547,11 @@ func TestRunsOf_TheDevicesRunsPastTheNewest100(t *testing.T) {
 		at := func(i int) string {
 			return time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Minute).Format("2006-01-02T15:04:05.000Z")
 		}
-		if err := seedRun(r.ctx(), tx, "run-bn340", "manual", "done", at(0), "a-bn340", "a-web01"); err != nil {
+		if err := seedRun(r.ctx(), tx, "run-bn340", "done", at(0), "a-bn340", "a-web01"); err != nil {
 			return err
 		}
 		for i := 1; i <= 120; i++ {
-			if err := seedRun(r.ctx(), tx, fmt.Sprintf("run-%03d", i), "manual", "done", at(i), "a-web01"); err != nil {
+			if err := seedRun(r.ctx(), tx, fmt.Sprintf("run-%03d", i), "done", at(i), "a-web01"); err != nil {
 				return err
 			}
 		}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -17,6 +18,8 @@ import (
 	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/productid"
+	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -102,6 +105,20 @@ func scanTargets(calls [][]string, ip string) [][]string {
 	return out
 }
 
+// sweepComesDue plays the LAN sweep's schedule coming due: the pass is queued the way core/schedule queues it, inside a transaction.
+func sweepComesDue(t *testing.T, d deps, svc *sensoractive.Service) {
+	t.Helper()
+	o := svc.ScheduleOwner()
+	err := d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := o.Start(t.Context(), tx, schedule.Fire{OwnerKey: o.Key, Trigger: corerun.Schedule, By: corerun.System})
+		return err
+	})
+	var skipped *schedule.SkipError // a pass already going on is the one the tick follows
+	if err != nil && !errors.As(err, &skipped) {
+		t.Fatal(err)
+	}
+}
+
 func (s *stack) saveScope(t *testing.T, fragile ...string) {
 	t.Helper()
 	_, err := s.d.Inventory.SaveSettings(t.Context(), "admin@acme.example", inventory.SettingsInput{
@@ -162,6 +179,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	if n, _ := svc.QueueLen(t.Context()); n != 1 {
 		t.Fatalf("queue = %d, the discovered event did not queue the device", n)
 	}
+	sweepComesDue(t, *s.d, svc)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -406,6 +424,8 @@ func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.saveScope(t, "printer", "camera", "nvr", "nas", "ap", "iot")
+	sweepComesDue(t, *s.d, svc)
+	sweepComesDue(t, *s.d, svc)
 	if err := svc.Tick(t.Context()); err != nil { // the sweep finds .2 and .5 (kind unknown), then the queue is drained
 		t.Fatal(err)
 	}

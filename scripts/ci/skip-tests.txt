@@ -29,5 +29,4 @@ slow	TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstal
 slow	TestContract_Update_ARunWhosePutBackIsUnrecoverableMarksItAtOnceAndAuditsOnce	modules/host	slow: 4.4 s wall time; daily run	2026-11-12
 slow	TestReview_M2_RunsViewSaysEngineBusyAfterStop	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestReview_M2_NoNewRunWhileTheEngineIsBusy	modules/scan	slow: 4 s wall time; daily run	2026-11-12
-slow	TestReview4_L4_ARefusedStartKeepsTheSlot	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether	modules/host	slow: 4 s wall time; daily run	2026-11-12

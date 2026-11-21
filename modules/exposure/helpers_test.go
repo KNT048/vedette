@@ -13,6 +13,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -153,7 +154,8 @@ type env struct {
 	prober *fakeProber
 	dns    *fakeResolver
 	pub    *fakePub
-	terms  *bool // scanIP accepts the testing terms when set, with the disruptive tick when true
+	sched  *schedule.Service // the box's schedules on the test clock: target scans and the public IP detection
+	terms  *bool             // scanIP accepts the testing terms when set, with the disruptive tick when true
 	runs   *corerun.Manager
 }
 
@@ -161,7 +163,20 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	db := newDB(t)
 	e := &env{t: t, db: db, clock: &fakeClock{now: t0}, prober: &fakeProber{ips: []string{ipA}}, dns: &fakeResolver{txt: map[string][]string{}}, pub: &fakePub{}}
-	e.useService(Config{DB: db, Audit: audit.New(e.clock.Now), Resolver: e.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
+	sched, err := schedule.New(schedule.Config{DB: db, Clock: e.clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.sched = sched
+	e.useService(Config{DB: db, Audit: audit.New(e.clock.Now), Resolver: e.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC, Schedules: sched})
+	if err := sched.Register(e.svc.PublicIPScheduleOwner()); err != nil {
+		t.Fatal(err)
+	}
+	// The ticker is never started here: tests move the clock and let the schedule come due with runJob. Start only saves the defaults.
+	if err := sched.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(sched.Close)
 	return e
 }
 

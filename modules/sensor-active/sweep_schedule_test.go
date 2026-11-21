@@ -11,13 +11,13 @@ import (
 )
 
 // comesDue plays the schedule inventory.sweep coming due: core/schedule calls the owner's Start inside its transaction.
-func comesDue(e *env, trigger run.Trigger) (string, error) {
+func comesDue(e *env) (string, error) {
 	e.t.Helper()
 	o := e.svc.ScheduleOwner()
 	var id string
 	err := e.db.Write(e.ctx(), func(tx dbTx) error {
 		var err error
-		id, err = o.Start(e.ctx(), tx, schedule.Fire{OwnerKey: o.Key, Trigger: trigger, By: "admin@acme.example"})
+		id, err = o.Start(e.ctx(), tx, schedule.Fire{OwnerKey: o.Key, Trigger: run.Schedule, By: "admin@acme.example"})
 		return err
 	})
 	return id, err
@@ -36,14 +36,14 @@ func TestSweepSchedule_IsRegisteredAsTheLANSweepWithItsDefault(t *testing.T) {
 func TestSweepSchedule_QueuesOnePassAndSaysWhyItDidNot(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
-	id, err := comesDue(e, run.Schedule)
+	id, err := comesDue(e)
 	if err != nil || id == "" {
 		t.Fatalf("start: %q %v", id, err)
 	}
 	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'lan_sweep' AND trigger = 'schedule' AND requested_by = 'system' AND status IN ('queued', 'running')`); n != 1 {
 		t.Fatalf("%d passes queued", n)
 	}
-	_, err = comesDue(e, run.Schedule)
+	_, err = comesDue(e)
 	var sk *schedule.SkipError
 	if !errors.As(err, &sk) || !strings.Contains(sk.Reason, "pass that is going on") {
 		t.Fatalf("a second pass: %v", err)
@@ -67,7 +67,7 @@ func TestSweepSchedule_SaysWhyItDoesNotStart(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t, fakeOpts{})
 			e.inv.set(c.set)
-			_, err := comesDue(e, run.Schedule)
+			_, err := comesDue(e)
 			var sk *schedule.SkipError
 			if !errors.As(err, &sk) || !strings.Contains(sk.Reason, c.want) {
 				t.Fatalf("%v, want a skip saying %q", err, c.want)

@@ -373,7 +373,7 @@ func TestRunsTheQueueTakesTurnsWithThePass(t *testing.T) {
 	})
 	held := &sweepHeld{heldProber: newHeld()}
 	e.withProber(held)
-	if _, err := comesDue(e, run.Schedule); err != nil { // the sweep's schedule queues the pass
+	if _, err := comesDue(e); err != nil { // the sweep's schedule queues the pass
 		t.Fatal(err)
 	}
 	tick := make(chan error, 1)
@@ -491,7 +491,7 @@ func TestRunsNoBusyLoopWhileTheWorkerIsGone(t *testing.T) {
 		e.inv.assets[id] = netip.AddrFrom4([4]byte{192, 168, 10, byte(100 + i)})
 		e.inv.mu.Unlock()
 	}
-	if _, err := comesDue(e, run.Schedule); err != nil { // the sweep's schedule queues the pass
+	if _, err := comesDue(e); err != nil { // the sweep's schedule queues the pass
 		t.Fatal(err)
 	}
 	start := time.Now()

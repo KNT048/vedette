@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -586,7 +585,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 1 {
 		t.Fatalf("queue length after restart = %d, want 1", n)
 	}
-	if _, err := comesDue(e, run.Schedule); err != nil { // the sweep's schedule queues the pass
+	if _, err := comesDue(e); err != nil { // the sweep's schedule queues the pass
 		t.Fatal(err)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
@@ -622,7 +621,7 @@ func TestTickFollowsThePassTheScheduleQueued(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 0 {
 		t.Fatalf("%d sweeps although the schedule did not come due, want none", n)
 	}
-	if _, err := comesDue(e, run.Schedule); err != nil {
+	if _, err := comesDue(e); err != nil {
 		t.Fatal(err)
 	}
 	for range 3 {
@@ -634,7 +633,7 @@ func TestTickFollowsThePassTheScheduleQueued(t *testing.T) {
 		t.Fatalf("%d sweeps for one due time, want 1", n)
 	}
 	e.setClock(local(10, 2, 0)) // next night: the schedule comes due again
-	if _, err := comesDue(e, run.Schedule); err != nil {
+	if _, err := comesDue(e); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {

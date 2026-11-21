@@ -9,7 +9,8 @@ Made for nuclei 3.11.1 with Go 1.26.11, from the unpacked archive:
 
     GOTOOLCHAIN=local GOFLAGS=-mod=mod go get \
       github.com/getkin/kin-openapi@v0.149.0 github.com/go-git/go-git/v5@v5.19.2 github.com/go-jose/go-jose/v4@v4.1.6 \
-      golang.org/x/crypto@v0.58.0 golang.org/x/mod@v0.41.0 golang.org/x/net@v0.62.0 golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.83.2
+      golang.org/x/crypto@v0.58.0 golang.org/x/mod@v0.41.0 golang.org/x/net@v0.62.0 golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.85.0 \
+      github.com/klauspost/compress@v1.20.5 go.opentelemetry.io/otel/trace@v1.47.0 github.com/moby/sys/user@v0.4.1
     GOTOOLCHAIN=local GOFLAGS=-mod=mod go mod tidy
 
 then copy `go.mod` and `go.sum` here. (x/crypto, x/mod and x/text are above the fixed versions only because x/net 0.62.0 requires them.)

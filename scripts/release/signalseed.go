@@ -216,7 +216,9 @@ func (r *seedRun) androidReads(ctx context.Context) ([]feeds.SeedRead, error) {
 			if page == nil {
 				continue
 			}
-			got, err := feeds.SeedFromAndroidPage(ctx, u, page, month)
+			// the claim links Android's own page, whichever address the generator read it from
+			link := mustURL(defaultSeedSites.android).ResolveReference(&url.URL{Path: path}).String()
+			got, err := feeds.SeedFromAndroidPage(ctx, link, page, month)
 			if err != nil {
 				return nil, fmt.Errorf("android %s: %w", day, err)
 			}
@@ -225,6 +227,15 @@ func (r *seedRun) androidReads(ctx context.Context) ([]feeds.SeedRead, error) {
 		}
 	}
 	return out, nil
+}
+
+// mustURL is a constant address, which always parses.
+func mustURL(s string) *url.URL {
+	v, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 // csafReads reads the CSAF documents of the files given, one document per line.

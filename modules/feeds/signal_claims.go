@@ -40,6 +40,7 @@ type claimForm struct {
 	all     bool  // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
 	subject int   // the submatch index of the group "cve", 0 when the form has none (its subject is every CVE id it names)
 	open    []int // the submatch indexes of the open parts
+	tail    int   // the submatch index of the open part "o2" (what follows the claim), 0 when none
 }
 
 // formKind says what a sentence of a form states.
@@ -61,6 +62,9 @@ func forms(kind formKind, all bool, patterns ...string) []claimForm {
 				f.subject = i
 			case strings.HasPrefix(name, "o"):
 				f.open = append(f.open, i)
+				if name == "o2" {
+					f.tail = i
+				}
 			}
 		}
 		out = append(out, f)
@@ -76,17 +80,26 @@ var (
 	claimTurnRE = regexp.MustCompile(`in the wild|became aware|is aware of (?:the )?(?:active|attempted|limited|successful|exploitation|malicious)|` +
 		`(?:has|have) been exploited|being exploited|, but |(?:has|have|been) observed`)
 	// canonical form
-	claimLinkRE  = regexp.MustCompile(`\s*\["[^"\]]{0,500}"\]`)
-	claimCVEsRE  = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and| or|, and|, or) cve-[0-9]{4}-[0-9]{4,12})*`)
-	claimWhenRE  = regexp.MustCompile(`^(?:in|on) (?:january|february|march|april|may|june|july|august|september|october|november|december)(?: [0-9]{1,2},)? [0-9]{4}, `)
-	claimSpaceRE = regexp.MustCompile(`\s+`)
+	claimLinkRE = regexp.MustCompile(`\s*\["[^"\]]{0,500}"\]`)
+	claimCVEsRE = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and| or|, and|, or) cve-[0-9]{4}-[0-9]{4,12})*`)
+	// claimCVEsProseRE: in prose, "or" between two ids is doubt ("CVE-A or CVE-B, we are still determining which"), not a list.
+	claimCVEsProseRE = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and|, and) cve-[0-9]{4}-[0-9]{4,12})*`)
+	// proseClauseRE: what follows a prose claim opens a clause of its own when it starts with a verb ("… exploitation of CVE-A and
+	// CVE-B is a separate bug"): the last id of the list is that clause's subject, so the sentence is not read.
+	proseClauseRE = regexp.MustCompile(`^,? (?:is|are|was|were|has|have|had|remains?|appears?|seems?|could|can|may|might|will|would|should|does|did|do)\b`)
+	claimWhenRE   = regexp.MustCompile(`^(?:in|on) (?:january|february|march|april|may|june|july|august|september|october|november|december)(?: [0-9]{1,2},)? [0-9]{4}, `)
+	claimSpaceRE  = regexp.MustCompile(`\s+`)
 	// claimHedgeRE: words that turn an open part of a prose form away from a claim: a negation, a condition, a possibility, an
 	// expectation, a doubt, a test or a question.
 	// "may" is the month when a day follows it ("between May 27 and June 9").
-	claimHedgeRE = regexp.MustCompile(`\bmay\b(?:$|[^ 0-9]| [^0-9])|\b(?:not|no|never|nor|none|neither|without|unless|if|whether|could|would|might|can|cannot|should|` +
+	// A refutation ("were incorrect", "turned out to be wrong"), speculation ("reportedly", "there is speculation"), a contest ("in a
+	// CTF") or a failure ("all of which failed") is a hedge too.
+	claimHedgeRE = regexp.MustCompile(`\bmay\b(?:$|[^ 0-9]| [^0-9])|\b(?:not|no|never|nor|none|neither|without|unless|if|whether|could|would|might|can|cannot|should|but|` +
 		`possibl[a-z]*|potential(?:ly)?|likely|unlikely|expect[a-z]*|risks?|prevent[a-z]*|hypothetical(?:ly)?|theoretical(?:ly)?|` +
 		`den(?:y|ies|ied)|false|unconfirmed|unverified|alleged(?:ly)?|believes?|believed|rumou?rs?|tests?|testing|tested|labs?|demonstrat[a-z]*|` +
-		`simulat[a-z]*|proof-of-concept|poc)\b|n't\b|\?`)
+		`simulat[a-z]*|proof-of-concept|poc|incorrect(?:ly)?|wrong(?:ly)?|inaccurate(?:ly)?|erroneous(?:ly)?|mistaken(?:ly)?|retract[a-z]*|` +
+		`debunk[a-z]*|disput[a-z]*|unsubstantiated|speculat[a-z]*|reportedly|purported(?:ly)?|claims?|claimed|ctfs?|capture the flag|` +
+		`fail(?:s|ed|ure|ures)?|unsuccessful(?:ly)?|determin(?:e|ing) which)\b|n't\b|\?`)
 )
 
 // The parts of Cisco's sentences.
@@ -242,7 +255,7 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 			r.unclassified++
 			continue
 		}
-		canon, named, tokens := canonicalSentence(sentence)
+		canon, named, tokens := canonicalSentence(sentence, r.prose)
 		r.work.step(len(named))
 		var form *claimForm
 		for i := range r.forms {
@@ -255,12 +268,18 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 				continue
 			}
 			m := f.re.FindStringSubmatchIndex(canon)
-			if m == nil || f.kind != formClaim && claimTurnRE.MatchString(canon) || hedged(canon, m, f.open) {
+			if m == nil || f.kind != formClaim && claimTurnRE.MatchString(canon) || hedged(canon, m, f.open) ||
+				r.prose && f.tail > 0 && m[2*f.tail] >= 0 && proseClauseRE.MatchString(canon[m[2*f.tail]:m[2*f.tail+1]]) {
 				continue
 			}
 			form = f
 			if f.subject > 0 {
-				named = subjectCVEs(canon, m[2*f.subject], m[2*f.subject+1], tokens)
+				subject := subjectCVEs(canon, m[2*f.subject], m[2*f.subject+1], tokens)
+				if r.prose && len(subject) != len(named) {
+					form = nil // the sentence names a CVE the claim does not bind to: no guess, the sentence is counted
+					break
+				}
+				named = subject
 			}
 			break
 		}
@@ -301,8 +320,13 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 }
 
 // canonicalSentence is a sentence in the canonical form the forms are written for, the CVE ids it names outside link targets
-// (upper case, in order, distinct), and the ids of each {cve} of the canonical form, in order.
-func canonicalSentence(s string) (string, []string, [][]string) {
+// (upper case, in order, distinct), and the ids of each {cve} of the canonical form, in order. In prose, ids joined by "or" are not one
+// list (claimCVEsProseRE).
+func canonicalSentence(s string, prose bool) (string, []string, [][]string) {
+	lists := claimCVEsRE
+	if prose {
+		lists = claimCVEsProseRE
+	}
 	s = claimLinkRE.ReplaceAllString(s, "")
 	var named []string
 	seen := map[string]bool{}
@@ -315,14 +339,14 @@ func canonicalSentence(s string) (string, []string, [][]string) {
 	s = strings.ToLower(claimSpaceRE.ReplaceAllString(strings.TrimSpace(s), " "))
 	s = strings.TrimRight(s, ".! ")
 	var tokens [][]string
-	for _, list := range claimCVEsRE.FindAllString(s, -1) {
+	for _, list := range lists.FindAllString(s, -1) {
 		var ids []string
 		for _, id := range claimCVERE.FindAllString(list, -1) {
 			ids = append(ids, strings.ToUpper(id))
 		}
 		tokens = append(tokens, ids)
 	}
-	s = claimCVEsRE.ReplaceAllString(s, "{cve}")
+	s = lists.ReplaceAllString(s, "{cve}")
 	s = claimWhenRE.ReplaceAllString(s, "{when} ")
 	return s, named, tokens
 }

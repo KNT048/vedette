@@ -17,7 +17,7 @@ import (
 
 // The seed of exploitation claims (content/signals/seed.json) ships inside each release: the claims Vedette's own decoders read, with
 // the same forms, from the sources that keep no history, so a box installed later still holds the claims made before it existed. A
-// feed's first good pull (and its first after it was turned off and on) reads the seed's claims of that feed together with what the
+// feed's first good pull ever (not after it is turned off and on) reads the seed's claims of that feed together with what the
 // feed holds now (seedDocs), through the same write as every claim: a claim the box sees itself keeps the earlier date, a seed claim
 // whose post the box reads now and finds without it is not taken. The release builds the seed (`go run ./scripts/release
 // signal-seed`) from the previous seed and the current feeds (MergeSeed); nothing is added by hand.
@@ -35,8 +35,15 @@ type Seed struct {
 	Claims []SeedClaim `json:"claims"`
 }
 
-// seedSources are the feeds the seed holds claims of.
-var seedSources = []string{chromeFeedID, androidFeedID, rapid7FeedID, gtiFeedID, ciscoFeedID, fortinetFeedID}
+// seedHosts are the feeds the seed holds claims of, and the host of the pages their claims link.
+var seedHosts = map[string]string{
+	chromeFeedID:   "chromereleases.googleblog.com",
+	androidFeedID:  "source.android.com",
+	rapid7FeedID:   "www.rapid7.com",
+	gtiFeedID:      "cloud.google.com",
+	ciscoFeedID:    "sec.cloudapps.cisco.com",
+	fortinetFeedID: "fortiguard.fortinet.com",
+}
 
 // seedMaxClaims bounds the seed (it grows by about a hundred claims a year).
 const seedMaxClaims = 50_000
@@ -48,12 +55,14 @@ func (c SeedClaim) check() string {
 	switch {
 	case !cveRE.MatchString(c.CVE):
 		return "a bad CVE id"
-	case !slices.Contains(seedSources, c.Source):
+	case seedHosts[c.Source] == "":
 		return "a source that is not a claim feed"
 	case terr != nil:
 		return "a bad date"
-	case err != nil || u.Scheme != "https" || u.Host == "" || len(c.URL) > 500:
+	case err != nil || u.Scheme != "https" || u.User != nil || len(c.URL) > 500:
 		return "a bad link"
+	case u.Host != seedHosts[c.Source]:
+		return "a link to another host than the source's"
 	}
 	return ""
 }
@@ -262,6 +271,10 @@ func seedDocsOf(s Seed) map[string][]claimDoc {
 	}
 	return out
 }
+
+// firstPull says whether a feed has never had a good pull: only then are the seed's claims read. A feed turned off and on again
+// keeps its history, so a claim the box saw taken back is not loaded again.
+func firstPull(src sourceRow) bool { return src.LastSuccess == nil }
 
 // seedDocs is the seed's documents of a feed that are not among the documents read now (those say for themselves what they claim).
 func (s *Service) seedDocs(source string, readNow []claimDoc) []claimDoc {

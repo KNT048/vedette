@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -48,7 +49,16 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"Android", androidForms, "<aside class=\"note\"><b>Note</b>: There are indications that " + a + " may be under limited, targeted exploitation.</aside>", []string{a}, 0},
 
 		// only the subject is claimed, never another id of the sentence
-		{"another CVE in the tail", rapid7Forms, "Rapid7 confirmed exploitation of " + a + ", which attackers chain with " + b + ".", []string{a}, 0},
+		{"another CVE in the tail: no guess", rapid7Forms, "Rapid7 confirmed exploitation of " + a + ", which attackers chain with " + b + ".", nil, 1},
+		{"an apposition before the verb", rapid7Forms, a + ", a patch bypass for " + b + ", is being actively exploited in the wild.", nil, 1},
+		{"a new clause after the list", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + ", and " + b + " is a related information disclosure fixed in the same release.", nil, 1},
+		{"a new clause after and", gtiForms, "Mandiant observed exploitation of " + a + " and " + b + " is a separate unrelated bug.", nil, 1},
+		{"or is doubt", rapid7Forms, "Rapid7 has observed exploitation of " + a + " or " + b + ", but we are still determining which.", nil, 1},
+		{"or alone is doubt", rapid7Forms, "Rapid7 has observed exploitation of " + a + " or " + b + ".", nil, 1},
+		{"a parenthesis between the ids", rapid7Forms, a + " (patched in March) and " + b + " were exploited in the wild.", nil, 1},
+		{"a list both claimed", rapid7Forms, a + " and " + b + " were exploited in the wild.", []string{a, b}, 0},
+		{"the vulnerability part denied", rapid7Forms, "Rapid7 has observed exploitation of an older flaw, but has not seen exploitation of the newly disclosed vulnerability (" + a + ").", nil, 1},
+		{"not this vulnerability", gtiForms, "Attackers exploited a different vulnerability, not the recently disclosed authentication bypass (" + a + "), to gain access.", nil, 1},
 		{"a CVE line next to a claim", chromeForms, "<p>" + b + ": Use after free in V8.</p><p>Google is aware that an exploit for " + a + " exists in the wild.</p>", []string{a}, 0},
 
 		// a negation or a hedge in an open part: no claim, and counted
@@ -62,6 +72,14 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"should monitor", gtiForms, "Organizations should monitor for observed exploitation of " + a + ".", nil, 1},
 		{"Chrome denied", chromeForms, "Google is not aware that an exploit for " + a + " exists in the wild.", nil, 1},
 		{"Android none", androidForms, "There are no indications that " + a + " may be under limited, targeted exploitation.", nil, 1},
+
+		// refutation, speculation, a contest, a failure
+		{"were incorrect", rapid7Forms, "Initial reports that " + a + " was exploited in the wild were incorrect.", nil, 1},
+		{"turned out to be wrong", rapid7Forms, "The report that " + a + " had been exploited in the wild turned out to be wrong.", nil, 1},
+		{"speculation", rapid7Forms, "There is speculation that " + a + " is being exploited in the wild.", nil, 1},
+		{"reportedly", rapid7Forms, "Reportedly, " + a + " has been exploited in the wild.", nil, 1},
+		{"in a CTF", rapid7Forms, "Security researchers reported exploitation of " + a + " in a CTF competition.", nil, 1},
+		{"all of which failed", rapid7Forms, "Rapid7 observed attempted exploitation of " + a + ", all of which failed.", nil, 1},
 
 		// wording no form holds: counted, never read
 		{"could be exploited", rapid7Forms, a + " could be exploited by a remote attacker.", nil, 1},
@@ -352,34 +370,47 @@ func TestApple_ClaimsComeFromTheCatalogueDescriptions(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	now := time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC)
-	set := func(cve, published, description string) {
+	// write replaces descriptions as the CVE records and NVD writers do: Apple's claims are reconciled at the end of the write
+	write := func(descs ...[3]string) map[string]string {
 		t.Helper()
 		if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, description, updated_at) VALUES (?, ?, ?, ?)
-ON CONFLICT(cve) DO UPDATE SET description = excluded.description`, cve, published, description, "2026-11-21T06:00:00.000Z")
-			return err
+			added := map[string]bool{}
+			for _, d := range descs {
+				if err := appleNoteAdded(t.Context(), tx, d[0], d[2], added); err != nil {
+					return err
+				}
+				if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, description, updated_at) VALUES (?, ?, ?, ?)
+ON CONFLICT(cve) DO UPDATE SET description = excluded.description`, d[0], d[1], d[2], "2026-11-21T06:00:00.000Z"); err != nil {
+					return err
+				}
+			}
+			return applyAppleClaims(t.Context(), tx, now, added)
 		}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	apply := func() map[string]string {
-		t.Helper()
-		if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { return applyAppleClaims(t.Context(), tx, now) }); err != nil {
 			t.Fatal(err)
 		}
 		return vendorRows(t, e, appleClaimSource)
 	}
 	const claim = "Processing a file may lead to code execution. Apple is aware of a report that this issue may have been exploited in an extremely sophisticated attack against specific targeted individuals on versions of iOS before iOS 26."
-	set("CVE-2026-20700", "2026-02-11T00:00:00.000Z", claim+" CVE-2025-14174 and CVE-2025-43529 were also issued in response to this report.")
-	set("CVE-2026-20701", "2026-02-11T00:00:00.000Z", "A use-after-free issue was addressed with improved memory management. Apple is aware of the report above.")
-	set("CVE-2026-20702", "2026-11-22T00:00:00.000Z", claim) // published in the future: dated now
-	got := apply()
-	if len(got) != 2 || got["CVE-2026-20700"] != "2026-02-11T00:00 "+cveRecordPage+"CVE-2026-20700  1" || !strings.HasPrefix(got["CVE-2026-20702"], "2026-11-21T06:00") {
+	got := write(
+		[3]string{"CVE-2026-20700", "2026-02-11T00:00:00.000Z", claim + " CVE-2025-14174 and CVE-2025-43529 were also issued in response to this report."},
+		[3]string{"CVE-2026-20701", "2026-02-11T00:00:00.000Z", "A use-after-free issue was addressed with improved memory management. Apple is aware of the report above."},
+		[3]string{"CVE-2026-20702", "2026-11-22T00:00:00.000Z", claim}, // published in the future: dated now
+		// Apple's sentence in parentheses, as in CVE-2025-24201's record
+		[3]string{"CVE-2025-24201", "2025-03-11T00:00:00.000Z", "This is a supplementary fix for an attack that was blocked in iOS 17.2. (Apple is aware of a report that this issue may have been exploited in an extremely sophisticated attack against specific targeted individuals on versions of iOS before iOS 17.2.)"},
+		[3]string{"CVE-2026-20703", "2026-03-01T00:00:00.000Z", "A logic issue was addressed. Apple is aware of the issue."},
+	)
+	if len(got) != 3 || got["CVE-2026-20700"] != "2026-02-11T00:00 "+cveRecordPage+"CVE-2026-20700  1" || !strings.HasPrefix(got["CVE-2026-20702"], "2026-11-21T06:00") ||
+		!strings.HasPrefix(got["CVE-2025-24201"], "2025-03-11T00:00") {
 		t.Fatalf("%v", got)
 	}
-	// written again: the date holds; a description that no longer says it loses its row
-	set("CVE-2026-20702", "2026-11-22T00:00:00.000Z", "Apple is aware of a report that this issue was fixed.")
-	if got := apply(); len(got) != 1 || got["CVE-2026-20700"] == "" {
+	// a description the catalogue held without the claim gains it months after publication: dated by this sighting, as Cisco's and
+	// Fortinet's late claims; a description that no longer says it loses its row; a row held keeps its date when written again
+	got = write(
+		[3]string{"CVE-2026-20703", "2026-03-01T00:00:00.000Z", claim},
+		[3]string{"CVE-2026-20702", "2026-11-22T00:00:00.000Z", "Apple is aware of a report that this issue was fixed."},
+		[3]string{"CVE-2026-20700", "2026-02-11T00:00:00.000Z", claim},
+	)
+	if len(got) != 3 || !strings.HasPrefix(got["CVE-2026-20703"], "2026-11-21T06:00") || !strings.HasPrefix(got["CVE-2026-20700"], "2026-02-11T00:00") || got["CVE-2026-20702"] != "" {
 		t.Fatalf("%v", got)
 	}
 }
@@ -401,6 +432,7 @@ func TestSeed_TheReleaseSeedAndTheMerge(t *testing.T) {
 		"another source": `{"claims":[{"cve":"CVE-2026-1001","source":"cisa-kev","date":"2026-11-19T21:06:24Z","url":"https://example.com/a"}]}`,
 		"a bad date":     `{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"19 Nov","url":"https://example.com/a"}]}`,
 		"http":           `{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"http://example.com/a"}]}`,
+		"another host":   `{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"https://cloud.google.com/blog/x"}]}`,
 		"twice":          `{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"https://example.com/a"},{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-18T21:06:24Z","url":"https://example.com/b"}]}`,
 		"text":           `{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"https://example.com/a","text":"x"}]}`,
 	} {
@@ -425,5 +457,50 @@ func TestSeed_TheReleaseSeedAndTheMerge(t *testing.T) {
 	}
 	if !slices.Equal(next.Claims, want) {
 		t.Errorf("%+v", next.Claims)
+	}
+}
+
+// The hostile shapes of the review, at the bounds: each was minutes of CPU (tags × size, or quadratic joins) and must now be one
+// pass. The bound is generous (each takes milliseconds), so it fails only on a return of the old cost.
+func TestProseParsers_HostileShapesStayLinear(t *testing.T) { //nolint:paralleltest // times its own work
+	const limit = 3 * time.Second
+	timed := func(name string, f func()) {
+		t.Helper()
+		start := time.Now()
+		f()
+		if d := time.Since(start); d > limit {
+			t.Errorf("%s took %v", name, d)
+		}
+	}
+	for name, body := range map[string]string{
+		"script tags":       strings.Repeat("<script></script>", textMaxPost/17),
+		"style tags, upper": strings.Repeat("<STYLE>x</Style >", textMaxPost/17),
+		"open brackets":     strings.Repeat("<", textMaxPost),
+		"far brackets":      strings.Repeat("<"+strings.Repeat("a", 3000), textMaxPost/3001) + ">",
+		"script never shut": strings.Repeat("<script>", textMaxPost/8),
+	} {
+		timed(name, func() { _ = proseText(body) })
+	}
+	split := `<rss><channel><item><link>https://example.com/a</link><description>` + strings.Repeat("a<!---->", textFeedMaxBytes/8) + `</description></item></channel></rss>`
+	timed("text split by comments", func() {
+		posts, err := parsePostFeed(strings.NewReader(split), "x")
+		if err != nil || len(posts) != 1 || len(posts[0].Body) != min(textMaxPost, textFeedMaxBytes/8) {
+			t.Errorf("%v %d", err, len(posts))
+		}
+	})
+	deep := `<rss><channel>` + strings.Repeat("<a>", textFeedMaxBytes/3)
+	timed("nested tags", func() {
+		if _, err := parsePostFeed(strings.NewReader(deep), "x"); err == nil || !strings.Contains(err.Error(), "nested more than 64") {
+			t.Errorf("%v", err)
+		}
+	})
+	if _, err := parsePostFeed(strings.NewReader(`<rss><channel>`+strings.Repeat("<a>", textMaxDepth-2)+strings.Repeat("</a>", textMaxDepth-2)+`</channel></rss>`), "x"); err != nil {
+		t.Errorf("64 levels: %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	var read vendorRead
+	if err := postClaims(ctx, []post{{Link: "https://example.com/a", Date: "Thu, 19 Nov 2026 21:06:24 GMT", Body: "x"}}, proseForms, &read); err == nil {
+		t.Error("a cancelled pull read its posts")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -27,7 +28,7 @@ const (
 // appleForms: Apple's sentences in its CVE records, as written since 2021.
 var appleForms = concatForms(
 	forms(formClaim, false,
-		`apple is aware (?:of )?(?:a report|reports) that (?:this issue|these issues) (?:may have been|might have been|was|were|has been|have been) `+
+		`\(?apple is aware (?:of )?(?:a report|reports) that (?:this issue|these issues) (?:may have been|might have been|was|were|has been|have been) `+
 			`(?:actively )?exploited(?P<o2> .{1,240})?`),
 	forms(formNeutral, false,
 		`\{cve\} (?:was|were) also issued in response to this report`),
@@ -49,10 +50,38 @@ func appleClaimed(ctx context.Context, cve, description string) (bool, error) {
 	return len(r.result()) == 1, nil
 }
 
+// appleNoteAdded notes, before a write replaces a CVE's description, whether the new one adds Apple's claim to a description the
+// catalogue held without it: the claim came later than the CVE's publication. Only descriptions that hold Apple's words are looked at.
+func appleNoteAdded(ctx context.Context, tx *sql.Tx, cve, description string, added map[string]bool) error {
+	if !strings.Contains(description, "Apple is aware") {
+		return nil
+	}
+	var prior sql.NullString
+	err := tx.QueryRowContext(ctx, `SELECT description FROM feeds_cve WHERE cve = ?`, cve).Scan(&prior)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("feeds: Apple claims: %w", err)
+	case !prior.Valid || strings.TrimSpace(prior.String) == "":
+		return nil
+	}
+	was, err := appleClaimed(ctx, cve, prior.String)
+	if err != nil {
+		return err
+	}
+	if now, err := appleClaimed(ctx, cve, description); err != nil || (now && !was) {
+		added[cve] = true
+		return err
+	}
+	return nil
+}
+
 // applyAppleClaims reconciles the rows of Apple's claims with the catalogue's descriptions: a CVE whose description claims it gets a
-// row dated by its publication (now when it has none or one in the future); a row whose CVE's description no longer does goes. A row
-// already held keeps its date.
-func applyAppleClaims(ctx context.Context, tx *sql.Tx, now time.Time) error {
+// row dated by its publication (now when it has none, one in the future, or when the claim was added to a description the catalogue
+// held without it, added, more than claimSlack after the publication, as Cisco's and Fortinet's late claims); a row whose CVE's
+// description no longer does goes. A row already held keeps its date.
+func applyAppleClaims(ctx context.Context, tx *sql.Tx, now time.Time, added map[string]bool) error {
 	held, err := stringSet(ctx, tx, `SELECT cve FROM feeds_signal WHERE source = '`+appleClaimSource+`' AND kind = '`+SignalExploited+`'`)
 	if err != nil {
 		return err
@@ -93,7 +122,7 @@ func applyAppleClaims(ctx context.Context, tx *sql.Tx, now time.Time) error {
 		}
 		first := now
 		if c.published.Valid {
-			if t, err := parseTS(c.published.String); err == nil && !t.After(now) {
+			if t, err := parseTS(c.published.String); err == nil && !t.After(now) && (!added[c.cve] || !t.Before(now.Add(-claimSlack))) {
 				first = t
 			}
 		}

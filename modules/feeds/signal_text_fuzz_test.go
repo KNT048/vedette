@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -45,7 +46,7 @@ func FuzzAndroidNotes(f *testing.F) {
 		if len(notes) > androidMaxNotes {
 			t.Fatalf("%d notes", len(notes))
 		}
-		r, err := SeedFromAndroidPage(t.Context(), "https://example.com/b", []byte(page), time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+		r, err := SeedFromAndroidPage(t.Context(), "https://source.android.com/docs/security/bulletin/2026/2026-01-01", []byte(page), time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,6 +64,8 @@ func FuzzProseForms(f *testing.F) {
 	f.Add("CVE-2026-1001 is being exploited in the wild. CVE-2026-1002 could be exploited.")
 	f.Add("The threat actor (formerly tracked as UNC1) exploited a flaw (CVE-2026-1003) between May 27 and June 9.")
 	f.Add(strings.Repeat("Google is aware that an exploit for CVE-2026-1004 exists in the wild. ", 300))
+	f.Add("CVE-2026-1111, a patch bypass for CVE-2025-2222, is being actively exploited in the wild.")
+	f.Add("Rapid7 MDR has observed exploitation of CVE-2026-1111, and CVE-2026-2222 is a related information disclosure.")
 	f.Fuzz(func(t *testing.T, text string) {
 		for _, forms := range [][]claimForm{proseForms, chromeForms, androidForms} {
 			got, _, err := proseClaims(t.Context(), forms, "", text)
@@ -72,6 +75,18 @@ func FuzzProseForms(f *testing.F) {
 			for _, c := range got {
 				if !strings.Contains(strings.ToUpper(text), c) {
 					t.Fatalf("%q claims %s, which it does not name", text, c)
+				}
+			}
+		}
+		// a sentence that claims names no other CVE than those it claims: the subject is never a guess
+		for _, sentence := range claimSentences(text) {
+			got, _, err := proseClaims(t.Context(), proseForms, "", sentence)
+			if err != nil || len(got) == 0 {
+				continue
+			}
+			for _, id := range claimCVERE.FindAllString(sentence, -1) {
+				if !slices.Contains(got, strings.ToUpper(id)) {
+					t.Fatalf("%q claims %v but also names %s", sentence, got, id)
 				}
 			}
 		}

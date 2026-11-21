@@ -59,10 +59,11 @@ func textClaimFeed(id string) bool {
 	return id == chromeFeedID || id == androidFeedID || id == rapid7FeedID || id == gtiFeedID
 }
 
-// Bounds: a feed (Chrome's 25 posts are about 2.5 MB), the posts of a feed, one post's HTML, a title, the text of one post read for
-// claims, a bulletin page (about 0.3 MB) and the notes of a page.
+// Bounds: a feed (Chrome's 25 posts are about 2.5 MB), its nesting depth, the posts of a feed, one post's HTML, a title, the text of one
+// post read for claims, a bulletin page (about 0.3 MB) and the notes of a page.
 const (
-	textFeedMaxBytes  = 16 << 20
+	textFeedMaxBytes  = 6 << 20
+	textMaxDepth      = 64
 	textMaxPosts      = 500
 	textMaxPost       = 2 << 20
 	textMaxTitle      = 2 << 10
@@ -82,7 +83,7 @@ const (
 	proseAdj  = `(?:(?:active|ongoing|limited|targeted|widespread|mass|renewed|continued|zero-day|0-day|in-the-wild|real-world|attempted|successful),? )*`
 	proseSees = `(?:confirmed|identified|observed|detected|reported|attributes|attributed|(?:is|are|became|was|were) aware of|` +
 		`(?:has|have|had) (?:also )?(?:seen|observed|confirmed|identified|detected|reported))`
-	proseVuln  = `(?:an? [^{}()]{1,120}\()?` // "a zero-day vulnerability (" before the id
+	proseVuln  = `(?:an? (?P<o3>[^{}()]{1,120})\()?` // "a zero-day vulnerability (" before the id (hedge-checked)
 	proseActor = `(?:threat actors?|the actors?|attackers|adversaries|(?:an?|the) (?:[a-z0-9-]+ )?campaign|unc[0-9]{1,6}|apt[0-9]{1,4}|` +
 		`\((?:formerly tracked as )?unc[0-9]{1,6}\))`
 )
@@ -139,13 +140,12 @@ func parsePostFeed(r io.Reader, who string) ([]post, error) {
 	dec := xml.NewDecoder(r)
 	dec.Entity = xml.HTMLEntity
 	var (
-		out          []post
-		cur          post
-		inPost, seen bool
-		field        *string
-		limit        int
-		content      string // content:encoded or Atom content, preferred to description
-		desc         string
+		out                           []post
+		inPost, seen                  bool
+		depth                         int
+		link, title, date, body, desc strings.Builder // body: content:encoded or Atom content, preferred to description
+		field                         *strings.Builder
+		limit                         int
 	)
 	for {
 		tok, err := dec.Token()
@@ -157,6 +157,9 @@ func parsePostFeed(r io.Reader, who string) ([]post, error) {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if depth++; depth > textMaxDepth {
+				return nil, fail(ErrBadSample, "%s is nested more than %d levels deep.", who, textMaxDepth)
+			}
 			field = nil
 			name := t.Name.Local
 			switch {
@@ -166,7 +169,10 @@ func parsePostFeed(r io.Reader, who string) ([]post, error) {
 				if len(out) == textMaxPosts {
 					return nil, fail(ErrBadSample, "%s has more than %s posts.", who, grouped(textMaxPosts))
 				}
-				inPost, cur, content, desc = true, post{}, "", ""
+				inPost = true
+				for _, b := range []*strings.Builder{&link, &title, &date, &body, &desc} {
+					b.Reset()
+				}
 			case !inPost:
 			case name == "link" && !feedOwn(t.Name.Space):
 			case name == "link":
@@ -181,38 +187,39 @@ func parsePostFeed(r io.Reader, who string) ([]post, error) {
 				}
 				if href != "" { // Atom: the alternate link
 					if (rel == "" || rel == "alternate") && len(href) <= textMaxTitle {
-						cur.Link = href
+						link.Reset()
+						link.WriteString(href)
 					}
 				} else {
-					field, limit = &cur.Link, textMaxTitle
+					field, limit = &link, textMaxTitle
 				}
 			case !feedOwn(t.Name.Space): // media:title, media:content and the like
 				if name == "encoded" && strings.Contains(t.Name.Space, "purl.org/rss/1.0/modules/content") {
-					field, limit = &content, textMaxPost
+					field, limit = &body, textMaxPost
 				}
 			case name == "title":
-				field, limit = &cur.Title, textMaxTitle
+				field, limit = &title, textMaxTitle
 			case name == "pubDate" || name == "published":
-				field, limit = &cur.Date, 64
+				field, limit = &date, 64
 			case name == "content":
-				field, limit = &content, textMaxPost
+				field, limit = &body, textMaxPost
 			case name == "description" || name == "summary":
 				field, limit = &desc, textMaxPost
 			}
 		case xml.CharData:
-			if field != nil && len(*field) < limit {
-				*field += string(t[:min(len(t), limit-len(*field))])
+			if field != nil && field.Len() < limit {
+				field.Write(t[:min(len(t), limit-field.Len())])
 			}
 		case xml.EndElement:
+			depth--
 			field = nil
 			if (t.Name.Local == "item" || t.Name.Local == "entry") && inPost {
 				inPost = false
-				cur.Body = content
-				if strings.TrimSpace(cur.Body) == "" {
-					cur.Body = desc
+				p := post{Link: strings.TrimSpace(link.String()), Title: strings.TrimSpace(title.String()), Date: strings.TrimSpace(date.String()), Body: body.String()}
+				if strings.TrimSpace(p.Body) == "" {
+					p.Body = desc.String()
 				}
-				cur.Link, cur.Title, cur.Date = strings.TrimSpace(cur.Link), strings.TrimSpace(cur.Title), strings.TrimSpace(cur.Date)
-				out = append(out, cur)
+				out = append(out, p)
 			}
 		}
 	}
@@ -249,24 +256,28 @@ var proseBlocks = map[string]bool{
 func proseText(h string) string {
 	var b strings.Builder
 	b.Grow(len(h))
+	gt := -1 // the next '>' at or after the current position, -1 for none left: each '<' is decided in constant time
 	for i := 0; i < len(h); {
 		c := h[i]
 		if c == '<' {
-			j := strings.IndexByte(h[i+1:min(len(h), i+2002)], '>')
-			if j >= 0 {
-				tag := h[i+1 : i+1+j]
+			if gt <= i && gt != -2 {
+				if k := strings.IndexByte(h[i+1:], '>'); k >= 0 {
+					gt = i + 1 + k
+				} else {
+					gt = -2 // no '>' in the rest
+				}
+			}
+			if gt > i && gt-i <= 2001 {
+				tag := h[i+1 : gt]
 				closing := strings.HasPrefix(tag, "/")
-				name := strings.ToLower(strings.TrimLeft(tag, "/"))
+				name := strings.TrimLeft(tag, "/")
 				if k := strings.IndexAny(name, " \t\r\n/"); k >= 0 {
 					name = name[:k]
 				}
-				i += j + 2
+				name = strings.ToLower(name)
+				i = gt + 1
 				if !closing && (name == "script" || name == "style") {
-					if k := strings.Index(strings.ToLower(h[i:min(len(h), i+textMaxPost)]), "</"+name); k >= 0 {
-						i += k
-					} else {
-						i = len(h)
-					}
+					i = closingTag(h, i, name)
 					continue
 				}
 				if proseBlocks[name] {
@@ -288,6 +299,21 @@ func proseText(h string) string {
 		s = html.UnescapeString(s)
 	}
 	return strings.ReplaceAll(s, " ", " ")
+}
+
+// closingTag is where the closing tag of name ("</script", any case) starts at or after i, the end of h when there is none: one pass.
+func closingTag(h string, i int, name string) int {
+	for {
+		k := strings.Index(h[i:], "</")
+		if k < 0 {
+			return len(h)
+		}
+		j := i + k + 2
+		if len(h)-j >= len(name) && strings.EqualFold(h[j:j+len(name)], name) {
+			return i + k
+		}
+		i = j
+	}
 }
 
 // proseClaims reads the claims of one post or note: its title and text (already plain), within the scope of the CVE ids they name.
@@ -334,6 +360,9 @@ func proseClaims(ctx context.Context, forms []claimForm, title, text string) ([]
 func postClaims(ctx context.Context, posts []post, forms []claimForm, read *vendorRead) error {
 	tl := newTally()
 	for i, p := range posts {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		u, err := url.Parse(p.Link)
 		day, ok := postTime(p.Date)
 		if err != nil || u.Scheme != "https" || u.Host == "" || len(p.Link) > 500 || !ok {
@@ -413,7 +442,7 @@ func (s *Service) buildTextClaims(ctx context.Context, src sourceRow, p pullPlan
 		return p, err
 	}
 	read.Claimed = claimedNow(read.Docs)
-	if prevGood(src).IsZero() {
+	if firstPull(src) {
 		read.Docs = append(read.Docs, s.seedDocs(src.ID, read.Docs)...)
 	}
 	p.out = outcome{OK: true, Bytes: size, ETag: resp.ETag, LastModif: resp.LastModified}
@@ -591,7 +620,7 @@ func (s *Service) buildAndroid(ctx context.Context, src sourceRow, p pullPlan) (
 	for _, links := range read.Claimed {
 		slices.Sort(links)
 	}
-	if prevGood(src).IsZero() {
+	if firstPull(src) {
 		read.Docs = append(read.Docs, s.seedDocs(src.ID, read.Docs)...)
 	}
 	p.out = outcome{OK: true, Bytes: size}

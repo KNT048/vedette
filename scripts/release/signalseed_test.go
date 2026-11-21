@@ -87,7 +87,7 @@ func TestSignalSeed_PreviousSeedPlusTheFeedsReadNow(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []feeds.SeedClaim{
-		{CVE: "CVE-2025-48633", Source: "android-bulletin", Date: "2025-12-01T00:00:00Z", URL: srv.URL + "/bulletin/2025-12-01"},
+		{CVE: "CVE-2025-48633", Source: "android-bulletin", Date: "2025-12-01T00:00:00Z", URL: "https://source.android.com/docs/security/bulletin/2025-12-01"},
 		{CVE: "CVE-2026-125350", Source: "chrome-releases", Date: "2026-11-09T20:52:57Z", URL: "https://chromereleases.googleblog.com/2026/11/a.html"},
 		{CVE: "CVE-2026-20122", Source: "cisco-psirt", Date: "2026-03-05T16:00:00Z", URL: "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-x-1"},
 		{CVE: "CVE-2026-35273", Source: "gti-blog", Date: "2026-09-25T14:00:00Z", URL: "https://cloud.google.com/blog/topics/threat-intelligence/older/"},

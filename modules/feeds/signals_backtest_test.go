@@ -220,7 +220,7 @@ func TestVendorClaims_CountsOfTheFrozenFixtures(t *testing.T) {
 
 // The frozen prose fixtures of testdata/textclaims were read on 21 November 2026 and cut to what the decoders read: Rapid7's and
 // Google Threat Intelligence's feeds that day (20 posts each: title, link, date and only the sentences that name a CVE and speak of
-// exploitation); Chrome Releases' posts since June 2025 that name a CVE (the sentences that speak of exploitation, and each line that
+// exploitation); Chrome Releases' posts from 7 October 2025 that name a CVE (the sentences that speak of exploitation, and each line that
 // names CVE ids reduced to the ids); Android's bulletins of June 2025 to November 2026 (the publication date and the notes); Apple's
 // CVE records published since June 2025 as NVD holds them (id, publication, the sentences of the description that speak of
 // exploitation, the links of Apple's release pages). No other text.

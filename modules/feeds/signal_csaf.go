@@ -732,7 +732,7 @@ func (s *Service) buildCisco(ctx context.Context, src sourceRow, p pullPlan) (pu
 	}
 	read.Rejected += st.Rejected
 	read.Reasons = append(read.Reasons, st.Reasons...)
-	if prevGood(src).IsZero() { // a first pull: the release's seed holds the claims of advisories older than the feed reaches
+	if firstPull(src) { // the release's seed holds the claims of advisories older than the feed reaches
 		read.Docs = append(read.Docs, s.seedDocs(src.ID, read.Docs)...)
 	}
 	p.out = outcome{OK: true, Bytes: size + n}
@@ -788,7 +788,7 @@ func (s *Service) buildFortinet(ctx context.Context, src sourceRow, p pullPlan) 
 	}
 	read.Rejected += st.Rejected
 	read.Reasons = append(read.Reasons, st.Reasons...)
-	if prevGood(src).IsZero() { // a first pull: the release's seed holds the claims of advisories older than the feed reaches
+	if firstPull(src) { // the release's seed holds the claims of advisories older than the feed reaches
 		read.Docs = append(read.Docs, s.seedDocs(src.ID, read.Docs)...)
 	}
 	p.out = outcome{OK: true, Bytes: size + n, ETag: resp.ETag, LastModif: resp.LastModified}

@@ -1,11 +1,11 @@
 # Scan-credentialed Contract
 
-> Tier: optional · Story: S-SCAN-5 · Last verified: 2026-11-09 (docs-first, chưa có code)
+> Tier: optional · Story: S-SCAN-5 · Last verified: 2026-11-21 (docs-first, chưa có code; mọi câu đã đối chiếu với code)
 
-Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentialed*` trong `scan/contract.ts` và `scan/mocks.ts`. GUI mới có quản lý tài khoản và thử kết nối; chưa có nút chạy quét hay xem kết quả.
+Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentialed*` trong `scan/contract.ts` và `scan/mocks.ts`. Module chưa có mã Go (thư mục chỉ có `MANIFEST.yaml`): các điều dưới đây là thiết kế, chưa thi hành. GUI mới có quản lý tài khoản và thử kết nối; chưa có nút chạy quét hay xem kết quả.
 
 ## Invariants
-- **INV-1**: Chỉ quét máy trong phạm vi `inventory` (đã xác nhận, không nằm trong loại trừ) và đã duyệt; `selectable=false` → 400 `out_of_scope`. Mọi kết nối của container greenbone chỉ tới `host:port` của tài khoản đã lưu (SYS-7). `TestContract_INV1_OnlyStoredTargets`
+- **INV-1**: Chỉ quét máy trong phạm vi `inventory` (đã xác nhận, không nằm trong loại trừ) và đã duyệt; `selectable=false` → 400 `out_of_scope`. Mọi kết nối của container greenbone chỉ tới `host:port` của tài khoản đã lưu (SYS-7).
 - **INV-2**: Chỉ cho máy có `device_kind ∈ {server, nas, web}` (400 `not_server`); mỗi tài sản một tài khoản (409 `exists`, muốn đổi khoá phải xoá rồi thêm lại).
 - **INV-3**: `username` khớp `^[a-z_][a-z0-9_-]{0,31}$` (400 `bad_username`); `port ∈ 1..65535` (400 `bad_port`); `private_key` ≤ 16 384 ký tự và đúng định dạng khoá riêng (400 `bad_key`).
 - **INV-4**: Khoá riêng SSH là bí mật: lưu bằng `core/secrets` (AES-256-GCM), API chỉ trả `key_last4`, không log, không vào export/backup/log xuất (SYS-4). Xoá tài khoản xoá khoá.
@@ -16,8 +16,8 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 - **INV-9**: Mọi lần thêm/xoá/thử/quét ghi `core_audit` (`scan.credentialed.add|remove|test`), không có bí mật.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`POST /scans/credentialed`): `admin`, INV-1…4. **POST-1**: `CredTarget {id, asset_id, label, host, port, username, key_last4, last_test:null}` (201); khoá nằm trong `core/secrets`.
-- **PRE-2** (`POST …/{id}/test`): `operator`, tài khoản tồn tại (404). **POST-2**: INV-5.
+- **PRE-1** (`POST /scans/credentialed`): `admin`, INV-1…4. **POST-1**: `CredTarget {id, asset_id, label, host, port, username, key_last4, created_at, last_test:null}` (201); khoá nằm trong `core/secrets`.
+- **PRE-2** (`POST …/{id}/test`): `operator`, tài khoản tồn tại (404). **POST-2**: INV-5; trả `CredTarget` với `last_test` mới.
 - **PRE-3** (`DELETE …/{id}`): `admin`. **POST-3**: 204; tài khoản và khoá biến mất; kết quả cũ giữ.
 - **PRE-4** (`GET /scans/credentialed`): `viewer`. **POST-4**: `{items, enabled}`; `enabled` phản ánh trạng thái module và container.
 
@@ -29,7 +29,7 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 - **FORBID-5**: Dùng quyền root/sudo tài khoản; khuyến nghị tài khoản chỉ đọc (hiển thị trong giao diện).
 
 ## Dependencies
-- **DEPENDS ON**: `core` (secrets, audit, hostclient), `inventory`, `scan`.
+- **DEPENDS ON**: `core` (secrets, audit, `host/client` của `vedette-host`), `inventory`, `scan`.
 - **DEPENDED ON BY**: không (tiêu thụ bởi `findings` qua sự kiện).
 
 ## Endpoints owned (role tối thiểu)
@@ -50,7 +50,7 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 Không route `/scans/credentialed*` (tab hiện "off" qua `enabled:false` ở bản GUI), container greenbone dừng, không kết nối SSH. Tài khoản và khoá mã hoá giữ nguyên.
 
 ## Story và quyết định
-S-SCAN-5. Giấy phép minh bạch; container `greenbone` tuỳ chọn. **Bản v1 không có backend** (core trả 501 `not_implemented` cho `/scans/credentialed*`), nên GUI không mời module này: không tab, không dòng trong Settings → Modules hay trình cài đặt, sau công tắc `CREDENTIALED_IN_UI = false` (`web/src/lib/credentialed.ts`). Mã GUI, hợp đồng, mock giữ nguyên.
+S-SCAN-5. Giấy phép minh bạch; container `greenbone` tuỳ chọn. **Bản v1 không có backend** (core trả 501 `not_implemented` cho `/scans/credentialed*`), nên GUI không mời module này: không tab trong Settings → Scanning (`ScanningPage`), không dòng trong Settings → Modules hay trình cài đặt, sau công tắc `CREDENTIALED_IN_UI = false` (`web/src/lib/credentialed.ts`). Mã GUI, hợp đồng, mock giữ nguyên.
 
 ## Không khớp / câu hỏi mở
 - ~~`contract.ts` ghi "khoá riêng không bao giờ được lưu"~~ Đã sửa chữ trong GUI/contract: "lưu mã hoá trên hộp, không bao giờ hiện lại" (`core/secrets`, SYS-4).

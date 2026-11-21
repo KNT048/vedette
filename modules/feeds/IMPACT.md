@@ -201,3 +201,12 @@
 
 ## Modifying: `DeviceMerged`, `DeviceDeleted` (`devicelifecycle.go`, INV-33)
 - **inventory** calls them inside its merge or delete transaction (core/lifecycle, registered in `cmd/vedette/devicelifecycle.go`): write only through `tx`; an error rolls the inventory's write back. `HaveSince` (findings) reads `device_id`: a change of what it holds after a merge or delete changes which device an answer scopes.
+
+## Modifying: vendor-notation rows (`statedRows`, `exceptRows`, `Range.Generic`, `genericRowSQL`, `RangeScheme`), `core/versionscheme`, the catalogue's `scheme`/`record` (VN-1…3, BRIEF-3)
+- **Every reader that matches** must read generic rows only (`Range.Generic`, `genericRowSQL`): a new query on `feeds_cve_range` for matching that forgets it compares "8.0" with "ESXi80U3d-24585383" and changes findings. `TestRecordRanges_ExploitedListView` and the findings golden tests hold the line.
+- **findings (the one match pass)**: to use a vendor row, resolve the software's product (`productid`), take its `Scheme`, read the rows with `feeds.RangeScheme` and decide with `versionscheme.Judge` on `Scheme.Installed(version, build)`. ESXi needs the host's build (sensor-active states it in the OS line; the software row keeps the version and the update CPE only).
+- **core/productid**: `scheme` must be a `versionscheme` name (the catalogue refuses to load otherwise); `record` names only feed `ByRangeName`, never inventory identity; `kev_shared` keeps a combined exploited-list name ("ESXi and Workstation") in a product's match keys without `ByKEV` resolving it to that product.
+- **A change of `recordRanges`/`statedRows` output** must bump `recordReader`: records are not stored whole, so only a new whole-list read brings the new rows to boxes that read the records already.
+- **sensor-active**: reads the ESXi build table through `versionscheme.ESXiBuild`; a new release is a row of `esxi-builds.json`.
+- **web**: `CveRange.train`, `CveRange.fixed_release`, `CveBrief.fixes` (`contract.ts`, `briefSamples.ts`); the `vendor:` version types never count.
+- **Storage**: about 0.6 extra rows per record read (650 rows for the 1 092 records of the count sample): a few MB on a full catalogue.

@@ -97,7 +97,7 @@ const steps: Step[] = [
   { name: 'cve lower case', role: 'viewer', method: 'GET', path: (c) => `/feeds/cve/${c.cve!.toLowerCase()}`, status: 200, real: { status: 400, code: 'invalid' } },
   { name: 'cve whose link has an anchor', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2021-3199', status: 200, schema: CveDetail, check: (b) => expect(b.lists[0].links[0]).toMatch(/CHANGELOG.md#563$/) },
   { name: 'cve brief with weaknesses, ranges and tagged references', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2025-22225', status: 200, schema: CveDetail,
-    check: (b) => { expect(b.cwe.map((w: { id: string }) => w.id)).toEqual(['CWE-787', 'CWE-123']); expect(b.ranges).toHaveLength(55); expect(b.references[0]).toMatchObject({ group: 'vendor-advisory' }) } },
+    check: (b) => { expect(b.cwe.map((w: { id: string }) => w.id)).toEqual(['CWE-787', 'CWE-123']); expect(b.ranges.filter((r: { counts: boolean }) => r.counts)).toHaveLength(55); expect(b.fixes.map((f: { train: string }) => f.train)).toEqual(['8.0 U3', '8.0 U2', '7.0 U3']); expect(b.references[0]).toMatchObject({ group: 'vendor-advisory' }) } },
   { name: 'cve brief of a CVE on no list', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2026-31001', status: 200, schema: CveDetail,
     check: (b) => expect([b.lists, b.matched]).toEqual([[], null]) },
   { name: 'cve not in the data', role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-1999-0001', status: 404, code: 'not_in_data' },

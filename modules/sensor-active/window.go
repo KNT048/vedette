@@ -3,9 +3,9 @@ package sensoractive
 import (
 	"net/netip"
 	"slices"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/schedule"
 )
 
 // allowed applies INV-2: no work when scanning is off, the scope is not confirmed, or there is no range.
@@ -21,60 +21,40 @@ func (st Settings) allowed() error {
 	return nil
 }
 
-// minutes parses HH:MM.
-func minutes(s string) (int, bool) {
-	h, m, ok := strings.Cut(s, ":")
-	hh, err1 := strconv.Atoi(h)
-	mm, err2 := strconv.Atoi(m)
-	if !ok || err1 != nil || err2 != nil || len(h) != 2 || len(m) != 2 || hh < 0 || hh > 23 || mm < 0 || mm > 59 {
-		return 0, false
-	}
-	return hh*60 + mm, true
+// scanWindow is the box's scan window as core/schedule reads it (INV-3): the one window arithmetic of the box.
+func (st Settings) scanWindow() schedule.Window {
+	return schedule.Window{Days: st.Days, From: st.From, To: st.To}
 }
 
 // window returns the window that contains t (INV-3): its start and its end, in t's own location (the organization's
 // time zone; the caller passes t in that zone). A window that crosses midnight belongs to the day it
 // starts on: "Friday 23:00 to 05:00" runs until Saturday 05:00. ok is false outside every window.
 func (st Settings) window(t time.Time) (start, end time.Time, ok bool) {
-	from, ok1 := minutes(st.From)
-	to, ok2 := minutes(st.To)
-	if !ok1 || !ok2 || from == to {
+	w := st.scanWindow()
+	if !w.Contains(t, t.Location()) {
 		return time.Time{}, time.Time{}, false
 	}
-	for back := 0; back <= 1; back++ { // a window starting today, or one that started yesterday and crosses midnight
-		d := t.AddDate(0, 0, -back)
-		wd := int(d.Weekday())
-		if wd == 0 {
-			wd = 7
-		}
-		if !slices.Contains(st.Days, wd) {
-			continue
-		}
-		start = time.Date(d.Year(), d.Month(), d.Day(), from/60, from%60, 0, 0, t.Location())
-		endDay := d
-		if to < from {
-			endDay = d.AddDate(0, 0, 1)
-		}
-		end = time.Date(endDay.Year(), endDay.Month(), endDay.Day(), to/60, to%60, 0, 0, t.Location())
-		if !t.Before(start) && t.Before(end) {
-			return start, end, true
-		}
-	}
-	return time.Time{}, time.Time{}, false
+	start, end, ok = w.Span(t, t.Location())
+	return start.In(t.Location()), end.In(t.Location()), ok
 }
 
 // windowLength is how long one window lasts (To after From on the same day, or across midnight); 0 when the
 // times are not valid.
-func (st Settings) windowLength() time.Duration {
-	from, ok1 := minutes(st.From)
-	to, ok2 := minutes(st.To)
-	if !ok1 || !ok2 || from == to {
-		return 0
+func (st Settings) windowLength() time.Duration { return st.scanWindow().Length() }
+
+// nextOpening is the first start of a window after t (in t's location); nil when there is none.
+func (st Settings) nextOpening(t time.Time) *time.Time {
+	w := st.scanWindow()
+	loc := t.Location()
+	start, end, ok := w.Span(t, loc)
+	if ok && !start.After(t) { // inside a window: the next one opens after this one closes
+		start, _, ok = w.Span(end, loc)
 	}
-	if to < from {
-		to += 24 * 60
+	if !ok || !start.After(t) {
+		return nil
 	}
-	return time.Duration(to-from) * time.Minute
+	start = start.In(loc)
+	return &start
 }
 
 // prefixes parses the ranges, skipping anything that is not an IPv4 CIDR (the inventory validates them

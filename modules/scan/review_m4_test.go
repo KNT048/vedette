@@ -16,7 +16,7 @@ func TestReview_M4_RecoverJobAndShutdown(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	err := r.db.Write(r.ctx(), func(tx *sql.Tx) error {
-		if err := seedRun(r.ctx(), tx, "run-old", "manual", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
+		if err := seedRun(r.ctx(), tx, "run-old", "running", "2026-11-10T09:00:00.000Z", "a-web01"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(r.ctx(), `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request) VALUES ('pr-old', '2026-11-10T09:00:00.000Z', 'run-old', '192.168.10.12', 'WEB01', 't.yaml', 'GET / HTTP/1.1')`)

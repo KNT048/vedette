@@ -13,6 +13,9 @@ import (
 
 func (e *env) runJob() {
 	e.t.Helper()
+	if _, err := e.sched.Tick(e.ctx()); err != nil { // the schedule that came due by the test clock
+		e.t.Fatal(err)
+	}
 	if err := e.svc.RunAutoDetect(e.ctx()); err != nil {
 		e.t.Fatal(err)
 	}
@@ -45,7 +48,7 @@ func TestContract_INV11_AutoDetectSchedule(t *testing.T) {
 		t.Fatalf("last run = %+v", b.LastRun)
 	}
 
-	// then every 60 minutes (the job wakes every minute and may start half a tick early)
+	// then every 60 minutes (the schedule says when; the job pulls it in at its next tick)
 	for _, d := range []time.Duration{time.Minute, 30 * time.Minute, 59 * time.Minute} {
 		e.clock.now = t0.Add(d)
 		e.runJob()
@@ -53,9 +56,9 @@ func TestContract_INV11_AutoDetectSchedule(t *testing.T) {
 			t.Fatalf("a check ran %s after the last one", d)
 		}
 	}
-	e.clock.now = t0.Add(60*time.Minute - JobTick/2)
+	e.clock.now = t0.Add(60 * time.Minute) // the schedule comes due: an hour after the full check, so this one is full again
 	e.runJob()
-	if e.prober.count() != DeepRounds+LightRounds { // the full check was 59.5 minutes ago: this one is light
+	if e.prober.count() != 2*DeepRounds {
 		t.Fatalf("no check when it was due: %d rounds", e.prober.count())
 	}
 	// it runs as the box itself; the first run, which added two IPs, leaves its audit row and the routine run after it none (L3)
@@ -100,7 +103,7 @@ func TestContract_INV11_LightAndFullChecks(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.prober.set(ipA, ipB)
-	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", true, 1); err != nil {
+	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", true, 5); err != nil {
 		t.Fatal(err)
 	}
 	e.runJob() // first: full
@@ -108,7 +111,7 @@ func TestContract_INV11_LightAndFullChecks(t *testing.T) {
 		t.Fatalf("first check: %d rounds, IPs %v", e.prober.count(), e.ipValues())
 	}
 	rounds := e.prober.count()
-	for i := 1; i < 60; i++ { // 59 minutes of one-minute checks: light
+	for i := 5; i < 60; i += 5 { // 55 minutes of five-minute checks: light
 		e.clock.now = t0.Add(time.Duration(i) * time.Minute)
 		e.runJob()
 		if got := e.prober.count() - rounds; got != LightRounds {
@@ -154,15 +157,15 @@ func TestContract_INV11_ManualModeAndSettings(t *testing.T) {
 		t.Fatalf("Detect now: %v", got)
 	}
 
-	// the interval is 1 minute to 24 hours; a refusal changes nothing
-	for _, n := range []int{0, -1, 1441, 1 << 20} {
+	// the interval is 5 minutes to 24 hours; a refusal changes nothing
+	for _, n := range []int{0, -1, 1, 4, 1441, 1 << 20} {
 		_, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", true, n)
 		wantAPI(t, err, 400, "bad_interval")
 	}
 	if b := e.settings(); b.Auto || b.IntervalMin != 60 {
 		t.Fatalf("a refused save changed the settings: %+v", b)
 	}
-	for _, n := range []int{1, 5, 10, 15, 30, 60, 360, 720, 1440} {
+	for _, n := range []int{5, 10, 15, 30, 60, 360, 720, 1440} {
 		if b, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", false, n); err != nil || b.IntervalMin != n {
 			t.Fatalf("interval %d: %+v %v", n, b, err)
 		}
@@ -173,7 +176,7 @@ func TestContract_INV11_ManualModeAndSettings(t *testing.T) {
 			changes++
 		}
 	}
-	if changes != 10 {
+	if changes != 9 {
 		t.Fatalf("%d settings changes audited", changes)
 	}
 

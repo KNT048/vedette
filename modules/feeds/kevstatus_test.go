@@ -14,8 +14,8 @@ func TestContract_RetiredBuiltinRowIsRemovedAtStartWithWhatItLoaded(t *testing.T
 	const ts = "2026-11-01T10:00:00.000Z"
 	write(t, e.db, func(tx *sql.Tx) error {
 		for _, q := range []string{
-			`INSERT OR IGNORE INTO feeds_source (id, builtin, name, kind, format, url, default_url, interval_hours, created_at, status)
-			 VALUES ('abusech-sslbl', 1, 'abuse.ch SSLBL', 'ioc', 'csv', 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', 6, '` + ts + `', 'error')`,
+			`INSERT OR IGNORE INTO feeds_source (id, builtin, name, kind, format, url, default_url, created_at, status)
+			 VALUES ('abusech-sslbl', 1, 'abuse.ch SSLBL', 'ioc', 'csv', 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', 'https://sslbl.abuse.ch/blacklist/sslipblacklist.csv', '` + ts + `', 'error')`,
 			`INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('only-sslbl', 'ip', '203.0.113.7', '` + ts + `', '` + ts + `'), ('shared', 'ip', '203.0.113.8', '` + ts + `', '` + ts + `')`,
 			`INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('only-sslbl', 'abusech-sslbl', '` + ts + `', 0.5), ('shared', 'abusech-sslbl', '` + ts + `', 0.5), ('shared', 'abusech-feodo', '` + ts + `', 0.5)`,
 			`INSERT INTO feeds_fetch_log (id, source_id, started_at, status, error) VALUES ('log-1', 'abusech-sslbl', '` + ts + `', 'error', 'no valid rows')`,

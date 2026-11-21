@@ -31,8 +31,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if err := CheckURL(s.URL); err != nil {
 			t.Errorf("%s: default URL fails INV-2: %v", s.ID, err)
 		}
-		if err := CheckInterval(s.IntervalHours); err != nil {
-			t.Errorf("%s: %v", s.ID, err)
+		if s.IntervalHours < 1 || s.IntervalHours > 168 { // the schedule's limits: an hour to a week
+			t.Errorf("%s: default interval %d is outside the schedule's limits", s.ID, s.IntervalHours)
 		}
 		want := map[Kind]int{KindVulnerabilities: 24, KindIOC: 6}[s.Kind]
 		if s.ID == vulnCheckFeedID { // the customer's own key, 1,000 requests a minute: a few pages every 6 hours

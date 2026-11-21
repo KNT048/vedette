@@ -18,6 +18,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -63,6 +64,7 @@ type world struct {
 	logs   *bytes.Buffer
 	aud    *audit.Log
 	conn   *conn.Service
+	sched  *schedule.Service // the box's schedules on the test clock: the Wazuh pull's schedule
 }
 
 // boxAddr is the box's own address in the tests: the address policy refuses it as a Wazuh server.
@@ -114,11 +116,19 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	mirror := t.TempDir()
 	cfg := agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Services: inv, Approver: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
 		TrustAnchor: func() ([]byte, error) { return []byte(testCA), nil }, HostAllowed: server.HostMatcher(boxHosts, nil), BoxURL: func() string { return boxURL }, MirrorDir: mirror}
+	sched, err := schedule.New(schedule.Config{DB: db, Clock: clk.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Schedules = sched
 	for _, o := range opts {
 		o(&cfg)
 	}
 	svc, err := agentintake.New(cfg)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sched.Register(svc.ScheduleOwner()); err != nil {
 		t.Fatal(err)
 	}
 	gate := servertest.NewGate()
@@ -133,18 +143,26 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud, conn: cs, mirror: mirror, cfg: cfg}
+	return &world{t: t, db: db, inv: inv, svc: svc, h: h, gate: gate, clock: clk, logs: logs, aud: aud, conn: cs, mirror: mirror, cfg: cfg, sched: sched}
 }
 
 // restart builds the service again on the same database, as a restart of the process does (the handler keeps the old one, which the
 // tests that call restart do not use).
 func (w *world) restart() {
 	w.t.Helper()
+	sched, err := schedule.New(schedule.Config{DB: w.db, Clock: w.clock.Now})
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	w.cfg.Schedules = sched
 	svc, err := agentintake.New(w.cfg)
 	if err != nil {
 		w.t.Fatal(err)
 	}
-	w.svc = svc
+	if err := sched.Register(svc.ScheduleOwner()); err != nil {
+		w.t.Fatal(err)
+	}
+	w.svc, w.sched = svc, sched
 }
 
 // reply is one HTTP answer.

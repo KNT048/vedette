@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/schedule"
 )
 
 // The maintenance window (S-CORE-7) is core's own setting: days and hours in the organization time
@@ -76,31 +77,17 @@ func (w maintWindow) normalize(stored maintWindow) (maintWindow, *apierr.Error) 
 	return maintWindow{Mode: windowOnly, Days: slices.Compact(days), From: w.From, To: w.To}, nil
 }
 
-func isoDay(t time.Time) int {
-	if d := int(t.Weekday()); d != 0 {
-		return d
-	}
-	return 7
-}
-
 func minutesOf(hhmm string) int { // hhmm passed hhmmRE
 	return int(hhmm[0]-'0')*600 + int(hhmm[1]-'0')*60 + int(hhmm[3]-'0')*10 + int(hhmm[4]-'0')
 }
 
 // contains reports whether t falls inside the window; t is read in loc. A window that crosses midnight
-// belongs to the day it starts on.
+// belongs to the day it starts on. The days-and-hours arithmetic is core/schedule's, the one every window of the box uses.
 func (w maintWindow) contains(t time.Time, loc *time.Location) bool {
 	if w.Mode == windowAlways {
 		return true
 	}
-	t = t.In(loc)
-	m := t.Hour()*60 + t.Minute()
-	from, to := minutesOf(w.From), minutesOf(w.To)
-	if from < to {
-		return slices.Contains(w.Days, isoDay(t)) && m >= from && m < to
-	}
-	prev := t.AddDate(0, 0, -1)
-	return (m >= from && slices.Contains(w.Days, isoDay(t))) || (m < to && slices.Contains(w.Days, isoDay(prev)))
+	return schedule.Window{Days: w.Days, From: w.From, To: w.To}.Contains(t, loc)
 }
 
 // at returns hh:mm of the calendar day that is i days after now's day, in loc.
@@ -122,7 +109,7 @@ func (w maintWindow) nextStart(now time.Time, loc *time.Location) (time.Time, bo
 		return time.Time{}, false
 	}
 	for i := 0; i <= 8; i++ {
-		if c := at(now, i, w.From, loc); reachable(c, now) && slices.Contains(w.Days, isoDay(c)) && w.contains(c, loc) {
+		if c := at(now, i, w.From, loc); reachable(c, now) && w.contains(c, loc) {
 			return c, true
 		}
 	}

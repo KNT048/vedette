@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/observe"
+	coreschedule "github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
@@ -48,8 +49,51 @@ const wazuhLostMsg = "The saved Wazuh password was not restored (the backup was 
 // tick finds that the password opens again (the original key file was put back).
 var wazuhNever = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 
-// WazuhIntervals are the pull intervals of the GUI, in minutes.
-var WazuhIntervals = []int{5, 15, 60, 360, 1440}
+// WazuhScheduleKey is the owner key of the Wazuh pull in core/schedule.
+const WazuhScheduleKey = "agent-intake.wazuh"
+
+// wazuhLimits is what the pull's schedule allows: an interval, not shorter than 5 minutes.
+var wazuhLimits = coreschedule.Limits{Freqs: []coreschedule.Freq{coreschedule.Interval}, MinEveryMinutes: 5, Windows: []coreschedule.WindowMode{coreschedule.WindowNone},
+	Reason: "The Wazuh server answers slowly to frequent pulls."}
+
+// wazuhDefaultMinutes is how often the pull runs until someone chooses.
+const wazuhDefaultMinutes = 15
+
+// ScheduleOwner is what the Wazuh pull registers with core/schedule: only an interval, at least 5 minutes. When it comes due the
+// pull job is asked to pull at its next tick (nothing is started here: a pull is not a run).
+func (s *Service) ScheduleOwner() coreschedule.Owner {
+	return coreschedule.Owner{Module: ModuleID, Key: WazuhScheduleKey, AdminOnly: true, Limits: wazuhLimits, Default: coreschedule.Every(wazuhDefaultMinutes), DefaultOn: true, Start: s.askPull}
+}
+
+// askPull is the Start of the schedule: the next tick of the pull job pulls. Nothing is asked, and the reason is said, while no server is
+// connected, the saved password cannot be opened, or the last pass has not finished (it goes on by itself).
+func (s *Service) askPull(ctx context.Context, tx *sql.Tx, _ coreschedule.Fire) (string, error) {
+	w, err := s.loadWazuh(ctx, tx)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case w == nil:
+		return "", coreschedule.Skip("No Wazuh server is connected (Devices, Add devices).")
+	case w.nextPull != nil && !w.nextPull.Before(wazuhNever):
+		return "", coreschedule.Skip("The saved Wazuh password cannot be opened; type it again and save.")
+	case w.nextPull != nil:
+		return "", coreschedule.Skip("The last pull has not finished; it goes on at the next tick.")
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = ? WHERE id = 1 AND next_pull IS NULL`, store.FormatTS(s.now())); err != nil {
+		return "", fmt.Errorf("agentintake: wazuh ask pull: %w", err)
+	}
+	return "", nil
+}
+
+// wazuhMinutes is how often the pull runs, from its schedule: 0 when there is none yet.
+func wazuhMinutes(ctx context.Context, q coreschedule.Querier) int {
+	e, ok, err := coreschedule.Lookup(ctx, q, WazuhScheduleKey)
+	if err != nil || !ok || e.Rule.Freq != coreschedule.Interval || e.Rule.EveryMinutes == nil {
+		return 0
+	}
+	return *e.Rule.EveryMinutes
+}
 
 var wazuhUserRE = regexp.MustCompile(`^[\w.@-]{1,64}$`) // the mock's rule
 
@@ -121,22 +165,27 @@ type savedWazuh struct {
 	WazuhConnection
 	secretID, pin, resumeAfter string
 	generation                 int64
-	nextPull                   time.Time
+	nextPull                   *time.Time // nil: waits for the schedule
 }
 
 func (s *Service) loadWazuh(ctx context.Context, q querier) (*savedWazuh, error) {
 	var w savedWazuh
 	var last, next sql.NullString
 	var errText, resume sql.NullString
-	err := q.QueryRowContext(ctx, `SELECT url, username, secret_id, password_last4, interval_minutes, tls_pin, generation, status, last_sync, next_pull, agents, packages, error, resume_after FROM intake_wazuh WHERE id = 1`).
-		Scan(&w.URL, &w.Username, &w.secretID, &w.PasswordLast4, &w.IntervalMinutes, &w.pin, &w.generation, &w.Status, &last, &next, &w.Agents, &w.Packages, &errText, &resume)
+	err := q.QueryRowContext(ctx, `SELECT url, username, secret_id, password_last4, tls_pin, generation, status, last_sync, next_pull, agents, packages, error, resume_after FROM intake_wazuh WHERE id = 1`).
+		Scan(&w.URL, &w.Username, &w.secretID, &w.PasswordLast4, &w.pin, &w.generation, &w.Status, &last, &next, &w.Agents, &w.Packages, &errText, &resume)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("agentintake: read wazuh: %w", err)
 	}
-	w.LastSync, w.nextPull, w.Error, w.resumeAfter = parseTS(last), parseTS(next), errText.String, resume.String
+	w.LastSync, w.Error, w.resumeAfter = parseTS(last), errText.String, resume.String
+	if next.Valid {
+		t := parseTS(next)
+		w.nextPull = &t
+	}
+	w.IntervalMinutes = wazuhMinutes(ctx, q)
 	return &w, nil
 }
 
@@ -200,8 +249,12 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 		// The saved password belongs to the server it was typed for: it never goes to another address without being typed again.
 		return checked{}, bad400("password_required", "The address changed. Enter the password of the read-only API user again.")
 	}
-	if !slices.Contains(WazuhIntervals, c.interval) {
-		return checked{}, bad400("bad_interval", "Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes.")
+	if err := wazuhLimits.Check(coreschedule.Every(c.interval)); err != nil {
+		var re *coreschedule.RuleError
+		if errors.As(err, &re) {
+			return checked{}, bad400("bad_interval", re.Message)
+		}
+		return checked{}, err
 	}
 	if !c.typed {
 		raw, err := s.cfg.Secrets.Open(ctx, tx, prev.secretID, wazuhPurpose)
@@ -326,8 +379,8 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at, generation) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts, gen); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, tls_pin, tls_pin_first_seen, next_pull, updated_at, generation) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				c.origin, c.user, id, last4, pin, ts, ts, ts, gen); err != nil {
 				return fmt.Errorf("agentintake: insert wazuh: %w", err)
 			}
 			// A new connection starts again at generation 1: no row of an earlier one may count as its agent (#855 r1 M1).
@@ -349,11 +402,14 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 			if pin == cur.pin {
 				firstSeen = "" // kept below
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET url = ?, username = ?, password_last4 = ?, interval_minutes = ?, tls_pin = ?,
+			if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET url = ?, username = ?, password_last4 = ?, tls_pin = ?,
 				tls_pin_first_seen = COALESCE(NULLIF(?, ''), tls_pin_first_seen), generation = generation + 1, status = ?, error = NULL, next_pull = ?, resume_after = NULL, pass_packages = 0, updated_at = ? WHERE id = 1`,
-				c.origin, c.user, last4, c.interval, pin, firstSeen, status, ts, ts); err != nil {
+				c.origin, c.user, last4, pin, firstSeen, status, ts, ts); err != nil {
 				return fmt.Errorf("agentintake: update wazuh: %w", err)
 			}
+		}
+		if err := s.saveInterval(ctx, tx, c.interval, actor); err != nil {
+			return err
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.wazuh_connect", c.origin, fmt.Sprintf("user %s, every %d min, %s", c.user, c.interval, pinWords))
 	})
@@ -365,6 +421,27 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 		return WazuhConnection{}, errors.Join(err, errors.New("agentintake: the saved wazuh connection is gone"))
 	}
 	return *w, nil
+}
+
+// saveInterval keeps the pull's schedule in step with the interval of the connection form: untouched when the form still holds the
+// interval the schedule has, else the schedule is saved as an interval of that many minutes (still on or off as it was).
+func (s *Service) saveInterval(ctx context.Context, tx *sql.Tx, minutes int, actor string) error {
+	if s.cfg.Schedules == nil {
+		return nil
+	}
+	if cur := wazuhMinutes(ctx, tx); cur == minutes {
+		return nil
+	}
+	enabled := true
+	if e, ok, err := coreschedule.Lookup(ctx, tx, WazuhScheduleKey); err != nil {
+		return err
+	} else if ok {
+		enabled = e.Enabled
+	}
+	if err := s.cfg.Schedules.SaveTx(ctx, tx, WazuhScheduleKey, coreschedule.Setting{Enabled: enabled, Rule: coreschedule.Every(minutes)}, actor); err != nil {
+		return asAPI(err)
+	}
+	return nil
 }
 
 // DeleteWazuh removes the connection and its password in one transaction (INV-6). Data already pulled stays in the inventory.
@@ -424,16 +501,18 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 		}
 		// A pull stopped on a password it could not open (below) only checks, locally, whether the password opens again (the original
 		// key file was put back): nothing is sent, written or logged until it does, and then this tick pulls.
+		if w.nextPull == nil {
+			return nil // nothing asked: the schedule asks for the next pull
+		}
 		stopped := !w.nextPull.Before(wazuhNever)
-		if !stopped && now.Before(w.nextPull) {
+		if !stopped && now.Before(*w.nextPull) {
 			return nil
 		}
 		raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose)
 		if stopped && secrets.IsWrongKey(err) {
 			return nil
 		}
-		next := now.Add(time.Duration(w.IntervalMinutes) * time.Minute)
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = ? WHERE id = 1`, store.FormatTS(next)); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = NULL WHERE id = 1`); err != nil {
 			return fmt.Errorf("agentintake: wazuh next pull: %w", err)
 		}
 		if secrets.IsWrongKey(err) {

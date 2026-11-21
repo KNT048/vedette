@@ -47,6 +47,12 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		byKey[lineKey(f.CVE, f.SoftwareID)] = f
 	}
 	lines := deviceLines(a)
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		if _, ok := byCVE[v.CVE]; !ok { // the first, as the matcher reads it
+			byCVE[v.CVE] = v
+		}
+	}
 	seen := map[string]bool{}
 	for _, list := range [][]Match{m.New, m.Existing} {
 		for _, best := range list {
@@ -77,7 +83,11 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				if !ok {
 					f = Finding{ID: store.NewID("f"), AssetID: a.ID, CVE: x.CVE}
 				}
-				g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: detectionOf(x, lines)}, emit)
+				d := detectionOf(x, lines)
+				if v, known := byCVE[x.CVE]; known {
+					resolve(&d, a, lines, v)
+				}
+				g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
 				if err != nil {
 					return res, fmt.Errorf("findings: %s on %s: %w", x.CVE, a.ID, err)
 				}
@@ -188,6 +198,23 @@ func detectionOf(x Match, lines map[string]line) Detection {
 		}
 	}
 	return d
+}
+
+// resolve completes a version detection with what the match pass decides from the CVE's data: the origin of the ranges it compared
+// and the fix of the line (FixOf, the one resolver). A safe check's detection keeps its own origin; a detection on no line has no fix
+// to read (the fix the finding had stays).
+func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
+	if d.Basis != DetectScan && d.Basis != DetectPackage {
+		d.RangeOrigin = v.rangeOrigin()
+	}
+	l, ok := lines[d.SoftwareID]
+	if !ok {
+		return
+	}
+	d.Fix = FixOf(a, l.sw, v)
+	if d.ProductKey == "" {
+		d.ProductKey = "unknown"
+	}
 }
 
 // goneVia says how a finding the match no longer detects went away, from what the device reads now:

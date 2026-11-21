@@ -164,6 +164,9 @@ type Vuln struct {
 	Affected    []Affected
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV; names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record
+	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
+	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
+	Origin string
 	// NVDAnswered: the feeds module recorded an answer for the CVE's affected configurations (feeds_affected_cve: NVD's, or the
 	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
 	// about NVD, so the "could not be checked" list does not claim "no NVD data" (#910, #920).
@@ -184,6 +187,17 @@ const (
 	RangesCVEOrg        = "cve.org"
 	RangesCVEOrgPartial = "cve.org-partial"
 )
+
+// rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
+func (v Vuln) rangeOrigin() string {
+	switch {
+	case v.Origin != "":
+		return v.Origin
+	case v.fromCVEOrg():
+		return RangeCNA
+	}
+	return RangeNVD
+}
 
 // listName is how texts name the list the entry is on: VulnCheck's entries are never called CISA's.
 func (v Vuln) listName() string {

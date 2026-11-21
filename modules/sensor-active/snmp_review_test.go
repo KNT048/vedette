@@ -3,6 +3,7 @@ package sensoractive_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"io/fs"
 	"net/netip"
@@ -24,7 +25,7 @@ import (
 
 // newBigWorld is a service over 70 approved devices .10 .. .79 (two batches of a round: 64 + 6), the window open (Monday at hh:mm in
 // a 01:00-05:00 window).
-func newBigWorld(t *testing.T, r *fakeReader, hh, mm int) (*sa.Service, *fakeInv) {
+func newBigWorld(t *testing.T, r *fakeReader, hh, mm int, fixed ...bool) (*sa.Service, *fakeInv) {
 	t.Helper()
 	db := storetest.New(t)
 	if err := store.Migrate(t.Context(), db, "core", core.Migrations); err != nil {
@@ -33,6 +34,7 @@ func newBigWorld(t *testing.T, r *fakeReader, hh, mm int) (*sa.Service, *fakeInv
 	if err := store.Migrate(t.Context(), db, "sensor-active", sa.Migrations); err != nil {
 		t.Fatal(err)
 	}
+	inventoryStub(t, db)
 	sec, err := secrets.New(bytes.Repeat([]byte{9}, secrets.KeySize))
 	if err != nil {
 		t.Fatal(err)
@@ -47,8 +49,30 @@ func newBigWorld(t *testing.T, r *fakeReader, hh, mm int) (*sa.Service, *fakeInv
 	}
 	nm := writeFakeNmap(t, fakeOpts{})
 	base, t0 := local(9, hh, mm), time.Now()
+	clock := func() time.Time { return base.Add(time.Since(t0)) }
+	if len(fixed) > 0 && fixed[0] { // the clock stands still: the window never closes under a slow machine
+		clock = func() time.Time { return base }
+	}
 	svc, err := sa.New(sa.Config{DB: db, Inventory: inv, Observe: &sink{}, Software: &sink{}, Services: &sink{}, NmapPath: nm.path,
-		Clock: func() time.Time { return base.Add(time.Since(t0)) }, Secrets: sec, Audit: audit.New(time.Now), SNMP: r})
+		Clock: clock, Secrets: sec, Audit: audit.New(time.Now), SNMP: r})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(svc.Close)
+	// every device had its first check a week ago: the tests are about SNMP, and the window's driver checks a device no check reached
+	// yet before anything else
+	err = db.Write(t.Context(), func(tx *sql.Tx) error {
+		for id := range inv.assets {
+			if _, err := tx.ExecContext(t.Context(), doneRunSQL, "run-first-"+id, sa.RunCheck, "2026-11-02T02:00:00.000Z", id); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result)
+				VALUES ('2026-11-02T02:00:01.000Z', ?, 'normal', 100, 1, '-sS', '10.0.0.1', 'ok: 1 hosts up')`, "run-first-"+id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,12 +126,12 @@ func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 		deadline, has = ctx.Deadline()
 		return nil, nil
 	}}
-	svc, inv := newBigWorld(t, r, 4, 59) // the window closes at 05:00
+	svc, inv := newBigWorld(t, r, 4, 59, true) // the window closes at 05:00, a minute from the clock, which stands still
 	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.sent()) == 0 || !has || time.Until(deadline) > 61*time.Second {
+	if len(r.sent()) == 0 || !has || time.Until(deadline) > 60*time.Second {
 		t.Fatalf("%d jobs, deadline in %v (has %v), want at most the minute left of the window", len(r.sent()), time.Until(deadline), has)
 	}
 }

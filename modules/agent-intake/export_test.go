@@ -36,5 +36,5 @@ func AllowedWazuhCall(method, path string) bool { return allowedCall(method, pat
 
 // WazuhAgentSeenForTest is the pull's record of where it delivered an agent (a pull of an older connection still running).
 func (s *Service) WazuhAgentSeenForTest(ctx context.Context, id string, generation int64, ip netip.Addr) error {
-	return s.wazuhAgentSeen(ctx, id, generation, ip, "")
+	return s.wazuhAgentSeen(ctx, id, generation, ip, "", "active", "")
 }

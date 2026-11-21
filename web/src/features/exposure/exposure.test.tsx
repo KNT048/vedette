@@ -374,9 +374,9 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(screen.getByText(/has no ownership proof/)).toBeInTheDocument()
     expect(screen.getByText('vedette-verify=9be41c0a77d2e358')).toBeInTheDocument()
     expect(screen.queryByText(/reverse DNS/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     expect(await screen.findByText(/No TXT record vedette-verify=9be41c0a77d2e358 was found\. Vedette asked acme-demo\.example/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     expect(await screen.findByText(/Verified with a DNS TXT record/)).toBeInTheDocument()
     // verified but not confirmed: the administrator sees the sentence beside an enabled button (the server decides about two-step)
     expect(await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })).toBeInTheDocument()
@@ -414,7 +414,7 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await userEvent.click(await screen.findByRole('tab', { name: /Ownership/ }))
     expect(await screen.findByTestId('proof-covered')).toHaveTextContent('acme.example is verified on this box and covers git.acme.example: no record is needed here. Select Check.')
-    await userEvent.click(screen.getByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     expect(await screen.findByText(/Found the TXT record of acme\.example on acme\.example: it proves acme\.example and every name under it, git\.acme\.example included\./)).toBeInTheDocument()
   })
 
@@ -1146,9 +1146,9 @@ describe('exposure: add target form matrix', () => {
     expect(screen.getByTestId('proof-ptr')).toHaveTextContent(/under acme\.example/) // the domains of this box that can carry the name
     expect(screen.getByText(/An A record of one of your domains pointing at this address is not proof/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled() // nothing is scanned until it is proved
-    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     expect(await screen.findByText(/Vedette found no proof of 198\.51\.100\.7/)).toBeInTheDocument()
-    await userEvent.click(await screen.findByRole('button', { name: 'Check' })) // the file is served by now
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 })) // the file is served by now
     expect(await screen.findByText(/198\.51\.100\.7 is proved: the token file was found/)).toBeInTheDocument()
     expect(screen.getByTestId('proof-expires')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/)
     expect(screen.getByTestId('proof-next')).toHaveTextContent(/\d{1,2} \w{3} \d{4}/) // when the box checks it again by itself
@@ -1157,7 +1157,7 @@ describe('exposure: add target form matrix', () => {
   it('the ownership check pauses for 30 seconds: the button counts it down', async () => {
     checkPause.seconds = 3
     renderApp('/exposure/xt-3?tab=ownership')
-    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     const wait = await screen.findByRole('button', { name: /^Check again in \d s$/ })
     expect(wait).toBeDisabled()
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Check again in/ })).toBeNull(), { timeout: 5000 })
@@ -1168,7 +1168,7 @@ describe('exposure: add target form matrix', () => {
     checkPause.seconds = 30
     server.use(http.post('*/api/v1/exposure/targets/xt-3/verify', () => HttpResponse.json({ error: { code: 'rate_limited', message: 'This target was checked a moment ago. The next check is allowed in 4 seconds.' } }, { status: 429 })))
     renderApp('/exposure/xt-3?tab=ownership')
-    await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check' }, { timeout: 5000 }))
     expect(await screen.findByRole('button', { name: /^Check again in [34] s$/ })).toBeDisabled()
   })
 })

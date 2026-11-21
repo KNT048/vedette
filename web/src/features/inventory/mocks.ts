@@ -33,7 +33,7 @@ const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
 // ---- bảng riêng ----
-interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; ignored_at?: string }
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; agent_source?: 'on' | 'off'; ignored_at?: string }
 /** A device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
 const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
   if (metaStore.get()[a.id]?.ignored_at) return 'off' // Off while ignored; the stored choice stays for when it is watched again
@@ -97,8 +97,8 @@ function containerSensors() {
   }))
 }
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
-  { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), created_by: 'admin@example.test', last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
-  { id: 'tk-old-unused', name: 'osquery install (never run)', kind: 'osquery', last4: 'u9Zx', created_at: daysAgo(3), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() - 2 * 864e5).toISOString() },
+  { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), created_by: 'admin@example.test', last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString(), device_id: null },
+  { id: 'tk-old-unused', name: 'osquery install (never run)', kind: 'osquery', last4: 'u9Zx', created_at: daysAgo(3), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() - 2 * 864e5).toISOString(), device_id: null },
 ], () => [])
 type StoredWazuh = WazuhConnection & { password: string }
 // Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
@@ -347,8 +347,10 @@ const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `
 const reportAsks = new Map<string, number>()
 const REPORT_WINDOW_MS = 15 * 60_000
 const REPORT_COOLDOWN_MS = 10 * 60_000
-/** The box's rule (agent-intake nodestate.go): quiet after three missed 5-minute config calls, never reported when nothing was ever delivered. */
-const QUIET_AFTER_MS = 15 * 60_000
+/** The box's rule (agent-intake nodestate.go NodeHealth): quiet after three of the agent's own rhythm (the mock's agents keep the 5-minute
+ *  config refresh), never reported when nothing was ever delivered. */
+const RHYTHM_S = 300
+const QUIET_AFTER_MS = 3 * RHYTHM_S * 1000
 const agentOs = (a: Asset): 'windows' | 'linux' => (/windows/i.test(a.os?.value ?? '') || /windows/i.test(a.hostname ?? '') ? 'windows' : 'linux')
 function agentStateOf(a: Asset): { state: 'reporting' | 'quiet'; quiet_since: string | null } {
   const quiet = Date.now() - Date.parse(a.last_seen) > QUIET_AFTER_MS
@@ -359,23 +361,29 @@ const removedNodes = collection<string[]>('agent_nodes_removed', () => [], () =>
 function agentNodes(): AgentNode[] {
   return allAssets().filter((a) => a.id !== BOX_ID && sourcesOf(a).includes('osquery') && !removedNodes.get().includes(a.id)).map((a) => ({
     id: `node-${a.id}`, token_id: 'tk-osquery', host: a.hostname ?? a.ip, os: agentOs(a), ...agentStateOf(a),
-    enrolled_at: a.first_seen, last_seen: a.last_seen, last_result_at: a.last_seen,
+    enrolled_at: a.first_seen, last_seen: a.last_seen, last_result_at: a.last_seen, rhythm_s: RHYTHM_S,
   })).sort((x, y) => Number(y.state === 'quiet') - Number(x.state === 'quiet') || x.host.localeCompare(y.host))
 }
 function agentReport(id: string): AgentReport | null {
   const a = allAssets().find((x) => x.id === id)
   if (!a) return null
-  const none = { asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null, state: null, quiet_since: null, os: null }
+  const none = { asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null, state: null, quiet_since: null, os: null, rhythm_s: null,
+    off: a.id !== BOX_ID && metaStore.get()[a.id]?.agent_source === 'off' }
   if (a.id === BOX_ID) return { ...none, agent: 'box' }
   const src = sourcesOf(a)
   const asked = reportAsks.get(id)
   if (src.includes('osquery') && !removedNodes.get().includes(a.id)) {
-    return { ...none, agent: 'osquery', last_seen: a.last_seen, ...agentStateOf(a), os: agentOs(a), stale: agentStateOf(a).state === 'quiet',
+    return { ...none, agent: 'osquery', last_seen: a.last_seen, ...agentStateOf(a), os: agentOs(a), stale: agentStateOf(a).state === 'quiet', rhythm_s: RHYTHM_S,
       asked_at: asked !== undefined && Date.now() - asked < REPORT_WINDOW_MS ? new Date(asked).toISOString() : null,
       ask_again_at: asked !== undefined && Date.now() - asked < REPORT_COOLDOWN_MS ? new Date(asked + REPORT_COOLDOWN_MS).toISOString() : null }
   }
   const w = wazuhStore.get()
-  if (src.includes('wazuh') && w) return { ...none, agent: 'wazuh', wazuh_interval_minutes: w.interval_minutes }
+  if (src.includes('wazuh') && w) {
+    const pulled = w.last_sync ?? a.last_seen
+    const quiet = Date.now() - Date.parse(pulled) > 3 * w.interval_minutes * 60_000
+    return { ...none, agent: 'wazuh', wazuh_interval_minutes: w.interval_minutes, rhythm_s: w.interval_minutes * 60, last_seen: pulled,
+      state: quiet ? 'quiet' : 'reporting', quiet_since: quiet ? pulled : null, stale: quiet }
+  }
   return { ...none, agent: 'none' }
 }
 /** The device's software lines as the server builds them (one software line per product): the strongest source's value, the other
@@ -863,21 +871,27 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
   const ip = hasIp(a)
   const scanSwitch = sourceOf(a, 'scan_source')
   const self = a.id === BOX_ID ? 'box' as const : metaStore.get()[a.id]?.ignored_at ? 'ignored' as const : null // no switch, no button
-  const scan = row({ source: 'scan', last_at: times.get('scan') ?? null, switch: self ? null : scanSwitch, agent: null,
+  const scan = row({ source: 'scan', last_at: times.get('scan') ?? null, switch: self ? null : scanSwitch, agent: null, token: null,
     ...(self ? { state: self, action: null } : !isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : scanSwitch === 'off' ? { state: 'off', action: null } : !ip ? { state: 'no_address', action: null }
       : times.has('scan') ? { state: 'working', action: null } : { state: 'waiting', action: 'scan_now' }) })
   const sn = isOn('sensor-active') && ip && a.approved ? deviceSnmp(a) : null
   const snmpSwitch = sourceOf(a, 'snmp_source')
-  const snmp = row({ source: 'snmp', agent: null, last_at: sn?.last_answer_at ?? null, switch: !self && sn && sn.state !== 'not_set_up' ? snmpSwitch : null,
+  const snmp = row({ source: 'snmp', agent: null, token: null, last_at: sn?.last_answer_at ?? null, switch: !self && sn && sn.state !== 'not_set_up' ? snmpSwitch : null,
     ...(self ? { state: self, action: null } : !isOn('sensor-active') ? { state: 'module_off', action: 'turn_on_module' } : !ip ? { state: 'no_address', action: null } : !a.approved ? { state: 'not_approved', action: 'approve' }
       : sn!.state === 'not_set_up' ? { state: 'not_set_up', action: 'set_up' } : snmpSwitch === 'off' ? { state: 'off', action: 'check_now' }
       : { state: sn!.state === 'working' || sn!.state === 'not_answering' ? sn!.state : 'waiting', action: 'check_now' }) })
   const rep = isOn('agent-intake') ? agentReport(a.id) : null
   const agentKind = a.id === BOX_ID ? 'box' : rep?.agent ?? 'none'
-  const agent = row({ source: 'agent', switch: null, agent: agentKind, last_at: rep?.last_seen ?? times.get('agent') ?? null,
+  const agentSwitch = metaStore.get()[a.id]?.agent_source ?? 'on'
+  const token = a.id === BOX_ID ? null : agentKind === 'osquery' ? agentsStore.get().find((t) => t.id === 'tk-osquery') ?? null
+    : agentsStore.get().filter((t) => t.device_id === a.id && (!t.expires_at || Date.parse(t.expires_at) > Date.now())).at(-1) ?? null
+  const reads = agentKind === 'osquery' || agentKind === 'wazuh'
+  const agent = row({ source: 'agent', switch: isOn('agent-intake') && a.id !== BOX_ID && (reads || agentSwitch === 'off') ? agentSwitch : null, agent: agentKind,
+    token: isOn('agent-intake') && currentUser()?.role === 'admin' ? token : null, last_at: rep?.last_seen ?? times.get('agent') ?? null,
     ...(a.id === BOX_ID ? { state: 'reporting', action: null } : !isOn('agent-intake') ? { state: 'module_off', action: 'turn_on_module' }
+      : agentSwitch === 'off' ? { state: 'off', action: reads ? 'check' : token ? 'show_setup' : 'create_token' }
       : agentKind === 'osquery' ? { state: rep?.state ?? 'reporting', action: rep?.state === 'never_reported' ? 'show_setup' : 'check' }
-      : agentKind === 'wazuh' ? { state: 'reporting', action: 'check' } : { state: 'none', action: 'create_token' }) })
+      : agentKind === 'wazuh' ? { state: rep?.state ?? 'reporting', action: 'check' } : token ? { state: 'waiting', action: 'show_setup' } : { state: 'none', action: 'create_token' }) })
   const fed = times.has('scan') || times.has('snmp') || times.has('agent')
   const manual = a.software.filter((x) => x.source === 'manual' && x.set_at).map((x) => x.set_at!).sort().at(-1) ?? (a.origin === 'manual' ? a.first_seen : null)
   return { rows: [scan, snmp, agent], only: fed ? null : times.has('passive') ? 'passive' : manual || a.origin === 'manual' ? 'manual' : null, manual_at: manual }
@@ -982,10 +996,10 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ scan?: string; snmp?: string }>(request)
+    const b = await body<{ scan?: string; snmp?: string; agent?: string }>(request)
     const ok = (v: unknown) => v === undefined || v === 'on' || v === 'off'
-    if (!ok(b.scan) || !ok(b.snmp)) return fail(400, 'invalid', 'Each source is on or off.')
-    if (b.scan === undefined && b.snmp === undefined) return fail(400, 'bad_source', 'Say which source to turn on or off: scan, snmp or both.')
+    if (!ok(b.scan) || !ok(b.snmp) || !ok(b.agent)) return fail(400, 'invalid', 'Each source is on or off.')
+    if (b.scan === undefined && b.snmp === undefined && b.agent === undefined) return fail(400, 'bad_source', 'Say which source to turn on or off: scan, snmp, agent or more than one.')
     if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: Vedette never scans or reads it on its own.')
     if (metaStore.get()[a.id]?.ignored_at && (b.scan === 'on' || b.snmp === 'on')) return fail(409, 'device_ignored', 'This device is ignored, so Vedette does not scan or read it. Stop ignoring it first.')
     for (const [key, label, v] of [['scan_source', 'network scan', b.scan], ['snmp_source', 'SNMP', b.snmp]] as const) {
@@ -994,7 +1008,12 @@ export const handlers = [
       metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], [key]: v as 'on' | 'off' } }))
       if (before !== v) audit('inventory.set_source', a.hostname ?? a.id, `${label}: ${v}`)
     }
-    return HttpResponse.json({ scan_source: sourceOf(a, 'scan_source'), snmp_source: sourceOf(a, 'snmp_source') })
+    if (b.agent !== undefined) { // the backend refuses the agents' data while off and drops what they read; the mock keeps the switch only
+      const before = metaStore.get()[a.id]?.agent_source ?? 'on'
+      metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], agent_source: b.agent as 'on' | 'off' } }))
+      if (before !== b.agent) audit('inventory.set_source', a.hostname ?? a.id, `agent: ${b.agent}`)
+    }
+    return HttpResponse.json({ scan_source: sourceOf(a, 'scan_source'), snmp_source: sourceOf(a, 'snmp_source'), agent_source: metaStore.get()[a.id]?.agent_source ?? 'on' })
   }),
 
   http.patch(`${API}/inventory/devices/:id`, async ({ params, request }) => {
@@ -1428,14 +1447,18 @@ export const handlers = [
 
   http.post(`${API}/inventory/agents/tokens`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ name: string; kind?: string; expires_in_days?: number }>(request)
+    const b = await body<{ name: string; kind?: string; expires_in_days?: number; device_id?: string }>(request)
     const name = String(b.name ?? '').trim()
     if (!LABEL_RE.test(name)) return fail(400, 'bad_name', 'Name the token so you remember which machines use it, up to 64 characters. Example "osquery on SRV-AD".')
     if (b.kind !== undefined && b.kind !== 'osquery') return fail(400, 'bad_kind', 'Only osquery uses a token. To use Wazuh, connect its API instead.')
     const days = b.expires_in_days === undefined ? 7 : Number(b.expires_in_days)
     if (!Number.isInteger(days) || days < 0 || days > 365) return fail(400, 'bad_expiry', 'Choose how long the token works: 1 to 365 days, or 0 for no expiry.')
+    if (b.device_id !== undefined) {
+      if (!allAssets().some((x) => x.id === b.device_id)) return fail(404, 'not_found', 'No such device.')
+      if (b.device_id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: it reads its own packages and needs no agent.')
+    }
     const secret = `vdt_osquery_${rand(32, 'abcdefghijkmnpqrstuvwxyz23456789')}`
-    const token: AgentToken = { id: newId('tk'), name, kind: 'osquery', last4: secret.slice(-4), created_at: nowIso(), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: days === 0 ? null : new Date(Date.now() + days * 864e5).toISOString() }
+    const token: AgentToken = { id: newId('tk'), name, kind: 'osquery', last4: secret.slice(-4), created_at: nowIso(), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: days === 0 ? null : new Date(Date.now() + days * 864e5).toISOString(), device_id: b.device_id ?? null }
     agentsStore.update((l) => [...l, token])
     audit('inventory.agent_token_create', name, `osquery, ${days === 0 ? 'no expiry' : `expires in ${days} days`}`)
     return HttpResponse.json({ token, secret }, { status: 201 })
@@ -1478,6 +1501,7 @@ export const handlers = [
     const id = String(params.id)
     const r = agentReport(id)
     if (!r) return fail(404, 'not_found', 'No such device.')
+    if (r.off) return fail(409, 'agent_off', 'The agent is turned off for this device, so Vedette takes none of its data. Turn it on first.')
     if (r.agent !== 'osquery') return fail(409, 'cannot_ask', 'Vedette cannot ask this device\'s agent to report now: only an osquery agent enrolled with this box can be asked.')
     if (r.asked_at) return HttpResponse.json(r)
     const last = reportAsks.get(id)

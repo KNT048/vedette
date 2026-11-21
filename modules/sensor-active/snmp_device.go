@@ -25,9 +25,6 @@ func (s *Service) SNMPDeviceOf(ctx context.Context, id string) (SNMPDevice, erro
 	if s.secrets == nil {
 		return SNMPDevice{}, snmpOff()
 	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return SNMPDevice{}, err
-	}
 	a, err := s.inv.Asset(ctx, id)
 	if errors.Is(err, ErrNotFound) {
 		return SNMPDevice{}, apierr.New(404, "not_found", "There is no device with this id.")
@@ -58,9 +55,6 @@ func (s *Service) SNMPDeviceOf(ctx context.Context, id string) (SNMPDevice, erro
 func (s *Service) SNMPDevices(ctx context.Context) ([]SNMPDevice, error) {
 	if s.secrets == nil {
 		return nil, snmpOff()
-	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return nil, err
 	}
 	rows, err := s.snmpRows(ctx, s.db.Reader())
 	if err != nil || len(rows) == 0 {
@@ -170,9 +164,6 @@ func (s *Service) snmpView(ctx context.Context, a Asset, r snmpRow, box []netip.
 
 // SNMPNotices lists what the box changed by itself, oldest first (GET /inventory/snmp notices).
 func (s *Service) SNMPNotices(ctx context.Context) ([]SNMPNotice, error) {
-	if err := s.moveCredentials(ctx); err != nil {
-		return nil, err
-	}
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, at, text FROM sa_snmp_notice ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read snmp notices: %w", err)

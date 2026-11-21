@@ -65,6 +65,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 	for _, t := range list {
 		out.Tokens = append(out.Tokens, oas.InventoryGetInventoryAgentsOKTokensItem{
 			ID: t.ID, Name: t.Name, Kind: oas.InventoryGetInventoryAgentsOKTokensItemKindOsquery, Last4: t.Last4, CreatedAt: t.CreatedAt, Hosts: t.Hosts, CreatedBy: nilStr(t.CreatedBy),
+			DeviceID:     nilStr(t.DeviceID),
 			ExpiresAt:    nilTime(t.ExpiresAt),
 			LastReceived: nilTime(t.LastReceived),
 		})
@@ -77,7 +78,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 	for _, n := range nodes {
 		out.Nodes = append(out.Nodes, oas.InventoryGetInventoryAgentsOKNodesItem{
 			ID: n.ID, TokenID: n.TokenID, Host: n.Host, Os: oas.InventoryGetInventoryAgentsOKNodesItemOs(n.OS), State: oas.InventoryGetInventoryAgentsOKNodesItemState(n.State),
-			EnrolledAt: n.EnrolledAt, LastSeen: n.LastSeen, LastResultAt: nilTime(n.LastResult), QuietSince: nilTime(n.QuietSince),
+			EnrolledAt: n.EnrolledAt, LastSeen: n.LastSeen, LastResultAt: nilTime(n.LastResult), QuietSince: nilTime(n.QuietSince), RhythmS: seconds(n.Rhythm),
 		})
 	}
 	w, err := h.s.Wazuh(ctx)
@@ -108,13 +109,17 @@ func (h *AdminHandlers) InventoryPostInventoryAgentsTokens(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
-	t, secret, err := h.s.IssueToken(ctx, who, req.Name, req.ExpiresInDays.Or(7))
+	device := req.DeviceID.Or("")
+	if device != "" && !validDeviceID(device) {
+		return nil, apierr.NotFound()
+	}
+	t, secret, err := h.s.IssueTokenFor(ctx, who, req.Name, req.ExpiresInDays.Or(7), device)
 	if err != nil {
 		return nil, err
 	}
 	tok := oas.InventoryPostInventoryAgentsTokensCreatedToken{
 		ID: t.ID, Name: t.Name, Kind: oas.InventoryPostInventoryAgentsTokensCreatedTokenKindOsquery, Last4: t.Last4, CreatedAt: t.CreatedAt,
-		ExpiresAt: oas.NilDateTime{Null: true}, LastReceived: oas.NilDateTime{Null: true},
+		ExpiresAt: oas.NilDateTime{Null: true}, LastReceived: oas.NilDateTime{Null: true}, CreatedBy: nilStr(t.CreatedBy), DeviceID: nilStr(t.DeviceID),
 	}
 	if !t.ExpiresAt.IsZero() {
 		tok.ExpiresAt = oas.NewNilDateTime(t.ExpiresAt)
@@ -150,16 +155,22 @@ func (h *AdminHandlers) InventoryDeleteInventoryAgentsNodesID(ctx context.Contex
 // reportWire is the wire form of a ReportState (GET and POST answer the same shape): a zero time and a zero interval are null.
 type reportWire struct {
 	asked, again, seen, quiet oas.NilDateTime
-	minutes                   oas.NilInt
+	minutes, rhythm           oas.NilInt
 }
 
 func toWire(st ReportState) reportWire {
-	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), quiet: nilTime(st.QuietSince), minutes: oas.NilInt{Null: true}}
+	w := reportWire{asked: nilTime(st.AskedAt), again: nilTime(st.AskAgainAt), seen: nilTime(st.LastSeen), quiet: nilTime(st.QuietSince), minutes: oas.NilInt{Null: true}, rhythm: oas.NilInt{Null: true}}
 	if st.WazuhMinutes > 0 {
 		w.minutes = oas.NewNilInt(st.WazuhMinutes)
 	}
+	if st.Rhythm > 0 {
+		w.rhythm = oas.NewNilInt(seconds(st.Rhythm))
+	}
 	return w
 }
+
+// seconds is a duration in whole seconds, as the contract gives intervals.
+func seconds(d time.Duration) int { return int(d / time.Second) }
 
 // validDeviceID is the shape of an inventory id at the boundary (inv_asset.id is 1..96 characters); anything else is no device.
 func validDeviceID(id string) bool { return id != "" && len(id) <= 96 }
@@ -179,10 +190,12 @@ func (h *AdminHandlers) InventoryGetInventoryAgentsDevicesIDReport(ctx context.C
 	}
 	w := toWire(st)
 	out := &oas.InventoryGetInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryGetInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
-		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes,
+		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes, RhythmS: w.rhythm, Off: st.Off,
 		State: oas.NilInventoryGetInventoryAgentsDevicesIDReportOKState{Null: true}, Os: oas.NilInventoryGetInventoryAgentsDevicesIDReportOKOs{Null: true}}
 	if st.State != "" {
 		out.State = oas.NewNilInventoryGetInventoryAgentsDevicesIDReportOKState(oas.InventoryGetInventoryAgentsDevicesIDReportOKState(st.State))
+	}
+	if st.OS != "" {
 		out.Os = oas.NewNilInventoryGetInventoryAgentsDevicesIDReportOKOs(oas.InventoryGetInventoryAgentsDevicesIDReportOKOs(st.OS))
 	}
 	return out, nil
@@ -207,10 +220,12 @@ func (h *AdminHandlers) InventoryPostInventoryAgentsDevicesIDReport(ctx context.
 	}
 	w := toWire(st)
 	out := &oas.InventoryPostInventoryAgentsDevicesIDReportOK{Agent: oas.InventoryPostInventoryAgentsDevicesIDReportOKAgent(st.Agent), AskedAt: w.asked, AskAgainAt: w.again,
-		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes,
+		LastSeen: w.seen, QuietSince: w.quiet, Stale: st.Stale, WazuhIntervalMinutes: w.minutes, RhythmS: w.rhythm, Off: st.Off,
 		State: oas.NilInventoryPostInventoryAgentsDevicesIDReportOKState{Null: true}, Os: oas.NilInventoryPostInventoryAgentsDevicesIDReportOKOs{Null: true}}
 	if st.State != "" {
 		out.State = oas.NewNilInventoryPostInventoryAgentsDevicesIDReportOKState(oas.InventoryPostInventoryAgentsDevicesIDReportOKState(st.State))
+	}
+	if st.OS != "" {
 		out.Os = oas.NewNilInventoryPostInventoryAgentsDevicesIDReportOKOs(oas.InventoryPostInventoryAgentsDevicesIDReportOKOs(st.OS))
 	}
 	return out, nil

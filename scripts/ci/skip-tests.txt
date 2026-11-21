@@ -11,7 +11,6 @@ slow	TestE2EBoxHarnessHost	cmd/vedette	slow: 17 s wall time; daily run	2026-11-1
 slow	TestContract_Container_AnInvalidJournalIsMovedAsideAtStartKeepingTheLastThree	modules/host	slow: 14 s wall time; daily run	2026-11-12
 slow	TestSwitchingTheSensorModulesMovesTheirContainers	cmd/vedette	slow: 13 s wall time; daily run	2026-11-12
 slow	TestUpdateCoreSwitchStopsAfterRepeatedSnapshotRefusals	modules/core	slow: 10 s wall time; daily run	2026-11-12
-slow	TestQueueDeviceCutByTheDeadlineGoesToTheBack	modules/sensor-active	slow: 9 s wall time; daily run	2026-11-12
 slow	TestContract_Container_StateParsesHostileOutputStrictlyAndBounded	modules/host	slow: 9 s wall time; daily run	2026-11-12
 slow	TestContract_Container_StopIsJudgedByTheOutputOfIsActive	modules/host	slow: 7 s wall time; daily run	2026-11-12
 slow	TestHoneypotHostStaysInsideTheHostLimits	cmd/vedette	slow: 6.5 s wall time; daily run	2026-11-12
@@ -32,4 +31,3 @@ slow	TestReview_M2_RunsViewSaysEngineBusyAfterStop	modules/scan	slow: 4 s wall t
 slow	TestReview_M2_NoNewRunWhileTheEngineIsBusy	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestReview4_L4_ARefusedStartKeepsTheSlot	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether	modules/host	slow: 4 s wall time; daily run	2026-11-12
-flaky	TestScanningRunNow	cmd/vedette	https://github.com/KNT048/vedette/issues/1100	2026-11-21

@@ -125,6 +125,11 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
+		if source == observe.Agent {
+			if off, err := agentRefused(ctx, tx, id); err != nil || off { // a person turned the agent off for this device (ChangeSources)
+				return err
+			}
+		}
 		if err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace); err != nil {
 			return err
 		}

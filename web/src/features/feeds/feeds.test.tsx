@@ -6,6 +6,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { api } from '@/lib/api'
+import { briefOfVuln } from './briefSamples'
 import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { records as modelRecords } from '@/features/findings/modelMocks'
 
@@ -311,7 +312,7 @@ describe('feeds: lookup and CVE (S-FEED-3)', () => {
 
   it('a CVE not in KEV is reported as not found, without a retry button', async () => {
     renderApp('/cve/CVE-2020-0001')
-    expect(await screen.findByText(/not on the exploited list/)).toBeInTheDocument()
+    expect(await screen.findByText(/does not hold this CVE/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 })
@@ -400,9 +401,9 @@ describe('feeds: custom feed form matrix', () => {
 describe('feeds: what the real backend needs from the GUI (mock → real)', () => {
   it('asks the API for a CVE in capitals even when the address bar has it in lower case', async () => {
     const asked: string[] = []
-    server.use(http.get('*/api/v1/feeds/cve/:id', ({ params }) => { asked.push(String(params.id)); return HttpResponse.json({ error: { code: 'not_in_kev', message: 'This CVE is not on the exploited list (CISA KEV) in the current data.' } }, { status: 404 }) }))
+    server.use(http.get('*/api/v1/feeds/cve/:id', ({ params }) => { asked.push(String(params.id)); return HttpResponse.json({ error: { code: 'not_in_data', message: 'The vulnerability data on this box does not hold this CVE.' } }, { status: 404 }) }))
     renderApp('/cve/cve-2022-27593')
-    expect(await screen.findByText(/not on the exploited list/)).toBeInTheDocument()
+    expect(await screen.findByText(/does not hold this CVE/)).toBeInTheDocument()
     expect(asked).toEqual(['CVE-2022-27593'])
   })
 
@@ -471,10 +472,9 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
 
 describe('feeds: CVE links (contract.ts: http(s) only)', () => {
   it('renders http(s) links, anchors included, and never a javascript: href', async () => {
-    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
-      cve: 'CVE-2026-20001', vendor: 'Acme', product: 'Widget', name: 'n', description: 'd', required_action: 'a', display: 'Acme Widget',
-      links: ['https://example.com/CHANGELOG.md#563', 'javascript:alert(1)', 'data:text/html,x'], date_added: '2026-11-03', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false, matched: null,
-    })))
+    const brief = briefOfVuln({ cve: 'CVE-2026-20001', vendor: 'Acme', product: 'Widget', name: 'n', description: 'd', required_action: 'a', links: [], date_added: '2026-11-03', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false }, null)
+    brief.lists[0]!.links = ['https://example.com/CHANGELOG.md#563', 'javascript:alert(1)', 'data:text/html,x']
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({ ...brief, matched: null, not_affected: 0 })))
     renderApp('/cve/CVE-2026-20001')
     const ok = await screen.findByRole('link', { name: 'https://example.com/CHANGELOG.md#563' })
     expect(ok).toHaveAttribute('href', 'https://example.com/CHANGELOG.md#563')
@@ -484,10 +484,8 @@ describe('feeds: CVE links (contract.ts: http(s) only)', () => {
 
 describe('feeds: CVE page agrees with the findings (KF-CVEPAGE)', () => {
   it('devices the platform rules prove not affected are counted, not invited to be added again', async () => {
-    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
-      cve: 'CVE-2026-123158', vendor: 'OpenBSD', product: 'OpenSSH', name: 'n', description: 'd', required_action: 'a', display: 'OpenSSH',
-      links: [], date_added: '2026-11-09', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false, matched: [], not_affected: 2,
-    })))
+    const brief = briefOfVuln({ cve: 'CVE-2026-123158', vendor: 'OpenBSD', product: 'OpenSSH', name: 'n', description: 'd', required_action: 'a', links: [], date_added: '2026-11-09', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false }, null)
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({ ...brief, matched: [], not_affected: 2 })))
     renderApp('/cve/CVE-2026-123158')
     expect(await screen.findByText('2 devices run this product but are not affected: Vedette checked their platform (see their findings).')).toBeInTheDocument()
     expect(screen.queryByText('No matching devices found')).toBeNull()

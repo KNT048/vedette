@@ -135,7 +135,7 @@ func TestSuiteThroughTheDispatcher(t *testing.T) {
 	for _, name := range []string{
 		"TestContract_INV1_NeverOutsideScope", "TestContract_INV3_StopsWhenTheWindowCloses", "TestContract_INV3_SettingsChangeStopsTheRunningScan",
 		"TestContract_INV4_LoweringTheRateStopsTheRunningJob", "TestContract_INV9_ProbeLog", "TestProbeRowExistsWhileTheRunIsInProgress",
-		"TestWindowShortenedMidRunStopsAtTheNewEnd", "TestQueueDeviceCutByTheDeadlineGoesToTheBack", "TestQueueDeviceStoppedBySettingsKeepsItsAttempts",
+		"TestWindowShortenedMidRunStopsAtTheNewEnd", "TestQueueDeviceStoppedBySettingsKeepsWaiting", "TestRunsARestartMidSweepGoesOnFromTheCursor",
 		"TestSweepCutByTheWindowResumesWhereItStopped", "TestSettingsStopDuringPreChecksIsNotAnAttempt", "TestContract_INV6_MissingNmapIsUnavailable",
 	} {
 		if !rp[name] {

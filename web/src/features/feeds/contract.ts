@@ -62,10 +62,102 @@ export const FeedStatus = z.object({
 
 export const WeeklyItem = z.object({ id: z.string(), key: z.string(), text: z.string(), date_added: isoDate, cve: cveId, answer: z.enum(['have', 'not_relevant']).nullable() })
 export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().nullable().describe('The device\'s name: the name a person gave it in Vedette, else its host name; null when neither'), ip: z.string(), display: z.string(), how: YouHave })
-export const CveDetail = Vuln.extend({
-  display: z.string(), matched: z.array(MatchedAsset).nullable(),
-  not_affected: z.number().int().min(0).optional().describe('devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
-  published: isoDate.nullable().describe('the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding, so matched may list devices that are not findings'),
+// ---- One CVE: the brief (feeds.Brief), the one read model of a CVE that the CVE page, the finding's summary card, the AI context,
+// notices and reports read. Every value comes from the catalogue on the box; nothing here is worked out in the browser.
+const day = isoDate
+const level = z.enum(['none', 'low', 'high'])
+export const CveImpact = z.object({ confidentiality: level, integrity: level, availability: level })
+export const CvssReading = CveImpact.extend({
+  attack_vector: z.enum(['network', 'adjacent', 'local', 'physical']),
+  attack_complexity: z.enum(['low', 'medium', 'high']).describe('medium only for CVSS 2.0'),
+  attack_requirements: z.enum(['none', 'present']).nullable().describe('CVSS 4.0 only'),
+  privileges_required: z.enum(['none', 'low', 'high']).describe('For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high)'),
+  user_interaction: z.enum(['none', 'required', 'passive', 'active']).nullable().describe('null for CVSS 2.0, which has no such metric'),
+  scope: z.enum(['unchanged', 'changed']).nullable().describe('CVSS 3.x only'),
+  subsequent: CveImpact.nullable().describe('CVSS 4.0 only: the impact on systems beyond the vulnerable one'),
+  summary: z.string().describe('The reading in one sentence, for example "Attacker needs local access, low complexity, high privileges needed, no user action; high impact on confidentiality, integrity and availability; can reach beyond the vulnerable component."'),
+}).describe('The CVSS vector read into words (confidentiality, integrity, availability: the impact on the vulnerable system; CVSS 2.0 partial = low, complete = high)')
+export const CveScore = z.object({
+  source: z.enum(['nvd', 'cna', 'adp']).describe('Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP)'),
+  version: z.enum(['4.0', '3.1', '3.0', '2.0']),
+  score: z.number().min(0).max(10),
+  vector: z.string(),
+})
+export const CveListEntry = z.object({
+  list: z.string().describe('"cisa", "vulncheck", or "custom:" followed by the id of a custom feed'),
+  source: z.string().describe('The feed that holds the entry: "cisa-kev", "vulncheck-kev" or a custom feed id'),
+  source_name: z.string().describe('That feed\'s name, as Settings -> Feeds shows it'),
+  vendor: z.string(), product: z.string(), display: z.string(), name: z.string(),
+  description: z.string().describe('The list\'s own words'),
+  required_action: z.string(),
+  links: z.array(z.string().regex(/^https?:\/\//)).describe('http(s) addresses only'),
+  date_added: day, due_date: day.nullable(), ransomware: z.boolean(),
+})
+export const CveSignal = z.object({
+  kind: z.string().describe('Why the CVE is urgent: "exploited" (an exploited list or a vendor says so), "public_exploit" (a public exploit or a scan template exists), and kinds new sources add'),
+  source: z.string().describe('The feed that saw it ("cisa-kev", "metasploit", "nuclei-templates" …)'),
+  source_name: z.string().describe('That feed\'s name'),
+  first_seen: z.iso.datetime().describe('When the source says it (its publication date), else when this box first saw it'),
+  last_seen: z.iso.datetime(),
+  qualifies: z.boolean().describe('Passes the quality rule of its kind; a signal that does not is kept for its date only'),
+  url: z.string().regex(/^https?:\/\//).nullable(),
+  detail: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).nullable().describe('Small facts for display ({"stars": 244, "authors": 3})'),
+})
+export const CveRange = z.object({
+  origin: z.enum(['nvd', 'cna', 'adp']).describe('Who stated it: NVD, the CVE record\'s CNA (most often the vendor), or an ADP of the record'),
+  counts: z.boolean().describe('The row the matcher reads: NVD\'s rows when NVD gives any, else the CVE record\'s'),
+  part: z.string().describe('CPE part: a, o, h; "" for a CVE record row without a CPE'),
+  vendor: z.string(), product: z.string(),
+  cpe: z.string().describe('The CPE match criteria when the origin gave one, else ""'),
+  start_including: z.string(), start_excluding: z.string(), end_including: z.string(), end_excluding: z.string(),
+  fixed: z.string().describe('The release that fixes the range when the origin states one, else ""'),
+  version_type: z.string().describe('The CVE record\'s versionType ("semver", "custom" …), else ""'),
+  default_status: z.enum(['', 'affected', 'unaffected', 'unknown']).describe('A CVE record row\'s defaultStatus; "" for NVD\'s rows'),
+  platforms: z.array(z.string()).describe('NVD\'s "running on" operating systems ("microsoft:windows")'),
+  versions: z.string().describe('The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version"'),
+})
+export const CveRefGroup = z.enum(['vendor-advisory', 'patch', 'mitigation', 'release-notes', 'exploit', 'government-resource', 'third-party-advisory',
+  'technical-description', 'issue-tracking', 'mailing-list', 'vdb-entry', 'media-coverage', 'other'])
+export const CveReference = z.object({
+  url: z.string().regex(/^https?:\/\//),
+  tags: z.array(z.string()).describe('The CVE record\'s tag words (NVD\'s are read into them: "Vendor Advisory" is vendor-advisory)'),
+  source: z.enum(['nvd', 'cna', 'adp']).describe('Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record'),
+  group: CveRefGroup.describe('The one group it is shown under: the first of the groups, in this order, that one of its tags names'),
+})
+export const CveBrief = z.object({
+  cve: cveId,
+  title: z.string().nullable().describe('The CNA\'s title'),
+  description: z.string().describe('NVD\'s English description, else the CNA\'s'),
+  display: z.string().nullable().describe('The product in plain words: the exploited-list entry\'s, else the first of products'),
+  products: z.array(z.string()).max(20).describe('Vendor and product of the ranges that count ("vmware esxi"), sorted'),
+  published: day.nullable(), modified: day.nullable(),
+  nvd_status: z.string().nullable().describe('NVD\'s vulnStatus ("Analyzed", "Deferred" …); null until NVD answered'),
+  nvd_checked_at: z.iso.datetime().nullable(), record_read_at: z.iso.datetime().nullable().describe('When the CVE record was last read'),
+  cwe: z.array(z.object({ id: z.string().regex(/^CWE-\d+$/), name: z.string().nullable().describe('MITRE\'s name; null for an id the CWE List does not hold') })),
+  cvss: CveScore.extend({
+    severity: z.enum(['critical', 'high', 'medium', 'low', 'none']),
+    reading: CvssReading.nullable(),
+  }).nullable().describe('The one picked score: the newest CVSS version, NVD before the CNA before CISA; null when the CVE has no score'),
+  scores: z.array(CveScore).describe('Every stored score, in the order the pick prefers them'),
+  lists: z.array(CveListEntry).describe('Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists)'),
+  signals: z.array(CveSignal).describe('Every signal, oldest first'),
+  ranges: z.array(CveRange).describe('Every affected-versions row, the ones that count first'),
+  ranges_from: z.enum(['nvd', 'cna', 'adp']).nullable().describe('The origin of the rows that count; null when there are none'),
+  ranges_complete: z.boolean().describe('CVE record rows only: every product\'s list says what an unlisted version is'),
+  references: z.array(CveReference).describe('Grouped: ordered by group, then by address'),
+  solution: z.string().nullable().describe('The CNA\'s solution text; null when the record has none'),
+  workaround: z.string().nullable().describe('The CNA\'s workaround text; null when the record has none'),
+  ssvc: z.object({ exploitation: z.string().nullable(), automatable: z.string().nullable(), technical_impact: z.string().nullable() }).describe('CISA\'s SSVC decision points (Vulnrichment)'),
+  epss: z.object({
+    score: z.number().min(0).max(1), percentile: z.number().min(0).max(1), day: day.nullable(),
+    week_ago: z.number().min(0).max(1).nullable(),
+    history: z.array(z.object({ day, score: z.number().min(0).max(1) })).describe('The days the box kept (CVEs on a list or with a signal), oldest first'),
+  }).nullable(),
+  nvd_url: z.string().regex(/^https:\/\//), record_url: z.string().regex(/^https:\/\//),
+})
+export const CveDetail = CveBrief.extend({
+  matched: z.array(MatchedAsset).nullable().describe('Devices whose product matches the exploited-list entry; null when the inventory is off or the CVE is on no exploited list'),
+  not_affected: z.number().int().min(0).describe('devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
 })
 // S-TIER-1: a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
 export const TierCve = z.object({
@@ -179,8 +271,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/feeds/weekly', summary: '"This week, in short": plain-language sentences about products under attack', stories: ['S-FEED-2'], role: 'viewer', response: WeeklyResponse },
   { method: 'post', path: '/feeds/weekly/{id}', summary: 'Answer "I have it" (adds a manually declared device) or "Not relevant"', stories: ['S-FEED-2', 'S-INV-2'], role: 'operator',
     params: z.object({ id: z.string() }), body: z.object({ answer: z.enum(['have', 'not_relevant']) }), response: WeeklyResponse },
-  { method: 'get', path: '/feeds/cve/{id}', summary: 'Details of an exploited CVE and your matching devices', stories: ['S-FEED-1', 'S-FEED-3'], role: 'viewer',
-    params: z.object({ id: cveId }), response: CveDetail, example: { params: { id: 'CVE-2022-27593' } } },
+  { method: 'get', path: '/feeds/cve/{id}', summary: 'Everything the box knows about a CVE (its brief) and your devices that match its exploited-list entry (404 not_in_data when the vulnerability data does not hold it)', stories: ['S-FEED-1', 'S-FEED-3'], role: 'viewer',
+    params: z.object({ id: cveId }), response: CveDetail, example: { params: { id: 'CVE-2025-22225' } } },
   { method: 'get', path: '/feeds/cve/{id}/tier', summary: 'A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data when neither feed holds it)', stories: ['S-TIER-1'], role: 'viewer',
     params: z.object({ id: cveId }), response: TierCve, example: { params: { id: 'CVE-2026-31001' } } },
   { method: 'get', path: '/feeds/search', summary: 'Search CVEs, products, IPs or domains in the data on the box', stories: ['S-FEED-3'], role: 'viewer',

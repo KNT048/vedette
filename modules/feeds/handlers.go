@@ -450,33 +450,30 @@ ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user
 
 // ---------- S-FEED-1/3: one CVE, and lookup
 
-// FeedsGetFeedsCveID implements GET /feeds/cve/{id} (PRE-3, POST-3).
+// FeedsGetFeedsCveID implements GET /feeds/cve/{id} (PRE-3, POST-3): the brief of a CVE the catalogue holds (Store.Brief), and the
+// devices whose product matches its exploited-list entry; 404 not_in_data when the catalogue does not hold the CVE.
 func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsGetFeedsCveIDParams) (*oas.FeedsGetFeedsCveIDOK, error) {
-	v, found, err := h.s.st.VulnByCVE(ctx, strings.ToUpper(params.ID))
+	b, found, err := h.s.st.Brief(ctx, strings.ToUpper(params.ID))
 	if err != nil {
 		return nil, err
 	}
 	if !found {
-		return nil, apierr.New(http.StatusNotFound, "not_in_kev", "This CVE is not on the exploited list (CISA KEV) in the current data.")
+		return nil, apierr.New(http.StatusNotFound, "not_in_data", "The vulnerability data on this box does not hold this CVE.")
 	}
-	match, on := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}})
-	pub, err := h.s.st.publishedOf(ctx, v.CVE)
-	if err != nil {
-		return nil, err
-	}
-	out := struct {
-		vulnDTO
-		Matched     *[]MatchedAsset `json:"matched"`
-		NotAffected int             `json:"not_affected"`
-		Published   *string         `json:"published"`
-	}{vulnDTO: toVulnDTO(v), Published: pub}
-	if on {
-		all := match[v.Key()]
-		m := h.s.withoutNotAffected(ctx, v, all)
-		if m == nil {
-			m = []MatchedAsset{}
+	out := toBriefDTO(b)
+	if len(b.Lists) > 0 { // "Do you have it?" is the exploited-list entry's product, as on Home (INV-11)
+		v, listed, err := h.s.st.VulnByCVE(ctx, b.CVE)
+		if err != nil {
+			return nil, err
 		}
-		out.Matched, out.NotAffected = &m, len(all)-len(m)
+		if match, on := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}}); listed && on {
+			all := match[v.Key()]
+			m := h.s.withoutNotAffected(ctx, v, all)
+			if m == nil {
+				m = []MatchedAsset{}
+			}
+			out.Matched, out.NotAffected = &m, len(all)-len(m)
+		}
 	}
 	return convert[oas.FeedsGetFeedsCveIDOK](out)
 }

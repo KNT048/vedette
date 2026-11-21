@@ -25,14 +25,14 @@ const (
 	StateModuleOff     = "module_off"     // the module behind the source is off
 	StateNoAddress     = "no_address"     // the device has no address to send to (scan, SNMP)
 	StateOff           = "off"            // a person turned the source off for this device
-	StateWaiting       = "waiting"        // on, nothing read yet (scan: the first check is the next window's; SNMP: no read yet)
+	StateWaiting       = "waiting"        // on, nothing read yet (scan: the first check is the next window's; SNMP: no read yet; agent: a token was made for the device, no agent reads it yet)
 	StateWorking       = "working"        // on and it read the device (scan), it answers (SNMP)
 	StateNotApproved   = "not_approved"   // SNMP reads only approved devices
 	StateNotSetUp      = "not_set_up"     // SNMP: no settings for this device
 	StateNotAnswering  = "not_answering"  // SNMP: the last read got no answer
 	StateNone          = "none"           // agent: no agent of this box reads the device
 	StateReporting     = "reporting"      // agent: it reports on its rhythm
-	StateQuiet         = "quiet"          // agent: silent for longer than its rhythm allows
+	StateQuiet         = "quiet"          // agent: silent for more than three of its own rhythm (agent-intake NodeHealth)
 	StateNeverReported = "never_reported" // agent: enrolled, never sent its data
 	StateReplaced      = "replaced"       // agent: a newer enrolment of the same machine took over
 	StateUnavailable   = "unavailable"    // the module could not say just now (logged)
@@ -55,8 +55,8 @@ const (
 	ActionApprove      = "approve"        // approve the device (SNMP reads approved devices only)
 	ActionSetUp        = "set_up"         // set up SNMP for this device
 	ActionCheckNow     = "check_now"      // SNMP Check now (POST /inventory/snmp/devices/{id}/check)
-	ActionCreateToken  = "create_token"   // no agent: create an agent token for this device
-	ActionShowSetup    = "show_setup"     // enrolled but never reported: show the token and the install command again
+	ActionCreateToken  = "create_token"   // no agent and no token made for this device: create an agent token for it
+	ActionShowSetup    = "show_setup"     // a token made for this device and no agent yet, or enrolled but never reported: the token and the install command again
 	ActionCheck        = "check"          // the agent reported at least once: the troubleshooting steps
 )
 
@@ -70,13 +70,28 @@ const (
 
 // SourceRow is one row of a device's sources (contract.ts DeviceSourceRow).
 type SourceRow struct {
-	Source string  `json:"source"`  // RowScan, RowSNMP or RowAgent
-	State  string  `json:"state"`   // one of the State constants
-	Dot    string  `json:"dot"`     // one of the Dot constants
-	LastAt *string `json:"last_at"` // when it last read the device (SNMP: the last answer; an agent: its last call); nil when never
-	Switch *string `json:"switch"`  // the person's switch for this device, "on" or "off"; nil when the row has none
-	Action *string `json:"action"`  // the one button; nil when none
-	Agent  *string `json:"agent"`   // agent row: AgentOsquery, AgentWazuh, AgentBox or AgentNone; nil on the other rows
+	Source string      `json:"source"`  // RowScan, RowSNMP or RowAgent
+	State  string      `json:"state"`   // one of the State constants
+	Dot    string      `json:"dot"`     // one of the Dot constants
+	LastAt *string     `json:"last_at"` // when it last read the device (SNMP: the last answer; an agent: its last call); nil when never
+	Switch *string     `json:"switch"`  // the person's switch for this device, "on" or "off"; nil when the row has none
+	Action *string     `json:"action"`  // the one button; nil when none
+	Agent  *string     `json:"agent"`   // agent row: AgentOsquery, AgentWazuh, AgentBox or AgentNone; nil on the other rows
+	Token  *AgentToken `json:"token"`   // agent row: the token Show setup shows (AgentFact.Token); nil otherwise
+}
+
+// AgentToken is an agent enrolment token as the agent row shows it (contract.ts AgentToken): never its secret.
+type AgentToken struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	Kind         string  `json:"kind"`
+	Last4        string  `json:"last4"`
+	CreatedAt    string  `json:"created_at"`
+	CreatedBy    *string `json:"created_by"`
+	LastReceived *string `json:"last_received"`
+	Hosts        int     `json:"hosts"`
+	ExpiresAt    *string `json:"expires_at"`
+	DeviceID     *string `json:"device_id"`
 }
 
 // DeviceSourcesView is GET /inventory/devices/{id}/sources (contract.ts DeviceSources).
@@ -96,9 +111,13 @@ type SNMPFact struct {
 
 // AgentFact is what agent-intake says of the agent that reads a device (Config.AgentOf).
 type AgentFact struct {
-	Agent    string    // AgentOsquery, AgentWazuh, AgentBox or AgentNone
-	State    string    // osquery: reporting, quiet, never_reported or replaced; "" for the others
-	LastSeen time.Time // osquery: its last call; zero otherwise
+	Agent string // AgentOsquery, AgentWazuh, AgentBox or AgentNone
+	// State is agent-intake's NodeHealth of the agent: osquery reporting, quiet, never_reported or replaced; Wazuh reporting or quiet;
+	// "" for the others. LastSeen is the time it judged by (osquery: the last call; Wazuh: the last pull that delivered the device), so the
+	// row never shows a recent time beside quiet.
+	State    string
+	LastSeen time.Time
+	Token    *AgentToken // the token Show setup shows: the one its agent enrolled with, else the newest made for this device; nil when none
 }
 
 // DeviceSources is the three source rows of a device. ErrNotFound when it does not exist.
@@ -214,26 +233,50 @@ func (s *Service) agentRow(ctx context.Context, d Device, times map[string]strin
 			r.State = StateUnavailable
 			break
 		}
-		r.Agent = ptrTo(f.Agent)
-		switch f.Agent {
-		case AgentOsquery:
+		sw, err := s.agentSwitch(ctx, d.ID)
+		if err != nil {
+			s.log.WarnContext(ctx, "inventory: the agent switch of a device could not be read; its source row says so", "device", d.ID, "error", err.Error())
+			r.State = StateUnavailable
+			break
+		}
+		r.Agent, r.Token = ptrTo(f.Agent), f.Token
+		if f.Agent == AgentOsquery || f.Agent == AgentWazuh {
+			r.LastAt = nil // the agent's own time, the one its state was judged by
 			if !f.LastSeen.IsZero() {
 				r.LastAt = ptrTo(store.FormatTS(f.LastSeen))
 			}
-			r.State = f.State
-			if r.State == StateNeverReported {
-				r.Action = ptrTo(ActionShowSetup)
-			} else {
-				r.Action = ptrTo(ActionCheck)
-			}
-		case AgentWazuh, AgentBox:
+		}
+		switch {
+		case f.Agent == AgentOsquery && f.State == StateNeverReported:
+			r.State, r.Action = f.State, ptrTo(ActionShowSetup)
+		case f.Agent == AgentOsquery || f.Agent == AgentWazuh:
+			r.State, r.Action = cmpOr(f.State, StateReporting), ptrTo(ActionCheck)
+		case f.Agent == AgentBox:
 			r.State, r.Action = StateReporting, ptrTo(ActionCheck)
+		case f.Token != nil:
+			r.State, r.Action = StateWaiting, ptrTo(ActionShowSetup)
 		default:
 			r.State, r.Action = StateNone, ptrTo(ActionCreateToken)
+		}
+		// The switch is there when an agent reads the device, or when it is off (so a person can turn it on again).
+		if f.Agent == AgentOsquery || f.Agent == AgentWazuh || sw == SourceOff {
+			r.Switch = ptrTo(sw)
+		}
+		if sw == SourceOff {
+			r.State = StateOff
 		}
 	}
 	r.Dot = dotOf(r.State)
 	return r
+}
+
+// agentSwitch is the device's agent switch, the default resolved (agentState).
+func (s *Service) agentSwitch(ctx context.Context, id string) (string, error) {
+	var stored string
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_source, '') FROM inv_asset WHERE id = ?`, id).Scan(&stored); err != nil {
+		return "", err
+	}
+	return agentState(stored), nil
 }
 
 // dotOf is the colour of a state: green when the source reads the device as it should, amber when an agent is late or never sent its

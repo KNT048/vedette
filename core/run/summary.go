@@ -1,0 +1,114 @@
+package run
+
+import (
+	"context"
+	"strconv"
+	"strings"
+)
+
+// summary is the one line of words a run's state reads as on every page (Run.Summary): the Runs tab, the run page and every
+// "Open the run" place show it instead of putting it together from the columns themselves.
+func (m *Manager) summary(ctx context.Context, r Run) string {
+	k, known := m.kind(r.Module, r.Kind)
+	count := ""
+	if r.Total > 0 {
+		count = Count(r.Done, r.Total, k.Unit)
+	}
+	estimate := func() string {
+		if !known || k.Estimate == nil {
+			return ""
+		}
+		return k.Estimate(ctx, r)
+	}
+	switch r.Status {
+	case Queued:
+		switch {
+		case r.BlockedBy != nil:
+			return "Queued behind " + quote(r.BlockedBy.Title) + "; it starts when that run ends"
+		case m.cfg.Gate != nil && !m.cfg.Gate.Enabled(r.Module):
+			return "Queued; it starts when its module is turned on again"
+		case r.StartedAt != nil:
+			return join("Queued to go on where it stopped", count)
+		}
+		return "Queued; it starts in a moment"
+	case Waiting:
+		what := "a person to resume it"
+		if r.WaitingFor != nil {
+			what = *r.WaitingFor
+		}
+		return join("Waiting for "+what, count, estimate())
+	case Running:
+		if count == "" {
+			return "Running"
+		}
+		return join(count, estimate())
+	case Stopping:
+		return join("Stopping: "+deref(r.StopReason, "a stop was asked"), count)
+	case Done:
+		if r.Total > 0 {
+			return "Done: " + Count(r.Done, r.Total, k.Unit)
+		}
+		return "Done"
+	case Partial:
+		return join("Partly done: "+deref(r.Error, "part of the work was not done"), count)
+	case Failed:
+		return "Failed: " + deref(r.Error, "the run did not finish")
+	case Stopped:
+		s := deref(r.StopReason, "a stop was asked")
+		if !strings.HasPrefix(s, "Stopped") { // "Stopped by ann@example.com" says it already
+			s = "Stopped: " + s
+		}
+		if r.Total > 0 && r.Done < r.Total {
+			s = join(s, count+" done")
+		}
+		return s
+	}
+	return string(r.Status)
+}
+
+// Count is "6,272 of 65,792 addresses": done of total, with the unit when there is one.
+func Count(done, total int, unit string) string {
+	s := Number(done) + " of " + Number(total)
+	if unit != "" {
+		s += " " + unit
+	}
+	return s
+}
+
+// Number writes n with a comma between thousands (12,345).
+func Number(n int) string {
+	s := strconv.Itoa(n)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	var b strings.Builder
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(c)
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// join joins the non-empty parts with "; ".
+func join(parts ...string) string {
+	var out []string
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, "; ")
+}
+
+func quote(s string) string { return "“" + s + "”" }
+
+func deref(s *string, def string) string {
+	if s == nil || strings.TrimSpace(*s) == "" {
+		return def
+	}
+	return *s
+}

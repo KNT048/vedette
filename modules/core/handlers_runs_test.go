@@ -79,8 +79,11 @@ func TestRuns_ListPageStopAndResume(t *testing.T) {
 		t.Fatalf("queued sweeps = %d %v", code, list)
 	}
 	code, page := s.call("GET", "/runs/"+sweep, "viewer", "")
-	if code != http.StatusOK || page["status"] != "queued" || page["can_stop"] != true || page["total"] != 256.0 || len(page["steps"].([]any)) != 1 {
-		t.Fatalf("run page = %d %v", code, page)
+	if code != http.StatusOK || page["status"] != "queued" || page["can_stop"] != false || page["total"] != 256.0 || len(page["steps"].([]any)) != 1 || page["summary"] == "" {
+		t.Fatalf("run page for a viewer = %d %v (a viewer may not stop it)", code, page)
+	}
+	if code, page = s.call("GET", "/runs/"+sweep, "operator", ""); code != http.StatusOK || page["can_stop"] != true || page["can_resume"] != false {
+		t.Fatalf("run page for an operator = %d %v", code, page)
 	}
 	if code, _ := s.call("GET", "/runs/run-unknown", "viewer", ""); code != http.StatusNotFound {
 		t.Fatalf("unknown run = %d", code)
@@ -90,8 +93,13 @@ func TestRuns_ListPageStopAndResume(t *testing.T) {
 		t.Fatalf("a viewer's stop = %d, want 403", code)
 	}
 	code, page = s.call("POST", "/runs/"+sweep+"/stop", "operator", "")
-	if code != http.StatusOK || page["status"] != "stopped" || page["stop_reason"] != "Stopped by it@acme.example" || page["can_resume"] != true {
+	// the operator may not resume a sweep (an administrator's to start): the answer says so for the person asking
+	if code != http.StatusOK || page["status"] != "stopped" || page["stop_reason"] != "Stopped by it@acme.example" || page["can_resume"] != false ||
+		page["summary"] != "Stopped by it@acme.example; 0 of 256 done" {
 		t.Fatalf("stop = %d %v", code, page)
+	}
+	if code, page = s.call("GET", "/runs/"+sweep, "admin", ""); code != http.StatusOK || page["can_resume"] != true {
+		t.Fatalf("the stopped sweep for an administrator = %d %v", code, page)
 	}
 	if code, body := s.call("POST", "/runs/"+sweep+"/stop", "operator", ""); code != http.StatusConflict || body["error"].(map[string]any)["code"] != "not_running" {
 		t.Fatalf("second stop = %d %v", code, body)

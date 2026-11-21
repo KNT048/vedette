@@ -182,6 +182,7 @@ func TestContract_INV23_ScopeReachAndNextAsk(t *testing.T) {
 	keyB := w.enroll(secret, "srv-b", peerB)
 	w.post("/intake/osquery/log", peerA, fullLog(keyA))
 	w.post("/intake/osquery/log", peerB, logBody(keyB, snap("interfaces", ifaceRow(macB, peerB)), snap("deb_packages", debRow("nginx", "1.24.0-2ubuntu7"))))
+	w.refresh(keyA)
 	w.clock.Advance(61 * time.Minute)
 	d, _ := w.device(peerA)
 	path := "/inventory/agents/devices/" + d.ID + "/report"

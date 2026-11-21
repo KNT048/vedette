@@ -10,16 +10,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber } from '@/lib/format'
-import { useCan } from '@/lib/session'
-import { useRun, useRunAction, useRunList } from './api'
+import { useRun, useRunAction } from './api'
 import { runHref, runsHref } from './places'
-import { RunBar, RunStateChip, useKindLabel, useRunCount, useRunReason, useStartedBy } from './RunParts'
+import { RunBar, RunStateChip, useKindLabel, useRunCount, useStartedBy } from './RunParts'
 import type { Run, RunDetail } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
-/** Kinds whose start needs an administrator, so their resume does too (POST /runs/{id}/resume answers 403 otherwise). */
-const ADMIN_RESUME = new Set(['lan_sweep'])
 
 /** Where a subject of a run (a device, a public target) has its own page; null for what has none (an address no device has yet). */
 function subjectHref(kind: string, id: string | null): string | null {
@@ -29,40 +26,33 @@ function subjectHref(kind: string, id: string | null): string | null {
   return null
 }
 
-/** A queued run waits for the run that holds its lane: that run, by name, with its own link. */
+/** A queued run waits for the run that holds its lane (blocked_by, from the box): that run, by name, with its own link. */
 function Blocker({ r }: { r: Run }) {
   const { t } = useTranslation('scanning')
-  const running = useRunList({ q: '', kind: '', status: 'running', device: '', offset: 0, limit: 200 }, r.status === 'queued')
-  const by = running.data?.items.find((x) => x.lane === r.lane && x.id !== r.id)
-  if (r.status !== 'queued' || !by) return null
-  return <p className="text-meta">{t('runs.queuedBehind')} <Link to={runHref(by.id)} className={link}>{by.title}</Link></p>
+  if (r.status !== 'queued' || !r.blocked_by) return null
+  return <p className="text-meta">{t('runs.queuedBehind')} <Link to={runHref(r.blocked_by.id)} className={link}>{r.blocked_by.title}</Link></p>
 }
 
-/** Stop (queued, waiting or running) and Resume (waiting, or stopped with work left), for an operator; a LAN sweep resumes only for an
- *  administrator. Stop asks first: work not reached yet is not done. */
+/** Stop and Resume, as the box says the person asking may use them (can_stop, can_resume). Stop asks first: work not reached yet is
+ *  not done. */
 function Actions({ r }: { r: RunDetail }) {
   const { t } = useTranslation('scanning')
-  const operator = useCan('operator')
-  const admin = useCan('admin')
   const act = useRunAction()
   const [asking, setAsking] = useState(false)
-  const role = ADMIN_RESUME.has(r.kind) ? 'admin' : 'operator'
-  const canResume = role === 'admin' ? admin : operator
   const run = (action: 'stop' | 'resume') => act.mutate({ id: r.id, action }, {
     onSuccess: () => { setAsking(false); toast.success(t(action === 'stop' ? 'runs.stopped' : 'runs.resumed')) },
     onError: (e) => toast.error(errMsg(e)),
   })
   if (!r.can_stop && !r.can_resume) return null
-  const needs = (who: 'operator' | 'admin') => t('common:needRole', { role: t(`common:role.${who}`) })
   return (
     <div className="flex flex-wrap items-center gap-2">
       {r.can_resume ? (
-        <Button disabled={!canResume} title={canResume ? undefined : needs(role)} busy={act.isPending && act.variables?.action === 'resume'} busyLabel={t('common:busy.starting')} onClick={() => run('resume')}>
+        <Button busy={act.isPending && act.variables?.action === 'resume'} busyLabel={t('common:busy.starting')} onClick={() => run('resume')}>
           <Play />{t('runs.resume')}
         </Button>
       ) : null}
       {r.can_stop ? (
-        <Button variant="danger" disabled={!operator} title={operator ? undefined : needs('operator')} onClick={() => setAsking(true)}><OctagonX />{t('runs.stop')}</Button>
+        <Button variant="danger" onClick={() => setAsking(true)}><OctagonX />{t('runs.stop')}</Button>
       ) : null}
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent title={t('runs.stopTitle')} description={t('runs.stopBody')}>
@@ -80,7 +70,6 @@ function Body({ r }: { r: RunDetail }) {
   const { t } = useTranslation('scanning')
   const kindLabel = useKindLabel()
   const startedBy = useStartedBy()
-  const reason = useRunReason()(r)
   const count = useRunCount()
   const subject = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
   const crumbs = [{ label: t('page.title'), to: '/settings/scanning' }, { label: t('page.tab.runs'), to: runsHref() }]
@@ -90,12 +79,11 @@ function Body({ r }: { r: RunDetail }) {
       <Card className="mb-6 grid gap-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <RunStateChip status={r.status} />
-          {reason ? <span className="text-meta">{reason}</span> : null}
+          {r.status !== 'queued' || !r.blocked_by ? <span className="text-meta">{r.summary}</span> : null}
         </div>
         <Blocker r={r} />
         {r.total > 0 ? (
           <div className="grid max-w-xl gap-1 text-meta">
-            <span className="tabular-nums">{count(r)}</span>
             <RunBar done={r.done} total={r.total} label={t('runs.progressOf', { title: r.title })} />
           </div>
         ) : null}

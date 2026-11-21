@@ -19,7 +19,7 @@ func TestWindowShortenedMidRunStopsAtTheNewEnd(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t, fakeOpts{slowFrom: 1})
-			e.base, e.t0 = local(9, 2, 0).Add(55*time.Second), time.Now() // Monday 02:00:55, window 01:00-05:00
+			e.setClock(local(9, 2, 0).Add(55 * time.Second)) // Monday 02:00:55, window 01:00-05:00
 			done := make(chan error, 1)
 			go func() {
 				if device {

@@ -424,6 +424,11 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
+		if class == observe.Agent {
+			if off, err := agentRefused(ctx, tx, id); err != nil || off { // a person turned the agent off for this device (ChangeSources)
+				return err
+			}
+		}
 		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), scope, now)
 	})
 }

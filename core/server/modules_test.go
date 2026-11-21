@@ -134,6 +134,7 @@ var contractRoutes = map[string][]string{
 		"PUT /scanning/safety",
 		"POST /scanning/safety/ranges", // #842: the inline adds of the safety block
 		"POST /scanning/safety/exclusions",
+		"POST /scanning/safety/estimate", // the cost of one pass of the scope as typed (the range form)
 		"PATCH /scanning/engines/{id}",
 		"POST /scanning/engines/nmap-discovery/run",
 		"GET /runs", // core/run: every engine's runs

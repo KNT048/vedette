@@ -65,7 +65,7 @@ func externalEnvWith(t *testing.T, egress netip.Addr, name string) *env {
 	go func() { defer close(done); _ = w.Run(ctx) }()
 	t.Cleanup(func() { cancel(); <-done })
 	waitFor(t, "the first heartbeat of the worker", func() bool { return !strings.Contains(d.NmapHealth(), "has not reported") })
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, Prober: d, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, Prober: d, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	if f := e.str(`SELECT flags FROM sa_probe`); !strings.HasSuffix(f, "-p "+nmapargv.ExternalPorts+" --stats-every "+nmapargv.StatsEvery) || len(f) <= 300 {
 		t.Fatalf("flags = %s", f)
 	}
-	if s := e.str(`SELECT kind || '|' || reason || '|' || status FROM sa_job`); s != "external|exposure|done" {
+	if s := e.str(`SELECT kind || '|' || reason || '|' || status FROM jobs_v`); s != "external|exposure|done" {
 		t.Fatalf("job = %s", s)
 	}
 	if len(e.sink.observations()) != 0 || len(e.sink.svc) != 0 {
@@ -219,7 +219,7 @@ func TestScanExternalRefusedByTheCoreFence(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 0 || e.count(`SELECT count(*) FROM sa_probe`) != 0 {
 		t.Fatalf("nmap ran %d times, %d probe rows", n, e.count(`SELECT count(*) FROM sa_probe`))
 	}
-	if s := e.str(`SELECT group_concat(status) FROM sa_job`); s != "failed" {
+	if s := e.str(`SELECT group_concat(status) FROM jobs_v`); s != "failed" {
 		t.Fatalf("jobs = %s", s)
 	}
 }
@@ -251,7 +251,7 @@ func TestScanExternalRefusesANonPublicAddress(t *testing.T) {
 			t.Fatalf("%s: err = %v", s, err)
 		}
 	}
-	if e.count(`SELECT count(*) FROM sa_job`) != 0 {
+	if e.count(`SELECT count(*) FROM jobs_v`) != 0 {
 		t.Fatal("a job was started")
 	}
 }

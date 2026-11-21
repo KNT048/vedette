@@ -13,7 +13,7 @@ import { BEHAVIOUR_KINDS, kindLabel } from '@/lib/deviceTypes'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { ApiError } from '@/lib/api'
-import { useSaveSafety } from './api'
+import { useSaveSafety, useScopeCost } from './api'
 import type { Safety, SafetyInput } from './types'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -156,6 +156,8 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
         </div>
       </Section>
 
+      <SweepCost ranges={lines(ranges)} excl={lines(excl)} days={days} from={from} to={to} pps={pps} />
+
       <Section id="exclusions" title={t('safety.exclTitle')} description={t('safety.exclDescription')}>
         <Field htmlFor="excl" label={t('safety.exclLabel')} hint={t('safety.exclHint')} info={t('safety.exclInfo')}>
           <Textarea id="excl" value={excl} onChange={(e) => setExcl(e.target.value)} disabled={dis} spellCheck={false} rows={4} />
@@ -203,6 +205,34 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
       <div><Button type="submit" variant="primary" disabled={dis} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('safety.save')}</Button></div>
     </form>
   )
+}
+
+/** What one pass of discovery over the scope as typed costs, from the box (POST /scanning/safety/estimate): the addresses and the time
+ *  of one pass, and whether it fits one window. A pass that needs several windows is one run over several nights; the choices to make
+ *  it fit one are named. A scope that does not fit a week is refused on save, and the card says so before. */
+function SweepCost({ ranges, excl, days, from, to, pps }: { ranges: string[]; excl: string[]; days: number[]; from: string; to: string; pps: number }) {
+  const { t } = useTranslation('scanning')
+  const q = useScopeCost({ lan_ranges: ranges.slice(0, 16), exclusions: excl.slice(0, 400), window: { days, from, to }, packets_per_s: pps }, ranges.length > 0)
+  const c = q.data
+  if (!c || c.addresses === 0) return null
+  const pass = fmtDuration(c.pass_seconds)
+  const win = fmtDuration(c.window_seconds)
+  const line = t('safety.cost.line', { addresses: c.addresses.toLocaleString('en-US'), pass, pps })
+  return (
+    <Notice tone={!c.fits_week ? 'danger' : c.fits_window ? 'off' : 'warn'} className="mb-0" title={line} role="status">
+      {!c.fits_week ? t('safety.cost.tooLarge', { windows: c.windows, week: c.week_windows, window: win })
+        : c.fits_window ? t('safety.cost.fits', { window: win })
+          : t('safety.cost.nights', { windows: c.windows, window: win })}
+    </Notice>
+  )
+}
+
+/** "6 h 12 min", "40 min", "less than a minute". */
+function fmtDuration(seconds: number): string {
+  const m = Math.round(seconds / 60)
+  if (m < 1) return 'less than a minute'
+  if (m < 60) return `${m} min`
+  return m % 60 === 0 ? `${m / 60} h` : `${Math.floor(m / 60)} h ${m % 60} min`
 }
 
 /** #877 r1 M4: after a 409, what someone else changed (its value stored now) and that the person's own edits are kept, to save again. */

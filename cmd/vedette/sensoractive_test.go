@@ -32,7 +32,7 @@ func newLocalSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newSensorActive(context.Background(), d, nmapHealth{p, path})
+	return newSensorActive(context.Background(), d, nmapHealth{p, path}, nil)
 }
 
 // nmapHealth is a local Prober that says what Health says of a local nmap (the file exists and is executable): the service reads the
@@ -209,8 +209,8 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal("scanning must not approve the device")
 	}
 	// the sweep found two more devices; they were new
-	if got := s.count(`SELECT count(*) FROM sa_job WHERE kind = ? AND status = 'done' AND new_devices = 2`, "sweep"); got != 1 {
-		t.Fatalf("sweep job rows with 2 new devices = %d", got)
+	if got := s.count(`SELECT count(*) FROM core_run r WHERE kind = ? AND status = 'done' AND (SELECT count(*) FROM core_run_item i WHERE i.run_id = r.id AND i.outcome = 'new') = 2`, "lan_sweep"); got != 1 {
+		t.Fatalf("sweep runs with 2 new devices = %d", got)
 	}
 
 	// a device declared by hand is never scanned
@@ -312,7 +312,7 @@ func TestSensorActiveOffDoesNothing(t *testing.T) {
 func TestSensorActiveIsWired(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	if n := s.count(`SELECT count(*) FROM sqlite_master WHERE name IN ('sa_job', 'sa_probe', 'sa_queue')`); n != 3 {
+	if n := s.count(`SELECT count(*) FROM sqlite_master WHERE name IN ('sa_probe', 'sa_snmp_device', 'sa_all_ports')`); n != 3 {
 		t.Fatalf("%d sa_ tables", n)
 	}
 	js := sensorActiveJobs(*s.d)

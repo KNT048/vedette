@@ -11,6 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/lifecycle"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -32,6 +34,7 @@ type Token struct {
 	ExpiresAt    time.Time // zero = never
 	LastReceived time.Time // zero = never
 	Hosts        int
+	DeviceID     string // the device a person made it for ("" = any machine)
 }
 
 // newSecret makes a token secret: tokenPrefix + 32 characters of a 32-letter alphabet from crypto/rand (160 bits).
@@ -49,6 +52,28 @@ func newSecret() (string, error) {
 // IssueToken makes an enrolment token (S-INV-4). ttlDays is 0..365, 0 = never expires. The secret is returned here and nowhere else: the
 // table keeps its SHA-256 and the last four characters. At most MaxTokens tokens exist at once.
 func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays int) (Token, string, error) {
+	return s.IssueTokenFor(ctx, actor, name, ttlDays, "")
+}
+
+// IssueTokenFor is IssueToken for one device (device "" = any machine): the device's agent row then shows the token under Show setup
+// until a machine enrols with it. An unknown device is 404 not_found; the box is 409 box_device (it reads its own packages).
+func (s *Service) IssueTokenFor(ctx context.Context, actor, name string, ttlDays int, device string) (Token, string, error) {
+	if device != "" {
+		devs, ok := s.cfg.Approver.(observe.AgentDevices)
+		if !ok {
+			return Token{}, "", apierr.NotFound()
+		}
+		d, found, err := devs.AgentDevice(ctx, device)
+		if err != nil {
+			return Token{}, "", err
+		}
+		if !found {
+			return Token{}, "", apierr.NotFound()
+		}
+		if d.IsBox {
+			return Token{}, "", apierr.New(409, "box_device", "This is the Vedette box itself: it reads its own packages and needs no agent.")
+		}
+	}
 	name = strings.TrimSpace(name)
 	if n := utf8.RuneCountInString(name); n < 1 || n > maxTokenName || strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || r == 0x7f || r == '<' || r == '>' }) {
 		return Token{}, "", apierr.New(400, "bad_name", "Name the token so you remember which machines use it, up to 64 characters.")
@@ -61,7 +86,7 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 		return Token{}, "", err
 	}
 	now := s.now()
-	t := Token{ID: store.NewID("tok"), Name: name, Kind: "osquery", Last4: secret[len(secret)-4:], CreatedAt: now}
+	t := Token{ID: store.NewID("tok"), Name: name, Kind: "osquery", Last4: secret[len(secret)-4:], CreatedAt: now, CreatedBy: actor, DeviceID: device}
 	if ttlDays > 0 {
 		t.ExpiresAt = now.Add(time.Duration(ttlDays) * 24 * time.Hour)
 	}
@@ -87,11 +112,15 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 			exp = store.FormatTS(t.ExpiresAt)
 		}
 		// created_by: the enrolment approves its machines in this person's name.
-		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_agent_tokens (id, name, kind, token_hash, last4, created_at, expires_at, created_by) VALUES (?, ?, 'osquery', ?, ?, ?, ?, NULLIF(substr(?, 1, 256), ''))`,
-			t.ID, t.Name, hashHex(secret), t.Last4, store.FormatTS(now), exp, actor); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_agent_tokens (id, name, kind, token_hash, last4, created_at, expires_at, created_by, device_id) VALUES (?, ?, 'osquery', ?, ?, ?, ?, NULLIF(substr(?, 1, 256), ''), NULLIF(?, ''))`,
+			t.ID, t.Name, hashHex(secret), t.Last4, store.FormatTS(now), exp, actor, device); err != nil {
 			return fmt.Errorf("agentintake: insert token: %w", err)
 		}
-		return s.auditTx(ctx, tx, actor, "inventory.agent_token_create", t.Name, "last4 "+t.Last4) // the name and the last four only, never the secret
+		detail := "last4 " + t.Last4 // the name and the last four only, never the secret
+		if device != "" {
+			detail += ", for device " + device
+		}
+		return s.auditTx(ctx, tx, actor, "inventory.agent_token_create", t.Name, detail)
 	})
 	if err != nil {
 		return Token{}, "", err
@@ -162,24 +191,69 @@ func nodeIDs(ctx context.Context, tx *sql.Tx, q string, args ...any) ([]string, 
 
 // ListTokens returns the tokens, newest first, with the number of nodes each has.
 func (s *Service) ListTokens(ctx context.Context) ([]Token, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT t.id, t.name, t.kind, t.last4, t.created_at, t.expires_at, t.last_received, t.first_enrolled_at, coalesce(t.created_by, ''),
-		(SELECT count(*) FROM intake_osquery_nodes n WHERE n.token_id = t.id) FROM intake_agent_tokens t ORDER BY t.created_at DESC, t.id`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT `+tokenCols+` FROM intake_agent_tokens t ORDER BY t.created_at DESC, t.id`)
 	if err != nil {
 		return nil, fmt.Errorf("agentintake: list tokens: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	out := []Token{}
 	for rows.Next() {
-		var t Token
-		var created string
-		var exp, rec, first sql.NullString
-		if err := rows.Scan(&t.ID, &t.Name, &t.Kind, &t.Last4, &created, &exp, &rec, &first, &t.CreatedBy, &t.Hosts); err != nil {
+		t, err := scanToken(rows)
+		if err != nil {
 			return nil, fmt.Errorf("agentintake: list tokens: %w", err)
 		}
-		t.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
-		t.ExpiresAt, t.LastReceived = parseTS(exp), parseTS(rec)
-		t.ExpiresAt = effectiveExpiry(t.ExpiresAt, t.CreatedAt.UTC(), first.Valid)
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+//nolint:gosec // G101: column names of the token table, no secret (the hash is not among them)
+const tokenCols = `t.id, t.name, t.kind, t.last4, t.created_at, t.expires_at, t.last_received, t.first_enrolled_at, coalesce(t.created_by, ''), coalesce(t.device_id, ''),
+	(SELECT count(*) FROM intake_osquery_nodes n WHERE n.token_id = t.id)`
+
+func scanToken(sc interface{ Scan(...any) error }) (Token, error) {
+	var t Token
+	var created string
+	var exp, rec, first sql.NullString
+	if err := sc.Scan(&t.ID, &t.Name, &t.Kind, &t.Last4, &created, &exp, &rec, &first, &t.CreatedBy, &t.DeviceID, &t.Hosts); err != nil {
+		return Token{}, err
+	}
+	t.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+	t.ExpiresAt, t.LastReceived = parseTS(exp), parseTS(rec)
+	t.ExpiresAt = effectiveExpiry(t.ExpiresAt, t.CreatedAt.UTC(), first.Valid)
+	return t, nil
+}
+
+// setupToken is the token Show setup shows for a device (ReportState.Setup): the token tokenID its agent enrolled with when set, else the
+// newest token a person made for this device that still enrols machines; nil when none.
+func (s *Service) setupToken(ctx context.Context, device, tokenID string) (*Token, error) {
+	q, args := `SELECT `+tokenCols+` FROM intake_agent_tokens t WHERE t.id = ?`, []any{tokenID}
+	if tokenID == "" {
+		q, args = `SELECT `+tokenCols+` FROM intake_agent_tokens t WHERE t.device_id = ? ORDER BY t.created_at DESC, t.id`, []any{device}
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("agentintake: read the device's token: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	now := s.now()
+	for rows.Next() {
+		t, err := scanToken(rows)
+		if err != nil {
+			return nil, fmt.Errorf("agentintake: read the device's token: %w", err)
+		}
+		if tokenID != "" || t.ExpiresAt.IsZero() || t.ExpiresAt.After(now) {
+			return &t, nil
+		}
+	}
+	return nil, rows.Err()
+}
+
+// DeviceMerged is agent-intake's part of a device merge (core/lifecycle): the tokens made for the device that joined are the kept
+// device's now.
+func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merge) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE intake_agent_tokens SET device_id = ? WHERE device_id = ?`, m.Into, m.From); err != nil {
+		return fmt.Errorf("agentintake: move the device's tokens: %w", err)
+	}
+	return nil
 }

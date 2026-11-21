@@ -122,7 +122,7 @@ type BlockedEvent struct {
 	Reason  string `json:"reason"`
 }
 
-// Job kinds and statuses of sa_job.
+// Job kinds and statuses of the history rows (JobRow) and the scan events.
 const (
 	KindSweep  = "sweep"
 	KindDevice = "device"

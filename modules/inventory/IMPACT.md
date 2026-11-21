@@ -237,6 +237,10 @@
 - **Web**: the device Software tab (`DevicePage.tsx` `SoftwareList`, `AlsoSeenLine`) draws the lines as given, the other readings under each, and the one notice only when `differs`; findings' entry outcome (`EnteredRelease.tsx`) reads the same lines from the device detail.
 - **API**: `GET /inventory/devices/{id}` `asset.software` (`contract.ts` `SoftwareLine`, `AlsoSeen`, `CorrectedFrom`; mock `linesOf` in `features/inventory/mocks.ts`).
 
+## Modifying: the agent switch (`agent_source`, `ChangeSources`, `agentRefused`, `dropAgentData`, `Config.AskAgent`, INV-56)
+- **agent-intake** reads it through `AgentDevice.AgentOff` (`ReportState.Off`, 409 `agent_off` on an ask) and is asked to report now through `Config.AskAgent` (cmd/vedette `sourceFacts.askAgent` → `AskReport`); **findings** reads it through `agentReports` (off = no agent reports the device). A new agent data path into the inventory must check `agentRefused` too, or the switch leaks.
+- `dropAgentData` is a named write path of the readings guard (`onelineguard_test.go`).
+
 ## Modifying: the device source rows (`devicesources.go`, `DeviceSources`, `Config.SNMPOf`, `Config.AgentOf`, INV-55)
 - **sensor-active** answers `SNMPOf` with `SNMPDeviceOf` (state, last answer); **agent-intake** answers `AgentOf` with `ReportState` (which agent, its state, its last call); the adapters are `cmd/vedette/inventory.go` `sourceFacts`. A change of either module's states changes the row states here and the contract's `SourceRowState`.
 - **Web**: `GET /inventory/devices/{id}/sources` (`contract.ts` `DeviceSourcesView`, `DeviceSourceRow`; `api.ts` `useDeviceSourceRows`; mock `sourceRowsOf`); the device page draws the rows as given (state, dot, last time, switch, button).

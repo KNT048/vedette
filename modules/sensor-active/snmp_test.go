@@ -96,6 +96,7 @@ func newSNMPWorld(t *testing.T, reader sa.SNMPReader) *snmpWorld {
 	if err := store.Migrate(t.Context(), db, "sensor-active", sa.Migrations); err != nil {
 		t.Fatal(err)
 	}
+	runViews(t, db)
 	sec, err := secrets.New(bytes.Repeat([]byte{9}, secrets.KeySize))
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +131,7 @@ func newSNMPWorld(t *testing.T, reader sa.SNMPReader) *snmpWorld {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(svc.Close)
 	w.svc = svc
 	return w
 }
@@ -411,7 +413,7 @@ func TestSNMPCheckReadsTheReadAddressAndRecordsOnTheDevice(t *testing.T) {
 		t.Errorf("recorded %v", got)
 	}
 	if w.count(`SELECT count(*) FROM sa_probe WHERE shape = 'snmp' AND hosts = 1 AND targets = '192.168.10.40' AND result = 'ok: 1 of 1 answered' AND flags LIKE '%v2c UDP 161 ×1%' AND flags NOT LIKE '%s3cret%'`) != 1 ||
-		w.count(`SELECT count(*) FROM sa_job WHERE kind = 'snmp' AND reason = 'snmp_test' AND status = 'done'`) != 1 {
+		w.count(`SELECT count(*) FROM jobs_v WHERE kind = 'snmp' AND reason = 'snmp_test' AND status = 'done'`) != 1 {
 		t.Fatal("probe row or job is missing")
 	}
 	d := res.Device
@@ -458,7 +460,7 @@ func TestSNMPRoundOncePerWindow(t *testing.T) {
 	if err := w.svc.Tick(t.Context()); err != nil || len(r.sent()) != 1 {
 		t.Fatalf("a second tick in the same window read again: %v, %d jobs", err, len(r.sent()))
 	}
-	if w.count(`SELECT count(*) FROM sa_job WHERE kind = 'snmp' AND reason = 'window' AND status = 'done' AND targets = 2`) != 1 {
+	if w.count(`SELECT count(*) FROM jobs_v WHERE kind = 'snmp' AND reason = 'window' AND status = 'done' AND targets = 2`) != 1 {
 		t.Fatal("no done round")
 	}
 	if w.count(`SELECT count(*) FROM sa_snmp_device WHERE last_status = 'ok' AND last_answer_at IS NOT NULL`) != 2 {

@@ -602,12 +602,17 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery.
+// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery; urgency (UrgencyJob) when the module starts,
+// then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
 		return err
 	}}, {Module: "findings", Name: "plan", Every: PlanEvery, Run: func(ctx context.Context) error {
 		return svc.RefreshPlan(ctx)
+	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
+		r, err := svc.RateUrgency(ctx, "", nil)
+		svc.cfg.Log.InfoContext(ctx, "findings: urgency pass done", "rated", r.Rated, "raised", r.Raised, "lowered", r.Lowered, "announced", r.Announced)
+		return err
 	}}}
 }

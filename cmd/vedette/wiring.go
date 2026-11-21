@@ -881,6 +881,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		Applied:   mitigationApplied,        // a merge keeps the finding a person marked a mitigation item applied on
 		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
+	cfg.Urgency = urgencySources(d) // the urgency pass: feeds' signals, the devices' types and exposure, the intrusion alerts
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

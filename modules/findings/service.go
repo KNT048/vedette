@@ -48,6 +48,8 @@ type ServiceConfig struct {
 	// itself plans with (scan Pack.ForCVE), never the nuclei-templates feed flag, which is off on an offline box and lists
 	// templates the pack does not ship. The Feeds port's KevInfo.HasTemplate is the same answer. nil: Vuln.HasTemplate as given.
 	SafeCheck func(cve string) bool
+	// Urgency is what the urgency pass rates findings with (UrgencySources); a nil Facts: the pass does not run.
+	Urgency UrgencySources
 }
 
 // safeCheck is ServiceConfig.SafeCheck for v, else v's own flag.
@@ -411,7 +413,19 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	set := newMatchSet(vulns)
 	dev := set.forDevice(a)
 	a.winList = dev
-	return s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	res, err := s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	if err != nil {
+		return res, err
+	}
+	// The device's findings are rated at once: one this write created enters its layer as news (a new match on the device).
+	fresh := make(map[string]bool, len(res.Created))
+	for _, id := range res.Created {
+		fresh[id] = true
+	}
+	if _, err := s.RateUrgency(ctx, assetID, fresh); err != nil {
+		return res, err
+	}
+	return res, nil
 }
 
 // UpsertFromMatch matches the device's software against vulns and writes the result through Transition (applyMatch): a detected

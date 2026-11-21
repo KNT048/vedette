@@ -62,6 +62,9 @@ func ReadUrgencyFacts(ctx context.Context, q *sql.DB, cves []string) (map[string
 		if err := readUrgencyCVEs(ctx, q, string(part), out); err != nil {
 			return nil, err
 		}
+		if err := readUrgencyLists(ctx, q, string(part), out); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -139,4 +142,27 @@ FROM feeds_cve c LEFT JOIN feeds_cve_metric m ON m.cve = c.cve WHERE c.cve IN (S
 		}
 	}
 	return nil
+}
+
+// readUrgencyLists adds an exploited list's entry whose signal row is missing as the signal the list writes with it (kind exploited,
+// the list's source, dated by its date added), so a listed CVE always rates as exploited, as the match pass starts it.
+func readUrgencyLists(ctx context.Context, q *sql.DB, cves string, out map[string]UrgencyFacts) error {
+	rows, err := q.QueryContext(ctx, `SELECT k.cve, k.source_id, k.date_added FROM feeds_kev k WHERE k.cve IN (SELECT value FROM json_each(?)) AND `+kevSources+`
+AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = k.cve AND s.kind = 'exploited' AND s.source = k.source_id)`, cves)
+	if err != nil {
+		return fmt.Errorf("feeds: urgency facts: %w", err)
+	}
+	for rows.Next() {
+		var cve, src, added string
+		if err := rows.Scan(&cve, &src, &added); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("feeds: urgency facts: %w", err)
+		}
+		day, _ := time.Parse(time.DateOnly, added) // an unreadable date stays zero: never news
+		f := out[cve]
+		f.Signals = append(f.Signals, UrgencySignal{Signal: Signal{CVE: cve, Kind: SignalExploited, Source: src, FirstSeen: day, StoredAt: day, LastSeen: day,
+			Qualifies: true, URL: kevListURL[src]}})
+		out[cve] = f
+	}
+	return errors.Join(rows.Err(), rows.Close())
 }

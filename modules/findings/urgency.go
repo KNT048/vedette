@@ -2,6 +2,10 @@ package findings
 
 import (
 	"cmp"
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -219,6 +223,9 @@ func ClassOf(f Finding) productid.Class {
 	if pr, ok := productid.ByKEV(key); ok {
 		return pr.Class
 	}
+	if pr, ok := productid.ResolveStored(v, p, "", ""); ok {
+		return pr.Class
+	}
 	return productid.ClassNone
 }
 
@@ -262,4 +269,166 @@ func LayerCode(layer int) string {
 // that calls a finding exploited, counts exploited findings or names an exploited list asks this, never "is it a finding".
 func (f Finding) Exploited() bool {
 	return f.Urgency >= UrgencyUnderAttack && f.Urgency <= UrgencyExploited
+}
+
+// ---- the urgency pass ----
+
+// UrgencySources are what the urgency pass reads besides the findings. A nil Facts: the pass does not run (the layers the match pass
+// starts findings with stay).
+type UrgencySources struct {
+	// Facts returns what the box holds of these CVEs (feeds: signals, CVSS, SSVC, publication); a CVE it holds nothing of is absent.
+	Facts func(ctx context.Context, cves []string) (map[string]CVEFacts, error)
+	// Devices returns the type and the Internet exposure of these devices (inventory, exposure); an unknown one is absent. nil: none known.
+	Devices func(ctx context.Context, ids []string) (map[string]Device, error)
+	// Attacks returns the CVEs this network's intrusion alerts named since a time (ids). nil: no intrusion detection, layer 1 never applies.
+	Attacks func(ctx context.Context, since time.Time) ([]Attack, error)
+}
+
+// Device is what the urgency of a device's findings reads of the device.
+type Device struct {
+	Kind         string // inventory's device type
+	Internet     bool   // reachable from the Internet (exposure)
+	InternetSeen time.Time
+}
+
+// TargetOf is the target of a finding on device d: the class of the line's product (ClassOf), the device's type and exposure, and
+// whether the data detects the flaw now.
+func TargetOf(f Finding, d Device) Target {
+	return Target{AssetID: f.AssetID, Class: ClassOf(f), DeviceKind: d.Kind, Affected: f.Detected, Internet: d.Internet, InternetSeen: d.InternetSeen}
+}
+
+// UrgencyEvery is the pause between two runs of the urgency pass (it also runs when the module starts, and for a device after each of
+// its match writes).
+const UrgencyEvery = time.Hour
+
+// UrgencyJob is the name of the urgency pass's job (core_job_run.job): the selfcheck recomputes the layers as of its last run.
+const UrgencyJob = "urgency"
+
+// UrgencyResult says what one urgency pass did.
+type UrgencyResult struct {
+	Rated, Raised, Lowered int
+	Announced              int // open findings that entered layers 1–4 and were announced as news
+}
+
+// urgencyChunk bounds the findings one write of the pass changes, so the writer is never held for long.
+const urgencyChunk = 500
+
+// RateUrgency rates the findings of one device (every device when assetID is "") with Urgency and stores each layer that changed
+// through Transition (urgency_changed), raising and lowering. A lowering is never told. An open finding that enters layers 1–4 is
+// announced once, the way the match pass announces a new exploited match (findings.finding.created): as news when Rating.News holds or
+// the finding is one of fresh (created by the match write that runs this pass), else under the Backlog mark (counted, silent). A handled
+// finding stores its layer and stays silent. Each finding is read again inside its write and rated on that row.
+func (s *Service) RateUrgency(ctx context.Context, assetID string, fresh map[string]bool) (UrgencyResult, error) {
+	var res UrgencyResult
+	src := s.cfg.Urgency
+	if src.Facts == nil {
+		return res, nil
+	}
+	fs, err := findingsOf(ctx, s.cfg.DB.Reader(), assetID)
+	if err != nil || len(fs) == 0 {
+		return res, err
+	}
+	now := s.now().UTC()
+	in, err := s.urgencyInputs(ctx, fs, now)
+	if err != nil {
+		return res, err
+	}
+	var news, backlog []string
+	for _, f := range fs {
+		res.Rated++
+		r := in.rate(f, now)
+		if r.Layer == f.Urgency {
+			continue
+		}
+		if r.News(now) || fresh[f.ID] {
+			news = append(news, f.ID)
+		} else {
+			backlog = append(backlog, f.ID)
+		}
+	}
+	apply := func(wctx context.Context, ids []string, asNews bool) error {
+		for chunk := range slices.Chunk(ids, urgencyChunk) {
+			if err := s.write(wctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+				for _, id := range chunk {
+					f, err := loadFinding(ctx, tx, id)
+					if errors.Is(err, ErrNotFound) {
+						continue // the device went away meanwhile
+					} else if err != nil {
+						return err
+					}
+					r := in.rate(f, now)
+					if r.Layer == f.Urgency {
+						continue
+					}
+					g, _, err := s.step(ctx, tx, f, false, Trigger{Kind: TrUrgency, At: now, Layer: r.Layer}, emit)
+					if err != nil {
+						return fmt.Errorf("findings: urgency of %s on %s: %w", f.CVE, f.AssetID, err)
+					}
+					if g.Urgency < f.Urgency {
+						res.Raised++
+					} else {
+						res.Lowered++
+					}
+					if g.Open() && !Announced(f) && Announced(g) { // entered layers 1–4: one notice, as a new exploited match
+						band := SeverityMedium
+						if c := in.facts[f.CVE].CVSS; c != nil {
+							band = bandOf(*c)
+						}
+						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: band, Basis: record(g, nil, band).Basis})
+						if asNews {
+							res.Announced++
+						}
+					}
+				}
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := apply(ctx, news, true); err != nil {
+		return res, err
+	}
+	bctx, asNews := ctx, s.cfg.Backlog == nil // without a Backlog hook nothing can be marked, so nothing is held back
+	if s.cfg.Backlog != nil {
+		bctx = s.cfg.Backlog(ctx)
+	}
+	return res, apply(bctx, backlog, asNews)
+}
+
+// urgencyInputs is what one pass rates findings with, read once.
+type urgencyInputs struct {
+	facts   map[string]CVEFacts
+	devices map[string]Device
+	attacks []Attack
+}
+
+func (in urgencyInputs) rate(f Finding, now time.Time) Rating {
+	return Urgency(f.CVE, in.facts[f.CVE], TargetOf(f, in.devices[f.AssetID]), in.attacks, now)
+}
+
+func (s *Service) urgencyInputs(ctx context.Context, fs []Finding, now time.Time) (urgencyInputs, error) {
+	var in urgencyInputs
+	cves, assets := make([]string, 0, len(fs)), make([]string, 0, 8)
+	for _, f := range fs {
+		cves, assets = append(cves, f.CVE), append(assets, f.AssetID)
+	}
+	slices.Sort(cves)
+	slices.Sort(assets)
+	var err error
+	if in.facts, err = s.cfg.Urgency.Facts(ctx, slices.Compact(cves)); err != nil {
+		return in, fmt.Errorf("findings: urgency: reading the CVEs' signals: %w", err)
+	}
+	if s.cfg.Urgency.Devices != nil {
+		if in.devices, err = s.cfg.Urgency.Devices(ctx, slices.Compact(assets)); err != nil {
+			return in, fmt.Errorf("findings: urgency: reading the devices: %w", err)
+		}
+	}
+	if s.cfg.Urgency.Attacks != nil {
+		if in.attacks, err = s.cfg.Urgency.Attacks(ctx, now.Add(-AttackWindow)); err != nil {
+			return in, fmt.Errorf("findings: urgency: reading the attacks: %w", err)
+		}
+	}
+	return in, nil
 }

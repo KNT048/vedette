@@ -20,9 +20,11 @@
 //	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (check-binaries -release inside each .deb, image labels, the files inside core and scan-base, the .deb rebuilt with the floor; writes gates.json when all passed)
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
 //	go run ./scripts/release deb-name    -version 1.0.0-beta.1 [-dir dist]   (part A: nfpm's vedette-host_1.0.0~beta.1_<arch>.deb to the SemVer name, before in)
+//	go run ./scripts/release signal-seed -prev content/signals/seed.json -out content/signals/seed.json [-csaf-cisco FILE.jsonl.gz] [-csaf-fortinet FILE.jsonl.gz]   (the seed of exploitation claims the release ships: the previous seed plus what Vedette's decoders read now from Chrome Releases, the Rapid7 and Google Threat Intelligence blogs and Android's bulletins; online, public feeds only)
 //	go run ./scripts/release bake-install -dir dist/release -in release.in.json -key ~/keys/minisign.key -minisign /abs/minisign [-ref v<version>] [-keys-dir DIR] [-passphrase-stdin]   (part A: install.sh at the tag with its three lines baked from the manifest, signed "file:install.sh version:<v>")
 //
-// push and publish talk to the registry and GitHub (podman's login, gh's token); every other command is offline.
+// push and publish talk to the registry and GitHub (podman's login, gh's token), signal-seed reads public feeds; every other command is
+// offline.
 //
 // See `make help` (release-*) for the make targets and docs/specs/update-manifest.md for the documents.
 package main
@@ -51,7 +53,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|check-image|sign|verify|packs|push|in|gates|publish|deb-name|bake-install [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|check-image|sign|verify|packs|push|in|gates|publish|deb-name|bake-install|signal-seed [flags]")
 		return 2
 	}
 	var err error
@@ -94,6 +96,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdDebName(args[1:], stdout)
 	case "bake-install":
 		err = cmdBakeInstall(ctx, args[1:], stdin, stdout)
+	case "signal-seed":
+		err = cmdSignalSeed(ctx, args[1:], stdout)
 	default:
 		say(stderr, "release: unknown command %q", args[0])
 		return 2

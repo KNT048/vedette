@@ -771,13 +771,19 @@ type reopenedIssue struct{ id, was, by string }
 
 // writeIssues upserts the issues of one write and marks gone the open issues of the engines in ran that it did not report, when their
 // service was seen by this scan or they are about the target as a whole. It returns the ids of the issues that are open now and were
-// not before, and among them the ones it opened again: patched or mitigated, and reported again. Accepted, not relevant and false
-// positive keep the person's decision.
+// not before, and among them the ones it opened again: patched or mitigated before this run started, and reported again (a mark made
+// while the run ran, during a long OpenVAS step say, is newer than what it saw and stays). Accepted, not relevant and false positive
+// keep the person's decision.
 func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, hosts map[string][]string, issues []issueIn, ran engineSet, cov map[IssueEngine]coverFunc) ([]string, []reopenedIssue, error) {
 	var again []reopenedIssue
 	svcIDs, seenNow, err := serviceIndex(ctx, tx, target, runID)
 	if err != nil {
 		return nil, nil, err
+	}
+	// A mark made after this run started is newer than what the run saw: only a mark from before it can be proved wrong by it.
+	since := at
+	if err := tx.QueryRowContext(ctx, `SELECT coalesce(started_at, ?) FROM core_run WHERE id = ?`, at, runID).Scan(&since); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, fmt.Errorf("the start of the run: %w", err)
 	}
 	reported := map[string]bool{}
 	var fresh []string
@@ -803,10 +809,10 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		if err != nil {
 			return nil, nil, err
 		}
-		var id, state, res, by string
-		err = tx.QueryRowContext(ctx, `SELECT id, state, coalesce(resolution, ''), coalesce(resolved_by, '') FROM exp_issue
+		var id, state, res, by, resolvedAt string
+		err = tx.QueryRowContext(ctx, `SELECT id, state, coalesce(resolution, ''), coalesce(resolved_by, ''), coalesce(resolved_at, '') FROM exp_issue
 			WHERE target_id = ? AND engine = ? AND key = ? AND ifnull(service_id, '') = ifnull(?, '')`,
-			target, string(in.engine), clipText(in.key, 600), svc).Scan(&id, &state, &res, &by)
+			target, string(in.engine), clipText(in.key, 600), svc).Scan(&id, &state, &res, &by, &resolvedAt)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			id = store.NewID("xi")
@@ -818,7 +824,7 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 				fresh = append(fresh, id)
 				state = IssueOpen
 			}
-			if state == IssueHandled && (res == string(ResolvedPatched) || res == string(ResolvedMitigated)) {
+			if state == IssueHandled && (res == string(ResolvedPatched) || res == string(ResolvedMitigated)) && resolvedAt < since {
 				fresh, again = append(fresh, id), append(again, reopenedIssue{id: id, was: res, by: by})
 				state = IssueOpen
 				if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET state = 'open', resolution = NULL, resolved_by = NULL, resolved_at = NULL, note = NULL,

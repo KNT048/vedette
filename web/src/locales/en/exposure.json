@@ -638,7 +638,7 @@
     "description": "Say how it was handled. Vedette keeps who, when and your note.",
     "how": "How it was handled",
     "hint": {
-      "patched": "Fixed: the next scan should no longer report it.",
+      "patched": "Fixed: the next scan should no longer report it; if it still does, the issue opens again. For a fix a scan cannot see (an update backported without a new version), choose Not relevant.",
       "mitigated": "A workaround is in place; the cause is still there.",
       "accepted": "You live with it until a day; it opens again after that day.",
       "not_relevant": "It does not apply to this target.",

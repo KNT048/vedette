@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // alertLog keeps the alerts a test's service sent.
@@ -208,5 +209,62 @@ func TestAlerts_AFixThatDidNotTakeOpensAgainOnce(t *testing.T) {
 	scan()
 	if n := len(log.all()); n != 1 {
 		t.Fatalf("the reopened issue alerted again: %+v", log.all())
+	}
+}
+
+// duringRunner runs a function while its scan runs, then reports its content.
+type duringRunner struct {
+	content Content
+	during  func()
+}
+
+func (r *duringRunner) Scan(context.Context, ScanTarget) (Content, error) {
+	if r.during != nil {
+		r.during()
+		r.during = nil
+	}
+	return r.content, nil
+}
+
+// An issue marked patched while a scan runs is newer than what that scan saw: the scan keeps the mark and alerts nothing; the next scan,
+// started after the mark, still reporting it opens it again.
+func TestAlerts_AMarkMadeDuringAScanStays(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	log := &alertLog{}
+	e.svc.cfg.Alert = log.send
+	content := Content{Ports: []PortRow{{IP: ipA, Port: 8443, Service: "https-alt", Ident: IdentProbed}},
+		AdminPanels: []AdminRow{{URL: "https://" + ipA + ":8443/admin", Product: "Example Router", IP: ipA, Port: 8443, Risk: "danger"}}}
+	run := e.scanIP(content).RunID
+	var id, issue string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT target_id FROM exp_scan WHERE run_id = ?`, run).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM exp_issue WHERE target_id = ?`, id).Scan(&issue); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(ScanEvery)
+	e.svc.SetRunner(&duringRunner{content: content, during: func() {
+		e.advance(time.Minute)
+		if _, err := e.svc.HandleIssues(e.ctx(), "it@acme.example", []string{issue}, ResolvedPatched, "", ""); err != nil {
+			t.Error(err)
+		}
+	}})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if state, res, _, _, _ := e.issueRow(issue); state != IssueHandled || res != string(ResolvedPatched) {
+		t.Fatalf("marked patched during the scan: %s %s", state, res)
+	}
+	if len(log.all()) != 0 {
+		t.Fatalf("a mark made during the scan alerted: %+v", log.all())
+	}
+	e.advance(ScanEvery)
+	e.svc.SetRunner(&fakeRunner{content: content})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if state, _, _, _, _ := e.issueRow(issue); state != IssueOpen || len(log.all()) != 1 {
+		t.Fatalf("the next scan: %s, alerts %+v", state, log.all())
 	}
 }

@@ -898,7 +898,7 @@ CREATE TABLE "sa_probe" (
 );
 
 CREATE TABLE sa_snmp_device (
-    asset_id          TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
+    asset_id          TEXT    NOT NULL PRIMARY KEY REFERENCES inv_asset (id) ON DELETE CASCADE CHECK (length(asset_id) BETWEEN 1 AND 96),
     read_from         TEXT    NOT NULL CHECK (length(read_from) BETWEEN 7 AND 15),
     read_from_default INTEGER NOT NULL CHECK (read_from_default IN (0, 1)),
     version           TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),

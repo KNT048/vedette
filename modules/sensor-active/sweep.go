@@ -188,13 +188,8 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cur := &running{cancel: cancel, runID: x.ID()}
-	if d.Trigger == run.Manual && d.StartedAt != nil { // a person's sweep runs outside the window for its first manualFor
-		if t, err := time.Parse(time.RFC3339Nano, *d.StartedAt); err == nil {
-			cur.until = t.Add(manualFor)
-			jctx = withManualUntil(jctx, cur.until)
-		}
-	}
+	cur := &running{cancel: cancel, runID: x.ID(), until: s.sweepUntil(d.Run)} // a person's pass runs outside the window for its hour
+	jctx = withManualUntil(jctx, cur.until)
 	s.setCur(cur)
 	defer s.setCur(nil)
 	macs, err := s.knownMACs(jctx)
@@ -222,89 +217,127 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 		s.finishJob(ctx, x.ID(), status, done, newDevices, r.Error)
 		return r, nil
 	}
-	for _, step := range d.Steps {
-		if step.Status == run.Done {
-			continue
-		}
-		st, err := s.inv.Settings(jctx)
-		if err != nil {
-			return finish(run.Result{Status: run.Partial, Error: "reading the settings failed"})
-		}
-		sp, ok := stepOf(step.Name, prefixes(st.LANRanges))
-		if !ok {
-			s.stepEnd(jctx, x, step.Seq, run.Stopped, "This range is no longer in the scope")
-			continue
-		}
-		s.stepStart(jctx, x, step.Seq)
-		walked := step.Done
-		cursor := newCursor(sp, walked)
-		for {
-			if r, wait := s.sweepMayGoOn(jctx, x); wait {
-				return finish(r)
+	steps := d.Steps
+	for round := 0; len(steps) > 0 && round < 8; round++ {
+		for _, step := range steps {
+			if step.Status == run.Done {
+				continue
 			}
-			st, err = s.inv.Settings(jctx)
+			st, err := s.inv.Settings(jctx)
 			if err != nil {
 				return finish(run.Result{Status: run.Partial, Error: "reading the settings failed"})
 			}
-			batch, n, err := s.stepBatch(jctx, st, cursor.next)
-			if err != nil {
-				if jctx.Err() != nil {
-					return finish(run.Result{Status: run.Partial, Error: "stopped"})
+			sp, ok := stepOf(step.Name, prefixes(st.LANRanges))
+			if !ok {
+				s.stepEnd(jctx, x, step.Seq, run.Stopped, "This range is no longer in the scope")
+				continue
+			}
+			s.stepStart(jctx, x, step.Seq)
+			walked := step.Done
+			cursor := newCursor(sp, walked)
+			for {
+				if r, wait := s.sweepMayGoOn(jctx, x); wait {
+					return finish(r)
 				}
-				return finish(run.Result{Status: run.Partial, Error: "reading the scope failed"})
-			}
-			if n == 0 {
-				break
-			}
-			if len(batch) > 0 {
-				hosts, err := s.probe(pctx, x.ID(), nmapargv.Sweep, st.Rate, batch)
-				switch {
-				case errors.Is(err, ErrStopped):
+				st, err = s.inv.Settings(jctx)
+				if err != nil {
+					return finish(run.Result{Status: run.Partial, Error: "reading the settings failed"})
+				}
+				batch, n, err := s.stepBatch(jctx, st, cursor.next)
+				if err != nil {
 					if jctx.Err() != nil {
 						return finish(run.Result{Status: run.Partial, Error: "stopped"})
 					}
-					// the window closed or the settings changed under the batch: it is swept again from the cursor
-					if r := s.sweepWait(jctx); r.Status == run.Waiting {
-						return finish(r)
+					return finish(run.Result{Status: run.Partial, Error: "reading the scope failed"})
+				}
+				if n == 0 {
+					break
+				}
+				if len(batch) > 0 {
+					hosts, err := s.probe(pctx, x.ID(), nmapargv.Sweep, st.Rate, batch)
+					switch {
+					case errors.Is(err, ErrStopped):
+						if jctx.Err() != nil {
+							return finish(run.Result{Status: run.Partial, Error: "stopped"})
+						}
+						// the window closed or the settings changed under the batch: it is swept again from the cursor
+						if r := s.sweepWait(jctx); r.Status == run.Waiting {
+							return finish(r)
+						}
+						if retries++; retries > 3 {
+							return finish(run.Result{Status: run.Waiting, WaitingFor: "the next window (the scan settings changed under every try of a batch)"})
+						}
+						cursor = newCursor(sp, walked)
+						continue
+					case errors.Is(err, ErrUnavailable):
+						return finish(run.Result{Status: run.Waiting, WaitingFor: "the scan worker to be available"})
+					case err == nil:
+						var fresh map[netip.Addr]bool
+						if fresh, err = s.recordSweep(jctx, hosts, batch, macs); err == nil {
+							newDevices += len(fresh)
+							s.sweepItems(jctx, hosts, batch, fresh)
+							break
+						}
+						fallthrough
+					default:
+						failed++
+						if firstErr == "" {
+							firstErr = err.Error()
+						}
+						s.log.WarnContext(ctx, "sensoractive: a sweep batch failed", "run", x.ID(), "error", err)
 					}
-					if retries++; retries > 3 {
-						return finish(run.Result{Status: run.Waiting, WaitingFor: "the next window (the scan settings changed under every try of a batch)"})
+				}
+				walked, retries = walked+n, 0
+				s.stepProgress(jctx, x, step.Seq, walked, step.Total)
+				if sink != nil {
+					if r, err := x.Run(jctx); err == nil {
+						sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Done: int64(r.Done), Total: int64(r.Total), Unit: progress.UnitHosts})
 					}
-					cursor = newCursor(sp, walked)
-					continue
-				case errors.Is(err, ErrUnavailable):
-					return finish(run.Result{Status: run.Waiting, WaitingFor: "the scan worker to be available"})
-				case err == nil:
-					var fresh map[netip.Addr]bool
-					if fresh, err = s.recordSweep(jctx, hosts, batch, macs); err == nil {
-						newDevices += len(fresh)
-						s.sweepItems(jctx, hosts, batch, fresh)
-						break
-					}
-					fallthrough
-				default:
-					failed++
-					if firstErr == "" {
-						firstErr = err.Error()
-					}
-					s.log.WarnContext(ctx, "sensoractive: a sweep batch failed", "run", x.ID(), "error", err)
 				}
 			}
-			walked, retries = walked+n, 0
-			s.stepProgress(jctx, x, step.Seq, walked, step.Total)
-			if sink != nil {
-				if r, err := x.Run(jctx); err == nil {
-					sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Done: int64(r.Done), Total: int64(r.Total), Unit: progress.UnitHosts})
-				}
-			}
+			s.stepEnd(jctx, x, step.Seq, run.Done, "")
 		}
-		s.stepEnd(jctx, x, step.Seq, run.Done, "")
+		// a range added to the scope while the pass went on is swept in this pass, not a week later
+		if steps, err = s.addNewRanges(jctx, x); err != nil {
+			return finish(run.Result{Status: run.Partial, Error: "reading the settings failed"})
+		}
 	}
 	s.resumeChildren(context.WithoutCancel(ctx), x.ID())
 	if failed > 0 {
 		return finish(run.Result{Status: run.Failed, Error: fmt.Sprintf("%d batches failed; first: %s", failed, firstErr)})
 	}
 	return finish(run.Result{})
+}
+
+// addNewRanges adds to pass x the steps of what the scope holds now that none of its steps covers (a range added, or widened, while
+// the pass went on) and returns them; none when the pass covers the whole scope.
+func (s *Service) addNewRanges(ctx context.Context, x *run.Exec) ([]run.Step, error) {
+	st, err := s.inv.Settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := x.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var have []netip.Prefix
+	for _, step := range d.Steps {
+		if p, err := netip.ParsePrefix(step.Name); err == nil {
+			have = append(have, p.Masked())
+		}
+	}
+	var added []run.Step
+	for _, r := range mergePrefixes(prefixes(st.LANRanges)) {
+		for _, p := range without(r, have) {
+			sp := sweepStep{block: p, rng: r}
+			seq, err := x.AddStep(context.WithoutCancel(ctx), p.String(), stepSize(sp))
+			if err != nil {
+				return nil, err
+			}
+			added = append(added, run.Step{Seq: seq, Name: p.String(), Status: run.Queued, Total: stepSize(sp)})
+		}
+	}
+	return added, nil
 }
 
 // sweepMayGoOn says whether the sweep waits now instead of sending its next batch, and for what: the settings no longer allow it,
@@ -317,6 +350,7 @@ func (s *Service) sweepMayGoOn(ctx context.Context, x *run.Exec) (run.Result, bo
 		return r, true
 	}
 	if _, title, err := s.laneBusy(ctx, x.ID()); err == nil && title != "" {
+		s.setYielded(x.ID(), true)
 		return run.Result{Status: run.Waiting, WaitingFor: "“" + title + "” to finish (it goes first; the sweep then goes on)"}, true
 	}
 	return run.Result{}, false

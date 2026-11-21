@@ -544,6 +544,7 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 // and queue_v (the device checks waiting for their turn in the window, with the reason they were queued for).
 func runViews(t *testing.T, db *store.DB) {
 	t.Helper()
+	inventoryStub(t, db)
 	reason := `CASE WHEN r.kind = 'all_ports' THEN 'all_ports' WHEN r.kind = 'service_scan' THEN 'exposure'
 		WHEN r.kind = 'snmp_read' AND r.trigger = 'manual' THEN 'snmp_test' WHEN r.kind = 'snmp_read' THEN 'window'
 		WHEN r.kind = 'device_check' AND r.trigger = 'manual' THEN 'scan_now'
@@ -597,4 +598,25 @@ func (e *env) newService(cfg sa.Config) (*sa.Service, error) {
 	e.t.Cleanup(svc.Close)
 	e.svc = svc
 	return svc, nil
+}
+
+// inventoryStub stands for the inventory's device table in a test database without the inventory's schema: sa_snmp_device references
+// inv_asset, and every device a test gives SNMP settings exists there (a trigger adds it), as on a box.
+func inventoryStub(t *testing.T, db *store.DB) {
+	t.Helper()
+	err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, q := range []string{
+			`CREATE TABLE inv_asset (id TEXT NOT NULL PRIMARY KEY)`,
+			`CREATE TRIGGER inv_asset_stub_ins BEFORE INSERT ON sa_snmp_device BEGIN INSERT OR IGNORE INTO inv_asset (id) VALUES (NEW.asset_id); END`,
+			`CREATE TRIGGER inv_asset_stub_upd BEFORE UPDATE OF asset_id ON sa_snmp_device BEGIN INSERT OR IGNORE INTO inv_asset (id) VALUES (NEW.asset_id); END`,
+		} {
+			if _, err := tx.ExecContext(t.Context(), q); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }

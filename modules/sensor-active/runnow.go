@@ -60,6 +60,23 @@ type ManualRun struct {
 	Progress  *progress.View
 }
 
+// sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now, runs
+// outside the window for manualFor from the moment it was asked; zero for every other pass.
+func (s *Service) sweepUntil(r run.Run) time.Time {
+	var until time.Time
+	if r.Trigger == run.Manual && r.StartedAt != nil {
+		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err == nil {
+			until = t.Add(manualFor)
+		}
+	}
+	s.mu.Lock()
+	if t := s.personUntil[r.ID]; t.After(until) {
+		until = t
+	}
+	s.mu.Unlock()
+	return until
+}
+
 type manualKey struct{}
 
 // withManualUntil marks ctx as the work of a person's "Scan the LAN now" whose hour ends at t: windowNow lets it run until then.
@@ -104,8 +121,12 @@ func (s *Service) manualLive(ctx context.Context) (*run.Run, error) {
 	var id string
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND trigger = 'manual' AND parent_id IS NULL
 		AND status IN ('queued', 'running', 'stopping') ORDER BY queued_at DESC, rowid DESC LIMIT 1`, ModuleID, laneNmap).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil //nolint:nilnil // none
+	if errors.Is(err, sql.ErrNoRows) { // a pass a person asked to go on now is theirs while it goes on within their hour
+		sw, err := s.liveRun(ctx, RunSweep)
+		if err != nil || sw == nil || !sw.Status.Live() && sw.Status != run.Queued || !s.clock().Before(s.sweepUntil(*sw)) {
+			return nil, err
+		}
+		return sw, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)
@@ -166,10 +187,29 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 		if sw != nil && sw.Status != run.Waiting {
 			return ManualRun{}, ErrSlotBusy
 		}
-		if sw != nil { // the pass the window left waiting: the person's sweep starts over and replaces it
-			if err := s.runs.Stop(ctx, sw.ID, run.System, "Replaced by a sweep "+by+" started"); err != nil && !errors.Is(err, run.ErrEnded) {
+		if sw != nil { // the pass that waits for the window goes on now from its cursor, under the person's hour: never a second pass
+			err := s.db.Write(ctx, func(tx *sql.Tx) error {
+				m.ID, m.Runs = sw.ID, []string{sw.ID}
+				if record == nil {
+					return nil
+				}
+				return record(tx, m)
+			})
+			if err != nil {
 				return ManualRun{}, err
 			}
+			s.mu.Lock()
+			if s.personUntil == nil {
+				s.personUntil = map[string]time.Time{}
+			}
+			s.personUntil[sw.ID] = m.Until
+			s.mu.Unlock()
+			s.expect(sw.ID)
+			if err := s.runs.Resume(ctx, sw.ID, by); err != nil {
+				return ManualRun{}, err
+			}
+			m.Progress = s.viewOfRun(ctx, sw.ID)
+			return m, nil
 		}
 		id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Manual, RequestedBy: by}, func(tx *sql.Tx, id string) error {
 			m.ID, m.Runs = id, []string{id}

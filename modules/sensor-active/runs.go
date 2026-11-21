@@ -37,7 +37,7 @@ const (
 )
 
 // noteLost ends a queued run a restart left that only the process that made it could run (it waits for a result in memory).
-const noteLost = "Vedette restarted before this began, so it did not run; it is asked again when it is due"
+const noteLost = "Vedette restarted before this began, so it did not run"
 
 // workFunc is the work of a run made with submit: it runs once the lane is free, with the values of the caller's context and the
 // cancellation of the run's.
@@ -69,7 +69,7 @@ func (s *Service) registerKinds() error {
 			Run: s.runOf(s.runSweep)},
 		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Run: s.runOf(s.runCheck)},
 		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Run: s.runOf(s.runAllPorts)},
-		{Module: ModuleID, Name: RunSNMP, Lane: laneSNMP, Unit: unitDevices, Run: s.runOf(nil)},
+		{Module: ModuleID, Name: RunSNMP, Lane: laneSNMP, Unit: unitDevices, Run: s.runOf(s.runSNMP)},
 		{Module: ModuleID, Name: RunService, Lane: laneNmap, Run: s.runOf(nil)},
 	}
 	for _, k := range kinds {
@@ -85,6 +85,7 @@ func (s *Service) registerKinds() error {
 func (s *Service) runOf(self workFunc) func(ctx context.Context, x *run.Exec) (run.Result, error) {
 	return func(ctx context.Context, x *run.Exec) (res run.Result, err error) {
 		defer func() { s.tell(x.ID(), outcome{res, err}) }()
+		defer s.resumeYielded(context.WithoutCancel(ctx), x.ID()) // a pass that gave way to this run goes on after it
 		s.mu.Lock()
 		p := s.pend[x.ID()]
 		delete(s.pend, x.ID())
@@ -96,7 +97,8 @@ func (s *Service) runOf(self workFunc) func(ctx context.Context, x *run.Exec) (r
 		if work == nil {
 			return run.Result{Status: run.Failed, Error: noteLost}, nil
 		}
-		if s.off.Load() { // the module was turned off: nothing is sent
+		if s.off.Load() { // the module was turned off: nothing is sent, and the run ends stopped
+			s.stopForModuleOff(ctx, x.ID())
 			return run.Result{Status: run.Partial, Error: run.ModuleOffReason}, nil
 		}
 		if values != nil { // the caller's values, cancelled with the run
@@ -114,11 +116,36 @@ func (s *Service) runOf(self workFunc) func(ctx context.Context, x *run.Exec) (r
 		// The module turned off under the work (Stop) ends it stopped, whichever comes first: core/run's own stop of the module's runs
 		// (it runs on its own goroutine) or the work noticing its cancelled context. Work that had finished stays done.
 		if s.off.Load() && (err != nil || (res.Status != "" && res.Status != run.Done)) {
-			if serr := s.runs.Stop(context.WithoutCancel(ctx), x.ID(), run.System, run.ModuleOffReason); serr != nil && !errors.Is(serr, run.ErrEnded) {
-				s.log.WarnContext(ctx, "sensoractive: recording the stop of a run of a module turned off failed", "run", x.ID(), "error", serr)
-			}
+			s.stopForModuleOff(ctx, x.ID())
 		}
 		return res, err
+	}
+}
+
+// stopForModuleOff records the stop of run id by its module turned off, before its work returns: core/run then ends it stopped.
+func (s *Service) stopForModuleOff(ctx context.Context, id string) {
+	if err := s.runs.Stop(context.WithoutCancel(ctx), id, run.System, run.ModuleOffReason); err != nil && !errors.Is(err, run.ErrEnded) {
+		s.log.WarnContext(ctx, "sensoractive: recording the stop of a run of a module turned off failed", "run", id, "error", err)
+	}
+}
+
+// resumeYielded queues again the pass that gave way to other work in the nmap lane (sweepMayGoOn), once the run that ends now was the
+// last one waiting for the lane and the pass may go on now: in the window, or within the hour of a person's sweep or of a new box's
+// first pass. Outside them the pass keeps waiting for the window (the window's driver resumes it then).
+func (s *Service) resumeYielded(ctx context.Context, ending string) {
+	sw, err := s.liveRun(ctx, RunSweep)
+	if err != nil || sw == nil || sw.Status != run.Waiting || sw.ID == ending || !s.isYielded(sw.ID) {
+		return
+	}
+	if other, _, err := s.laneBusy(ctx, ending); err != nil || other != "" {
+		return // more work waits for the lane: the last of it resumes the pass
+	}
+	if s.sweepWait(withManualUntil(ctx, s.sweepUntil(*sw))).Status == run.Waiting {
+		return
+	}
+	s.setYielded(sw.ID, false)
+	if err := s.runs.Resume(ctx, sw.ID, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+		s.log.WarnContext(ctx, "sensoractive: resuming the pass after the work it gave way to failed", "run", sw.ID, "error", err)
 	}
 }
 
@@ -162,10 +189,11 @@ func (s *Service) submit(ctx context.Context, spec run.Spec, work workFunc, inTx
 		if spec.Kind == RunCheck || spec.Kind == RunService {
 			s.stopWeekly() // the weekly scan of every port gives the lane up to any other work
 		}
-		if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work
+		if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work and its caller
 			s.mu.Lock()
 			s.pend[id] = &pending{values: context.WithoutCancel(ctx), work: work}
 			s.mu.Unlock()
+			s.expect(id)
 		}
 		return nil
 	})
@@ -173,6 +201,7 @@ func (s *Service) submit(ctx context.Context, spec run.Spec, work workFunc, inTx
 		if id != "" {
 			s.mu.Lock()
 			delete(s.pend, id)
+			delete(s.waits, id)
 			s.mu.Unlock()
 		}
 		return "", fmt.Errorf("sensoractive: queue the run: %w", err)
@@ -186,14 +215,14 @@ var errNotStarted = errors.New("sensoractive: the run did not start in time")
 // await waits until run id has ended or waits for something (or ctx ends) and returns it as stored then, with how its work
 // ended when this process ran it. startWithin > 0 stops it, with the reason busyReason, when it is still queued after that long
 // (errNotStarted). stopOnCancel stops it when ctx ends first (a caller that gives up); the window's driver leaves it to run.
-func (s *Service) await(ctx context.Context, id string, startWithin time.Duration, busyReason string, stopOnCancel bool) (run.Run, *outcome, error) {
-	ch := make(chan outcome, 1)
-	s.mu.Lock()
-	s.waits[id] = ch
-	s.mu.Unlock()
+func (s *Service) await(ctx context.Context, id string, startWithin time.Duration, busyReason string, stopOnCancel bool) (r run.Run, got *outcome, err error) {
+	ch := s.expect(id)
 	defer func() {
 		s.mu.Lock()
 		delete(s.waits, id)
+		if !r.Status.Live() && r.Status != run.Queued { // it ran, or never will in this wait: work it never took is not kept
+			delete(s.pend, id)
+		}
 		s.mu.Unlock()
 	}()
 	var give <-chan time.Time
@@ -202,12 +231,11 @@ func (s *Service) await(ctx context.Context, id string, startWithin time.Duratio
 		defer t.Stop()
 		give = t.C
 	}
-	poll := time.NewTicker(time.Second) // a run stopped while queued never runs: only its row says so
+	poll := time.NewTicker(250 * time.Millisecond) // a run stopped while queued never runs: only its row says so
 	defer poll.Stop()
-	var got *outcome
 	bg := context.WithoutCancel(ctx)
 	for {
-		r, err := s.runs.Read(bg, id)
+		r, err = s.runs.Read(bg, id)
 		if err != nil {
 			return r, got, err
 		}
@@ -239,6 +267,19 @@ func (s *Service) await(ctx context.Context, id string, startWithin time.Duratio
 		case <-poll.C:
 		}
 	}
+}
+
+// expect registers the caller that is about to wait for run id (await), before the run can start and end: an end it would miss
+// otherwise is only seen at the next poll.
+func (s *Service) expect(id string) chan outcome {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ch := s.waits[id]
+	if ch == nil {
+		ch = make(chan outcome, 1)
+		s.waits[id] = ch
+	}
+	return ch
 }
 
 // doRun submits a run with its work and waits for it, as await does; the work's own error is returned when it ran.

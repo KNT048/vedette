@@ -215,12 +215,12 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	if s.off.Load() { // the module is off: nothing is queued
 		return External{}, ErrStopped
 	}
-	var res External
+	got := make(chan External, 1) // the work hands its result over: the caller may stop waiting before the work ends
 	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: "Service scan of " + ip.String() + " for External exposure", Trigger: run.Event,
 		TriggerNote: "an exposure scan", Subject: &run.Subject{Kind: "address", ID: ip.String(), Label: ip.String()}},
 		func(ctx context.Context) error {
-			var err error
-			res, err = s.serviceScan(ctx, ip, kind, own, dom)
+			res, err := s.serviceScan(ctx, ip, kind, own, dom)
+			got <- res
 			return err
 		}, func(ctx context.Context, err error) run.Result {
 			switch {
@@ -237,7 +237,12 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return External{}, ErrStopped
 	}
-	return res, err
+	select {
+	case res := <-got:
+		return res, err
+	default:
+		return External{}, err
+	}
 }
 
 // serviceScan is the work of a service_scan run: nmap on the public address, under the run lock.

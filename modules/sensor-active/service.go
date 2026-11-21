@@ -130,6 +130,31 @@ type Service struct {
 	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
+	// personUntil is the end of the hour of a pass a person asked to go on now (Scan the LAN now on a pass that waited for the
+	// window), by run: in memory, so a restart leaves the pass to the window.
+	personUntil map[string]time.Time
+	// yielded is the passes that wait only because they gave way to other work in the nmap lane: they go on once it is done
+	// (resumeYielded, followPass); a pass that waits for anything else is resumed by the window's driver only.
+	yielded map[string]bool
+}
+
+func (s *Service) setYielded(id string, on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.yielded == nil {
+		s.yielded = map[string]bool{}
+	}
+	if on {
+		s.yielded[id] = true
+	} else {
+		delete(s.yielded, id)
+	}
+}
+
+func (s *Service) isYielded(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.yielded[id]
 }
 
 // firstPassFor bounds the first pass: it may run outside the window for at most this long; a sweep it did not finish goes on from
@@ -208,7 +233,7 @@ func New(cfg Config) (*Service, error) {
 	}
 	s.runs = cfg.Runs
 	if s.runs == nil {
-		m, err := run.New(run.Config{DB: cfg.DB, Audit: cfg.Audit, Log: s.log, Clock: s.clock})
+		m, err := run.New(run.Config{DB: cfg.DB, Audit: cfg.Audit, Log: s.log, Clock: s.clock, Gate: moduleGate{s}})
 		if err != nil {
 			return nil, err
 		}
@@ -224,6 +249,11 @@ func New(cfg Config) (*Service, error) {
 	}
 	return s, nil
 }
+
+// moduleGate is the module switch of a run manager of the service's own: on unless Stop ran (and no Resume since).
+type moduleGate struct{ s *Service }
+
+func (g moduleGate) Enabled(id string) bool { return id != ModuleID || !g.s.off.Load() }
 
 // Close stops the run manager the service made itself (Config.Runs nil); a shared one is the box's to close.
 func (s *Service) Close() {
@@ -600,7 +630,12 @@ func (s *Service) Stop() {
 }
 
 // Resume is the module turned on again: SNMP reads may be sent again (Stop's off flag is cleared).
-func (s *Service) Resume() { s.off.Store(false) }
+func (s *Service) Resume() {
+	s.off.Store(false)
+	if s.ownRuns { // its queued runs start again (on the box core/run hears the module switch itself)
+		s.runs.ModuleChanged(ModuleID, true)
+	}
+}
 
 // isPicked says the registered run is an identification a person asked for (running.picked).
 func (s *Service) isPicked() bool {

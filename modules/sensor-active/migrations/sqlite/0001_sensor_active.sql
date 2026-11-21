@@ -54,11 +54,11 @@ CREATE TABLE "sa_probe" (
 -- interface), the version, the v3 user and algorithms, the UDP port (NULL = 161) and the ids of its secrets in core_secret (never
 -- the secrets), with the state of its last read: when it was sent, what came back, and what the device said (answer: the JSON of
 -- the values the worker read, cleaned and bounded; untrusted text, only ever parsed through the fixed layouts of snmpmap.go).
--- asset_id is the inventory's device id (no reference across modules: the rows go with inventory.asset.deleted and move with
--- inventory.asset.merged). read_from_default is 1 when the read address was the device's own IP when saved: if the device then moves,
+-- asset_id is the inventory's device (a deleted device takes its row; the device lifecycle drops its secrets first and moves the row
+-- of a merged device). read_from_default is 1 when the read address was the device's own IP when saved: if the device then moves,
 -- nothing is sent until a person sets the address again.
 CREATE TABLE sa_snmp_device (
-    asset_id          TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
+    asset_id          TEXT    NOT NULL PRIMARY KEY REFERENCES inv_asset (id) ON DELETE CASCADE CHECK (length(asset_id) BETWEEN 1 AND 96),
     read_from         TEXT    NOT NULL CHECK (length(read_from) BETWEEN 7 AND 15),
     read_from_default INTEGER NOT NULL CHECK (read_from_default IN (0, 1)),
     version           TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),

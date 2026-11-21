@@ -47,8 +47,8 @@ func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
 	}
 	lbl := s.deviceLabel(ctx, assetID)
 	parent := ""
-	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Trigger == run.Manual && sw.Status == run.Running {
-		parent = sw.ID
+	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Status == run.Running && s.clock().Before(s.sweepUntil(*sw)) {
+		parent = sw.ID // a person's pass: the devices it finds are checked right after it, within its hour
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		var n int
@@ -149,17 +149,20 @@ func (s *Service) Tick(ctx context.Context) error {
 	if err := s.drainQueue(ctx, true, firstBeforeSweep, s.clock().Add(firstFor)); err != nil {
 		return err
 	}
+	// The window's round of SNMP reads has a lane of its own: it runs before the pass, which may take the whole window.
+	if err := s.snmpRound(ctx, start); err != nil {
+		return err
+	}
+	// The pass of the ranges; the devices that wait for their check take turns with it between its batches.
 	if err := s.windowSweep(ctx, st, start); err != nil {
 		return err
 	}
 	if err := s.drain(ctx); err != nil {
 		return err
 	}
-	// Then the window's round of SNMP reads: the sweep and the queue may have found the devices it reads.
-	if err := s.snmpRound(ctx, start); err != nil {
-		return err
-	}
-	// Then the weekly scans of every port, one device at a time while the window has room for one.
+	// Then the weekly scans of every port, one device at a time while the window has room for one. A pass that needs several windows
+	// ends within a week (a scope that cannot is refused), and the window it ends in runs them; one such scan takes up to two hours, so
+	// it does not take turns between the batches of a pass.
 	return s.allPortsRound(ctx)
 }
 
@@ -208,6 +211,7 @@ func (s *Service) drainQueue(ctx context.Context, first bool, limit int, until t
 		if ctx.Err() != nil || (limit > 0 && i >= limit) || (!until.IsZero() && !s.clock().Before(until)) {
 			return nil
 		}
+		s.expect(id)
 		if err := s.runs.Resume(ctx, id, run.System); err != nil {
 			if errors.Is(err, run.ErrNotResumable) || errors.Is(err, run.ErrNotFound) {
 				continue // a person stopped it meanwhile
@@ -225,52 +229,118 @@ func (s *Service) drainQueue(ctx context.Context, first bool, limit int, until t
 	return nil
 }
 
-// windowSweep goes on with the pass of the ranges inside the window: the pass that waits is resumed (once no other run asks for the
-// nmap lane), one that is queued or running is waited for, and when no pass ended or began in this window a new one starts.
+// sweepTurn is how often the driver looks, while a pass runs, for devices that wait for their check: one makes the pass give way
+// after its batch.
+var sweepTurn = time.Minute
+
+// windowSweep goes on with the pass of the ranges inside the window: the pass that waits is resumed, one that is queued or running is
+// followed, and when no pass ended or began in this window a new one starts. The devices that wait for their check take turns with
+// the pass between its batches.
 func (s *Service) windowSweep(ctx context.Context, st Settings, start time.Time) error {
-	for range 100 { // a pass gives way to a person's check at most this often in one tick
-		if ctx.Err() != nil {
-			return nil
-		}
-		sw, err := s.liveRun(ctx, RunSweep)
-		if err != nil {
+	sw, err := s.liveRun(ctx, RunSweep)
+	if err != nil {
+		return err
+	}
+	id := ""
+	switch {
+	case sw != nil:
+		id = sw.ID
+	default:
+		done, err := s.sweptSince(ctx, start)
+		if err != nil || done {
 			return err
 		}
-		if sw == nil {
-			done, err := s.sweptSince(ctx, start)
-			if err != nil || done {
-				return err
+		if id, err = s.newSweep(ctx, st, run.Spec{Trigger: run.Schedule, RequestedBy: run.System}, nil); err != nil {
+			return err
+		}
+	}
+	_, err = s.followPass(ctx, id, true, true)
+	return err
+}
+
+// followPass follows pass id until it ends, or waits for something other than the nmap lane (the window closed, scanning off), or ctx
+// ends: when it gave way to other work it is resumed once that work is done. turns: the window's devices that wait for their check
+// are resumed one at a time between its batches (the window's driver). resumeOnce: a pass that waits for anything else (the worker,
+// the settings) is resumed once, as the window's driver does at each tick.
+func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce bool) (run.Run, error) {
+	var r run.Run
+	resumed := !resumeOnce // a pass that waits for something else than the lane is resumed at most once per call (the worker came back)
+	for range 10000 {
+		if ctx.Err() != nil {
+			return r, nil
+		}
+		var err error
+		if r, err = s.runs.Read(ctx, id); err != nil {
+			return r, err
+		}
+		switch {
+		case r.Status.Ended():
+			return r, nil
+		case r.Status == run.Waiting:
+			if s.sweepWait(withManualUntil(ctx, s.sweepUntil(r))).Status == run.Waiting {
+				return r, nil // the window closed, or the settings do not allow it now
 			}
-			id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Schedule, RequestedBy: run.System}, nil)
-			if err != nil {
-				return err
+			if other, _, err := s.laneBusy(ctx, id); err != nil {
+				return r, err
+			} else if other != "" { // the work it gave way to goes first
+				s.awaitTurn(ctx, other)
+				continue
 			}
-			if r, _, err := s.await(ctx, id, 0, "", false); err != nil || r.Status != run.Waiting {
-				return nil //nolint:nilerr // ended, or the tick's context ended: the run goes on
+			if turns {
+				if next, err := s.nextWaitingCheck(ctx); err != nil {
+					return r, err
+				} else if next != "" {
+					s.expect(next)
+					if err := s.runs.Resume(ctx, next, run.System); err == nil {
+						s.awaitTurn(ctx, next)
+					}
+					continue
+				}
+			}
+			if !s.isYielded(id) {
+				if resumed {
+					return r, nil
+				}
+				resumed = true
+			}
+			s.setYielded(id, false)
+			s.expect(id)
+			if err := s.runs.Resume(ctx, id, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+				return r, err
 			}
 			continue
 		}
-		if sw.Status == run.Waiting {
-			if s.sweepWait(ctx).Status == run.Waiting {
-				return nil // the window closed, or the settings do not allow it now
-			}
-			if other, _, err := s.laneBusy(ctx, sw.ID); err != nil {
-				return err
-			} else if other != "" { // a person's check goes first; the pass goes on after it
-				if _, _, err := s.await(ctx, other, 0, "", false); err != nil {
-					return nil //nolint:nilerr // the tick's context ended
+		if turns { // a device waiting for its check makes the pass give way after its batch
+			if next, err := s.nextWaitingCheck(ctx); err == nil && next != "" {
+				if err := s.runs.Resume(ctx, next, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+					return r, err
 				}
-				continue
-			}
-			if err := s.runs.Resume(ctx, sw.ID, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
-				return err
 			}
 		}
-		if _, _, err := s.await(ctx, sw.ID, 0, "", false); err != nil {
-			return nil //nolint:nilerr // the tick's context ended: the run goes on
-		}
+		s.awaitTurn(ctx, id)
 	}
-	return nil
+	return r, nil
+}
+
+// awaitTurn waits for run id for at most sweepTurn (it goes on running after): until it ends, waits, or the turn is over.
+func (s *Service) awaitTurn(ctx context.Context, id string) {
+	tctx, cancel := context.WithTimeout(ctx, sweepTurn)
+	defer cancel()
+	_, _, _ = s.await(tctx, id, 0, "", false)
+}
+
+// nextWaitingCheck is the oldest device check of the window that waits for its turn, "" when none.
+func (s *Service) nextWaitingCheck(ctx context.Context) (string, error) {
+	var id string
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND kind = ? AND status = 'waiting' AND trigger <> 'manual'
+		AND parent_id IS NULL ORDER BY queued_at, rowid LIMIT 1`, ModuleID, RunCheck).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("sensoractive: read the queue: %w", err)
+	}
+	return id, nil
 }
 
 // sweptSince says a pass began or ended since start: the window's pass is made once.
@@ -342,15 +412,16 @@ func (s *Service) discover(ctx context.Context, base run.Spec) (Result, error) {
 		}
 	case sw.Status == run.Waiting:
 		id = sw.ID
+		s.expect(id)
 		if err := s.runs.Resume(ctx, id, run.System); err != nil {
 			return Result{}, err
 		}
 	default:
 		id = sw.ID
 	}
-	r, _, err := s.await(ctx, id, 0, "", false)
-	if err != nil {
-		return Result{JobID: id}, err
+	r, err := s.followPass(ctx, id, false, false) // it was just queued or resumed
+	if err != nil || ctx.Err() != nil {
+		return Result{JobID: id}, errors.Join(err, ctx.Err())
 	}
 	res := Result{JobID: id, Targets: r.Done, Status: jobStatus(r.Status)}
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run_item WHERE run_id = ? AND outcome = 'new'`, id).Scan(&res.NewDevices); err != nil {
@@ -391,10 +462,8 @@ func (s *Service) runCheck(ctx context.Context, x *run.Exec) (run.Result, error)
 		return s.checkEnd(ctx, x, d, identResult(got, err))
 	}
 	if d.ParentID != nil { // a device a person's sweep found: checked within that sweep's hour
-		if p, err := s.runs.Read(ctx, *d.ParentID); err == nil && p.Trigger == run.Manual && p.StartedAt != nil {
-			if t, err := time.Parse(time.RFC3339Nano, *p.StartedAt); err == nil {
-				ctx = withManualUntil(ctx, t.Add(manualFor))
-			}
+		if p, err := s.runs.Read(ctx, *d.ParentID); err == nil {
+			ctx = withManualUntil(ctx, s.sweepUntil(p))
 		}
 	}
 	err = s.ScanDevice(ctx, id, "")

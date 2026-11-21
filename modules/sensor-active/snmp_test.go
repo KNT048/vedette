@@ -131,6 +131,7 @@ func newSNMPWorld(t *testing.T, reader sa.SNMPReader) *snmpWorld {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(svc.Close)
 	w.svc = svc
 	return w
 }

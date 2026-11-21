@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -45,11 +46,22 @@ func TestSaveRefusesAScopeThatCannotBeSweptInAWeek(t *testing.T) {
 		t.Fatal("one window a week took a scope that needs five")
 	}
 	// an added range is held to the same rule
-	in.Days, in.LANRanges = []int{1}, []string{"192.168.18.0/24"}
+	in.Days, in.LANRanges = []int{1}, []string{"10.40.0.0/24"}
 	if _, err := e.saveSafety(in); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.addRange("admin@acme.example", "10.30.0.0/16", []string{"192.168.18.0/24"}, true); !errors.As(err, &api) || api.Code != "scope_too_large" {
+	if _, err := e.addRange("admin@acme.example", "10.30.0.0/16", []string{"10.40.0.0/24"}, true); !errors.As(err, &api) || api.Code != "scope_too_large" {
 		t.Fatalf("an added /16 that does not fit a week: %v", err)
+	}
+	// PUT /scans/config writes the window too: the same rule holds there
+	in.LANRanges, in.Days = []string{"10.20.0.0/16"}, []int{1, 2, 3, 4, 5, 6, 7}
+	if _, err := e.saveSafety(in); err != nil {
+		t.Fatal(err)
+	}
+	err = e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		return e.svc.SaveChecks(e.ctx(), tx, "admin@acme.example", inventory.ChecksInput{Days: []int{1}, From: "21:00", To: "04:00", CheckRate: 8})
+	})
+	if !errors.As(err, &api) || api.Code != "scope_too_large" {
+		t.Fatalf("a one-day window through PUT /scans/config: %v", err)
 	}
 }

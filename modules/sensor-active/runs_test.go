@@ -130,7 +130,7 @@ func TestRunsARestartMidSweepGoesOnFromTheCursor(t *testing.T) {
 func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
-		e.setBase(local(9, 4, 59).Add(50 * time.Second)) // 10 s to the end of the window
+		e.setBase(local(9, 4, 59).Add(50 * time.Second))
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"10.20.0.0/16"}; s.Rate = 1000 })
 		e.inv.assets["a-far"] = netip.MustParseAddr("10.20.7.9") // a device seen before: its /24 is swept first
 	})
@@ -139,7 +139,8 @@ func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 	e.inv.mu.Unlock()
 	held := newHeld(3)
 	e.withProber(held)
-	_, err := e.svc.DiscoverRanges(e.ctx()) // the third batch is cut by the window's end
+	e.setClock(local(9, 4, 59).Add(56 * time.Second)) // 4 s to the end of the window
+	_, err := e.svc.DiscoverRanges(e.ctx())           // the third batch is cut by the window's end
 	if !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("first window: %v", err)
 	}
@@ -154,9 +155,9 @@ func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 		t.Fatalf("the pass began at %s, want the /24 where a device was seen", first)
 	}
 	// the next window: the same run goes on from its cursor
-	e.setClock(local(10, 4, 59).Add(50 * time.Second))
 	held2 := newHeld(2)
 	e.withProber(held2)
+	e.setClock(local(10, 4, 59).Add(56 * time.Second))
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("second window: %v", err)
 	}
@@ -166,8 +167,8 @@ func TestRunsAWideRangeIsOneRunAcrossWindows(t *testing.T) {
 	}
 }
 
-// A person's check while a pass runs is a queued run that says it waits for the pass; the pass gives way to it after its batch, and
-// the window goes on with the pass from its cursor afterwards.
+// A person's check while a pass runs is a queued run that says it waits for the pass; the pass gives way to it after its batch and
+// goes on from its cursor as soon as the check is done.
 func TestRunsAPersonsCheckDuringASweepIsQueuedBehindIt(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
@@ -193,20 +194,14 @@ func TestRunsAPersonsCheckDuringASweepIsQueuedBehindIt(t *testing.T) {
 		t.Fatalf("the person's check: %+v", r)
 	}
 	close(held.release)
-	if err := <-errc; !errors.Is(err, sa.ErrStopped) { // the pass waits: it gave way
+	if err := <-errc; err != nil { // the pass gave way to the check, then went on from its cursor to its end
 		t.Fatalf("the pass: %v", err)
 	}
 	waitManual(t, e)
 	if r, _ := e.svc.Runs().Read(e.ctx(), m.ID); r.Status != run.Done {
 		t.Fatalf("the person's check ended %s", r.Status)
 	}
-	if s := sweepRuns(e)[0]; s.Status != run.Waiting || !strings.Contains(s.Summary, "Check of") {
-		t.Fatalf("the pass while the check ran: %+v", s)
-	}
-	if err := e.svc.Tick(e.ctx()); err != nil { // the window's driver goes on with the pass
-		t.Fatal(err)
-	}
-	if s := sweepRuns(e)[0]; s.Status != run.Done || s.Done != 126 {
+	if s := sweepRuns(e)[0]; s.Status != run.Done || s.Done != 126 || s.ID != sweep.ID {
 		t.Fatalf("the pass after the check: %+v", s)
 	}
 	var sweeps []string
@@ -246,5 +241,172 @@ func TestRunsEveryLANScanIsARun(t *testing.T) {
 	t.Logf("kinds of LAN work not on core/run: %d %v; tables of their own: %d %v", len(notRuns), notRuns, len(tables), tables)
 	if len(notRuns) != 0 || len(tables) != 0 {
 		t.Fatalf("LAN scan work outside core/run: kinds %v, tables %v", notRuns, tables)
+	}
+}
+
+// A person's sweep outside the window that gives way to a Scan now identification goes on as soon as the identification is done,
+// within the person's hour: no driver of the window is needed.
+func TestRunsAPersonsSweepGoesOnAfterTheWorkItGaveWayTo(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow, func(e *env) {
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+	})
+	e.sweptBefore()
+	held := newHeld(1)
+	e.withProber(held)
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	held.wait(t, 1)
+	done := make(chan error, 1)
+	go func() { _, err := e.svc.IdentifyDevice(e.ctx(), "a-web"); done <- err }()
+	waitFor(t, "the identification to queue", func() bool {
+		return e.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND status = 'queued'`) == 1
+	})
+	close(held.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the person's pass to end", func() bool {
+		r, err := e.svc.Runs().Read(e.ctx(), m.ID)
+		return err == nil && r.Status == run.Done
+	})
+	if r, _ := e.svc.Runs().Read(e.ctx(), m.ID); r.Done != 126 {
+		t.Fatalf("the person's pass: %+v", r)
+	}
+}
+
+// "Scan the LAN now" on a pass that waits for the window goes on with that pass from its cursor, under the person's hour: one run,
+// its cursor kept.
+func TestRunsScanTheLANNowGoesOnWithTheWaitingPass(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) {
+		e.setBase(local(9, 4, 59).Add(50 * time.Second))
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+	})
+	held := newHeld(2)
+	e.withProber(held)
+	e.setClock(local(9, 4, 59).Add(56 * time.Second)) // 4 s to the end of the window
+	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
+		t.Fatalf("the window's pass: %v", err)
+	}
+	before := sweepRuns(e)
+	if len(before) != 1 || before[0].Status != run.Waiting || before[0].Done != 64 {
+		t.Fatalf("the pass after the window: %+v", before)
+	}
+	e.setClock(local(9, 12, 0)) // noon: no window, the gap since the last sweep is over
+	again := newHeld()
+	e.withProber(again)
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.ID != before[0].ID {
+		t.Fatalf("Scan the LAN now made run %s, want the waiting pass %s", m.ID, before[0].ID)
+	}
+	waitManual(t, e)
+	after := sweepRuns(e)
+	if len(after) != 1 || after[0].Status != run.Done || after[0].Done != 126 {
+		t.Fatalf("after Scan the LAN now: %+v, want the same pass done", after)
+	}
+	if calls := again.calls(); len(calls) != 1 || targetsOf(calls[0])[0] != "192.168.10.65" {
+		t.Fatalf("nmap ran %q, want the rest of the pass only", calls)
+	}
+}
+
+// A range added to the scope while a pass goes on is swept in that pass.
+func TestRunsARangeAddedMidPassIsSweptInIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) {
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/26"} })
+	})
+	held := newHeld(1)
+	e.withProber(held)
+	errc := make(chan error, 1)
+	go func() { _, err := e.svc.DiscoverRanges(e.ctx()); errc <- err }()
+	held.wait(t, 1)
+	e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/26", "192.168.10.128/26"} })
+	close(held.release)
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
+	runs := sweepRuns(e)
+	if len(runs) != 1 || runs[0].Status != run.Done || runs[0].Done != 124 || runs[0].Total != 124 {
+		t.Fatalf("the pass: %+v, want both ranges (62 + 62 addresses) in one run", runs)
+	}
+}
+
+// sweepHeld answers every nmap job at once, except the first sweep batch, which waits until release is closed.
+type sweepHeld struct {
+	*heldProber
+	once sync.Once
+}
+
+func (h *sweepHeld) Probe(ctx context.Context, argv []string) (sa.Output, error) {
+	if slices.Contains(argv, "-sn") {
+		hold := false
+		h.once.Do(func() { hold = true })
+		if hold {
+			h.mu.Lock()
+			h.argv = append(h.argv, slices.Clone(argv))
+			h.mu.Unlock()
+			h.started <- 0
+			select {
+			case <-h.release:
+			case <-ctx.Done():
+				return sa.Output{}, ctx.Err()
+			}
+			return sa.Output{XML: emptyScan}, nil
+		}
+	}
+	return h.heldProber.Probe(ctx, argv)
+}
+
+// In the window, a device that waits for its check while the pass runs takes its turn between two batches: the window's driver
+// does not hold it until the pass ends, which may take the whole window.
+func TestRunsTheQueueTakesTurnsWithThePass(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) {
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+	})
+	held := &sweepHeld{heldProber: newHeld()}
+	e.withProber(held)
+	tick := make(chan error, 1)
+	go func() { tick <- e.svc.Tick(e.ctx()) }()
+	<-held.started // the pass's first batch is in nmap (the devices no check reached went first)
+	for len(held.started) > 0 {
+		<-held.started
+	}
+	e.inv.mu.Lock()
+	e.inv.assets["a-new"] = netip.MustParseAddr("192.168.10.40")
+	e.inv.mu.Unlock()
+	if err := e.svc.Enqueue(e.ctx(), "a-new", "discovered"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the queued device to take its turn while the pass still runs", func() bool {
+		return e.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND subject_id = 'a-new' AND status = 'queued'`) == 1
+	})
+	close(held.release)
+	if err := <-tick; err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND subject_id = 'a-new' AND status = 'done'`); n != 1 {
+		t.Fatalf("the device's check: %d done", n)
+	}
+	if s := sweepRuns(e)[0]; s.Status != run.Done || s.Done != 126 {
+		t.Fatalf("the pass: %+v", s)
+	}
+	var order []string
+	for _, c := range held.calls() {
+		switch {
+		case slices.Contains(c, "-sn"):
+			order = append(order, "sweep "+targetsOf(c)[0])
+		case slices.Contains(c, "192.168.10.40"):
+			order = append(order, "check")
+		}
+	}
+	if i, j := slices.Index(order, "check"), slices.Index(order, "sweep 192.168.10.65"); i < 0 || j < 0 || i > j {
+		t.Fatalf("order %q: want the check between the two batches", order)
 	}
 }

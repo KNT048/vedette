@@ -68,6 +68,9 @@ type Have struct {
 // Service owns fnd_finding, fnd_finding_event and fnd_question. Every change of a finding goes through Transition and runs in one
 // transaction with its events and its core_audit row (SYS-3); bus events go out after the commit.
 type Service struct {
+	// rematched counts the writes whose device read differently inside the write than when its match was computed (the match was
+	// computed again): a measure that a device read twice compares equal, so the hourly pass stays on its fast path.
+	rematched  atomic.Int64
 	cfg        ServiceConfig
 	now        func() time.Time
 	plan       planState       // "Updates to plan": in memory, see planpass.go
@@ -149,7 +152,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	if isNew {
 		return g, evs, nil // the caller announces a new finding (CreatedEvent)
 	}
-	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) {
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !joinsList(f, g) { // joining a list: one notice, the caller's
 		emit(EventStatusChanged, e)
 	}
 	return g, evs, nil
@@ -477,9 +480,21 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 		if changed || !maps.Equal(have, haveBefore) {
 			matched = MatchAsset(a, vulns, have, now)
 		}
+		if changed {
+			s.rematched.Add(1)
+			// the entries were chosen for the older reading: only the CVEs this write compares are judged (a CVE another device
+			// brought into the set never closes a finding this reading may make), and the questions are those of the whole match
+			mine := cveSet(vulns)
+			judged = maps.Clone(judged)
+			maps.DeleteFunc(judged, func(c string, _ bool) bool { return !mine[c] })
+			if whole != nil {
+				w := MatchAsset(a, a.winList, nil, now)
+				whole = &w
+			}
+		}
 		m := haveScope(a, vulns, matched, since, have, now)
 		qm := m
-		if whole != nil && !changed {
+		if whole != nil {
 			qm = *whole
 		}
 		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
@@ -661,7 +676,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		if (isNew || !Announced(f)) && Announced(g) { // new, or its CVE joined an exploited list since it was made
+		if isNew && Announced(g) || !isNew && joinsList(f, g) { // new, or its CVE joined an exploited list since it was made
 			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
 		}
 		id = g.ID

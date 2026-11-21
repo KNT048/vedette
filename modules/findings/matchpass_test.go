@@ -422,3 +422,67 @@ func TestMatchPass_AReadingThatArrivesDuringThePassWins(t *testing.T) {
 		}
 	}
 }
+
+// A finding a person handled (or Vedette closed after a clear safe check) is not announced when its CVE joins a list: it keeps its
+// handling, takes the exploited urgency, and stays silent. Mitigated, accepted, false positive and not relevant hold while detected.
+func TestMatchPass_AHandledFindingStaysSilentWhenItsCVEJoinsAList(t *testing.T) {
+	t.Parallel()
+	for _, res := range []Resolution{ResolutionMitigated, ResolutionAccepted, ResolutionFalsePositive, ResolutionNotRelevant} {
+		t.Run(string(res), func(t *testing.T) {
+			e := newEnv(t)
+			e.inv.match = map[string]Asset{"a-1": fortigate()}
+			e.inv.assets["a-1"] = AssetView{ID: "a-1", Name: "fw01", IP: "192.0.2.1", Kind: "firewall"}
+			v := catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")
+			e.feeds.vulns = []Vuln{v}
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			fs, err := e.svc.Findings(t.Context(), "a-1")
+			if err != nil || len(fs) != 1 {
+				t.Fatalf("findings %v %v", fs, err)
+			}
+			var until time.Time
+			if res == ResolutionAccepted {
+				until = dayOf(t0).AddDate(0, 3, 0)
+			}
+			if n, _, err := e.svc.Handle(t.Context(), []string{fs[0].ID}, res, "Checked by the team.", until, "it@example.com"); err != nil || n != 1 {
+				t.Fatalf("handle %d %v", n, err)
+			}
+			e.pub.take()
+			listed := v
+			listed.Vendor, listed.Product, listed.DateAdded = "Fortinet", "FortiOS", t0
+			e.feeds.vulns = []Vuln{listed}
+			e.advance(time.Hour)
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			f, err := e.svc.Finding(t.Context(), fs[0].ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f.State != StateHandled || f.Resolution != res || f.Urgency != UrgencyExploited {
+				t.Errorf("finding %s %s urgency %d, want handled %s at %d", f.State, f.Resolution, f.Urgency, res, UrgencyExploited)
+			}
+			if evs := e.pub.take(); len(evs) != 0 {
+				t.Errorf("announced a handled finding: %+v", evs)
+			}
+		})
+	}
+}
+
+// A device that reads the same inside its write as when its match was computed takes the fast path: the match is not computed again.
+func TestMatchPass_AnUnchangedDeviceIsMatchedOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.inv.match = map[string]Asset{"a-1": fortigate()}
+	e.feeds.vulns = []Vuln{catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")}
+	for range 3 {
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		e.advance(time.Hour)
+	}
+	if n := e.svc.rematched.Load(); n != 0 {
+		t.Errorf("%d writes matched again a device that did not change", n)
+	}
+}

@@ -99,7 +99,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 					}
 				default:
 					res.Touched++
-					if !Announced(f) && Announced(g) { // its CVE joined an exploited list: announced once, as a new exploited match
+					if joinsList(f, g) { // its CVE joined an exploited list: announced once, as a new exploited match
 						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
 					}
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {

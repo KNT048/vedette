@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -97,5 +98,26 @@ func TestMatchSet_APinnedCVEWithNoRangesIsStillJudged(t *testing.T) {
 	}
 	if !slices.Contains(cves, "CVE-2026-90100") || slices.Contains(cves, "CVE-2026-90101") {
 		t.Errorf("match set %v: want the rejected pinned CVE and not the one the catalogue does not hold", cves)
+	}
+}
+
+// The match pass reads a device again inside its write and computes the match again only when the reading differs: a device the
+// inventory did not change reads equal twice (no per-pass recomputation on a real inventory).
+func TestMatchInput_ReadsEqualTwice(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	id := addSSHDevice(t, s, "192.0.2.40", sshRows{os: "Alpine Linux 3.23", banner: "10.2", manual: "pkg", manualPkg: "10.2_p1-r1", agent: "packaged",
+		agentVersion: "10.2p1", agentPkg: "10.2_p1-r1"})
+	inv := findingsInventory{s.d.Inventory}
+	a, ok, err := inv.MatchInput(t.Context(), id)
+	if err != nil || !ok || len(a.Software) == 0 {
+		t.Fatalf("%+v %v %v", a, ok, err)
+	}
+	b, _, err := inv.MatchInput(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Errorf("two reads of an unchanged device differ:\n%+v\n%+v", a, b)
 	}
 }

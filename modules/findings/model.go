@@ -179,6 +179,13 @@ const (
 // changes it: the match pass, a safe check, a person.
 func Announced(f Finding) bool { return f.Urgency >= 1 && f.Urgency < UrgencyUpdate }
 
+// joinsList reports whether a step makes an open finding announced that was not (its CVE joined an exploited list since the finding
+// was made): the caller announces it once, as a new exploited match, and the step sends no other notice for it. A handled finding
+// stays silent whatever its urgency.
+func joinsList(before, after Finding) bool {
+	return after.Open() && !Announced(before) && Announced(after)
+}
+
 // Fix is the fix of a finding as the match pass stores it.
 type Fix struct {
 	Kind    FixKind

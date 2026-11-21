@@ -59,10 +59,11 @@ var wazuhLimits = coreschedule.Limits{Freqs: []coreschedule.Freq{coreschedule.In
 // wazuhDefaultMinutes is how often the pull runs until someone chooses.
 const wazuhDefaultMinutes = 15
 
-// ScheduleOwner is what the Wazuh pull registers with core/schedule: only an interval, at least 5 minutes. When it comes due the
+// ScheduleOwner is what the Wazuh pull registers with core/schedule: only an interval, at least 5 minutes. It is off until a server is
+// connected (saving the connection turns it on, removing the connection turns it off), so a box without Wazuh logs nothing. When it comes due the
 // pull job is asked to pull at its next tick (nothing is started here: a pull is not a run).
 func (s *Service) ScheduleOwner() coreschedule.Owner {
-	return coreschedule.Owner{Module: ModuleID, Key: WazuhScheduleKey, AdminOnly: true, Limits: wazuhLimits, Default: coreschedule.Every(wazuhDefaultMinutes), DefaultOn: true, Start: s.askPull}
+	return coreschedule.Owner{Module: ModuleID, Key: WazuhScheduleKey, AdminOnly: true, Limits: wazuhLimits, Default: coreschedule.Every(wazuhDefaultMinutes), DefaultOn: false, Start: s.askPull}
 }
 
 // askPull is the Start of the schedule: the next tick of the pull job pulls. Nothing is asked, and the reason is said, while no server is
@@ -408,7 +409,7 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 				return fmt.Errorf("agentintake: update wazuh: %w", err)
 			}
 		}
-		if err := s.saveInterval(ctx, tx, c.interval, actor); err != nil {
+		if err := s.saveInterval(ctx, tx, c.interval, actor, cur == nil); err != nil {
 			return err
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.wazuh_connect", c.origin, fmt.Sprintf("user %s, every %d min, %s", c.user, c.interval, pinWords))
@@ -424,24 +425,39 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 }
 
 // saveInterval keeps the pull's schedule in step with the interval of the connection form: untouched when the form still holds the
-// interval the schedule has, else the schedule is saved as an interval of that many minutes (still on or off as it was).
-func (s *Service) saveInterval(ctx context.Context, tx *sql.Tx, minutes int, actor string) error {
+// interval the schedule has and it is on, else the schedule is saved as an interval of that many minutes. A schedule turned off by
+// a person stays off unless a connection is new (a new connection turns it on).
+func (s *Service) saveInterval(ctx context.Context, tx *sql.Tx, minutes int, actor string, newConn bool) error {
 	if s.cfg.Schedules == nil {
 		return nil
 	}
-	if cur := wazuhMinutes(ctx, tx); cur == minutes {
-		return nil
-	}
 	enabled := true
-	if e, ok, err := coreschedule.Lookup(ctx, tx, WazuhScheduleKey); err != nil {
+	e, ok, err := coreschedule.Lookup(ctx, tx, WazuhScheduleKey)
+	if err != nil {
 		return err
-	} else if ok {
+	}
+	if ok && !newConn {
 		enabled = e.Enabled
+	}
+	if ok && e.Enabled == enabled && wazuhMinutes(ctx, tx) == minutes {
+		return nil
 	}
 	if err := s.cfg.Schedules.SaveTx(ctx, tx, WazuhScheduleKey, coreschedule.Setting{Enabled: enabled, Rule: coreschedule.Every(minutes)}, actor); err != nil {
 		return asAPI(err)
 	}
 	return nil
+}
+
+// pauseSchedule turns the pull's schedule off when the connection is removed, so nothing is asked of a server that is not there.
+func (s *Service) pauseSchedule(ctx context.Context, tx *sql.Tx, actor string) error {
+	if s.cfg.Schedules == nil {
+		return nil
+	}
+	e, ok, err := coreschedule.Lookup(ctx, tx, WazuhScheduleKey)
+	if err != nil || !ok || !e.Enabled {
+		return err
+	}
+	return s.cfg.Schedules.SaveTx(ctx, tx, WazuhScheduleKey, coreschedule.Setting{Enabled: false, Rule: e.Rule}, actor)
 }
 
 // DeleteWazuh removes the connection and its password in one transaction (INV-6). Data already pulled stays in the inventory.
@@ -466,6 +482,9 @@ func (s *Service) DeleteWazuh(ctx context.Context, actor string) error {
 		}
 		if err := s.cfg.Secrets.Delete(ctx, tx, cur.secretID); err != nil {
 			return fmt.Errorf("agentintake: delete wazuh password: %w", err)
+		}
+		if err := s.pauseSchedule(ctx, tx, actor); err != nil {
+			return err
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.wazuh_disconnect", "Wazuh", cur.URL)
 	})

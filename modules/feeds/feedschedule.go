@@ -25,7 +25,7 @@ type SchedulePort interface {
 // scheduleLimits is what a source's schedule allows: an interval from an hour to a week. Sources ask their clients not to poll more
 // often than that, and a feed older than a week is stale for good.
 var scheduleLimits = coreschedule.Limits{Freqs: []coreschedule.Freq{coreschedule.Interval}, MinEveryMinutes: 60, MaxEveryMinutes: 168 * 60,
-	Reason: "Sources ask clients not to poll more often than once an hour."}
+	Windows: []coreschedule.WindowMode{coreschedule.WindowNone}, Reason: "Sources ask clients not to poll more often."}
 
 // ScheduleOwner is what the sources register with core/schedule: one schedule per source (feeds.source:<id>), an interval only. When
 // it comes due nothing starts here: the pull job pulls the source at its next tick (State.Due reads when the schedule last came due),

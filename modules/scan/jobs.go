@@ -441,9 +441,13 @@ const ScheduleKey = "scan.vuln"
 
 // ScheduleOwner is what the vulnerability checks register with core/schedule: when they come due is the person's rule (the
 // shared editor); what starts is one run over every device that may be scanned without a pick. By default they run on Sundays at
-// 23:00 inside the scan window.
+// 23:00 inside the scan window, and the first check of a new box is in its first open window. The window is always the scan window.
+// A refusal that passes (no scope yet, a check running, the scanner not ready, the window just closed) holds the due time instead of
+// using it up, so the check starts as soon as it can.
 func (s *Service) ScheduleOwner() schedule.Owner {
-	return schedule.Owner{Module: ModuleID, Key: ScheduleKey, AdminOnly: true, Default: schedule.WeeklyAt("23:00", 7).InWindow(), DefaultOn: true, Start: s.startScheduled}
+	return schedule.Owner{Module: ModuleID, Key: ScheduleKey, AdminOnly: true, Default: schedule.WeeklyAt("23:00", 7).InWindow(), DefaultOn: true, FirstInWindow: true,
+		Limits: schedule.Limits{Windows: []schedule.WindowMode{schedule.WindowGlobal}, Reason: "Scheduled checks run only inside the scan window (Settings, Scanning, Safety)."},
+		Start:  s.startScheduled}
 }
 
 // startScheduled starts the regular check (S-SCAN-4) inside the schedule's transaction: the run, its steps and its audit rows are
@@ -460,7 +464,7 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 		return "", err
 	}
 	if sc.ConfirmedAt == "" {
-		return "", schedule.Skip(msgNoCommitment)
+		return "", schedule.Hold(msgNoCommitment)
 	}
 	var end time.Time
 	if f.Trigger == run.Schedule {
@@ -471,10 +475,10 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 	if busy, err := s.activeRun(ctx, tx); err != nil {
 		return "", err
 	} else if busy != "" {
-		return "", schedule.Skip("A vulnerability check is already running.")
+		return "", schedule.Hold("A vulnerability check is already running; the scheduled check starts when it ends.")
 	}
 	if !s.scannerReady(ctx) {
-		return "", schedule.Skip(msgScannerDown)
+		return "", schedule.Hold(msgScannerDown)
 	}
 	devs, err := s.cfg.Inventory.Devices(ctx)
 	if err != nil {
@@ -496,7 +500,11 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 		ids = append(ids, d.ID)
 	}
 	if len(ids) == 0 {
-		return "", schedule.Skip("No device may be checked without someone picking it, so there was nothing to check.")
+		reason := "No device may be checked without someone picking it, so there was nothing to check."
+		if f.First { // a new box has no devices yet: its first check waits for them
+			return "", schedule.Hold(reason)
+		}
+		return "", schedule.Skip(reason)
 	}
 	user := systemUser
 	trigger := "schedule"
@@ -524,11 +532,11 @@ func (s *Service) windowEnd(ctx context.Context, st Settings, r schedule.Rule) (
 	}
 	loc, ok := s.loc(ctx)
 	if !ok {
-		return time.Time{}, schedule.Skip(msgZoneUnknown)
+		return time.Time{}, schedule.Hold(msgZoneUnknown)
 	}
 	now := s.now()
 	if !w.Contains(now, loc) {
-		return time.Time{}, schedule.Skip("The scan window is closed; the check starts when it opens.")
+		return time.Time{}, schedule.Hold("The scan window is closed; the check starts when it opens.")
 	}
 	_, end, _ := w.Span(now, loc)
 	return end, nil

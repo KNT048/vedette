@@ -290,7 +290,7 @@ func (s *Service) RunNow(ctx context.Context, key, by string) (string, error) {
 		if !saved {
 			rl = o.Default
 		}
-		id, skip, err := s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Manual, By: by, DueAt: s.now(), Rule: rl})
+		id, skip, _, err := s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Manual, By: by, DueAt: s.now(), Rule: rl})
 		if err != nil {
 			return err
 		}

@@ -58,6 +58,15 @@ func (e *SkipError) Error() string { return "schedule: skipped: " + e.Reason }
 // Skip returns the error an owner's Start gives when it does not start this time.
 func Skip(reason string) error { return &SkipError{Reason: reason} }
 
+// HoldError is an owner's refusal that is expected to pass (a check is running, the scanner is not ready): the due time is not used
+// up, it stays due and the owner is asked again at the next tick, and the reason shows meanwhile.
+type HoldError struct{ Reason string }
+
+func (e *HoldError) Error() string { return "schedule: held: " + e.Reason }
+
+// Hold returns the error an owner's Start gives to keep the due time pending.
+func Hold(reason string) error { return &HoldError{Reason: reason} }
+
 // Gate says whether a module is on. modreg.Registry satisfies it.
 type Gate interface {
 	Enabled(id string) bool
@@ -73,6 +82,8 @@ type Fire struct {
 	DueAt      time.Time // when it came due; the moment asked for a run once
 	// Rule is the rule the schedule has now (the owner's default for a schedule nobody saved): an owner reads its window from it.
 	Rule Rule
+	// First is true when the schedule has never come due: an owner may hold instead of skipping, so its first start is not lost.
+	First bool
 }
 
 // Owner is a kind of schedule a module offers.
@@ -87,6 +98,9 @@ type Owner struct {
 	// start; an owner with subjects saves one with EnsureTx when it creates a subject.
 	Default   Rule
 	DefaultOn bool
+	// FirstInWindow: a schedule of this owner in the scan window that has never come due is due at once, so its first start is the
+	// next opening of the scan window, not the rule's first regular time (a new box is checked in its first window).
+	FirstInWindow bool
 	// Subject says whether a subject exists (PerSubject only); nil accepts any id.
 	Subject func(ctx context.Context, id string) (bool, error)
 	// Start starts what the schedule starts, inside the schedule's transaction: usually run.Manager.CreateTx with f.Trigger,
@@ -167,6 +181,9 @@ func (s *Service) Register(o Owner) error {
 		return fmt.Errorf("schedule: owner %s registered twice", o.Key)
 	}
 	s.owners[o.Key] = o
+	if o.FirstInWindow {
+		firstInWindow.Store(o.Key, true)
+	}
 	return nil
 }
 
@@ -364,7 +381,7 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 		if r.PausedUntil != nil && !r.PausedUntil.After(now) {
 			r.PausedUntil = nil // the pause has ended; the new last due time is after it, so the next due time is the same
 		}
-		skip, runID := "", ""
+		skip, runID, held := "", "", false
 		o, subject, ok := s.owner(key)
 		switch {
 		case late && mergesLate(r.Rule) && within(Next(r.Rule, now, zoneOf(r.Rule.TZ, org)), now, MergeWithin):
@@ -382,10 +399,15 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 				skip = "The run it started at " + orgtime.Stamp(*since, zoneOf(OrgZone, org)) + " had not ended."
 				break
 			}
-			runID, skip, err = s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Schedule, By: run.System, DueAt: *r.NextDueAt, Rule: r.Rule})
+			runID, skip, held, err = s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Schedule, By: run.System, DueAt: *r.NextDueAt, Rule: r.Rule, First: r.LastDueAt == nil})
 			if err != nil {
 				return err
 			}
+		}
+		if held { // not used up: the due time stays, the reason shows, the next tick asks again
+			skip = clip(skip, 300)
+			r.LastSkipReason, r.LastSkipAt = &skip, &now
+			return upsert(ctx, tx, r, org)
 		}
 		r.LastDueAt = &last
 		if runID != "" {
@@ -432,29 +454,36 @@ func liveRun(ctx context.Context, tx *sql.Tx, id *string) (*time.Time, error) {
 
 // start calls an owner's Start inside a savepoint, so a failed start leaves nothing behind. A Skip comes back as the reason; any
 // other error is logged and recorded as a skip that says the start failed.
-func (s *Service) start(ctx context.Context, tx *sql.Tx, o Owner, f Fire) (runID, skip string, err error) {
+func (s *Service) start(ctx context.Context, tx *sql.Tx, o Owner, f Fire) (runID, skip string, held bool, err error) {
 	if _, err := tx.ExecContext(ctx, `SAVEPOINT schedule_start`); err != nil {
-		return "", "", fmt.Errorf("schedule: savepoint: %w", err)
+		return "", "", false, fmt.Errorf("schedule: savepoint: %w", err)
 	}
 	id, serr := o.Start(ctx, tx, f)
 	if serr != nil {
 		if _, err := tx.ExecContext(ctx, `ROLLBACK TO schedule_start`); err != nil {
-			return "", "", fmt.Errorf("schedule: roll back a failed start: %w", err)
+			return "", "", false, fmt.Errorf("schedule: roll back a failed start: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `RELEASE schedule_start`); err != nil {
-			return "", "", fmt.Errorf("schedule: release: %w", err)
+			return "", "", false, fmt.Errorf("schedule: release: %w", err)
 		}
 		var sk *SkipError
 		if errors.As(serr, &sk) {
-			return "", sk.Reason, nil
+			return "", sk.Reason, false, nil
+		}
+		var hd *HoldError
+		if errors.As(serr, &hd) {
+			if f.Trigger == run.Manual { // a person's run once now is refused, not kept
+				return "", hd.Reason, false, nil
+			}
+			return "", hd.Reason, true, nil
 		}
 		s.cfg.Log.ErrorContext(ctx, "schedules: could not start", "schedule", f.OwnerKey, "error", serr)
-		return "", "It could not start; the box log has the error.", nil
+		return "", "It could not start; the box log has the error.", false, nil
 	}
 	if _, err := tx.ExecContext(ctx, `RELEASE schedule_start`); err != nil {
-		return "", "", fmt.Errorf("schedule: release: %w", err)
+		return "", "", false, fmt.Errorf("schedule: release: %w", err)
 	}
-	return id, "", nil
+	return id, "", false, nil
 }
 
 // clip cuts s to at most n characters.

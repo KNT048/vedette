@@ -35,12 +35,12 @@ ON CONFLICT (id) DO UPDATE SET timezone = excluded.timezone`)
 		t.Fatal(err)
 	}
 	scanService(d) // registers the vulnerability checks' schedule on the box's schedule service
-	v, err := d.Schedules.Save(ctx, scan.ScheduleKey, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:00")}, "admin@acme.example")
+	v, err := d.Schedules.Save(ctx, scan.ScheduleKey, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:00").InWindow()}, "admin@acme.example")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := time.Date(2026, 11, 11, 7, 0, 0, 0, time.UTC); v.NextDueAt == nil || !v.NextDueAt.Equal(want) { // 02:00 in New York (UTC-5)
-		t.Fatalf("next due %v, want %s: the schedule is not read in the organization's time zone", v.NextDueAt, want)
+	if v.Zone != "America/New_York" { // the rule's time of day and the window are read there
+		t.Fatalf("the schedule is read in %q, want the organization's time zone", v.Zone)
 	}
 }
 

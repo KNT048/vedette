@@ -89,7 +89,8 @@ func (s *Service) deepDue(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	now := s.clock()
-	return last.IsZero() || last.After(now.Add(clockSlack)) || now.Sub(last) >= DeepEvery, nil
+	// one job tick of slack: at the default interval of an hour the checks alternate, a full one and a light one
+	return last.IsZero() || last.After(now.Add(clockSlack)) || now.Sub(last) >= DeepEvery+JobTick/2, nil
 }
 
 // SaveSettings turns auto-detect on or off and sets its interval (PUT /exposure/box-ip/settings, INV-11).

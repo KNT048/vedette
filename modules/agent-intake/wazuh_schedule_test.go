@@ -55,3 +55,28 @@ func TestWazuhSchedule_TheFormAndTheEditorAreOneSetting(t *testing.T) {
 		t.Fatalf("the form reads %+v %v, want the editor's 30", w, err)
 	}
 }
+
+// Off until a server is connected: a box without Wazuh logs nothing; connecting turns it on, removing the connection turns it off.
+func TestWazuhSchedule_IsOffUntilAServerIsConnected(t *testing.T) {
+	r := newWzRig(t)
+	on := func() bool {
+		v, err := r.sched.Get(t.Context(), "agent-intake.wazuh")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v.Enabled
+	}
+	if on() {
+		t.Fatal("the schedule is on with no server connected")
+	}
+	r.save()
+	if !on() {
+		t.Fatal("connecting a server did not turn the schedule on")
+	}
+	if res := r.admin("DELETE", "/inventory/agents/wazuh", nil); res.code != 204 && res.code != 200 {
+		t.Fatalf("delete: %d %s", res.code, res.raw)
+	}
+	if on() {
+		t.Fatal("removing the connection left the schedule on")
+	}
+}

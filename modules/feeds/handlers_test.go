@@ -668,7 +668,7 @@ func TestContract_INV4_BuiltinFeedsCanBeTunedButNotDeleted(t *testing.T) {
 		t.Errorf("unknown: %d %v", c, b)
 	}
 	// how often a source pulls is its schedule: never more often than hourly, and the answer says why
-	if _, err := e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.Every(10)}, "admin@acme.example"); err == nil || !strings.Contains(err.Error(), "once an hour") {
+	if _, err := e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.Every(10)}, "admin@acme.example"); err == nil || !strings.Contains(err.Error(), "not to poll more often") {
 		t.Errorf("a 10 minute interval: %v", err)
 	}
 	if c, b, _ = e.do("DELETE", "/feeds/custom/ipsum", "admin", ""); c != 404 || code(b) != "not_found" {

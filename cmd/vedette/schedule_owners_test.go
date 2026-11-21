@@ -35,9 +35,9 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 		defaultOn  bool
 		wantReason bool
 	}{
-		{scan.ScheduleKey, nil, 1, 0, true, false},
+		{scan.ScheduleKey, nil, 1, 0, true, true},
 		{exposure.PublicIPScheduleKey, []schedule.Freq{schedule.Interval}, 5, 1440, true, true},
-		{agentintake.WazuhScheduleKey, []schedule.Freq{schedule.Interval}, 5, 0, true, true},
+		{agentintake.WazuhScheduleKey, []schedule.Freq{schedule.Interval}, 5, 0, false, true}, // off until a server is connected
 		{"feeds.source:cisa-kev", []schedule.Freq{schedule.Interval}, 60, 168 * 60, true, true},
 	} {
 		v, err := d.Schedules.Get(ctx, c.key)
@@ -45,7 +45,7 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 			t.Errorf("%s: %v", c.key, err)
 			continue
 		}
-		if v.Enabled != c.defaultOn || v.NextDueAt == nil && c.defaultOn && !v.Saved {
+		if v.Enabled != c.defaultOn || (c.defaultOn && v.NextDueAt == nil) {
 			t.Errorf("%s: enabled %v, next due %v", c.key, v.Enabled, v.NextDueAt)
 		}
 		if c.freqs != nil && (len(v.Limits.Freqs) != len(c.freqs) || v.Limits.Freqs[0] != c.freqs[0]) {
@@ -69,6 +69,37 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 	}
 	if sources == 0 || rows != sources {
 		t.Errorf("%d sources, %d schedules", sources, rows)
+	}
+}
+
+// Every schedule of the spec's table that this version moves is registered with core/schedule by the box's wiring, whatever the old
+// logic was renamed to: the keys the editor uses, and the wiring that registers each (the sweep needs the scan container's link, so it
+// is registered where that service is built).
+func TestEveryOwnerOfTheSpecTableIsRegistered(t *testing.T) {
+	t.Parallel()
+	wired := map[string]struct{ file, call string }{
+		"scan.vuln":          {"scan.go", "svc.ScheduleOwner()"},
+		"inventory.sweep":    {"sensoractive.go", "s.ScheduleOwner()"},
+		"feeds.source":       {"feeds.go", "s.ScheduleOwner()"},
+		"exposure.public_ip": {"exposure.go", "svc.PublicIPScheduleOwner()"},
+		"agent-intake.wazuh": {"wiring.go", "d.AgentIntake.ScheduleOwner()"},
+	}
+	for key, w := range wired {
+		b, err := os.ReadFile(w.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), "Schedules.Register("+w.call+")") {
+			t.Errorf("%s: %s does not register %s", key, w.file, w.call)
+		}
+	}
+	// the maintenance window: the shared window test, not a copy
+	b, err := os.ReadFile(filepath.Join("..", "..", "modules", "core", "osmaint.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "schedule.Window{") {
+		t.Error("the maintenance window does not use core/schedule's window")
 	}
 }
 

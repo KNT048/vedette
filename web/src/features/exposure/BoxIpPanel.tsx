@@ -60,6 +60,7 @@ export function BoxIpPanel({ settings, ignored }: { settings: BoxIpSettings; ign
                 <Select id="box-interval" value={settings.interval_min} disabled={!can || save.isPending} title={locked} onChange={(e) => changeInterval(Number(e.target.value))}>
                   {options.map((n) => <option key={n} value={n}>{PRESETS.includes(n) ? t(`boxIp.option.${n}`) : t('boxIp.option.other', { count: n })}</option>)}
                 </Select>
+                <p className="text-meta text-muted">{t('boxIp.limit')}</p>
               </Field>
             ) : null}
             <Button onClick={detectNow} disabled={!can || wait !== null} busy={detect.isPending} busyLabel={t('boxIp.detecting')} title={locked ?? waitText}>

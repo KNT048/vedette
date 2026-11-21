@@ -68,8 +68,11 @@ func TestSchedule_LimitsAndSkips(t *testing.T) {
 	e := newEnv(t)
 	_, err := e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.Every(10)}, "admin@acme.example")
 	var re *schedule.RuleError
-	if !errors.As(err, &re) || !strings.Contains(re.Message, "once an hour") || re.Field != "every_minutes" {
+	if !errors.As(err, &re) || !strings.Contains(re.Message, "not to poll more often") || re.Field != "every_minutes" {
 		t.Fatalf("10 minutes: %v", err)
+	}
+	if _, err = e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.Every(60).InWindow()}, "admin@acme.example"); !errors.As(err, &re) || re.Field != "window" {
+		t.Fatalf("a feed in the scan window: %v", err)
 	}
 	if _, err = e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.DailyAt("03:00")}, "admin@acme.example"); !errors.As(err, &re) || re.Field != "freq" {
 		t.Fatalf("daily: %v", err)

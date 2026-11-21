@@ -8,8 +8,8 @@ import (
 )
 
 // JobTick is how often the auto-detect job wakes up to see whether a check is due. The shortest interval a customer
-// can choose is one minute, so it wakes every minute; the check itself runs every interval_min minutes, and a run
-// can start up to half a tick early. Most wake-ups do nothing.
+// can choose is five minutes, so it wakes every minute; when the check runs is the schedule's (exposure.public_ip). Most wake-ups
+// do nothing.
 const JobTick = time.Minute
 
 // Jobs returns the jobs of the module (core runs one only while the module is on). auto-detect wakes up every

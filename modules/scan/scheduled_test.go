@@ -102,16 +102,19 @@ func TestScheduled_StopsWhenTheWindowEnds(t *testing.T) {
 	}
 }
 
-// A schedule with no window, and a person's run once now, have no end of their own.
-func TestScheduled_WithoutAWindowRunsToTheEnd(t *testing.T) {
+// The checks' window is always the scan window (the Safety tab's promise); the editor says so. A person's run once now has no end of
+// its own.
+func TestScheduled_TheWindowIsAlwaysTheScanWindow(t *testing.T) {
 	t.Parallel()
 	r, sched := schedEnv(t)
-	if _, err := sched.Save(r.ctx(), ScheduleKey, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("12:00")}, "admin@acme.example"); err != nil {
-		t.Fatal(err)
+	_, err := sched.Save(r.ctx(), ScheduleKey, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("12:00")}, "admin@acme.example")
+	var re *schedule.RuleError
+	if !errors.As(err, &re) || re.Field != "window" || !strings.Contains(re.Message, "only inside the scan window") {
+		t.Fatalf("a rule without the scan window: %v", err)
 	}
-	tick(t, r, sched, r.clock.Now().Add(2*time.Hour+30*time.Second)) // 12:00:30, outside the scan window: no window to wait for
-	if n := r.scheduled(); n != 1 {
-		t.Fatalf("%d scheduled runs, want 1", n)
+	v, err := sched.Get(r.ctx(), ScheduleKey)
+	if err != nil || len(v.Limits.Windows) != 1 || v.Limits.Windows[0] != schedule.WindowGlobal || v.Limits.Reason == "" {
+		t.Fatalf("limits %+v %v", v.Limits, err)
 	}
 	if _, err := sched.RunNow(r.ctx(), ScheduleKey, "it@acme.example"); err != nil {
 		t.Fatal(err)
@@ -119,6 +122,55 @@ func TestScheduled_WithoutAWindowRunsToTheEnd(t *testing.T) {
 	r.wait()
 	if n := r.count(`SELECT count(*) FROM core_run WHERE trigger = 'manual' AND requested_by = 'it@acme.example'`); n != 1 {
 		t.Fatalf("run once now: %d manual runs", n)
+	}
+}
+
+// A new box is checked in its first open scan window, not on the weekly default: the first due time is the window's next opening,
+// and the editor's preview says so.
+func TestScheduled_TheFirstCheckOfANewBoxIsTheNextOpenWindow(t *testing.T) {
+	t.Parallel()
+	r, sched := schedEnv(t)
+	if err := sched.Start(r.ctx()); err != nil { // saves the default: Sunday 23:00 in the window
+		t.Fatal(err)
+	}
+	t.Cleanup(sched.Close)
+	v, err := sched.Get(r.ctx(), ScheduleKey)
+	if err != nil || len(v.Upcoming) == 0 {
+		t.Fatalf("%+v %v", v, err)
+	}
+	now := r.clock.Now() // Tuesday 10:00 UTC; the window opens at 22:00
+	if want := time.Date(now.Year(), now.Month(), now.Day(), 22, 0, 0, 0, time.UTC); !v.Upcoming[0].Equal(want) {
+		t.Fatalf("first start %v, want tonight's opening %v (not Sunday 23:00)", v.Upcoming[0], want)
+	}
+	if v.Upcoming[1].Weekday() != time.Sunday { // afterwards the weekly rule
+		t.Fatalf("second start %v", v.Upcoming[1])
+	}
+	tick(t, r, sched, now.Add(12*time.Hour+time.Minute)) // 22:01: the window is open
+	if r.scheduled() != 1 {
+		t.Fatalf("%d scheduled runs in the first window", r.scheduled())
+	}
+}
+
+// A refusal that passes (a check is running, the scanner is not ready) does not use up the due time: the check starts as soon as it
+// can, in the same window.
+func TestScheduled_ARefusalThatPassesHoldsTheDueTime(t *testing.T) {
+	t.Parallel()
+	r, sched := schedEnv(t)
+	save(t, r, sched)
+	due := r.clock.Now().Add(13*time.Hour + 30*time.Second)
+	r.eng.setDown(errors.New("restarting"))
+	tick(t, r, sched, due)
+	if got := skipReason(t, r, sched); got != msgScannerDown || r.scheduled() != 0 {
+		t.Fatalf("scanner down: %q, %d runs", got, r.scheduled())
+	}
+	r.eng.setDown(nil)
+	tick(t, r, sched, due.Add(time.Minute))
+	if r.scheduled() != 1 {
+		t.Fatalf("the check did not start once it could: %d runs", r.scheduled())
+	}
+	v, _ := sched.Get(r.ctx(), ScheduleKey)
+	if v.LastSkipReason != nil || v.LastDueAt == nil {
+		t.Fatalf("%+v", v)
 	}
 }
 

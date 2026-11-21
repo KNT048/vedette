@@ -56,9 +56,9 @@ func TestContract_INV11_AutoDetectSchedule(t *testing.T) {
 			t.Fatalf("a check ran %s after the last one", d)
 		}
 	}
-	e.clock.now = t0.Add(60 * time.Minute) // the schedule comes due: an hour after the full check, so this one is full again
+	e.clock.now = t0.Add(60 * time.Minute) // the schedule comes due: an hour after the full check, so this one is light (they alternate)
 	e.runJob()
-	if e.prober.count() != 2*DeepRounds {
+	if e.prober.count() != DeepRounds+LightRounds {
 		t.Fatalf("no check when it was due: %d rounds", e.prober.count())
 	}
 	// it runs as the box itself; the first run, which added two IPs, leaves its audit row and the routine run after it none (L3)
@@ -119,7 +119,7 @@ func TestContract_INV11_LightAndFullChecks(t *testing.T) {
 		}
 		rounds = e.prober.count()
 	}
-	e.clock.now = t0.Add(60 * time.Minute) // an hour after the full one: full again
+	e.clock.now = t0.Add(61 * time.Minute) // an hour and a tick after the full one: full again
 	e.runJob()
 	if got := e.prober.count() - rounds; got != DeepRounds {
 		t.Fatalf("hourly full check: %d rounds", got)

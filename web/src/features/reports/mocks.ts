@@ -103,7 +103,7 @@ const sent = collection<SentReport[]>('rep_sent', () =>
     const failed = k === 2
     return { id: `rh-${k}`, definition_id: DEF_ID, title: document.title, sent_at: document.generated_at, period: { from: document.period.from, to: document.period.to },
       trigger: 'schedule', recipients: SAMPLE_TO, status: failed ? 'failed' : 'sent',
-      error: failed ? 'The email channel has no valid SMTP settings. Check Settings, Alert channels, then send again.' : null, document }
+      error: failed ? 'The email channel has no valid SMTP settings. Check Settings, Alert channels, then send again.' : null, sent_by: null, document }
   }), () => [])
 
 const PERIODS: ReportOptions['period'][] = ['last_7_days', 'last_30_days', 'calendar_month']
@@ -149,7 +149,7 @@ const reportHandlers = [
     if (d.recipients.length === 0) return fail(400, 'no_recipients', 'There is no recipient. Add an email in Settings, then send again.')
     const document = buildDocument(d)
     const e: SentReport = { id: newId('rh'), definition_id: d.id, title: document.title, sent_at: document.generated_at, period: { from: document.period.from, to: document.period.to },
-      trigger: 'manual', recipients: d.recipients, status: 'sent', error: null, document }
+      trigger: 'manual', recipients: d.recipients, status: 'sent', error: null, sent_by: currentUser()?.email ?? null, document }
     sent.update((l) => [e, ...l].slice(0, SENT_CAP))
     audit('report.send', d.id, `${d.recipients.length} recipients`)
     const { document: _d, ...item } = e

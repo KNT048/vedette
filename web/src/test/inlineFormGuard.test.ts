@@ -37,7 +37,7 @@ const ALLOWED: { file: string; count: number; why: string }[] = [
   { file: 'features/logs/SiemSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/notify/ChannelsSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/reports/PdplTab.tsx', count: 1, why: SETTINGS },
-  { file: 'features/reports/WeeklyTab.tsx', count: 1, why: SETTINGS },
+  { file: 'features/reports/SettingsTab.tsx', count: 1, why: SETTINGS },
   { file: 'features/response/ApproverIdentities.tsx', count: 1, why: 'is the code step that links an approver identity on its own row, not an add/edit form' },
   { file: 'features/response/ResponseSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/scanning/SafetyTab.tsx', count: 1, why: SETTINGS },

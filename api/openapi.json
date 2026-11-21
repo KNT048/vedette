@@ -74864,6 +74864,11 @@
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
+                    "org": {
+                      "type": "string",
+                      "maxLength": 120,
+                      "description": "The organisation name when the report was made, so a sent report keeps it"
+                    },
                     "period": {
                       "type": "object",
                       "properties": {
@@ -75015,7 +75020,8 @@
                         "open_now": {
                           "type": "integer",
                           "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
+                          "maximum": 9007199254740991,
+                          "description": "Open at the end of the period"
                         },
                         "open_before": {
                           "type": "integer",
@@ -75026,12 +75032,14 @@
                         "new": {
                           "type": "integer",
                           "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
+                          "maximum": 9007199254740991,
+                          "description": "Findings first seen in the period, whether still open or handled since (the New section counts the same)"
                         },
                         "handled": {
                           "type": "integer",
                           "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
+                          "maximum": 9007199254740991,
+                          "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened"
                         },
                         "first": {
                           "maxItems": 3,
@@ -75482,12 +75490,25 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
                           "description": "Handled findings not listed (a report lists 100 at most)"
+                        },
+                        "median_days": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
                         }
                       },
                       "required": [
                         "totals",
                         "devices",
-                        "more"
+                        "more",
+                        "median_days"
                       ],
                       "additionalProperties": false
                     },
@@ -75889,7 +75910,8 @@
                         "total": {
                           "type": "integer",
                           "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
+                          "maximum": 9007199254740991,
+                          "description": "Findings first seen in the period, open or handled since; equals summary.new"
                         },
                         "items": {
                           "type": "array",
@@ -76217,7 +76239,7 @@
                             ],
                             "additionalProperties": false
                           },
-                          "description": "Found in the period, with their status now"
+                          "description": "Found in the period, with their status now (open or how it was handled)"
                         },
                         "more": {
                           "type": "integer",
@@ -76726,6 +76748,7 @@
                     "definition_id",
                     "title",
                     "generated_at",
+                    "org",
                     "period",
                     "options",
                     "ai_summary"
@@ -76834,6 +76857,13 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "sent_by": {
+                            "description": "Who pressed Send now; null for a scheduled send",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -76845,7 +76875,8 @@
                           "trigger",
                           "recipients",
                           "status",
-                          "error"
+                          "error",
+                          "sent_by"
                         ],
                         "additionalProperties": false
                       }
@@ -76963,6 +76994,13 @@
                         "null"
                       ]
                     },
+                    "sent_by": {
+                      "description": "Who pressed Send now; null for a scheduled send",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "document": {
                       "type": "object",
                       "properties": {
@@ -76977,6 +77015,11 @@
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "org": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "description": "The organisation name when the report was made, so a sent report keeps it"
                         },
                         "period": {
                           "type": "object",
@@ -77129,7 +77172,8 @@
                             "open_now": {
                               "type": "integer",
                               "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                              "maximum": 9007199254740991,
+                              "description": "Open at the end of the period"
                             },
                             "open_before": {
                               "type": "integer",
@@ -77140,12 +77184,14 @@
                             "new": {
                               "type": "integer",
                               "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                              "maximum": 9007199254740991,
+                              "description": "Findings first seen in the period, whether still open or handled since (the New section counts the same)"
                             },
                             "handled": {
                               "type": "integer",
                               "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                              "maximum": 9007199254740991,
+                              "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened"
                             },
                             "first": {
                               "maxItems": 3,
@@ -77596,12 +77642,25 @@
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991,
                               "description": "Handled findings not listed (a report lists 100 at most)"
+                            },
+                            "median_days": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
                             }
                           },
                           "required": [
                             "totals",
                             "devices",
-                            "more"
+                            "more",
+                            "median_days"
                           ],
                           "additionalProperties": false
                         },
@@ -78003,7 +78062,8 @@
                             "total": {
                               "type": "integer",
                               "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
+                              "maximum": 9007199254740991,
+                              "description": "Findings first seen in the period, open or handled since; equals summary.new"
                             },
                             "items": {
                               "type": "array",
@@ -78331,7 +78391,7 @@
                                 ],
                                 "additionalProperties": false
                               },
-                              "description": "Found in the period, with their status now"
+                              "description": "Found in the period, with their status now (open or how it was handled)"
                             },
                             "more": {
                               "type": "integer",
@@ -78840,6 +78900,7 @@
                         "definition_id",
                         "title",
                         "generated_at",
+                        "org",
                         "period",
                         "options",
                         "ai_summary"
@@ -78858,6 +78919,7 @@
                     "recipients",
                     "status",
                     "error",
+                    "sent_by",
                     "document"
                   ],
                   "additionalProperties": false
@@ -81016,6 +81078,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "sent_by": {
+                      "description": "Who pressed Send now; null for a scheduled send",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -81027,7 +81096,8 @@
                     "trigger",
                     "recipients",
                     "status",
-                    "error"
+                    "error",
+                    "sent_by"
                   ],
                   "additionalProperties": false
                 }

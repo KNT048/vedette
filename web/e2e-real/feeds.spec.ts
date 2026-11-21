@@ -262,7 +262,7 @@ test.describe('lookup and the CVE page with no local data (S-FEED-3)', () => {
     await shot(page, 'real', 'feeds-cve-unknown')
     const r = await api(page.request, 'GET', '/feeds/cve/CVE-1999-0001')
     expect(r.status).toBe(404)
-    expect(r.body).toMatchObject({ error: { code: 'not_in_kev' } })
+    expect(r.body).toMatchObject({ error: { code: 'not_in_data' } })
     expect((await api(page.request, 'GET', '/feeds/cve/not-an-id')).status).toBeLessThan(500)
     noErrors(errors, /status of 4\d\d/)
   })

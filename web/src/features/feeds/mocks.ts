@@ -11,6 +11,7 @@ import { actsAs } from '@/lib/deviceTypes'
 import { feedOn, kevStatus, sourceHandlers } from './sourcesMock'
 import { FEED_DOMAIN_RE } from './parsers'
 import { displayOf, keyOf, kindOf } from './slug'
+import { briefOfTier, briefOfVuln, esxiBrief } from './briefSamples'
 import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, TierCve, Vuln, WeeklyItem, YouHave } from './types'
 
 
@@ -147,11 +148,18 @@ export const handlers = [
     return HttpResponse.json({ items: weekly() })
   }),
 
+  // The brief of any CVE the catalogue holds (feeds.Brief): an exploited-list entry, the full ESXi sample, or a tier CVE of the last
+  // 12 months; "Do you have it?" only for a CVE on a list (by its product, as on Home).
   http.get(`${API}/feeds/cve/:id`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
-    const v = data.vulns.find((x) => x.cve === String(params.id).toUpperCase())
-    if (!v) return fail(404, 'not_in_kev', 'This CVE is not on the exploited list (CISA KEV) in the current data.')
-    return HttpResponse.json({ ...v, display: displayOf(v.vendor, v.product), matched: isOn('inventory') ? matchAssets(v.vendor, v.product) : null, published: kevPublished(v.cve) } satisfies CveDetail)
+    const id = String(params.id).toUpperCase()
+    const v = data.vulns.find((x) => x.cve === id)
+    const f = tierFact(id)
+    const brief = v ? briefOfVuln(v, kevPublished(v.cve)) : id === esxiBrief.cve ? esxiBrief : f && tierState.get().recent === 'ready' && withinYear(f) ? briefOfTier(f) : null
+    if (!brief) return fail(404, 'not_in_data', 'The vulnerability data on this box does not hold this CVE.')
+    const entry = brief.lists[0]
+    const matched = entry && isOn('inventory') ? matchAssets(entry.vendor, entry.product) : null
+    return HttpResponse.json({ ...brief, matched, not_affected: 0 } satisfies CveDetail)
   }),
 
   // S-TIER-1: a CVE on no exploited list, from the tier data (epss-all, nvd-recent).

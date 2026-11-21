@@ -331,6 +331,9 @@ type vulnCache struct {
 	mu    sync.Mutex
 	stamp string
 	vulns []findings.Vuln // read only once built: the matcher never changes it
+	// productsStamp and products: feeds' RangeProducts as read under that stamp
+	productsStamp string
+	products      []feeds.RangeProduct
 }
 
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
@@ -533,14 +536,15 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	for _, v := range kev {
 		listed[v.CVE] = true
 	}
-	products, err := a.st.RangeProducts(ctx)
+	products, err := a.rangeProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var keys []feeds.ProductKey
 	for _, k := range products {
-		if scope.Keep(k.Vendor, k.Product) {
-			keys = append(keys, k)
+		v, p := feeds.MatchName(k.Vendor, k.Product, k.Record)
+		if scope.Keep(v, p, k.Record) || k.Record && scope.Keep(k.Vendor, k.Product, true) {
+			keys = append(keys, feeds.ProductKey{Vendor: k.Vendor, Product: k.Product})
 		}
 	}
 	ranges, err := a.st.Ranges(ctx, keys)
@@ -569,6 +573,11 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 		}
 	}
 	cves := slices.Sorted(maps.Keys(byCVE))
+	for _, c := range pins { // a pinned CVE whose ranges are all gone (rejected) is still judged: its findings go away
+		if _, ok := byCVE[c]; !ok {
+			cves = append(cves, c)
+		}
+	}
 	if len(cves) == 0 {
 		return kev, nil
 	}
@@ -586,10 +595,14 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	}
 	out := slices.Clip(kev) // the cached list is never written: a later append copies
 	for _, cve := range cves {
-		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading}
+		e, inCatalogue := cat[cve]
+		rows := byCVE[cve]
+		if len(rows) == 0 && !inCatalogue {
+			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
+		}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, Origin: recordOrigin(rows)}
 		complete := true
-		for _, r := range byCVE[cve] {
-			v.Origin = r.Origin
+		for _, r := range rows {
 			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
 			if row, ok := r.MatchRow(); ok {
 				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE,
@@ -597,28 +610,65 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 			}
 		}
 		switch {
-		case v.Origin == feeds.OriginNVD:
+		case v.Origin == feeds.OriginNVD || len(rows) == 0:
 		case complete:
 			v.RangesFrom = findings.RangesCVEOrg
 		default:
 			v.RangesFrom = findings.RangesCVEOrgPartial
 		}
-		if e, ok := cat[cve]; ok {
-			if e.Published != nil {
-				v.Published = *e.Published
-			}
-			if e.EPSS != nil {
-				v.EPSS = *e.EPSS
-			}
+		if e.Published != nil {
+			v.Published = *e.Published
+		}
+		if e.EPSS != nil {
+			v.EPSS = *e.EPSS
 		}
 		for _, d := range distro[cve] {
 			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
 		}
-		if len(v.Affected) > 0 || len(v.Distro) > 0 {
+		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] {
 			out = append(out, v)
 		}
 	}
 	return out, nil
+}
+
+// recordOrigin is the origin of a CVE's ranges as the catalogue's precedence gave them: nvd when any is NVD's, else cna when the CNA
+// gave any, else adp ("" for none).
+func recordOrigin(rows []feeds.Range) string {
+	origin := ""
+	for _, r := range rows {
+		switch {
+		case r.Origin == feeds.OriginNVD:
+			return feeds.OriginNVD
+		case r.Origin == feeds.OriginCNA || origin == "":
+			origin = r.Origin
+		}
+	}
+	return origin
+}
+
+// rangeProducts is feeds' RangeProducts, read once per match stamp (the stamp moves with every pull that writes ranges).
+func (a findingsFeeds) rangeProducts(ctx context.Context) ([]feeds.RangeProduct, error) {
+	if a.cache == nil {
+		return a.st.RangeProducts(ctx)
+	}
+	stamp, err := a.st.MatchStamp(ctx)
+	if err != nil {
+		return nil, err
+	}
+	a.cache.mu.Lock()
+	p, ok := a.cache.products, a.cache.products != nil && a.cache.productsStamp == stamp
+	a.cache.mu.Unlock()
+	if ok {
+		return p, nil
+	}
+	p, err = a.st.RangeProducts(ctx)
+	if err == nil {
+		a.cache.mu.Lock()
+		a.cache.productsStamp, a.cache.products = stamp, p
+		a.cache.mu.Unlock()
+	}
+	return p, err
 }
 
 // rangesFrom maps the source feeds stored for a CVE's ranges to what findings may do with them: "" (NVD), a

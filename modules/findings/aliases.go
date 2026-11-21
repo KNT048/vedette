@@ -22,8 +22,12 @@ func loadAliases(products []productid.Product) map[identity][]identity {
 				ids = append(ids, id)
 			}
 		}
-		if len(ids) == 0 {
-			continue
+		own := identity{vendor: productid.Norm(p.Vendor), product: productid.Norm(p.Product)}
+		if len(ids) == 0 { // a product NVD has no name for: its other names are its own name (a CVE record names it so, MatchName)
+			if !own.ok() || len(p.Also) == 0 {
+				continue
+			}
+			ids = []identity{own}
 		}
 		names := [][2]string{{p.Vendor, p.Product}}
 		for _, a := range p.Also {

@@ -115,7 +115,7 @@ func TestMatchPass_ScopeAndIndex(t *testing.T) {
 	t.Parallel()
 	a := fortigate()
 	sc := NewMatchScope([]Asset{a}, nil)
-	if !sc.Keep("fortinet", "fortios") || sc.Keep("apache", "http_server") {
+	if !sc.Keep("fortinet", "fortios", false) || sc.Keep("apache", "http_server", false) {
 		t.Errorf("scope keeps the wrong products")
 	}
 	kev := Vuln{CVE: "CVE-2024-0001", Vendor: "Apache", Product: "HTTP Server"}

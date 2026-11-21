@@ -1029,6 +1029,9 @@ func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 func rowVendors(s Software) []string {
 	n := identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}
 	out := []string{n.vendor}
+	if r := productid.NormVendor(s.Vendor); r != n.vendor { // a CVE record's range of a product the catalogue does not list
+		out = append(out, r)
+	}
 	for _, a := range cpeAliases[n] {
 		out = append(out, a.vendor)
 	}
@@ -1368,6 +1371,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {
 		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)
+		if r := recordIdentity(s.Vendor, s.Product); r.ok() {
+			in.ids = append(in.ids, r)
+		}
 	}
 	return in
 }
@@ -1726,6 +1732,15 @@ func everyVersion(c CPE) bool {
 type identity struct {
 	vendor, product string
 	prefix          bool
+	// record: the name a CVE record writes for a product without a CPE (company words and the vendor's name in front dropped,
+	// recordIdentity); it names only a record's range (part ANY), never an NVD CPE.
+	record bool
+}
+
+// recordIdentity is a software's own names as a CVE record's product key is written (feeds' RecordProductKey: "Palo Alto Networks",
+// "PAN-OS" is paloalto|panos), so a record range of a product the catalogue does not list still reaches it.
+func recordIdentity(vendor, product string) identity {
+	return identity{vendor: productid.NormVendor(vendor), product: productid.NormProduct(product, vendor), record: true}
 }
 
 func (i identity) ok() bool { return i.vendor != "" && i.product != "" }
@@ -1754,6 +1769,9 @@ func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
 	}
 	cv, cp = productid.Norm(cv), productid.Norm(cp)
 	for _, i := range ids {
+		if i.record && c.Part.Kind != Any {
+			continue
+		}
 		if i.matches(cv, cp) {
 			return true, true
 		}

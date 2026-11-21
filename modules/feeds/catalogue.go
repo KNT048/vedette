@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -391,23 +392,49 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 	return out, nil
 }
 
-// RangeProducts is every product a catalogue range names (CPE vendor and product, or a CVE record's product key), each once: the
-// match pass keeps those its devices run and reads only their ranges (Ranges).
-func (s *Store) RangeProducts(ctx context.Context) ([]ProductKey, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_cve_range`)
+// RangeProduct is a product a catalogue range names: a CPE's vendor and product, or, Record set, a CVE record's product key (no CPE).
+type RangeProduct struct {
+	Vendor, Product string
+	Record          bool
+}
+
+// RangeProducts is every product a catalogue range names, each once: the match pass keeps those its devices run and reads only their
+// ranges (Ranges). One walk of the (vendor, product, cpe) index.
+func (s *Store) RangeProducts(ctx context.Context) ([]RangeProduct, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product, cpe = '' FROM feeds_cve_range`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: range products: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var out []ProductKey
+	var out []RangeProduct
 	for rows.Next() {
-		var k ProductKey
-		if err := rows.Scan(&k.Vendor, &k.Product); err != nil {
+		var k RangeProduct
+		if err := rows.Scan(&k.Vendor, &k.Product, &k.Record); err != nil {
 			return nil, fmt.Errorf("feeds: range products: %w", err)
 		}
 		out = append(out, k)
 	}
 	return out, rows.Err()
+}
+
+// MatchName is the vendor and product a range names, as the matcher compares them with a device's software: a CPE's own names; for a
+// CVE record's product key (record), the product the catalogue knows by that name (core/productid ByRangeName), by its NVD name
+// when it has one, else by its own normalised name; a record key the catalogue does not know stays as it is. So a record that names
+// "Palo Alto Networks" "PAN-OS" reaches the device NVD's paloaltonetworks:pan-os names.
+func MatchName(vendor, product string, record bool) (string, string) {
+	if !record {
+		return vendor, product
+	}
+	p, ok := productid.ByRangeName("", vendor, product)
+	if !ok {
+		return vendor, product
+	}
+	for _, c := range p.CPEs {
+		if !c.Prefix && c.Vendor != "" && c.Product != "" {
+			return c.Vendor, c.Product
+		}
+	}
+	return productid.Norm(p.Vendor), productid.Norm(p.Product)
 }
 
 // RangesOf returns the ranges of these CVEs with the precedence of rangeOrigin applied per CVE, sorted by CVE, then as stored. A CVE
@@ -431,7 +458,7 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 }
 
 // MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as
-// "cpe:2.3:*:<vendor>:<product>:…" of its own key (kevRecordRow). ok is false for a record row of a vendor whose versions findings
+// "cpe:2.3:*:<vendor>:<product>:…" of the name the catalogue knows it by (MatchName, kevRecordRow). ok is false for a record row of a vendor whose versions findings
 // compares with rules of its own (recordSkipVendors).
 func (r Range) MatchRow() (AffectedRow, bool) {
 	if r.Origin != OriginNVD && recordSkipVendors[r.Vendor] {
@@ -441,7 +468,8 @@ func (r Range) MatchRow() (AffectedRow, bool) {
 		if r.Vendor == "" || r.Product == "" {
 			return AffectedRow{}, false
 		}
-		return kevRecordRow(r, r.Vendor, r.Product), true
+		v, p := MatchName(r.Vendor, r.Product, true)
+		return kevRecordRow(r, cpeEscape(v), cpeEscape(p)), true
 	}
 	return r.AffectedRow(), true
 }

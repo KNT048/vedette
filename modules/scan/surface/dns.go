@@ -56,6 +56,7 @@ const (
 	WordlistWildcard = "wildcard"  // the domain answers any name
 	WordlistNoAnswer = "no_answer" // the wildcard check got no clear answer (time-out, server failure): skipped, fail closed
 	WordlistCut      = "cut"       // the DNS phase reached dnsBudget before every common name was tried
+	WordlistChosen   = "chosen"    // the scope is the names chosen: the common names are not tried for the others
 )
 
 // Addr is one address of a name with its kind (ClassBox, ClassPublic or ClassPrivate). Contacted: the check by name (GET / on 80
@@ -76,7 +77,8 @@ type dnsAnswer struct {
 
 // discovery is the list of a domain's names before classification.
 type discovery struct {
-	names    []string // the domain first, the others sorted
+	names    []string // the names the scan reaches: the domain first, the others sorted
+	skipped  []string // the names found that it does not reach (another target's, or out of its scope), sorted, not resolved
 	source   map[string]string
 	answers  map[string]dnsAnswer
 	wordlist string // "" or why the common names were not all tried
@@ -92,23 +94,44 @@ func isNotFound(err error) bool {
 }
 
 // discover adds the apex's MX and NS hosts under the domain (one outside it is another company's server: not listed) and the common
-// names to the names from CT, and resolves them all, within dnsBudget. More than maxNames names in all is ErrTooManyNames: the
-// listing is whole or nothing.
-func (s *Scanner) discover(ctx context.Context, domain string, ct []string) (discovery, error) {
+// names to the names from CT, and resolves them all, within dnsBudget. Only the names the scan reaches (n.Scans) are resolved and counted:
+// more than maxNames of them is ErrTooManyNames (the listing is whole or nothing); the others are kept apart in skipped, unresolved. With
+// find false nothing is looked for: the domain and the chosen names only.
+func (s *Scanner) discover(ctx context.Context, domain string, ct, other []string, n Names, find bool) (discovery, error) {
 	ctx, cancel := context.WithTimeout(ctx, dnsBudget)
 	defer cancel()
 	d := discovery{source: map[string]string{}, answers: map[string]dnsAnswer{}}
-	add := func(n, src string) {
-		if _, ok := d.source[n]; !ok {
-			d.source[n] = src
-			d.names = append(d.names, n)
+	scans := func(name string) bool { return name == domain || n.Scans == nil || n.Scans(name) }
+	add := func(name, src string) {
+		if _, ok := d.source[name]; ok {
+			return
+		}
+		d.source[name] = src
+		if scans(name) {
+			d.names = append(d.names, name)
+		} else if len(d.skipped) < maxNames {
+			d.skipped = append(d.skipped, name)
 		}
 	}
-	for _, n := range ct {
-		add(n, SourceCT)
+	for _, name := range ct {
+		add(name, SourceCT)
+	}
+	for _, name := range other {
+		add(name, SourceCT)
 	}
 	add(domain, SourceDNS)
 	d.source[domain] = SourceDNS // the domain itself, whether or not a certificate names it
+	for _, name := range n.Chosen {
+		if name = cleanName(name); name != "" && strings.HasSuffix(name, "."+domain) {
+			add(name, SourceDNS)
+		}
+	}
+	if !find {
+		for name, a := range s.lookupAll(ctx, d.names, resolveParallel, 0) {
+			d.answers[name] = a
+		}
+		return d.sorted(domain)
+	}
 	var mx, ns []string
 	wild := ""
 	var wg sync.WaitGroup
@@ -122,33 +145,45 @@ func (s *Scanner) discover(ctx context.Context, domain string, ct []string) (dis
 	for _, h := range ns {
 		add(h, SourceNS)
 	}
-	for n, a := range s.lookupAll(ctx, d.names, resolveParallel, 0) {
-		d.answers[n] = a
+	if len(d.names) > maxNames { // before any lookup: the listing is whole or nothing
+		return discovery{}, ErrTooManyNames
+	}
+	for name, a := range s.lookupAll(ctx, d.names, resolveParallel, 0) {
+		d.answers[name] = a
 	}
 	d.wordlist = wild
-	if wild == "" {
+	if n.Choose && wild == "" { // only the chosen names are scanned: a common name nobody chose is not looked up
+		d.wordlist = WordlistChosen
+	}
+	if d.wordlist == "" {
 		var tries []string
 		for _, l := range wordlist.Labels() {
-			if n := l + "." + domain; len(n) <= 253 && d.source[n] == "" {
-				tries = append(tries, n)
+			if name := l + "." + domain; len(name) <= 253 && d.source[name] == "" && scans(name) {
+				tries = append(tries, name)
 			}
 		}
-		for n, a := range s.lookupAll(ctx, tries, labelParallel, labelEvery) {
+		for name, a := range s.lookupAll(ctx, tries, labelParallel, labelEvery) {
 			switch {
 			case a.failed:
 				d.wordlist = WordlistCut // not every common name got an answer: the list is not complete
 			case len(a.addrs) > 0:
-				add(n, SourceWordlist)
-				d.answers[n] = a
+				add(name, SourceWordlist)
+				d.answers[name] = a
 			}
 		}
 	}
+	return d.sorted(domain)
+}
+
+// sorted puts the domain first and the other names in order, and refuses more than maxNames names to scan.
+func (d discovery) sorted(domain string) (discovery, error) {
 	if len(d.names) > maxNames {
 		return discovery{}, ErrTooManyNames
 	}
 	d.names = slices.DeleteFunc(d.names, func(n string) bool { return n == domain })
 	slices.Sort(d.names)
 	d.names = append([]string{domain}, d.names...)
+	slices.Sort(d.skipped)
 	return d, nil
 }
 

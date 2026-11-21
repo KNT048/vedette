@@ -2249,7 +2249,7 @@
       "name": "autodiscover.example.com",
       "ip": "198.51.100.6",
       "source": "wordlist",
-      "cname": "autodiscover.outlook.com",
+      "cname": "autodiscover.example.net",
       "ips": [
        {
         "ip": "198.51.100.6",
@@ -2281,22 +2281,22 @@
         "last_tried": "2026-11-18T05:38:42.015Z"
        },
        {
-        "ip": "2603:1046:c01:248b::8",
+        "ip": "2001:db8:c01:248b::8",
         "family": "ipv6",
         "class": "public"
        },
        {
-        "ip": "2603:1046:c01:248d::8",
+        "ip": "2001:db8:c01:248d::8",
         "family": "ipv6",
         "class": "public"
        },
        {
-        "ip": "2603:1046:c01:3000::8",
+        "ip": "2001:db8:c01:3000::8",
         "family": "ipv6",
         "class": "public"
        },
        {
-        "ip": "2603:1046:c01:3001::8",
+        "ip": "2001:db8:c01:3001::8",
         "family": "ipv6",
         "class": "public"
        }

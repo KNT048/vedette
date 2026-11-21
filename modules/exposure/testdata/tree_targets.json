@@ -1,0 +1,26 @@
+{"_note":"Anonymised domain targets of one installation and the names their scans found (names and addresses replaced): the targets in the order they were added, then the scans in the order they ran.","targets":[
+{"value":"git.example.com","created_at":"2026-11-17T07:20:50.884Z"},
+{"value":"example.com","created_at":"2026-11-18T02:12:04.956Z"}],"scans":[
+{"target":"example.com","started_at":"2026-11-18T05:38:21.930Z","hosts":[
+{"name":"example.com","source":"dns","ips":[{"ip":"198.51.100.5","family":"ipv4","class":"public"}]},
+{"name":"autodiscover.example.com","source":"wordlist","cname":"autodiscover.example.net","ips":[{"ip":"198.51.100.6","family":"ipv4","class":"public"},{"ip":"198.51.100.7","family":"ipv4","class":"public"},{"ip":"198.51.100.8","family":"ipv4","class":"public"},{"ip":"198.51.100.9","family":"ipv4","class":"public"},{"ip":"2001:db8:c01:248b::8","family":"ipv6","class":"public"},{"ip":"2001:db8:c01:248d::8","family":"ipv6","class":"public"},{"ip":"2001:db8:c01:3000::8","family":"ipv6","class":"public"},{"ip":"2001:db8:c01:3001::8","family":"ipv6","class":"public"}]},
+{"name":"sub-01.example.com","source":"wordlist","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-02.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"ftp.example.com","source":"wordlist","cname":"example.com","ips":[{"ip":"198.51.100.5","family":"ipv4","class":"public"}]},
+{"name":"git.example.com","source":"wordlist","cname":"dyn-01.example.net","ips":[{"ip":"198.51.100.2","family":"ipv4","class":"box"}]},
+{"name":"sub-03.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-04.example.com","source":"wordlist","ips":[{"ip":"198.51.100.11","family":"ipv4","class":"public"}]},
+{"name":"sub-05.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-06.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-07.example.com","source":"ct","ips":[{"ip":"198.51.100.12","family":"ipv4","class":"public"}]},
+{"name":"sub-08.example.com","source":"ct","ips":[{"ip":"198.51.100.13","family":"ipv4","class":"public"}]},
+{"name":"sub-09.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-10.example.com","source":"wordlist","ips":[{"ip":"198.51.100.14","family":"ipv4","class":"public"}]},
+{"name":"sub-11.example.com","source":"wordlist","ips":[{"ip":"198.51.100.11","family":"ipv4","class":"public"}]},
+{"name":"www.example.com","source":"wordlist","cname":"example.com","ips":[{"ip":"198.51.100.5","family":"ipv4","class":"public"}]},
+{"name":"sub-12.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-13.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-14.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]},
+{"name":"sub-15.example.com","source":"ct","ips":[{"ip":"198.51.100.10","family":"ipv4","class":"public"}]}]},
+{"target":"git.example.com","started_at":"2026-11-18T09:16:52.213Z","hosts":[
+{"name":"git.example.com","source":"dns","cname":"dyn-01.example.net","ips":[{"ip":"198.51.100.2","family":"ipv4","class":"box"}]}]}]}

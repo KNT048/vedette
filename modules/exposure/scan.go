@@ -32,6 +32,9 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 	if err != nil {
 		return Target{}, "", err
 	}
+	if !t.Enabled { // switched off: nothing is sent, and nothing is looked up for it
+		return t, BlockedDisabled, nil
+	}
 	switch r := t.blocked(s.clock()); {
 	case r == BlockedUnverified || r == BlockedExpired:
 		return t, r, nil
@@ -67,6 +70,9 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 				msg, action = pr.failure, "exposure.verify_fail"
 			}
 			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: pr.via}, time.Time{}, ""); err != nil {
+				return err
+			}
+			if err := settleMethod(ctx, tx, id, pr); err != nil { // covered by an ancestor now, or proved by itself
 				return err
 			}
 			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
@@ -204,6 +210,8 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 			return errNeedAdminReconfirm(t.Value)
 		}
 		return errNeedAdminFirstScan(t.Value)
+	case BlockedDisabled:
+		return apiErr(409, "disabled", "%s is switched off, so it is not scanned. Switch it on first.", t.Value)
 	case BlockedNotCurrent:
 		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
 	}
@@ -350,7 +358,12 @@ func sanitize(c Content) Content {
 			out.Unresolved = append(out.Unresolved, n)
 		}
 	}
-	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
+	for _, h := range c.Listed { // a name listed without a probe: no address
+		if r := sanitizeHost(HostRow{Name: h.Name, Source: h.Source, CNAME: h.CNAME}, txt); len(out.Listed) < maxContentRows && len(r.Name) <= 253 && domainRE.MatchString(r.Name) {
+			out.Listed = append(out.Listed, r)
+		}
+	}
+	return Content{Hosts: nz(out.Hosts), Listed: out.Listed, Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
 		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages),
 		TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan)}

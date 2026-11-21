@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"runtime/debug"
 	"slices"
@@ -531,6 +532,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
 	s.recordSteps(ctx, x, steps, runOn)
 	s.recordCoverage(ctx, x, wr.checked)
+	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
 			if a.Deep != "" {
@@ -576,6 +578,14 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 // scanTarget is what the runner and the engines are told about t.
 func (s *Service) scanTarget(ctx context.Context, t Target, user string, mode ScanMode) ScanTarget {
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: mode, Typed: t.Typed}
+	if t.Kind == KindDomain {
+		plan, err := namePlan(ctx, s.cfg.DB.Reader(), t)
+		if err != nil { // fail closed: the target's own name only
+			s.cfg.Log.ErrorContext(ctx, "exposure: reading the names a domain's children scan failed; this scan reaches its own name only", "target", t.Value, "error", err)
+			plan = &NamePlan{id: t.ID, nodes: []scopeNode{{id: t.ID, value: t.Value, mode: ScopeSelf, enabled: true}}}
+		}
+		st.Names = plan
+	}
 	if t.proofDomain != "" { // the domain whose token proved the target at the gate, and the name its record sits on when not that domain's own
 		st.Proof = &ProofOwner{Domain: t.proofDomain, Token: t.proofToken, ProofAt: t.proofAt}
 	}
@@ -1034,6 +1044,25 @@ func (s *Service) recordSteps(ctx context.Context, x *corerun.Exec, l *stepLog, 
 		}
 	}
 }
+
+// recordNames writes, as items of the run, the names the scan probed (kind name, the id of the name's row, outcome probed): the count of
+// names scanned by two targets reads them.
+func (s *Service) recordNames(ctx context.Context, x *corerun.Exec, probed map[string]string) {
+	names := slices.Sorted(maps.Keys(probed))
+	items := make([]corerun.Item, 0, len(names))
+	for _, n := range names {
+		items = append(items, corerun.Item{SubjectKind: itemName, SubjectID: probed[n], Label: n, Outcome: "probed"})
+	}
+	if len(items) == 0 {
+		return
+	}
+	if err := x.AddItems(ctx, items...); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: recording the names a scan probed", "run", x.ID(), "error", err)
+	}
+}
+
+// itemName is the kind of a run item that names a name the scan probed.
+const itemName = "name"
 
 // recordCoverage writes, as items of the run, which ports the scan probed on each address it reached: the next scan closes a service
 // only when this one, which probed it, missed it too (INV-22). A failure is logged: the next scan then waits one scan more.

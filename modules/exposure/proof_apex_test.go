@@ -12,7 +12,7 @@ import (
 )
 
 // A target is proved by its OWN token on a parent name down to its registered domain, the zone apex first:
-// git.beyondnetglobal.com (a CNAME, so no TXT can sit on it) is proved by vedette-verify=<git's token> at "@" of beyondnetglobal.com,
+// git.example.org (a CNAME, so no TXT can sit on it) is proved by vedette-verify=<git's token> at "@" of example.org,
 // among the zone's other TXT records, with no second domain target. Every rule of the record still holds there.
 func TestProof_OwnTokenOnAParentName(t *testing.T) {
 	t.Parallel()
@@ -23,33 +23,33 @@ func TestProof_OwnTokenOnAParentName(t *testing.T) {
 		ok     bool
 		say    string // in the check message
 	}{
-		{"on the apex, among SPF, Google, Microsoft and a split value", "git.beyondnetglobal.com", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
-			e.dns.put("beyondnetglobal.com", "v=spf1 include:_spf.google.com include:spf.protection.outlook.com ~all", "google-site-verification=abc123def456",
+		{"on the apex, among SPF, Google, Microsoft and a split value", "git.example.org", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
+			e.dns.put("example.org", "v=spf1 include:_spf.google.com include:spf.protection.outlook.com ~all", "google-site-verification=abc123def456",
 				"MS=ms12345678",
 				txtRecord(own),
 				// a value published as several strings of one record: the resolver joins them (Go's LookupTXT)
 				"v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"+strings.Repeat("Q", 300))
 		}, true, "Found the TXT record vedette-verify="},
-		{"on an intermediate parent", "a.b.beyondnetglobal.com", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
-			e.dns.put("b.beyondnetglobal.com", txtRecord(own))
-		}, true, "on b.beyondnetglobal.com: this target's own record on a parent name"},
-		{"the apex answers through a CNAME", "git.beyondnetglobal.com", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
-			d.cname["beyondnetglobal.com"] = "lb.lapsed-vendor.example"
+		{"on an intermediate parent", "a.b.example.org", func(e *env, _ *cnameDNS, own string, _ map[string]TargetView) {
+			e.dns.put("b.example.org", txtRecord(own))
+		}, true, "on b.example.org: this target's own record on a parent name"},
+		{"the apex answers through a CNAME", "git.example.org", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
+			d.cname["example.org"] = "lb.lapsed-vendor.example"
 			e.dns.put("lb.lapsed-vendor.example", txtRecord(own))
-		}, false, "beyondnetglobal.com is a CNAME to another name"},
-		{"a parent that answers through a CNAME", "a.b.beyondnetglobal.com", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
-			d.cname["b.beyondnetglobal.com"] = "tenant.vendor.example"
+		}, false, "example.org is a CNAME to another name"},
+		{"a parent that answers through a CNAME", "a.b.example.org", func(e *env, d *cnameDNS, own string, _ map[string]TargetView) {
+			d.cname["b.example.org"] = "tenant.vendor.example"
 			e.dns.put("tenant.vendor.example", txtRecord(own))
-		}, false, "b.beyondnetglobal.com is a CNAME to another name"},
-		{"the apex has TXT records, none ours", "git.beyondnetglobal.com", func(e *env, _ *cnameDNS, _ string, _ map[string]TargetView) {
-			e.dns.put("beyondnetglobal.com", "v=spf1 include:_spf.google.com ~all", "google-site-verification=abc123def456", "MS=ms12345678")
-		}, false, `beyondnetglobal.com: 3 TXT records, none of them this one (the first is "v=spf1 include:_spf.google.com ~all")`},
+		}, false, "b.example.org is a CNAME to another name"},
+		{"the apex has TXT records, none ours", "git.example.org", func(e *env, _ *cnameDNS, _ string, _ map[string]TargetView) {
+			e.dns.put("example.org", "v=spf1 include:_spf.google.com ~all", "google-site-verification=abc123def456", "MS=ms12345678")
+		}, false, `example.org: 3 TXT records, none of them this one (the first is "v=spf1 include:_spf.google.com ~all")`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			e, d := newProofEnv(t)
 			v := e.add("admin@acme.example", c.target)
-			others := map[string]TargetView{"www.beyondnetglobal.com": e.add("admin@acme.example", "www.beyondnetglobal.com")}
+			others := map[string]TargetView{"www.example.org": e.add("admin@acme.example", "www.example.org")}
 			c.setup(e, d, v.Token, others)
 			r := e.verify(v.ID)
 			if r.Verified != c.ok || !strings.Contains(r.Message, c.say) {
@@ -67,8 +67,8 @@ func TestProof_OwnTokenOnAParentName(t *testing.T) {
 func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
-	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(git.Token)) // an apex with an SPF record: nothing else changes
+	git := e.add("admin@acme.example", "git.example.org")
+	e.dns.put("example.org", "v=spf1 -all", txtRecord(git.Token)) // an apex with an SPF record: nothing else changes
 	if r := e.verify(git.ID); !r.Verified {
 		t.Fatalf("%+v", r)
 	}
@@ -84,17 +84,17 @@ func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	// ZAP is told the target itself, its own token and where its record sits, never the apex as the domain
-	if p := run.last.Proof; p == nil || p.Domain != "git.beyondnetglobal.com" || p.ProofAt != "beyondnetglobal.com" || p.Token != git.Token {
+	if p := run.last.Proof; p == nil || p.Domain != "git.example.org" || p.ProofAt != "example.org" || p.Token != git.Token {
 		t.Fatalf("scan proof %+v", run.last.Proof)
 	}
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all") // the record goes: blocked at the next gate
+	e.dns.put("example.org", "v=spf1 -all") // the record goes: blocked at the next gate
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", git.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("record gone: %v %v", ok, why)
 	}
 
-	// a public suffix is never asked: beyondhcm.ddns.net's own token on ddns.net proves nothing and ddns.net is not looked up
+	// a public suffix is never asked: example.ddns.net's own token on ddns.net proves nothing and ddns.net is not looked up
 	e2, _ := newProofEnv(t)
-	dd := e2.add("admin@acme.example", "x.beyondhcm.ddns.net")
+	dd := e2.add("admin@acme.example", "x.example.ddns.net")
 	e2.dns.put("ddns.net", txtRecord(dd.Token))
 	if r := e2.verify(dd.ID); r.Verified {
 		t.Fatalf("a public suffix: %+v", r)
@@ -107,7 +107,7 @@ func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 			t.Fatalf("asked %q (all %v)", n, asked)
 		}
 	}
-	if p := dd.Proof; p == nil || p.Zone != "beyondhcm.ddns.net" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.x" {
+	if p := dd.Proof; p == nil || p.Zone != "example.ddns.net" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.x" {
 		t.Fatalf("hint %+v", p)
 	}
 }
@@ -167,7 +167,7 @@ func TestProof_OneBudgetAndTheRestStop(t *testing.T) {
 	e, c := newProofEnv(t)
 	d := &deadlineDNS{cnameDNS: c, block: map[string]bool{}, ended: make(chan error, 8)}
 	e.svc.cfg.Resolver = d
-	v := e.add("admin@acme.example", "a.b.beyondnetglobal.com")
+	v := e.add("admin@acme.example", "a.b.example.org")
 	r := e.verify(v.ID) // nothing anywhere: every lookup, the explanation's included
 	d.mu.Lock()
 	all := slices.Clone(d.deadlines)
@@ -181,9 +181,9 @@ func TestProof_OneBudgetAndTheRestStop(t *testing.T) {
 			t.Fatalf("deadlines %v: not one budget", all)
 		}
 	}
-	e.dns.put("a.b.beyondnetglobal.com", txtRecord(v.Token)) // the nearest record; the apex never answers
-	d.block["beyondnetglobal.com"] = true
-	if r := e.verify(v.ID); !r.Verified || !strings.Contains(r.Message, "on a.b.beyondnetglobal.com") {
+	e.dns.put("a.b.example.org", txtRecord(v.Token)) // the nearest record; the apex never answers
+	d.block["example.org"] = true
+	if r := e.verify(v.ID); !r.Verified || !strings.Contains(r.Message, "on a.b.example.org") {
 		t.Fatalf("%+v", r)
 	}
 	select {
@@ -201,11 +201,11 @@ func TestProof_OneBudgetAndTheRestStop(t *testing.T) {
 func TestProof_AnOlderTokenNamesTheBoundValue(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
-	git := e.add("admin@acme.example", "git.beyondnetglobal.com") // random token: no fence at add time
+	git := e.add("admin@acme.example", "git.example.org") // random token: no fence at add time
 	e.svc.cfg.DomainFence = &fakeFence{}
-	e.dns.put("beyondnetglobal.com", txtRecord(git.Token))
+	e.dns.put("example.org", txtRecord(git.Token))
 	r := e.verify(git.ID)
-	if !r.Verified || !strings.Contains(r.Message, "add the TXT record vedette-verify="+deepToken+" on beyondnetglobal.com too, keeping the current one") {
+	if !r.Verified || !strings.Contains(r.Message, "add the TXT record vedette-verify="+deepToken+" on example.org too, keeping the current one") {
 		t.Fatalf("%+v", r)
 	}
 }

@@ -1,6 +1,11 @@
 package exposure
 
-import "github.com/knt048/vedette/core/selfcheck"
+import (
+	"context"
+	"database/sql"
+
+	"github.com/knt048/vedette/core/selfcheck"
+)
 
 // The rules of the rows the scan writer keeps; each query counts the rows that break one.
 func init() {
@@ -31,5 +36,15 @@ func init() {
 		Name: "exposure.handled_issue_says_how",
 		Query: `SELECT count(*) FROM exp_issue WHERE (state = 'handled') <> (resolution IS NOT NULL AND resolved_by IS NOT NULL AND resolved_at IS NOT NULL)
 			OR (state <> 'handled' AND (resolved_by IS NOT NULL OR resolved_at IS NOT NULL OR accepted_until IS NOT NULL))`,
+	})
+	// A domain target that is a name under another domain target sits under it in the tree (the other is among its ancestors).
+	selfcheck.Register(selfcheck.Invariant{
+		Name:  "exposure.subdomain_target_under_its_parent",
+		Count: func(ctx context.Context, db *sql.DB) (int64, error) { return unplacedPairs(ctx, db) },
+	})
+	// No name is scanned by two enabled targets: a child scans its own names and its parent skips them.
+	selfcheck.Register(selfcheck.Invariant{
+		Name:  "exposure.name_scanned_by_one_target",
+		Count: func(ctx context.Context, db *sql.DB) (int64, error) { return doubleScanned(ctx, db) },
 	})
 }

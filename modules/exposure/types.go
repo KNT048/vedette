@@ -55,6 +55,8 @@ const (
 	// BlockedNotCurrent: the latest full check did not see this IP, so the box no longer
 	// reaches the Internet through this IP (INV-13).
 	BlockedNotCurrent BlockedReason = "ip_not_current"
+	// BlockedDisabled: the target is switched off (exp_target.enabled): nothing scans it, its addresses included.
+	BlockedDisabled BlockedReason = "disabled"
 )
 
 const (
@@ -341,6 +343,9 @@ type Content struct {
 	Unresolved []string `json:"-"`
 	// The NSE script results of a deep scan: a confirmed finding becomes an issue of the surface engine.
 	Scripts []ScriptRow `json:"-"`
+	// Listed are the names a domain's scan found under it and did not probe (ScanTarget.Names: another target scans them, or the
+	// scope leaves them out): name, source and CNAME only. They are stored as names of the target, with no address.
+	Listed []HostRow `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

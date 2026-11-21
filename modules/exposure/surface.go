@@ -39,9 +39,11 @@ const (
 	NotWordlistNoAnswer = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because the wildcard check got no answer from the DNS resolver."
 	// NotWordlistCut: some common names got no answer in the time the scan gives DNS lookups.
 	NotWordlistCut = "Common names (a list of about 150, such as vpn, mail and remote): not all tried, because some lookups got no answer from the DNS resolver in time."
-	notIPv6        = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
-	notResolved    = "Names whose address lookup got no answer this time (%s): shown as the last scan found them."
-	notByNameOnly  = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; accept this domain's testing terms (Ownership tab) for the deep scan of each address."
+	// NotWordlistChosen: the scope is the names chosen, so the common names are not tried for the others.
+	NotWordlistChosen = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because this target scans only the names you chose; a name only that list finds is not listed. Scan it once with the scope \"every name found\" to list them."
+	notIPv6           = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
+	notResolved       = "Names whose address lookup got no answer this time (%s): shown as the last scan found them."
+	notByNameOnly     = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; accept this domain's testing terms (Ownership tab) for the deep scan of each address."
 )
 
 // sanitizeHost limits one host row (INV-10): text bounded, a source and kinds from their lists, addresses that parse (the family is

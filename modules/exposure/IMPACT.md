@@ -1,5 +1,15 @@
 # Exposure — Change Impact Map
 
+## Modifying: the tree (`settleTree`, `handOver`, `parentOf`, `ownerOf`, `NamePlan`, `ScanTarget.Names`, `Content.Listed`, `AddNode`, `EditNode`, `uncover`, `exp_target.parent_id/scope_mode/enabled`, `exp_host.child_target_id/selected`) (INV-39)
+- The runner (`cmd/vedette/scan.go` `exposureRunner`) hands the plan (`Scans`, `Find`, `Choose`, `Chosen`) to `modules/scan/surface` `Scanner.Domain` as `surface.Names`, maps `Result.Skipped` to `Content.Listed` and `Result.NamesCut` to `NotNamesCut`; a name it does not own must never be probed (scan INV-12).
+- `deepGate` filters the names of a deep step by the plan; `writeScan` ends with `settleTree` and drops from `opened`/`new_issues` only what the settle folded into a row the receiver held before (`handLog`), so `exposure.scan.written` never reports a move and still reports a port new in that scan once.
+- The double-scan selfcheck reads the audit rows `exposure.target_add`/`_edit`/`_delete` (a change of who scans a name): renaming those actions breaks it.
+- `handOver` moves `exp_service`/`exp_issue` rows between targets: a new column on either table must be carried in its merge and copy statements.
+- Run items of kind `name` (`recordNames`) feed the double-scan selfcheck; `previousCheck` and `deepHistory` read kind `address` only.
+- The gate's `BlockedDisabled` reaches every scan path (`startScan`, `execute`, `deepGate`, `ModeNow`, the template and OpenVAS steps, `ScannableIP`, `CheckScannable`).
+- Selfcheck: `exposure.subdomain_target_under_its_parent`, `exposure.name_scanned_by_one_target` (`tree.go` counts, `selfcheck.go`).
+- Tests: `tree_test.go`, `tree_count_test.go` with `testdata/tree_targets.json`; the replay of `writer_test.go` expects the child's name in the apex without its address.
+
 ## Modifying: the scan writer (`writeScan`, `writeOpenVAS`, `closeVanished`, `writeIssues`), `exp_host`/`exp_address`/`exp_service`/`exp_issue`/`exp_scan` (INV-37)
 - Readers: `Hosts`, `Addresses`, `Services`, `Issues`, `Scans` (GET `/exposure/tree/{id}/*`), `latestResults` (the old target list), `Outside` (our ports beside Shodan's), `RecentScans` (Settings › Scanning › History).
 - `exposure.scan.written` is read by `cmd/vedette/exposureports.go` (response's new_port trigger): `opened` and `first`.
@@ -178,7 +188,7 @@
 - **ZAP với ProofAt** chỉ qua fence (token gắn hộp, domain trong danh sách của host); token cũ + ProofAt → `token_foreign`, không bao giờ `zapOwnedLegacy`.
 - **`Check.Covers`** (lưu trong cột `last_check` qua `storedCheck`, không vào API): lần kiểm cuối thấy bản ghi của chính mục tiêu trên chính tên nó; chỉ khi đó `covered_by` nêu nó. Check lưu trước thay đổi này không có cờ: `covered_by` không nêu nó tới lần kiểm kế (Check hay cổng quét).
 - **Ngân sách:** một lần kiểm (Check, cổng trước mỗi lần quét) có **một** deadline `dnsTimeout` = 5 s cho mọi lượt tra, cả phần giải thích khi không thấy; ứng viên chạy song song, có kết quả theo thứ tự gần nhất trước, và khi ứng viên gần nhất hợp lệ có kết quả thì mọi lượt tra còn lại bị huỷ.
-- **Số lượt tra** (L = số tên của chuỗi, ≤ 8; P = số mục tiêu domain của hộp ở tên cha; mỗi ứng viên `Owned`: TXT ở tên và ở `_vedette-verify.<tên>`, + CNAME của tên có bản ghi khớp, + TXT của tên ngẫu nhiên khi khớp ở `_vedette-verify`): không thấy gì = 2·(L+P) TXT + 3 TXT + ≤ 2 CNAME (giải thích); thấy ở gần nhất = khoảng 2 TXT + 1 CNAME rồi huỷ phần còn lại. git.beyondnetglobal.com (L = 2, P = 0): thấy ở đỉnh = 4 TXT + 1 CNAME; không thấy = 7 TXT + ≤ 2 CNAME. Tên 8 nhãn trở lên, P = 0: không thấy = 19 TXT + ≤ 2 CNAME.
+- **Số lượt tra** (L = số tên của chuỗi, ≤ 8; P = số mục tiêu domain của hộp ở tên cha; mỗi ứng viên `Owned`: TXT ở tên và ở `_vedette-verify.<tên>`, + CNAME của tên có bản ghi khớp, + TXT của tên ngẫu nhiên khi khớp ở `_vedette-verify`): không thấy gì = 2·(L+P) TXT + 3 TXT + ≤ 2 CNAME (giải thích); thấy ở gần nhất = khoảng 2 TXT + 1 CNAME rồi huỷ phần còn lại. git.example.org (L = 2, P = 0): thấy ở đỉnh = 4 TXT + 1 CNAME; không thấy = 7 TXT + ≤ 2 CNAME. Tên 8 nhãn trở lên, P = 0: không thấy = 19 TXT + ≤ 2 CNAME.
 
 ## Modifying: IP công cộng gõ vào (`Target.Typed`, `proveIP`, `liveTypedProof`, `RunIPRecheck`, job `ip-proof`, `exp_target.typed|ip_token|proof_method`, `Config.IPFetch`, `POST /exposure/targets` `kind`) (INV-35)
 - **Mọi cổng dùng bằng chứng IP gõ vào phải qua `liveTypedProof`:** `gate` (scan, OpenVAS again, `ScannableIP` của quét domain), `CheckOutside` (Shodan). Thêm đường gửi IP đi đâu đó mà không qua một trong hai là hở. `stillCurrent` và `checks.paused` (INV-13) chỉ dành cho IP hộp tự dò: IP gõ vào không "tạm dừng".

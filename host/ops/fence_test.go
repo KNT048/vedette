@@ -242,7 +242,7 @@ func TestExposureFenceCheck(t *testing.T) {
 	if j, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "git.example.com", Name: "git.example.com", IP: zapTestIP, Token: zapTestTok, ProofAt: "example.com"}); err != nil || j.ProofAt != "example.com" {
 		t.Fatalf("a parent name: %+v %v", j, err)
 	}
-	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "x.beyondhcm.ddns.net", Name: "x.beyondhcm.ddns.net", IP: zapTestIP, Token: zapTestTok, ProofAt: "ddns.net"}); err == nil {
+	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "x.example.ddns.net", Name: "x.example.ddns.net", IP: zapTestIP, Token: zapTestTok, ProofAt: "ddns.net"}); err == nil {
 		t.Fatal("a public suffix as the record's name was accepted")
 	}
 	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.evil.example", IP: zapTestIP, Token: zapTestTok}); err == nil {
@@ -522,7 +522,7 @@ func TestZapBaselineProofAtGoesThroughTheFence(t *testing.T) {
 	}
 	for _, bad := range []struct{ domain, host, at string }{
 		{"bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", "amazonaws.com"},
-		{"x.beyondhcm.ddns.net", "x.beyondhcm.ddns.net", "ddns.net"},
+		{"x.example.ddns.net", "x.example.ddns.net", "ddns.net"},
 		{"victim.github.io", "victim.github.io", "github.io"},
 		{"a.b.co.uk", "a.b.co.uk", "co.uk"},
 		{"git.example.com", "git.example.com", "git.example.com"},

@@ -14,8 +14,8 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-// Registered is the registered domain of name ("beyondnetglobal.com" for git.beyondnetglobal.com, "beyondhcm.ddns.net" for
-// x.beyondhcm.ddns.net); ok is false when name is a public suffix or under none.
+// Registered is the registered domain of name ("example.org" for git.example.org, "example.ddns.net" for
+// x.example.ddns.net); ok is false when name is a public suffix or under none.
 func Registered(name string) (string, bool) {
 	r, err := publicsuffix.EffectiveTLDPlusOne(name)
 	if err != nil || r == "" {

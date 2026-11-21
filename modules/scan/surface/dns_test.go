@@ -158,7 +158,7 @@ func TestDiscoveryAndKinds(t *testing.T) {
 		n := &fakeNet{open: map[string]handler{}}
 		log := &probeLog{}
 		got, err := newScanner(t, n, dns, ctAnswer(200, ctNames("www.acme.example", "shop.acme.example", "docs.acme.example", "v6only.acme.example", "intranet.acme.example", "old.acme.example"), &asked), log).
-			Domain(t.Context(), "acme.example", func(_ context.Context, a netip.Addr) bool { return a.String() == "203.0.113.10" })
+			Domain(t.Context(), "acme.example", Every, func(_ context.Context, a netip.Addr) bool { return a.String() == "203.0.113.10" })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -212,7 +212,7 @@ func TestWildcardSkipsTheWordlist(t *testing.T) {
 		dns := &fakeDNS{a: map[string][]netip.Addr{"acme.example": addrs("198.51.100.20")}, wildcard: "acme.example"}
 		var asked []string
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, "[]", &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return false })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,7 +236,7 @@ func TestNameCapCountsEverySource(t *testing.T) {
 			n := &fakeNet{open: map[string]handler{}}
 			var asked []string
 			_, err := newScanner(t, n, dns, ctAnswer(200, ctNames(ct...), &asked), &probeLog{}).
-				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true })
+				Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return true })
 			if mx == 1 && err != nil || mx == 2 && !errors.Is(err, ErrTooManyNames) || len(n.dialed) != 0 {
 				t.Fatalf("%d MX names: err %v, %d dials", mx, err, len(n.dialed))
 			}
@@ -267,7 +267,7 @@ func TestHostileDNSAnswers(t *testing.T) {
 		var asked []string
 		log := &probeLog{}
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), log).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return false })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -297,7 +297,7 @@ func TestWordlistFailsClosedAndStaysInItsBudget(t *testing.T) {
 			var asked []string
 			start := time.Now()
 			got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, "[]", &asked), &probeLog{}).
-				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+				Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return false })
 			if err != nil || got.Wordlist != c.want || len(got.Hosts) != 1 {
 				t.Fatalf("%s: err %v, wordlist %q, hosts %v", c.name, err, got.Wordlist, hostLines(got.Hosts))
 			}
@@ -320,7 +320,7 @@ func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
 		}
 		var asked []string
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return false })
 		if err != nil || !slices.Equal(got.Unresolved, []string{"www.acme.example"}) || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" {
 			t.Fatalf("err %v, unresolved %v, hosts %v", err, got.Unresolved, hostLines(got.Hosts))
 		}
@@ -328,7 +328,7 @@ func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
 		dns.fail["acme.example"] = true
 		n := &fakeNet{open: map[string]handler{}}
 		if _, err := newScanner(t, n, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
-			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true }); !errors.Is(err, ErrDNS) || len(n.dialed) != 0 {
+			Domain(t.Context(), "acme.example", Every, func(context.Context, netip.Addr) bool { return true }); !errors.Is(err, ErrDNS) || len(n.dialed) != 0 {
 			t.Fatalf("apex failed: err %v, %d dials", err, len(n.dialed))
 		}
 	})
@@ -346,4 +346,61 @@ func TestPublicV6(t *testing.T) {
 			t.Errorf("%s: %v, want %v", a, got, want)
 		}
 	}
+}
+
+// The 300-name rule counts the names the scan reaches: a child target's names do not count for its parent. A scope of "only this name"
+// looks nothing up but the domain, whatever the size of the domain; a scope of chosen names on a domain with too many names to list
+// falls back to the chosen ones and says so.
+func TestNameCapCountsOnlyTheNamesTheScopeReaches(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var ct []string
+		for i := range maxNames + 50 { // more than one scan reads, all under shop.acme.example but 10
+			ct = append(ct, fmt.Sprintf("h%d.shop.acme.example", i))
+		}
+		for i := range 10 {
+			ct = append(ct, fmt.Sprintf("w%d.acme.example", i))
+		}
+		a := map[string][]netip.Addr{"acme.example": addrs("203.0.113.10"), "w1.acme.example": addrs("203.0.113.10")}
+		may := func(context.Context, netip.Addr) bool { return false }
+		notShop := func(n string) bool { return n != "shop.acme.example" && !strings.HasSuffix(n, ".shop.acme.example") }
+
+		// every name but a child's: 11 names to scan, the child's 350 listed apart, never looked up
+		dns := &fakeDNS{a: a}
+		var asked []string
+		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames(ct...), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Names{Scans: notShop, Find: true}, may)
+		if err != nil || len(got.Skipped) != maxNames || got.NamesCut {
+			t.Fatalf("with the child's names apart: err %v, %d skipped, cut %v", err, len(got.Skipped), got.NamesCut)
+		}
+		// the same domain with every name: refused, nothing dialed
+		if _, err := newScanner(t, &fakeNet{open: map[string]handler{}}, &fakeDNS{a: a}, ctAnswer(200, ctNames(ct...), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Every, may); !errors.Is(err, ErrTooManyNames) {
+			t.Fatalf("every name: %v", err)
+		}
+		// only this name: no certificate search, one name looked up
+		asked = nil
+		dns = &fakeDNS{a: a}
+		got, err = newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames(ct...), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Names{Scans: func(n string) bool { return n == "acme.example" }}, may)
+		if err != nil || len(asked) != 0 || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" || len(got.Skipped) != 0 {
+			t.Fatalf("only this name: err %v, CT asked %v, hosts %+v", err, asked, got.Hosts)
+		}
+		// the names chosen, on a domain with too many names to list: the chosen ones only, and the result says why
+		var many []string
+		for i := range maxNames + 1 {
+			many = append(many, fmt.Sprintf("x%d.acme.example", i))
+		}
+		got, err = newScanner(t, &fakeNet{open: map[string]handler{}}, &fakeDNS{a: a}, ctAnswer(200, ctNames(many...), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Names{Scans: func(string) bool { return true }, Find: true, Choose: true, Chosen: []string{"w1.acme.example"}}, may)
+		if err != nil || !got.NamesCut || len(got.Hosts) != 2 || got.Hosts[1].Name != "w1.acme.example" {
+			t.Fatalf("chosen names, too many to list: err %v, cut %v, hosts %+v", err, got.NamesCut, got.Hosts)
+		}
+		// the names chosen on a domain that lists: the common names are not tried for the names nobody chose, and the result says so
+		got, err = newScanner(t, &fakeNet{open: map[string]handler{}}, &fakeDNS{a: a}, ctAnswer(200, ctNames("w1.acme.example", "w2.acme.example"), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", Names{Scans: func(n string) bool { return n == "w1.acme.example" }, Find: true, Choose: true, Chosen: []string{"w1.acme.example"}}, may)
+		if err != nil || got.NamesCut || got.Wordlist != WordlistChosen || len(got.Skipped) != 1 {
+			t.Fatalf("chosen names: err %v, wordlist %q, skipped %+v", err, got.Wordlist, got.Skipped)
+		}
+	})
 }

@@ -6,7 +6,7 @@ import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse, DeviceSourcesView,
   ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
-  DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult, SnmpSimilarResponse, SnmpApplyResponse,
+  DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -14,9 +14,10 @@ export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], q
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '' })
-/** The device's three source rows (network scan, SNMP, agent), each decided on the server. */
-export const useDeviceSourceRows = (id: string, enabled = true) =>
-  useQuery({ queryKey: ['inventory', 'device', id, 'sources'], queryFn: () => api.get<DeviceSourcesView>(`/inventory/devices/${encodeURIComponent(id)}/sources`), retry: false, enabled: enabled && id !== '' })
+/** The device's three source rows (network scan, SNMP, agent), each decided on the server. `modules` names the state of the modules
+ *  behind them, so turning one on or off (from a row or from Settings) reads the rows again. */
+export const useDeviceSourceRows = (id: string, modules: string, enabled = true) =>
+  useQuery({ queryKey: ['inventory', 'device', id, 'sources', modules], queryFn: () => api.get<DeviceSourcesView>(`/inventory/devices/${encodeURIComponent(id)}/sources`), retry: false, enabled: enabled && id !== '' })
 /** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */
 export const CATALOG_Q_MAX = 80
 export const catalogPath = (q: string) => `/inventory/catalog?q=${encodeURIComponent(q.trim().slice(0, CATALOG_Q_MAX).trim())}`
@@ -179,7 +180,7 @@ export function useAddScopeRange() {
 export function useAgentActions() {
   const inv = useInvalidate()
   return {
-    create: useMutation({ mutationFn: (b: { name: string; kind?: AgentKind; expires_in_days?: number }) => api.post<CreateTokenResult>('/inventory/agents/tokens', b), onSuccess: inv }),
+    create: useMutation({ mutationFn: (b: { name: string; kind?: AgentKind; expires_in_days?: number; device_id?: string }) => api.post<CreateTokenResult>('/inventory/agents/tokens', b), onSuccess: inv }),
     /** Every token no machine enrolled with goes; tokens with machines stay. */
     removeUnused: useMutation({ mutationFn: () => api.post<{ removed: number }>('/inventory/agents/tokens/remove-unused'), onSuccess: inv }),
     revoke: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/tokens/${encodeURIComponent(id)}`), onSuccess: inv }),
@@ -215,16 +216,3 @@ export function useDeviceSnmpActions(id: string) {
   }
 }
 
-/** The checklist of "Use these settings on similar devices": devices of the same maker or type without SNMP settings of their own. Asked
- *  only when the dialog opens. */
-export const useSnmpSimilar = (id: string, enabled: boolean) =>
-  useQuery({ queryKey: ['inventory', 'snmp', 'similar', id], queryFn: () => api.get<SnmpSimilarResponse>(`/inventory/snmp/devices/${encodeURIComponent(id)}/similar`), retry: false, enabled })
-
-/** Applies this device's SNMP settings to the ticked devices; the box copies the secret itself. */
-export function useApplySnmpSimilar(id: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (device_ids: string[]) => api.post<SnmpApplyResponse>(`/inventory/snmp/devices/${encodeURIComponent(id)}/apply-similar`, { device_ids }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
-  })
-}

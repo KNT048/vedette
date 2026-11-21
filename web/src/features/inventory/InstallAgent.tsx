@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Segmented } from '@/components/ui/segmented'
 import { kindLabel } from '@/lib/deviceTypes'
+import { fmtRelative } from '@/lib/format'
 import { InstallPanel, TokenError } from './AgentsSection'
 import type { Platform } from './agentConfig'
 import { useAgentActions, useAgents } from './api'
 import { nameOf } from './nameOf'
-import type { AgentsResponse, CreateTokenResult, DeviceDetail } from './types'
+import type { AgentsResponse, AgentToken, CreateTokenResult, DeviceDetail } from './types'
 
 /** What the box can install osquery on: Linux and Windows servers. A Mac (or any other system) is told so instead of being offered a command. */
 export type KnownOs = Platform | 'unsupported'
@@ -37,12 +38,12 @@ export function osOf(d: DeviceDetail): KnownOs | null {
  *  download and the enrollment steps) folded until opened. The enrollment token is made by one click on "Create install command",
  *  never by opening the dialog or choosing a system; it is shown once with the command. `onCreated` tells the caller a secret is on screen (Add a device then keeps
  *  its method picker out of the way, so the only copy is not lost). */
-export function AgentInstall({ tokenName, known = null, onCreated }: { tokenName: string; known?: KnownOs | null; onCreated?: (on: boolean) => void }) {
+export function AgentInstall({ tokenName, known = null, deviceId, onCreated }: { tokenName: string; known?: KnownOs | null; deviceId?: string; onCreated?: (on: boolean) => void }) {
   const q = useAgents(true)
-  return <QueryState query={q}>{(data) => <InstallFlow data={data} tokenName={tokenName} known={known} onCreated={onCreated} />}</QueryState>
+  return <QueryState query={q}>{(data) => <InstallFlow data={data} tokenName={tokenName} known={known} deviceId={deviceId} onCreated={onCreated} />}</QueryState>
 }
 
-function InstallFlow({ data, tokenName, known, onCreated }: { data: AgentsResponse; tokenName: string; known: KnownOs | null; onCreated?: (on: boolean) => void }) {
+function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: AgentsResponse; tokenName: string; known: KnownOs | null; deviceId?: string; onCreated?: (on: boolean) => void }) {
   const { t } = useTranslation('inventory')
   const { create } = useAgentActions()
   const [platform, setPlatform] = useState<PickOs | null>(known && known !== 'unsupported' ? known : null)
@@ -53,7 +54,8 @@ function InstallFlow({ data, tokenName, known, onCreated }: { data: AgentsRespon
   // The token is made by the button only, once: choosing or switching the system afterwards only changes the command.
   const make = () => {
     setError(null)
-    create.mutate({ name: tokenName.slice(0, 64), kind: 'osquery', expires_in_days: 7 }, {
+    // made for a device, the token is that device's: its agent row offers Show setup until a machine enrolls with it
+    create.mutate({ name: tokenName.slice(0, 64), kind: 'osquery', expires_in_days: 7, device_id: deviceId }, {
       onSuccess: (r) => { setToken(r); onCreated?.(true) },
       onError: setError,
     })
@@ -105,14 +107,53 @@ function OsPicker({ platform, onChange }: { platform: PickOs | null; onChange: (
   )
 }
 
-/** "Install osquery" on a device's page: the install for THIS device, with its system already chosen when it is known. */
+/** "Create agent token" on a device's page: the install for THIS device, with its system already chosen when it is known; the token
+ *  is made for the device. */
 export function InstallOnDeviceDialog({ d, onClose }: { d: DeviceDetail; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent wide title={t('agents.onDevice.title', { name })} description={t('agents.onDevice.body')}>
-        <AgentInstall tokenName={name} known={osOf(d)} />
+        <AgentInstall tokenName={name} known={osOf(d)} deviceId={d.asset.id} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** "Show setup" on a device's page: the token made for this device (its secret was shown once, when it was made) and the install
+ *  command for the device's system with the token's place marked; a new token for the device is one click away when the old one
+ *  is lost. */
+export function AgentSetupDialog({ d, token, onClose }: { d: DeviceDetail; token: AgentToken | null; onClose: () => void }) {
+  const { t } = useTranslation('inventory')
+  const name = nameOf(d.asset, kindLabel(d.asset.kind))
+  const q = useAgents(true)
+  const [fresh, setFresh] = useState(false)
+  const known = osOf(d)
+  const [picked, setPicked] = useState<PickOs | null>(known && known !== 'unsupported' ? known : null)
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent wide title={t('agents.setup.title', { name })} description={t('agents.setup.body')}>
+        {fresh || !token ? <AgentInstall tokenName={name} known={known} deviceId={d.asset.id} /> : (
+          <QueryState query={q}>
+            {(data) => (
+              <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
+                <p className="text-sm" data-testid="agent-setup-token">
+                  <span className="font-medium">{token.name}</span>{' '}
+                  <span className="whitespace-nowrap font-mono text-meta">{t('agents.tokenMask', { last4: token.last4 })}</span>{' '}
+                  <span className="text-meta text-muted">{token.expires_at ? t('agents.setup.expires', { when: fmtRelative(token.expires_at) }) : t('agents.noExpiry')}</span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-meta text-muted">{t('agents.setup.lost')}</p>
+                  <Button size="sm" onClick={() => setFresh(true)}>{t('agents.setup.newToken')}</Button>
+                </div>
+                <OsPicker platform={picked} onChange={setPicked} />
+                {picked ? <InstallPanel data={data} token="<TOKEN>" platform={picked} /> : null}
+                <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
+              </div>
+            )}
+          </QueryState>
+        )}
       </DialogContent>
     </Dialog>
   )

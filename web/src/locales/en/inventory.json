@@ -23,64 +23,86 @@
   },
   "sources": {
     "title": "Sources",
-    "description": "What tells Vedette about this device. Several can feed it at once: an agent's values come first, then SNMP, then scans, then passive listening.",
-    "feeds": "Reporting",
-    "notYet": "Not set up",
-    "lastSeen": "last report {{when}}",
-    "lastCheck": "last check {{when}}",
-    "lastSeenScan": "seen by a network scan {{when}}",
-    "added": "added {{when}}",
-    "lastChanged": "last changed {{when}}",
+    "info": "What tells Vedette about this device. Several can feed it at once: an agent's values come first, then SNMP, then scans, then passive listening. Values you enter win over all of them.",
+    "lastAt": "last report {{when}}",
     "name": {
       "scan": "Network scan",
-      "passive": "Passive listening",
       "snmp": "SNMP",
-      "agent": "Agent (osquery or Wazuh)",
-      "manual": "Manual"
+      "agent": "Agent"
     },
     "what": {
       "scan": "The box's active scan, in the scan window you set: open ports, services and a guess of the operating system.",
-      "passive": "What the sensor hears on the network: the MAC, the name the device gives itself, its maker.",
       "snmp": "Read-only questions to the device, with the community or v3 user set up on it here: maker, model and firmware version, as the device states them. For switches, routers, printers and firewalls.",
-      "agent": "osquery on the machine (or Wazuh) sends its installed software with exact versions. For PCs and servers. When the machine gets a new address, its reports stay on this device.",
-      "manual": "What you entered yourself. It wins over every other source."
+      "agent": "osquery on the machine (or Wazuh) sends its installed software with exact versions. For PCs and servers; on network gear SNMP reads the firmware version. When the machine gets a new address, its reports stay on this device."
     },
-    "both": "To switch from SNMP to an agent or back, set up the new one first, then stop the old one: uninstall osquery on the machine, or remove SNMP from this device.",
-    "noIp": "Needs an IP address.",
-    "adminOnly": "An administrator sets this up.",
+    "agentKind": {
+      "osquery": "osquery",
+      "wazuh": "Wazuh",
+      "box": "this box"
+    },
+    "state": {
+      "module_off": "Module off",
+      "no_address": "Needs an IP address",
+      "off": "Off",
+      "offByHand": "Off · Added by hand: nothing is sent to it until you turn this on",
+      "waiting": {
+        "scan": "On, not checked yet",
+        "snmp": "Waiting for the first read",
+        "agent": "Waiting for the agent to enroll"
+      },
+      "working": "Working",
+      "not_approved": "Device not added yet",
+      "not_set_up": "Not set up",
+      "not_answering": "Not answering",
+      "none": "No agent",
+      "reporting": "Reporting",
+      "reportingBy": "Reporting ({{agent}})",
+      "quiet": "Quiet since {{when}}",
+      "quietUnknown": "Quiet",
+      "never_reported": "Enrolled, never reported",
+      "replaced": "Replaced by a newer enrolment",
+      "unavailable": "Not known just now",
+      "box": "Read by the box itself",
+      "ignored": "Not read: the device is ignored"
+    },
+    "only": {
+      "passive": "Seen passively",
+      "manual": "Added by hand"
+    },
+    "moduleOff": {
+      "scan": "Active discovery is off.",
+      "snmp": "Active discovery is off.",
+      "agent": "The Agents module is off."
+    },
+    "action": {
+      "approve": "Add device",
+      "set_up": "Set up",
+      "check_now": "Check now",
+      "create_token": "Create agent token",
+      "show_setup": "Show setup",
+      "check": "Check"
+    },
     "agent": {
-      "off": "Turn on the Agents module in Settings to use osquery or Wazuh.",
-      "add": "Install osquery",
-      "manage": "Agents and tokens",
-      "gearHint": "Agents run on computers and servers. For this device, SNMP reads the firmware version.",
-      "unknownHint": "Agents run on computers and servers. If this is network gear, SNMP reads its firmware version instead.",
-      "how": "An agent is installed or uninstalled on the machine itself, not switched here."
+      "manage": "Agents and tokens"
     },
     "scan": {
-      "on": "On",
       "firstTonight": "On · first check tonight at {{time}}, in the scan window",
       "firstToday": "On · first check today at {{time}}, in the scan window",
       "firstTomorrow": "On · first check tomorrow at {{time}}, in the scan window",
       "firstDay": "On · first check on {{day}} at {{time}}, in the scan window",
       "firstNow": "On · first check runs during this scan window",
       "firstNext": "On · first check in the next scan window",
+      "checked": "On · last check {{when}}: nothing answered yet",
       "waiting": {
         "off": "On · first check waits: active discovery is off",
         "scope": "On · first check waits: the scan ranges are not confirmed",
         "outside": "On · first check waits: the device is outside the scan ranges"
       }
     },
-    "snmp": {
-      "off": "Turn on active discovery in Settings to read devices with SNMP.",
-      "setUp": "Set up",
-      "approveHere": "Approve, then set up SNMP",
-      "approveFirst": "Approve the device first: SNMP reads only approved devices."
-    },
-    "declared": "Added by hand: Vedette sends nothing to it until you turn its network scan on or set up SNMP here.",
-    "declaredScanOff": "Added by hand: Vedette does not scan it (no device check, no vulnerability check) until you turn its network scan on here.",
     "toggle": {
       "scan": "Network scan of this device",
-      "snmp": "SNMP reads of this device"
+      "snmp": "SNMP reads of this device",
+      "agent": "Agent data of this device"
     },
     "meaning": {
       "scan": {
@@ -89,10 +111,11 @@
       },
       "snmp": {
         "on": "On: read with the SNMP settings of this device at its read address; outside the LAN ranges only because it is on here; never if excluded. Turning it off stops all SNMP to it.",
-        "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win.",
-        "offOutside": "Off: this device is outside the LAN ranges, so SNMP reads it only once you turn it on here. Nothing is sent to it now.",
-        "notSetUp": "Not set up: no SNMP read goes to this device. Setting SNMP up on it turns SNMP on.",
-        "setUpLink": "Set it up in Sources"
+        "off": "Off: no SNMP read goes to this device. What it read stays; values you entered still win."
+      },
+      "agent": {
+        "on": "On: the agent's data of this device counts. Turning it off refuses its data and its readings stop counting.",
+        "off": "Off: the agent's data of this device is refused and its readings do not count. Turning it on takes them again."
       }
     },
     "saved": {
@@ -103,6 +126,10 @@
       "snmp": {
         "on": "SNMP on for {{name}}.",
         "off": "SNMP off for {{name}}: nothing more is sent to it."
+      },
+      "agent": {
+        "on": "Agent data on for {{name}}: the agent is asked to send its software now.",
+        "off": "Agent data off for {{name}}: its readings no longer count."
       }
     }
   },
@@ -339,13 +366,9 @@
       "overview": "Overview",
       "software": "Software",
       "services": "Services",
-      "observations": "Observations"
-    },
-    "kpi": {
-      "label": "This device at a glance",
-      "findings": "Open findings",
-      "software": "Software",
-      "services": "Open services"
+      "observations": "Observations",
+        "softwareCount": "software",
+        "servicesCount": "open services"
     },
     "metaLine": "{{kind}}, last seen {{when}}",
     "metaLineNeverSeen": "{{kind}}, added by hand {{when}}, never seen on the network"
@@ -710,6 +733,34 @@
     "onDevice": {
       "title": "Install osquery on {{name}}",
       "body": "Run one command on this machine. It then reports its installed software with exact versions."
+    },
+    "setup": {
+      "title": "Agent setup of {{name}}",
+      "body": "The token made for this device and the install command to run on it.",
+      "expires": "expires {{when}}",
+      "lost": "The token itself was shown once, when it was made: put it in place of <TOKEN>.",
+      "newToken": "Make a new token"
+    },
+    "check": {
+      "title": "Agent on {{name}}",
+      "reporting": "Reporting: last report {{when}}",
+      "quiet": "Quiet since {{when}}",
+      "quietUnknown": "Quiet",
+      "off": "Off for this device: its data is refused.",
+      "calls": "It reports every {{every}}; it is called quiet after three of those without a call.",
+      "pulls": "Vedette pulls from the Wazuh server every {{every}}; quiet after three pulls without this device.",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "service": "Check the service",
+      "reach": "Check that it reaches Vedette",
+      "reachBody": "On the machine, test that it can open Vedette at {{box}}: no firewall or proxy may block it.",
+      "reachBodyNoBox": "On the machine, test that it can open the box address: no firewall or proxy may block it.",
+      "wazuhBody": "This device is read through your Wazuh server.",
+      "wazuhLink": "Wazuh connection"
     },
     "title": "Agents on servers",
     "description": "An agent tells Vedette exactly which software runs on a server.",
@@ -1212,10 +1263,10 @@
     }
   },
   "risk": {
-    "exploitedAria_one": "{{count}} open exploited finding to fix on this device: open its To fix",
-    "exploitedAria_other": "{{count}} open exploited findings to fix on this device: open its To fix",
-    "updateAria_one": "No exploited finding, but {{count}} recommended update fixes a CVE likely to be exploited or of high severity: open its To fix",
-    "updateAria_other": "No exploited finding, but {{count}} recommended updates fix a CVE likely to be exploited or of high severity: open its To fix",
+    "exploitedAria_one": "{{count}} open exploited finding on this device: open its findings",
+    "exploitedAria_other": "{{count}} open exploited findings on this device: open its findings",
+    "updateAria_one": "No exploited finding, but {{count}} recommended update fixes a CVE likely to be exploited or of high severity: open its findings",
+    "updateAria_other": "No exploited finding, but {{count}} recommended updates fix a CVE likely to be exploited or of high severity: open its findings",
     "column": "Risk",
     "chipExploited": "Exploited",
     "chipUpdate": "Update recommended",
@@ -1248,7 +1299,7 @@
   },
   "deviceSnmp": {
     "title": "SNMP",
-    "detailsSummary": "Settings and what answered",
+    "checkTitle": "SNMP of {{name}}",
     "description": "Read-only SNMP questions to this device: maker, model, serial number and firmware, as it states them.",
     "descriptionInfo": "Vedette sends only read-only GET requests, in the scan window and when you press Check now, to one address: the device's IP, or the management address you set as Read from. The community or passwords are stored encrypted and shown only by their last 4 characters.",
     "state": {
@@ -1274,7 +1325,8 @@
       "pendingNoIp": "Reading the device with SNMP… this takes up to 15 seconds.",
       "answered": "{{name}} answered SNMP.",
       "failed": "Nothing was sent",
-      "noAnswer": "{{name}} did not answer SNMP. The SNMP row says why."
+      "noAnswer": "{{name}} did not answer SNMP.",
+      "again": "Check again"
     },
     "readFrom": "Read from",
     "readFromOwn": "(the device's IP)",
@@ -1398,22 +1450,6 @@
       "label": "Devices with SNMP set up",
       "at": "{{ip}}, {{version}}",
       "blocked": "Nothing is sent now: open the device to see why"
-    },
-    "similar": {
-      "button": "Use on similar devices",
-      "title": "Use these settings on similar devices",
-      "description": "Copy this device's SNMP settings to devices of the same maker or type that have none of their own.",
-      "legend": "Devices to copy the settings to",
-      "none": "No similar devices without SNMP settings of their own.",
-      "notApproved": "Not approved yet: the settings are saved, nothing is sent until you approve it.",
-      "noteTitle": "What this does",
-      "note": "The community or passwords are copied on the box and never shown. Each device is read only at its own address, now and in the scan window.",
-      "apply_one": "Use on {{count}} device",
-      "apply_other": "Use on {{count}} devices",
-      "applied_one": "SNMP settings saved on {{count}} device; reading it now.",
-      "applied_other": "SNMP settings saved on {{count}} devices; reading them now.",
-      "results": "Result per device",
-      "saved": "Settings saved, read queued."
     }
   }
 }

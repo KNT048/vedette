@@ -19,13 +19,21 @@ const setSeen = (id: string, at: string) => assetsStore.update((l) => l.map((a) 
 const on = () => modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
 
 describe('A quiet agent is shown where the person looks', () => {
-  it('the device page says since when and gives the Windows commands once the agent is past its schedule', async () => {
+  it('the device page: the agent row says since when it is quiet, no "last report" beside it; Check gives the Windows commands', async () => {
     on()
     const since = hoursAgo(72)
     setSeen('a-srvacc', since)
+    const user = userEvent.setup()
     renderApp('/devices/a-srvacc', { role: 'admin' })
     const list = await screen.findByRole('list', { name: 'Sources' }, T)
-    const note = await within(list).findByTestId('agent-quiet', undefined, T)
+    const row = await waitFor(() => { const li = list.querySelector<HTMLElement>('li[data-source="agent"]')!; expect(li).toHaveAttribute('data-state', 'quiet'); return li }, T)
+    expect(row).toHaveTextContent(/Quiet since 3 days ago/)
+    expect(row).not.toHaveTextContent(/last report/)
+    // the steps are behind Check, never on the page by default
+    expect(within(list).queryByTestId('agent-quiet')).toBeNull()
+    await user.click(within(row).getByRole('button', { name: 'Check' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Agent on SRV-ACCOUNTS' }, T)
+    const note = await within(dlg).findByTestId('agent-quiet', undefined, T)
     expect(note).toHaveTextContent(/^Agent quiet since .* — check the service on the device/)
     expect(note).toHaveTextContent(new Date(since).getFullYear().toString())
     expect(within(note).getByText('Get-Service osqueryd')).toBeInTheDocument()
@@ -38,12 +46,14 @@ describe('A quiet agent is shown where the person looks', () => {
     expect(await within(note).findByText(/^Test-NetConnection .* -Port \d+$/, undefined, T)).toBeInTheDocument()
   })
 
-  it('an agent that called a minute ago shows no warning', async () => {
+  it('an agent that called a minute ago reads Reporting with its last report, and no warning', async () => {
     on()
     setSeen('a-srvacc', hoursAgo(0))
     renderApp('/devices/a-srvacc', { role: 'admin' })
     const list = await screen.findByRole('list', { name: 'Sources' }, T)
-    await within(list).findByText('Agent (osquery or Wazuh)', undefined, T)
+    const row = await waitFor(() => { const li = list.querySelector<HTMLElement>('li[data-source="agent"]')!; expect(li).toHaveAttribute('data-state', 'reporting'); return li }, T)
+    expect(row).toHaveTextContent('Reporting (osquery)')
+    expect(row).toHaveTextContent(/last report/)
     expect(within(list).queryByTestId('agent-quiet')).toBeNull()
   })
 

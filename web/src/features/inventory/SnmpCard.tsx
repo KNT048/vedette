@@ -21,7 +21,6 @@ import { ScopeButton } from '@/features/scanning/Fixes'
 import { useDeviceAction, useDeviceSnmp, useDeviceSnmpActions, useDeviceSources, useDismissSnmpNotices, useSnmp } from './api'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
-import { SnmpSimilarButton } from './SnmpSimilar'
 import type { DeviceDetail, DeviceSnmp, DeviceSnmpInput, SnmpAuth, SnmpDeviceRow, SnmpPriv, SnmpState, SnmpVersion } from './types'
 import { IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
 
@@ -51,8 +50,8 @@ export function SnmpStateLabel({ state }: { state: SnmpState }) {
 }
 
 /** Everything the SNMP row of a device's Sources list needs: the device's SNMP state, the other devices' settings (to copy from), and
- *  the person's dialogs (edit, remove) and the last Check now message. `enabled` is false for a device or person that has no SNMP row
- *  (not an admin, active discovery off): nothing is asked of the box then. */
+ *  the person's dialogs (check, edit, remove) and the last Check now message. `enabled` is false for a device or person that has no
+ *  SNMP row (not an admin, active discovery off): nothing is asked of the box then. */
 export function useSnmpSource(d: DeviceDetail, enabled: boolean) {
   const { t } = useTranslation('inventory')
   const id = d.asset.id
@@ -62,15 +61,19 @@ export function useSnmpSource(d: DeviceDetail, enabled: boolean) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [checked, setChecked] = useState<{ message: string } | null>(null)
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
+  /** Check now: read the device at once and open the dialog that shows the answer, the settings and what answered. */
   const check = () => {
     setChecked(null)
+    setChecking(true)
     act.check.mutate(undefined, {
       onSuccess: (r) => {
         qc.setQueryData(['inventory', 'snmp', 'device', id], r.snmp)
+        void qc.invalidateQueries({ queryKey: ['inventory', 'device', id, 'sources'] })
         if (r.ok) toast.success(t('deviceSnmp.check.answered', { name }))
-        // the device itself did not answer: the state says why; a refusal (nothing sent) is said here
+        // the device itself did not answer: the state says why; a refusal (nothing sent) is said in the dialog
         else if (DEVICE_OUTCOME.has(r.reason)) toast.error(t('deviceSnmp.check.noAnswer', { name }))
         else setChecked({ message: r.message })
       },
@@ -79,47 +82,51 @@ export function useSnmpSource(d: DeviceDetail, enabled: boolean) {
   }
   // the routes answer 404 module_off while active discovery is off (the module list may lag a moment): no SNMP row content then
   const off = q.error instanceof ApiError && q.error.status === 404
-  return { q, list, act, editing, setEditing, removing, setRemoving, checked, setChecked, check, name, off }
+  return { q, list, act, editing, setEditing, removing, setRemoving, checking, setChecking, checked, setChecked, check, name, off }
 }
 export type SnmpSource = ReturnType<typeof useSnmpSource>
 
-/** The buttons of the SNMP row: Set up while the device has no SNMP settings, else Check now, Edit and Remove. */
-export function SnmpSourceActions({ d, src }: { d: DeviceDetail; src: SnmpSource }) {
-  const { t } = useTranslation('inventory')
+/** Why SNMP sends nothing to the device now, under its row, with the fix where it can be made (moved, secret lost, switched off…). */
+export function SnmpBlockedLine({ d, src }: { d: DeviceDetail; src: SnmpSource }) {
   const s = src.q.data
-  if (!s || src.off) return null
-  if (s.state === 'not_set_up') return own(d) ? <Button size="sm" variant="primary" onClick={() => src.setEditing(true)}>{t('sources.snmp.setUp')}</Button> : null
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="primary" busy={src.act.check.isPending} busyLabel={t('common:busy.checking')} disabled={src.act.remove.isPending} onClick={src.check}>{t('deviceSnmp.check.button')}</Button>
-      {s.state === 'working' ? <SnmpSimilarButton id={d.asset.id} /> : null}
-      <Button size="sm" onClick={() => src.setEditing(true)}><Pencil />{t('deviceSnmp.edit')}</Button>
-      <Button size="sm" onClick={() => src.setRemoving(true)}><Trash2 />{t('deviceSnmp.remove')}</Button>
-    </span>
-  )
+  if (src.off || !s?.blocked) return null
+  return <Blocked d={d} s={s} onEdit={() => src.setEditing(true)} />
 }
 
-/** The state of the device's SNMP on its row (working, not answering, waiting, not set up; the last read; what answered) and the
- *  dialogs the row's buttons open: the settings form and the removal confirmation, all in place. */
-export function SnmpSourceBody({ d, src }: { d: DeviceDetail; src: SnmpSource }) {
+/** The dialogs of the SNMP row: Check now (the state and why, the settings, the times and what answered, with Edit and Remove), the
+ *  settings form, and the removal confirmation. */
+export function SnmpDialogs({ d, src }: { d: DeviceDetail; src: SnmpSource }) {
   const { t } = useTranslation('inventory')
   const id = d.asset.id
   const { q, list, act, checked, name } = src
   if (src.off) return null
   const s = q.data
   const ip = own(d)
+  const edit = () => { src.setChecking(false); src.setEditing(true) }
   return (
     <>
-      {q.isPending ? <p className="text-meta text-muted">{t('common:loading')}</p>
-        : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-        : (
+      <Dialog open={src.checking} onOpenChange={(o) => { if (!o) src.setChecking(false) }}>
+        <DialogContent wide title={t('deviceSnmp.checkTitle', { name })}>
           <div className="grid min-w-0 gap-3 [&>*]:min-w-0" data-testid="snmp-state">
             {list.data && !list.data.ready ? <Notice tone="warn" role="status" className="mb-0" title={t('deviceSnmp.notReady')}>{list.data.message}</Notice> : null}
-            <StateView d={d} s={q.data} onEdit={() => src.setEditing(true)} compact />
-            <BusyNote busy={act.check.isPending}>{(q.data.read_from ?? ip) ? t('deviceSnmp.check.pending', { ip: q.data.read_from ?? ip }) : t('deviceSnmp.check.pendingNoIp')}</BusyNote>
+            <BusyNote busy={act.check.isPending}>{(s?.read_from ?? ip) ? t('deviceSnmp.check.pending', { ip: s?.read_from ?? ip }) : t('deviceSnmp.check.pendingNoIp')}</BusyNote>
             {checked && !act.check.isPending ? <Notice tone="danger" role="alert" className="mb-0" title={t('deviceSnmp.check.failed')}>{checked.message}</Notice> : null}
+            {q.isPending ? <p className="text-meta text-muted">{t('common:loading')}</p>
+              : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+              : <StateView d={d} s={q.data} onEdit={edit} />}
           </div>
-        )}
+          <DialogFooter>
+            {s && s.state !== 'not_set_up' ? (
+              <span className="mr-auto flex flex-wrap gap-2">
+                <Button onClick={edit}><Pencil />{t('deviceSnmp.edit')}</Button>
+                <Button onClick={() => { src.setChecking(false); src.setRemoving(true) }}><Trash2 />{t('deviceSnmp.remove')}</Button>
+              </span>
+            ) : null}
+            <Button busy={act.check.isPending} busyLabel={t('common:busy.checking')} onClick={src.check}>{t('deviceSnmp.check.again')}</Button>
+            <DialogClose asChild><Button variant="primary">{t('common:close')}</Button></DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {src.editing && s ? <SnmpDialog d={d} s={s} others={(list.data?.devices ?? []).filter((x) => x.device_id !== id)} onClose={() => src.setEditing(false)} /> : null}
       <Dialog open={src.removing} onOpenChange={(o) => { if (!o) src.setRemoving(false) }}>
         <DialogContent title={t('deviceSnmp.removeTitle', { name })} description={t('deviceSnmp.removeBody')}>
@@ -146,8 +153,8 @@ function Mask({ last4 }: { last4: string }) {
   return last4 ? <span className="whitespace-nowrap font-mono text-meta">{t('agents.tokenMask', { last4 })}</span> : <span className="text-muted">{t('deviceSnmp.secretShort')}</span>
 }
 
-/** What the card shows: the state and why, the settings (secrets as their last 4 characters), the times, and what answered. */
-function StateView({ d, s, onEdit, compact = false }: { d: DeviceDetail; s: DeviceSnmp; onEdit: () => void; compact?: boolean }) {
+/** What Check now shows: the state and why, the settings (secrets as their last 4 characters), the times, and what answered. */
+function StateView({ d, s, onEdit }: { d: DeviceDetail; s: DeviceSnmp; onEdit: () => void }) {
   const { t } = useTranslation('inventory')
   const row = (label: string, value: ReactNode) => <div className="contents"><dt className="text-meta text-muted">{label}</dt><dd className="min-w-0 text-sm [overflow-wrap:anywhere]">{value}</dd></div>
   if (s.state === 'not_set_up') {
@@ -158,10 +165,6 @@ function StateView({ d, s, onEdit, compact = false }: { d: DeviceDetail; s: Devi
       </div>
     )
   }
-  // on the device's Sources row the details fold away; the state and the last read stay in view
-  const wrap = (children: ReactNode) => compact
-    ? <details className="rounded-md border border-rule p-3"><summary className="cursor-pointer text-sm font-medium">{t('deviceSnmp.detailsSummary')}</summary><div className="mt-3 grid min-w-0 gap-3 [&>*]:min-w-0">{children}</div></details>
-    : <>{children}</>
   const a = s.answer
   const answerRows = a ? ([
     ['sysName', a.sys_name], ['vendor', [a.vendor, a.product].filter(Boolean).join(' ')], ['model', a.model], ['serial', a.serial],
@@ -178,8 +181,6 @@ function StateView({ d, s, onEdit, compact = false }: { d: DeviceDetail; s: Devi
         </p>
       </div>
       {s.blocked ? <Blocked d={d} s={s} onEdit={onEdit} /> : null}
-      {compact ? <p className="text-meta text-muted">{t('deviceSnmp.lastRead')}: <When at={s.last_checked_at} none={t('deviceSnmp.notYet')} /></p> : null}
-      {wrap(<>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[minmax(140px,max-content)_1fr]">
         {row(t('deviceSnmp.readFrom'), <>{s.read_from} <span className="text-meta text-muted">{s.read_from === s.ip ? t('deviceSnmp.readFromOwn') : t('deviceSnmp.readFromOther')}</span></>)}
         {row(t('deviceSnmp.version'), s.version === 'v3' ? t('deviceSnmp.v3User', { user: s.username ?? '' }) : t('deviceSnmp.v2c'))}
@@ -203,7 +204,6 @@ function StateView({ d, s, onEdit, compact = false }: { d: DeviceDetail; s: Devi
           <p className="text-caption text-muted">{t('deviceSnmp.answer.check')}</p>
         </div>
       ) : null}
-      </>)}
     </>
   )
 }

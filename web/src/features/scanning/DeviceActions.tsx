@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
 import type { DeviceRow } from '@/features/inventory/types'
@@ -119,10 +120,12 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
     <div className="flex flex-wrap items-start gap-3">
       {r === 'manual' ? <p className="text-meta text-muted"><ScanOffSeeSources link={!d?.ignored_at} /></p>
         : r ? <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p> : (
-        <div className="grid max-w-xs gap-1">
+        // what the button does sits behind its info icon (and is the button's description for screen readers)
+        <span className="inline-flex items-start gap-1">
           <ScanNowButton targets={[assetId]} size="sm" describedBy={hint} />
-          <p id={hint} className="text-meta text-muted">{t('hint.identify')}</p>
-        </div>
+          <InfoTip topic={t('scanNow.device')} className="sm:mt-1">{t('hint.identify')}</InfoTip>
+          <span id={hint} hidden>{t('hint.identify')}</span>
+        </span>
       )}
       {/* a device added by hand with its network scan off: the scan list's reason is that same switch, already pointed at */}
       {r === 'manual' && vuln === 'regular_scan_never' ? null : <DeviceVulnChecks assetId={assetId} vuln={vuln} />}
@@ -139,17 +142,15 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   if (vuln === 'off') return null
   if (vuln) return <p className="text-meta text-muted">{t(`scan:reason.${vuln}`)}</p>
   if (c.pending) return null // the count decides whether a run is offered: wait for it
-  // nothing a run could confirm or rule out: no button that runs for nothing, and why (nothing suspected, or no check exists)
-  if (c.none) return <p className="max-w-xs text-meta text-muted">{c.suspected === 0 ? t('hint.vulnNoneSuspected') : t('hint.vulnNone', { count: c.suspected })}</p>
+  // nothing a run could confirm or rule out: no button that runs for nothing; why is behind the info icon of its Last checks row
+  if (c.none) return null
+  const what = [t('hint.vuln'), c.counted && c.suspected > 0 ? t('hint.vulnCount', { checkable: c.checkable, count: c.suspected }) : '', c.again > 0 ? t('hint.vulnAgain', { count: c.again }) : ''].filter(Boolean).join(' ')
   return (
-    <div className="grid max-w-xs gap-1">
+    <span className="inline-flex items-start gap-1">
       <VulnChecksButton targets={[assetId]} describedBy={hint} />
-      <p id={hint} className="text-meta text-muted">
-        {t('hint.vuln')}
-        {c.counted && c.suspected > 0 ? ` ${t('hint.vulnCount', { checkable: c.checkable, count: c.suspected })}` : ''}
-        {c.again > 0 ? ` ${t('hint.vulnAgain', { count: c.again })}` : ''}
-      </p>
-    </div>
+      <InfoTip topic={t('scan:checks.button')} className="sm:mt-1">{what}</InfoTip>
+      <span id={hint} hidden>{what}</span>
+    </span>
   )
 }
 

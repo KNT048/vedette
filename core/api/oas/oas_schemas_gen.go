@@ -206499,7 +206499,9 @@ type ReportsGetReportsDocumentOK struct {
 	New          OptReportsGetReportsDocumentOKNew        `json:"new"`
 	Open         OptReportsGetReportsDocumentOKOpen       `json:"open"`
 	// The options the document was made with.
-	Options ReportsGetReportsDocumentOKOptions    `json:"options"`
+	Options ReportsGetReportsDocumentOKOptions `json:"options"`
+	// The organisation name when the report was made, so a sent report keeps it.
+	Org     string                                `json:"org"`
 	Period  ReportsGetReportsDocumentOKPeriod     `json:"period"`
 	Summary OptReportsGetReportsDocumentOKSummary `json:"summary"`
 	Title   string                                `json:"title"`
@@ -206553,6 +206555,11 @@ func (s *ReportsGetReportsDocumentOK) GetOpen() OptReportsGetReportsDocumentOKOp
 // GetOptions returns the value of Options.
 func (s *ReportsGetReportsDocumentOK) GetOptions() ReportsGetReportsDocumentOKOptions {
 	return s.Options
+}
+
+// GetOrg returns the value of Org.
+func (s *ReportsGetReportsDocumentOK) GetOrg() string {
+	return s.Org
 }
 
 // GetPeriod returns the value of Period.
@@ -206618,6 +206625,11 @@ func (s *ReportsGetReportsDocumentOK) SetOpen(val OptReportsGetReportsDocumentOK
 // SetOptions sets the value of Options.
 func (s *ReportsGetReportsDocumentOK) SetOptions(val ReportsGetReportsDocumentOKOptions) {
 	s.Options = val
+}
+
+// SetOrg sets the value of Org.
+func (s *ReportsGetReportsDocumentOK) SetOrg(val string) {
+	s.Org = val
 }
 
 // SetPeriod sets the value of Period.
@@ -208551,10 +208563,11 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalText(data []b
 }
 
 type ReportsGetReportsDocumentOKNew struct {
-	// Found in the period, with their status now.
+	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsDocumentOKNewItemsItem `json:"items"`
 	More  int                                       `json:"more"`
-	Total int                                       `json:"total"`
+	// Findings first seen in the period, open or handled since; equals summary.new.
+	Total int `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -210803,14 +210816,19 @@ func (s *ReportsGetReportsDocumentOKPeriodKind) UnmarshalText(data []byte) error
 
 type ReportsGetReportsDocumentOKSummary struct {
 	// The three things to do first, most urgent first.
-	First   []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
-	Handled int                                           `json:"handled"`
-	New     int                                           `json:"new"`
+	First []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
+	// differs from open_now only by other changes: a device removed, a finding reopened.
+	Handled int `json:"handled"`
+	// Findings first seen in the period, whether still open or handled since (the New section counts the
+	// same).
+	New int `json:"new"`
 	// Open at the start of the period.
 	OpenBefore int `json:"open_before"`
 	// Open findings now, one row per status that has any.
 	OpenByStatus []ReportsGetReportsDocumentOKSummaryOpenByStatusItem `json:"open_by_status"`
-	OpenNow      int                                                  `json:"open_now"`
+	// Open at the end of the period.
+	OpenNow int `json:"open_now"`
 }
 
 // GetFirst returns the value of First.
@@ -211615,7 +211633,9 @@ type ReportsGetReportsHistoryIDOKDocument struct {
 	New          OptReportsGetReportsHistoryIDOKDocumentNew        `json:"new"`
 	Open         OptReportsGetReportsHistoryIDOKDocumentOpen       `json:"open"`
 	// The options the document was made with.
-	Options ReportsGetReportsHistoryIDOKDocumentOptions    `json:"options"`
+	Options ReportsGetReportsHistoryIDOKDocumentOptions `json:"options"`
+	// The organisation name when the report was made, so a sent report keeps it.
+	Org     string                                         `json:"org"`
 	Period  ReportsGetReportsHistoryIDOKDocumentPeriod     `json:"period"`
 	Summary OptReportsGetReportsHistoryIDOKDocumentSummary `json:"summary"`
 	Title   string                                         `json:"title"`
@@ -211669,6 +211689,11 @@ func (s *ReportsGetReportsHistoryIDOKDocument) GetOpen() OptReportsGetReportsHis
 // GetOptions returns the value of Options.
 func (s *ReportsGetReportsHistoryIDOKDocument) GetOptions() ReportsGetReportsHistoryIDOKDocumentOptions {
 	return s.Options
+}
+
+// GetOrg returns the value of Org.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetOrg() string {
+	return s.Org
 }
 
 // GetPeriod returns the value of Period.
@@ -211734,6 +211759,11 @@ func (s *ReportsGetReportsHistoryIDOKDocument) SetOpen(val OptReportsGetReportsH
 // SetOptions sets the value of Options.
 func (s *ReportsGetReportsHistoryIDOKDocument) SetOptions(val ReportsGetReportsHistoryIDOKDocumentOptions) {
 	s.Options = val
+}
+
+// SetOrg sets the value of Org.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetOrg(val string) {
+	s.Org = val
 }
 
 // SetPeriod sets the value of Period.
@@ -213667,10 +213697,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalText
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNew struct {
-	// Found in the period, with their status now.
+	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsHistoryIDOKDocumentNewItemsItem `json:"items"`
 	More  int                                                `json:"more"`
-	Total int                                                `json:"total"`
+	// Findings first seen in the period, open or handled since; equals summary.new.
+	Total int `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -215919,14 +215950,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentPeriodKind) UnmarshalText(data []by
 
 type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	// The three things to do first, most urgent first.
-	First   []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
-	Handled int                                                    `json:"handled"`
-	New     int                                                    `json:"new"`
+	First []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
+	// differs from open_now only by other changes: a device removed, a finding reopened.
+	Handled int `json:"handled"`
+	// Findings first seen in the period, whether still open or handled since (the New section counts the
+	// same).
+	New int `json:"new"`
 	// Open at the start of the period.
 	OpenBefore int `json:"open_before"`
 	// Open findings now, one row per status that has any.
 	OpenByStatus []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem `json:"open_by_status"`
-	OpenNow      int                                                           `json:"open_now"`
+	// Open at the end of the period.
+	OpenNow int `json:"open_now"`
 }
 
 // GetFirst returns the value of First.

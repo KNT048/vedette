@@ -9,7 +9,7 @@ import { server } from '@/test/server'
 import { assetsStore, aiRunsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { regimeOf } from './pdpl'
 import { buildWeekly } from './weekly'
-import type { ReportDefinition } from './types'
+import type { ReportDefinition, ReportDocument } from './types'
 
 const enabled = (el: HTMLElement) => waitFor(() => expect(el).toBeEnabled())
 const api = (path: string, init?: RequestInit) => fetch(`${location.origin}/api/v1${path}`, { headers: { 'Content-Type': 'application/json' }, ...init })
@@ -44,8 +44,8 @@ describe('reports: the security report (S-REP-1)', () => {
     const doc = await report()
     const kpi = within(doc).getByLabelText('Key figures')
     expect(within(kpi).getByText('Open now').nextElementSibling).toHaveTextContent('8')
-    expect(within(kpi).getByText('Median days to fix')).toBeInTheDocument()
-    expect(within(doc).getByRole('img', { name: /^Open at the start \d+, plus \d+ new, minus 6 handled, open now 8\.$/ })).toBeInTheDocument()
+    expect(within(kpi).getByText('Median days to fix').nextElementSibling).toHaveTextContent('3 days') // patched and mitigated: 2, 3, 3, 6, 9
+    expect(within(doc).getByRole('img', { name: 'Open at the start 7, plus 7 new, minus 6 handled, open now 8.' })).toBeInTheDocument()
     const first = within(doc).getByRole('heading', { name: 'Do these first' }).nextElementSibling as HTMLElement
     expect(within(first).getAllByRole('listitem')).toHaveLength(3)
     expect(within(first).getByText('Update Apache HTTP Server to 2.4.51')).toBeInTheDocument()
@@ -63,6 +63,36 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(exp).getByText('Closed')).toBeInTheDocument()
     expect(within(exp).getByText(/^Expires /)).toBeInTheDocument() // the certificate that ends in 12 days
     expect(within(exp).getByText('ZAP')).toBeInTheDocument()
+  })
+
+  it('the figures add up: open at the start + new - handled = open now, and new counts the New section, with or without not relevant', async () => {
+    for (const nr of [false, true]) {
+      await define((d) => ({ ...d, options: { ...d.options, include_not_relevant: nr } }))
+      const d = await (await api('/reports/document')).json() as ReportDocument
+      const s = d.summary!
+      expect(s.open_before + s.new - s.handled, `not relevant ${nr}`).toBe(s.open_now)
+      expect(d.new!.total).toBe(s.new)
+      expect(d.handled!.totals.reduce((n, x) => n + x.n, 0)).toBe(s.handled)
+      expect(d.new!.items.some((f) => f.status === 'patched')).toBe(true) // new in the period and already handled counts as new
+    }
+  })
+
+  it('Settings: saving the schedule in its dialog does not save the report settings being edited', async () => {
+    const puts: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'PUT') puts.push(new URL(request.url).pathname) })
+    renderApp('/reports?tab=settings', { role: 'admin' })
+    const title = await screen.findByLabelText('Report title')
+    await enabled(title)
+    await userEvent.type(title, ' draft')
+    await userEvent.click(await screen.findByRole('button', { name: 'Change the schedule of the security report' }))
+    const dlg = await screen.findByRole('dialog')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect((await screen.findAllByText('Schedule of the security report saved.')).length).toBeGreaterThan(0)
+    expect(puts.some((p) => p.endsWith('/schedules/reports.def:rd-1'))).toBe(true)
+    expect(puts.some((p) => p.endsWith('/reports/definition'))).toBe(false)
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    expect(screen.queryByText('Report settings saved')).toBeNull()
+    server.events.removeAllListeners()
   })
 
   it('Settings: sections, grouping, not relevant and charts change the next report; the saved settings stay', async () => {
@@ -90,7 +120,7 @@ describe('reports: the security report (S-REP-1)', () => {
 
   it('Settings: an email is checked on Add, a typed but un-added one blocks Save, and at least one section stays on', async () => {
     renderApp('/reports?tab=settings', { role: 'admin' })
-    const email = await screen.findByLabelText('Recipients')
+    const email = await screen.findByLabelText('Add a recipient')
     await enabled(email)
     await userEvent.type(email, 'not-an-email')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -176,7 +206,8 @@ describe('reports: the security report (S-REP-1)', () => {
 
   it('only the report prints, in colour on the light tokens (index.css)', async () => {
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
-    expect(css).toMatch(/:where\(body:has\(\.print-report\)\) \* \{ visibility: hidden/)
+    expect(css).toMatch(/:where\(body:has\(\.print-report\)\) :where\(:not\(:has\(\.print-report\)\)/)
+    expect(css).toMatch(/@page report \{ size: A4; margin: 16mm; \}/)
     expect(css).toMatch(/print-color-adjust: exact/)
     renderApp('/reports')
     expect((await report()).closest('.print-report')).not.toBeNull()

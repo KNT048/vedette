@@ -60,8 +60,8 @@ function CveLink({ cve, finding, plain = false }: { cve: string; finding: string
   return <Link to={`/findings/${encodeURIComponent(finding)}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{cve}</Link>
 }
 
-/** The document of one period. `org` names the organisation in the masthead. */
-export function SecurityReport({ doc, org }: { doc: ReportDocument; org: string }) {
+/** The document of one period; its masthead names the organisation as it was when the report was made. */
+export function SecurityReport({ doc }: { doc: ReportDocument }) {
   const { t } = useTranslation('reports')
   const s = doc.summary
   const order = (['summary', 'handled', 'open', 'new', 'exposure', 'detections', 'coverage'] as const).filter((k) => doc[k] !== undefined)
@@ -74,7 +74,7 @@ export function SecurityReport({ doc, org }: { doc: ReportDocument; org: string 
       <header className="grid gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="grid gap-0.5">
-            {org ? <p className="text-meta font-medium text-muted">{org}</p> : null}
+            {doc.org ? <p className="text-meta font-medium text-muted">{doc.org}</p> : null}
             <h2 className="text-lg font-semibold">{doc.title}</h2>
             <p className="text-meta text-muted">{periodText(doc.period, t)}</p>
           </div>
@@ -126,7 +126,7 @@ function Summary({ s, handled, charts, n }: { s: ReportSummary; handled?: Report
   return (
     <section aria-labelledby="sr-summary">
       <Heading id="sr-summary" n={n}>{t('sr.section.summary')}</Heading>
-      <dl aria-label={t('sr.kpi.label')} className="report-block mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-4">
+      <dl aria-label={t('sr.kpi.label')} className={cn('report-block mb-5 grid gap-px overflow-hidden rounded-md border border-rule bg-rule', handled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')}>
         {kpi(t('sr.kpi.open'), s.open_now, delta > 0 ? t('sr.kpi.up', { count: delta }) : delta < 0 ? t('sr.kpi.down', { count: -delta }) : t('sr.kpi.same'), delta > 0 ? 'danger' : undefined)}
         {kpi(t('sr.kpi.new'), s.new)}
         {kpi(t('sr.kpi.handled'), s.handled, undefined, s.handled > 0 ? 'ok' : undefined)}
@@ -262,7 +262,7 @@ function Open({ open, n }: { open: ReportOpen; n: number }) {
               <thead><tr className="border-b border-rule">
                 <th scope="col" className={cn(th, 'pl-2')}>{byDevice ? t('sr.col.finding') : t('sr.col.device')}</th>
                 <th scope="col" className={th}>{t('sr.col.status')}</th>
-                <th scope="col" className={th}>{t('sr.col.fix')}</th>
+                <th scope="col" className={cn(th, 'hidden sm:table-cell')}>{t('sr.col.fix')}</th>
               </tr></thead>
               {open.groups.map((g) => (
                 <tbody key={g.key}>
@@ -287,8 +287,8 @@ function Open({ open, n }: { open: ReportOpen; n: number }) {
                           </>
                         ) : <DeviceName device={f.device} />}
                       </td>
-                      <td className={td}><StatusCell f={f} /></td>
-                      <td className={cn(td, 'text-meta')}>{fixTitle(f.fix, f.version ? { id: '', name: f.product, version: f.version } : null)}</td>
+                      <td className={td}><StatusCell f={f} /><p className="mt-1 text-meta sm:hidden">{fixTitle(f.fix, f.version ? { id: '', name: f.product, version: f.version } : null)}</p></td>
+                      <td className={cn(td, 'hidden text-meta sm:table-cell')}>{fixTitle(f.fix, f.version ? { id: '', name: f.product, version: f.version } : null)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -314,8 +314,8 @@ function New({ fresh, n }: { fresh: ReportNew; n: number }) {
             <table className="w-full border-collapse">
               <caption className="sr-only">{t('sr.section.new')}</caption>
               <thead><tr className="border-b border-rule">
-                <th scope="col" className={th}>{t('sr.col.finding')}</th><th scope="col" className={th}>{t('sr.col.device')}</th>
-                <th scope="col" className={th}>{t('sr.col.status')}</th><th scope="col" className={th}>{t('sr.col.seen')}</th>
+                <th scope="col" className={th}>{t('sr.col.finding')}</th><th scope="col" className={cn(th, 'hidden sm:table-cell')}>{t('sr.col.device')}</th>
+                <th scope="col" className={th}>{t('sr.col.status')}</th><th scope="col" className={cn(th, 'hidden sm:table-cell')}>{t('sr.col.seen')}</th>
               </tr></thead>
               <tbody>
                 {fresh.items.map((f) => (
@@ -323,10 +323,11 @@ function New({ fresh, n }: { fresh: ReportNew; n: number }) {
                     <td className={td}>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><CveLink cve={f.cve} finding={f.finding_id} plain /><SeverityBadge severity={f.severity} compact /></div>
                       <div className="text-meta text-muted">{f.product}</div>
+                      <div className="mt-1 grid gap-1 text-meta sm:hidden"><DeviceName device={f.device} /><span className="text-muted">{fmtDate(f.first_seen)}</span></div>
                     </td>
-                    <td className={td}><DeviceName device={f.device} /></td>
+                    <td className={cn(td, 'hidden sm:table-cell')}><DeviceName device={f.device} /></td>
                     <td className={td}><StatusBadge code={f.status} /></td>
-                    <td className={cn(td, 'whitespace-nowrap text-meta')}>{fmtDate(f.first_seen)}</td>
+                    <td className={cn(td, 'hidden whitespace-nowrap text-meta sm:table-cell')}>{fmtDate(f.first_seen)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -390,14 +391,14 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
           <table className="w-full border-collapse text-meta">
             <caption className="sr-only">{x.value}</caption>
             <thead><tr className="border-b border-rule">
-              <th scope="col" className={th}>{t('sr.svc.port')}</th><th scope="col" className={th}>{t('sr.svc.software')}</th>
+              <th scope="col" className={th}>{t('sr.svc.port')}</th><th scope="col" className={cn(th, 'hidden sm:table-cell')}>{t('sr.svc.software')}</th>
               <th scope="col" className={th}>{t('sr.svc.change')}</th><th scope="col" className={th}>{t('sr.svc.cert')}</th>
             </tr></thead>
             <tbody>
               {x.services.map((s) => (
                 <tr key={`${s.ip}-${s.port}-${s.proto}`} className={cn('border-b border-rule last:border-b-0', s.change === 'closed' && 'text-muted')}>
-                  <td className={cn(td, 'whitespace-nowrap')}><span className={cn('font-mono', s.change === 'closed' && 'line-through')}>{s.port}/{s.proto}</span>{s.name ? <span className="ml-1.5 text-muted">{s.name}</span> : null}</td>
-                  <td className={td}>{[s.product, s.version].filter(Boolean).join(' ') || '–'}</td>
+                  <td className={cn(td, 'whitespace-nowrap')}><span className={cn('font-mono', s.change === 'closed' && 'line-through')}>{s.port}/{s.proto}</span>{s.name ? <span className="ml-1.5 text-muted">{s.name}</span> : null}<span className="block text-muted sm:hidden">{[s.product, s.version].filter(Boolean).join(' ')}</span></td>
+                  <td className={cn(td, 'hidden sm:table-cell')}>{[s.product, s.version].filter(Boolean).join(' ') || '–'}</td>
                   <td className={td}>{s.change === 'new' ? <Chip tone="warn">{t('sr.change.new')}</Chip> : s.change === 'closed' ? <Chip tone="off">{t('sr.change.closed')}</Chip> : '–'}</td>
                   <td className={cn(td, 'whitespace-nowrap')}><Cert svc={s} at={at} /></td>
                 </tr>

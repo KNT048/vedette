@@ -323045,6 +323045,10 @@ func (s *ReportsGetReportsDocumentOK) encodeFields(e *jx.Encoder) {
 		s.Options.Encode(e)
 	}
 	{
+		e.FieldStart("org")
+		e.Str(s.Org)
+	}
+	{
 		e.FieldStart("period")
 		s.Period.Encode(e)
 	}
@@ -323060,7 +323064,7 @@ func (s *ReportsGetReportsDocumentOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOK = [13]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOK = [14]string{
 	0:  "ai_summary",
 	1:  "coverage",
 	2:  "definition_id",
@@ -323071,9 +323075,10 @@ var jsonFieldsNameOfReportsGetReportsDocumentOK = [13]string{
 	7:  "new",
 	8:  "open",
 	9:  "options",
-	10: "period",
-	11: "summary",
-	12: "title",
+	10: "org",
+	11: "period",
+	12: "summary",
+	13: "title",
 }
 
 // Decode decodes ReportsGetReportsDocumentOK from json.
@@ -323189,8 +323194,20 @@ func (s *ReportsGetReportsDocumentOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"options\"")
 			}
-		case "period":
+		case "org":
 			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Org = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"org\"")
+			}
+		case "period":
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Period.Decode(d); err != nil {
 					return err
@@ -323210,7 +323227,7 @@ func (s *ReportsGetReportsDocumentOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -323232,7 +323249,7 @@ func (s *ReportsGetReportsDocumentOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b00100101,
-		0b00010110,
+		0b00101110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -332383,6 +332400,10 @@ func (s *ReportsGetReportsHistoryIDOKDocument) encodeFields(e *jx.Encoder) {
 		s.Options.Encode(e)
 	}
 	{
+		e.FieldStart("org")
+		e.Str(s.Org)
+	}
+	{
 		e.FieldStart("period")
 		s.Period.Encode(e)
 	}
@@ -332398,7 +332419,7 @@ func (s *ReportsGetReportsHistoryIDOKDocument) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocument = [13]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocument = [14]string{
 	0:  "ai_summary",
 	1:  "coverage",
 	2:  "definition_id",
@@ -332409,9 +332430,10 @@ var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocument = [13]string{
 	7:  "new",
 	8:  "open",
 	9:  "options",
-	10: "period",
-	11: "summary",
-	12: "title",
+	10: "org",
+	11: "period",
+	12: "summary",
+	13: "title",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocument from json.
@@ -332527,8 +332549,20 @@ func (s *ReportsGetReportsHistoryIDOKDocument) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"options\"")
 			}
-		case "period":
+		case "org":
 			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Org = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"org\"")
+			}
+		case "period":
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Period.Decode(d); err != nil {
 					return err
@@ -332548,7 +332582,7 @@ func (s *ReportsGetReportsHistoryIDOKDocument) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -332570,7 +332604,7 @@ func (s *ReportsGetReportsHistoryIDOKDocument) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b00100101,
-		0b00010110,
+		0b00101110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

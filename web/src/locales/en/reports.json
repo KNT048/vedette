@@ -8,7 +8,6 @@
     "title_other": "{{count}} findings are open; {{handled}} handled in this report's period",
     "titleClear": "No open findings; {{handled}} handled in this report's period",
     "titleEmpty": "No data to build a report yet: add devices first",
-    "meta": "The security report for management, sent by email and printable as PDF.",
     "tabs": "Reports",
     "report": "Report",
     "history": "History",
@@ -367,7 +366,6 @@
   },
   "settings": {
     "content": "Content",
-    "contentDescription": "What the report covers. It applies to the next report and to the Report tab.",
     "name": "Report title",
     "period": "Period",
     "periods": {
@@ -385,12 +383,9 @@
     "notRelevant": "Include findings handled as not relevant",
     "notRelevantHint": "They count among handled findings and are listed with the reason.",
     "charts": "Charts",
-    "chartsHint": "Bars and the open findings flow. Off: figures and tables only.",
     "sections": "Sections",
     "sectionsHint": "At least one.",
     "noSections": "Turn on at least one section.",
-    "delivery": "Delivery",
-    "deliveryDescription": "When the report is sent, and to whom.",
     "schedule": "Schedule",
     "scheduleName": "the security report",
     "recipients": "Recipients",
@@ -411,7 +406,8 @@
     "saved": "Report settings saved",
     "unsaved": "Unsaved changes",
     "readOnly": "Only an administrator changes the report settings.",
-    "nameRequired": "Enter a title for the report."
+    "nameRequired": "Enter a title for the report.",
+    "addRecipient": "Add a recipient"
   },
   "sr": {
     "label": "Security report",

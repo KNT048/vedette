@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
@@ -73,9 +74,15 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
 
   return (
     <>
+      {!admin ? <p role="status" className="mb-4 text-meta text-muted">{t('settings.readOnly')}</p> : null}
+      {/* outside the form: the schedule saves through its own dialog, whose submit must not bubble (through the portal) into this form */}
+      <div className="max-w-3xl">
+        <Section id="rep-schedule" title={t('settings.schedule')}>
+          <ScheduleEditor ownerKey={def.schedule_key} name={t('settings.scheduleName')} runNow={false} />
+        </Section>
+      </div>
       <form noValidate onSubmit={submit} aria-label={t('page.settings')} className="grid max-w-3xl gap-2">
-        {!admin ? <p role="status" className="mb-4 text-meta text-muted">{t('settings.readOnly')}</p> : null}
-        <Section id="rep-content" title={t('settings.content')} description={t('settings.contentDescription')}>
+        <Section id="rep-content" title={t('settings.content')}>
           <div className="grid gap-5">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={t('settings.name')} htmlFor="rep-name" error={shownNameErr || undefined} className="sm:col-span-3">
@@ -94,9 +101,9 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
               </Field>
             </div>
             <div className="grid gap-3">
-              <Toggle id="rep-not-added" label={t('settings.notAdded')} hint={t('settings.notAddedHint')} checked={f.options.include_not_added} disabled={!admin} onChange={(v) => opt('include_not_added', v)} />
-              <Toggle id="rep-not-relevant" label={t('settings.notRelevant')} hint={t('settings.notRelevantHint')} checked={f.options.include_not_relevant} disabled={!admin} onChange={(v) => opt('include_not_relevant', v)} />
-              <Toggle id="rep-charts" label={t('settings.charts')} hint={t('settings.chartsHint')} checked={f.options.charts} disabled={!admin} onChange={(v) => opt('charts', v)} />
+              <Toggle id="rep-not-added" label={t('settings.notAdded')} info={t('settings.notAddedHint')} checked={f.options.include_not_added} disabled={!admin} onChange={(v) => opt('include_not_added', v)} />
+              <Toggle id="rep-not-relevant" label={t('settings.notRelevant')} info={t('settings.notRelevantHint')} checked={f.options.include_not_relevant} disabled={!admin} onChange={(v) => opt('include_not_relevant', v)} />
+              <Toggle id="rep-charts" label={t('settings.charts')} checked={f.options.charts} disabled={!admin} onChange={(v) => opt('charts', v)} />
             </div>
             <fieldset className="grid gap-2" aria-describedby={shownSecErr ? 'rep-sections-error' : undefined}>
               <legend className="mb-1 text-sm font-medium">{t('settings.sections')} <span className="font-normal text-muted">{t('settings.sectionsHint')}</span></legend>
@@ -113,14 +120,10 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
           </div>
         </Section>
 
-        <Section id="rep-delivery" title={t('settings.delivery')} description={t('settings.deliveryDescription')}>
-          <div className="grid gap-5">
-            <div className="grid gap-1.5">
-              <p className="text-sm font-medium">{t('settings.schedule')}</p>
-              <ScheduleEditor ownerKey={def.schedule_key} name={t('settings.scheduleName')} runNow={false} />
-            </div>
+        <Section id="rep-recipients" title={t('settings.recipients')}>
+          <div className="grid gap-4">
             <div className="grid gap-2">
-              <Field label={t('settings.recipients')} htmlFor="rep-email" hint={t('settings.recipientsHint')} error={emailErr || savedEmailErr || undefined}>
+              <Field label={t('settings.addRecipient')} htmlFor="rep-email" hint={t('settings.recipientsHint')} error={emailErr || savedEmailErr || undefined}>
                 <div className="flex gap-2">
                   <Input id="rep-email" type="email" value={email} placeholder="name@company.com" disabled={!admin}
                     aria-invalid={emailErr || savedEmailErr ? true : undefined} aria-describedby={emailErr || savedEmailErr ? 'rep-email-error' : 'rep-email-hint'}
@@ -155,14 +158,12 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
   )
 }
 
-function Toggle({ id, label, hint, checked, disabled, onChange }: { id: string; label: string; hint: string; checked: boolean; disabled: boolean; onChange: (v: boolean) => void }) {
+/** A switch and its label; what it means in detail is behind the label's info icon. */
+function Toggle({ id, label, info, checked, disabled, onChange }: { id: string; label: string; info?: string; checked: boolean; disabled: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3">
-      <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} aria-describedby={`${id}-hint`} />
-      <div className="grid">
-        <Label htmlFor={id}>{label}</Label>
-        <span id={`${id}-hint`} className="text-meta text-muted">{hint}</span>
-      </div>
+    <div className="flex items-center gap-3">
+      <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
+      <span className="inline-flex items-center gap-1"><Label htmlFor={id}>{label}</Label>{info ? <InfoTip topic={label}>{info}</InfoTip> : null}</span>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 // Mock of the periodic security report: a fixed sample network, filtered and grouped by the saved options the way the
 // server builds the document (one query per section on the shared read models). Clean install: an empty network.
 import { dataMode } from '@/mocks/db'
+import { orgStore } from '@/mocks/stores'
 import { dayOf } from '@/lib/format'
 import type {
   CveSeverity, DeviceRef, ExposureTarget, Handled, HandledItem, OpenStatus, ReportDefinition, ReportDocument, ReportFinding, ReportOptions, Reason,
@@ -106,10 +107,15 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
   const handled = clean ? [] : HANDLED.filter((r) => keep(r.device) && (o.include_not_relevant || r.handled.resolution !== 'not_relevant'))
     .map(({ age, took, ...r }) => ({ ...r, took, handled: { ...r.handled, at: new Date(end - age * DAY).toISOString(), accepted_until: r.handled.resolution === 'accepted' ? day(end, -30) : null } }))
     .filter((r) => Date.parse(r.handled.at) >= from)
-  const fresh = open.filter((f) => Date.parse(f.first_seen) >= from)
+  // New = first seen in the period, still open or handled since, so open at the start + new - handled = open now.
+  const handledFresh = handled.filter((r) => Date.parse(r.handled.at) - r.took * DAY >= from).map((r): ReportFinding => ({
+    finding_id: r.finding_id, cve: r.cve, device: r.device, product: r.product, version: r.handled.from_version, status: r.handled.resolution, reasons: [],
+    severity: r.severity, verification: byDevice, fix: fix('update', r.product, r.handled.to_version), first_seen: new Date(Date.parse(r.handled.at) - r.took * DAY).toISOString(),
+  }))
+  const fresh = [...open.filter((f) => Date.parse(f.first_seen) >= from), ...handledFresh]
 
   const doc: ReportDocument = {
-    definition_id: def.id, title: def.name, generated_at: new Date(at).toISOString(), period, options: o, ai_summary: null,
+    definition_id: def.id, title: def.name, org: orgStore.get().name, generated_at: new Date(at).toISOString(), period, options: o, ai_summary: null,
   }
   const s = o.sections
   if (s.summary) {
@@ -117,7 +123,7 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
     for (const f of open) byCve.set(`${f.cve}|${f.product}`, [...(byCve.get(`${f.cve}|${f.product}`) ?? []), f])
     doc.summary = {
       open_by_status: URGENCY.map((status) => ({ status, n: open.filter((f) => f.status === status).length })).filter((r) => r.n > 0),
-      open_now: open.length, open_before: Math.max(0, open.length - fresh.length + handled.length), new: fresh.length, handled: handled.length,
+      open_now: open.length, open_before: open.length - fresh.length + handled.length, new: fresh.length, handled: handled.length,
       first: [...byCve.values()].slice(0, 3).map((fs) => {
         const f = fs[0]!
         return { status: f.status as OpenStatus, cve: f.cve, finding_id: f.finding_id, product: f.product, severity: f.severity, fix: f.fix, devices: fs.slice(0, 3).map((x) => x.device), device_count: new Set(fs.map((x) => x.device.id)).size, finding_count: fs.length }

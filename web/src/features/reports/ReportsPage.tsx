@@ -23,7 +23,7 @@ export default function ReportsPage() {
   const tab = (panel: React.ReactNode) => <Suspense fallback={<Loading />}>{panel}</Suspense>
   return (
     <>
-      <PageHeader title={title} meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{t('page.meta')}</span>} stories={['S-REP-1', 'S-REP-2']} />
+      <PageHeader title={title} meta={<SampleDataNote />} stories={['S-REP-1', 'S-REP-2']} />
       <RequireModule module="reports">
         <PageTabs label={t('page.tabs')} tabs={[
           { id: 'report', label: t('page.report'), panel: tab(<ReportTab />) },

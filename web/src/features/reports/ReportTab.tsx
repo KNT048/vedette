@@ -9,7 +9,7 @@ import { useSchedule } from '@/components/schedule/api'
 import { fmtInZone } from '@/components/schedule/ScheduleFields'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { useCan, useMe } from '@/lib/session'
+import { useCan } from '@/lib/session'
 import { useDefinition, useReportDocument, useSendReport } from './api'
 import { ActionError } from './parts'
 import { SecurityReport } from './SecurityReport'
@@ -30,7 +30,6 @@ export default function ReportTab() {
   const { t } = useTranslation('reports')
   const doc = useReportDocument()
   const def = useDefinition()
-  const { data: me } = useMe()
   return (
     <QueryState query={doc}>
       {(d) => emptyReport(d) ? (
@@ -46,7 +45,7 @@ export default function ReportTab() {
               {def.data ? <SendNow recipients={def.data.recipients} /> : null}
             </div>
           </div>
-          <Paper><SecurityReport doc={d} org={me?.org ?? ''} /></Paper>
+          <Paper><SecurityReport doc={d} /></Paper>
         </div>
       )}
     </QueryState>

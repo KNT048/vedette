@@ -88,7 +88,7 @@ func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 			t.Parallel()
 			s := newStack(t)
 			w := newHeldWorker()
-			svc, err := newSensorActive(context.Background(), *s.d, w)
+			svc, err := newSensorActive(context.Background(), *s.d, w, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -139,7 +139,7 @@ func TestWiringNmapStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 			s := newStack(t)
 			s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
 			w := newHeldWorker()
-			svc, err := newSensorActive(context.Background(), *s.d, w)
+			svc, err := newSensorActive(context.Background(), *s.d, w, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

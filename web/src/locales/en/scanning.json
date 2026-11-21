@@ -254,6 +254,12 @@
       "bothChanged": "{{part}}: you both changed it. Your edit is kept below; theirs is {{value}}.",
       "saveAgain": "Everything you typed is still in the form. Check it, then save again.",
       "none": "none"
+    },
+    "cost": {
+      "line": "One pass: {{addresses}} addresses, at least {{pass}} at {{pps}} packets/s",
+      "fits": "It fits one scan window ({{window}}).",
+      "nights": "It needs {{windows}} scan windows of {{window}}: the sweep is one run that goes on each night where it stopped. To finish in one window, raise the scan rate, widen the window or narrow the ranges.",
+      "tooLarge": "It needs {{windows}} scan windows of {{window}}, and a week has {{week}}. Saving is refused: raise the scan rate, widen the window or add days, or narrow the ranges."
     }
   },
   "scanNow": {
@@ -433,9 +439,7 @@
       "failed": "failed",
       "skipped": "skipped"
     },
-    "waitingFor": "Waiting for {{what}}.",
-    "queuedNote": "It starts when the run before it in the same lane ends.",
-    "queuedBehind": "Starts after:",
+    "queuedBehind": "Queued behind",
     "count": "{{done}} of {{total}}",
     "progressOf": "Progress of {{title}}",
     "bySchedule": "Schedule",

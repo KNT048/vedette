@@ -2,17 +2,20 @@ package sensoractive
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/knt048/vedette/core/run"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// DeviceFound is what one device check found, as stored with its job (sa_job.found, migration 0012): the words of its History row
+// DeviceFound is what one device check found, as stored with its run (items: foundItems): the words of its History row
 // and of the device page's Last checks come from it. Only nmap's own result is kept (port numbers, nmap's service names, its OS
 // guess), never a banner or a page title.
 type DeviceFound struct {
@@ -123,59 +126,194 @@ func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) D
 	return f
 }
 
-// startDeviceJob is startJob for the check of one device: the row names the device, so its runs stay its own when it changes
-// address (the device page's Last checks), and its next check finds what this one found.
-func (s *Service) startDeviceJob(ctx context.Context, reason, assetID string) (string, error) {
-	return s.startJobOf(ctx, KindDevice, reason, 1, assetID)
+// What a check found is kept as items of its run (core_run_item), not as a blob: one item for the check (its reach and how complete
+// it was, as a code of checkCodes), one per open port (the first maxFoundPorts; "more" when there were others), one per port that is
+// no longer open, one for the OS it recorded, and one saying it was compared with an earlier check. The run page lists them as they
+// are; loadFound reads them back for the words of the history and for the next check's comparison.
+
+const (
+	itemCheck   = "check"   // label: the device's address; outcome: a checkCodes code
+	itemPort    = "port"    // label: "22/tcp ssh"; outcome: open | new (open, and not before) | gone | more
+	itemOS      = "os"      // label: the OS; outcome: recorded | changed (and then an item "before": the OS of the previous check)
+	itemCompare = "compare" // label: "the previous check"; outcome: compared | compared_part
+)
+
+// checkCodes maps a check's reach and flags to the outcome of its check item, and back.
+var checkCodes = func() map[string]DeviceFound {
+	m := map[string]DeviceFound{}
+	for _, reach := range []string{"top100", "top1000", "extra", "all"} {
+		for _, part := range []bool{false, true} {
+			for _, to := range []bool{false, true} {
+				f := DeviceFound{Reach: reach, ExtraFailed: part, TimedOut: to}
+				m[checkCode(f)] = f
+			}
+		}
+	}
+	return m
+}()
+
+func checkCode(f DeviceFound) string {
+	c := f.Reach
+	if f.ExtraFailed {
+		c += "_part"
+	}
+	if f.TimedOut {
+		c += "_timeout"
+	}
+	return c
 }
 
-// earlierFound is what the earlier checks of the device found (jobs other than jobID that stored it), newest first, at most
-// earlierChecks of them.
-func (s *Service) earlierFound(ctx context.Context, assetID, jobID string) ([]DeviceFound, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT found FROM sa_job WHERE asset_id = ? AND kind = ? AND id <> ? AND found IS NOT NULL
-ORDER BY started_at DESC, rowid DESC LIMIT ?`, assetID, KindDevice, jobID, earlierChecks)
+// foundItems is f as the items of its run.
+func foundItems(assetID string, ip netip.Addr, f DeviceFound) []run.Item {
+	its := []run.Item{{SubjectKind: itemCheck, SubjectID: assetID, Label: ip.String(), Outcome: checkCode(f)}}
+	for _, p := range f.Ports {
+		out := "open"
+		if p.Proto == "tcp" && slices.Contains(f.New, p.Port) {
+			out = "new"
+		}
+		its = append(its, run.Item{SubjectKind: itemPort, Label: portLabel(p), Outcome: out})
+	}
+	if f.Open > len(f.Ports) {
+		its = append(its, run.Item{SubjectKind: itemPort, Label: fmt.Sprintf("%d more open ports", f.Open-len(f.Ports)), Outcome: "more"})
+	}
+	for _, p := range f.Gone {
+		its = append(its, run.Item{SubjectKind: itemPort, Label: strconv.Itoa(p) + "/tcp", Outcome: "gone"})
+	}
+	if f.OS != "" {
+		if f.OSWas == "" {
+			its = append(its, run.Item{SubjectKind: itemOS, Label: f.OS, Outcome: "recorded"})
+		} else {
+			its = append(its, run.Item{SubjectKind: itemOS, Label: f.OS, Outcome: "changed"}, run.Item{SubjectKind: itemOS, Label: f.OSWas, Outcome: "before"})
+		}
+	}
+	if f.Compared {
+		c := run.Item{SubjectKind: itemCompare, Label: "the previous check", Outcome: "compared"}
+		if f.ComparedPart {
+			c.Outcome = "compared_part"
+		}
+		its = append(its, c)
+	}
+	return its
+}
+
+func portLabel(p FoundPort) string {
+	l := strconv.Itoa(p.Port) + "/" + p.Proto
+	if p.Name != "" {
+		l += " " + p.Name
+	}
+	return l
+}
+
+// loadFound reads back what the check of run id found; false when it stored nothing (it did not finish, or the device did not answer).
+func (s *Service) loadFound(ctx context.Context, id string) (DeviceFound, bool, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT subject_kind, label, outcome FROM core_run_item WHERE run_id = ? ORDER BY seq`, id)
+	if err != nil {
+		return DeviceFound{}, false, fmt.Errorf("sensoractive: reading what a check found: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var f DeviceFound
+	ok := false
+	for rows.Next() {
+		var kind, lbl, out string
+		if err := rows.Scan(&kind, &lbl, &out); err != nil {
+			return DeviceFound{}, false, fmt.Errorf("sensoractive: reading what a check found: %w", err)
+		}
+		switch kind {
+		case itemCheck:
+			c, known := checkCodes[out]
+			if !known {
+				continue
+			}
+			f.Reach, f.ExtraFailed, f.TimedOut, ok = c.Reach, c.ExtraFailed, c.TimedOut, true
+		case itemPort:
+			switch out {
+			case "open", "new":
+				if p, good := parsePortLabel(lbl); good {
+					f.Ports = append(f.Ports, p)
+					f.Open++
+					if out == "new" {
+						f.New = append(f.New, p.Port)
+					}
+				}
+			case "more":
+				f.Open++ // its list was not kept whole: a later check is not compared with it
+			case "gone":
+				if p, good := parsePortLabel(lbl); good {
+					f.Gone = append(f.Gone, p.Port)
+				}
+			}
+		case itemOS:
+			if out == "before" {
+				f.OSWas = lbl
+			} else {
+				f.OS = lbl
+			}
+		case itemCompare:
+			f.Compared, f.ComparedPart = true, out == "compared_part"
+		}
+	}
+	return f, ok, rows.Err()
+}
+
+// parsePortLabel reads a label foundItems wrote: "22/tcp" and the service name after a space.
+func parsePortLabel(l string) (FoundPort, bool) {
+	head, name, _ := strings.Cut(l, " ")
+	num, proto, ok := strings.Cut(head, "/")
+	n, err := strconv.Atoi(num)
+	if !ok || err != nil || n < 1 || n > 65535 || (proto != "tcp" && proto != "udp") {
+		return FoundPort{}, false
+	}
+	return FoundPort{Port: n, Proto: proto, Name: name}, true
+}
+
+// earlierFound is what the earlier checks of the device found (runs other than runID), newest first, at most earlierChecks of them.
+func (s *Service) earlierFound(ctx context.Context, assetID, runID string) ([]DeviceFound, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND kind IN (?, ?) AND subject_kind = 'device' AND subject_id = ?
+		AND id <> ? ORDER BY queued_at DESC, rowid DESC LIMIT ?`, ModuleID, RunCheck, RunAllPorts, assetID, runID, earlierChecks)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: reading the earlier checks of a device: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	var out []DeviceFound
+	var ids []string
 	for rows.Next() {
-		var raw string
-		if err := rows.Scan(&raw); err != nil {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
 			return nil, fmt.Errorf("sensoractive: reading the earlier checks of a device: %w", err)
 		}
-		var f DeviceFound
-		if json.Unmarshal([]byte(raw), &f) == nil { // an unreadable row compares with nothing
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	var out []DeviceFound
+	for _, id := range ids {
+		if f, ok, err := s.loadFound(ctx, id); err != nil {
+			return nil, err
+		} else if ok {
 			out = append(out, f)
 		}
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // earlierChecks is how many earlier checks of a device a new one is compared with (the newest of its reach, the newest with an OS).
 const earlierChecks = 20
 
-// saveFound stores what the check found with its job. A failure is logged: the result itself is recorded, only its words are lost.
-func (s *Service) saveFound(ctx context.Context, jobID string, f DeviceFound) {
-	b, err := json.Marshal(f)
-	if err == nil && len(b) > 8000 {
-		f.Ports = f.Ports[:min(len(f.Ports), 8)]
-		b, err = json.Marshal(f)
+// saveFound records what the check found as items of its run. A failure is logged: the result itself is recorded, only its words
+// are lost.
+func (s *Service) saveFound(ctx context.Context, assetID string, ip netip.Addr, f DeviceFound) {
+	x := execOf(ctx)
+	if x == nil {
+		return
 	}
-	if err == nil {
-		err = s.db.Write(ctx, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(ctx, `UPDATE sa_job SET found = ? WHERE id = ?`, string(b), jobID)
-			return err
-		})
-	}
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: keeping what a device check found failed", "job", jobID, "error", err)
+	if err := x.AddItems(context.WithoutCancel(ctx), foundItems(assetID, ip, f)...); err != nil && !errors.Is(err, run.ErrNotLive) {
+		s.log.WarnContext(ctx, "sensoractive: keeping what a device check found failed", "run", x.ID(), "error", err)
 	}
 }
 
 // beforeRecord is what recordDevice compares a check with: the device's earlier checks, read before it records anything.
-func (s *Service) beforeRecord(ctx context.Context, assetID, jobID string, ip netip.Addr) []DeviceFound {
-	prev, err := s.earlierFound(ctx, assetID, jobID)
+func (s *Service) beforeRecord(ctx context.Context, assetID, runID string, ip netip.Addr) []DeviceFound {
+	prev, err := s.earlierFound(ctx, assetID, runID)
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the earlier checks of a device could not be read", "ip", ip.String(), "error", err)
 	}

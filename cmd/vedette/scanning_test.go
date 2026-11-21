@@ -336,7 +336,7 @@ func TestScanningRunNow(t *testing.T) {
 			t.Fatalf("%s: %d %v, want 400 %s", c.target, code, out, c.code)
 		}
 	}
-	if svc.Manual() != nil || s.count(`SELECT count(*) FROM sa_probe`) != 0 {
+	if svc.Manual(t.Context()) != nil || s.count(`SELECT count(*) FROM sa_probe`) != 0 {
 		t.Fatal("a refused run started something")
 	}
 	if s.d.Reg.Enabled("scan") {
@@ -376,7 +376,8 @@ func TestScanningRunNow(t *testing.T) {
 	if r := page["running"].([]any); len(r) != 0 {
 		t.Fatalf("running after the run ended = %v", r)
 	}
-	if s.count(`SELECT count(*) FROM sa_job WHERE kind = 'device' AND status <> 'stopped'`) != 0 { // stopped, or stopped before its row
+	// the module's switch stops the check's run whatever moment it is in (queued, starting, in nmap): it ends stopped, never done
+	if s.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND status <> 'stopped'`) != 0 {
 		t.Fatal("the check the module's switch stopped went on")
 	}
 
@@ -394,7 +395,7 @@ func TestScanningRunNow(t *testing.T) {
 			t.Fatalf("an excluded address reached nmap: %q", c)
 		}
 	}
-	if s.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'done'`) != 1 {
+	if s.count(`SELECT count(*) FROM core_run WHERE kind = 'lan_sweep' AND status = 'done'`) != 1 {
 		t.Fatal("no sweep ran")
 	}
 }

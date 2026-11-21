@@ -242,9 +242,20 @@ func (s mcpSource) CVE(ctx context.Context, cve string) (mcpserver.CVEEntry, boo
 	if err != nil {
 		return mcpserver.CVEEntry{}, false, err
 	}
+	if len(v.Lists) == 0 { // the tool answers for a CVE on an exploited list, in that list's words
+		return mcpserver.CVEEntry{}, false, nil
+	}
+	k := v.Lists[0]
+	var epss *float64
+	if e, ok := v.Epss.Get(); ok {
+		epss = &e.Score
+	}
+	tpl := slices.ContainsFunc(v.Signals, func(g oas.FeedsGetFeedsCveIDOKSignalsItem) bool {
+		return g.Kind == "public_exploit" && g.Source == "nuclei-templates"
+	})
 	// v.Matched (the devices that run the product) is inventory data: a feeds token does not get it (INV-2)
-	return mcpserver.CVEEntry{CVE: v.Cve, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Description: v.Description, RequiredAction: v.RequiredAction, Source: v.Source.Or(""),
-		DateAdded: v.DateAdded, DueDate: optStr(v.DueDate), Ransomware: v.Ransomware, EPSS: optNum(v.Epss), HasScanTemplate: v.HasTemplate, Links: slices.Clone(v.Links)}, true, nil
+	return mcpserver.CVEEntry{CVE: v.Cve, Vendor: k.Vendor, Product: k.Product, Name: k.Name, Description: k.Description, RequiredAction: k.RequiredAction, Source: k.Source,
+		DateAdded: k.DateAdded, DueDate: optStr(k.DueDate), Ransomware: k.Ransomware, EPSS: epss, HasScanTemplate: tpl, Links: slices.Clone(k.Links)}, true, nil
 }
 
 func (s mcpSource) IOC(ctx context.Context, value string) (mcpserver.IOCAnswer, error) {

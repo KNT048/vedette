@@ -2,59 +2,11 @@
 -- The whole schema of the sensor-active module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 
--- Where the sweep of the confirmed ranges stands (one row): the last address of the last batch finished, or
--- NULL when no pass is in progress. A window that cuts a pass is continued from here the next day; when the
--- pass reaches the end of the ranges the cursor is cleared and the next pass starts from the first address.
-CREATE TABLE sa_sweep (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    cursor     TEXT    CHECK (cursor IS NULL OR length(cursor) BETWEEN 7 AND 15),
-    updated_at TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
--- Devices waiting for their scan inside a window; kept here so a restart does not lose them.
-CREATE TABLE sa_queue (
-    asset_id  TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
-    queued_at TEXT    NOT NULL CHECK (queued_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    reason    TEXT    NOT NULL CHECK (length(reason) BETWEEN 1 AND 64),
-    attempts  INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0)
-);
-
-CREATE TABLE sa_first_pass (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    started_at TEXT    NOT NULL CHECK (started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
-CREATE TABLE sa_snmp (
-    id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    name           TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 64),
-    version        TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),
-    username       TEXT    CHECK (username IS NULL OR length(username) BETWEEN 1 AND 64),
-    auth           TEXT    CHECK (auth IS NULL OR auth IN ('sha', 'sha256')),
-    priv           TEXT    CHECK (priv IS NULL OR priv = 'aes128'),
-    secret_id      TEXT    NOT NULL CHECK (length(secret_id) BETWEEN 1 AND 96),
-    secret_last4   TEXT    NOT NULL DEFAULT '' CHECK (length(secret_last4) <= 4),
-    priv_secret_id TEXT    CHECK (priv_secret_id IS NULL OR length(priv_secret_id) BETWEEN 1 AND 96),
-    priv_last4     TEXT    NOT NULL DEFAULT '' CHECK (length(priv_last4) <= 4),
-    scope          TEXT    NOT NULL CHECK (json_valid(scope) AND json_type(scope) = 'array' AND json_array_length(scope) BETWEEN 1 AND 16 AND length(scope) <= 1000),
-    created_at     TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_answer_at TEXT    CHECK (last_answer_at IS NULL OR last_answer_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    answered       INTEGER NOT NULL DEFAULT 0 CHECK (answered >= 0), port INTEGER CHECK (port IS NULL OR port BETWEEN 1 AND 65535),
-    CHECK ((version = 'v2c' AND username IS NULL AND auth IS NULL AND priv IS NULL AND priv_secret_id IS NULL)
-        OR (version = 'v3' AND username IS NOT NULL AND auth IS NOT NULL AND (priv IS NULL) = (priv_secret_id IS NULL)))
-);
-
-CREATE TABLE "sa_job" (
-    id          TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind        TEXT    NOT NULL CHECK (kind IN ('sweep', 'device', 'snmp', 'external')),
-    reason      TEXT    CHECK (reason IS NULL OR length(reason) <= 64),
-    started_at  TEXT    NOT NULL CHECK (started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    finished_at TEXT    CHECK (finished_at IS NULL OR finished_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    status      TEXT    NOT NULL CHECK (status IN ('running', 'done', 'stopped', 'failed')),
-    targets     INTEGER NOT NULL DEFAULT 0 CHECK (targets >= 0),
-    new_devices INTEGER NOT NULL DEFAULT 0 CHECK (new_devices >= 0),
-    error       TEXT    CHECK (error IS NULL OR length(error) <= 1000)
-, asset_id TEXT CHECK (asset_id IS NULL OR length(asset_id) BETWEEN 1 AND 96), found TEXT CHECK (found IS NULL OR (json_valid(found) AND json_type(found) = 'object' AND length(found) <= 8000)));
+-- Every piece of work of this module is a run of core/run (core_run with its steps, items and log): a LAN sweep (kind lan_sweep:
+-- one run per pass, across windows, one step per range whose done count is its cursor), a device check (device_check: a device
+-- waiting for its turn in the scan window is a waiting run), an SNMP read (snmp_read), the weekly scan of every port of a device
+-- (all_ports) and the service scan of a public address for exposure (service_scan). The tables below keep what is this module's
+-- own: the probes each run sent, the weekly all-ports state and each device's SNMP settings.
 
 -- Three new LAN shapes. 'extra_ports' follows every normal or versions scan of a device (the
 -- surface list and the reviewed admin ports, nmapargv.ExtraPorts); 'all_ports' is the weekly port discovery over every TCP port of
@@ -83,10 +35,12 @@ CREATE TABLE sa_all_ports (
     normal_sw    TEXT CHECK (normal_sw IS NULL OR (json_valid(normal_sw) AND json_type(normal_sw) = 'array' AND length(normal_sw) <= 262144))
 );
 
+-- One row per nmap or SNMP job sent (INV-9: no packet without a log line), kept ProbeRetention. run_id is the run it was sent for;
+-- NULL once that run is deleted (runs are kept longer than probes, so only by a purge).
 CREATE TABLE "sa_probe" (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     time         TEXT    NOT NULL CHECK (time GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    job_id       TEXT    NOT NULL REFERENCES sa_job (id),
+    run_id       TEXT    REFERENCES core_run (id) ON DELETE SET NULL,
     shape        TEXT    NOT NULL CHECK (shape IN ('sweep', 'normal', 'gentle', 'versions', 'gentle_titles', 'snmp', 'external', 'external_full', 'external_disruptive', 'all_ports', 'extra_ports', 'port_versions')),
     rate         INTEGER NOT NULL CHECK (rate BETWEEN 1 AND 1000),
     hosts        INTEGER NOT NULL CHECK (hosts BETWEEN 1 AND 64),
@@ -95,27 +49,16 @@ CREATE TABLE "sa_probe" (
     result       TEXT    NOT NULL CHECK (length(result) <= 200)
 );
 
-CREATE TABLE sa_snmp_answer (
-    credential_id TEXT NOT NULL REFERENCES sa_snmp (id) ON DELETE CASCADE,
-    asset_id      TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    ip            TEXT NOT NULL CHECK (length(ip) BETWEEN 7 AND 15),
-    answered_at   TEXT NOT NULL CHECK (answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), sys_descr TEXT CHECK (sys_descr IS NULL OR length(sys_descr) BETWEEN 1 AND 200), sys_object_id TEXT CHECK (sys_object_id IS NULL OR length(sys_object_id) BETWEEN 1 AND 200),
-    PRIMARY KEY (credential_id, asset_id)
-);
-
 -- SNMP is set up per device. sa_snmp_device holds one device's SNMP settings: its read address (the one
 -- address its reads and its secret go to: the device's IP by default, or its management address, such as a FortiGate's global VDOM
 -- interface), the version, the v3 user and algorithms, the UDP port (NULL = 161) and the ids of its secrets in core_secret (never
 -- the secrets), with the state of its last read: when it was sent, what came back, and what the device said (answer: the JSON of
 -- the values the worker read, cleaned and bounded; untrusted text, only ever parsed through the fixed layouts of snmpmap.go).
--- asset_id is the inventory's device id (no reference across modules: the rows go with inventory.asset.deleted and move with
--- inventory.asset.merged). read_from_default is 1 when the read address was the device's own IP when saved: if the device then moves,
+-- asset_id is the inventory's device (a deleted device takes its row; the device lifecycle drops its secrets first and moves the row
+-- of a merged device). read_from_default is 1 when the read address was the device's own IP when saved: if the device then moves,
 -- nothing is sent until a person sets the address again.
--- sa_snmp_notice keeps what the box changed by itself (the move of the old SNMP credentials to the devices they covered) until a
--- person dismisses it. sa_snmp and sa_snmp_answer stay until a later release drops them: sensor-active empties them once, in Go,
--- because the secrets are opened and sealed again through core/secrets (snmp_move.go). Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_snmp_device (
-    asset_id          TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
+    asset_id          TEXT    NOT NULL PRIMARY KEY REFERENCES inv_asset (id) ON DELETE CASCADE CHECK (length(asset_id) BETWEEN 1 AND 96),
     read_from         TEXT    NOT NULL CHECK (length(read_from) BETWEEN 7 AND 15),
     read_from_default INTEGER NOT NULL CHECK (read_from_default IN (0, 1)),
     version           TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),
@@ -137,20 +80,14 @@ CREATE TABLE sa_snmp_device (
         OR (version = 'v3' AND username IS NOT NULL AND auth IS NOT NULL AND (priv IS NULL) = (priv_secret_id IS NULL)))
 );
 
+-- What the box changed in SNMP settings by itself (a merge of two devices that both had SNMP set up: which was kept), until a
+-- person dismisses it.
 CREATE TABLE sa_snmp_notice (
     id   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     at   TEXT    NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     text TEXT    NOT NULL CHECK (length(text) BETWEEN 1 AND 2000)
 );
 
-CREATE UNIQUE INDEX sa_snmp_name_ux ON sa_snmp (name COLLATE NOCASE);
-
-CREATE INDEX sa_job_started_ix ON sa_job (kind, started_at);
-
 CREATE INDEX sa_probe_time_ix ON sa_probe (time);
 
-CREATE INDEX sa_probe_job_ix ON sa_probe (job_id);
-
-CREATE INDEX sa_snmp_answer_asset_ix ON sa_snmp_answer (asset_id);
-
-CREATE INDEX sa_job_asset_ix ON sa_job (asset_id, started_at) WHERE asset_id IS NOT NULL;
+CREATE INDEX sa_probe_run_ix ON sa_probe (run_id);

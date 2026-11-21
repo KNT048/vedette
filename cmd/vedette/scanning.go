@@ -37,7 +37,12 @@ func scanningHandlers(d deps) *core.ScanningHandlers {
 		Safety:    scanningSafety{inv: d.Inventory},
 		Engines:   e.list(),
 		Discovery: discoveryRunner{e},
-		History:   e.history, // scanninghistory.go
+		Estimate: func(ctx context.Context, in core.ScopeCostInput) (core.ScopeCost, error) {
+			c := sweepCost(ctx, d, sensoractive.Settings{LANRanges: in.LANRanges, Exclusions: in.Exclusions, Days: in.Days, From: in.From, To: in.To, Rate: in.PacketsPerS})
+			return core.ScopeCost{Addresses: c.Addresses, PassSeconds: int(c.Pass / time.Second), WindowSeconds: int(c.Window / time.Second), Windows: c.Windows,
+				WeekWindows: c.WeekWindows, FitsWindow: c.Windows <= 1, FitsWeek: c.FitsWeek()}, nil
+		},
+		History: e.history, // scanninghistory.go
 		TimeZone: func(ctx context.Context) string {
 			if d.Core == nil {
 				return ""
@@ -793,7 +798,7 @@ func honeypotState(o honeypot.Overview) (state, reason string) {
 
 type discoveryRunner struct{ e scanningEngines }
 
-func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string, record func(core.RunConsent) error) (core.RunningJob, error) {
+func (r discoveryRunner) Run(ctx context.Context, actor string, targets []string, record func(*sql.Tx, core.RunConsent) error) (core.RunningJob, error) {
 	if !r.e.on("sensor-active") {
 		return core.RunningJob{}, core.ErrDiscoveryModuleOff
 	}
@@ -801,7 +806,7 @@ func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string, re
 	if err != nil {
 		return core.RunningJob{}, core.ErrNmapUnavailable
 	}
-	m, err := svc.StartManual(ctx, targets, func(m sensoractive.ManualRun) error {
+	m, err := svc.StartManual(ctx, actor, targets, func(tx *sql.Tx, m sensoractive.ManualRun) error {
 		c := core.RunConsent{ID: m.ID, Ranges: m.Ranges, Until: m.Until}
 		for _, id := range m.Assets {
 			if len(m.Assets) == 1 && m.IP.IsValid() {
@@ -809,7 +814,7 @@ func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string, re
 			}
 			c.Devices = append(c.Devices, id)
 		}
-		return record(c)
+		return record(tx, c)
 	})
 	var te *sensoractive.TargetError
 	var soon *sensoractive.TooSoonError

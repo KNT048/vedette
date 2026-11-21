@@ -43,7 +43,7 @@ func TestSettingsStopDuringPreChecksIsNotAnAttempt(t *testing.T) {
 	if calls := e.nm.calls(t); len(calls) != 0 {
 		t.Fatalf("nmap ran: %q", calls)
 	}
-	if got := e.count(`SELECT attempts FROM sa_queue WHERE asset_id = 'a-web'`); got != 0 {
+	if got := e.count(`SELECT attempts FROM queue_v WHERE asset_id = 'a-web'`); got != 0 {
 		t.Errorf("a run stopped by a settings change before nmap started counted as an attempt: attempts = %d", got)
 	}
 }

@@ -1,0 +1,61 @@
+{
+ "_note": "The seven agent records of an anonymised inventory export (identifiers replaced), only the fields the cadence replay reads: what kind of agent each is and when it enrolled, last called and last delivered results.",
+ "agent_nodes": [
+  {
+   "id": "node-xad4vbcfwhje3facuaax4m5f2u",
+   "platform": "ubuntu",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-13T07:41:54.629Z",
+   "last_call_at": "2026-11-13T11:56:12.426Z",
+   "last_result_at": "2026-11-13T11:56:12.426Z"
+  },
+  {
+   "id": "node-pyrqbuinc5ymldycp2fm7jetye",
+   "platform": "ubuntu",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-13T12:04:33.291Z",
+   "last_call_at": "2026-11-20T08:07:57.678Z",
+   "last_result_at": "2026-11-20T08:06:57.665Z"
+  },
+  {
+   "id": "node-cerubfp2hyrchkkd3yq5vks2oe",
+   "platform": "windows",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-14T21:11:09.960Z",
+   "last_call_at": "2026-11-14T21:11:30.248Z",
+   "last_result_at": "2026-11-14T21:11:30.248Z"
+  },
+  {
+   "id": "node-fra7bhjdklzsqd4we4p6ife5z4",
+   "platform": "debian",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-16T06:25:20.484Z",
+   "last_call_at": "2026-11-16T08:35:26.218Z",
+   "last_result_at": "2026-11-16T08:29:26.854Z"
+  },
+  {
+   "id": "node-tamuspilr7phjfvlocjrzfu5ji",
+   "platform": "windows",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-17T03:29:44.532Z",
+   "last_call_at": "2026-11-20T05:47:18.593Z",
+   "last_result_at": "2026-11-20T05:47:18.593Z"
+  },
+  {
+   "id": "node-ttmsciktpiujnhaheilkszwrt4",
+   "platform": "ubuntu",
+   "osquery_version": "5.12.1",
+   "enrolled_at": "2026-11-18T05:28:43.948Z",
+   "last_call_at": "2026-11-20T08:09:28.372Z",
+   "last_result_at": "2026-11-20T08:07:45.229Z"
+  },
+  {
+   "id": "node-n7ihjdcoqveyakhni2iqfbbciu",
+   "platform": "alpine",
+   "osquery_version": null,
+   "enrolled_at": "2026-11-18T05:32:50.764Z",
+   "last_call_at": "2026-11-20T07:14:00.705Z",
+   "last_result_at": "2026-11-20T07:14:00.705Z"
+  }
+ ]
+}

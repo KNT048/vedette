@@ -130,7 +130,7 @@ Nguồn hành vi: `web/src/features/core/contract.ts` + `web/src/mocks/core.ts`.
 | nền | `GET /me`; `GET /modules` | viewer |
 | nền | `GET /setup`; `POST /auth/login`, `/auth/login/resend-code`, `/auth/logout` | public |
 | nền | `PATCH /modules/{id}` | admin |
-| quét (#850, INV-40) | `GET /scanning`, `GET /scanning/history` (viewer); `PUT /scanning/safety`, `POST /scanning/safety/ranges`, `POST /scanning/safety/exclusions`, `PATCH /scanning/engines/{id}`, `POST /scanning/engines/nmap-discovery/run` | admin |
+| quét (#850, INV-40) | `GET /scanning`, `GET /scanning/history`, `POST /scanning/safety/estimate` (viewer); `PUT /scanning/safety`, `POST /scanning/safety/ranges`, `POST /scanning/safety/exclusions`, `PATCH /scanning/engines/{id}`, `POST /scanning/engines/nmap-discovery/run` | admin |
 | runs (INV-41) | `GET /runs`, `GET /runs/{id}` (viewer); `POST /runs/{id}/stop`, `POST /runs/{id}/resume` | operator |
 | schedules (INV-42) | `GET /schedules/{owner_key}`, `POST /schedules/preview` (viewer); `PUT /schedules/{owner_key}`, `POST /schedules/{owner_key}/run` | operator (admin when the owner says so) |
 | phát hiện xâm nhập | `GET /detection/overview` (trả lời cả khi mọi module phát hiện tắt: nói module nào tắt); (`cmd/vedette` `detectionHandlers` đọc honeypot, logs, sensor-passive, ids và sự cố của notify qua dịch vụ của từng module; đọc một module lỗi thì watcher của nó là `failed`, trang vẫn trả lời; Logs tắt mà ids bật thì watcher `ips_events` nói Logs tắt); `GET /detection/alerts`, `GET /detection/alerts/{id}` thuộc module `ids` (404 khi tắt) | viewer |

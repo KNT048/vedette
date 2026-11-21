@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
 )
@@ -136,6 +137,12 @@ func (h *Handlers) InventoryGetInventoryDevicesIDSources(ctx context.Context, pa
 	if err != nil {
 		return nil, fail(err)
 	}
+	// The token Show setup shows is an administrator's (the tokens list is admin only): the others get the row's state and button only.
+	if p, ok := server.PrincipalFrom(ctx); !ok || p.Role != routes.Admin {
+		for i := range v.Rows {
+			v.Rows[i].Token = nil
+		}
+	}
 	return convert[oas.InventoryGetInventoryDevicesIDSourcesOK](v)
 }
 
@@ -145,16 +152,17 @@ func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	var scan, snmp *string
+	var ch SourcesChange
 	if v, ok := req.Scan.Get(); ok {
-		x := string(v)
-		scan = &x
+		ch.Scan = ptrTo(string(v))
 	}
 	if v, ok := req.Snmp.Get(); ok {
-		x := string(v)
-		snmp = &x
+		ch.SNMP = ptrTo(string(v))
 	}
-	r, err := h.svc.SetSources(ctx, who, params.ID, scan, snmp)
+	if v, ok := req.Agent.Get(); ok {
+		ch.Agent = ptrTo(string(v))
+	}
+	r, err := h.svc.ChangeSources(ctx, who, params.ID, ch)
 	if err != nil {
 		return nil, fail(err)
 	}

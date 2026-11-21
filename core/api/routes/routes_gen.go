@@ -413,6 +413,7 @@ var Operations = map[string]Operation{
 	"scanning_post_runs_id_resume":                           {Method: "POST", Path: "/runs/{id}/resume", MinRole: Operator, Tag: "scanning"},
 	"scanning_post_runs_id_stop":                             {Method: "POST", Path: "/runs/{id}/stop", MinRole: Operator, Tag: "scanning"},
 	"scanning_post_scanning_engines_nmap_discovery_run":      {Method: "POST", Path: "/scanning/engines/nmap-discovery/run", MinRole: Admin, Tag: "scanning"},
+	"scanning_post_scanning_safety_estimate":                 {Method: "POST", Path: "/scanning/safety/estimate", MinRole: Viewer, Tag: "scanning"},
 	"scanning_post_scanning_safety_exclusions":               {Method: "POST", Path: "/scanning/safety/exclusions", MinRole: Admin, Tag: "scanning"},
 	"scanning_post_scanning_safety_ranges":                   {Method: "POST", Path: "/scanning/safety/ranges", MinRole: Admin, Tag: "scanning"},
 	"scanning_put_scanning_safety":                           {Method: "PUT", Path: "/scanning/safety", MinRole: Admin, Tag: "scanning"},

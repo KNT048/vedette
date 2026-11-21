@@ -52,7 +52,7 @@ func TestRecordSweepStopsAtTheNewDeviceBudget(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fresh += n
+		fresh += len(n)
 	}
 	if fresh != sweepNewPerHour || len(sink.macs) != sweepNewPerHour {
 		t.Fatalf("%d new devices reported, %d recorded; the budget is %d an hour", fresh, len(sink.macs), sweepNewPerHour)
@@ -73,8 +73,8 @@ func TestRecordSweepChargesByMACNotByIP(t *testing.T) {
 		hosts = append(hosts, host{addr: ip, mac: mac(1000 + i)})
 	}
 	n, err := s.recordSweep(t.Context(), hosts, []netip.Addr{ip}, known)
-	if err != nil || n != 1 || len(sink.macs) != 1 { // one entry per target: only the first counts
-		t.Fatalf("200 entries for one target: %d new, %d recorded, %v", n, len(sink.macs), err)
+	if err != nil || len(n) != 1 || len(sink.macs) != 1 { // one entry per target: only the first counts
+		t.Fatalf("200 entries for one target: %d new, %d recorded, %v", len(n), len(sink.macs), err)
 	}
 	// the same address over several batches (a hostile scan container) with a new MAC each time is charged and capped
 	for i := range 200 {
@@ -93,8 +93,8 @@ func TestRecordSweepChargesByMACNotByIP(t *testing.T) {
 		a := netip.AddrFrom4([4]byte{10, 3, byte(i >> 8), byte(i)})
 		churn, batch = append(churn, host{addr: a, mac: mac(5000 + i)}), append(batch, a)
 	}
-	if n, err := s.recordSweep(t.Context(), churn, batch, known); err != nil || n != 0 {
-		t.Fatalf("known MACs on new IPs: %d new, %v", n, err)
+	if n, err := s.recordSweep(t.Context(), churn, batch, known); err != nil || len(n) != 0 {
+		t.Fatalf("known MACs on new IPs: %d new, %v", len(n), err)
 	}
 	for i := range 500 {
 		if !sink.macs[mac(5000+i)] {

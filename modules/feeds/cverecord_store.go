@@ -13,10 +13,11 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// What a CVE record writes into the catalogue. The record reader is the one writer of feeds_cve.record_at, title, cwe, solution,
-// workaround and the ssvc columns, of the cna and adp rows of feeds_cve_range and of feeds_cve_ref. It writes the description and the
-// published day only while NVD has given none (NVD's English description wins as soon as NVD answers). CVSS scores stay NVD's: NVD's
-// record carries the CNA's and CISA's scores too.
+// What a CVE record writes into the catalogue. The record reader is the one writer of feeds_cve.record_at, title, solution, workaround
+// and the ssvc columns and of the cna and adp rows of feeds_cve_range. It writes the description and the published day only while NVD
+// has given none (NVD's English description wins as soon as NVD answers), the weaknesses (cwe) while NVD has not answered or listed none,
+// and the references (feeds_cve_ref) while NVD has tagged none (nvdRefs): NVD's record carries the CNA's and CISA's weaknesses and
+// references, tagged by an analyst. CVSS scores stay NVD's: NVD's record carries the CNA's and CISA's scores too.
 
 // importantSQL is the CVEs whose references the catalogue keeps (with the pinned CVEs the caller adds): an exploited-list entry (a
 // custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID.
@@ -67,7 +68,7 @@ type recordWrite struct {
 
 // recordStmts are the prepared statements of one writeRecords call.
 type recordStmts struct {
-	ensure, update, readAt, delRanges, insRange, delRefs, insRef *sql.Stmt
+	ensure, update, readAt, delRanges, insRange, delRefs, nvdRefs, insRef *sql.Stmt
 }
 
 func prepareRecordStmts(ctx context.Context, tx *sql.Tx) (*recordStmts, error) {
@@ -78,14 +79,15 @@ func prepareRecordStmts(ctx context.Context, tx *sql.Tx) (*recordStmts, error) {
 		q  string
 	}{
 		{&s.ensure, `INSERT INTO feeds_cve (cve, updated_at) VALUES (?, ?) ON CONFLICT(cve) DO NOTHING`},
-		{&s.update, `UPDATE feeds_cve SET record_at = ?, title = ?, cwe = ?, solution = ?, workaround = ?, ssvc_exploitation = ?, ssvc_automatable = ?,
+		{&s.update, `UPDATE feeds_cve SET record_at = ?, title = ?, cwe = CASE WHEN nvd_at IS NULL OR cwe = '[]' THEN ? ELSE cwe END, solution = ?, workaround = ?, ssvc_exploitation = ?, ssvc_automatable = ?,
 ssvc_impact = ?, description = CASE WHEN nvd_at IS NULL OR description = '' THEN ? ELSE description END, published = coalesce(published, ?)
 WHERE cve = ?`},
 		{&s.readAt, `SELECT record_at IS NOT NULL, EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = feeds_cve.cve AND r.origin = 'nvd') FROM feeds_cve WHERE cve = ?`},
 		{&s.delRanges, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin IN ('cna', 'adp')`},
 		{&s.insRange, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`},
-		{&s.delRefs, `DELETE FROM feeds_cve_ref WHERE cve = ?`},
+		{&s.delRefs, `DELETE FROM feeds_cve_ref WHERE cve = ? AND (? OR NOT EXISTS (SELECT 1 FROM feeds_cve_ref n WHERE n.cve = feeds_cve_ref.cve AND n.source = 'nvd'))`},
+		{&s.nvdRefs, `SELECT EXISTS (SELECT 1 FROM feeds_cve_ref WHERE cve = ? AND source = 'nvd')`},
 		{&s.insRef, `INSERT INTO feeds_cve_ref (cve, url, tags, source) VALUES (?, ?, ?, ?)`},
 	} {
 		if *p.st, err = tx.PrepareContext(ctx, p.q); err != nil {
@@ -97,7 +99,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`},
 }
 
 func (s *recordStmts) close() {
-	for _, st := range []*sql.Stmt{s.ensure, s.update, s.readAt, s.delRanges, s.insRange, s.delRefs, s.insRef} {
+	for _, st := range []*sql.Stmt{s.ensure, s.update, s.readAt, s.delRanges, s.insRange, s.delRefs, s.nvdRefs, s.insRef} {
 		if st != nil {
 			_ = st.Close()
 		}
@@ -171,10 +173,15 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 				out.KEVChanged, out.KEVFirst = append(out.KEVChanged, r.CVE), out.KEVFirst && !seen
 			}
 		}
-		if _, err := st.delRefs.ExecContext(ctx, r.CVE); err != nil {
+		// a rejected record drops every reference; otherwise NVD's tagged references, once there, stand (nvdRefs)
+		if _, err := st.delRefs.ExecContext(ctx, r.CVE, r.State == RecordRejected); err != nil {
 			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
-		if k.important[r.CVE] && r.State == RecordPublished {
+		var nvdHas bool
+		if err := st.nvdRefs.QueryRowContext(ctx, r.CVE).Scan(&nvdHas); err != nil {
+			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
+		}
+		if k.important[r.CVE] && r.State == RecordPublished && !nvdHas {
 			for _, ref := range r.Refs {
 				tags, err := json.Marshal(ref.Tags)
 				if err != nil {

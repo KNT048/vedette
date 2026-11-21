@@ -17,7 +17,7 @@ func TestLogSourceIsMatchedByTheReadAddressOverHTTP(t *testing.T) {
 	s := newStack(t)
 	s.setModule("logs", true)
 	ctx := t.Context()
-	svc, err := newSensorActive(context.Background(), *s.d, newHeldWorker())
+	svc, err := newSensorActive(context.Background(), *s.d, newHeldWorker(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -116,6 +116,9 @@ func (s *Service) AddRange(ctx context.Context, actor string, in RangeAdd) (Save
 				return aerr
 			}
 			next.LANRanges = ranges
+			if err := s.checkCost(ctx, next); err != nil {
+				return err
+			}
 			detail = "added range " + one[0]
 			if prev.ScopeConfirmedAt == nil && len(prev.LANRanges) > 0 {
 				detail += " and confirmed the scope, which was not confirmed (" + strings.Join(prev.LANRanges, ", ") + " were shown)"
@@ -312,6 +315,11 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 	}
 	act.Days = slices.Compact(slices.Sorted(slices.Values(in.Days)))
 	act.From, act.To, act.CheckRate, act.Exclusions = in.From, in.To, in.CheckRate, excl
+	next := cur
+	next.Active = act
+	if err := s.checkCost(ctx, next); err != nil { // a window this short could not sweep the scope within a week
+		return err
+	}
 	if err := putSetting(ctx, tx, "active", act, s.now(), actorOrSystem(actor)); err != nil {
 		return err
 	}

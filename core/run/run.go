@@ -73,6 +73,12 @@ type Kind struct {
 	// AdminResume makes Resume an administrator's, for a kind whose start is one (a LAN sweep only an admin may start);
 	// otherwise an operator may resume it.
 	AdminResume bool
+	// Unit names the units a run of this kind counts in its steps (plural, e.g. "addresses", "devices"): the summary says "6,272 of
+	// 65,792 addresses". Empty: "6,272 of 65,792".
+	Unit string
+	// Estimate, when set, adds the time a running or waiting run has left to its summary, in words ("about 9 more nights at 50
+	// packets/s"); "" when it cannot tell. It is called while the runs are read, so it must be cheap.
+	Estimate func(ctx context.Context, r Run) string
 	// Run does the work. It ends when ctx ends (a stop, or the box stopping) and returns how the run ended. An error makes
 	// the run failed with the error's text, so the text must be fit for the person who reads the run page.
 	Run func(ctx context.Context, x *Exec) (Result, error)
@@ -111,6 +117,9 @@ type Spec struct {
 	Subject      *Subject
 	ParentID     string // optional: the run this one is a step of
 	Steps        []StepPlan
+	// WaitingFor, when set, creates the run waiting for what it names (e.g. "the scan window (opens 23:00)") instead of queued: it
+	// holds no place in its lane's queue until it is resumed (Resume).
+	WaitingFor string
 }
 
 // Config wires a Manager. DB is required.
@@ -262,11 +271,15 @@ func (m *Manager) CreateTx(ctx context.Context, tx *sql.Tx, s Spec) (string, err
 	}
 	id := store.NewID("run")
 	now := m.now()
+	st, waitingFor := Queued, nullable(s.WaitingFor, 200)
+	if waitingFor != nil {
+		st = Waiting
+	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO core_run (id, module, kind, lane, title, trigger, trigger_note, requested_by, schedule_id,
-		subject_kind, subject_id, subject_label, parent_id, status, queued_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		subject_kind, subject_id, subject_label, parent_id, status, waiting_for, queued_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, k.Module, k.Name, k.Lane, title, string(s.Trigger), nullable(s.TriggerNote, 200), by, nullable(s.ScheduleID, 96),
-		subKind, subID, subLabel, nullable(s.ParentID, 96), string(Queued), now, now)
+		subKind, subID, subLabel, nullable(s.ParentID, 96), string(st), waitingFor, now, now)
 	if err != nil {
 		return "", fmt.Errorf("run: create: %w", err)
 	}
@@ -282,6 +295,12 @@ func (m *Manager) CreateTx(ctx context.Context, tx *sql.Tx, s Spec) (string, err
 	}
 	if err := rollup(ctx, tx, id, now); err != nil {
 		return "", err
+	}
+	if waitingFor != nil {
+		if err := logTx(ctx, tx, id, now, Info, "Waiting for "+*waitingFor); err != nil {
+			return "", err
+		}
+		return id, nil
 	}
 	m.Kick()
 	return id, nil

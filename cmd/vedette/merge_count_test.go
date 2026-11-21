@@ -123,8 +123,9 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 	sw := fx.Software[0]["id"].(string)
 	s.exec(`INSERT INTO fnd_plan_done (item_key, asset_id, version, cves, done_by, done_at) VALUES (?, ?, ?, '[]', 'person@example.com', '2026-11-20T10:07:00.000Z')`,
 		from+"/"+sw+"-f", from, fx.Software[0]["version"])
-	s.exec(`INSERT INTO sa_job (id, kind, reason, started_at, finished_at, status, asset_id) VALUES ('job-merge-1', 'device', 'check_now', '2026-11-20T10:08:00.000Z',
-		'2026-11-20T10:09:00.000Z', 'done', ?)`, from)
+	s.exec(`INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, status, queued_at, started_at, ended_at, updated_at)
+		VALUES ('run-merge-1', 'sensor-active', 'device_check', 'nmap', 'Check of host-44', 'manual', 'person@example.com', 'device', ?, 'done',
+		'2026-11-20T10:08:00.000Z', '2026-11-20T10:08:00.000Z', '2026-11-20T10:09:00.000Z', '2026-11-20T10:09:00.000Z')`, from)
 	s.exec(`INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES ('inc-merge-1', 'trap',
 		'A device touched a trap', '/honeypot', 'high', 'trap hit', 'look', '2026-11-20T10:10:00.000Z', '2026-11-20T10:10:00.000Z', ?)`, strings.Repeat("a", 64))
 	s.exec(`INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES ('inc-merge-1', ?, 'host-44')`, from)
@@ -149,7 +150,7 @@ var mergeFacts = []mergeFact{
 	{"mitigation", `SELECT f.cve || '|applied|' || m.item FROM mit_applied m JOIN fnd_finding f ON f.id = m.finding_id WHERE f.asset_id = ?1
 		UNION SELECT f.cve || '|ai|' || m.skill FROM mit_ai_output m JOIN fnd_finding f ON f.id = m.finding_id WHERE f.asset_id = ?1`},
 	{"done marks", `SELECT version || '|' || cves || '|' || done_by FROM fnd_plan_done WHERE asset_id = ?1`},
-	{"device checks", `SELECT id FROM sa_job WHERE asset_id = ?1`},
+	{"device checks", `SELECT id FROM core_run WHERE module = 'sensor-active' AND subject_kind = 'device' AND subject_id = ?1`},
 	{"incidents", `SELECT d.incident_id FROM notify_incident_device d JOIN notify_incident i ON i.id = d.incident_id WHERE d.asset_id = ?1 AND i.kind <> 'unknown_device'`},
 	{"response events", `SELECT id FROM resp_events WHERE asset_id = ?1`},
 	{"connections", `SELECT id FROM core_connection WHERE asset_id = ?1`},
@@ -164,7 +165,7 @@ var mergeFacts = []mergeFact{
 var dangling = []string{
 	`SELECT count(*) FROM fnd_finding WHERE asset_id = ?1`,
 	`SELECT count(*) FROM fnd_plan_done WHERE asset_id = ?1`,
-	`SELECT count(*) FROM sa_job WHERE asset_id = ?1`,
+	`SELECT count(*) FROM core_run WHERE module = 'sensor-active' AND subject_kind = 'device' AND subject_id = ?1`,
 	`SELECT count(*) FROM sa_snmp_device WHERE asset_id = ?1`,
 	`SELECT count(*) FROM notify_incident_device WHERE asset_id = ?1`,
 	`SELECT count(*) FROM resp_events WHERE asset_id = ?1`,

@@ -79281,32 +79281,55 @@ func (s *ExposurePutExposureTreeIDTermsReq) SetVersion(val string) {
 type FeedsDeleteFeedsCustomIDNoContent struct{}
 
 type FeedsGetFeedsCveIDOK struct {
-	Cve         string     `json:"cve"`
-	DateAdded   string     `json:"date_added"`
-	Description string     `json:"description"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
-	HasTemplate bool       `json:"has_template"`
-	// Http(s) addresses only.
-	Links   []string                          `json:"links"`
-	Matched []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
-	Name    string                            `json:"name"`
+	Cve string `json:"cve"`
+	// The one picked score: the newest CVSS version, NVD before the CNA before CISA; null when the CVE has
+	// no score.
+	Cvss NilFeedsGetFeedsCveIDOKCvss   `json:"cvss"`
+	Cwe  []FeedsGetFeedsCveIDOKCweItem `json:"cwe"`
+	// NVD's English description, else the CNA's.
+	Description string `json:"description"`
+	// The product in plain words: the exploited-list entry's, else the first of products.
+	Display NilString                   `json:"display"`
+	Epss    NilFeedsGetFeedsCveIDOKEpss `json:"epss"`
+	// Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists).
+	Lists []FeedsGetFeedsCveIDOKListsItem `json:"lists"`
+	// Devices whose product matches the exploited-list entry; null when the inventory is off or the CVE is
+	// on no exploited list.
+	Matched  []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
+	Modified NilString                         `json:"modified"`
 	// Devices that run the product but that the platform rules of the findings prove are not affected;
 	// left out of matched.
-	NotAffected OptInt `json:"not_affected"`
-	Product     string `json:"product"`
-	// The day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it.
-	// Older than 12 months: a device that matches by the product name only (no version compared) is not a
-	// finding, so matched may list devices that are not findings.
-	Published      NilString `json:"published"`
-	Ransomware     bool      `json:"ransomware"`
-	RequiredAction string    `json:"required_action"`
-	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or the id of a custom feed;
-	// texts name it, an entry of VulnCheck is never called CISA's.
-	Source OptString `json:"source"`
-	Vendor string    `json:"vendor"`
+	NotAffected  int         `json:"not_affected"`
+	NvdCheckedAt NilDateTime `json:"nvd_checked_at"`
+	// NVD's vulnStatus ("Analyzed", "Deferred" …); null until NVD answered.
+	NvdStatus NilString `json:"nvd_status"`
+	NvdURL    string    `json:"nvd_url"`
+	// Vendor and product of the ranges that count ("vmware esxi"), sorted.
+	Products  []string  `json:"products"`
+	Published NilString `json:"published"`
+	// Every affected-versions row, the ones that count first.
+	Ranges []FeedsGetFeedsCveIDOKRangesItem `json:"ranges"`
+	// CVE record rows only: every product's list says what an unlisted version is.
+	RangesComplete bool `json:"ranges_complete"`
+	// The origin of the rows that count; null when there are none.
+	RangesFrom NilFeedsGetFeedsCveIDOKRangesFrom `json:"ranges_from"`
+	// When the CVE record was last read.
+	RecordReadAt NilDateTime `json:"record_read_at"`
+	RecordURL    string      `json:"record_url"`
+	// Grouped: ordered by group, then by address.
+	References []FeedsGetFeedsCveIDOKReferencesItem `json:"references"`
+	// Every stored score, in the order the pick prefers them.
+	Scores []FeedsGetFeedsCveIDOKScoresItem `json:"scores"`
+	// Every signal, oldest first.
+	Signals []FeedsGetFeedsCveIDOKSignalsItem `json:"signals"`
+	// The CNA's solution text; null when the record has none.
+	Solution NilString `json:"solution"`
+	// CISA's SSVC decision points (Vulnrichment).
+	Ssvc FeedsGetFeedsCveIDOKSsvc `json:"ssvc"`
+	// The CNA's title.
+	Title NilString `json:"title"`
+	// The CNA's workaround text; null when the record has none.
+	Workaround NilString `json:"workaround"`
 }
 
 // GetCve returns the value of Cve.
@@ -79314,9 +79337,14 @@ func (s *FeedsGetFeedsCveIDOK) GetCve() string {
 	return s.Cve
 }
 
-// GetDateAdded returns the value of DateAdded.
-func (s *FeedsGetFeedsCveIDOK) GetDateAdded() string {
-	return s.DateAdded
+// GetCvss returns the value of Cvss.
+func (s *FeedsGetFeedsCveIDOK) GetCvss() NilFeedsGetFeedsCveIDOKCvss {
+	return s.Cvss
+}
+
+// GetCwe returns the value of Cwe.
+func (s *FeedsGetFeedsCveIDOK) GetCwe() []FeedsGetFeedsCveIDOKCweItem {
+	return s.Cwe
 }
 
 // GetDescription returns the value of Description.
@@ -79325,33 +79353,18 @@ func (s *FeedsGetFeedsCveIDOK) GetDescription() string {
 }
 
 // GetDisplay returns the value of Display.
-func (s *FeedsGetFeedsCveIDOK) GetDisplay() string {
+func (s *FeedsGetFeedsCveIDOK) GetDisplay() NilString {
 	return s.Display
 }
 
-// GetDueDate returns the value of DueDate.
-func (s *FeedsGetFeedsCveIDOK) GetDueDate() NilString {
-	return s.DueDate
-}
-
 // GetEpss returns the value of Epss.
-func (s *FeedsGetFeedsCveIDOK) GetEpss() NilFloat64 {
+func (s *FeedsGetFeedsCveIDOK) GetEpss() NilFeedsGetFeedsCveIDOKEpss {
 	return s.Epss
 }
 
-// GetEpss7dAgo returns the value of Epss7dAgo.
-func (s *FeedsGetFeedsCveIDOK) GetEpss7dAgo() NilFloat64 {
-	return s.Epss7dAgo
-}
-
-// GetHasTemplate returns the value of HasTemplate.
-func (s *FeedsGetFeedsCveIDOK) GetHasTemplate() bool {
-	return s.HasTemplate
-}
-
-// GetLinks returns the value of Links.
-func (s *FeedsGetFeedsCveIDOK) GetLinks() []string {
-	return s.Links
+// GetLists returns the value of Lists.
+func (s *FeedsGetFeedsCveIDOK) GetLists() []FeedsGetFeedsCveIDOKListsItem {
+	return s.Lists
 }
 
 // GetMatched returns the value of Matched.
@@ -79359,19 +79372,34 @@ func (s *FeedsGetFeedsCveIDOK) GetMatched() []FeedsGetFeedsCveIDOKMatchedItem {
 	return s.Matched
 }
 
-// GetName returns the value of Name.
-func (s *FeedsGetFeedsCveIDOK) GetName() string {
-	return s.Name
+// GetModified returns the value of Modified.
+func (s *FeedsGetFeedsCveIDOK) GetModified() NilString {
+	return s.Modified
 }
 
 // GetNotAffected returns the value of NotAffected.
-func (s *FeedsGetFeedsCveIDOK) GetNotAffected() OptInt {
+func (s *FeedsGetFeedsCveIDOK) GetNotAffected() int {
 	return s.NotAffected
 }
 
-// GetProduct returns the value of Product.
-func (s *FeedsGetFeedsCveIDOK) GetProduct() string {
-	return s.Product
+// GetNvdCheckedAt returns the value of NvdCheckedAt.
+func (s *FeedsGetFeedsCveIDOK) GetNvdCheckedAt() NilDateTime {
+	return s.NvdCheckedAt
+}
+
+// GetNvdStatus returns the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDOK) GetNvdStatus() NilString {
+	return s.NvdStatus
+}
+
+// GetNvdURL returns the value of NvdURL.
+func (s *FeedsGetFeedsCveIDOK) GetNvdURL() string {
+	return s.NvdURL
+}
+
+// GetProducts returns the value of Products.
+func (s *FeedsGetFeedsCveIDOK) GetProducts() []string {
+	return s.Products
 }
 
 // GetPublished returns the value of Published.
@@ -79379,24 +79407,64 @@ func (s *FeedsGetFeedsCveIDOK) GetPublished() NilString {
 	return s.Published
 }
 
-// GetRansomware returns the value of Ransomware.
-func (s *FeedsGetFeedsCveIDOK) GetRansomware() bool {
-	return s.Ransomware
+// GetRanges returns the value of Ranges.
+func (s *FeedsGetFeedsCveIDOK) GetRanges() []FeedsGetFeedsCveIDOKRangesItem {
+	return s.Ranges
 }
 
-// GetRequiredAction returns the value of RequiredAction.
-func (s *FeedsGetFeedsCveIDOK) GetRequiredAction() string {
-	return s.RequiredAction
+// GetRangesComplete returns the value of RangesComplete.
+func (s *FeedsGetFeedsCveIDOK) GetRangesComplete() bool {
+	return s.RangesComplete
 }
 
-// GetSource returns the value of Source.
-func (s *FeedsGetFeedsCveIDOK) GetSource() OptString {
-	return s.Source
+// GetRangesFrom returns the value of RangesFrom.
+func (s *FeedsGetFeedsCveIDOK) GetRangesFrom() NilFeedsGetFeedsCveIDOKRangesFrom {
+	return s.RangesFrom
 }
 
-// GetVendor returns the value of Vendor.
-func (s *FeedsGetFeedsCveIDOK) GetVendor() string {
-	return s.Vendor
+// GetRecordReadAt returns the value of RecordReadAt.
+func (s *FeedsGetFeedsCveIDOK) GetRecordReadAt() NilDateTime {
+	return s.RecordReadAt
+}
+
+// GetRecordURL returns the value of RecordURL.
+func (s *FeedsGetFeedsCveIDOK) GetRecordURL() string {
+	return s.RecordURL
+}
+
+// GetReferences returns the value of References.
+func (s *FeedsGetFeedsCveIDOK) GetReferences() []FeedsGetFeedsCveIDOKReferencesItem {
+	return s.References
+}
+
+// GetScores returns the value of Scores.
+func (s *FeedsGetFeedsCveIDOK) GetScores() []FeedsGetFeedsCveIDOKScoresItem {
+	return s.Scores
+}
+
+// GetSignals returns the value of Signals.
+func (s *FeedsGetFeedsCveIDOK) GetSignals() []FeedsGetFeedsCveIDOKSignalsItem {
+	return s.Signals
+}
+
+// GetSolution returns the value of Solution.
+func (s *FeedsGetFeedsCveIDOK) GetSolution() NilString {
+	return s.Solution
+}
+
+// GetSsvc returns the value of Ssvc.
+func (s *FeedsGetFeedsCveIDOK) GetSsvc() FeedsGetFeedsCveIDOKSsvc {
+	return s.Ssvc
+}
+
+// GetTitle returns the value of Title.
+func (s *FeedsGetFeedsCveIDOK) GetTitle() NilString {
+	return s.Title
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FeedsGetFeedsCveIDOK) GetWorkaround() NilString {
+	return s.Workaround
 }
 
 // SetCve sets the value of Cve.
@@ -79404,9 +79472,14 @@ func (s *FeedsGetFeedsCveIDOK) SetCve(val string) {
 	s.Cve = val
 }
 
-// SetDateAdded sets the value of DateAdded.
-func (s *FeedsGetFeedsCveIDOK) SetDateAdded(val string) {
-	s.DateAdded = val
+// SetCvss sets the value of Cvss.
+func (s *FeedsGetFeedsCveIDOK) SetCvss(val NilFeedsGetFeedsCveIDOKCvss) {
+	s.Cvss = val
+}
+
+// SetCwe sets the value of Cwe.
+func (s *FeedsGetFeedsCveIDOK) SetCwe(val []FeedsGetFeedsCveIDOKCweItem) {
+	s.Cwe = val
 }
 
 // SetDescription sets the value of Description.
@@ -79415,33 +79488,18 @@ func (s *FeedsGetFeedsCveIDOK) SetDescription(val string) {
 }
 
 // SetDisplay sets the value of Display.
-func (s *FeedsGetFeedsCveIDOK) SetDisplay(val string) {
+func (s *FeedsGetFeedsCveIDOK) SetDisplay(val NilString) {
 	s.Display = val
 }
 
-// SetDueDate sets the value of DueDate.
-func (s *FeedsGetFeedsCveIDOK) SetDueDate(val NilString) {
-	s.DueDate = val
-}
-
 // SetEpss sets the value of Epss.
-func (s *FeedsGetFeedsCveIDOK) SetEpss(val NilFloat64) {
+func (s *FeedsGetFeedsCveIDOK) SetEpss(val NilFeedsGetFeedsCveIDOKEpss) {
 	s.Epss = val
 }
 
-// SetEpss7dAgo sets the value of Epss7dAgo.
-func (s *FeedsGetFeedsCveIDOK) SetEpss7dAgo(val NilFloat64) {
-	s.Epss7dAgo = val
-}
-
-// SetHasTemplate sets the value of HasTemplate.
-func (s *FeedsGetFeedsCveIDOK) SetHasTemplate(val bool) {
-	s.HasTemplate = val
-}
-
-// SetLinks sets the value of Links.
-func (s *FeedsGetFeedsCveIDOK) SetLinks(val []string) {
-	s.Links = val
+// SetLists sets the value of Lists.
+func (s *FeedsGetFeedsCveIDOK) SetLists(val []FeedsGetFeedsCveIDOKListsItem) {
+	s.Lists = val
 }
 
 // SetMatched sets the value of Matched.
@@ -79449,19 +79507,34 @@ func (s *FeedsGetFeedsCveIDOK) SetMatched(val []FeedsGetFeedsCveIDOKMatchedItem)
 	s.Matched = val
 }
 
-// SetName sets the value of Name.
-func (s *FeedsGetFeedsCveIDOK) SetName(val string) {
-	s.Name = val
+// SetModified sets the value of Modified.
+func (s *FeedsGetFeedsCveIDOK) SetModified(val NilString) {
+	s.Modified = val
 }
 
 // SetNotAffected sets the value of NotAffected.
-func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val OptInt) {
+func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val int) {
 	s.NotAffected = val
 }
 
-// SetProduct sets the value of Product.
-func (s *FeedsGetFeedsCveIDOK) SetProduct(val string) {
-	s.Product = val
+// SetNvdCheckedAt sets the value of NvdCheckedAt.
+func (s *FeedsGetFeedsCveIDOK) SetNvdCheckedAt(val NilDateTime) {
+	s.NvdCheckedAt = val
+}
+
+// SetNvdStatus sets the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDOK) SetNvdStatus(val NilString) {
+	s.NvdStatus = val
+}
+
+// SetNvdURL sets the value of NvdURL.
+func (s *FeedsGetFeedsCveIDOK) SetNvdURL(val string) {
+	s.NvdURL = val
+}
+
+// SetProducts sets the value of Products.
+func (s *FeedsGetFeedsCveIDOK) SetProducts(val []string) {
+	s.Products = val
 }
 
 // SetPublished sets the value of Published.
@@ -79469,23 +79542,1309 @@ func (s *FeedsGetFeedsCveIDOK) SetPublished(val NilString) {
 	s.Published = val
 }
 
+// SetRanges sets the value of Ranges.
+func (s *FeedsGetFeedsCveIDOK) SetRanges(val []FeedsGetFeedsCveIDOKRangesItem) {
+	s.Ranges = val
+}
+
+// SetRangesComplete sets the value of RangesComplete.
+func (s *FeedsGetFeedsCveIDOK) SetRangesComplete(val bool) {
+	s.RangesComplete = val
+}
+
+// SetRangesFrom sets the value of RangesFrom.
+func (s *FeedsGetFeedsCveIDOK) SetRangesFrom(val NilFeedsGetFeedsCveIDOKRangesFrom) {
+	s.RangesFrom = val
+}
+
+// SetRecordReadAt sets the value of RecordReadAt.
+func (s *FeedsGetFeedsCveIDOK) SetRecordReadAt(val NilDateTime) {
+	s.RecordReadAt = val
+}
+
+// SetRecordURL sets the value of RecordURL.
+func (s *FeedsGetFeedsCveIDOK) SetRecordURL(val string) {
+	s.RecordURL = val
+}
+
+// SetReferences sets the value of References.
+func (s *FeedsGetFeedsCveIDOK) SetReferences(val []FeedsGetFeedsCveIDOKReferencesItem) {
+	s.References = val
+}
+
+// SetScores sets the value of Scores.
+func (s *FeedsGetFeedsCveIDOK) SetScores(val []FeedsGetFeedsCveIDOKScoresItem) {
+	s.Scores = val
+}
+
+// SetSignals sets the value of Signals.
+func (s *FeedsGetFeedsCveIDOK) SetSignals(val []FeedsGetFeedsCveIDOKSignalsItem) {
+	s.Signals = val
+}
+
+// SetSolution sets the value of Solution.
+func (s *FeedsGetFeedsCveIDOK) SetSolution(val NilString) {
+	s.Solution = val
+}
+
+// SetSsvc sets the value of Ssvc.
+func (s *FeedsGetFeedsCveIDOK) SetSsvc(val FeedsGetFeedsCveIDOKSsvc) {
+	s.Ssvc = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FeedsGetFeedsCveIDOK) SetTitle(val NilString) {
+	s.Title = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FeedsGetFeedsCveIDOK) SetWorkaround(val NilString) {
+	s.Workaround = val
+}
+
+type FeedsGetFeedsCveIDOKCvss struct {
+	Reading  NilFeedsGetFeedsCveIDOKCvssReading `json:"reading"`
+	Score    float64                            `json:"score"`
+	Severity FeedsGetFeedsCveIDOKCvssSeverity   `json:"severity"`
+	// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+	Source  FeedsGetFeedsCveIDOKCvssSource  `json:"source"`
+	Vector  string                          `json:"vector"`
+	Version FeedsGetFeedsCveIDOKCvssVersion `json:"version"`
+}
+
+// GetReading returns the value of Reading.
+func (s *FeedsGetFeedsCveIDOKCvss) GetReading() NilFeedsGetFeedsCveIDOKCvssReading {
+	return s.Reading
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FeedsGetFeedsCveIDOKCvss) GetSeverity() FeedsGetFeedsCveIDOKCvssSeverity {
+	return s.Severity
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKCvss) GetSource() FeedsGetFeedsCveIDOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FeedsGetFeedsCveIDOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FeedsGetFeedsCveIDOKCvss) GetVersion() FeedsGetFeedsCveIDOKCvssVersion {
+	return s.Version
+}
+
+// SetReading sets the value of Reading.
+func (s *FeedsGetFeedsCveIDOKCvss) SetReading(val NilFeedsGetFeedsCveIDOKCvssReading) {
+	s.Reading = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FeedsGetFeedsCveIDOKCvss) SetSeverity(val FeedsGetFeedsCveIDOKCvssSeverity) {
+	s.Severity = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKCvss) SetSource(val FeedsGetFeedsCveIDOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FeedsGetFeedsCveIDOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FeedsGetFeedsCveIDOKCvss) SetVersion(val FeedsGetFeedsCveIDOKCvssVersion) {
+	s.Version = val
+}
+
+// The CVSS vector read into words (confidentiality, integrity, availability: the impact on the
+// vulnerable system; CVSS 2.0 partial = low, complete = high).
+type FeedsGetFeedsCveIDOKCvssReading struct {
+	// Medium only for CVSS 2.0.
+	AttackComplexity FeedsGetFeedsCveIDOKCvssReadingAttackComplexity `json:"attack_complexity"`
+	// CVSS 4.0 only.
+	AttackRequirements NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements `json:"attack_requirements"`
+	AttackVector       FeedsGetFeedsCveIDOKCvssReadingAttackVector          `json:"attack_vector"`
+	Availability       FeedsGetFeedsCveIDOKCvssReadingAvailability          `json:"availability"`
+	Confidentiality    FeedsGetFeedsCveIDOKCvssReadingConfidentiality       `json:"confidentiality"`
+	Integrity          FeedsGetFeedsCveIDOKCvssReadingIntegrity             `json:"integrity"`
+	// For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high).
+	PrivilegesRequired FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired `json:"privileges_required"`
+	// CVSS 3.x only.
+	Scope NilFeedsGetFeedsCveIDOKCvssReadingScope `json:"scope"`
+	// CVSS 4.0 only: the impact on systems beyond the vulnerable one.
+	Subsequent NilFeedsGetFeedsCveIDOKCvssReadingSubsequent `json:"subsequent"`
+	// The reading in one sentence, for example "Attacker needs local access, low complexity, high
+	// privileges needed, no user action; high impact on confidentiality, integrity and availability; can
+	// reach beyond the vulnerable component.".
+	Summary string `json:"summary"`
+	// Null for CVSS 2.0, which has no such metric.
+	UserInteraction NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction `json:"user_interaction"`
+}
+
+// GetAttackComplexity returns the value of AttackComplexity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackComplexity() FeedsGetFeedsCveIDOKCvssReadingAttackComplexity {
+	return s.AttackComplexity
+}
+
+// GetAttackRequirements returns the value of AttackRequirements.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackRequirements() NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return s.AttackRequirements
+}
+
+// GetAttackVector returns the value of AttackVector.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackVector() FeedsGetFeedsCveIDOKCvssReadingAttackVector {
+	return s.AttackVector
+}
+
+// GetAvailability returns the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAvailability() FeedsGetFeedsCveIDOKCvssReadingAvailability {
+	return s.Availability
+}
+
+// GetConfidentiality returns the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetConfidentiality() FeedsGetFeedsCveIDOKCvssReadingConfidentiality {
+	return s.Confidentiality
+}
+
+// GetIntegrity returns the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetIntegrity() FeedsGetFeedsCveIDOKCvssReadingIntegrity {
+	return s.Integrity
+}
+
+// GetPrivilegesRequired returns the value of PrivilegesRequired.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetPrivilegesRequired() FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired {
+	return s.PrivilegesRequired
+}
+
+// GetScope returns the value of Scope.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetScope() NilFeedsGetFeedsCveIDOKCvssReadingScope {
+	return s.Scope
+}
+
+// GetSubsequent returns the value of Subsequent.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetSubsequent() NilFeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	return s.Subsequent
+}
+
+// GetSummary returns the value of Summary.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetSummary() string {
+	return s.Summary
+}
+
+// GetUserInteraction returns the value of UserInteraction.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetUserInteraction() NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return s.UserInteraction
+}
+
+// SetAttackComplexity sets the value of AttackComplexity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackComplexity(val FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) {
+	s.AttackComplexity = val
+}
+
+// SetAttackRequirements sets the value of AttackRequirements.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackRequirements(val NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) {
+	s.AttackRequirements = val
+}
+
+// SetAttackVector sets the value of AttackVector.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackVector(val FeedsGetFeedsCveIDOKCvssReadingAttackVector) {
+	s.AttackVector = val
+}
+
+// SetAvailability sets the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAvailability(val FeedsGetFeedsCveIDOKCvssReadingAvailability) {
+	s.Availability = val
+}
+
+// SetConfidentiality sets the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetConfidentiality(val FeedsGetFeedsCveIDOKCvssReadingConfidentiality) {
+	s.Confidentiality = val
+}
+
+// SetIntegrity sets the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetIntegrity(val FeedsGetFeedsCveIDOKCvssReadingIntegrity) {
+	s.Integrity = val
+}
+
+// SetPrivilegesRequired sets the value of PrivilegesRequired.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetPrivilegesRequired(val FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) {
+	s.PrivilegesRequired = val
+}
+
+// SetScope sets the value of Scope.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetScope(val NilFeedsGetFeedsCveIDOKCvssReadingScope) {
+	s.Scope = val
+}
+
+// SetSubsequent sets the value of Subsequent.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetSubsequent(val NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) {
+	s.Subsequent = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetUserInteraction sets the value of UserInteraction.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetUserInteraction(val NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) {
+	s.UserInteraction = val
+}
+
+// Medium only for CVSS 2.0.
+type FeedsGetFeedsCveIDOKCvssReadingAttackComplexity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow    FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "medium"
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh   FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackComplexity values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackComplexity {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackComplexity{
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow,
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium,
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackComplexity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAttackRequirements string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone    FeedsGetFeedsCveIDOKCvssReadingAttackRequirements = "none"
+	FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent FeedsGetFeedsCveIDOKCvssReadingAttackRequirements = "present"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackRequirements values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackRequirements{
+		FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone,
+		FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackRequirements(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAttackVector string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork  FeedsGetFeedsCveIDOKCvssReadingAttackVector = "network"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent FeedsGetFeedsCveIDOKCvssReadingAttackVector = "adjacent"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal    FeedsGetFeedsCveIDOKCvssReadingAttackVector = "local"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical FeedsGetFeedsCveIDOKCvssReadingAttackVector = "physical"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackVector values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackVector) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackVector {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackVector{
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackVector) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackVector) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackVector(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAvailability string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone FeedsGetFeedsCveIDOKCvssReadingAvailability = "none"
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow  FeedsGetFeedsCveIDOKCvssReadingAvailability = "low"
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh FeedsGetFeedsCveIDOKCvssReadingAvailability = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAvailability values.
+func (FeedsGetFeedsCveIDOKCvssReadingAvailability) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAvailability {
+	return []FeedsGetFeedsCveIDOKCvssReadingAvailability{
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone,
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow,
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAvailability) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAvailability) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAvailability(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingConfidentiality string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "none"
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow  FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "low"
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingConfidentiality values.
+func (FeedsGetFeedsCveIDOKCvssReadingConfidentiality) AllValues() []FeedsGetFeedsCveIDOKCvssReadingConfidentiality {
+	return []FeedsGetFeedsCveIDOKCvssReadingConfidentiality{
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone,
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow,
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingConfidentiality) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingConfidentiality) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingConfidentiality(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingIntegrity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityNone FeedsGetFeedsCveIDOKCvssReadingIntegrity = "none"
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityLow  FeedsGetFeedsCveIDOKCvssReadingIntegrity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh FeedsGetFeedsCveIDOKCvssReadingIntegrity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingIntegrity values.
+func (FeedsGetFeedsCveIDOKCvssReadingIntegrity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingIntegrity {
+	return []FeedsGetFeedsCveIDOKCvssReadingIntegrity{
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityNone,
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityLow,
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingIntegrity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingIntegrity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingIntegrity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high).
+type FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "none"
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow  FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "low"
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired values.
+func (FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) AllValues() []FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired {
+	return []FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired{
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone,
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow,
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingScope string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged FeedsGetFeedsCveIDOKCvssReadingScope = "unchanged"
+	FeedsGetFeedsCveIDOKCvssReadingScopeChanged   FeedsGetFeedsCveIDOKCvssReadingScope = "changed"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingScope values.
+func (FeedsGetFeedsCveIDOKCvssReadingScope) AllValues() []FeedsGetFeedsCveIDOKCvssReadingScope {
+	return []FeedsGetFeedsCveIDOKCvssReadingScope{
+		FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged,
+		FeedsGetFeedsCveIDOKCvssReadingScopeChanged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingScope) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingScopeChanged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingScope) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingScope(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged:
+		*s = FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingScopeChanged:
+		*s = FeedsGetFeedsCveIDOKCvssReadingScopeChanged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequent struct {
+	Availability    FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability    `json:"availability"`
+	Confidentiality FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality `json:"confidentiality"`
+	Integrity       FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity       `json:"integrity"`
+}
+
+// GetAvailability returns the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetAvailability() FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability {
+	return s.Availability
+}
+
+// GetConfidentiality returns the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetConfidentiality() FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality {
+	return s.Confidentiality
+}
+
+// GetIntegrity returns the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetIntegrity() FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity {
+	return s.Integrity
+}
+
+// SetAvailability sets the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetAvailability(val FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) {
+	s.Availability = val
+}
+
+// SetConfidentiality sets the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetConfidentiality(val FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) {
+	s.Confidentiality = val
+}
+
+// SetIntegrity sets the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetIntegrity(val FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) {
+	s.Integrity = val
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingUserInteraction string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone     FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "none"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "required"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive  FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "passive"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive   FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "active"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingUserInteraction values.
+func (FeedsGetFeedsCveIDOKCvssReadingUserInteraction) AllValues() []FeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return []FeedsGetFeedsCveIDOKCvssReadingUserInteraction{
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingUserInteraction) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingUserInteraction) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingUserInteraction(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssSeverity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssSeverityCritical FeedsGetFeedsCveIDOKCvssSeverity = "critical"
+	FeedsGetFeedsCveIDOKCvssSeverityHigh     FeedsGetFeedsCveIDOKCvssSeverity = "high"
+	FeedsGetFeedsCveIDOKCvssSeverityMedium   FeedsGetFeedsCveIDOKCvssSeverity = "medium"
+	FeedsGetFeedsCveIDOKCvssSeverityLow      FeedsGetFeedsCveIDOKCvssSeverity = "low"
+	FeedsGetFeedsCveIDOKCvssSeverityNone     FeedsGetFeedsCveIDOKCvssSeverity = "none"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssSeverity values.
+func (FeedsGetFeedsCveIDOKCvssSeverity) AllValues() []FeedsGetFeedsCveIDOKCvssSeverity {
+	return []FeedsGetFeedsCveIDOKCvssSeverity{
+		FeedsGetFeedsCveIDOKCvssSeverityCritical,
+		FeedsGetFeedsCveIDOKCvssSeverityHigh,
+		FeedsGetFeedsCveIDOKCvssSeverityMedium,
+		FeedsGetFeedsCveIDOKCvssSeverityLow,
+		FeedsGetFeedsCveIDOKCvssSeverityNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssSeverityCritical:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityHigh:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityMedium:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssSeverity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssSeverity(data) {
+	case FeedsGetFeedsCveIDOKCvssSeverityCritical:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityCritical
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityHigh
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityMedium:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityMedium
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityLow:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityNone:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+type FeedsGetFeedsCveIDOKCvssSource string
+
+const (
+	FeedsGetFeedsCveIDOKCvssSourceNvd FeedsGetFeedsCveIDOKCvssSource = "nvd"
+	FeedsGetFeedsCveIDOKCvssSourceCna FeedsGetFeedsCveIDOKCvssSource = "cna"
+	FeedsGetFeedsCveIDOKCvssSourceAdp FeedsGetFeedsCveIDOKCvssSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssSource values.
+func (FeedsGetFeedsCveIDOKCvssSource) AllValues() []FeedsGetFeedsCveIDOKCvssSource {
+	return []FeedsGetFeedsCveIDOKCvssSource{
+		FeedsGetFeedsCveIDOKCvssSourceNvd,
+		FeedsGetFeedsCveIDOKCvssSourceCna,
+		FeedsGetFeedsCveIDOKCvssSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssSource(data) {
+	case FeedsGetFeedsCveIDOKCvssSourceNvd:
+		*s = FeedsGetFeedsCveIDOKCvssSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSourceCna:
+		*s = FeedsGetFeedsCveIDOKCvssSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSourceAdp:
+		*s = FeedsGetFeedsCveIDOKCvssSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssVersion string
+
+const (
+	FeedsGetFeedsCveIDOKCvssVersion40 FeedsGetFeedsCveIDOKCvssVersion = "4.0"
+	FeedsGetFeedsCveIDOKCvssVersion31 FeedsGetFeedsCveIDOKCvssVersion = "3.1"
+	FeedsGetFeedsCveIDOKCvssVersion30 FeedsGetFeedsCveIDOKCvssVersion = "3.0"
+	FeedsGetFeedsCveIDOKCvssVersion20 FeedsGetFeedsCveIDOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssVersion values.
+func (FeedsGetFeedsCveIDOKCvssVersion) AllValues() []FeedsGetFeedsCveIDOKCvssVersion {
+	return []FeedsGetFeedsCveIDOKCvssVersion{
+		FeedsGetFeedsCveIDOKCvssVersion40,
+		FeedsGetFeedsCveIDOKCvssVersion31,
+		FeedsGetFeedsCveIDOKCvssVersion30,
+		FeedsGetFeedsCveIDOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssVersion40:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion31:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion30:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssVersion(data) {
+	case FeedsGetFeedsCveIDOKCvssVersion40:
+		*s = FeedsGetFeedsCveIDOKCvssVersion40
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion31:
+		*s = FeedsGetFeedsCveIDOKCvssVersion31
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion30:
+		*s = FeedsGetFeedsCveIDOKCvssVersion30
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion20:
+		*s = FeedsGetFeedsCveIDOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCweItem struct {
+	ID string `json:"id"`
+	// MITRE's name; null for an id the CWE List does not hold.
+	Name NilString `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *FeedsGetFeedsCveIDOKCweItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsCveIDOKCweItem) GetName() NilString {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *FeedsGetFeedsCveIDOKCweItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsCveIDOKCweItem) SetName(val NilString) {
+	s.Name = val
+}
+
+type FeedsGetFeedsCveIDOKEpss struct {
+	Day NilString `json:"day"`
+	// The days the box kept (CVEs on a list or with a signal), oldest first.
+	History    []FeedsGetFeedsCveIDOKEpssHistoryItem `json:"history"`
+	Percentile float64                               `json:"percentile"`
+	Score      float64                               `json:"score"`
+	WeekAgo    NilFloat64                            `json:"week_ago"`
+}
+
+// GetDay returns the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpss) GetDay() NilString {
+	return s.Day
+}
+
+// GetHistory returns the value of History.
+func (s *FeedsGetFeedsCveIDOKEpss) GetHistory() []FeedsGetFeedsCveIDOKEpssHistoryItem {
+	return s.History
+}
+
+// GetPercentile returns the value of Percentile.
+func (s *FeedsGetFeedsCveIDOKEpss) GetPercentile() float64 {
+	return s.Percentile
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpss) GetScore() float64 {
+	return s.Score
+}
+
+// GetWeekAgo returns the value of WeekAgo.
+func (s *FeedsGetFeedsCveIDOKEpss) GetWeekAgo() NilFloat64 {
+	return s.WeekAgo
+}
+
+// SetDay sets the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpss) SetDay(val NilString) {
+	s.Day = val
+}
+
+// SetHistory sets the value of History.
+func (s *FeedsGetFeedsCveIDOKEpss) SetHistory(val []FeedsGetFeedsCveIDOKEpssHistoryItem) {
+	s.History = val
+}
+
+// SetPercentile sets the value of Percentile.
+func (s *FeedsGetFeedsCveIDOKEpss) SetPercentile(val float64) {
+	s.Percentile = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetWeekAgo sets the value of WeekAgo.
+func (s *FeedsGetFeedsCveIDOKEpss) SetWeekAgo(val NilFloat64) {
+	s.WeekAgo = val
+}
+
+type FeedsGetFeedsCveIDOKEpssHistoryItem struct {
+	Day   string  `json:"day"`
+	Score float64 `json:"score"`
+}
+
+// GetDay returns the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) GetDay() string {
+	return s.Day
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) GetScore() float64 {
+	return s.Score
+}
+
+// SetDay sets the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) SetDay(val string) {
+	s.Day = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) SetScore(val float64) {
+	s.Score = val
+}
+
+type FeedsGetFeedsCveIDOKListsItem struct {
+	DateAdded string `json:"date_added"`
+	// The list's own words.
+	Description string    `json:"description"`
+	Display     string    `json:"display"`
+	DueDate     NilString `json:"due_date"`
+	// Http(s) addresses only.
+	Links []string `json:"links"`
+	// "cisa", "vulncheck", or "custom:" followed by the id of a custom feed.
+	List           string `json:"list"`
+	Name           string `json:"name"`
+	Product        string `json:"product"`
+	Ransomware     bool   `json:"ransomware"`
+	RequiredAction string `json:"required_action"`
+	// The feed that holds the entry: "cisa-kev", "vulncheck-kev" or a custom feed id.
+	Source string `json:"source"`
+	// That feed's name, as Settings -> Feeds shows it.
+	SourceName string `json:"source_name"`
+	Vendor     string `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDescription returns the value of Description.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetDisplay returns the value of Display.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetLinks returns the value of Links.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetLinks() []string {
+	return s.Links
+}
+
+// GetList returns the value of List.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetList() string {
+	return s.List
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetSource() string {
+	return s.Source
+}
+
+// GetSourceName returns the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetSourceName() string {
+	return s.SourceName
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDescription sets the value of Description.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetList sets the value of List.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetList(val string) {
+	s.List = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetProduct(val string) {
+	s.Product = val
+}
+
 // SetRansomware sets the value of Ransomware.
-func (s *FeedsGetFeedsCveIDOK) SetRansomware(val bool) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetRansomware(val bool) {
 	s.Ransomware = val
 }
 
 // SetRequiredAction sets the value of RequiredAction.
-func (s *FeedsGetFeedsCveIDOK) SetRequiredAction(val string) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
 // SetSource sets the value of Source.
-func (s *FeedsGetFeedsCveIDOK) SetSource(val OptString) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetSource(val string) {
 	s.Source = val
 }
 
+// SetSourceName sets the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetSourceName(val string) {
+	s.SourceName = val
+}
+
 // SetVendor sets the value of Vendor.
-func (s *FeedsGetFeedsCveIDOK) SetVendor(val string) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetVendor(val string) {
 	s.Vendor = val
 }
 
@@ -79594,6 +80953,977 @@ func (s *FeedsGetFeedsCveIDOKMatchedItemHow) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type FeedsGetFeedsCveIDOKRangesFrom string
+
+const (
+	FeedsGetFeedsCveIDOKRangesFromNvd FeedsGetFeedsCveIDOKRangesFrom = "nvd"
+	FeedsGetFeedsCveIDOKRangesFromCna FeedsGetFeedsCveIDOKRangesFrom = "cna"
+	FeedsGetFeedsCveIDOKRangesFromAdp FeedsGetFeedsCveIDOKRangesFrom = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesFrom values.
+func (FeedsGetFeedsCveIDOKRangesFrom) AllValues() []FeedsGetFeedsCveIDOKRangesFrom {
+	return []FeedsGetFeedsCveIDOKRangesFrom{
+		FeedsGetFeedsCveIDOKRangesFromNvd,
+		FeedsGetFeedsCveIDOKRangesFromCna,
+		FeedsGetFeedsCveIDOKRangesFromAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesFrom) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesFromNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesFromCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesFromAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesFrom) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesFrom(data) {
+	case FeedsGetFeedsCveIDOKRangesFromNvd:
+		*s = FeedsGetFeedsCveIDOKRangesFromNvd
+		return nil
+	case FeedsGetFeedsCveIDOKRangesFromCna:
+		*s = FeedsGetFeedsCveIDOKRangesFromCna
+		return nil
+	case FeedsGetFeedsCveIDOKRangesFromAdp:
+		*s = FeedsGetFeedsCveIDOKRangesFromAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKRangesItem struct {
+	// The row the matcher reads: NVD's rows when NVD gives any, else the CVE record's.
+	Counts bool `json:"counts"`
+	// The CPE match criteria when the origin gave one, else "".
+	Cpe string `json:"cpe"`
+	// A CVE record row's defaultStatus; "" for NVD's rows.
+	DefaultStatus FeedsGetFeedsCveIDOKRangesItemDefaultStatus `json:"default_status"`
+	EndExcluding  string                                      `json:"end_excluding"`
+	EndIncluding  string                                      `json:"end_including"`
+	// The release that fixes the range when the origin states one, else "".
+	Fixed string `json:"fixed"`
+	// Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record.
+	Origin FeedsGetFeedsCveIDOKRangesItemOrigin `json:"origin"`
+	// CPE part: a, o, h; "" for a CVE record row without a CPE.
+	Part string `json:"part"`
+	// NVD's "running on" operating systems ("microsoft:windows").
+	Platforms      []string `json:"platforms"`
+	Product        string   `json:"product"`
+	StartExcluding string   `json:"start_excluding"`
+	StartIncluding string   `json:"start_including"`
+	Vendor         string   `json:"vendor"`
+	// The CVE record's versionType ("semver", "custom" …), else "".
+	VersionType string `json:"version_type"`
+	// The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version".
+	Versions string `json:"versions"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetCounts() bool {
+	return s.Counts
+}
+
+// GetCpe returns the value of Cpe.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetDefaultStatus returns the value of DefaultStatus.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetDefaultStatus() FeedsGetFeedsCveIDOKRangesItemDefaultStatus {
+	return s.DefaultStatus
+}
+
+// GetEndExcluding returns the value of EndExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetEndExcluding() string {
+	return s.EndExcluding
+}
+
+// GetEndIncluding returns the value of EndIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetEndIncluding() string {
+	return s.EndIncluding
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetOrigin returns the value of Origin.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetOrigin() FeedsGetFeedsCveIDOKRangesItemOrigin {
+	return s.Origin
+}
+
+// GetPart returns the value of Part.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetPart() string {
+	return s.Part
+}
+
+// GetPlatforms returns the value of Platforms.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetPlatforms() []string {
+	return s.Platforms
+}
+
+// GetProduct returns the value of Product.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetProduct() string {
+	return s.Product
+}
+
+// GetStartExcluding returns the value of StartExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartExcluding() string {
+	return s.StartExcluding
+}
+
+// GetStartIncluding returns the value of StartIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartIncluding() string {
+	return s.StartIncluding
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersionType returns the value of VersionType.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVersionType() string {
+	return s.VersionType
+}
+
+// GetVersions returns the value of Versions.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVersions() string {
+	return s.Versions
+}
+
+// SetCounts sets the value of Counts.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetCounts(val bool) {
+	s.Counts = val
+}
+
+// SetCpe sets the value of Cpe.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetDefaultStatus sets the value of DefaultStatus.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetDefaultStatus(val FeedsGetFeedsCveIDOKRangesItemDefaultStatus) {
+	s.DefaultStatus = val
+}
+
+// SetEndExcluding sets the value of EndExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetEndExcluding(val string) {
+	s.EndExcluding = val
+}
+
+// SetEndIncluding sets the value of EndIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetEndIncluding(val string) {
+	s.EndIncluding = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetOrigin(val FeedsGetFeedsCveIDOKRangesItemOrigin) {
+	s.Origin = val
+}
+
+// SetPart sets the value of Part.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetPart(val string) {
+	s.Part = val
+}
+
+// SetPlatforms sets the value of Platforms.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetPlatforms(val []string) {
+	s.Platforms = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetStartExcluding sets the value of StartExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartExcluding(val string) {
+	s.StartExcluding = val
+}
+
+// SetStartIncluding sets the value of StartIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartIncluding(val string) {
+	s.StartIncluding = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersionType sets the value of VersionType.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVersionType(val string) {
+	s.VersionType = val
+}
+
+// SetVersions sets the value of Versions.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVersions(val string) {
+	s.Versions = val
+}
+
+// A CVE record row's defaultStatus; "" for NVD's rows.
+type FeedsGetFeedsCveIDOKRangesItemDefaultStatus string
+
+const (
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty      FeedsGetFeedsCveIDOKRangesItemDefaultStatus = ""
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected   FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "affected"
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "unaffected"
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown    FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "unknown"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesItemDefaultStatus values.
+func (FeedsGetFeedsCveIDOKRangesItemDefaultStatus) AllValues() []FeedsGetFeedsCveIDOKRangesItemDefaultStatus {
+	return []FeedsGetFeedsCveIDOKRangesItemDefaultStatus{
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesItemDefaultStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesItemDefaultStatus) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesItemDefaultStatus(data) {
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record.
+type FeedsGetFeedsCveIDOKRangesItemOrigin string
+
+const (
+	FeedsGetFeedsCveIDOKRangesItemOriginNvd FeedsGetFeedsCveIDOKRangesItemOrigin = "nvd"
+	FeedsGetFeedsCveIDOKRangesItemOriginCna FeedsGetFeedsCveIDOKRangesItemOrigin = "cna"
+	FeedsGetFeedsCveIDOKRangesItemOriginAdp FeedsGetFeedsCveIDOKRangesItemOrigin = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesItemOrigin values.
+func (FeedsGetFeedsCveIDOKRangesItemOrigin) AllValues() []FeedsGetFeedsCveIDOKRangesItemOrigin {
+	return []FeedsGetFeedsCveIDOKRangesItemOrigin{
+		FeedsGetFeedsCveIDOKRangesItemOriginNvd,
+		FeedsGetFeedsCveIDOKRangesItemOriginCna,
+		FeedsGetFeedsCveIDOKRangesItemOriginAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesItemOriginNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesItemOrigin) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesItemOrigin(data) {
+	case FeedsGetFeedsCveIDOKRangesItemOriginNvd:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginNvd
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginCna:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginCna
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginAdp:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKReferencesItem struct {
+	// The one group it is shown under: the first of the groups, in this order, that one of its tags names.
+	Group FeedsGetFeedsCveIDOKReferencesItemGroup `json:"group"`
+	// Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record.
+	Source FeedsGetFeedsCveIDOKReferencesItemSource `json:"source"`
+	// The CVE record's tag words (NVD's are read into them: "Vendor Advisory" is vendor-advisory).
+	Tags []string `json:"tags"`
+	URL  string   `json:"url"`
+}
+
+// GetGroup returns the value of Group.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetGroup() FeedsGetFeedsCveIDOKReferencesItemGroup {
+	return s.Group
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetSource() FeedsGetFeedsCveIDOKReferencesItemSource {
+	return s.Source
+}
+
+// GetTags returns the value of Tags.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetTags() []string {
+	return s.Tags
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetURL() string {
+	return s.URL
+}
+
+// SetGroup sets the value of Group.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetGroup(val FeedsGetFeedsCveIDOKReferencesItemGroup) {
+	s.Group = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetSource(val FeedsGetFeedsCveIDOKReferencesItemSource) {
+	s.Source = val
+}
+
+// SetTags sets the value of Tags.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetTags(val []string) {
+	s.Tags = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetURL(val string) {
+	s.URL = val
+}
+
+// The one group it is shown under: the first of the groups, in this order, that one of its tags names.
+type FeedsGetFeedsCveIDOKReferencesItemGroup string
+
+const (
+	FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory       FeedsGetFeedsCveIDOKReferencesItemGroup = "vendor-advisory"
+	FeedsGetFeedsCveIDOKReferencesItemGroupPatch                FeedsGetFeedsCveIDOKReferencesItemGroup = "patch"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMitigation           FeedsGetFeedsCveIDOKReferencesItemGroup = "mitigation"
+	FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes         FeedsGetFeedsCveIDOKReferencesItemGroup = "release-notes"
+	FeedsGetFeedsCveIDOKReferencesItemGroupExploit              FeedsGetFeedsCveIDOKReferencesItemGroup = "exploit"
+	FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource   FeedsGetFeedsCveIDOKReferencesItemGroup = "government-resource"
+	FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory   FeedsGetFeedsCveIDOKReferencesItemGroup = "third-party-advisory"
+	FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription FeedsGetFeedsCveIDOKReferencesItemGroup = "technical-description"
+	FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking        FeedsGetFeedsCveIDOKReferencesItemGroup = "issue-tracking"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMailingList          FeedsGetFeedsCveIDOKReferencesItemGroup = "mailing-list"
+	FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry             FeedsGetFeedsCveIDOKReferencesItemGroup = "vdb-entry"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage        FeedsGetFeedsCveIDOKReferencesItemGroup = "media-coverage"
+	FeedsGetFeedsCveIDOKReferencesItemGroupOther                FeedsGetFeedsCveIDOKReferencesItemGroup = "other"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKReferencesItemGroup values.
+func (FeedsGetFeedsCveIDOKReferencesItemGroup) AllValues() []FeedsGetFeedsCveIDOKReferencesItemGroup {
+	return []FeedsGetFeedsCveIDOKReferencesItemGroup{
+		FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory,
+		FeedsGetFeedsCveIDOKReferencesItemGroupPatch,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMitigation,
+		FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes,
+		FeedsGetFeedsCveIDOKReferencesItemGroupExploit,
+		FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource,
+		FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory,
+		FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription,
+		FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMailingList,
+		FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage,
+		FeedsGetFeedsCveIDOKReferencesItemGroupOther,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKReferencesItemGroup) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupPatch:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMitigation:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupExploit:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMailingList:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupOther:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKReferencesItemGroup) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKReferencesItemGroup(data) {
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupPatch:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupPatch
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMitigation:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMitigation
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupExploit:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupExploit
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMailingList:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMailingList
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupOther:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupOther
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record.
+type FeedsGetFeedsCveIDOKReferencesItemSource string
+
+const (
+	FeedsGetFeedsCveIDOKReferencesItemSourceNvd FeedsGetFeedsCveIDOKReferencesItemSource = "nvd"
+	FeedsGetFeedsCveIDOKReferencesItemSourceCna FeedsGetFeedsCveIDOKReferencesItemSource = "cna"
+	FeedsGetFeedsCveIDOKReferencesItemSourceAdp FeedsGetFeedsCveIDOKReferencesItemSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKReferencesItemSource values.
+func (FeedsGetFeedsCveIDOKReferencesItemSource) AllValues() []FeedsGetFeedsCveIDOKReferencesItemSource {
+	return []FeedsGetFeedsCveIDOKReferencesItemSource{
+		FeedsGetFeedsCveIDOKReferencesItemSourceNvd,
+		FeedsGetFeedsCveIDOKReferencesItemSourceCna,
+		FeedsGetFeedsCveIDOKReferencesItemSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKReferencesItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKReferencesItemSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKReferencesItemSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKReferencesItemSource(data) {
+	case FeedsGetFeedsCveIDOKReferencesItemSourceNvd:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceCna:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceAdp:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKScoresItem struct {
+	Score float64 `json:"score"`
+	// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+	Source  FeedsGetFeedsCveIDOKScoresItemSource  `json:"source"`
+	Vector  string                                `json:"vector"`
+	Version FeedsGetFeedsCveIDOKScoresItemVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetSource() FeedsGetFeedsCveIDOKScoresItemSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetVersion() FeedsGetFeedsCveIDOKScoresItemVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetSource(val FeedsGetFeedsCveIDOKScoresItemSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetVersion(val FeedsGetFeedsCveIDOKScoresItemVersion) {
+	s.Version = val
+}
+
+// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+type FeedsGetFeedsCveIDOKScoresItemSource string
+
+const (
+	FeedsGetFeedsCveIDOKScoresItemSourceNvd FeedsGetFeedsCveIDOKScoresItemSource = "nvd"
+	FeedsGetFeedsCveIDOKScoresItemSourceCna FeedsGetFeedsCveIDOKScoresItemSource = "cna"
+	FeedsGetFeedsCveIDOKScoresItemSourceAdp FeedsGetFeedsCveIDOKScoresItemSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKScoresItemSource values.
+func (FeedsGetFeedsCveIDOKScoresItemSource) AllValues() []FeedsGetFeedsCveIDOKScoresItemSource {
+	return []FeedsGetFeedsCveIDOKScoresItemSource{
+		FeedsGetFeedsCveIDOKScoresItemSourceNvd,
+		FeedsGetFeedsCveIDOKScoresItemSourceCna,
+		FeedsGetFeedsCveIDOKScoresItemSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKScoresItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKScoresItemSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKScoresItemSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKScoresItemSource(data) {
+	case FeedsGetFeedsCveIDOKScoresItemSourceNvd:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceCna:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceAdp:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKScoresItemVersion string
+
+const (
+	FeedsGetFeedsCveIDOKScoresItemVersion40 FeedsGetFeedsCveIDOKScoresItemVersion = "4.0"
+	FeedsGetFeedsCveIDOKScoresItemVersion31 FeedsGetFeedsCveIDOKScoresItemVersion = "3.1"
+	FeedsGetFeedsCveIDOKScoresItemVersion30 FeedsGetFeedsCveIDOKScoresItemVersion = "3.0"
+	FeedsGetFeedsCveIDOKScoresItemVersion20 FeedsGetFeedsCveIDOKScoresItemVersion = "2.0"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKScoresItemVersion values.
+func (FeedsGetFeedsCveIDOKScoresItemVersion) AllValues() []FeedsGetFeedsCveIDOKScoresItemVersion {
+	return []FeedsGetFeedsCveIDOKScoresItemVersion{
+		FeedsGetFeedsCveIDOKScoresItemVersion40,
+		FeedsGetFeedsCveIDOKScoresItemVersion31,
+		FeedsGetFeedsCveIDOKScoresItemVersion30,
+		FeedsGetFeedsCveIDOKScoresItemVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKScoresItemVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKScoresItemVersion40:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion31:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion30:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKScoresItemVersion) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKScoresItemVersion(data) {
+	case FeedsGetFeedsCveIDOKScoresItemVersion40:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion40
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion31:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion31
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion30:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion30
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion20:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKSignalsItem struct {
+	// Small facts for display ({"stars": 244, "authors": 3}).
+	Detail NilFeedsGetFeedsCveIDOKSignalsItemDetail `json:"detail"`
+	// When the source says it (its publication date), else when this box first saw it.
+	FirstSeen time.Time `json:"first_seen"`
+	// Why the CVE is urgent: "exploited" (an exploited list or a vendor says so), "public_exploit" (a
+	// public exploit or a scan template exists), and kinds new sources add.
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
+	// Passes the quality rule of its kind; a signal that does not is kept for its date only.
+	Qualifies bool `json:"qualifies"`
+	// The feed that saw it ("cisa-kev", "metasploit", "nuclei-templates" …).
+	Source string `json:"source"`
+	// That feed's name.
+	SourceName string    `json:"source_name"`
+	URL        NilString `json:"url"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetDetail() NilFeedsGetFeedsCveIDOKSignalsItemDetail {
+	return s.Detail
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetQualifies returns the value of Qualifies.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetQualifies() bool {
+	return s.Qualifies
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetSource() string {
+	return s.Source
+}
+
+// GetSourceName returns the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetSourceName() string {
+	return s.SourceName
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetURL() NilString {
+	return s.URL
+}
+
+// SetDetail sets the value of Detail.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetDetail(val NilFeedsGetFeedsCveIDOKSignalsItemDetail) {
+	s.Detail = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetQualifies sets the value of Qualifies.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetQualifies(val bool) {
+	s.Qualifies = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetSourceName sets the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetSourceName(val string) {
+	s.SourceName = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetURL(val NilString) {
+	s.URL = val
+}
+
+type FeedsGetFeedsCveIDOKSignalsItemDetail map[string]FeedsGetFeedsCveIDOKSignalsItemDetailItem
+
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetail) init() FeedsGetFeedsCveIDOKSignalsItemDetail {
+	m := *s
+	if m == nil {
+		m = map[string]FeedsGetFeedsCveIDOKSignalsItemDetailItem{}
+		*s = m
+	}
+	return m
+}
+
+// FeedsGetFeedsCveIDOKSignalsItemDetailItem represents sum type.
+type FeedsGetFeedsCveIDOKSignalsItemDetailItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type    FeedsGetFeedsCveIDOKSignalsItemDetailItemType
+	String  string
+	Float64 float64
+	Bool    bool
+	Null    struct{}
+}
+
+// FeedsGetFeedsCveIDOKSignalsItemDetailItemType is oneOf type of FeedsGetFeedsCveIDOKSignalsItemDetailItem.
+type FeedsGetFeedsCveIDOKSignalsItemDetailItemType string
+
+// Possible values for FeedsGetFeedsCveIDOKSignalsItemDetailItemType.
+const (
+	StringFeedsGetFeedsCveIDOKSignalsItemDetailItem  FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "string"
+	Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "float64"
+	BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem    FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "bool"
+	NullFeedsGetFeedsCveIDOKSignalsItemDetailItem    FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "struct{}"
+)
+
+// IsString reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is string.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsString() bool {
+	return s.Type == StringFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsFloat64 reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is float64.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsFloat64() bool {
+	return s.Type == Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsBool reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is bool.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsBool() bool {
+	return s.Type == BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsNull reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is struct{}.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsNull() bool {
+	return s.Type == NullFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// SetString sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to string.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetString(v string) {
+	s.Type = StringFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.String = v
+}
+
+// GetString returns string and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is string.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetString() (v string, ok bool) {
+	if !s.IsString() {
+		return v, false
+	}
+	return s.String, true
+}
+
+// NewStringFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from string.
+func NewStringFeedsGetFeedsCveIDOKSignalsItemDetailItem(v string) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetString(v)
+	return s
+}
+
+// SetFloat64 sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to float64.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetFloat64(v float64) {
+	s.Type = Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Float64 = v
+}
+
+// GetFloat64 returns float64 and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is float64.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetFloat64() (v float64, ok bool) {
+	if !s.IsFloat64() {
+		return v, false
+	}
+	return s.Float64, true
+}
+
+// NewFloat64FeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from float64.
+func NewFloat64FeedsGetFeedsCveIDOKSignalsItemDetailItem(v float64) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetFloat64(v)
+	return s
+}
+
+// SetBool sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to bool.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetBool(v bool) {
+	s.Type = BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Bool = v
+}
+
+// GetBool returns bool and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is bool.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetBool() (v bool, ok bool) {
+	if !s.IsBool() {
+		return v, false
+	}
+	return s.Bool, true
+}
+
+// NewBoolFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from bool.
+func NewBoolFeedsGetFeedsCveIDOKSignalsItemDetailItem(v bool) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetBool(v)
+	return s
+}
+
+// SetNull sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to struct{}.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetNull(v struct{}) {
+	s.Type = NullFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Null = v
+}
+
+// GetNull returns struct{} and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is struct{}.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetNull() (v struct{}, ok bool) {
+	if !s.IsNull() {
+		return v, false
+	}
+	return s.Null, true
+}
+
+// NewNullFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from struct{}.
+func NewNullFeedsGetFeedsCveIDOKSignalsItemDetailItem(v struct{}) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetNull(v)
+	return s
+}
+
+// CISA's SSVC decision points (Vulnrichment).
+type FeedsGetFeedsCveIDOKSsvc struct {
+	Automatable     NilString `json:"automatable"`
+	Exploitation    NilString `json:"exploitation"`
+	TechnicalImpact NilString `json:"technical_impact"`
+}
+
+// GetAutomatable returns the value of Automatable.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetAutomatable() NilString {
+	return s.Automatable
+}
+
+// GetExploitation returns the value of Exploitation.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetExploitation() NilString {
+	return s.Exploitation
+}
+
+// GetTechnicalImpact returns the value of TechnicalImpact.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetTechnicalImpact() NilString {
+	return s.TechnicalImpact
+}
+
+// SetAutomatable sets the value of Automatable.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetAutomatable(val NilString) {
+	s.Automatable = val
+}
+
+// SetExploitation sets the value of Exploitation.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetExploitation(val NilString) {
+	s.Exploitation = val
+}
+
+// SetTechnicalImpact sets the value of TechnicalImpact.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetTechnicalImpact(val NilString) {
+	s.TechnicalImpact = val
 }
 
 type FeedsGetFeedsCveIDTierOK struct {
@@ -128621,17 +130951,25 @@ type InventoryGetInventoryAgentsDevicesIDReportOK struct {
 	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
 	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
 	AskedAt NilDateTime `json:"asked_at"`
-	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	// Agent osquery: when the agent last called the box (config or results); agent wazuh: when a pull last
+	// delivered the device; null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// A person turned the agent off for this device: its data is refused and it cannot be asked (409
+	// agent_off).
+	Off bool `json:"off"`
 	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
 	Os NilInventoryGetInventoryAgentsDevicesIDReportOKOs `json:"os"`
 	// State quiet: when the agent last called the box; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
-	// reaches it only when it is back; false otherwise.
+	// Agent osquery or wazuh: the interval its state is judged by, in seconds (osquery: the longer of its
+	// config refresh and how often it really calls; wazuh: the pull interval); null otherwise.
+	RhythmS NilInt `json:"rhythm_s"`
+	// State quiet: no agent reports this device now (an ask reaches an osquery agent only when it is
+	// back); false otherwise.
 	Stale bool `json:"stale"`
-	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
-	// and the command to check the service) or never_reported; null for the other agents.
+	// Agent osquery or wazuh: reporting, quiet (silent for more than three of its rhythm: show "quiet
+	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
+	// null for the other agents.
 	State NilInventoryGetInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
@@ -128657,6 +130995,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTime
 	return s.LastSeen
 }
 
+// GetOff returns the value of Off.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOff() bool {
+	return s.Off
+}
+
 // GetOs returns the value of Os.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryGetInventoryAgentsDevicesIDReportOKOs {
 	return s.Os
@@ -128665,6 +131008,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryGetIn
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) GetRhythmS() NilInt {
+	return s.RhythmS
 }
 
 // GetStale returns the value of Stale.
@@ -128702,6 +131050,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateTi
 	s.LastSeen = val
 }
 
+// SetOff sets the value of Off.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOff(val bool) {
+	s.Off = val
+}
+
 // SetOs sets the value of Os.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryGetInventoryAgentsDevicesIDReportOKOs) {
 	s.Os = val
@@ -128710,6 +131063,11 @@ func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryGet
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryGetInventoryAgentsDevicesIDReportOK) SetRhythmS(val NilInt) {
+	s.RhythmS = val
 }
 
 // SetStale sets the value of Stale.
@@ -129282,10 +131640,14 @@ type InventoryGetInventoryAgentsOKNodesItem struct {
 	Os       InventoryGetInventoryAgentsOKNodesItemOs `json:"os"`
 	// State quiet: when it was last heard; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-	// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
-	// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
-	// so this record is only left to remove.
+	// The interval it is judged by, in seconds: the longer of how often it was told to call (osquery: its
+	// 5-minute config refresh; the package reporter: its hourly run) and how often it really calls. Quiet
+	// after three of it.
+	RhythmS int `json:"rhythm_s"`
+	// Reporting = it called within three of its rhythm (rhythm_s); quiet = it did not (quiet_since is its
+	// last call); never_reported = it calls but has delivered no result since it enrolled, after the first
+	// hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record
+	// is only left to remove.
 	State   InventoryGetInventoryAgentsOKNodesItemState `json:"state"`
 	TokenID string                                      `json:"token_id"`
 }
@@ -129323,6 +131685,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItem) GetOs() InventoryGetInventoryAg
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryGetInventoryAgentsOKNodesItem) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryGetInventoryAgentsOKNodesItem) GetRhythmS() int {
+	return s.RhythmS
 }
 
 // GetState returns the value of State.
@@ -129368,6 +131735,11 @@ func (s *InventoryGetInventoryAgentsOKNodesItem) SetOs(val InventoryGetInventory
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryGetInventoryAgentsOKNodesItem) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryGetInventoryAgentsOKNodesItem) SetRhythmS(val int) {
+	s.RhythmS = val
 }
 
 // SetState sets the value of State.
@@ -129421,10 +131793,10 @@ func (s *InventoryGetInventoryAgentsOKNodesItemOs) UnmarshalText(data []byte) er
 	}
 }
 
-// Reporting = it checked in within three of its 5-minute config calls; quiet = it did not (quiet_since
-// is its last check-in); never_reported = it calls but has delivered no result since it enrolled,
-// after the first hour; replaced = a newer agent of the same machine (same name, any token) took over,
-// so this record is only left to remove.
+// Reporting = it called within three of its rhythm (rhythm_s); quiet = it did not (quiet_since is its
+// last call); never_reported = it calls but has delivered no result since it enrolled, after the first
+// hour; replaced = a newer agent of the same machine (same name, any token) took over, so this record
+// is only left to remove.
 type InventoryGetInventoryAgentsOKNodesItemState string
 
 const (
@@ -129484,6 +131856,8 @@ type InventoryGetInventoryAgentsOKTokensItem struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Who made it (null for a token made before this was kept).
 	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
 	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
 	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
 	// read nothing) and can be revoked.
@@ -129504,6 +131878,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedAt() time.Time {
 // GetCreatedBy returns the value of CreatedBy.
 func (s *InventoryGetInventoryAgentsOKTokensItem) GetCreatedBy() NilString {
 	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventoryAgentsOKTokensItem) GetDeviceID() NilString {
+	return s.DeviceID
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -129549,6 +131928,11 @@ func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedAt(val time.Time) {
 // SetCreatedBy sets the value of CreatedBy.
 func (s *InventoryGetInventoryAgentsOKTokensItem) SetCreatedBy(val NilString) {
 	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventoryAgentsOKTokensItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -136754,17 +139138,25 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
 	// the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
 	// settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
-	// box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
-	// own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
-	// enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-	// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
-	// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
-	// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
-	// button).
+	// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+	// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+	// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+	// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+	// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+	// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+	// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+	// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+	// (no switch, no button).
 	State InventoryGetInventoryDevicesIDSourcesOKRowsItemState `json:"state"`
 	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
-	// the row has none: SNMP before it is set up, the agent, the box itself and an ignored device.
+	// the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box
+	// itself and an ignored device.
 	Switch NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch `json:"switch"`
+	// Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest
+	// token made for this device that still enrolls machines (the secret is never here: it is shown once,
+	// when the token is made); administrators only (the tokens list is theirs): null for the other roles,
+	// and on the other rows.
+	Token NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken `json:"token"`
 }
 
 // GetAction returns the value of Action.
@@ -136802,6 +139194,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetSwitch() NilInvento
 	return s.Switch
 }
 
+// GetToken returns the value of Token.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetToken() NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
+	return s.Token
+}
+
 // SetAction sets the value of Action.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetAction(val NilInventoryGetInventoryDevicesIDSourcesOKRowsItemAction) {
 	s.Action = val
@@ -136837,12 +139234,19 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetSwitch(val NilInven
 	s.Switch = val
 }
 
+// SetToken sets the value of Token.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetToken(val NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) {
+	s.Token = val
+}
+
 // The one button of the row. turn_on_module: the module is off. scan_now: check the device now instead
 // of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set
 // up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST
-// /inventory/snmp/devices/{id}/check). create_token: no agent reads the device: create an agent token
-// for it. show_setup: enrolled, never reported: show the token and the install command again. check:
-// the agent reported at least once: the troubleshooting steps.
+// /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made
+// for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a
+// token was made for this device and no agent reads it yet, or its agent enrolled and never reported:
+// show the token (the row's token) and the install command again. check: the agent reported at least
+// once: the troubleshooting steps.
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemAction string
 
 const (
@@ -137091,13 +139495,15 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) UnmarshalText(da
 // (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
 // the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
 // settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
-// box reads the device. reporting: the agent reports on its rhythm (Wazuh by its pull, the box by its
-// own hourly list). quiet: an osquery agent silent for longer than its rhythm allows. never_reported:
-// enrolled, never sent its data. replaced: a newer enrolment of the same machine took over.
-// unavailable: the module could not say just now. box: the Vedette box itself, which reads its own
-// packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person
-// ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no
-// button).
+// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+// (no switch, no button).
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemState string
 
 const (
@@ -137272,6 +139678,158 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) UnmarshalText(da
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitchOff:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitchOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDSourcesOKRowsItemToken struct {
+	CreatedAt time.Time `json:"created_at"`
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
+	ExpiresAt    NilDateTime                                              `json:"expires_at"`
+	Hosts        int                                                      `json:"hosts"`
+	ID           string                                                   `json:"id"`
+	Kind         InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind `json:"kind"`
+	Last4        string                                                   `json:"last4"`
+	LastReceived NilDateTime                                              `json:"last_received"`
+	Name         string                                                   `json:"name"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetCreatedBy() NilString {
+	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetHosts returns the value of Hosts.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetHosts() int {
+	return s.Hosts
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetKind() InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind {
+	return s.Kind
+}
+
+// GetLast4 returns the value of Last4.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetLast4() string {
+	return s.Last4
+}
+
+// GetLastReceived returns the value of LastReceived.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetLastReceived() NilDateTime {
+	return s.LastReceived
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) GetName() string {
+	return s.Name
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetKind(val InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) {
+	s.Kind = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetLast4(val string) {
+	s.Last4 = val
+}
+
+// SetLastReceived sets the value of LastReceived.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetLastReceived(val NilDateTime) {
+	s.LastReceived = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind string
+
+const (
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind = "osquery"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind values.
+func (InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) AllValues() []InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind {
+	return []InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind{
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKind(data) {
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemTokenKindOsquery
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -145749,17 +148307,25 @@ type InventoryPostInventoryAgentsDevicesIDReportOK struct {
 	// The open ask: when a person asked the osquery agent to send its software now, until its list (built
 	// with its OS answer: kernel_info, os_revision) arrives or 15 minutes pass; null when none is open.
 	AskedAt NilDateTime `json:"asked_at"`
-	// Agent osquery: when the agent last called the box (config or results); null otherwise.
+	// Agent osquery: when the agent last called the box (config or results); agent wazuh: when a pull last
+	// delivered the device; null otherwise.
 	LastSeen NilDateTime `json:"last_seen"`
+	// A person turned the agent off for this device: its data is refused and it cannot be asked (409
+	// agent_off).
+	Off bool `json:"off"`
 	// Agent osquery: the machine's system, which picks the service commands to show; null otherwise.
 	Os NilInventoryPostInventoryAgentsDevicesIDReportOKOs `json:"os"`
 	// State quiet: when the agent last called the box; null otherwise.
 	QuietSince NilDateTime `json:"quiet_since"`
-	// Agent osquery: the agent has not called for more than 10 minutes (twice its config refresh): an ask
-	// reaches it only when it is back; false otherwise.
+	// Agent osquery or wazuh: the interval its state is judged by, in seconds (osquery: the longer of its
+	// config refresh and how often it really calls; wazuh: the pull interval); null otherwise.
+	RhythmS NilInt `json:"rhythm_s"`
+	// State quiet: no agent reports this device now (an ask reaches an osquery agent only when it is
+	// back); false otherwise.
 	Stale bool `json:"stale"`
-	// Agent osquery: reporting, quiet (no call for three config refreshes: show "quiet since quiet_since"
-	// and the command to check the service) or never_reported; null for the other agents.
+	// Agent osquery or wazuh: reporting, quiet (silent for more than three of its rhythm: show "quiet
+	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
+	// null for the other agents.
 	State NilInventoryPostInventoryAgentsDevicesIDReportOKState `json:"state"`
 	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
@@ -145785,6 +148351,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetLastSeen() NilDateTim
 	return s.LastSeen
 }
 
+// GetOff returns the value of Off.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOff() bool {
+	return s.Off
+}
+
 // GetOs returns the value of Os.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryPostInventoryAgentsDevicesIDReportOKOs {
 	return s.Os
@@ -145793,6 +148364,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetOs() NilInventoryPost
 // GetQuietSince returns the value of QuietSince.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetQuietSince() NilDateTime {
 	return s.QuietSince
+}
+
+// GetRhythmS returns the value of RhythmS.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) GetRhythmS() NilInt {
+	return s.RhythmS
 }
 
 // GetStale returns the value of Stale.
@@ -145830,6 +148406,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetLastSeen(val NilDateT
 	s.LastSeen = val
 }
 
+// SetOff sets the value of Off.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOff(val bool) {
+	s.Off = val
+}
+
 // SetOs sets the value of Os.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryPostInventoryAgentsDevicesIDReportOKOs) {
 	s.Os = val
@@ -145838,6 +148419,11 @@ func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetOs(val NilInventoryPo
 // SetQuietSince sets the value of QuietSince.
 func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetQuietSince(val NilDateTime) {
 	s.QuietSince = val
+}
+
+// SetRhythmS sets the value of RhythmS.
+func (s *InventoryPostInventoryAgentsDevicesIDReportOK) SetRhythmS(val NilInt) {
+	s.RhythmS = val
 }
 
 // SetStale sets the value of Stale.
@@ -146040,6 +148626,8 @@ type InventoryPostInventoryAgentsTokensCreatedToken struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Who made it (null for a token made before this was kept).
 	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
 	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
 	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
 	// read nothing) and can be revoked.
@@ -146060,6 +148648,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedAt() time.Tim
 // GetCreatedBy returns the value of CreatedBy.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetCreatedBy() NilString {
 	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) GetDeviceID() NilString {
+	return s.DeviceID
 }
 
 // GetExpiresAt returns the value of ExpiresAt.
@@ -146105,6 +148698,11 @@ func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedAt(val time.T
 // SetCreatedBy sets the value of CreatedBy.
 func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetCreatedBy(val NilString) {
 	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensCreatedToken) SetDeviceID(val NilString) {
+	s.DeviceID = val
 }
 
 // SetExpiresAt sets the value of ExpiresAt.
@@ -146216,10 +148814,18 @@ func (s *InventoryPostInventoryAgentsTokensRemoveUnusedOK) SetRemoved(val int) {
 }
 
 type InventoryPostInventoryAgentsTokensReq struct {
+	// The device it is made for: the device's agent row then shows it under Show setup until a machine
+	// enrolls with it. 404 not_found: no such device; 409 box_device: the Vedette box itself.
+	DeviceID OptString `json:"device_id"`
 	// Default 7; 0 = never expires.
 	ExpiresInDays OptInt                                       `json:"expires_in_days"`
 	Kind          OptInventoryPostInventoryAgentsTokensReqKind `json:"kind"`
 	Name          string                                       `json:"name"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensReq) GetDeviceID() OptString {
+	return s.DeviceID
 }
 
 // GetExpiresInDays returns the value of ExpiresInDays.
@@ -146235,6 +148841,11 @@ func (s *InventoryPostInventoryAgentsTokensReq) GetKind() OptInventoryPostInvent
 // GetName returns the value of Name.
 func (s *InventoryPostInventoryAgentsTokensReq) GetName() string {
 	return s.Name
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventoryAgentsTokensReq) SetDeviceID(val OptString) {
+	s.DeviceID = val
 }
 
 // SetExpiresInDays sets the value of ExpiresInDays.
@@ -148608,8 +151219,15 @@ func (s *InventoryPutInventoryAgentsWazuhReq) SetUsername(val string) {
 }
 
 type InventoryPutInventoryDevicesIDSourcesOK struct {
-	ScanSource InventoryPutInventoryDevicesIDSourcesOKScanSource `json:"scan_source"`
-	SnmpSource InventoryPutInventoryDevicesIDSourcesOKSnmpSource `json:"snmp_source"`
+	// Default on.
+	AgentSource InventoryPutInventoryDevicesIDSourcesOKAgentSource `json:"agent_source"`
+	ScanSource  InventoryPutInventoryDevicesIDSourcesOKScanSource  `json:"scan_source"`
+	SnmpSource  InventoryPutInventoryDevicesIDSourcesOKSnmpSource  `json:"snmp_source"`
+}
+
+// GetAgentSource returns the value of AgentSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) GetAgentSource() InventoryPutInventoryDevicesIDSourcesOKAgentSource {
+	return s.AgentSource
 }
 
 // GetScanSource returns the value of ScanSource.
@@ -148622,6 +151240,11 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) GetSnmpSource() InventoryPutIn
 	return s.SnmpSource
 }
 
+// SetAgentSource sets the value of AgentSource.
+func (s *InventoryPutInventoryDevicesIDSourcesOK) SetAgentSource(val InventoryPutInventoryDevicesIDSourcesOKAgentSource) {
+	s.AgentSource = val
+}
+
 // SetScanSource sets the value of ScanSource.
 func (s *InventoryPutInventoryDevicesIDSourcesOK) SetScanSource(val InventoryPutInventoryDevicesIDSourcesOKScanSource) {
 	s.ScanSource = val
@@ -148630,6 +151253,48 @@ func (s *InventoryPutInventoryDevicesIDSourcesOK) SetScanSource(val InventoryPut
 // SetSnmpSource sets the value of SnmpSource.
 func (s *InventoryPutInventoryDevicesIDSourcesOK) SetSnmpSource(val InventoryPutInventoryDevicesIDSourcesOKSnmpSource) {
 	s.SnmpSource = val
+}
+
+// Default on.
+type InventoryPutInventoryDevicesIDSourcesOKAgentSource string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn  InventoryPutInventoryDevicesIDSourcesOKAgentSource = "on"
+	InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff InventoryPutInventoryDevicesIDSourcesOKAgentSource = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesOKAgentSource values.
+func (InventoryPutInventoryDevicesIDSourcesOKAgentSource) AllValues() []InventoryPutInventoryDevicesIDSourcesOKAgentSource {
+	return []InventoryPutInventoryDevicesIDSourcesOKAgentSource{
+		InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn,
+		InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesOKAgentSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesOKAgentSource) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesOKAgentSource(data) {
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn:
+		*s = InventoryPutInventoryDevicesIDSourcesOKAgentSourceOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff:
+		*s = InventoryPutInventoryDevicesIDSourcesOKAgentSourceOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPutInventoryDevicesIDSourcesOKScanSource string
@@ -148716,8 +151381,17 @@ func (s *InventoryPutInventoryDevicesIDSourcesOKSnmpSource) UnmarshalText(data [
 
 // At least one; a source left out is left alone.
 type InventoryPutInventoryDevicesIDSourcesReq struct {
-	Scan OptInventoryPutInventoryDevicesIDSourcesReqScan `json:"scan"`
-	Snmp OptInventoryPutInventoryDevicesIDSourcesReqSnmp `json:"snmp"`
+	// The agents' data of this device (osquery, Wazuh). off: every agent's data for it is refused and what
+	// they read stops counting (its software readings and open ports of the agents go); on: taken again,
+	// and an osquery agent is asked to send its software now.
+	Agent OptInventoryPutInventoryDevicesIDSourcesReqAgent `json:"agent"`
+	Scan  OptInventoryPutInventoryDevicesIDSourcesReqScan  `json:"scan"`
+	Snmp  OptInventoryPutInventoryDevicesIDSourcesReqSnmp  `json:"snmp"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) GetAgent() OptInventoryPutInventoryDevicesIDSourcesReqAgent {
+	return s.Agent
 }
 
 // GetScan returns the value of Scan.
@@ -148730,6 +151404,11 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) GetSnmp() OptInventoryPutInve
 	return s.Snmp
 }
 
+// SetAgent sets the value of Agent.
+func (s *InventoryPutInventoryDevicesIDSourcesReq) SetAgent(val OptInventoryPutInventoryDevicesIDSourcesReqAgent) {
+	s.Agent = val
+}
+
 // SetScan sets the value of Scan.
 func (s *InventoryPutInventoryDevicesIDSourcesReq) SetScan(val OptInventoryPutInventoryDevicesIDSourcesReqScan) {
 	s.Scan = val
@@ -148738,6 +151417,50 @@ func (s *InventoryPutInventoryDevicesIDSourcesReq) SetScan(val OptInventoryPutIn
 // SetSnmp sets the value of Snmp.
 func (s *InventoryPutInventoryDevicesIDSourcesReq) SetSnmp(val OptInventoryPutInventoryDevicesIDSourcesReqSnmp) {
 	s.Snmp = val
+}
+
+// The agents' data of this device (osquery, Wazuh). off: every agent's data for it is refused and what
+// they read stops counting (its software readings and open ports of the agents go); on: taken again,
+// and an osquery agent is asked to send its software now.
+type InventoryPutInventoryDevicesIDSourcesReqAgent string
+
+const (
+	InventoryPutInventoryDevicesIDSourcesReqAgentOn  InventoryPutInventoryDevicesIDSourcesReqAgent = "on"
+	InventoryPutInventoryDevicesIDSourcesReqAgentOff InventoryPutInventoryDevicesIDSourcesReqAgent = "off"
+)
+
+// AllValues returns all InventoryPutInventoryDevicesIDSourcesReqAgent values.
+func (InventoryPutInventoryDevicesIDSourcesReqAgent) AllValues() []InventoryPutInventoryDevicesIDSourcesReqAgent {
+	return []InventoryPutInventoryDevicesIDSourcesReqAgent{
+		InventoryPutInventoryDevicesIDSourcesReqAgentOn,
+		InventoryPutInventoryDevicesIDSourcesReqAgentOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventoryDevicesIDSourcesReqAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOn:
+		return []byte(s), nil
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventoryDevicesIDSourcesReqAgent) UnmarshalText(data []byte) error {
+	switch InventoryPutInventoryDevicesIDSourcesReqAgent(data) {
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOn:
+		*s = InventoryPutInventoryDevicesIDSourcesReqAgentOn
+		return nil
+	case InventoryPutInventoryDevicesIDSourcesReqAgentOff:
+		*s = InventoryPutInventoryDevicesIDSourcesReqAgentOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPutInventoryDevicesIDSourcesReqScan string
@@ -168441,6 +171164,411 @@ func (o NilExposurePutExposureTreeIDTermsOKTerms) Or(d ExposurePutExposureTreeID
 	return d
 }
 
+// NewNilFeedsGetFeedsCveIDOKCvss returns new NilFeedsGetFeedsCveIDOKCvss with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvss(v FeedsGetFeedsCveIDOKCvss) NilFeedsGetFeedsCveIDOKCvss {
+	return NilFeedsGetFeedsCveIDOKCvss{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvss is nullable FeedsGetFeedsCveIDOKCvss.
+type NilFeedsGetFeedsCveIDOKCvss struct {
+	Value FeedsGetFeedsCveIDOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvss) SetTo(v FeedsGetFeedsCveIDOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvss) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvss) Get() (v FeedsGetFeedsCveIDOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvss) Or(d FeedsGetFeedsCveIDOKCvss) FeedsGetFeedsCveIDOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReading returns new NilFeedsGetFeedsCveIDOKCvssReading with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReading(v FeedsGetFeedsCveIDOKCvssReading) NilFeedsGetFeedsCveIDOKCvssReading {
+	return NilFeedsGetFeedsCveIDOKCvssReading{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReading is nullable FeedsGetFeedsCveIDOKCvssReading.
+type NilFeedsGetFeedsCveIDOKCvssReading struct {
+	Value FeedsGetFeedsCveIDOKCvssReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReading) SetTo(v FeedsGetFeedsCveIDOKCvssReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReading) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) Get() (v FeedsGetFeedsCveIDOKCvssReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) Or(d FeedsGetFeedsCveIDOKCvssReading) FeedsGetFeedsCveIDOKCvssReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements returns new NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements(v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements is nullable FeedsGetFeedsCveIDOKCvssReadingAttackRequirements.
+type NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingAttackRequirements
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) SetTo(v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) Get() (v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) Or(d FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) FeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingScope returns new NilFeedsGetFeedsCveIDOKCvssReadingScope with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingScope(v FeedsGetFeedsCveIDOKCvssReadingScope) NilFeedsGetFeedsCveIDOKCvssReadingScope {
+	return NilFeedsGetFeedsCveIDOKCvssReadingScope{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingScope is nullable FeedsGetFeedsCveIDOKCvssReadingScope.
+type NilFeedsGetFeedsCveIDOKCvssReadingScope struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingScope
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingScope) SetTo(v FeedsGetFeedsCveIDOKCvssReadingScope) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingScope) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingScope
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) Get() (v FeedsGetFeedsCveIDOKCvssReadingScope, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) Or(d FeedsGetFeedsCveIDOKCvssReadingScope) FeedsGetFeedsCveIDOKCvssReadingScope {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingSubsequent returns new NilFeedsGetFeedsCveIDOKCvssReadingSubsequent with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingSubsequent(v FeedsGetFeedsCveIDOKCvssReadingSubsequent) NilFeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	return NilFeedsGetFeedsCveIDOKCvssReadingSubsequent{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingSubsequent is nullable FeedsGetFeedsCveIDOKCvssReadingSubsequent.
+type NilFeedsGetFeedsCveIDOKCvssReadingSubsequent struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingSubsequent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) SetTo(v FeedsGetFeedsCveIDOKCvssReadingSubsequent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingSubsequent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) Get() (v FeedsGetFeedsCveIDOKCvssReadingSubsequent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) Or(d FeedsGetFeedsCveIDOKCvssReadingSubsequent) FeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingUserInteraction returns new NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingUserInteraction(v FeedsGetFeedsCveIDOKCvssReadingUserInteraction) NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction is nullable FeedsGetFeedsCveIDOKCvssReadingUserInteraction.
+type NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingUserInteraction
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) SetTo(v FeedsGetFeedsCveIDOKCvssReadingUserInteraction) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingUserInteraction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) Get() (v FeedsGetFeedsCveIDOKCvssReadingUserInteraction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) Or(d FeedsGetFeedsCveIDOKCvssReadingUserInteraction) FeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKEpss returns new NilFeedsGetFeedsCveIDOKEpss with value set to v.
+func NewNilFeedsGetFeedsCveIDOKEpss(v FeedsGetFeedsCveIDOKEpss) NilFeedsGetFeedsCveIDOKEpss {
+	return NilFeedsGetFeedsCveIDOKEpss{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKEpss is nullable FeedsGetFeedsCveIDOKEpss.
+type NilFeedsGetFeedsCveIDOKEpss struct {
+	Value FeedsGetFeedsCveIDOKEpss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKEpss) SetTo(v FeedsGetFeedsCveIDOKEpss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKEpss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKEpss) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKEpss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKEpss) Get() (v FeedsGetFeedsCveIDOKEpss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKEpss) Or(d FeedsGetFeedsCveIDOKEpss) FeedsGetFeedsCveIDOKEpss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKRangesFrom returns new NilFeedsGetFeedsCveIDOKRangesFrom with value set to v.
+func NewNilFeedsGetFeedsCveIDOKRangesFrom(v FeedsGetFeedsCveIDOKRangesFrom) NilFeedsGetFeedsCveIDOKRangesFrom {
+	return NilFeedsGetFeedsCveIDOKRangesFrom{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKRangesFrom is nullable FeedsGetFeedsCveIDOKRangesFrom.
+type NilFeedsGetFeedsCveIDOKRangesFrom struct {
+	Value FeedsGetFeedsCveIDOKRangesFrom
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKRangesFrom) SetTo(v FeedsGetFeedsCveIDOKRangesFrom) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKRangesFrom) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKRangesFrom
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) Get() (v FeedsGetFeedsCveIDOKRangesFrom, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) Or(d FeedsGetFeedsCveIDOKRangesFrom) FeedsGetFeedsCveIDOKRangesFrom {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKSignalsItemDetail returns new NilFeedsGetFeedsCveIDOKSignalsItemDetail with value set to v.
+func NewNilFeedsGetFeedsCveIDOKSignalsItemDetail(v FeedsGetFeedsCveIDOKSignalsItemDetail) NilFeedsGetFeedsCveIDOKSignalsItemDetail {
+	return NilFeedsGetFeedsCveIDOKSignalsItemDetail{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKSignalsItemDetail is nullable FeedsGetFeedsCveIDOKSignalsItemDetail.
+type NilFeedsGetFeedsCveIDOKSignalsItemDetail struct {
+	Value FeedsGetFeedsCveIDOKSignalsItemDetail
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKSignalsItemDetail) SetTo(v FeedsGetFeedsCveIDOKSignalsItemDetail) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKSignalsItemDetail) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKSignalsItemDetail
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) Get() (v FeedsGetFeedsCveIDOKSignalsItemDetail, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) Or(d FeedsGetFeedsCveIDOKSignalsItemDetail) FeedsGetFeedsCveIDOKSignalsItemDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFeedsGetFeedsCveIDTierOKSeverity returns new NilFeedsGetFeedsCveIDTierOKSeverity with value set to v.
 func NewNilFeedsGetFeedsCveIDTierOKSeverity(v FeedsGetFeedsCveIDTierOKSeverity) NilFeedsGetFeedsCveIDTierOKSeverity {
 	return NilFeedsGetFeedsCveIDTierOKSeverity{
@@ -174469,6 +177597,51 @@ func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) Get() (v Inven
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) Or(d InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken returns new NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken with value set to v.
+func NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken(v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
+	return NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken is nullable InventoryGetInventoryDevicesIDSourcesOKRowsItemToken.
+type NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken struct {
+	Value InventoryGetInventoryDevicesIDSourcesOKRowsItemToken
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetTo(v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) Get() (v InventoryGetInventoryDevicesIDSourcesOKRowsItemToken, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemToken) Or(d InventoryGetInventoryDevicesIDSourcesOKRowsItemToken) InventoryGetInventoryDevicesIDSourcesOKRowsItemToken {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -181539,6 +184712,96 @@ func (o NilScanPutScansConfigOKScopeCommitment) Or(d ScanPutScansConfigOKScopeCo
 	return d
 }
 
+// NewNilScanningGetRunsIDOKBlockedBy returns new NilScanningGetRunsIDOKBlockedBy with value set to v.
+func NewNilScanningGetRunsIDOKBlockedBy(v ScanningGetRunsIDOKBlockedBy) NilScanningGetRunsIDOKBlockedBy {
+	return NilScanningGetRunsIDOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKBlockedBy is nullable ScanningGetRunsIDOKBlockedBy.
+type NilScanningGetRunsIDOKBlockedBy struct {
+	Value ScanningGetRunsIDOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKBlockedBy) SetTo(v ScanningGetRunsIDOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKBlockedBy) Get() (v ScanningGetRunsIDOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKBlockedBy) Or(d ScanningGetRunsIDOKBlockedBy) ScanningGetRunsIDOKBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsIDOKChildrenItemBlockedBy returns new NilScanningGetRunsIDOKChildrenItemBlockedBy with value set to v.
+func NewNilScanningGetRunsIDOKChildrenItemBlockedBy(v ScanningGetRunsIDOKChildrenItemBlockedBy) NilScanningGetRunsIDOKChildrenItemBlockedBy {
+	return NilScanningGetRunsIDOKChildrenItemBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKChildrenItemBlockedBy is nullable ScanningGetRunsIDOKChildrenItemBlockedBy.
+type NilScanningGetRunsIDOKChildrenItemBlockedBy struct {
+	Value ScanningGetRunsIDOKChildrenItemBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKChildrenItemBlockedBy) SetTo(v ScanningGetRunsIDOKChildrenItemBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKChildrenItemBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKChildrenItemBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) Get() (v ScanningGetRunsIDOKChildrenItemBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) Or(d ScanningGetRunsIDOKChildrenItemBlockedBy) ScanningGetRunsIDOKChildrenItemBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanningGetRunsIDOKChildrenItemSubject returns new NilScanningGetRunsIDOKChildrenItemSubject with value set to v.
 func NewNilScanningGetRunsIDOKChildrenItemSubject(v ScanningGetRunsIDOKChildrenItemSubject) NilScanningGetRunsIDOKChildrenItemSubject {
 	return NilScanningGetRunsIDOKChildrenItemSubject{
@@ -181623,6 +184886,51 @@ func (o NilScanningGetRunsIDOKSubject) Get() (v ScanningGetRunsIDOKSubject, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanningGetRunsIDOKSubject) Or(d ScanningGetRunsIDOKSubject) ScanningGetRunsIDOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsOKItemsItemBlockedBy returns new NilScanningGetRunsOKItemsItemBlockedBy with value set to v.
+func NewNilScanningGetRunsOKItemsItemBlockedBy(v ScanningGetRunsOKItemsItemBlockedBy) NilScanningGetRunsOKItemsItemBlockedBy {
+	return NilScanningGetRunsOKItemsItemBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsOKItemsItemBlockedBy is nullable ScanningGetRunsOKItemsItemBlockedBy.
+type NilScanningGetRunsOKItemsItemBlockedBy struct {
+	Value ScanningGetRunsOKItemsItemBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsOKItemsItemBlockedBy) SetTo(v ScanningGetRunsOKItemsItemBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsOKItemsItemBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsOKItemsItemBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) Get() (v ScanningGetRunsOKItemsItemBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) Or(d ScanningGetRunsOKItemsItemBlockedBy) ScanningGetRunsOKItemsItemBlockedBy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -182034,6 +185342,51 @@ func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Or(d Scannin
 	return d
 }
 
+// NewNilScanningPostRunsIDResumeOKBlockedBy returns new NilScanningPostRunsIDResumeOKBlockedBy with value set to v.
+func NewNilScanningPostRunsIDResumeOKBlockedBy(v ScanningPostRunsIDResumeOKBlockedBy) NilScanningPostRunsIDResumeOKBlockedBy {
+	return NilScanningPostRunsIDResumeOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDResumeOKBlockedBy is nullable ScanningPostRunsIDResumeOKBlockedBy.
+type NilScanningPostRunsIDResumeOKBlockedBy struct {
+	Value ScanningPostRunsIDResumeOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDResumeOKBlockedBy) SetTo(v ScanningPostRunsIDResumeOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDResumeOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDResumeOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) Get() (v ScanningPostRunsIDResumeOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) Or(d ScanningPostRunsIDResumeOKBlockedBy) ScanningPostRunsIDResumeOKBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanningPostRunsIDResumeOKSubject returns new NilScanningPostRunsIDResumeOKSubject with value set to v.
 func NewNilScanningPostRunsIDResumeOKSubject(v ScanningPostRunsIDResumeOKSubject) NilScanningPostRunsIDResumeOKSubject {
 	return NilScanningPostRunsIDResumeOKSubject{
@@ -182073,6 +185426,51 @@ func (o NilScanningPostRunsIDResumeOKSubject) Get() (v ScanningPostRunsIDResumeO
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanningPostRunsIDResumeOKSubject) Or(d ScanningPostRunsIDResumeOKSubject) ScanningPostRunsIDResumeOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostRunsIDStopOKBlockedBy returns new NilScanningPostRunsIDStopOKBlockedBy with value set to v.
+func NewNilScanningPostRunsIDStopOKBlockedBy(v ScanningPostRunsIDStopOKBlockedBy) NilScanningPostRunsIDStopOKBlockedBy {
+	return NilScanningPostRunsIDStopOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDStopOKBlockedBy is nullable ScanningPostRunsIDStopOKBlockedBy.
+type NilScanningPostRunsIDStopOKBlockedBy struct {
+	Value ScanningPostRunsIDStopOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDStopOKBlockedBy) SetTo(v ScanningPostRunsIDStopOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDStopOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDStopOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDStopOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDStopOKBlockedBy) Get() (v ScanningPostRunsIDStopOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDStopOKBlockedBy) Or(d ScanningPostRunsIDStopOKBlockedBy) ScanningPostRunsIDStopOKBlockedBy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -194055,6 +197453,52 @@ func (o OptInventoryPostInventoryAgentsTokensReqKind) Get() (v InventoryPostInve
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventoryAgentsTokensReqKind) Or(d InventoryPostInventoryAgentsTokensReqKind) InventoryPostInventoryAgentsTokensReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventoryDevicesIDSourcesReqAgent returns new OptInventoryPutInventoryDevicesIDSourcesReqAgent with value set to v.
+func NewOptInventoryPutInventoryDevicesIDSourcesReqAgent(v InventoryPutInventoryDevicesIDSourcesReqAgent) OptInventoryPutInventoryDevicesIDSourcesReqAgent {
+	return OptInventoryPutInventoryDevicesIDSourcesReqAgent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventoryDevicesIDSourcesReqAgent is optional InventoryPutInventoryDevicesIDSourcesReqAgent.
+type OptInventoryPutInventoryDevicesIDSourcesReqAgent struct {
+	Value InventoryPutInventoryDevicesIDSourcesReqAgent
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventoryDevicesIDSourcesReqAgent was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqAgent) Reset() {
+	var v InventoryPutInventoryDevicesIDSourcesReqAgent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventoryDevicesIDSourcesReqAgent) SetTo(v InventoryPutInventoryDevicesIDSourcesReqAgent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) Get() (v InventoryPutInventoryDevicesIDSourcesReqAgent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventoryDevicesIDSourcesReqAgent) Or(d InventoryPutInventoryDevicesIDSourcesReqAgent) InventoryPutInventoryDevicesIDSourcesReqAgent {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -258897,9 +262341,13 @@ func (s *ScanPutScansConfigReqWindow) SetTo(val OptString) {
 }
 
 type ScanningGetRunsIDOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsIDOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	// The runs that are steps of this one.
 	Children []ScanningGetRunsIDOKChildrenItem `json:"children"`
@@ -258940,6 +262388,11 @@ type ScanningGetRunsIDOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -258952,6 +262405,11 @@ type ScanningGetRunsIDOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsIDOK) GetBlockedBy() NilScanningGetRunsIDOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -259064,6 +262522,11 @@ func (s *ScanningGetRunsIDOK) GetSubject() NilScanningGetRunsIDOKSubject {
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsIDOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsIDOK) GetTitle() string {
 	return s.Title
@@ -259092,6 +262555,11 @@ func (s *ScanningGetRunsIDOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsIDOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsIDOK) SetBlockedBy(val NilScanningGetRunsIDOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -259204,6 +262672,11 @@ func (s *ScanningGetRunsIDOK) SetSubject(val NilScanningGetRunsIDOKSubject) {
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsIDOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsIDOK) SetTitle(val string) {
 	s.Title = val
@@ -259234,10 +262707,39 @@ func (s *ScanningGetRunsIDOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
 }
 
+type ScanningGetRunsIDOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOKBlockedBy) SetTitle(val string) {
+	s.Title = val
+}
+
 type ScanningGetRunsIDOKChildrenItem struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsIDOKChildrenItemBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -259269,6 +262771,11 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKChildrenItemSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -259281,6 +262788,11 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) GetBlockedBy() NilScanningGetRunsIDOKChildrenItemBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -259368,6 +262880,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) GetSubject() NilScanningGetRunsIDOKChi
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsIDOKChildrenItem) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsIDOKChildrenItem) GetTitle() string {
 	return s.Title
@@ -259396,6 +262913,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsIDOKChildrenItem) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) SetBlockedBy(val NilScanningGetRunsIDOKChildrenItemBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -259483,6 +263005,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) SetSubject(val NilScanningGetRunsIDOKC
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsIDOKChildrenItem) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsIDOKChildrenItem) SetTitle(val string) {
 	s.Title = val
@@ -259511,6 +263038,31 @@ func (s *ScanningGetRunsIDOKChildrenItem) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningGetRunsIDOKChildrenItem) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningGetRunsIDOKChildrenItemBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -260232,9 +263784,13 @@ func (s *ScanningGetRunsOK) SetTotal(val int) {
 }
 
 type ScanningGetRunsOKItemsItem struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsOKItemsItemBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -260266,6 +263822,11 @@ type ScanningGetRunsOKItemsItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsOKItemsItemSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -260278,6 +263839,11 @@ type ScanningGetRunsOKItemsItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsOKItemsItem) GetBlockedBy() NilScanningGetRunsOKItemsItemBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -260365,6 +263931,11 @@ func (s *ScanningGetRunsOKItemsItem) GetSubject() NilScanningGetRunsOKItemsItemS
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsOKItemsItem) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsOKItemsItem) GetTitle() string {
 	return s.Title
@@ -260393,6 +263964,11 @@ func (s *ScanningGetRunsOKItemsItem) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsOKItemsItem) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsOKItemsItem) SetBlockedBy(val NilScanningGetRunsOKItemsItemBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -260480,6 +264056,11 @@ func (s *ScanningGetRunsOKItemsItem) SetSubject(val NilScanningGetRunsOKItemsIte
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsOKItemsItem) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsOKItemsItem) SetTitle(val string) {
 	s.Title = val
@@ -260508,6 +264089,31 @@ func (s *ScanningGetRunsOKItemsItem) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningGetRunsOKItemsItem) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningGetRunsOKItemsItemBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -264997,9 +268603,13 @@ func (s *ScanningPatchScanningEnginesIDReq) SetWithDependencies(val OptBool) {
 }
 
 type ScanningPostRunsIDResumeOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningPostRunsIDResumeOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -265031,6 +268641,11 @@ type ScanningPostRunsIDResumeOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDResumeOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -265043,6 +268658,11 @@ type ScanningPostRunsIDResumeOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningPostRunsIDResumeOK) GetBlockedBy() NilScanningPostRunsIDResumeOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -265130,6 +268750,11 @@ func (s *ScanningPostRunsIDResumeOK) GetSubject() NilScanningPostRunsIDResumeOKS
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningPostRunsIDResumeOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningPostRunsIDResumeOK) GetTitle() string {
 	return s.Title
@@ -265158,6 +268783,11 @@ func (s *ScanningPostRunsIDResumeOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningPostRunsIDResumeOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningPostRunsIDResumeOK) SetBlockedBy(val NilScanningPostRunsIDResumeOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -265245,6 +268875,11 @@ func (s *ScanningPostRunsIDResumeOK) SetSubject(val NilScanningPostRunsIDResumeO
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningPostRunsIDResumeOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningPostRunsIDResumeOK) SetTitle(val string) {
 	s.Title = val
@@ -265273,6 +268908,31 @@ func (s *ScanningPostRunsIDResumeOK) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningPostRunsIDResumeOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningPostRunsIDResumeOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -265452,9 +269112,13 @@ func (s *ScanningPostRunsIDResumeOKTrigger) UnmarshalText(data []byte) error {
 }
 
 type ScanningPostRunsIDStopOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningPostRunsIDStopOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -265486,6 +269150,11 @@ type ScanningPostRunsIDStopOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDStopOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -265498,6 +269167,11 @@ type ScanningPostRunsIDStopOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningPostRunsIDStopOK) GetBlockedBy() NilScanningPostRunsIDStopOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -265585,6 +269259,11 @@ func (s *ScanningPostRunsIDStopOK) GetSubject() NilScanningPostRunsIDStopOKSubje
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningPostRunsIDStopOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningPostRunsIDStopOK) GetTitle() string {
 	return s.Title
@@ -265613,6 +269292,11 @@ func (s *ScanningPostRunsIDStopOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningPostRunsIDStopOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningPostRunsIDStopOK) SetBlockedBy(val NilScanningPostRunsIDStopOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -265700,6 +269384,11 @@ func (s *ScanningPostRunsIDStopOK) SetSubject(val NilScanningPostRunsIDStopOKSub
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningPostRunsIDStopOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningPostRunsIDStopOK) SetTitle(val string) {
 	s.Title = val
@@ -265728,6 +269417,31 @@ func (s *ScanningPostRunsIDStopOK) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningPostRunsIDStopOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningPostRunsIDStopOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDStopOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDStopOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDStopOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDStopOKBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -266366,6 +270080,180 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) GetTargets() []string {
 // SetTargets sets the value of Targets.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) SetTargets(val []string) {
 	s.Targets = val
+}
+
+type ScanningPostScanningSafetyEstimateOK struct {
+	// Addresses one pass walks: the ranges minus the exclusions.
+	Addresses int `json:"addresses"`
+	// False: a save of this scope is refused (400 scope_too_large).
+	FitsWeek   bool `json:"fits_week"`
+	FitsWindow bool `json:"fits_window"`
+	// One pass at the rate, a floor: an address on the box's own networks costs one packet, one behind a
+	// router 17.
+	PassSeconds int `json:"pass_seconds"`
+	// Windows in a week: the window's days.
+	WeekWindows int `json:"week_windows"`
+	// One window; 0 when the times are not valid.
+	WindowSeconds int `json:"window_seconds"`
+	// Windows one pass needs (1: it fits one window); 0 with no window or nothing to sweep.
+	Windows int `json:"windows"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *ScanningPostScanningSafetyEstimateOK) GetAddresses() int {
+	return s.Addresses
+}
+
+// GetFitsWeek returns the value of FitsWeek.
+func (s *ScanningPostScanningSafetyEstimateOK) GetFitsWeek() bool {
+	return s.FitsWeek
+}
+
+// GetFitsWindow returns the value of FitsWindow.
+func (s *ScanningPostScanningSafetyEstimateOK) GetFitsWindow() bool {
+	return s.FitsWindow
+}
+
+// GetPassSeconds returns the value of PassSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) GetPassSeconds() int {
+	return s.PassSeconds
+}
+
+// GetWeekWindows returns the value of WeekWindows.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWeekWindows() int {
+	return s.WeekWindows
+}
+
+// GetWindowSeconds returns the value of WindowSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWindowSeconds() int {
+	return s.WindowSeconds
+}
+
+// GetWindows returns the value of Windows.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWindows() int {
+	return s.Windows
+}
+
+// SetAddresses sets the value of Addresses.
+func (s *ScanningPostScanningSafetyEstimateOK) SetAddresses(val int) {
+	s.Addresses = val
+}
+
+// SetFitsWeek sets the value of FitsWeek.
+func (s *ScanningPostScanningSafetyEstimateOK) SetFitsWeek(val bool) {
+	s.FitsWeek = val
+}
+
+// SetFitsWindow sets the value of FitsWindow.
+func (s *ScanningPostScanningSafetyEstimateOK) SetFitsWindow(val bool) {
+	s.FitsWindow = val
+}
+
+// SetPassSeconds sets the value of PassSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) SetPassSeconds(val int) {
+	s.PassSeconds = val
+}
+
+// SetWeekWindows sets the value of WeekWindows.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWeekWindows(val int) {
+	s.WeekWindows = val
+}
+
+// SetWindowSeconds sets the value of WindowSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWindowSeconds(val int) {
+	s.WindowSeconds = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWindows(val int) {
+	s.Windows = val
+}
+
+type ScanningPostScanningSafetyEstimateReq struct {
+	// The exclusions as typed; lines that are not an IPv4 address or CIDR are left out.
+	Exclusions []string `json:"exclusions"`
+	// The ranges as typed in the form; lines that are not an internal IPv4 CIDR are left out of the count.
+	LanRanges   []string                                    `json:"lan_ranges"`
+	PacketsPerS int                                         `json:"packets_per_s"`
+	Window      ScanningPostScanningSafetyEstimateReqWindow `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPostScanningSafetyEstimateReq) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPostScanningSafetyEstimateReq) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyEstimateReq) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPostScanningSafetyEstimateReq) GetWindow() ScanningPostScanningSafetyEstimateReqWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPostScanningSafetyEstimateReq) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPostScanningSafetyEstimateReq) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyEstimateReq) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPostScanningSafetyEstimateReq) SetWindow(val ScanningPostScanningSafetyEstimateReqWindow) {
+	s.Window = val
+}
+
+type ScanningPostScanningSafetyEstimateReqWindow struct {
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// HH:MM.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetTo(val string) {
+	s.To = val
 }
 
 type ScanningPostScanningSafetyExclusionsOK struct {

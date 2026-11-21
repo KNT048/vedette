@@ -91,22 +91,31 @@ const (
 	ReportBox     = "box"     // the Vedette box itself: it reads its own packages (inventory job box, hourly), no agent
 )
 
-// ReportState is what "I updated it" needs to know of a device's agent.
+// ReportState is what "I updated it" and the device's agent row need to know of a device's agent.
 type ReportState struct {
 	Agent string
+	// Off: a person turned the agent off for this device (observe.AgentDevice.AgentOff): its data is refused, nothing can be asked, and
+	// no agent reports the device now, whatever Agent and State say of the agent itself.
+	Off bool
 	// AskedAt is the open ask (askOpen), zero when none.
 	AskedAt time.Time
 	// AskAgainAt is when a new ask is possible (the last ask + reportCooldown) while that is in the future, zero otherwise.
 	AskAgainAt time.Time
-	// LastSeen is when the osquery node last called (config or log), zero when not osquery; Stale is State quiet (nodestate.go: three missed config calls).
+	// LastSeen is the agent's last call (osquery: config or results; Wazuh: the last pull that delivered the device), zero for the others;
+	// State is NodeHealth's answer for it at that time (osquery and Wazuh), "" for the others, and Stale is State quiet.
 	LastSeen time.Time
 	Stale    bool
-	// State, QuietSince and OS are the agent's state (nodestate.go), set for an osquery agent only.
-	State      string
+	State    string
+	// QuietSince is set when State is quiet; Rhythm is the interval the agent is judged by (Cadence.Rhythm), 0 for the box and none.
 	QuietSince time.Time
-	OS         string
+	Rhythm     time.Duration
+	// OS is the machine's system (osquery only).
+	OS string
 	// WazuhMinutes is the Wazuh pull's interval when Agent is ReportWazuh, else 0.
 	WazuhMinutes int
+	// Setup is the token "Show setup" shows for the device: the token its osquery agent enrolled with, else the newest token a person
+	// made for this device that still enrols machines; nil when none.
+	Setup *Token
 }
 
 // askNode is the osquery node bound to a device, as the ask needs it.
@@ -136,18 +145,17 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 	if d.IsBox {
 		return ReportState{Agent: ReportBox}, askNode{}, nil
 	}
+	now := s.now()
+	setup := func(st ReportState, tokenID string) (ReportState, error) {
+		tk, err := s.setupToken(ctx, device, tokenID)
+		st.Setup, st.Off = tk, d.AgentOff
+		return st, err
+	}
 	if id, ok := strings.CutPrefix(d.Agent, "osquery:"); ok {
-		var enrolledS, callS, resultS string
 		var asked, taken string
-		var bound nodeStateRow
-		err := s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(report_asked_at, ''), ifnull(software_taken_at, ''), `+nodeStateCols+` FROM intake_osquery_nodes WHERE id = ?`, id).
-			Scan(&asked, &taken, &bound.id, &bound.tokenID, &bound.host, &bound.hostID, &bound.platform, &bound.boundIP, &enrolledS, &callS, &resultS, &bound.reporter)
+		bound, err := scanNodeState(s.db.Reader().QueryRowContext(ctx, `SELECT `+nodeStateCols+`, ifnull(report_asked_at, ''), ifnull(software_taken_at, '') FROM intake_osquery_nodes WHERE id = ?`, id), &asked, &taken)
 		switch {
 		case err == nil:
-			bound.enrolled, _ = time.Parse(time.RFC3339Nano, enrolledS)
-			bound.lastCall, _ = time.Parse(time.RFC3339Nano, callS)
-			bound.lastResult, _ = time.Parse(time.RFC3339Nano, resultS)
-			now := s.now()
 			n := askNode{id: id}
 			n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
 			n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
@@ -159,52 +167,69 @@ func (s *Service) reportState(ctx context.Context, device string) (ReportState, 
 			} else if found && supersededBy(bound, top) {
 				live = top
 			}
-			st := ReportState{Agent: ReportOsquery}
-			st.LastSeen = live.lastCall
-			st.State, st.QuietSince = stateOf(now, live.enrolled, live.lastCall, live.lastResult, live.reporter)
+			c := live.cadence("")
+			st := ReportState{Agent: ReportOsquery, LastSeen: live.lastCall, Rhythm: c.Rhythm(), OS: osOf(live.platform)}
+			st.State, st.QuietSince = NodeHealth(c, now)
 			st.Stale = st.State == StateQuiet // one rule: "no agent reports this device now" and "quiet" are the same fact
-			st.OS = osOf(live.platform)
 			if askOpen(nodeRow{askedAt: n.askedAt, softwareAt: n.softwareAt}, now) {
 				st.AskedAt = n.askedAt
 			}
 			if again := n.askedAt.Add(reportCooldown); !n.askedAt.IsZero() && again.After(now) {
 				st.AskAgainAt = again
 			}
-			return st, n, nil
+			st, err := setup(st, live.tokenID)
+			return st, n, err
 		case !errors.Is(err, sql.ErrNoRows): // a binding whose node is gone (the inventory releases it) is no osquery agent
 			return ReportState{}, askNode{}, fmt.Errorf("agentintake: read node: %w", err)
 		}
 	}
-	minutes, err := s.wazuhReads(ctx, d)
+	w, err := s.wazuhReads(ctx, d)
 	if err != nil {
 		return ReportState{}, askNode{}, err
 	}
-	if minutes > 0 {
-		return ReportState{Agent: ReportWazuh, WazuhMinutes: minutes}, askNode{}, nil
+	if w.minutes > 0 {
+		// Wazuh by its pull: the device's agent last called when Wazuh last heard from it (its keep-alive, as the last pull that
+		// delivered it read it), and the pull interval is its rhythm: a disconnected agent, or a pull that stopped, turns quiet.
+		c := Cadence{LastCall: w.seen, LastResult: w.seen, CallEvery: time.Duration(w.minutes) * time.Minute}
+		st := ReportState{Agent: ReportWazuh, WazuhMinutes: w.minutes, LastSeen: w.seen, Rhythm: c.Rhythm()}
+		st.State, st.QuietSince = NodeHealth(c, now)
+		st.Stale = st.State == StateQuiet
+		st, err := setup(st, "")
+		return st, askNode{}, err
 	}
-	return ReportState{Agent: ReportNone}, askNode{}, nil
+	st, err := setup(ReportState{Agent: ReportNone}, "")
+	return st, askNode{}, err
 }
 
-// wazuhReads is the Wazuh pull's interval in minutes when the last pass delivered to the device's address or MAC (the inventory's
-// own marker of a Wazuh device, WazuhAgentAddresses), 0 when not or when no Wazuh server is connected.
-func (s *Service) wazuhReads(ctx context.Context, d observe.AgentDevice) (int, error) {
+// wazuhRead is what the saved Wazuh connection's last pass says of a device: the pull's interval in minutes (0 when no agent of it was
+// delivered to the device) and when Wazuh last heard from its agent (intake_wazuh_agent.seen_at).
+type wazuhRead struct {
+	minutes int
+	seen    time.Time
+}
+
+// wazuhReads is the Wazuh pull's interval and the newest delivery when the last pass delivered to the device's address or MAC (the
+// inventory's own marker of a Wazuh device, WazuhAgentAddresses); zero when not or when no Wazuh server is connected.
+func (s *Service) wazuhReads(ctx context.Context, d observe.AgentDevice) (wazuhRead, error) {
 	ip := ""
 	if d.IP.IsValid() {
 		ip = d.IP.String()
 	}
 	if ip == "" && d.MAC == "" {
-		return 0, nil
+		return wazuhRead{}, nil
 	}
 	var minutes int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT w.interval_minutes FROM intake_wazuh w JOIN intake_wazuh_agent a ON a.generation = w.generation
-		WHERE w.id = 1 AND ((?1 <> '' AND a.ip = ?1) OR (?2 <> '' AND lower(a.mac) = lower(?2))) LIMIT 1`, ip, d.MAC).Scan(&minutes)
+	var seen string
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT w.interval_minutes, max(a.seen_at) FROM intake_wazuh w JOIN intake_wazuh_agent a ON a.generation = w.generation
+		WHERE w.id = 1 AND ((?1 <> '' AND a.ip = ?1) OR (?2 <> '' AND lower(a.mac) = lower(?2))) GROUP BY w.interval_minutes`, ip, d.MAC).Scan(&minutes, &seen)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, nil
+		return wazuhRead{}, nil
 	}
 	if err != nil {
-		return 0, fmt.Errorf("agentintake: read wazuh agents: %w", err)
+		return wazuhRead{}, fmt.Errorf("agentintake: read wazuh agents: %w", err)
 	}
-	return minutes, nil
+	t, _ := time.Parse(time.RFC3339Nano, seen)
+	return wazuhRead{minutes: minutes, seen: t}, nil
 }
 
 // errCannotAsk is the 409 of an ask Vedette cannot make: the device has no osquery node of this box (Wazuh only, or no agent).
@@ -219,6 +244,9 @@ func (s *Service) AskReport(ctx context.Context, actor, device string) (ReportSt
 	st, n, err := s.reportState(ctx, device)
 	if err != nil {
 		return ReportState{}, err
+	}
+	if st.Off {
+		return ReportState{}, apierr.New(409, "agent_off", "The agent is turned off for this device, so Vedette takes none of its data. Turn it on first.")
 	}
 	if st.Agent != ReportOsquery {
 		return ReportState{}, errCannotAsk()

@@ -11,14 +11,14 @@ import (
 )
 
 // outsideWindow is Monday 12:00: the env's window is every day 01:00 to 05:00.
-func outsideWindow(e *env) { e.base = local(9, 12, 0) }
+func outsideWindow(e *env) { e.setBase(local(9, 12, 0)) }
 
 func waitManual(t *testing.T, e *env) {
 	t.Helper()
 	if err := e.svc.WaitManual(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if e.svc.Manual() != nil {
+	if e.svc.Manual(t.Context()) != nil {
 		t.Fatal("the manual run is still listed after it ended")
 	}
 }
@@ -28,14 +28,14 @@ func waitManual(t *testing.T, e *env) {
 func TestContract_INV21_ScanTheLANNowOutsideTheWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, outsideWindow)
-	m, err := e.svc.StartManual(e.ctx(), nil, nil)
+	m, err := e.svc.StartManual(e.ctx(), "admin@example.com", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if m.ID == "" || len(m.Assets) != 0 || !slices.Equal(m.Ranges, []string{"192.168.10.0/26"}) || m.Progress == nil || m.Progress.Phase != progress.PhaseDiscovery {
 		t.Fatalf("run = %+v", m)
 	}
-	if cur := e.svc.Manual(); cur == nil || cur.ID != m.ID {
+	if cur := e.svc.Manual(t.Context()); cur == nil || cur.ID != m.ID {
 		t.Fatalf("Manual() = %+v while the run goes on", cur)
 	}
 	if v, err := e.svc.Engine(e.ctx()); err != nil || v.Manual == nil || v.Manual.ID != m.ID {
@@ -51,7 +51,7 @@ func TestContract_INV21_ScanTheLANNowOutsideTheWindow(t *testing.T) {
 	if sweeps == 0 {
 		t.Fatal("no sweep ran outside the window")
 	}
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'done'`); n < 1 {
+	if n := e.count(`SELECT count(*) FROM jobs_v WHERE kind = 'sweep' AND status = 'done'`); n < 1 {
 		t.Fatalf("done sweeps = %d", n)
 	}
 	v, err := e.svc.Engine(e.ctx())
@@ -73,7 +73,7 @@ func TestContract_INV21_CheckThisDeviceNow(t *testing.T) {
 	e := newEnv(t, fakeOpts{}, outsideWindow, func(e *env) {
 		e.inv.addrs[netip.MustParseAddr("192.168.10.20")] = "a-web"
 	})
-	m, err := e.svc.StartManual(e.ctx(), []string{"192.168.10.20"}, nil)
+	m, err := e.svc.StartManual(e.ctx(), "admin@example.com", []string{"192.168.10.20"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +81,8 @@ func TestContract_INV21_CheckThisDeviceNow(t *testing.T) {
 		t.Fatalf("run = %+v", m)
 	}
 	waitManual(t, e)
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE kind = 'device' AND reason = 'scan_now' AND status = 'done'`); n != 1 {
-		t.Fatalf("device jobs = %d (%s; blocked %v; calls %q)", n, e.str(`SELECT ifnull(group_concat(kind || ' ' || ifnull(reason, '-') || ' ' || status || ' ' || ifnull(error, ''), '; '), 'none') FROM sa_job`), e.ev.named(sa.EventScanBlocked), e.nm.calls(t))
+	if n := e.count(`SELECT count(*) FROM jobs_v WHERE kind = 'device' AND reason = 'scan_now' AND status = 'done'`); n != 1 {
+		t.Fatalf("device jobs = %d (%s; blocked %v; calls %q)", n, e.str(`SELECT ifnull(group_concat(kind || ' ' || ifnull(reason, '-') || ' ' || status || ' ' || ifnull(error, ''), '; '), 'none') FROM jobs_v`), e.ev.named(sa.EventScanBlocked), e.nm.calls(t))
 	}
 	var hit bool
 	for _, c := range e.nm.calls(t) {
@@ -96,7 +96,7 @@ func TestContract_INV21_CheckThisDeviceNow(t *testing.T) {
 	}
 	// by id, two devices at once: the address of the run is only set for one device
 	e.inv.addrs[netip.MustParseAddr("192.168.10.30")] = "a-printer"
-	m, err = e.svc.StartManual(e.ctx(), []string{"a-web", "192.168.10.30", "a-web"}, nil)
+	m, err = e.svc.StartManual(e.ctx(), "admin@example.com", []string{"a-web", "192.168.10.30", "a-web"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 	})
 	refused := func(targets []string, reason, detail string) {
 		t.Helper()
-		_, err := e.svc.StartManual(e.ctx(), targets, nil)
+		_, err := e.svc.StartManual(e.ctx(), "admin@example.com", targets, nil)
 		var te *sa.TargetError
 		if !errors.As(err, &te) || te.Reason != reason || (detail != "" && te.Detail != detail) {
 			t.Fatalf("%q: err = %v, want %s (%s)", targets, err, reason, detail)
@@ -145,23 +145,23 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 	refused(many, sa.RefuseNotAllowed, "too_many")
 
 	e.inv.set(func(st *sa.Settings) { st.ScopeConfirmed = false })
-	if _, err := e.svc.StartManual(e.ctx(), nil, nil); !errors.Is(err, sa.ErrScopeNotConfirmed) {
+	if _, err := e.svc.StartManual(e.ctx(), "admin@example.com", nil, nil); !errors.Is(err, sa.ErrScopeNotConfirmed) {
 		t.Fatalf("scope not confirmed: %v", err)
 	}
 	e.inv.set(func(st *sa.Settings) { st.ScopeConfirmed, st.Enabled = true, false })
-	if _, err := e.svc.StartManual(e.ctx(), []string{"a-web"}, nil); !errors.Is(err, sa.ErrScanningOff) {
+	if _, err := e.svc.StartManual(e.ctx(), "admin@example.com", []string{"a-web"}, nil); !errors.Is(err, sa.ErrScanningOff) {
 		t.Fatalf("scanning off: %v", err)
 	}
-	if n := len(e.nm.calls(t)); n != 0 || e.svc.Manual() != nil {
+	if n := len(e.nm.calls(t)); n != 0 || e.svc.Manual(t.Context()) != nil {
 		t.Fatalf("a refused run sent %d nmap commands", n)
 	}
 
 	// one run at a time: a second one is refused while the first goes on (its nmap does not end by itself)
 	slow := newEnv(t, fakeOpts{slowFrom: 1}, outsideWindow)
-	if _, err := slow.svc.StartManual(slow.ctx(), []string{"a-web"}, nil); err != nil {
+	if _, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", []string{"a-web"}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := slow.svc.StartManual(slow.ctx(), nil, nil); !errors.Is(err, sa.ErrManualBusy) {
+	if _, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", nil, nil); !errors.Is(err, sa.ErrManualBusy) {
 		t.Fatalf("second run: %v", err)
 	}
 	slow.svc.Stop()
@@ -172,12 +172,12 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 func TestContract_INV21_StopEndsAManualRun(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1}, outsideWindow)
-	if _, err := e.svc.StartManual(e.ctx(), nil, nil); err != nil {
+	if _, err := e.svc.StartManual(e.ctx(), "admin@example.com", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	e.svc.Stop()
 	waitManual(t, e)
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'done'`); n != 0 {
+	if n := e.count(`SELECT count(*) FROM jobs_v WHERE kind = 'sweep' AND status = 'done'`); n != 0 {
 		t.Fatalf("a stopped sweep finished: %d done", n)
 	}
 }

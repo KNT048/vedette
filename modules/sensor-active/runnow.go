@@ -3,7 +3,6 @@ package sensoractive
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -12,13 +11,13 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/progress"
-	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/run"
 )
 
 // ---- Scan the LAN now and Check this device now (#850, INV-21) ----
 
-// ErrManualBusy says a run a person started is still going; ErrSlotBusy that the window's sweep, a queued device's scan or a Scan now
-// identification holds nmap now (review #857 L5: a check is refused, not skipped later).
+// ErrManualBusy says a run a person started is still queued or going; ErrSlotBusy that a sweep is going now (a second sweep is
+// refused; a person's check is queued behind it instead and says so).
 var (
 	ErrManualBusy = errors.New("sensoractive: a run is already going")
 	ErrSlotBusy   = errors.New("sensoractive: discovery is running nmap now")
@@ -45,52 +44,111 @@ const (
 // MaxManualTargets bounds the devices of one Check now.
 const MaxManualTargets = 64
 
-// manualFor bounds a manual sweep: the window counts as open for it, and for the scans of the devices it queued, for this long.
+// manualFor bounds a manual sweep: the window counts as open for it, and for the checks of the devices it found, for this long.
 const manualFor = time.Hour
 
-// ManualRun is a run a person started (#850): a sweep of the whole scope now (Assets empty) or the identification of the chosen
-// devices now. It lives in memory while it runs; its nmap jobs are sa_job rows like any other.
+// ManualRun is a run a person started (#850, INV-21): a sweep of the whole scope now (Assets empty), or the checks of the chosen
+// devices now, one device_check run each (ID is the first). Its record is core_run.
 type ManualRun struct {
 	ID        string
+	Runs      []string   // every run it queued: the sweep, or one check per device in the order of Assets
 	Assets    []string   // the device ids checked, in order; empty for a sweep
 	IP        netip.Addr // the address of the device when there is one; invalid otherwise
 	Ranges    []string   // the scope a sweep covers
 	StartedAt time.Time
-	Until     time.Time // its end at the latest: manualFor after its start (the sweep, its queue and every device check)
+	Until     time.Time // a sweep's end outside the window at the latest: manualFor after its start
 	Progress  *progress.View
 }
 
-type manualRun struct {
-	ManualRun
-	cancel context.CancelFunc
-	tr     *progress.Tracker
-	done   chan struct{} // closed when the run has ended
+// sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now, runs
+// outside the window for manualFor from the moment it was asked; zero for every other pass.
+func (s *Service) sweepUntil(r run.Run) time.Time {
+	var until time.Time
+	if r.Trigger == run.Manual && r.StartedAt != nil {
+		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err == nil {
+			until = t.Add(manualFor)
+		}
+	}
+	s.mu.Lock()
+	if t := s.personUntil[r.ID]; t.After(until) {
+		until = t
+	}
+	s.mu.Unlock()
+	return until
 }
 
-// Manual is the manual run going on now, nil when none.
-func (s *Service) Manual() *ManualRun {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.manual == nil {
+type manualKey struct{}
+
+// withManualUntil marks ctx as the work of a person's "Scan the LAN now" whose hour ends at t: windowNow lets it run until then.
+// A zero t marks nothing.
+func withManualUntil(ctx context.Context, t time.Time) context.Context {
+	if t.IsZero() {
+		return ctx
+	}
+	return context.WithValue(ctx, manualKey{}, t)
+}
+
+func manualUntil(ctx context.Context) time.Time { t, _ := ctx.Value(manualKey{}).(time.Time); return t }
+
+// Manual is the run a person started that is queued or going now, nil when none.
+func (s *Service) Manual(ctx context.Context) *ManualRun {
+	r, err := s.manualLive(ctx)
+	if err != nil || r == nil {
 		return nil
 	}
-	m := s.manual.ManualRun
-	m.Progress = s.manual.tr.View()
-	return &m
+	m := &ManualRun{ID: r.ID, Runs: []string{r.ID}}
+	if r.StartedAt != nil {
+		m.StartedAt, _ = time.Parse(time.RFC3339Nano, *r.StartedAt)
+	} else {
+		m.StartedAt, _ = time.Parse(time.RFC3339Nano, r.QueuedAt)
+	}
+	switch {
+	case r.Kind == RunSweep && r.Subject != nil:
+		m.Ranges = strings.Split(r.Subject.Label, ", ")
+		m.Until = m.StartedAt.Add(manualFor)
+	case r.Subject != nil:
+		m.Assets = []string{r.Subject.ID}
+		if a, err := s.inv.Asset(ctx, r.Subject.ID); err == nil {
+			m.IP = a.IP
+		}
+	}
+	m.Progress = runView(*r)
+	return m
 }
 
-// StartManual checks a manual run, records it and starts it in the background (INV-21): no targets sweeps the whole scope now and then
-// scans the devices the sweep queued, with the window counted open for manualFor ("Scan the LAN now"); targets (IPv4 addresses of
-// devices or device ids, at most MaxManualTargets) identify those devices one after the other as IdentifyDevice does, all within
-// manualFor ("Check this device now"). Every rule but the window holds and is checked before anything starts: the module on (ErrStopped
-// once Stop ran), active scanning on (ErrScanningOff), the scope confirmed (ErrScopeNotConfirmed, ErrNoRanges), nmap present
-// (ErrUnavailable), one manual run at a time (ErrManualBusy), no LAN run holding nmap now (ErrSlotBusy: the window's sweep or a device
-// scan; never a check skipped later without a word), no sweep started in the last SweepGap (a *TooSoonError), and per target the device
-// exists, is inside the scope and outside the exclusions and the box, and its policy lets a person check it (a *TargetError).
-// record is called once the run is claimed and before anything is sent (the person's consent, review #857 M2): its error refuses the
-// run and nothing starts. The run goes on after ctx ends; Stop (the module turned off) and SettingsChanged end it as any other run.
-func (s *Service) StartManual(ctx context.Context, targets []string, record func(ManualRun) error) (ManualRun, error) {
-	stops := s.stops.Load()
+// manualLive is the newest run of the nmap lane a person started (not a step of another module's run) that has not ended.
+func (s *Service) manualLive(ctx context.Context) (*run.Run, error) {
+	var id string
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND trigger = 'manual' AND parent_id IS NULL
+		AND status IN ('queued', 'running', 'stopping') ORDER BY queued_at DESC, rowid DESC LIMIT 1`, ModuleID, laneNmap).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) { // a pass a person asked to go on now is theirs while it goes on within their hour
+		sw, err := s.liveRun(ctx, RunSweep)
+		if err != nil || sw == nil || !sw.Status.Live() && sw.Status != run.Queued || !s.clock().Before(s.sweepUntil(*sw)) {
+			return nil, err
+		}
+		return sw, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)
+	}
+	r, err := s.runs.Read(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// StartManual checks a person's run and queues it (INV-21): no targets sweeps the whole scope now, with the window counted open for
+// manualFor, and then checks the devices the sweep found ("Scan the LAN now"); targets (IPv4 addresses of devices or device ids, at
+// most MaxManualTargets) queue one check per device, run at once whatever the window ("Check this device now"). Every rule but the
+// window holds and is checked before anything is queued: the module on (ErrStopped once Stop ran), active scanning on
+// (ErrScanningOff), the scope confirmed (ErrScopeNotConfirmed, ErrNoRanges), nmap present (ErrUnavailable), one person's run at a time
+// (ErrManualBusy), no sweep going now for a sweep (ErrSlotBusy), no sweep started in the last SweepGap (a *TooSoonError), and per
+// target the device exists, is inside the scope and outside the exclusions and the box, and its policy lets a person check it (a
+// *TargetError). A check that meets a busy scanner is queued behind the run that holds it and says so; a sweep gives way to it
+// between two batches. record writes the person's consent (the audit row) in the transaction that queues the runs: its error
+// refuses the run and nothing is queued. by is the person.
+func (s *Service) StartManual(ctx context.Context, by string, targets []string, record func(tx *sql.Tx, m ManualRun) error) (ManualRun, error) {
 	if s.off.Load() {
 		return ManualRun{}, ErrStopped
 	}
@@ -111,52 +169,114 @@ func (s *Service) StartManual(ctx context.Context, targets []string, record func
 	if err != nil {
 		return ManualRun{}, err
 	}
+	if busy, err := s.manualLive(ctx); err != nil {
+		return ManualRun{}, err
+	} else if busy != nil {
+		return ManualRun{}, ErrManualBusy
+	}
+	now := s.clock()
+	m := ManualRun{Assets: ids, IP: ip, Ranges: slices.Clone(st.LANRanges), StartedAt: now, Until: now.Add(manualFor)}
 	if len(ids) == 0 {
 		if err := s.sweepGap(ctx); err != nil {
 			return ManualRun{}, err
 		}
-	}
-	tr := progress.NewTracker(s.clock)
-	rctx, cancel := context.WithCancel(withManual(progress.WithSink(context.WithoutCancel(ctx), tr)))
-	now := s.clock()
-	m := &manualRun{ManualRun: ManualRun{ID: store.NewID("sar"), Assets: ids, IP: ip, Ranges: slices.Clone(st.LANRanges), StartedAt: now, Until: now.Add(manualFor)},
-		cancel: cancel, tr: tr, done: make(chan struct{})}
-	s.mu.Lock()
-	var refused error
-	switch {
-	case s.off.Load() || s.stops.Load() != stops: // the module was turned off since the checks (review #857 L1)
-		refused = ErrStopped
-	case s.manual != nil:
-		refused = ErrManualBusy
-	case s.cur != nil && !s.cur.external:
-		refused = ErrSlotBusy
-	default:
-		s.manual = m
-		if len(ids) == 0 {
-			s.manualUntil = m.Until
-		}
-	}
-	s.mu.Unlock()
-	if refused != nil {
-		cancel()
-		return ManualRun{}, refused
-	}
-	if record != nil {
-		if err := record(m.ManualRun); err != nil {
-			s.unclaim(m)
-			cancel()
+		sw, err := s.liveRun(ctx, RunSweep)
+		if err != nil {
 			return ManualRun{}, err
 		}
+		if sw != nil && sw.Status != run.Waiting {
+			return ManualRun{}, ErrSlotBusy
+		}
+		if sw != nil { // the pass that waits for the window goes on now from its cursor, under the person's hour: never a second pass
+			err := s.db.Write(ctx, func(tx *sql.Tx) error {
+				m.ID, m.Runs = sw.ID, []string{sw.ID}
+				if record == nil {
+					return nil
+				}
+				return record(tx, m)
+			})
+			if err != nil {
+				return ManualRun{}, err
+			}
+			s.mu.Lock()
+			if s.personUntil == nil {
+				s.personUntil = map[string]time.Time{}
+			}
+			s.personUntil[sw.ID] = m.Until
+			s.mu.Unlock()
+			s.expect(sw.ID)
+			if err := s.runs.Resume(ctx, sw.ID, by); err != nil {
+				return ManualRun{}, err
+			}
+			m.Progress = s.viewOfRun(ctx, sw.ID)
+			return m, nil
+		}
+		id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Manual, RequestedBy: by}, func(tx *sql.Tx, id string) error {
+			m.ID, m.Runs = id, []string{id}
+			if record == nil {
+				return nil
+			}
+			return record(tx, m)
+		})
+		if err != nil {
+			return ManualRun{}, err
+		}
+		m.ID, m.Runs = id, []string{id}
+		m.Progress = s.viewOfRun(ctx, id)
+		return m, nil
 	}
-	if len(ids) == 0 {
-		tr.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, NewPass: true})
-	} else {
-		tr.Report(progress.Phase(progress.PhaseDiscovery, ""))
+	m.Until = time.Time{}
+	labels := make([]string, len(ids))
+	for i, id := range ids {
+		labels[i] = s.deviceLabel(ctx, id)
 	}
-	go s.runManual(rctx, m)
-	out := m.ManualRun
-	out.Progress = tr.View()
-	return out, nil
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		m.Runs = m.Runs[:0]
+		for i, id := range ids {
+			lbl := labels[i]
+			rid, err := s.runs.CreateTx(ctx, tx, run.Spec{Module: ModuleID, Kind: RunCheck, Title: "Check of " + lbl, Trigger: run.Manual,
+				RequestedBy: by, Subject: &run.Subject{Kind: "device", ID: id, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}})
+			if err != nil {
+				return err
+			}
+			m.Runs = append(m.Runs, rid)
+		}
+		m.ID = m.Runs[0]
+		if record == nil {
+			return nil
+		}
+		return record(tx, m)
+	})
+	if err != nil {
+		return ManualRun{}, err
+	}
+	for _, id := range ids { // the window's own row of the device: checked now, it waits for nothing
+		s.dropWaiting(ctx, id, "Checked now at a person's request")
+	}
+	m.Progress = s.viewOfRun(ctx, m.ID)
+	return m, nil
+}
+
+// runView is the progress of a run as the engine cards show it: its phase, its count and its line of words.
+func runView(r run.Run) *progress.View {
+	msg := r.Summary
+	at := derefOr(r.StartedAt, r.QueuedAt)
+	v := &progress.View{Phase: progress.PhaseDiscovery, StartedAt: at, PhaseStartedAt: at, UpdatedAt: r.UpdatedAt, Message: &msg}
+	if r.Total > 0 {
+		done, total, unit := int64(r.Done), int64(r.Total), progress.UnitHosts
+		v.Done, v.Total, v.Unit = &done, &total, &unit
+	}
+	return v
+}
+
+// viewOfRun is runView of run id as stored now; a bare view when it cannot be read.
+func (s *Service) viewOfRun(ctx context.Context, id string) *progress.View {
+	r, err := s.runs.Read(ctx, id)
+	if err != nil {
+		now := s.now()
+		return &progress.View{Phase: progress.PhaseDiscovery, StartedAt: now, PhaseStartedAt: now, UpdatedAt: now}
+	}
+	return runView(r)
 }
 
 // SweepGap is the least time between two sweeps a person starts, or a person's and the window's (INV-21, review #857 L4): the window
@@ -173,7 +293,7 @@ func (e *TooSoonError) Error() string {
 // sweepGap refuses a sweep within SweepGap of the newest sweep's start.
 func (s *Service) sweepGap(ctx context.Context) error {
 	var last sql.NullString
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT max(started_at) FROM sa_job WHERE kind = 'sweep'`).Scan(&last); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT max(COALESCE(started_at, queued_at)) FROM core_run WHERE module = ? AND kind = ?`, ModuleID, RunSweep).Scan(&last); err != nil {
 		return fmt.Errorf("sensoractive: read the last sweep: %w", err)
 	}
 	if !last.Valid {
@@ -188,26 +308,6 @@ func (s *Service) sweepGap(ctx context.Context) error {
 	}
 	return nil
 }
-
-// unclaim forgets a claimed run that did not start.
-func (s *Service) unclaim(m *manualRun) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.manual == m {
-		s.manual = nil
-		s.manualUntil = time.Time{}
-	}
-	close(m.done)
-}
-
-type manualKey struct{}
-
-// withManual marks ctx as a run of a person's "Scan the LAN now": windowNow lets it run until manualUntil.
-func withManual(ctx context.Context) context.Context {
-	return context.WithValue(ctx, manualKey{}, true)
-}
-
-func isManual(ctx context.Context) bool { v, _ := ctx.Value(manualKey{}).(bool); return v }
 
 // checkTargets resolves the targets to devices and refuses the first one a person may not check now; ip is the address of the only
 // device when there is one.
@@ -272,199 +372,9 @@ func (s *Service) checkTargets(ctx context.Context, st Settings, targets []strin
 	return ids, ip, nil
 }
 
-// runManual runs m and forgets it when it ends.
-func (s *Service) runManual(ctx context.Context, m *manualRun) {
-	defer func() {
-		m.cancel()
-		s.mu.Lock()
-		if s.manual == m {
-			s.manual = nil
-			s.manualUntil = time.Time{}
-		}
-		s.mu.Unlock()
-		close(m.done)
-	}()
-	if len(m.Assets) == 0 {
-		s.manualSweep(ctx)
-		return
-	}
-	// Whatever way the run ends (its hour, a stop, scanning turned off), a check still waiting becomes the window's: a row that stayed
-	// check_wait would be run again outside the window by resumeChecks (INV-28).
-	defer s.giveUpWaiting(ctx, m.Assets)
-	for i, id := range m.Assets {
-		left := m.Until.Sub(s.clock())
-		if ctx.Err() != nil || s.off.Load() {
-			return
-		}
-		if left <= 0 { // the run's hour is over: the rest wait for the window (review #857 L4)
-			s.queueRest(ctx, m.Assets[i:], "the check a person started ran out of time")
-			return
-		}
-		dctx, cancel := context.WithTimeout(ctx, left)
-		res, err := s.identifyDevice(dctx, id, left, true) // behind a busy scanner it waits its turn, as long as the run lasts (INV-28)
-		cancel()
-		switch {
-		case err == nil && res.Why == "": // it ran: no other row of the device (a first check, an owed scan) scans it again tonight
-			s.dropQueued(ctx, id, true)
-		case !errors.Is(err, ErrStopped) && res.Why != WhyBusy: // refused or failed: nothing waits any more
-			s.dropQueued(ctx, id, false)
-		}
-		switch {
-		case errors.Is(err, ErrStopped):
-			if ctx.Err() == nil && s.clock().Before(m.Until) && !s.off.Load() {
-				continue // stopped for this device alone (it changed); the next one is checked
-			}
-			if !s.off.Load() && ctx.Err() == nil {
-				s.queueRest(ctx, m.Assets[i:], "the check a person started ran out of time")
-			}
-			return
-		case err != nil:
-			s.log.WarnContext(ctx, "sensoractive: a device check a person started failed", "asset", id, "error", err)
-		case res.Why == reasonScanningOff || res.Why == reasonScopeNotConfirmed: // discovery turned off, or the scope, since it started
-			return
-		case res.Why == WhyBusy: // the slot did not come free within the run's own hour: the window's queue takes it, never a silent skip (L5)
-			s.queueRest(ctx, []string{id}, "nmap was busy for the whole run")
-		case res.Why != "":
-			s.log.InfoContext(ctx, "sensoractive: a device check a person started found nothing to record", "asset", id, "why", res.Why)
-		}
-	}
-}
-
-// queueRest puts the devices a manual check could not reach in the window's queue, and says so in the log.
-func (s *Service) queueRest(ctx context.Context, ids []string, why string) {
-	ctx = context.WithoutCancel(ctx)
-	for _, id := range ids {
-		if err := s.Enqueue(ctx, id, "check_now"); err != nil {
-			s.log.WarnContext(ctx, "sensoractive: queueing a device a person asked to check failed", "asset", id, "error", err)
-		}
-	}
-	s.log.WarnContext(ctx, "sensoractive: devices a person asked to check wait for the next window", "devices", len(ids), "why", why)
-}
-
-// dropQueued forgets the rows a check a person started leaves in the queue: the check_wait row it kept while it waited, and, when the
-// check ran (all), the device's row of any other reason too, so the window does not scan it again right after.
-func (s *Service) dropQueued(ctx context.Context, id string, all bool) {
-	err := s.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
-		if all {
-			_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, id)
-			return err
-		}
-		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ? AND reason = ?`, id, reasonCheckWait)
-		return err
-	})
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: forgetting a waiting device check failed", "asset", id, "error", err)
-	}
-}
-
-// giveUpWaiting hands the check_wait rows of ids to the window's queue (check_now, the window's rules).
-func (s *Service) giveUpWaiting(ctx context.Context, ids []string) {
-	ctx = context.WithoutCancel(ctx)
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		for _, id := range ids {
-			if _, err := tx.ExecContext(ctx, `UPDATE sa_queue SET reason = 'check_now' WHERE asset_id = ? AND reason = ?`, id, reasonCheckWait); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: handing a waiting device check to the window failed", "error", err)
-	}
-}
-
-// resumeChecks starts again the checks a person started that were waiting for nmap when the process stopped (their rows are
-// check_wait): at the first ticks after a restart, whatever the window, as the person's own run (INV-28). A refusal that is the
-// device's (no longer scannable, out of scope) forgets the row; one that is the box's (scanning off, nmap missing, a run going on)
-// leaves it for a later tick.
-func (s *Service) resumeChecks(ctx context.Context) {
-	s.mu.Lock()
-	busy := s.manual != nil
-	s.mu.Unlock()
-	if busy || s.off.Load() {
-		return
-	}
-	// only a check from the last run's hour is the person's still; an older row (the run gave up, a stop, scanning off) is the window's
-	cutoff := store.FormatTS(s.clock().Add(-manualFor))
-	if err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE sa_queue SET reason = 'check_now' WHERE reason = ? AND queued_at < ?`, reasonCheckWait, cutoff)
-		return err
-	}); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: handing old waiting device checks to the window failed", "error", err)
-		return
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT asset_id FROM sa_queue WHERE reason = ? ORDER BY queued_at, asset_id LIMIT ?`, reasonCheckWait, MaxManualTargets)
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: reading the waiting device checks failed", "error", err)
-		return
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
-		}
-	}
-	_ = rows.Close()
-	if len(ids) == 0 {
-		return
-	}
-	_, err = s.StartManual(ctx, ids, nil)
-	var te *TargetError
-	switch {
-	case err == nil:
-		s.log.InfoContext(ctx, "sensoractive: device checks a person started were waiting for nmap before the restart; they run now", "devices", len(ids))
-	case errors.As(err, &te):
-		s.dropQueued(ctx, te.Target, false) // the target is the id the row holds
-	}
-}
-
-// manualSweep is "Scan the LAN now": the sweep from the first address of the scope, then the scans of the devices it queued (the
-// gentle scan first for fragile and unclassified ones), with the window counted open for at most manualFor. Every other
-// rule holds; a change of settings stops it as it stops the window's runs.
-func (s *Service) manualSweep(ctx context.Context) {
-	s.setCursor(ctx, netip.Addr{}) // the whole scope, not the rest of a pass the window cut
-	s.log.InfoContext(ctx, "sensoractive: a sweep a person started, outside the window", "for", manualFor.String())
-	if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
-		s.log.WarnContext(ctx, "sensoractive: the sweep a person started did not run", "error", err)
-	}
-	if ctx.Err() != nil {
-		return
-	}
-	if err := s.drain(ctx); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: scanning the queued devices after a sweep a person started failed", "error", err)
-	}
-}
-
-// WaitManual returns once no manual run goes on, or with ctx's error: for a shutdown that must not leave nmap running, and tests.
-func (s *Service) WaitManual(ctx context.Context) error {
-	s.mu.Lock()
-	m := s.manual
-	s.mu.Unlock()
-	if m == nil {
-		return nil
-	}
-	select {
-	case <-m.done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-// stopManual ends the manual run, if one runs (Stop).
-func (s *Service) stopManual() {
-	s.mu.Lock()
-	m := s.manual
-	s.mu.Unlock()
-	if m != nil {
-		m.cancel()
-	}
-}
-
 // ---- the engine cards of Settings › Scanning (#850) ----
 
-// JobHead is an sa_job row.
+// JobHead is a run of the module as Settings › Scanning and the history list it (core_run).
 type JobHead struct {
 	ID, Kind, Status string
 	Reason           string // "" when none (a window's run); scan_now for an identification a person asked for
@@ -478,7 +388,7 @@ type JobHead struct {
 // Current is the LAN job holding the nmap slot now: a sweep (Asset "") or the scan of one device. External runs (exposure) are not
 // listed: their own module shows them.
 type Current struct {
-	JobID     string // its sa_job row; "" before the row is written
+	JobID     string // its run
 	Kind      string // sweep or device
 	Asset     string
 	Targets   []netip.Addr
@@ -493,13 +403,13 @@ type EngineView struct {
 	Open       bool               // a window is open now
 	Last       map[string]JobHead // the newest job that ended, by kind (sweep, device, snmp)
 	Current    *Current
-	SNMP       *JobHead // the SNMP batch running now (its sa_job row), nil when none
+	SNMP       *JobHead // the SNMP read running now, nil when none
 	Manual     *ManualRun
 }
 
 // Engine reads EngineView.
 func (s *Service) Engine(ctx context.Context) (EngineView, error) {
-	v := EngineView{Health: s.Health(ctx), Last: map[string]JobHead{}, Manual: s.Manual()}
+	v := EngineView{Health: s.Health(ctx), Last: map[string]JobHead{}, Manual: s.Manual(ctx)}
 	st, err := s.inv.Settings(ctx)
 	if err != nil {
 		return EngineView{}, err
@@ -507,19 +417,14 @@ func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 	now := s.local()
 	_, _, v.Open = st.window(now)
 	v.NextWindow = st.nextOpening(now)
-	for _, k := range []string{KindSweep, KindDevice, KindSNMP} {
-		var h JobHead
-		var reason, errText sql.NullString
-		err := s.db.Reader().QueryRowContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error FROM sa_job
-WHERE kind = ? AND status <> 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`, k).Scan(&h.ID, &h.Kind, &h.Status, &reason, &h.StartedAt, &h.FinishedAt, &h.Targets, &h.NewDevices, &errText)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
+	for _, k := range []string{RunSweep, RunCheck, RunSNMP} {
+		rows, err := s.jobHeads(ctx, `WHERE r.module = ? AND r.kind = ? AND r.status IN ('done', 'partial', 'failed', 'stopped') ORDER BY r.queued_at DESC, r.rowid DESC LIMIT 1`, ModuleID, k)
 		if err != nil {
-			return EngineView{}, fmt.Errorf("sensoractive: read the newest %s job: %w", k, err)
+			return EngineView{}, err
 		}
-		h.Reason, h.Error = reason.String, errText.String
-		v.Last[k] = h
+		if len(rows) == 1 {
+			v.Last[rows[0].Kind] = rows[0].JobHead
+		}
 	}
 	s.mu.Lock()
 	if c := s.cur; c != nil && !c.external {
@@ -527,40 +432,22 @@ WHERE kind = ? AND status <> 'running' ORDER BY started_at DESC, rowid DESC LIMI
 		if c.asset == "" && !c.picked {
 			kind = KindSweep
 		}
-		v.Current = &Current{Kind: kind, Asset: c.asset, Targets: slices.Clone(c.targets), Manual: s.manual != nil, StartedAt: c.started}
+		v.Current = &Current{JobID: c.runID, Kind: kind, Asset: c.asset, Targets: slices.Clone(c.targets), Manual: v.Manual != nil, StartedAt: c.started}
 	}
-	snmpBusy := s.snmpCur != nil
 	s.mu.Unlock()
-	// The rows of the runs in memory (a row still "running" with nothing in memory is one a restart cut; Tick closes it).
-	if v.Current != nil {
-		if h, err := s.runningJob(ctx, v.Current.Kind); err != nil {
-			return EngineView{}, err
-		} else if h != nil {
-			v.Current.JobID = h.ID
-		}
-	}
-	if snmpBusy {
-		h, err := s.runningJob(ctx, KindSNMP)
-		if err != nil {
-			return EngineView{}, err
-		}
-		v.SNMP = h
+	if r, err := s.liveRun(ctx, RunSNMP); err != nil {
+		return EngineView{}, err
+	} else if r != nil && r.Status == run.Running {
+		v.SNMP = &JobHead{ID: r.ID, Kind: KindSNMP, Status: StatusRunning, StartedAt: derefOr(r.StartedAt, r.QueuedAt), Targets: r.Total}
 	}
 	return v, nil
 }
 
-// runningJob is the newest sa_job row of kind still running; nil when none.
-func (s *Service) runningJob(ctx context.Context, kind string) (*JobHead, error) {
-	h := JobHead{Kind: kind, Status: StatusRunning}
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, started_at, targets FROM sa_job WHERE kind = ? AND status = 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`, kind).
-		Scan(&h.ID, &h.StartedAt, &h.Targets)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil //nolint:nilnil // none
+func derefOr(p *string, def string) string {
+	if p == nil {
+		return def
 	}
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: read the running %s job: %w", kind, err)
-	}
-	return &h, nil
+	return *p
 }
 
 // nextOpening is the first start of a window after t (in t's location), within the next eight days; nil when there is none.
@@ -584,15 +471,15 @@ func (st Settings) nextOpening(t time.Time) *time.Time {
 	return nil
 }
 
-// JobRow is an sa_job row for a list of past runs, with every probe it sent (read only): a sweep runs in batches, an SNMP
+// JobRow is a run of the module for a list of past runs, with every probe it sent (read only): a sweep runs in batches, an SNMP
 // read records "ok: n of m answered", so what the run found is in its probes, never only in the row's target count.
 type JobRow struct {
 	JobHead
 	Probes []JobProbe // in the order they were sent; empty when it sent none
-	// Found is what a device check found (sa_job.found): nil for the other kinds, a check that found nothing it could record (the
+	// Found is what a device check found (its items): nil for the other kinds, a check that found nothing it could record (the
 	// device did not answer, nmap failed or was stopped) and the checks stored before it was kept.
 	Found *DeviceFound
-	// AssetID is the device a device check was for (sa_job.asset_id); "" for the other kinds and checks stored before jobs named it.
+	// AssetID is the device a device check was for (the run's subject); "" for the other kinds.
 	AssetID string
 	// Own is, in JobsOf only, how the device's own read went in this SNMP read (sa_snmp_device.last_status of the read that
 	// stored it: ok, no_answer, auth_failed, unknown_user, error); "" when it is not known (an older read of the device).
@@ -603,22 +490,14 @@ type JobRow struct {
 // up", "ok: 2 of 3 answered", "failed: …"; "" while it runs).
 type JobProbe struct{ Targets, Result string }
 
-// Jobs lists the newest sa_job rows of the LAN (sweep, device, snmp; external runs are part of exposure's scans), newest first, at
-// most limit (1..500), each with its probes. Read only: Settings › Scanning › History. One indexed read per kind
-// (sa_job (kind, started_at)), then the probes of the listed jobs in one read (sa_probe (job_id)).
+// Jobs lists the newest runs of the LAN (sweeps, device checks, SNMP reads, scans of every port), newest first, at most limit
+// (1..500), each with its probes. Read only: the history of Settings › Scanning.
 func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
-	out := []JobRow{}
-	for _, kind := range []string{KindSweep, KindDevice, KindSNMP} {
-		rows, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, kind, limit)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, rows...)
-	}
-	slices.SortStableFunc(out, func(a, b JobRow) int { return strings.Compare(b.StartedAt, a.StartedAt) })
-	if len(out) > limit {
-		out = out[:limit]
+	out, err := s.jobHeads(ctx, `WHERE r.module = ? AND r.kind IN (?, ?, ?, ?) ORDER BY r.queued_at DESC, r.rowid DESC LIMIT ?`,
+		ModuleID, RunSweep, RunCheck, RunSNMP, RunAllPorts, limit)
+	if err != nil {
+		return nil, err
 	}
 	return out, s.jobProbes(ctx, out)
 }
@@ -627,22 +506,15 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
 // ranges, which SQL cannot match, so they are matched here. An older read of the address is not found (the contract says so).
 const snmpReadsScanned = 1000
 
-// JobsOf lists the LAN jobs of device id (the device page's Last checks), newest first, at most limit (1..500) of each kind: its
-// identifications (kind device: Check this device now, the window's queue, the first step of a vulnerability check), by the device
-// the job names, or, for a job stored before jobs named their device, by its address addr; and the SNMP reads that asked the read
-// address of its SNMP settings (rounds, Check now, and the tests of the shared credentials before SNMP moved to each device), among
-// the newest snmpReadsScanned reads. A device without SNMP set up has no SNMP read: its address may have been asked with a
-// credential that is gone, which says nothing about its own SNMP. No sweep: it reaches every address of the scope and identifies
-// nothing. Read only; the probes, and so the jobs, are kept ProbeRetention. Two jobs started in the same millisecond come newest
-// row first.
-func (s *Service) JobsOf(ctx context.Context, id string, addr netip.Addr, limit int) ([]JobRow, error) {
+// JobsOf lists the LAN runs of device id (the device page's Last checks), newest first, at most limit (1..500) of each kind: its
+// checks (the window's, a person's, Scan now's identification, the weekly scan of every port: the runs whose subject it is), and the
+// SNMP reads that asked the read address of its SNMP settings, among the newest snmpReadsScanned reads. A device without SNMP set up
+// has no SNMP read. No sweep: it reaches every address of the scope and identifies nothing. addr is kept for the callers; the runs
+// name their device.
+func (s *Service) JobsOf(ctx context.Context, id string, _ netip.Addr, limit int) ([]JobRow, error) {
 	limit = clamp(limit, 1, 500)
-	at := ""
-	if addr.IsValid() {
-		at = addr.String()
-	}
-	out, err := s.jobHeads(ctx, `j WHERE kind = ? AND (asset_id = ? OR (asset_id IS NULL AND ? <> '' AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.job_id = j.id AND p.targets = ?)))
-ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, id, at, at, limit)
+	out, err := s.jobHeads(ctx, `WHERE r.module = ? AND r.kind IN (?, ?) AND r.subject_kind = 'device' AND r.subject_id = ?
+ORDER BY r.queued_at DESC, r.rowid DESC LIMIT ?`, ModuleID, RunCheck, RunAllPorts, id, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +533,7 @@ ORDER BY j.started_at DESC, j.rowid DESC LIMIT ?`, KindDevice, id, at, at, limit
 	if err != nil {
 		return out, nil //nolint:nilerr // a read address that is not one was never asked
 	}
-	reads, err := s.jobHeads(ctx, `WHERE kind = ? ORDER BY started_at DESC, rowid DESC LIMIT ?`, KindSNMP, snmpReadsScanned)
+	reads, err := s.jobHeads(ctx, `WHERE r.module = ? AND r.kind = ? ORDER BY r.queued_at DESC, r.rowid DESC LIMIT ?`, ModuleID, RunSNMP, snmpReadsScanned)
 	if err != nil {
 		return nil, err
 	}
@@ -707,63 +579,129 @@ func targetsHave(list string, addr netip.Addr) bool {
 	return false
 }
 
-// jobHeads reads sa_job rows: where is the rest of the statement after FROM sa_job (an alias, WHERE, ORDER BY and LIMIT).
+// jobKinds maps a kind of run to the kind of the history (KindSweep, KindDevice, KindSNMP).
+var jobKinds = map[string]string{RunSweep: KindSweep, RunCheck: KindDevice, RunAllPorts: KindDevice, RunSNMP: KindSNMP}
+
+// jobStatus maps a run's state to the history's: a run that has not ended is running, one that ended partly failed (a batch or a
+// device did not answer).
+func jobStatus(st run.Status) string {
+	switch st {
+	case run.Done:
+		return StatusDone
+	case run.Stopped:
+		return StatusStopped
+	case run.Failed, run.Partial:
+		return StatusFailed
+	}
+	return StatusRunning
+}
+
+// jobHeads reads runs of the module as history rows: where is the rest of the statement after FROM core_run r (WHERE, ORDER BY and
+// LIMIT). A device check's Found is read back from its items.
 func (s *Service) jobHeads(ctx context.Context, where string, args ...any) ([]JobRow, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error, found, asset_id FROM sa_job `+where, args...)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.id, r.kind, r.status, r.trigger, COALESCE(r.trigger_note, ''), COALESCE(r.started_at, r.queued_at),
+		r.ended_at, r.total, r.done, COALESCE(r.error, r.stop_reason, r.waiting_for, ''), COALESCE(r.subject_id, ''), COALESCE(r.subject_kind, ''),
+		(SELECT count(*) FROM core_run_item i WHERE i.run_id = r.id AND i.outcome = 'new')
+		FROM core_run r `+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var out []JobRow
 	for rows.Next() {
 		var r JobRow
-		var reason, errText, found, asset sql.NullString
-		if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText, &found, &asset); err != nil {
+		var kind, status, trigger, note, subID, subKind string
+		var total, done int
+		if err := rows.Scan(&r.ID, &kind, &status, &trigger, &note, &r.StartedAt, &r.FinishedAt, &total, &done, &r.Error, &subID, &subKind, &r.NewDevices); err != nil {
+			_ = rows.Close()
 			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
 		}
-		r.Reason, r.Error, r.AssetID = reason.String, errText.String, asset.String
-		if found.Valid {
-			var f DeviceFound
-			if json.Unmarshal([]byte(found.String), &f) == nil {
-				r.Found = &f
-			}
+		r.Kind, r.Status, r.Targets = jobKinds[kind], jobStatus(run.Status(status)), total
+		if kind == RunSweep {
+			r.Targets = done
+		}
+		switch {
+		case kind == RunAllPorts:
+			r.Reason = "all_ports"
+		case kind == RunCheck && trigger == string(run.Manual):
+			r.Reason = "scan_now"
+		case kind == RunSNMP && trigger == string(run.Manual):
+			r.Reason = snmpReasonTest
+		}
+		if subKind == "device" {
+			r.AssetID = subID
+		}
+		if run.Status(status) == run.Done {
+			r.Error = ""
 		}
 		out = append(out, r)
 	}
-	if err := rows.Err(); err != nil {
+	if err := rows.Close(); err != nil {
 		return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+	}
+	for i := range out {
+		if out[i].Kind == KindDevice {
+			if f, ok, err := s.loadFound(ctx, out[i].ID); err != nil {
+				return nil, err
+			} else if ok {
+				out[i].Found = &f
+			}
+		}
 	}
 	return out, nil
 }
 
-// jobProbes fills the probes of these jobs, in the order they were sent, in one read (sa_probe (job_id)).
+// jobProbes fills the probes of these runs, in the order they were sent, in one read (sa_probe (run_id)).
 func (s *Service) jobProbes(ctx context.Context, out []JobRow) error {
 	if len(out) == 0 {
 		return nil
 	}
 	at := make(map[string]int, len(out))
-	ids := make([]string, len(out))
 	for i, r := range out {
-		at[r.ID], ids[i] = i, r.ID
+		at[r.ID] = i
 	}
-	list, err := json.Marshal(ids)
-	if err != nil {
-		return fmt.Errorf("sensoractive: list job probes: %w", err)
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT job_id, targets, result FROM sa_probe WHERE job_id IN (SELECT value FROM json_each(?)) ORDER BY id`, string(list))
-	if err != nil {
-		return fmt.Errorf("sensoractive: list job probes: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var id string
-		var p JobProbe
-		if err := rows.Scan(&id, &p.Targets, &p.Result); err != nil {
+	for start := 0; start < len(out); start += 400 {
+		chunk := out[start:min(start+400, len(out))]
+		marks := strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")
+		args := make([]any, len(chunk))
+		for i, r := range chunk {
+			args[i] = r.ID
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT run_id, targets, result FROM sa_probe WHERE run_id IN (`+marks+`) ORDER BY id`, args...)
+		if err != nil {
 			return fmt.Errorf("sensoractive: list job probes: %w", err)
 		}
-		if i, ok := at[id]; ok {
-			out[i].Probes = append(out[i].Probes, p)
+		for rows.Next() {
+			var id string
+			var p JobProbe
+			if err := rows.Scan(&id, &p.Targets, &p.Result); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("sensoractive: list job probes: %w", err)
+			}
+			if i, ok := at[id]; ok {
+				out[i].Probes = append(out[i].Probes, p)
+			}
+		}
+		if err := rows.Close(); err != nil {
+			return fmt.Errorf("sensoractive: list job probes: %w", err)
 		}
 	}
-	return rows.Err()
+	return nil
+}
+
+// WaitManual returns once no run a person started is queued or going, or with ctx's error (tests, and a shutdown that must not
+// leave nmap running).
+func (s *Service) WaitManual(ctx context.Context) error {
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		r, err := s.manualLive(ctx)
+		if err != nil || r == nil {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tick.C:
+		}
+	}
 }

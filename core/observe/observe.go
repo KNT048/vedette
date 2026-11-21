@@ -209,6 +209,9 @@ type AgentDevice struct {
 	IP    netip.Addr
 	MAC   string
 	IsBox bool // the Vedette box itself, whose packages the box reads (no agent)
+	// AgentOff: a person turned the agent off for this device (inv_asset.agent_source): the inventory refuses every agent's data for it,
+	// so no agent reports it now and none can be asked.
+	AgentOff bool
 }
 
 // AgentDevices finds a device by its inventory id; found is false when there is none. agent-intake reads it to ask the osquery node

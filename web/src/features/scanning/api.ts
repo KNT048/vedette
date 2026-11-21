@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { EngineId, HistoryRun, Run, RunDetail, RunList, RunStatus, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
+import type { EngineId, HistoryRun, Run, RunDetail, RunList, RunStatus, RunningJob, SafetyInput, SafetySaved, Scanning, ScopeCost, ScopeCostInput } from './types'
 import type { z } from 'zod'
 import type { RangeAdd } from './contract'
 
@@ -51,6 +51,12 @@ export function useSaveSafety() {
     onError: (e) => { if (e instanceof ApiError && e.code === 'safety_changed') void qc.invalidateQueries({ queryKey: ['scanning'] }) },
   })
 }
+
+/** POST /scanning/safety/estimate: what one pass over the scope as typed would cost, before it is saved (the box's numbers; keyed by
+ *  the values, so the card follows the form; the last answer stays while the next is read). */
+export const useScopeCost = (b: ScopeCostInput, enabled = true) => useQuery({
+  queryKey: ['scanning', 'estimate', b], queryFn: () => api.post<ScopeCost>('/scanning/safety/estimate', b), enabled, placeholderData: keepPreviousData, staleTime: 60_000,
+})
 
 /** POST /scanning/safety/ranges (#860): one range added, or the shown ranges confirmed, in one transaction on the server, never a
  *  read-modify-write of the block. The tick confirms exactly what the dialog showed (shown_ranges, shown_confirmed_at): another

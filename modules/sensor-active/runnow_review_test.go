@@ -2,6 +2,7 @@ package sensoractive_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/netip"
 	"slices"
@@ -59,7 +60,7 @@ func newDriven(t *testing.T, mut ...func(*env)) *driven {
 		}
 		return sa.Output{XML: device}, nil
 	})
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: pf, Clock: d.clk.now})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: pf, Clock: d.clk.now})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +81,7 @@ func probed(calls [][]string, ip string) bool {
 	return slices.ContainsFunc(calls, func(c []string) bool { return slices.Contains(targetsOf(c), ip) })
 }
 
-// L12: the sweep's hour runs out after its first batch: no further batch, no queued device scan.
+// L12: the sweep's hour runs out after its first batch: no further batch; the pass waits for the scan window and goes on there.
 func TestReview857_TheSweepStopsWhenItsHourIsOver(t *testing.T) {
 	t.Parallel()
 	d := newDriven(t)
@@ -89,15 +90,15 @@ func TestReview857_TheSweepStopsWhenItsHourIsOver(t *testing.T) {
 			d.clk.add(time.Hour + time.Minute)
 		}
 	}
-	if _, err := d.svc.StartManual(d.ctx(), nil, nil); err != nil {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	waitManual(t, d.env)
 	if c := d.calls(); len(c) != 1 {
 		t.Fatalf("%d nmap commands after the hour ran out, want the one batch: %q", len(c), c)
 	}
-	if n := d.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'stopped'`); n != 1 {
-		t.Fatalf("stopped sweeps = %d", n)
+	if got := d.str(`SELECT status || ': ' || waiting_for FROM core_run WHERE kind = 'lan_sweep'`); !strings.HasPrefix(got, "waiting: the scan window (opens ") {
+		t.Fatalf("the person's sweep after its hour: %q, want it waiting for the window", got)
 	}
 }
 
@@ -110,7 +111,7 @@ func TestReview857_ASweepFollowsTheSettingsWhileItRuns(t *testing.T) {
 			off.inv.set(func(st *sa.Settings) { st.Enabled = false })
 		}
 	}
-	if _, err := off.svc.StartManual(off.ctx(), nil, nil); err != nil {
+	if _, err := off.svc.StartManual(off.ctx(), "admin@example.com", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	waitManual(t, off.env)
@@ -124,7 +125,7 @@ func TestReview857_ASweepFollowsTheSettingsWhileItRuns(t *testing.T) {
 			excl.inv.set(func(st *sa.Settings) { st.Exclusions = []string{"192.168.10.64/26"} })
 		}
 	}
-	if _, err := excl.svc.StartManual(excl.ctx(), nil, nil); err != nil {
+	if _, err := excl.svc.StartManual(excl.ctx(), "admin@example.com", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	waitManual(t, excl.env)
@@ -141,8 +142,8 @@ func TestReview857_ASweepFollowsTheSettingsWhileItRuns(t *testing.T) {
 	}
 }
 
-// L4, L12: a device check stops when its hour is over; the devices it did not reach wait in the window's queue. A device that moved out
-// of the scope while the run went on is refused by its own check (IdentifyDevice) and nothing is sent to it.
+// L12: each device of a person's check is its own run, checked again right before nmap: a device that moved out of the scope while the
+// others ran is refused by its own check and nothing is sent to it.
 func TestReview857_ADeviceCheckHasAnHourAndRechecksEachDevice(t *testing.T) {
 	t.Parallel()
 	d := newDriven(t, func(e *env) { e.inv.assets["a-third"] = netip.MustParseAddr("192.168.10.31") })
@@ -151,7 +152,7 @@ func TestReview857_ADeviceCheckHasAnHourAndRechecksEachDevice(t *testing.T) {
 			d.inv.set(func(st *sa.Settings) { st.Exclusions = []string{"192.168.10.30"} }) // a-printer leaves the scope
 		}
 	}
-	if _, err := d.svc.StartManual(d.ctx(), []string{"a-web", "a-printer", "a-third"}, nil); err != nil {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", []string{"a-web", "a-printer", "a-third"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	waitManual(t, d.env)
@@ -159,46 +160,29 @@ func TestReview857_ADeviceCheckHasAnHourAndRechecksEachDevice(t *testing.T) {
 	if !probed(c, "192.168.10.20") || probed(c, "192.168.10.30") || !probed(c, "192.168.10.31") {
 		t.Fatalf("commands %q: want .20 and .31, never .30 (excluded while the run went on)", c)
 	}
-
-	capd := newDriven(t)
-	capd.onRun = func(_ int, argv []string) {
-		if slices.Contains(targetsOf(argv), "192.168.10.20") {
-			capd.clk.add(time.Hour + time.Minute)
-		}
-	}
-	if _, err := capd.svc.StartManual(capd.ctx(), []string{"a-web", "a-printer"}, nil); err != nil {
-		t.Fatal(err)
-	}
-	waitManual(t, capd.env)
-	if probed(capd.calls(), "192.168.10.30") {
-		t.Fatal("a device was checked after the run's hour")
-	}
-	if n := capd.count(`SELECT count(*) FROM sa_queue WHERE asset_id = 'a-printer' AND reason = 'check_now'`); n != 1 {
-		t.Fatalf("the device the run did not reach is not queued for the window: %d", n)
-	}
 }
 
 // L1: the module turned off after the checks and before the claim refuses the run (the sticky off flag); turned on again, it runs.
-// L5: while discovery holds nmap, a check is refused up front (ErrSlotBusy), never skipped later. L4: a second sweep within SweepGap
+// L4: a second sweep within SweepGap
 // is refused with the time to wait. M2: a record that fails starts nothing.
 func TestReview857_RefusalsBeforeAnythingStarts(t *testing.T) {
 	t.Parallel()
 	d := newDriven(t)
 	d.svc.Stop()
-	if _, err := d.svc.StartManual(d.ctx(), []string{"a-web"}, nil); !errors.Is(err, sa.ErrStopped) {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", []string{"a-web"}, nil); !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("module off: %v", err)
 	}
 	d.svc.Resume()
 
 	fail := errors.New("the audit log is full")
-	if _, err := d.svc.StartManual(d.ctx(), nil, func(sa.ManualRun) error { return fail }); !errors.Is(err, fail) {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", nil, func(*sql.Tx, sa.ManualRun) error { return fail }); !errors.Is(err, fail) {
 		t.Fatalf("a failed record: %v", err)
 	}
-	if len(d.calls()) != 0 || d.svc.Manual() != nil {
+	if len(d.calls()) != 0 || d.svc.Manual(t.Context()) != nil {
 		t.Fatal("a run whose record failed started")
 	}
 	var rec []sa.ManualRun
-	m, err := d.svc.StartManual(d.ctx(), nil, func(m sa.ManualRun) error {
+	m, err := d.svc.StartManual(d.ctx(), "admin@example.com", nil, func(_ *sql.Tx, m sa.ManualRun) error {
 		if len(d.calls()) != 0 {
 			t.Error("a command left before the record was written")
 		}
@@ -213,32 +197,14 @@ func TestReview857_RefusalsBeforeAnythingStarts(t *testing.T) {
 	}
 	waitManual(t, d.env)
 	var soon *sa.TooSoonError
-	if _, err := d.svc.StartManual(d.ctx(), nil, nil); !errors.As(err, &soon) || soon.RetryAfter <= 0 || soon.RetryAfter > sa.SweepGap {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", nil, nil); !errors.As(err, &soon) || soon.RetryAfter <= 0 || soon.RetryAfter > sa.SweepGap {
 		t.Fatalf("a second sweep at once: %v", err)
 	}
 	d.clk.add(sa.SweepGap)
-	if _, err := d.svc.StartManual(d.ctx(), nil, nil); err != nil {
+	if _, err := d.svc.StartManual(d.ctx(), "admin@example.com", nil, nil); err != nil {
 		t.Fatalf("after the gap: %v", err)
 	}
 	waitManual(t, d.env)
-
-	// discovery holds nmap: a Scan now identification waits in the Prober until the test lets it go
-	busy := newDriven(t)
-	in, out := make(chan struct{}), make(chan struct{})
-	busy.onRun = func(n int, _ []string) {
-		if n == 1 {
-			close(in)
-			<-out
-		}
-	}
-	done := make(chan struct{})
-	go func() { defer close(done); _, _ = busy.svc.IdentifyDevice(busy.ctx(), "a-web") }()
-	<-in
-	if _, err := busy.svc.StartManual(busy.ctx(), []string{"a-printer"}, nil); !errors.Is(err, sa.ErrSlotBusy) {
-		t.Fatalf("a check while nmap is held: %v", err)
-	}
-	close(out)
-	<-done
 }
 
 // L3: the box's own addresses and its decoys are refused whatever the device row says, even a passive-only one.
@@ -251,7 +217,7 @@ func TestReview857_TheBoxIsNeverChecked(t *testing.T) {
 		e.inv.protected = []netip.Addr{netip.MustParseAddr("192.168.10.42")}
 	})
 	var te *sa.TargetError
-	if _, err := e.svc.StartManual(e.ctx(), []string{"a-old"}, nil); !errors.As(err, &te) || te.Reason != sa.RefuseOutOfScope || te.Detail != "box" {
+	if _, err := e.svc.StartManual(e.ctx(), "admin@example.com", []string{"a-old"}, nil); !errors.As(err, &te) || te.Reason != sa.RefuseOutOfScope || te.Detail != "box" {
 		t.Fatalf("a passive-only row at the box's address: %v", err)
 	}
 	if res, err := e.svc.IdentifyDevice(e.ctx(), "a-old"); err != nil || res.Why != "box" || len(e.nm.calls(t)) != 0 {

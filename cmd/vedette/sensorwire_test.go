@@ -275,7 +275,7 @@ func TestProductionRunsNoCaptureAndNoLocalNmap(t *testing.T) {
 			return true
 		})
 	}
-	if _, err := newSensorActive(t.Context(), *s.d, nil); err == nil {
+	if _, err := newSensorActive(t.Context(), *s.d, nil, nil); err == nil {
 		t.Error("newSensorActive accepted a nil Prober: the module would start nmap in this process")
 	}
 }

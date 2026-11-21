@@ -61,7 +61,7 @@ func TestDeviceSources_ThreeRowsDecidedOnTheServer(t *testing.T) {
 	for i, w := range []want{
 		{"scan", "working", "green", "on", ""},
 		{"snmp", "not_answering", "red", "on", "check_now"},
-		{"agent", "quiet", "amber", "", "check"},
+		{"agent", "quiet", "amber", "on", "check"},
 	} {
 		r := v.Rows[i]
 		if r.Source != w.source || r.State != w.state || r.Dot != w.dot || str(r.Switch) != w.sw || str(r.Action) != w.action {

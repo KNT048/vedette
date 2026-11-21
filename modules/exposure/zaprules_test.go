@@ -185,8 +185,8 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 	}
 	e.svc.cfg.Matcher = m
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{
-		{IP: ipA, Port: 80, Name: "http"}, // nmap read no product: the header version counts
-		{IP: ipA, Port: 18443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
+		{IP: ipA, Port: 80, Name: "http", Method: "probed"}, // nmap read no product: the header version counts
+		{IP: ipA, Port: 18443, Name: "ssl/http", Method: "probed", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
 	}}}
 	page80, page18443 := "http://"+ipA+"/", "https://"+ipA+":18443/"
 	w := &fakeWeb{report: func(page string) []byte {

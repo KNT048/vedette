@@ -288,18 +288,18 @@ func TestContract_INV24_DomainNamesOnWebPortsOnly(t *testing.T) {
 	dom := e.committedDomain()
 	e.svc.SetRunner(&fakeRunner{content: Content{
 		Hosts: []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "evil.example.org", IP: ipA}, {Name: "notacme.example", IP: ipA}, {Name: "intra.acme.example", IP: "10.0.0.5"}, {Name: "mail.acme.example", IP: ipB}, {Name: "a.acme.example", IP: ipB}},
-		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipA, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}},
+		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipA, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil}, {ipB, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}},
 	}})
 	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"https://acme.example/", "https://www.acme.example/", "http://acme.example/", "http://www.acme.example/"}
+	want := []string{"https://a.acme.example/", "https://acme.example/", "https://mail.acme.example/", "https://www.acme.example/"}
 	if !slices.Equal(w.asked, want) {
 		t.Fatalf("asked = %q", w.asked)
 	}
 	for _, p := range w.pages { // H1: ZAP is pinned to the address the surface scan saw the name at, never to one it resolves again
-		if p.IP.String() != ipA || p.Port != 80 && p.Port != 443 || strings.Contains(p.URL, ipA) || p.Host == "" {
+		if (p.IP.String() != ipA && p.IP.String() != ipB) || p.Port != 80 && p.Port != 443 || strings.Contains(p.URL, ipA) || strings.Contains(p.URL, ipB) || p.Host == "" {
 			t.Errorf("page = %+v", p)
 		}
 	}
@@ -377,7 +377,7 @@ func TestContract_INV24_NothingRunsWithoutTheProbeLog(t *testing.T) {
 	l := e.wire(w)
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: webServices()}}
 	e.scanIP(Content{})
-	if len(l.rows) != 3 || l.rows[0].IP != ipA || l.rows[0].Port != 80 || l.rows[0].URL != "http://"+ipA+"/" || l.rows[0].Tool == "" {
+	if len(l.rows) != 3 || l.rows[0].IP != ipA || l.rows[0].Port != 443 || l.rows[0].URL != "https://"+ipA+"/" || l.rows[0].Tool == "" {
 		t.Fatalf("probe rows = %+v", l.rows)
 	}
 	if !slices.Equal(w.logged, []int{1, 2, 3}) {

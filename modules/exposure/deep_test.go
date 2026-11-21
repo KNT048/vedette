@@ -240,7 +240,7 @@ func newDeepEnv(t *testing.T) *deepEnv {
 			d.dns.point(h.Name, append(d.dns.a[h.Name], a.IP)...)
 		}
 	}
-	d.run = &fakeRunner{content: Content{Hosts: hosts, Ports: []PortRow{{IP: ipB, Port: 443, Service: "https"}, {IP: ipA, Port: 443, Service: "https"}}}}
+	d.run = &fakeRunner{content: Content{Hosts: hosts, Ports: []PortRow{{IP: ipB, Port: 443, Service: "https", Title: "Welcome"}, {IP: ipA, Port: 443, Service: "https", Title: "Welcome"}}}}
 	e.svc.SetRunner(d.run)
 	return d
 }

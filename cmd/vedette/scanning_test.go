@@ -642,7 +642,7 @@ func (extFakes) Scan(context.Context, exposure.ScanTarget) (exposure.Content, er
 	return exposure.Content{Ports: []exposure.PortRow{{IP: "8.8.8.8", Port: 80, Service: "http"}}}, nil
 }
 func (extFakes) ScanServices(context.Context, exposure.ScanTarget, netip.Addr) (exposure.ServiceScan, error) {
-	return exposure.ServiceScan{Ports: 98, Services: []exposure.ServiceRow{{IP: "8.8.8.8", Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}}, nil
+	return exposure.ServiceScan{Ports: 98, Services: []exposure.ServiceRow{{IP: "8.8.8.8", Port: 80, Name: "http", Method: "probed", Product: "Apache httpd", Version: "2.4.49"}}}, nil
 }
 func (extFakes) Match(context.Context, []exposure.ServiceRow) (exposure.Matches, error) {
 	return exposure.Matches{Compared: 1, Listed: 1, Vulns: []exposure.VulnRow{{IP: "8.8.8.8", Port: 80, CVE: "CVE-2021-41773", Name: "Path traversal", Basis: "version", Summary: "In range."}}}, nil

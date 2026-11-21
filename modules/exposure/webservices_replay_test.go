@@ -71,3 +71,31 @@ func TestReplayEveryHTTPAnswerIsScannedOrListed(t *testing.T) {
 		t.Fatalf("%d of %d scans skipped a service that answered HTTP", missed, scans)
 	}
 }
+
+// A service that answered HTTP on a port that is not a usual web port is a page of an IP scan and of a domain scan alike, and a scan
+// with no such service names the ports it looked at.
+func TestWebPagesAnyPortAndTheHonestNone(t *testing.T) {
+	t.Parallel()
+	ip := "8.8.8.8"
+	c := Content{
+		Hosts: []HostRow{{Name: "git.acme.example", IP: ip}},
+		Ports: []PortRow{{IP: ip, Port: 10443, Service: "https", Title: "Sign in", CertNames: []string{"git.acme.example"}}, {IP: ip, Port: 22, Service: "ssh"}},
+	}
+	for _, st := range []ScanTarget{{Kind: KindIP, Value: ip}, {Kind: KindDomain, Value: "acme.example"}} {
+		pages, skipped := webPages(st, c)
+		want := "https://" + ip + ":10443/"
+		if st.Kind == KindDomain {
+			want = "https://git.acme.example:10443/"
+		}
+		if len(pages) != 1 || pages[0].URL != want || pages[0].IP.String() != ip || len(skipped) != 0 {
+			t.Errorf("%s: pages = %+v, skipped = %+v", st.Kind, pages, skipped)
+		}
+	}
+	c.Ports = c.Ports[1:]
+	if pages, _ := webPages(ScanTarget{Kind: KindIP, Value: ip}, c); len(pages) != 0 {
+		t.Errorf("pages = %+v", pages)
+	}
+	if got := checkedWebPorts(ScanTarget{Kind: KindIP, Value: ip}, c); got != "open ports checked: 22" {
+		t.Errorf("checked = %q", got)
+	}
+}

@@ -53,11 +53,20 @@
   },
   "device": {
     "title": "Findings on this device",
-    "description": "Exploited vulnerabilities that match this device.",
-    "none": "No findings for this device yet.",
+    "tab": "Findings",
+    "tabCount": "open findings",
+    "open_one": "{{count}} open finding",
+    "open_other": "{{count}} open findings",
+    "noOpen": "No open findings",
+    "view": "View findings",
+    "none": "No open findings on this device.",
+    "noneWithStatus": "No open finding of this device has these statuses.",
+    "input_one": "{{count}} question waits for your answer",
+    "input_other": "{{count}} questions wait for your answer",
+    "handled_one": "{{count}} handled finding",
+    "handled_other": "{{count}} handled findings",
     "onlyNotRelevant_one": "No findings to handle: the one finding of this device is closed as not relevant.",
     "onlyNotRelevant_other": "No findings to handle: the {{count}} findings of this device are closed as not relevant.",
-    "handleAll": "Select and handle these findings in the Findings list",
     "todo": "What to do on this device",
     "all": "Every finding of this device"
   },
@@ -703,13 +712,6 @@
     "lineLikely_other": "{{count}} recommended updates fix CVEs likely to be exploited",
     "lineAll_one": "{{count}} update in all",
     "lineAll_other": "{{count}} updates in all",
-    "device": {
-      "title": "Recommended updates",
-      "description": "Fixes for CVEs on this device not exploited yet. They never alert.",
-      "descriptionInfo": "The CVEs are likely to be exploited, or published in the last 12 months.",
-      "none": "No recommended update for this device.",
-      "all": "See every recommended update"
-    },
     "showAllTiers": "Show all updates"
   },
   "notInstalled": {

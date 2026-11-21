@@ -13,11 +13,13 @@ export function statusesOf(v: string | null): OpenFindingStatus[] {
   return OPEN_FINDING_STATUSES.filter((s) => asked.has(s))
 }
 
-export function StatusFilter() {
+/** `counts`: the numbers beside the toggles when the list is one device's (its card's); else the whole box's, from the overview. */
+export function StatusFilter({ counts: own }: { counts?: Record<OpenFindingStatus, number> } = {}) {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
   const on = statusesOf(params.get('status'))
-  const counts = useOverview().data?.open.by_status
+  const overview = useOverview(own === undefined).data?.open.by_status
+  const counts = own ?? overview
   const toggle = (s: OpenFindingStatus) => {
     const next = on.includes(s) ? on.filter((x) => x !== s) : OPEN_FINDING_STATUSES.filter((x) => x === s || on.includes(x))
     setParams((prev) => {
@@ -28,7 +30,8 @@ export function StatusFilter() {
   }
   return (
     <div role="group" aria-label={t('statusFilter.label')} className="flex max-w-full flex-wrap items-center gap-1.5">
-      {OPEN_FINDING_STATUSES.map((s) => {
+      {/* one device's list offers only the statuses it has (and any pressed one) */}
+      {OPEN_FINDING_STATUSES.filter((s) => !own || own[s] > 0 || on.includes(s)).map((s) => {
         const n = counts?.[s]
         const pressed = on.includes(s)
         return (

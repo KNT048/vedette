@@ -385,7 +385,7 @@ function Body() {
   return (
     <>
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
+        meta={<SampleDataNote />} info={<><p>{t('list.meta')}</p><p>{t('list.metaInfo')}</p></>}
         actions={all === 0 ? buttons(false) : undefined} />
       {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}
       <SnmpNotices />

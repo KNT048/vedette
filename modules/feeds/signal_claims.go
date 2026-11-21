@@ -41,6 +41,7 @@ type claimForm struct {
 	subject int   // the submatch index of the group "cve", 0 when the form has none (its subject is every CVE id it names)
 	open    []int // the submatch indexes of the open parts
 	tail    int   // the submatch index of the open part "o2" (what follows the claim), 0 when none
+	vuln    int   // the submatch index of the open part "o3" (the words before a parenthesised id), 0 when none
 }
 
 // formKind says what a sentence of a form states.
@@ -62,8 +63,11 @@ func forms(kind formKind, all bool, patterns ...string) []claimForm {
 				f.subject = i
 			case strings.HasPrefix(name, "o"):
 				f.open = append(f.open, i)
-				if name == "o2" {
+				switch name {
+				case "o2":
 					f.tail = i
+				case "o3":
+					f.vuln = i
 				}
 			}
 		}
@@ -92,14 +96,23 @@ var (
 	// claimHedgeRE: words that turn an open part of a prose form away from a claim: a negation, a condition, a possibility, an
 	// expectation, a doubt, a test or a question.
 	// "may" is the month when a day follows it ("between May 27 and June 9").
-	// A refutation ("were incorrect", "turned out to be wrong"), speculation ("reportedly", "there is speculation"), a contest ("in a
-	// CTF") or a failure ("all of which failed") is a hedge too.
-	claimHedgeRE = regexp.MustCompile(`\bmay\b(?:$|[^ 0-9]| [^0-9])|\b(?:not|no|never|nor|none|neither|without|unless|if|whether|could|would|might|can|cannot|should|but|` +
+	// A refutation ("were incorrect", "turned out to be wrong"), speculation ("reportedly", "there is speculation", "claims that"), a
+	// contest ("in a CTF") or a failed attempt ("all of which failed") is a hedge too; the words alone are not ("contrary to the
+	// vendor's claims", "following failed login attempts", "the wrong hands").
+	claimHedgeRE = regexp.MustCompile(`\bmay\b(?:$|[^ 0-9]| [^0-9])|\b(?:not|no|never|nor|none|neither|without|unless|if|whether|could|would|might|can|cannot|should|` +
 		`possibl[a-z]*|potential(?:ly)?|likely|unlikely|expect[a-z]*|risks?|prevent[a-z]*|hypothetical(?:ly)?|theoretical(?:ly)?|` +
 		`den(?:y|ies|ied)|false|unconfirmed|unverified|alleged(?:ly)?|believes?|believed|rumou?rs?|tests?|testing|tested|labs?|demonstrat[a-z]*|` +
-		`simulat[a-z]*|proof-of-concept|poc|incorrect(?:ly)?|wrong(?:ly)?|inaccurate(?:ly)?|erroneous(?:ly)?|mistaken(?:ly)?|retract[a-z]*|` +
-		`debunk[a-z]*|disput[a-z]*|unsubstantiated|speculat[a-z]*|reportedly|purported(?:ly)?|claims?|claimed|ctfs?|capture the flag|` +
-		`fail(?:s|ed|ure|ures)?|unsuccessful(?:ly)?|determin(?:e|ing) which)\b|n't\b|\?`)
+		`simulat[a-z]*|proof-of-concept|poc|(?:is|are|was|were|be|been|turned out to be|proved|proven) (?:to be )?(?:wrong|incorrect|inaccurate)|` +
+		`erroneous(?:ly)?|mistaken(?:ly)?|retract[a-z]*|debunk[a-z]*|disput[a-z]*|unsubstantiated|speculat[a-z]*|reportedly|purported(?:ly)?|` +
+		`claims? that|claimed that|ctfs?|capture the flag|(?:all|each|both|none|some) of which failed|failed attempts? to exploit|` +
+		`unsuccessful(?:ly)?|determin(?:e|ing) which)\b|n't\b|\?`)
+	// proseListTailRE: what may follow a claim whose subject is a list of ids: nothing, a stop, or a preposition that goes on about the
+	// exploitation ("… exploitation of CVE-A and CVE-B against …"). Anything else may open a clause about the last id alone ("…, and
+	// CVE-B allows …", "…, which is a separate bug"), so the sentence is not read.
+	proseListTailRE = regexp.MustCompile(`^ ?(?:$|[.;:)]|(?:in|by|against|as|to|from|since|on|via|during|targeting|affecting|between|across|at|through|after|before|until|over|within)\b)`)
+	// proseOtherRE: the words before a parenthesised id that make it another vulnerability than the one exploited ("a bypass of the
+	// fix for an older vulnerability (CVE-X)").
+	proseOtherRE = regexp.MustCompile(`\b(?:bypass(?:es|ed)?|related|similar|older|earlier|previous(?:ly)?|prior|patch(?:es)? for|fix(?:es)? for|variants?|another|other|different)\b`)
 )
 
 // The parts of Cisco's sentences.
@@ -269,14 +282,19 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 			}
 			m := f.re.FindStringSubmatchIndex(canon)
 			if m == nil || f.kind != formClaim && claimTurnRE.MatchString(canon) || hedged(canon, m, f.open) ||
-				r.prose && f.tail > 0 && m[2*f.tail] >= 0 && proseClauseRE.MatchString(canon[m[2*f.tail]:m[2*f.tail+1]]) {
+				r.prose && f.tail > 0 && m[2*f.tail] >= 0 && proseClauseRE.MatchString(canon[m[2*f.tail]:m[2*f.tail+1]]) ||
+				r.prose && f.vuln > 0 && m[2*f.vuln] >= 0 && proseOtherRE.MatchString(canon[m[2*f.vuln]:m[2*f.vuln+1]]) {
 				continue
 			}
 			form = f
 			if f.subject > 0 {
 				subject := subjectCVEs(canon, m[2*f.subject], m[2*f.subject+1], tokens)
-				if r.prose && len(subject) != len(named) {
-					form = nil // the sentence names a CVE the claim does not bind to: no guess, the sentence is counted
+				tail := ""
+				if f.tail > 0 && m[2*f.tail] >= 0 {
+					tail = canon[m[2*f.tail]:m[2*f.tail+1]]
+				}
+				if r.prose && (len(subject) != len(named) || len(subject) > 1 && !proseListTailRE.MatchString(tail)) {
+					form = nil // the sentence names a CVE the claim may not bind to: no guess, the sentence is counted
 					break
 				}
 				named = subject

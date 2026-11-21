@@ -57,6 +57,16 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"or alone is doubt", rapid7Forms, "Rapid7 has observed exploitation of " + a + " or " + b + ".", nil, 1},
 		{"a parenthesis between the ids", rapid7Forms, a + " (patched in March) and " + b + " were exploited in the wild.", nil, 1},
 		{"a list both claimed", rapid7Forms, a + " and " + b + " were exploited in the wild.", []string{a, b}, 0},
+		{"a list, then a preposition", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + " and " + b + " against Confluence servers.", []string{a, b}, 0},
+		{"a list as zero-days", rapid7Forms, a + " and " + b + " have been exploited in the wild as zero-days.", []string{a, b}, 0},
+		{"a list, then allows", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + ", and " + b + " allows an authenticated attacker to read files.", nil, 1},
+		{"a list, then affects", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + ", and " + b + " affects the same release.", nil, 1},
+		{"a list, then enables", gtiForms, "Mandiant observed exploitation of " + a + " and " + b + " enables privilege escalation.", nil, 1},
+		{"a list, then exists", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + " and " + b + " exists in the same release.", nil, 1},
+		{"a list, then also exists", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + ", and " + b + " also exists in the same component.", nil, 1},
+		{"a list, then which", rapid7Forms, "Rapid7 MDR has observed exploitation of " + a + " and " + b + ", which is a separate unrelated bug.", nil, 1},
+		{"a bypass of an older one", rapid7Forms, "Rapid7 has observed exploitation of a bypass of the fix for an older vulnerability (" + a + ").", nil, 1},
+		{"a related one", gtiForms, "Attackers exploited a vulnerability related to (" + a + ").", nil, 1},
 		{"the vulnerability part denied", rapid7Forms, "Rapid7 has observed exploitation of an older flaw, but has not seen exploitation of the newly disclosed vulnerability (" + a + ").", nil, 1},
 		{"not this vulnerability", gtiForms, "Attackers exploited a different vulnerability, not the recently disclosed authentication bypass (" + a + "), to gain access.", nil, 1},
 		{"a CVE line next to a claim", chromeForms, "<p>" + b + ": Use after free in V8.</p><p>Google is aware that an exploit for " + a + " exists in the wild.</p>", []string{a}, 0},
@@ -80,6 +90,15 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"reportedly", rapid7Forms, "Reportedly, " + a + " has been exploited in the wild.", nil, 1},
 		{"in a CTF", rapid7Forms, "Security researchers reported exploitation of " + a + " in a CTF competition.", nil, 1},
 		{"all of which failed", rapid7Forms, "Rapid7 observed attempted exploitation of " + a + ", all of which failed.", nil, 1},
+
+		// words that are no hedge where they stand
+		{"but a patch", rapid7Forms, a + " is being actively exploited in the wild, but a patch is available.", []string{a}, 0},
+		{"but limited", rapid7Forms, "Rapid7 has observed exploitation of " + a + ", but exploitation appears limited so far.", []string{a}, 0},
+		{"quiet but", rapid7Forms, "The vendor stayed quiet but Rapid7 MDR has observed exploitation of " + a + " against several customers.", []string{a}, 0},
+		{"contrary to claims", rapid7Forms, "Rapid7 has confirmed exploitation of " + a + ", contrary to the vendor's claims.", []string{a}, 0},
+		{"failed logins", rapid7Forms, "Rapid7 MDR detected exploitation of " + a + " following failed login attempts.", []string{a}, 0},
+		{"the wrong hands", rapid7Forms, a + " has been exploited in the wild to put sensitive data in the wrong hands.", []string{a}, 0},
+		{"claims that", rapid7Forms, "One forum post claims that " + a + " has been exploited in the wild.", nil, 1},
 
 		// wording no form holds: counted, never read
 		{"could be exploited", rapid7Forms, a + " could be exploited by a remote attacker.", nil, 1},

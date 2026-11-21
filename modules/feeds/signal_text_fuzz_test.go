@@ -95,3 +95,24 @@ func FuzzProseForms(f *testing.F) {
 		}
 	})
 }
+
+// FuzzProseListTail: a claim on a list of ids holds only when what follows the list goes on about the exploitation (nothing, a stop,
+// a preposition); any other word may open a clause about the last id alone, and the sentence is not read.
+func FuzzProseListTail(f *testing.F) {
+	for _, w := range []string{"allows", "affects", "enables", "exists", "against", "in", "", "which", "is"} {
+		f.Add(w, "the same release.")
+	}
+	f.Fuzz(func(t *testing.T, word, rest string) {
+		if strings.ContainsAny(word, " .,;:()?!<>&\n\r\t") || claimCVERE.MatchString(rest) || strings.ContainsAny(rest, "<&") {
+			return
+		}
+		sentence := "Rapid7 MDR has observed exploitation of CVE-2026-1111, and CVE-2026-2222 " + word + " " + rest
+		got, _, err := proseClaims(t.Context(), proseForms, "", sentence)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) > 0 && !proseListTailRE.MatchString(strings.ToLower(" "+word)) && word != "" {
+			t.Fatalf("%q claims %v", sentence, got)
+		}
+	})
+}

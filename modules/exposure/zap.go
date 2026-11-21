@@ -100,7 +100,7 @@ const (
 	// notSetUpWeb is the line of every scan while no WebScanner is wired (the ZAP container is not set up on this box).
 	notSetUpWeb = "Passive web scan (ZAP) is not set up on this box yet." //nolint:gosec // a sentence about the passive web scan, not a credential
 	notWebNoLog = "Passive web scan (ZAP) did not run: the probe log is not available, and nothing is sent without it."
-	notWebNone  = "Passive web scan (ZAP): no web port was identified, so no page was scanned."
+	notWebNone  = "Passive web scan (ZAP): no service answered HTTP, so no page was scanned (%s)."
 	// The line of an IP scan whose service identification did not complete (notWebNone would read as "no web site"),
 	// and of an address that answers on every port (its "open" web ports are the router's, not sites).
 	notWebNoIdent = "Passive web scan (ZAP) did not run: service identification did not run or did not finish, so the web ports are not known."
@@ -361,66 +361,216 @@ func sanitizeWeb(in []WebFindingRow) []WebFindingRow {
 }
 
 // isWebService says nmap named a web site on the port: http, https, http-alt, https-alt, with nmap's "ssl/" prefix. Not an HTTP proxy,
-// MS RPC over HTTP (http-rpc-epmap) or a guess (http?).
+// MS RPC over HTTP (http-rpc-epmap) or a guess (http?). It is only a hint of the transport (webTLS); whether a port is a web service
+// is what answeredHTTP says.
 func isWebService(name string) bool {
 	return slices.Contains([]string{"http", "https", "http-alt", "https-alt"}, strings.TrimPrefix(strings.ToLower(name), "ssl/"))
 }
 
-// webPages lists the pages of this scan's target a passive web scan may ask for, at most MaxWebScans, and how many it left out. Only
-// the target of this run: an IP target's own IP on the web ports service identification read (INV-19), and, for a domain, its names
-// (the domain itself or a name under it) on the ports 80 and 443 the surface scan found open, each with the public address the
-// surface scan saw it at, which ZAP is pinned to. An address or name that is not one of these is never in the list, so a hostile
-// report from the runner cannot widen it.
-func webPages(st ScanTarget, c Content) (pages []WebPage, left int) {
-	var all []WebPage
+// webPort is one open port that answered HTTP, with the reading webPages ranks it by.
+type webPort struct {
+	ip     netip.Addr
+	port   int
+	tls    bool
+	titled bool     // the page had a title: an application, not a bare server answering
+	bounce bool     // the page only redirects (a Location and no title): mostly plain HTTP sending people to the TLS port
+	certs  []string // names the TLS certificate showed
+}
+
+// webPorts lists the open ports of the addresses in addrs that answered HTTP (answeredHTTP), whatever their number and whatever name
+// nmap or the port list gave them, and every open port it looked at. A port the surface scan did not report but service
+// identification found counts as well.
+func webPorts(c Content, addrs map[netip.Addr]bool) (web []webPort, checked map[netip.Addr][]int) {
+	svc := map[string]ServiceRow{}
+	for _, r := range c.Services {
+		svc[portKey(r.IP, r.Port)] = r
+	}
+	checked = map[netip.Addr][]int{}
 	seen := map[string]bool{}
-	add := func(p WebPage) {
-		if !seen[p.URL] {
-			seen[p.URL] = true
-			all = append(all, p)
+	visit := func(p PortRow) {
+		a, err := netip.ParseAddr(p.IP)
+		if err != nil || !addrs[a.Unmap()] {
+			return
+		}
+		a = a.Unmap()
+		// the reading the writer stores (limits, printable text), so a port is web here exactly when its stored is_web says so
+		p = sanitizePortIdent(PortRow{IP: p.IP, Port: p.Port, Service: p.Service, Product: p.Product, Ident: p.Ident}, p)
+		k := portKey(a.String(), p.Port)
+		if seen[k] {
+			return
+		}
+		seen[k] = true
+		checked[a] = append(checked[a], p.Port)
+		r := svc[k]
+		if answeredHTTP(p, r) {
+			web = append(web, webPort{ip: a, port: p.Port, tls: webTLS(p, r), titled: p.Title != "", bounce: p.Location != "" && p.Title == "", certs: p.CertNames})
 		}
 	}
+	for _, p := range c.Ports {
+		visit(p)
+	}
+	for _, r := range c.Services { // a port only service identification found
+		visit(PortRow{IP: r.IP, Port: r.Port, Service: r.Name})
+	}
+	return web, checked
+}
+
+// webTLS says the web port speaks TLS: nmap's "ssl/http" or "https" names say so, a plain "http" a probe named says it does not, and
+// when the name does not say (a page read by the surface scan alone) the certificate it showed, or the usual TLS web ports.
+func webTLS(p PortRow, r ServiceRow) bool {
+	name := strings.ToLower(firstOf(r.Name, p.Service))
+	switch {
+	case strings.HasPrefix(name, "ssl/") || strings.HasPrefix(name, "https"):
+		return true
+	case (name == "http" || name == "http-alt") && (r.Method == "probed" || p.Ident == IdentProbed):
+		return false
+	}
+	return len(p.CertNames) > 0 || p.Port == 443 || p.Port == 8443
+}
+
+// webInterest orders the pages a scan may take: a page with its own content before one that only redirects (a page on port 80 that sends
+// people to the TLS port), a titled page (an application) before a bare answer, the usual ports before the rest, TLS before plain
+// HTTP, then the name and the port number so the order is the same on every run.
+func webInterest(a, b WebPage, aw, bw webPort) int {
+	rank := func(p WebPage, w webPort) int {
+		n := 0
+		if w.bounce {
+			n += 8
+		}
+		if !w.titled {
+			n += 4
+		}
+		if p.Port != 443 && p.Port != 80 {
+			n += 2
+		}
+		if strings.HasPrefix(p.URL, "http://") {
+			n++
+		}
+		return n
+	}
+	if d := rank(a, aw) - rank(b, bw); d != 0 {
+		return d
+	}
+	if d := strings.Compare(a.Host, b.Host); d != 0 {
+		return d
+	}
+	return a.Port - b.Port
+}
+
+func hostIPs(h HostRow) []string {
+	out := make([]string, 0, len(h.IPs))
+	for _, x := range h.IPs {
+		out = append(out, x.IP)
+	}
+	return out
+}
+
+// targetAddrs is the addresses of a scan's target a web service may be on, and for a domain the names it has at each: an IP target's
+// own IP, or the public addresses of the domain's names (the domain itself or a name under it) as the surface scan saw them.
+func targetAddrs(st ScanTarget, c Content) (map[netip.Addr]bool, map[netip.Addr][]string) {
+	addrs, names := map[netip.Addr]bool{}, map[netip.Addr][]string{}
 	switch st.Kind {
 	case KindIP:
-		ip, err := netip.ParseAddr(st.Value)
-		if err != nil {
-			return nil, 0
-		}
-		rows := slices.Clone(c.Services)
-		slices.SortStableFunc(rows, func(a, b ServiceRow) int { return a.Port - b.Port })
-		for _, r := range rows {
-			if a, err := netip.ParseAddr(r.IP); err == nil && a == ip && isWebService(r.Name) {
-				add(WebPage{URL: pageURL(isTLSService(r), ip.String(), r.Port), Host: ip.String(), IP: ip, Port: r.Port})
-			}
+		if ip, err := netip.ParseAddr(st.Value); err == nil {
+			addrs[ip] = true
 		}
 	case KindDomain:
-		open := map[string]bool{}
-		for _, p := range c.Ports {
-			open[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
-		}
 		for _, h := range c.Hosts {
-			a, err := netip.ParseAddr(h.IP)
 			name := strings.ToLower(h.Name)
-			if err != nil || !egressip.IsPublicIPv4(a.Unmap()) || !domainRE.MatchString(name) || (name != st.Value && !strings.HasSuffix(name, "."+st.Value)) {
+			if !domainRE.MatchString(name) || (name != st.Value && !strings.HasSuffix(name, "."+st.Value)) {
 				continue
 			}
-			for _, port := range []int{443, 80} {
-				if open[fmt.Sprintf("%s:%d", ipKey(h.IP), port)] {
-					add(WebPage{URL: pageURL(port == 443, name, port), Host: name, IP: a.Unmap(), Port: port})
+			var all []netip.Addr
+			for _, raw := range append([]string{h.IP}, hostIPs(h)...) { // the name's address and every public IPv4 of it: the deep step scans each
+				if y, err := netip.ParseAddr(raw); err == nil && y.Unmap().Is4() && egressip.IsPublicIPv4(y.Unmap()) && !slices.Contains(all, y.Unmap()) {
+					all = append(all, y.Unmap())
+				}
+			}
+			for _, a := range all {
+				addrs[a] = true
+				if !slices.Contains(names[a], name) {
+					names[a] = append(names[a], name)
 				}
 			}
 		}
+		for _, ns := range names {
+			slices.Sort(ns)
+		}
 	}
-	if len(all) > MaxWebScans {
-		return all[:MaxWebScans], len(all) - MaxWebScans
-	}
-	return all, 0
+	return addrs, names
 }
 
-// isTLSService: nmap's "ssl/http" or "https" names, or the usual TLS web ports when the name does not say.
-func isTLSService(r ServiceRow) bool {
-	n := strings.ToLower(r.Name)
-	return strings.HasPrefix(n, "ssl/") || strings.HasPrefix(n, "https") || r.Port == 443 || r.Port == 8443
+// webPages lists the pages of this scan's target a passive web scan may ask for: at most MaxWebScans in the order of interest, and the
+// ones it leaves out. A page is a service that answered HTTP, on any port, for an IP target and a domain alike. On the usual ports 80
+// and 443 each name of a domain is a page (sites differ by name); on any other port the address is one page, under the name its
+// certificate shows if one does. An address or name that is not one of the target's is never in the list, so a hostile report from the
+// runner cannot widen it.
+func webPages(st ScanTarget, c Content) (pages, skipped []WebPage) {
+	addrs, names := targetAddrs(st, c)
+	web, _ := webPorts(c, addrs)
+	var all []WebPage
+	info := map[string]webPort{}
+	add := func(p WebPage, w webPort) {
+		if _, dup := info[p.URL]; !dup {
+			info[p.URL] = w
+			all = append(all, p)
+		}
+	}
+	for _, w := range web {
+		if st.Kind == KindIP {
+			add(WebPage{URL: pageURL(w.tls, w.ip.String(), w.port), Host: w.ip.String(), IP: w.ip, Port: w.port}, w)
+			continue
+		}
+		ns := names[w.ip]
+		if w.port == 80 || w.port == 443 {
+			for _, n := range ns {
+				add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w)
+			}
+			continue
+		}
+		n := ns[0]
+		for _, cn := range w.certs { // the name the certificate shows, when it is one of the target's names at this address
+			if cn = strings.ToLower(cn); slices.Contains(ns, cn) {
+				n = cn
+				break
+			}
+		}
+		add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w)
+	}
+	slices.SortStableFunc(all, func(a, b WebPage) int { return webInterest(a, b, info[a.URL], info[b.URL]) })
+	if len(all) > MaxWebScans {
+		return all[:MaxWebScans], all[MaxWebScans:]
+	}
+	return all, nil
+}
+
+// checkedWebPorts is the part of the "no page" line that names what was looked at: the open ports of the target's addresses.
+func checkedWebPorts(st ScanTarget, c Content) string {
+	addrs, _ := targetAddrs(st, c)
+	_, checked := webPorts(c, addrs)
+	seen := map[int]bool{}
+	var ports []int
+	for _, ps := range checked {
+		for _, p := range ps {
+			if !seen[p] {
+				seen[p] = true
+				ports = append(ports, p)
+			}
+		}
+	}
+	if len(ports) == 0 {
+		return "no open port was found"
+	}
+	slices.Sort(ports)
+	shown := make([]string, 0, len(ports))
+	for i, p := range ports {
+		if i == 20 {
+			shown = append(shown, fmt.Sprintf("and %d more", len(ports)-i))
+			break
+		}
+		shown = append(shown, strconv.Itoa(p))
+	}
+	return "open ports checked: " + strings.Join(shown, ", ")
 }
 
 func pageURL(tls bool, host string, port int) string {
@@ -444,7 +594,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notSetUpWeb})
 		return c, nil
 	}
-	pages, left := webPages(st, c)
+	pages, skipped := webPages(st, c)
 	// INV-31: no page goes to an address on the shared exclusion list; a list that cannot be read sends no page at all
 	sf, err := s.safety(ctx)
 	if err != nil {
@@ -468,7 +618,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	}
 	pages = kept
 	if len(pages) == 0 {
-		text := notWebNone
+		text := fmt.Sprintf(notWebNone, checkedWebPorts(st, c))
 		if gap, why := identificationIncomplete(c); gap && st.Kind == KindIP {
 			text = notWebNoIdent
 			if why == notAnswersEverywhere {
@@ -493,7 +643,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			}
 			s.cfg.Log.ErrorContext(ctx, "exposure: writing the probe log of the web step failed", "target", st.Value, "page", page.URL, "error", err)
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notWebNoLog})
-			left += len(pages) - i
+			skipped = append(skipped, pages[i:]...)
 			break
 		}
 		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
@@ -533,7 +683,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		switch {
 		case errors.As(err, &un):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run: "+un.Reason, maxLineText)})
-			left += len(pages) - i - 1 // the same reason holds for the pages not tried: one line, and the pages already scanned stay recorded
+			skipped = append(skipped, pages[i+1:]...) // the same reason holds for the pages not tried: one line, and the pages already scanned stay recorded
 		case errors.As(err, &skip): // this page only: the next pages still run
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": passive web scan (ZAP) did not run: "+skip.Reason, maxLineText)})
 			continue
@@ -547,8 +697,13 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		}
 		break
 	}
-	if left > 0 {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("Passive web scan (ZAP): %s not scanned (at most %d pages are scanned in one scan, and the pages after one that could not run are not tried).", plural(left, "more web port"), MaxWebScans)})
+	if len(skipped) > 0 {
+		urls := make([]string, len(skipped))
+		for i, p := range skipped {
+			urls[i] = p.URL
+		}
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(fmt.Sprintf("Passive web scan (ZAP): %s not scanned (at most %d pages are scanned in one scan, and the pages after one that could not run are not tried): %s.",
+			plural(len(skipped), "more web port"), MaxWebScans, strings.Join(urls, ", ")), maxLineText)})
 	}
 	if len(c.WebFindings) > maxWebFindings {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("%s of the web scan are not shown: only %d are kept, the ones to fix first, then the highest risk.", plural(len(c.WebFindings)-maxWebFindings, "alert"), maxWebFindings)})

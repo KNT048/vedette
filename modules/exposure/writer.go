@@ -529,14 +529,16 @@ func serviceOf(p PortRow, r ServiceRow, cert *CertView) serviceRow {
 	return out
 }
 
-// answeredHTTP says the service answered HTTP: the scan read a page title or a Server header on it, or a probe named it an HTTP
-// service.
+// answeredHTTP says the service answered HTTP: the scan read a page title, a Server header or a redirect on it, the page request read a product,
+// or a probe named it an HTTP service. The passive web scan takes exactly these (webPages).
 func answeredHTTP(p PortRow, r ServiceRow) bool {
-	if p.Title != "" || p.Server != "" || p.Location != "" {
+	if p.HTTP || p.Title != "" || p.Server != "" || p.Location != "" {
 		return true
 	}
-	name := firstOf(r.Name, p.Service)
-	return serviceFamily(name) == "http" && (r.Method == "probed" || p.Ident == IdentProbed)
+	if p.Product != "" && serviceFamily(p.Service) == "http" { // the surface scan's own page request read who answers, whatever nmap's table says
+		return true
+	}
+	return serviceFamily(firstOf(r.Name, p.Service)) == "http" && (r.Method == "probed" || p.Ident == IdentProbed)
 }
 
 // certsByService maps the certificates a scan read to the services that showed them: a row named "ip:port" to that service, a row

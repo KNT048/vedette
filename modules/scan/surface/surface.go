@@ -34,6 +34,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -153,12 +154,19 @@ type (
 		CNAME  string
 		Addrs  []Addr
 	}
-	// Port is an open TCP port. Product is what its page names (a fingerprint, else the Server header), or empty.
+	// Port is an open TCP port. Product is what its page names (a fingerprint, else the Server header), or empty. Title, Server and
+	// Location are what the page request read on it (the page's title, the Server header, where it redirects without the query), and
+	// CertNames the names of the certificate it showed: all empty on a port that gave no page, so a port with any of them answered HTTP.
 	Port struct {
-		IP      netip.Addr
-		Port    int
-		Service string
-		Product string
+		IP        netip.Addr
+		Port      int
+		Service   string
+		Product   string
+		Title     string
+		Server    string
+		Location  string
+		CertNames []string
+		HTTP      bool // the page request got an HTTP answer, even one with no title, header or redirect
 	}
 	// Admin is an admin page that answered. Danger: close it now; otherwise restrict it by IP.
 	Admin struct {
@@ -374,6 +382,7 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 		port int
 	}
 	product := map[key]string{}
+	read := map[key]answer{}
 	admins := map[string]bool{}
 	for i, a := range answers {
 		j := jobs[i]
@@ -384,6 +393,9 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 			continue
 		}
 		k := key{j.ip, j.port.port}
+		if _, ok := read[k]; !ok {
+			read[k] = a
+		}
 		fp := identify(a.page)
 		switch {
 		case fp != nil:
@@ -398,7 +410,9 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 	}
 	for _, ip := range ips {
 		for _, p := range open[ip] {
-			res.Ports = append(res.Ports, Port{IP: ip, Port: p, Service: portByNumber[p].service, Product: product[key{ip, p}]})
+			a := read[key{ip, p}]
+			res.Ports = append(res.Ports, Port{IP: ip, Port: p, Service: portByNumber[p].service, Product: product[key{ip, p}], Title: a.titleRaw, Server: a.serverRaw,
+				Location: redirectTarget(a.locationRaw), CertNames: a.page.certNames, HTTP: a.ok})
 		}
 	}
 	return res
@@ -509,7 +523,10 @@ type answer struct {
 	ok        bool // the page was read
 	page      page
 	serverRaw string
-	cert      *x509.Certificate
+	titleRaw  string // the page's title as it was written
+	// locationRaw is the Location header of a redirect that was not followed
+	locationRaw string
+	cert        *x509.Certificate
 }
 
 // fetchAll runs the jobs a few at a time; answers[i] is the answer of jobs[i]. One probe-log line a job, written before and
@@ -600,7 +617,7 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxPageBody))
-	a := answer{ok: true, serverRaw: oneLine(resp.Header.Get("Server"), 100)}
+	a := answer{ok: true, serverRaw: oneLine(resp.Header.Get("Server"), 100), titleRaw: clipRunes(readTitle(string(body)), 120), locationRaw: oneLine(resp.Header.Get("Location"), 300)}
 	a.page = page{
 		title: strings.ToLower(readTitle(string(body))), server: strings.ToLower(a.serverRaw), body: strings.ToLower(string(body)),
 		location: strings.ToLower(resp.Header.Get("Location")), header: map[string]bool{},
@@ -614,6 +631,27 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	s.log.InfoContext(ctx, "exposure_scan_page", "url", start, "ip", j.ip.String(), "status", resp.StatusCode)
 	return a
+}
+
+// redirectTarget is where a redirect goes without its user info, query and fragment, which may carry a token; "" when it is not a URL.
+func redirectTarget(loc string) string {
+	if loc == "" {
+		return ""
+	}
+	u, err := url.Parse(loc)
+	if err != nil {
+		return ""
+	}
+	u.User, u.RawQuery, u.Fragment, u.ForceQuery = nil, "", "", false
+	return clipRunes(u.String(), 200)
+}
+
+// clipRunes cuts s to n characters, so a long value is kept short instead of being refused later.
+func clipRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 // oneLine keeps the printable ASCII of a header, at most n bytes.

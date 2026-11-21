@@ -312,3 +312,53 @@ func (d Device) Running() []Software {
 
 // NotInstalledMark ends a line a person said is not installed in a text list of a device's software (the export).
 const NotInstalledMark = " (not installed)"
+
+// declaredLineSQL is the condition on a software line (alias w) a person declared of an OS product: present, with a reading of
+// source manual that is the person's own entry, not the copy of a network OS the person typed in the OS field (syncStatedOS, instance
+// os). The %s is the product keys' placeholders.
+const declaredLineSQL = `(w.state = 'present' AND w.product_key IN (%s) AND EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = w.id AND r.source = 'manual' AND r.instance <> '` + instanceOS + `'))`
+
+// declaredLines are the ids of the device's lines a person declared of an OS product (keys: osProducts), none for most devices.
+func declaredLines(ctx context.Context, q querier, assetID string, keys []string) ([]string, error) {
+	args := append([]any{assetID}, anyOf(keys)...)
+	return idsOf(ctx, q, `SELECT w.id FROM inv_software w WHERE w.asset_id = ? AND `+fmt.Sprintf(declaredLineSQL, placeholders(len(keys))), args...)
+}
+
+// devicesToDecide are the devices whose stored declared-OS decision may be missing (a declared line, no decision and no OS a person typed: that one decides) or stale (a
+// decision and no declared line): the work of ReconcileDeclaredOS.
+func devicesToDecide(ctx context.Context, q querier, keys []string) ([]string, error) {
+	in := fmt.Sprintf(declaredLineSQL, placeholders(len(keys)))
+	return idsOf(ctx, q, `SELECT a.id FROM inv_asset a WHERE
+		(EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`) AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`)
+			AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL+`))
+		OR (EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`) AND NOT EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`))
+		ORDER BY a.id`, append(anyOf(keys), anyOf(keys)...)...)
+}
+
+func placeholders(n int) string { return "?" + strings.Repeat(", ?", n-1) }
+
+func anyOf(ss []string) []any {
+	out := make([]any, len(ss))
+	for i, s := range ss {
+		out[i] = s
+	}
+	return out
+}
+
+// idsOf is the first column of a query, as strings.
+func idsOf(ctx context.Context, q querier, query string, args ...any) ([]string, error) {
+	rows, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read declared software: %w", err)
+	}
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("inventory: read declared software: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, errors.Join(rows.Err(), rows.Close())
+}

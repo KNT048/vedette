@@ -340,6 +340,13 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.software_sync", deviceName(ctx, tx, assetID), fmt.Sprintf("%s: %d items", source, len(items))); err != nil {
 		return err
 	}
+	moved, err := s.RecomputeAsset(ctx, tx, assetID) // a source that outranks a declared OS row may have come or gone
+	if err != nil {
+		return err
+	}
+	if moved {
+		o.add(EventAssetUpdated, AssetEvent{AssetID: assetID})
+	}
 	after, err := deviceKeys(ctx, tx, assetID)
 	if err != nil {
 		return err

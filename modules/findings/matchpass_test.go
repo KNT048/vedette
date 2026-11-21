@@ -9,7 +9,8 @@ func catalogueOnly(cve, cpe, start, end string) Vuln {
 	return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeNVD, Affected: []Affected{{CPE: cpe, Range: VersionRange{StartIncl: start, EndExcl: end}}}}
 }
 
-func fortigate(version string) Asset {
+func fortigate() Asset {
+	const version = "7.2.5"
 	return Asset{ID: "a-1", Name: "fw01", Software: []Software{{ID: "sw-fos", Display: "FortiOS", Vendor: "Fortinet", Product: "FortiOS",
 		Version: version, CPE: "cpe:2.3:o:fortinet:fortios:" + version + ":*:*:*:*:*:*:*", Source: "snmp", KevKeys: []string{"fortinet|fortios"}}}}
 }
@@ -20,7 +21,7 @@ func fortigate(version string) Asset {
 func TestMatchPass_EveryCatalogueCVEIsAFindingWithItsFix(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.inv.match = map[string]Asset{"a-1": fortigate("7.2.5")}
+	e.inv.match = map[string]Asset{"a-1": fortigate()}
 	rec := catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")
 	cna := Vuln{CVE: "CVE-2026-100002", NVDAnswered: true, Origin: RangeCNA, RangesFrom: RangesCVEOrg,
 		Affected: []Affected{{CPE: "cpe:2.3:*:fortinet:fortios:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "7.2.0", EndExcl: "7.2.11"}}}}
@@ -82,7 +83,7 @@ func TestMatchPass_EveryCatalogueCVEIsAFindingWithItsFix(t *testing.T) {
 func TestMatchPass_APinnedCVEIsJudgedWhenTheProductIsGone(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.inv.match = map[string]Asset{"a-1": fortigate("7.2.5")}
+	e.inv.match = map[string]Asset{"a-1": fortigate()}
 	e.feeds.vulns = []Vuln{catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")}
 	if _, err := e.svc.Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
@@ -91,7 +92,7 @@ func TestMatchPass_APinnedCVEIsJudgedWhenTheProductIsGone(t *testing.T) {
 	if err != nil || len(pinned) != 1 {
 		t.Fatalf("pinned %v %v", pinned, err)
 	}
-	a := fortigate("7.2.5")
+	a := fortigate()
 	a.Software = nil
 	e.inv.match = map[string]Asset{"a-1": a}
 	e.advance(ReconcileEvery)
@@ -111,7 +112,7 @@ func TestMatchPass_APinnedCVEIsJudgedWhenTheProductIsGone(t *testing.T) {
 // exploited-list entry is read for every device (CISA's key reaches a row by its name).
 func TestMatchPass_ScopeAndIndex(t *testing.T) {
 	t.Parallel()
-	a := fortigate("7.2.5")
+	a := fortigate()
 	sc := NewMatchScope([]Asset{a}, nil)
 	if !sc.Keep("fortinet", "fortios") || sc.Keep("apache", "http_server") {
 		t.Errorf("scope keeps the wrong products")

@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/knt048/vedette/core/selfcheck"
@@ -30,6 +31,18 @@ var invariants = []selfcheck.Invariant{
 			OR ifnull(via, 'person') NOT IN (` + quoted(Vias) + `)
 			OR fix_kind NOT IN (` + quoted([]FixKind{FixUpdate, FixDistroUpdate, FixOSUpdate, FixFeatureUpdate, FixNoneYet, FixUnknown}) + `)`,
 	},
+	{
+		Name:  "findings.event_vocabulary",
+		Query: `SELECT count(*) FROM fnd_finding_event WHERE kind NOT IN (` + quoted(EventKinds) + `)`,
+	},
+	{
+		Name:  "findings.question_vocabulary",
+		Query: `SELECT count(*) FROM fnd_question WHERE kind NOT IN (` + quoted(QuestionKinds) + `)`,
+	},
+}
+
+// catalogueInvariants hold between the findings and feeds' catalogue: they read feeds' tables, so they run on a box's whole database.
+var catalogueInvariants = []selfcheck.Invariant{
 	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
 		Name:  "findings.cve_in_catalogue",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,
@@ -46,18 +59,10 @@ var invariants = []selfcheck.Invariant{
 		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
 			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`,
 	},
-	{
-		Name:  "findings.event_vocabulary",
-		Query: `SELECT count(*) FROM fnd_finding_event WHERE kind NOT IN (` + quoted(EventKinds) + `)`,
-	},
-	{
-		Name:  "findings.question_vocabulary",
-		Query: `SELECT count(*) FROM fnd_question WHERE kind NOT IN (` + quoted(QuestionKinds) + `)`,
-	},
 }
 
 func init() {
-	for _, inv := range invariants {
+	for _, inv := range append(slices.Clone(invariants), catalogueInvariants...) {
 		selfcheck.Register(inv)
 	}
 }

@@ -593,6 +593,17 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		infos[i].edgeHost = host
 	}
 	named := nvdCandidates(sws, vulns) // #910: per row, the entries whose NVD list may name it
+	allRows := make([]int, len(sws))
+	namedRows := map[int][]int{} // entry -> the rows its NVD list may name, in row order
+	for i := range sws {
+		allRows[i] = i
+		for vi := range named[i] {
+			namedRows[vi] = append(namedRows[vi], i)
+		}
+	}
+	for vi := range namedRows {
+		slices.Sort(namedRows[vi])
+	}
 	for vi, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
@@ -606,7 +617,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		var unchecked []Unchecked // #910: rows of the product that could not be checked
 		needs, bestRow := false, -1
 		var matched []Match // every row the entry matches: each software line is its own finding (Match.Lines)
-		for i, s := range sws {
+		rows := allRows
+		if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
+			rows = namedRows[vi]
+		}
+		for _, i := range rows {
+			s := sws[i]
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
 			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 				// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
@@ -852,6 +868,9 @@ func betterMatch(m, best Match) bool {
 
 // keyedTo reports whether the software's KEV keys match the entry: its key, or for "Multiple Products" its vendor.
 func keyedTo(s Software, v Vuln) bool {
+	if v.Vendor == "" && v.Product == "" || len(s.KevKeys) == 0 {
+		return false // a catalogue CVE on no exploited list has no key
+	}
 	if strings.Contains(v.Vendor, "|") || strings.Contains(v.Product, "|") {
 		return false // the key separator cannot be part of a KEV vendor or product
 	}

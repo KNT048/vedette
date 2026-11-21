@@ -344,8 +344,18 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 		t.Errorf("finding page %+v", f)
 	}
 	recs, err := s.d.Findings.List(ctx, id)
-	if err != nil || len(recs) != 1 || recs[0].SoftwareID != agentRow {
-		t.Fatalf("finding %+v %v, want one on the agent's row", recs, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var open []findings.Record
+	for _, r := range recs {
+		if r.Status.Open() {
+			open = append(open, r)
+		}
+	}
+	// the catalogue CVE the scan's banner matched while the agent's row was not read yet is handled as corrected, not credited
+	if len(open) != 1 || open[0].SoftwareID != agentRow || open[0].CVE != sshKEVVuln.CVE {
+		t.Fatalf("open findings %+v, want the exploited one on the agent's row", open)
 	}
 }
 

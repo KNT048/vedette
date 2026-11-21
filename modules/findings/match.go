@@ -305,8 +305,6 @@ type Match struct {
 	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
 	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
 	provedOn string
-	// corrected: the proof follows a person's correction of the row or of the device's OS (correctionWhy): never an update.
-	corrected bool
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).

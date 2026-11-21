@@ -201,8 +201,6 @@ type env struct {
 	feeds *fakeFeeds
 	pub   *fakePub
 	clock *time.Time
-	// parked keeps the match input of a device a test ignored (env.ignore), to give it back when it is watched again.
-	parked map[string]Asset
 }
 
 func newEnv(t testing.TB) *env {

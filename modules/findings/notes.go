@@ -76,22 +76,6 @@ func validUntil(until, now time.Time) error {
 	return nil
 }
 
-// clipNote cuts a note to at most MaxNote UTF-16 units (jsLen), on a character boundary.
-func clipNote(s string) string {
-	n := MaxNote
-	if jsLen(s) <= n {
-		return s
-	}
-	out := []rune{}
-	for _, r := range s {
-		if jsLen(string(append(out, r))) > n-1 {
-			break
-		}
-		out = append(out, r)
-	}
-	return string(out) + "…"
-}
-
 const truncMarker = "...[truncated]"
 
 // truncate caps an evidence field at maxEvidenceField bytes (marker included), cutting on a character boundary.

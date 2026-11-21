@@ -167,7 +167,7 @@ func mapValues[K comparable, V any](m map[K]V) []V {
 // way, who and when; a version move names two different versions. And every value written is in its vocabulary.
 func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 	t.Parallel()
-	rng := rand.New(rand.NewPCG(1, 2))
+	rng := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a seeded sequence of test cases, not a secret
 	states, triggers := mapValues(transitionStates()), mapValues(transitionTriggers())
 	// random detections and moves too, not only the table's
 	vias := Vias[1:]

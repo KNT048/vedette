@@ -49,17 +49,17 @@ func TestFixture_RowsPerDeviceCVEAndLine(t *testing.T) {
 		lines[s.ID] = s.Source
 	}
 	type stats struct{ rows, pairs, maxPerPair, nameOnly int }
-	count := func(keys []string) (pairs, max int) {
+	count := func(keys []string) (pairs, most int) {
 		per := map[string]int{}
 		for _, k := range keys {
 			per[k]++
 		}
 		for _, n := range per {
-			if n > max {
-				max = n
+			if n > most {
+				most = n
 			}
 		}
-		return len(per), max
+		return len(per), most
 	}
 	var before stats
 	var pairsBefore []string

@@ -21,9 +21,9 @@ func fortiVulns() []Vuln {
 	}
 }
 
-// fortiSNMP is the firewall as the matcher reads it when it answers Vedette's SNMP read with version.
-func fortiSNMP(version string) Asset {
-	a := snmpDevice("a-1", "FortiOS "+version)
+// fortiSNMP is the firewall as the matcher reads it when it answers Vedette's SNMP read with FortiOS 7.2.13.
+func fortiSNMP() Asset {
+	a := snmpDevice("a-1", "FortiOS 7.2.13")
 	a.Name = "fw-edge"
 	a.SNMPOSAt = t0 // it answered just now (SNMPFresh)
 	return a
@@ -59,14 +59,14 @@ func TestMatchAsset_AgentStatedVersionConfirms(t *testing.T) {
 func TestMatchAsset_AnOldSNMPAnswerDoesNotConfirm(t *testing.T) {
 	t.Parallel()
 	for name, at := range map[string]time.Time{"sixteen days ago": t0.Add(-16 * 24 * time.Hour), "unknown": {}} {
-		a := fortiSNMP("7.2.13")
+		a := fortiSNMP()
 		a.SNMPOSAt = at
 		if m, ok := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624"); !ok || m.Basis != BasisVersion || m.Evidence.Source != "" {
 			t.Errorf("%s: %+v", name, m)
 		}
 	}
 	for name, at := range map[string]time.Time{"7 days and 5 hours ago": t0.Add(-7*24*time.Hour - 5*time.Hour), "14 days ago": t0.Add(-14 * 24 * time.Hour)} {
-		a := fortiSNMP("7.2.13")
+		a := fortiSNMP()
 		a.SNMPOSAt = at
 		if m, _ := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624"); m.Evidence.Source != SourceSNMP {
 			t.Errorf("%s: %+v", name, m)
@@ -77,7 +77,7 @@ func TestMatchAsset_AnOldSNMPAnswerDoesNotConfirm(t *testing.T) {
 // The device's own SNMP answer puts the version inside a range with an end: the match carries source snmp and says why in plain words.
 func TestMatchAsset_SNMPStatedVersionConfirms(t *testing.T) {
 	t.Parallel()
-	res := MatchAsset(fortiSNMP("7.2.13"), fortiVulns(), nil, t0)
+	res := MatchAsset(fortiSNMP(), fortiVulns(), nil, t0)
 	if len(res.New) != 2 {
 		t.Fatalf("matches %+v", res.New)
 	}
@@ -159,7 +159,7 @@ func TestMatchAsset_OnlyTheDevicesOwnStatementConfirms(t *testing.T) {
 	}
 	open := fortiVulns()[:1]
 	open[0].Affected = []Affected{{CPE: fortiCPE, Range: VersionRange{StartIncl: "6.4.0"}}} // no end: no fix to name past it
-	if m, ok := byCVE(MatchAsset(fortiSNMP("7.2.13"), open, nil, t0).New, "CVE-2025-61624"); !ok || m.Evidence.Source != "" {
+	if m, ok := byCVE(MatchAsset(fortiSNMP(), open, nil, t0).New, "CVE-2025-61624"); !ok || m.Evidence.Source != "" {
 		t.Errorf("open-ended range: %+v", m)
 	}
 	res := MatchAsset(snmpDevice("ios", "Cisco IOS 15.2(4)M3"), loadGolden(t, "testdata/kev-nvd-snmp-os.json"), nil, t0)
@@ -172,7 +172,7 @@ func TestMatchAsset_OnlyTheDevicesOwnStatementConfirms(t *testing.T) {
 // statement of the device, so it never confirms.
 func TestMatchAsset_APersonsOSCorrectionNeverConfirms(t *testing.T) {
 	t.Parallel()
-	a := fortiSNMP("7.2.13")
+	a := fortiSNMP()
 	a.ManualOS, a.OSCorrection = "FortiOS 7.2.13", "it@acme.example set the OS to FortiOS 7.2.13 on 18 Nov 2026"
 	m, ok := byCVE(MatchAsset(a, fortiVulns(), nil, t0).New, "CVE-2025-61624")
 	if !ok || m.Basis != BasisVersion || m.Evidence.Source != "" || strings.HasPrefix(m.Evidence.Summary, "Confirmed") {

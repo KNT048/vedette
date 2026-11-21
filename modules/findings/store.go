@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -223,7 +222,7 @@ func writeFinding(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, evs []
 		return err
 	}
 	if isNew {
-		_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?`+strings.Repeat(", ?", len(args)-1)+`)`, args...)
+		_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args...)
 	} else {
 		_, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET software_id = ?4, detected = ?5, basis = ?6, verified = ?7, range_origin = ?8,
 			matched_version = ?9, fix_kind = ?10, fix_version = ?11, fix_ref = ?12, fix_key = ?13, evidence = ?14, state = ?15, resolution = ?16,

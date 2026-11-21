@@ -52,15 +52,3 @@ func TestPlan_DistroLoadedStatesAsTheCustomerSeesThem(t *testing.T) {
 		})
 	}
 }
-
-func planEnv(t *testing.T) *httpEnv {
-	t.Helper()
-	e := newHTTPEnv(t)
-	e.inv.assets["a-u"] = AssetView{ID: "a-u", Hostname: ptr("web-u"), IP: "192.168.10.31", Kind: "server", Name: "web-u"}
-	e.inv.match["a-u"] = Asset{ID: "a-u", Name: "web-u", OS: "Ubuntu 24.04 LTS", Software: []Software{debRow("s1", "libssl3", "openssl", "3.0.13-0ubuntu3.4")}}
-	e.feeds.distro = []TierVuln{distroV("CVE-2026-50001", "likely", 30, 0.4, noble("openssl", "3.0.13-0ubuntu3.5", false))}
-	e.feeds.covered = map[string]bool{"ubuntu/24.04": true}
-	e.feeds.tier = TierStatus{EPSS: "ready", Recent: "ready", EPSSDate: t0, RecentSince: t0.AddDate(0, 0, -365)}
-	e.feeds.stamp = "s1"
-	return e
-}

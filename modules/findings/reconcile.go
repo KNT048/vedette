@@ -110,15 +110,15 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			res.Closed++
 		}
 	}
-	added, err := replaceQuestions(ctx, tx, a.ID, questionsOfMatch(a, qm), now)
+	added, err := replaceQuestions(ctx, tx, a.ID, questionsOfMatch(qm), now)
 	if err != nil {
 		return res, err
 	}
-	if n, err := countQuestions(ctx, tx, a.ID); err != nil {
+	n, err := countQuestions(ctx, tx, a.ID)
+	if err != nil {
 		return res, err
-	} else {
-		res.Questions = n
 	}
+	res.Questions = n
 	if cves := announced(added, existing, seen); len(cves) > 0 {
 		emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: cves})
 	}
@@ -249,7 +249,7 @@ func sameRelease(a, b string) bool {
 
 // questionsOfMatch is the device's questions as a match gives them: one version_needed per software line that has no version Vedette
 // can read, and one per (line, CVE) Vedette could not check.
-func questionsOfMatch(a Asset, m MatchResult) []Question {
+func questionsOfMatch(m MatchResult) []Question {
 	var out []Question
 	for _, n := range m.NeedVersion {
 		if len(n.CVEs) == 0 {

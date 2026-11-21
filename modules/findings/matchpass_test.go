@@ -311,3 +311,114 @@ func TestMatchPass_StoredFixEqualsFixOf(t *testing.T) {
 	}
 	t.Logf("%d findings: stored fix equals FixOf", checked)
 }
+
+// A CVE that joins an exploited list after its finding was made (the usual case: most listed CVEs were published long before) makes
+// the finding exploited and announces it once, as a new exploited match, on the hourly pass and on an inventory change alike; To fix
+// then lists it as exploited. Leaving the list again announces nothing and keeps the urgency (the urgency pass owns the way down).
+func TestMatchPass_ACVEThatJoinsAListIsAnnouncedOnce(t *testing.T) {
+	t.Parallel()
+	for _, p := range []struct {
+		name string
+		run  func(e *env) error
+	}{
+		{"reconcile", func(e *env) error { _, err := e.svc.Reconcile(e.t.Context()); return err }},
+		{"inventory change", func(e *env) error { _, err := e.svc.OnMatchChanged(e.t.Context(), "a-1"); return err }},
+	} {
+		t.Run(p.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.inv.match = map[string]Asset{"a-1": fortigate()}
+			e.inv.assets["a-1"] = AssetView{ID: "a-1", Name: "fw01", IP: "192.0.2.1", Kind: "firewall"}
+			v := catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")
+			e.feeds.vulns = []Vuln{v}
+			if err := p.run(e); err != nil {
+				t.Fatal(err)
+			}
+			e.pub.take()
+			listed := v
+			listed.Vendor, listed.Product, listed.DateAdded = "Fortinet", "FortiOS", t0
+			e.feeds.vulns = []Vuln{listed}
+			e.feeds.kev = map[string]KevInfo{v.CVE: {Vendor: "Fortinet", Product: "FortiOS"}}
+			e.advance(time.Hour)
+			if err := p.run(e); err != nil {
+				t.Fatal(err)
+			}
+			fs, err := e.svc.Findings(t.Context(), "a-1")
+			if err != nil || len(fs) != 1 {
+				t.Fatalf("findings %v %v", fs, err)
+			}
+			if fs[0].Urgency != UrgencyExploited {
+				t.Errorf("urgency %d, want %d", fs[0].Urgency, UrgencyExploited)
+			}
+			created := 0
+			for _, ev := range e.pub.take() {
+				if c, ok := ev.Payload.(CreatedEvent); ok && c.FindingID == fs[0].ID && c.CVE == v.CVE {
+					created++
+				}
+			}
+			if created != 1 {
+				t.Errorf("%d created events for the finding whose CVE was listed, want 1", created)
+			}
+			u, ok, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
+			if err != nil || !ok || len(u.Exploited) != 1 || u.Exploited[0].CVEs[0] != v.CVE {
+				t.Errorf("To fix, exploited: %+v %v %v", u.Exploited, ok, err)
+			}
+			e.advance(time.Hour) // the same list again: nothing new
+			if err := p.run(e); err != nil {
+				t.Fatal(err)
+			}
+			e.feeds.vulns = []Vuln{v} // off the list again
+			e.advance(time.Hour)
+			if err := p.run(e); err != nil {
+				t.Fatal(err)
+			}
+			if evs := e.pub.take(); len(evs) != 0 {
+				t.Errorf("announced again: %+v", evs)
+			}
+			if fs, _ := e.svc.Findings(t.Context(), "a-1"); fs[0].Urgency != UrgencyExploited {
+				t.Errorf("urgency after the list dropped it: %d", fs[0].Urgency)
+			}
+		})
+	}
+}
+
+// The hourly pass reads the devices before the catalogue (seconds); a device that reports its update meanwhile has its finding closed
+// by the inventory change, and the pass writes what the inventory holds when it writes: the finding stays closed, with no reopen.
+func TestMatchPass_AReadingThatArrivesDuringThePassWins(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.inv.match = map[string]Asset{"a-1": fortigate()}
+	listed := catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.8")
+	listed.Vendor, listed.Product = "Fortinet", "FortiOS"
+	e.feeds.vulns = []Vuln{listed}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	e.pub.take()
+	e.advance(time.Hour)
+	e.feeds.onMatchSet = func() { // while the pass reads the catalogue, the device reports 7.2.8 and the inventory change runs
+		e.feeds.onMatchSet = nil
+		updated := fortigate()
+		updated.Software[0].Version, updated.Software[0].CPE = "7.2.8", "cpe:2.3:o:fortinet:fortios:7.2.8:*:*:*:*:*:*:*"
+		e.inv.mu.Lock()
+		e.inv.match["a-1"] = updated
+		e.inv.mu.Unlock()
+		if _, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil {
+			t.Error(err)
+		}
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := e.svc.Findings(t.Context(), "a-1")
+	if err != nil || len(fs) != 1 {
+		t.Fatalf("findings %v %v", fs, err)
+	}
+	if f := fs[0]; f.Open() || f.Via != ViaVersionMoved {
+		t.Errorf("finding %+v, want handled via version_moved", f)
+	}
+	for _, ev := range e.pub.take() {
+		if s, ok := ev.Payload.(StatusChangedEvent); ok && s.Reason == ReasonMatchesAgain {
+			t.Errorf("reopened by the stale reading: %+v", s)
+		}
+	}
+}

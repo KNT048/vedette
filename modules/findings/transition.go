@@ -219,6 +219,12 @@ func (t *transition) detected(d Detection) error {
 	default:
 		f.Fix = d.Fix
 	}
+	// A detection never lowers the urgency (the urgency pass owns it); one that rates the flaw more urgent than stored raises it: a
+	// CVE that joined an exploited list after its finding was made.
+	if d.Urgency >= 1 && d.Urgency < f.Urgency {
+		f.Urgency, f.UrgencyAt = d.Urgency, t.now
+		t.emit(SystemUser, EvUrgencyChanged, EventDetail{Layer: d.Urgency})
+	}
 	f.Detected = true
 	if daily || !sameFinding(*f, was) && t.now.After(f.LastSeen) {
 		f.LastSeen = t.now // a pass that changes nothing writes nothing: last seen moves once a day, or with a change

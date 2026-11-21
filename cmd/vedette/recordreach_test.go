@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"slices"
 	"testing"
 	"time"
 
@@ -60,4 +62,40 @@ func TestRecordRanges_ReachTheDeviceThatRunsTheProduct(t *testing.T) {
 		}
 	}
 	t.Logf("record-only CVEs that reach the device running the product: %d of %d", reached, len(recordReach)-1)
+}
+
+// A pinned CVE whose ranges were all removed (NVD or the CNA rejected it) stays in the match set with no range, so the pass judges
+// its findings gone instead of leaving them open forever; a pinned CVE the catalogue does not hold at all is not judged.
+func TestMatchSet_APinnedCVEWithNoRangesIsStillJudged(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, "CVE-2026-90100", time.Now().AddDate(0, -2, 0), 0); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_status = 'Rejected' WHERE cve = 'CVE-2026-90100'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := findingsFeeds{st: fs.Store()}.MatchSet(ctx, findings.NewMatchScope(nil, []string{"CVE-2026-90100", "CVE-2026-90101"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cves []string
+	for _, v := range got {
+		cves = append(cves, v.CVE)
+		if v.CVE == "CVE-2026-90100" && len(v.Affected) != 0 {
+			t.Errorf("rejected CVE with ranges %+v", v.Affected)
+		}
+	}
+	if !slices.Contains(cves, "CVE-2026-90100") || slices.Contains(cves, "CVE-2026-90101") {
+		t.Errorf("match set %v: want the rejected pinned CVE and not the one the catalogue does not hold", cves)
+	}
 }

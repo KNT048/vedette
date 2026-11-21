@@ -99,6 +99,9 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 					}
 				default:
 					res.Touched++
+					if !Announced(f) && Announced(g) { // its CVE joined an exploited list: announced once, as a new exploited match
+						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					}
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
 						res.Reopened++
 					}
@@ -548,7 +551,7 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (Upse
 		}
 		wctx, cancel := context.WithTimeout(wctx, eventWriteTimeout)
 		defer cancel()
-		r, err := s.upsert(wctx, a, vulns, judged, &whole)
+		r, err := s.upsert(wctx, a, vulns, judged, &whole, true)
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Touched += r.Touched
 		sum.Closed += r.Closed

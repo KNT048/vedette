@@ -646,3 +646,17 @@ func ctOf(body []byte, limit int) ([]string, error) {
 	names, _, err := parseCTScope(body, "acme.example", limit, nil)
 	return names, err
 }
+
+func TestRedirectTargetDropsUserInfoQueryAndFragment(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{
+		"https://user:tok@host.example/login?next=/a#x": "https://host.example/login",
+		"/remote/login?lang=en":                         "/remote/login",
+		"":                                              "",
+		"http://[bad":                                   "",
+	} {
+		if got := redirectTarget(in); got != want {
+			t.Errorf("redirectTarget(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

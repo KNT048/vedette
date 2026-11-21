@@ -373,6 +373,7 @@ type webPort struct {
 	port   int
 	tls    bool
 	titled bool     // the page had a title: an application, not a bare server answering
+	bounce bool     // the page only redirects (a Location and no title): mostly plain HTTP sending people to the TLS port
 	certs  []string // names the TLS certificate showed
 }
 
@@ -392,6 +393,8 @@ func webPorts(c Content, addrs map[netip.Addr]bool) (web []webPort, checked map[
 			return
 		}
 		a = a.Unmap()
+		// the reading the writer stores (limits, printable text), so a port is web here exactly when its stored is_web says so
+		p = sanitizePortIdent(PortRow{IP: p.IP, Port: p.Port, Service: p.Service, Product: p.Product, Ident: p.Ident}, p)
 		k := portKey(a.String(), p.Port)
 		if seen[k] {
 			return
@@ -400,7 +403,7 @@ func webPorts(c Content, addrs map[netip.Addr]bool) (web []webPort, checked map[
 		checked[a] = append(checked[a], p.Port)
 		r := svc[k]
 		if answeredHTTP(p, r) {
-			web = append(web, webPort{ip: a, port: p.Port, tls: webTLS(p, r), titled: p.Title != "", certs: p.CertNames})
+			web = append(web, webPort{ip: a, port: p.Port, tls: webTLS(p, r), titled: p.Title != "", bounce: p.Location != "" && p.Title == "", certs: p.CertNames})
 		}
 	}
 	for _, p := range c.Ports {
@@ -425,12 +428,16 @@ func webTLS(p PortRow, r ServiceRow) bool {
 	return len(p.CertNames) > 0 || p.Port == 443 || p.Port == 8443
 }
 
-// webInterest orders the pages a scan may take: a titled page (an application) before a bare answer, the usual ports before the rest,
-// TLS before plain HTTP (which mostly redirects to it), then the name and the port number so the order is the same on every run.
-func webInterest(a, b WebPage, at, bt bool) int {
-	rank := func(p WebPage, titled bool) int {
+// webInterest orders the pages a scan may take: a page with its own content before one that only redirects (a page on port 80 that sends
+// people to the TLS port), a titled page (an application) before a bare answer, the usual ports before the rest, TLS before plain
+// HTTP, then the name and the port number so the order is the same on every run.
+func webInterest(a, b WebPage, aw, bw webPort) int {
+	rank := func(p WebPage, w webPort) int {
 		n := 0
-		if !titled {
+		if w.bounce {
+			n += 8
+		}
+		if !w.titled {
 			n += 4
 		}
 		if p.Port != 443 && p.Port != 80 {
@@ -441,13 +448,21 @@ func webInterest(a, b WebPage, at, bt bool) int {
 		}
 		return n
 	}
-	if d := rank(a, at) - rank(b, bt); d != 0 {
+	if d := rank(a, aw) - rank(b, bw); d != 0 {
 		return d
 	}
 	if d := strings.Compare(a.Host, b.Host); d != 0 {
 		return d
 	}
 	return a.Port - b.Port
+}
+
+func hostIPs(h HostRow) []string {
+	out := make([]string, 0, len(h.IPs))
+	for _, x := range h.IPs {
+		out = append(out, x.IP)
+	}
+	return out
 }
 
 // targetAddrs is the addresses of a scan's target a web service may be on, and for a domain the names it has at each: an IP target's
@@ -461,15 +476,21 @@ func targetAddrs(st ScanTarget, c Content) (map[netip.Addr]bool, map[netip.Addr]
 		}
 	case KindDomain:
 		for _, h := range c.Hosts {
-			a, err := netip.ParseAddr(h.IP)
 			name := strings.ToLower(h.Name)
-			if err != nil || !egressip.IsPublicIPv4(a.Unmap()) || !domainRE.MatchString(name) || (name != st.Value && !strings.HasSuffix(name, "."+st.Value)) {
+			if !domainRE.MatchString(name) || (name != st.Value && !strings.HasSuffix(name, "."+st.Value)) {
 				continue
 			}
-			a = a.Unmap()
-			addrs[a] = true
-			if !slices.Contains(names[a], name) {
-				names[a] = append(names[a], name)
+			var all []netip.Addr
+			for _, raw := range append([]string{h.IP}, hostIPs(h)...) { // the name's address and every public IPv4 of it: the deep step scans each
+				if y, err := netip.ParseAddr(raw); err == nil && y.Unmap().Is4() && egressip.IsPublicIPv4(y.Unmap()) && !slices.Contains(all, y.Unmap()) {
+					all = append(all, y.Unmap())
+				}
+			}
+			for _, a := range all {
+				addrs[a] = true
+				if !slices.Contains(names[a], name) {
+					names[a] = append(names[a], name)
+				}
 			}
 		}
 		for _, ns := range names {
@@ -488,22 +509,22 @@ func webPages(st ScanTarget, c Content) (pages, skipped []WebPage) {
 	addrs, names := targetAddrs(st, c)
 	web, _ := webPorts(c, addrs)
 	var all []WebPage
-	titled := map[string]bool{}
-	add := func(p WebPage, t bool) {
-		if _, dup := titled[p.URL]; !dup {
-			titled[p.URL] = t
+	info := map[string]webPort{}
+	add := func(p WebPage, w webPort) {
+		if _, dup := info[p.URL]; !dup {
+			info[p.URL] = w
 			all = append(all, p)
 		}
 	}
 	for _, w := range web {
 		if st.Kind == KindIP {
-			add(WebPage{URL: pageURL(w.tls, w.ip.String(), w.port), Host: w.ip.String(), IP: w.ip, Port: w.port}, w.titled)
+			add(WebPage{URL: pageURL(w.tls, w.ip.String(), w.port), Host: w.ip.String(), IP: w.ip, Port: w.port}, w)
 			continue
 		}
 		ns := names[w.ip]
 		if w.port == 80 || w.port == 443 {
 			for _, n := range ns {
-				add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w.titled)
+				add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w)
 			}
 			continue
 		}
@@ -514,9 +535,9 @@ func webPages(st ScanTarget, c Content) (pages, skipped []WebPage) {
 				break
 			}
 		}
-		add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w.titled)
+		add(WebPage{URL: pageURL(w.tls, n, w.port), Host: n, IP: w.ip, Port: w.port}, w)
 	}
-	slices.SortStableFunc(all, func(a, b WebPage) int { return webInterest(a, b, titled[a.URL], titled[b.URL]) })
+	slices.SortStableFunc(all, func(a, b WebPage) int { return webInterest(a, b, info[a.URL], info[b.URL]) })
 	if len(all) > MaxWebScans {
 		return all[:MaxWebScans], all[MaxWebScans:]
 	}

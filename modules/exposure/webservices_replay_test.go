@@ -4,30 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
-
-// httpAnswered is an independent reading of "this open port answered HTTP", for the count below: a page title, a Server header or a
-// redirect read on it, or a product read by the page request, or a probe that named an HTTP service.
-func httpAnswered(p PortRow, svc []ServiceRow) bool {
-	if p.Title != "" || p.Server != "" || p.Location != "" {
-		return true
-	}
-	family := func(n string) bool {
-		n = strings.TrimPrefix(n, "ssl/")
-		return n == "http" || n == "https" || n == "http-alt" || n == "https-alt"
-	}
-	if p.Product != "" && family(p.Service) {
-		return true
-	}
-	for _, r := range svc {
-		if r.IP == p.IP && r.Port == p.Port && family(r.Name) && r.Method == "probed" {
-			return true
-		}
-	}
-	return false
-}
 
 // TestReplayEveryHTTPAnswerIsScannedOrListed replays the stored scans of a test network and counts the scans in which a service
 // answered HTTP and the passive web scan neither took it nor said it left it out. The test network's addresses are documentation
@@ -56,7 +36,7 @@ func TestReplayEveryHTTPAnswerIsScannedOrListed(t *testing.T) {
 		}
 		silent := []string{}
 		for _, p := range c.Ports {
-			if httpAnswered(p, c.Services) && !covered[fmt.Sprintf("%s:%d", p.IP, p.Port)] && (st.Kind == KindDomain || p.IP == st.Value) {
+			if answeredHTTP(sanitizePortIdent(PortRow{IP: p.IP, Port: p.Port, Service: p.Service, Product: p.Product, Ident: p.Ident}, p), serviceAt(c.Services, p)) && !covered[fmt.Sprintf("%s:%d", p.IP, p.Port)] && (st.Kind == KindDomain || p.IP == st.Value) {
 				silent = append(silent, fmt.Sprintf("%s:%d", p.IP, p.Port))
 			}
 		}
@@ -96,6 +76,43 @@ func TestWebPagesAnyPortAndTheHonestNone(t *testing.T) {
 		t.Errorf("pages = %+v", pages)
 	}
 	if got := checkedWebPorts(ScanTarget{Kind: KindIP, Value: ip}, c); got != "open ports checked: 22" {
+		t.Errorf("checked = %q", got)
+	}
+}
+
+func serviceAt(rows []ServiceRow, p PortRow) ServiceRow {
+	for _, r := range rows {
+		if r.IP == p.IP && r.Port == p.Port {
+			return r
+		}
+	}
+	return ServiceRow{}
+}
+
+// A bare HTTP answer (no title, header or redirect) is a page; a name's second address is looked at and listed like the first; a
+// page that only redirects ranks after one with content; and a title too long to store does not make the port web in one place only.
+func TestWebPagesBareAnswerSecondAddressAndRank(t *testing.T) {
+	t.Parallel()
+	a, b := "8.8.8.8", "8.8.4.4"
+	c := Content{
+		Hosts: []HostRow{{Name: "api.acme.example", IP: a, IPs: []HostIP{{IP: a}, {IP: b}}}},
+		Ports: []PortRow{
+			{IP: a, Port: 443, Service: "https", HTTP: true},
+			{IP: a, Port: 80, Service: "http", Location: "https://api.acme.example/"},
+			{IP: b, Port: 8443, Service: "https", Title: "App"},
+			{IP: b, Port: 9000, Service: "http", Title: strings.Repeat("x", 300)},
+		},
+	}
+	pages, skipped := webPages(ScanTarget{Kind: KindDomain, Value: "acme.example"}, c)
+	var got []string
+	for _, p := range append(pages, skipped...) {
+		got = append(got, p.URL)
+	}
+	want := []string{"https://api.acme.example:8443/", "https://api.acme.example/", "http://api.acme.example/"}
+	if !slices.Equal(got, want) {
+		t.Errorf("pages = %q, want %q", got, want)
+	}
+	if got := checkedWebPorts(ScanTarget{Kind: KindDomain, Value: "acme.example"}, c); got != "open ports checked: 80, 443, 8443, 9000" {
 		t.Errorf("checked = %q", got)
 	}
 }

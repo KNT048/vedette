@@ -22,7 +22,7 @@ func certAt(host string, d time.Duration) CertRow {
 func sampleContent() Content {
 	return Content{
 		Hosts:       []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "mail.acme.example", IP: ipB}},
-		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", "", "", nil}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil}},
+		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil, false}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil, false}},
 		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger", nil}},
 		Certs:       []CertRow{certAt("acme.example", 62*day), certAt("mail.acme.example", 9*day)},
 	}
@@ -571,7 +571,7 @@ func TestContract_INV7_Commitment(t *testing.T) {
 func TestContract_INV8_IPTargetCountsItsOwnAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil}}}})
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil, false}}}})
 	ip := e.detect(ipA)[0]
 	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
@@ -590,7 +590,7 @@ func TestContract_INV10_ScanContentIsLimited(t *testing.T) {
 	for i := range maxContentRows + 50 {
 		big.Hosts = append(big.Hosts, HostRow{Name: "h" + strings.Repeat("x", i%3), IP: ipA})
 	}
-	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", "", "", nil}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", "", "", nil}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", "", "", nil}}
+	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", "", "", nil, false}}
 	big.AdminPanels = []AdminRow{{"https://x/", "p", ipA, 443, "<script>", nil}, {"https://y/", "p", ipA, 0, "danger", nil}}
 	big.Certs = []CertRow{{"a.example", "R11", "not a date"}, certAt("b.example", day)}
 	got := sanitize(big)

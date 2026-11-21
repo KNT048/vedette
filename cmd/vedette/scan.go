@@ -512,7 +512,7 @@ func contentOf(r surface.Result) exposure.Content {
 			ident = exposure.IdentProbed
 		}
 		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product, Ident: ident,
-			CertNames: p.CertNames, Title: p.Title, Server: p.Server, Location: p.Location})
+			CertNames: p.CertNames, Title: p.Title, Server: p.Server, Location: p.Location, HTTP: p.HTTP})
 	}
 	for _, a := range r.Admin {
 		risk := "warn"

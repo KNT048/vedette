@@ -288,7 +288,7 @@ func TestContract_INV24_DomainNamesOnWebPortsOnly(t *testing.T) {
 	dom := e.committedDomain()
 	e.svc.SetRunner(&fakeRunner{content: Content{
 		Hosts: []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "evil.example.org", IP: ipA}, {Name: "notacme.example", IP: ipA}, {Name: "intra.acme.example", IP: "10.0.0.5"}, {Name: "mail.acme.example", IP: ipB}, {Name: "a.acme.example", IP: ipB}},
-		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipA, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil}, {ipB, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}},
+		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "", "", "", nil, true}, {ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil, true}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "", "", "", nil, true}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil, false}, {ipB, 443, "https", "", "", 0, false, "", nil, "", "", "", nil, true}},
 	}})
 	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
 	if err != nil {

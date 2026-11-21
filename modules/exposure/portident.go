@@ -221,6 +221,7 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 			row.CertNames = append(row.CertNames, n)
 		}
 	}
+	row.HTTP = p.HTTP
 	row.Title, row.Server, row.Location = field(p.Title, maxHint), field(p.Server, maxHint), field(p.Location, maxLocation)
 	return row
 }

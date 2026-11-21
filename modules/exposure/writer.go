@@ -532,7 +532,7 @@ func serviceOf(p PortRow, r ServiceRow, cert *CertView) serviceRow {
 // answeredHTTP says the service answered HTTP: the scan read a page title, a Server header or a redirect on it, the page request read a product,
 // or a probe named it an HTTP service. The passive web scan takes exactly these (webPages).
 func answeredHTTP(p PortRow, r ServiceRow) bool {
-	if p.Title != "" || p.Server != "" || p.Location != "" {
+	if p.HTTP || p.Title != "" || p.Server != "" || p.Location != "" {
 		return true
 	}
 	if p.Product != "" && serviceFamily(p.Service) == "http" { // the surface scan's own page request read who answers, whatever nmap's table says

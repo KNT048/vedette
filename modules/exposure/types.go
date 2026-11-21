@@ -296,6 +296,9 @@ type (
 		Location string `json:"location,omitempty"`
 		// Appliance is the appliance family the port names (appliance.go), set when the port is read, never stored; nil when none.
 		Appliance *Appliance `json:"appliance,omitempty"`
+		// HTTP: the surface scan's page request on the port got an HTTP answer, whether or not it had a title, a Server header or a
+		// redirect (a bare JSON API has none). Set by the surface scan only; carried in memory from the scan to the writer, never stored or served.
+		HTTP bool `json:"-"`
 	}
 	// AdminRow is an admin page that is open to the Internet. Risk is "danger" or "warn".
 	AdminRow struct {

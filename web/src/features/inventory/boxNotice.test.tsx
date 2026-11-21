@@ -54,7 +54,6 @@ describe('box notice: a fix is offered only when there is one', () => {
     boxFindings([], ['CVE-2024-0001'])
     renderApp(`/devices/${BOX_ID}`)
     expect(await screen.findByText('This is the Vedette box itself', undefined, T)).toBeInTheDocument()
-    expect(await screen.findByText(/No findings to handle: the one finding of this device is closed as not relevant/, undefined, T)).toBeInTheDocument()
     expect(screen.queryByText('No update fixes these yet: see each finding.')).toBeNull()
     expect(screen.queryByRole('link', { name: /open finding/ })).toBeNull()
   })

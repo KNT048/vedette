@@ -51,13 +51,13 @@ describe('inventory: risk marker', () => {
     expect([bad.status, bad.json.error.code]).toEqual([400, 'bad_filter'])
   })
 
-  it('Devices: a Risk column with words, linked to the device\'s To fix, sortable worst first and filtered by its chips; no a11y violations', async () => {
+  it('Devices: a Risk column with words, linked to the device\'s findings with that status, sortable worst first and filtered by its chips; no a11y violations', async () => {
     const user = userEvent.setup()
     const list = await rows()
     const red = list.find((d) => d.risk?.level === 'exploited')!
     renderApp('/devices')
     const table = await screen.findByRole('table', { name: 'Device list' }, T)
-    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.exploited} exploited: ${red.risk!.exploited} open exploited finding`) }).find((a) => a.getAttribute('href') === `/findings?tab=fix&device=${red.id}`)!, T)
+    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.exploited} exploited: ${red.risk!.exploited} open exploited finding`) }).find((a) => a.getAttribute('href') === `/devices/${red.id}?tab=findings&status=exploited`)!, T)
     expect(marker).toHaveTextContent(`${red.risk!.exploited} exploited`)
     expect(within(table).getAllByRole('link', { name: /^Update recommended: / }).length).toBeGreaterThan(0)
     await expectNoA11yViolations()
@@ -69,16 +69,21 @@ describe('inventory: risk marker', () => {
     await waitFor(() => expect(within(table).getAllByRole('row').length - 1).toBe(list.filter((d) => d.approved && d.risk?.level === 'exploited').length), T)
   })
 
-  it('the device page shows the marker next to the title; a clean device shows none', async () => {
+  it('the device page shows the badge next to the title, a link to its Findings tab with that status; a clean device shows none', async () => {
     const list = await rows()
     const red = list.find((d) => d.risk?.level === 'exploited')!
     const first = renderApp(`/devices/${red.id}`)
-    expect(await screen.findByRole('link', { name: /open exploited finding/ }, T)).toHaveAttribute('href', `/findings?tab=fix&device=${red.id}`)
+    const title = (await screen.findByRole('heading', { level: 1 }, T)).closest('header') ?? document.body
+    expect(await within(title as HTMLElement).findByRole('link', { name: /exploited/ }, T)).toHaveAttribute('href', `/devices/${red.id}?tab=findings&status=exploited`)
     first.unmount()
-    const clean = list.find((d) => !d.risk && !d.is_box)!
+    // clean on both reads: no marker, and no card of the findings model (no open finding) and no question
+    const cards = (await get('/findings/devices?limit=100')).json.items as { device: { id: string } }[]
+    const asked = (await get('/findings/input?limit=100')).json.items as { device: { id: string } }[]
+    const busy = new Set([...cards, ...asked].map((c) => c.device.id))
+    const clean = list.find((d) => !d.risk && !d.is_box && !busy.has(d.id))!
     renderApp(`/devices/${clean.id}`)
     await screen.findByRole('heading', { level: 1 }, T)
-    expect(screen.queryByRole('link', { name: /open exploited finding|recommended update/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /open exploited finding|recommended update|exploited$|^Update recommended/ })).toBeNull()
   })
 
   it('the CSV export has a risk column in the marker\'s words', async () => {

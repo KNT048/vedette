@@ -24,10 +24,14 @@ const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, risks
   dev('a-lap', 'LAPTOP-B', { open: 2, exploited: [winrar('a-lap', 'WinRAR 7.01 (64-bit)')] }), // the same product under another name: one By fix row
 ] }
 
+/** The device page's list from before the findings model: what a backend that answers the model's reads 501 shows. */
+const beforeModel = () => server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
+
 describe('Findings › To fix', () => {
 
   it('the device page handles each finding on its own line, without a trip to the Findings list', async () => {
-    renderApp('/devices/a-nas02')
+    beforeModel()
+    renderApp('/devices/a-nas02?tab=findings')
     const all = await screen.findByRole('list', { name: 'Every finding of this device' }, T)
     expect(within(all).getAllByRole('button', { name: /^Mark as handled: CVE-\d+-\d+ on / }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Select and handle these findings in the Findings list' })).toBeNull()
@@ -44,7 +48,8 @@ describe('Findings › To fix', () => {
   it('the device page: one "I updated" per typed software, not under each row and again below the list', async () => {
     const rows = fortiRows('a-srvad')
     server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 3, exploited: [...rows.exploited, { ...winrar('a-srvad'), source: 'manual' }], planned: rows.planned })] })))
-    renderApp('/devices/a-srvad')
+    beforeModel()
+    renderApp('/devices/a-srvad?tab=findings')
     const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
     expect(within(todo).getByText('Upgrade FortiGate from 7.2.0 to 7.4.8 or later')).toBeInTheDocument()
     expect(await screen.findAllByRole('button', { name: 'I updated FortiGate' }, T)).toHaveLength(1)
@@ -65,7 +70,8 @@ describe('Findings › To fix', () => {
         return HttpResponse.json({ ok: true })
       }),
     )
-    renderApp('/devices/a-srvad')
+    beforeModel()
+    renderApp('/devices/a-srvad?tab=findings')
     await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiGate' }, T))
     const dlg = await screen.findByRole('dialog', { name: 'I updated FortiGate' })
     await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.8')
@@ -79,10 +85,11 @@ describe('Findings › To fix', () => {
     const withFindings = new Set(findingsStore.get().map((f) => f.asset_id))
     const quiet = assetsStore.get().find((x) => !withFindings.has(x.id) && x.software.length > 0)!
     server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev(quiet.id, 'QUIET', { planned: [firefox] })] })))
-    renderApp(`/devices/${encodeURIComponent(quiet.id)}`)
+    beforeModel()
+    renderApp(`/devices/${encodeURIComponent(quiet.id)}?tab=findings`)
     const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
     expect(within(todo).getByRole('list', { name: 'Recommended updates for QUIET' })).toHaveTextContent('Upgrade Mozilla Firefox from 152.0 to 157.0.1 or later: fixes 228 CVEs not exploited yet')
-    expect(screen.queryByText('No findings for this device yet.')).toBeNull()
+    expect(screen.queryByText('No open findings on this device.')).toBeNull()
   })
 
   it('the device\'s Software tab says what each row needs: a recommended update with its CVEs, nothing on a clean row', async () => {
@@ -98,7 +105,8 @@ describe('Findings › To fix', () => {
     renderApp('/devices/a-nas02?tab=software')
     const table = await screen.findByRole('table', { name: 'Software on the device' }, T)
     const row = (name: string) => within(table).getAllByText(name)[0]!.closest('tr')!
-    expect(await within(row(first!.display)).findByRole('link', { name: 'Recommended update to 1.2.3 fixes 2 CVEs' }, T)).toBeInTheDocument()
+    // the row is looked up again on each try: the table draws its rows again once the answer arrives
+    await waitFor(() => expect(within(row(first!.display)).getByRole('link', { name: 'Recommended update to 1.2.3 fixes 2 CVEs' })).toBeInTheDocument(), T)
     if (clean) expect(within(row(clean.display)).queryByRole('link', { name: /Recommended|exploited/ })).toBeNull()
     // review r1 of #943: an unproved match is not counted as exploited: it links to Needs your input
     expect(within(row(third.display)).queryByRole('link', { name: /^2 exploited CVEs$/ })).toBeNull()

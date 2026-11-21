@@ -7,7 +7,7 @@ import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
 // A device added by hand repeated "Added by hand: ... turn its network scan on under Sources" in the header, the fragile row,
-// Last checks and Sources, and the fragile row lost what "fragile" means. The note is said once, on Sources, next to the switch;
+// Last checks and Sources, and the fragile row lost what "fragile" means. The note is said once, on the network scan row of Sources;
 // every other row says what it means, and points at Sources only where it would otherwise read wrong.
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
@@ -41,9 +41,9 @@ describe('the device page of a device added by hand says why it is not scanned o
     const vuln = within(checks).getByRole('group', { name: VULN })
     await vi.waitFor(() => expect(vuln).toHaveTextContent('Network scan off: see Sources'), T)
 
-    // the full note: exactly once, on the Sources card
+    // the note: exactly once, on the network scan row of Sources, beside its switch
     const sources = screen.getByRole('region', { name: 'Sources' })
-    expect(within(sources).getByText('Added by hand: Vedette sends nothing to it until you turn its network scan on or set up SNMP here.')).toBeInTheDocument()
+    expect(await within(sources).findByText('Off · Added by hand: nothing is sent to it until you turn this on', undefined, T)).toBeInTheDocument()
     expect(notes()).toBe(1)
 
     // the fragile row says what fragile means, not why the device is not scanned
@@ -74,7 +74,7 @@ describe('the device page of a device added by hand says why it is not scanned o
     expect(res.status).toBe(200)
     renderApp('/devices/a-hand1', { role: 'admin' })
     const sources = await screen.findByRole('region', { name: 'Sources' }, T)
-    expect(await within(sources).findByText('Added by hand: Vedette does not scan it (no device check, no vulnerability check) until you turn its network scan on here.', undefined, T)).toBeInTheDocument()
+    expect(await within(sources).findByText('Off · Added by hand: nothing is sent to it until you turn this on', undefined, T)).toBeInTheDocument()
     expect(fragileHint()).toHaveTextContent(FRAGILE_INFO)
     expect(notes()).toBe(1)
   })

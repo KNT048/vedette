@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react'
+import { memo, useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -8,7 +8,7 @@ import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
-import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
+import { PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule, SampleDataNote } from '@/components/common/States'
 import { SourceBadge } from '@/components/common/SourceBadge'
@@ -30,7 +30,7 @@ import { scanRefusal } from '@/features/scanning/canScan'
 import type { Scanning } from '@/features/scanning/types'
 import { useModuleEnabled } from '@/lib/modules'
 import { needsByLine, needsRank, OsNeeds, SoftwareNeeds, useSoftwareNeeds } from '@/features/findings/SoftwareNeeds'
-import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
+import { DeviceFindings, DeviceFindingsLine, useDeviceFindingsSummary } from '@/features/findings/DevicePanel'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { EnteredNote } from './EnteredNote'
@@ -42,7 +42,7 @@ import { PossibleSameNotice } from './SameDevice'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
 import type { AlsoSeen, DeviceDetail, Observation, RegularScan, SoftwareLine } from './types'
-import { RiskMarker } from './RiskMarker'
+import { badgeOfRisk, DeviceBadge, riskDescription, riskWord } from './RiskMarker'
 
 /** #944: the fragile line promises a scan only when Vedette may scan the device now, by the one rule
  *  "Check this device now" uses (scanning/canScan.ts: the device, the ranges and exclusions, the ranges confirmed, discovery on);
@@ -213,7 +213,7 @@ function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; edi
   )
 }
 
-function Observations({ list }: { list: Observation[] }) {
+const Observations = memo(function Observations({ list }: { list: Observation[] }) {
   const { t } = useTranslation('inventory')
   const columns: ColumnDef<Observation>[] = [
     { id: 'field', header: t('obs.field'), accessorFn: (o) => t(`obs.fields.${o.field}`), cell: ({ getValue }) => <span className="whitespace-nowrap font-medium">{getValue() as string}</span> },
@@ -238,13 +238,13 @@ function Observations({ list }: { list: Observation[] }) {
         </div>
       )} />
   )
-}
+})
 
 /** Who lists a device's open ports, for the empty state: the box lists its own, an agent lists its machine's, the active
  *  sensor scans the rest. */
 type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
-function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset'] }) {
+const Services = memo(function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset'] }) {
   const { t } = useTranslation('inventory')
   const scanning = useScanning().data
   // On the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
@@ -279,7 +279,7 @@ function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: De
         </div>
       )} />
   )
-}
+})
 
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/ // the backend's versionRE: what "edit version" accepts
 
@@ -291,7 +291,9 @@ function AlsoSeenLine({ also }: { also: AlsoSeen[] }) {
   return <span className="text-caption text-muted [overflow-wrap:anywhere]" data-testid="software-also-seen">{t('software.alsoSeen', { reads: reads.join('; ') })}</span>
 }
 
-function SoftwareList({ d }: { d: DeviceDetail }) {
+// The tables' cells are drawn by functions made on each render, so a table drawn again mounts its cells again (an open row menu
+// closes). The page's header and tab counts change as the findings answer arrives: the tables are drawn again only when their device does.
+const SoftwareList = memo(function SoftwareList({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
@@ -433,7 +435,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       <NotInstalledDialog sw={gone} assetId={d.asset.id} device={nameOf(d.asset, kindLabel(d.asset.kind))} onClose={() => setGone(null)} />
     </>
   )
-}
+})
 
 function Notes({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
@@ -486,6 +488,8 @@ function Body() {
   const [ign, setIgn] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const renameButton = useRef<HTMLButtonElement>(null)
+  const findingsOn = useModuleEnabled('findings') === true
+  const summary = useDeviceFindingsSummary(id, q.data?.risk)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
@@ -498,14 +502,17 @@ function Body() {
   const d = q.data
   const a = d.asset
   const name = nameOf(a, kindLabel(a.kind))
+  const tabCount = (n: number, label: string) => ({ count: n, label, tone: 'off' as const })
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  // Khung trang: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
+  const badge = summary ? summary.badge : badgeOfRisk(d.risk)
+  // The page: title with the device's badge → notices (the box, not added yet) → tabs at ?tab=. Overview opens with the findings
+  // line; other modules' blocks plug into Overview (slot device.panels).
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
         meta={renaming
           ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
-          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
         editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
@@ -514,10 +521,10 @@ function Body() {
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {a.private_mac ? <p className="text-meta text-muted" data-testid="private-mac-note">{t('privateMac.note')}</p> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
-      <DeviceKpis d={d} />
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
+            {summary ? <DeviceFindingsLine summary={summary} /> : null}
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
             {hasSourcesCard(a) ? <DeviceSources d={d} /> : null}
             {/* "Last checks" (scanning) carries the check buttons; it reads the device from this page's own data */}
@@ -525,17 +532,18 @@ function Body() {
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>
         ) },
-        { id: 'software', label: t('detail.tabs.software'), panel: (
-          <Section id="software" title={t('software.title')} description={t('software.description')} info={t('software.descriptionInfo')}
+        ...(findingsOn ? [{ id: 'findings', label: t('findings:device.tab'), badge: summary ? tabCount(summary.open, t('findings:device.tabCount')) : undefined, panel: <DeviceFindings assetId={a.id} summary={summary} /> }] : []),
+        { id: 'software', label: t('detail.tabs.software'), badge: tabCount(a.software.length, t('detail.tabs.softwareCount')), panel: (
+          <Section id="software" title={t('software.title')} info={<><p>{t('software.description')}</p><p>{t('software.descriptionInfo')}</p></>}
             actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
             <SoftwareList d={d} />
           </Section>
         ) },
-        { id: 'services', label: t('detail.tabs.services'), panel: (
-          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
+        { id: 'services', label: t('detail.tabs.services'), badge: tabCount(a.services.length, t('detail.tabs.servicesCount')), panel: (
+          <Section id="services" title={t('services.title')} info={<><p>{t('services.description')}</p><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
-          <Section id="obs" title={t('obs.title')} description={t('obs.description')} info={<><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
+          <Section id="obs" title={t('obs.title')} info={<><p>{t('obs.description')}</p><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
             <Observations list={d.observations} />
           </Section>
         ) },
@@ -558,21 +566,6 @@ function Body() {
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={a.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: (e) => toast.error(errMsg(e)) })} />
     </>
-  )
-}
-
-/** Ba con số trả lời "máy này có sao không": phát hiện (khi module findings bật), phần mềm, dịch vụ mở; mỗi số dẫn tới chỗ xem. */
-function DeviceKpis({ d }: { d: DeviceDetail }) {
-  const { t } = useTranslation('inventory')
-  const findingsOn = useModuleEnabled('findings')
-  const counts = useDeviceFindingCounts(d.asset.id) // The open findings the link opens, as the findings list counts them
-  const id = encodeURIComponent(d.asset.id)
-  return (
-    <KpiStrip label={t('detail.kpi.label')} items={[
-      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?tab=open&device=${id}` }] : []),
-      { value: d.asset.software.length, label: t('detail.kpi.software'), to: '?tab=software' },
-      { value: d.asset.services.length, label: t('detail.kpi.services'), to: '?tab=services' },
-    ]} />
   )
 }
 

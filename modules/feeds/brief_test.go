@@ -90,6 +90,11 @@ func TestBrief_CVE2025_22225(t *testing.T) {
 		if len(counting) != 55 || b.RangesFrom != OriginNVD || b.RangesComplete {
 			t.Errorf("nvd first %v: %d ranges count, from %q complete %v", nvdFirst, len(counting), b.RangesFrom, b.RangesComplete)
 		}
+		// NVD names exact releases and no fix; VMware's record states the fixed builds in its own notation ("ESXi80U3d-24585383"),
+		// which the record reader does not read yet, so it stores no row of them and no range of this CVE carries a fixed version.
+		if slices.ContainsFunc(b.Ranges, func(r BriefRange) bool { return r.Fixed != "" }) {
+			t.Errorf("nvd first %v: a range carries a fixed version nothing stated in a readable form", nvdFirst)
+		}
 		if got := []string{counting[0].Versions, counting[2].Versions, counting[43].Versions}; !slices.Equal(got, []string{"7.0", "7.0 update_1", "every version"}) {
 			t.Errorf("nvd first %v: versions %q", nvdFirst, got)
 		}
@@ -220,6 +225,56 @@ func TestBrief_ReferencePrecedence(t *testing.T) {
 	}
 	if b, _, _ := e.svc.st.Brief(t.Context(), cve); !slices.Equal(b.CWE, []Weakness{{"CWE-89", "Improper Neutralization of Special Elements used in an SQL Command"}}) {
 		t.Errorf("NVD's weaknesses must stand: %+v", b.CWE)
+	}
+}
+
+// The weaknesses are NVD's while NVD's last answer lists any, else the CVE record's newest: the same list whichever pull came first.
+func TestBrief_WeaknessesDoNotDependOnWriteOrder(t *testing.T) {
+	t.Parallel()
+	cwe := func(steps ...any) []Weakness {
+		e := newEnv(t)
+		cve := "CVE-2026-0701"
+		applyV(t, e.db, e.clock(), "cisa-kev", []Vuln{vuln(cve, "Acme", "Box", "2026-11-01")}, false)
+		for _, st := range steps {
+			write(t, e.db, func(tx *sql.Tx) error {
+				switch x := st.(type) {
+				case CVERecord:
+					x.CVE, x.State = cve, RecordPublished
+					k, err := recordKeepOf(t.Context(), tx, e.clock(), nil)
+					if err != nil {
+						return err
+					}
+					_, err = writeRecords(t.Context(), tx, []CVERecord{x}, k, e.clock())
+					return err
+				case NVDRecord:
+					x.CVE, x.Status = cve, "Analyzed"
+					return storeRecords(t.Context(), tx, []NVDRecord{x}, e.clock())
+				}
+				return nil
+			})
+		}
+		b, _, err := e.svc.st.Brief(t.Context(), cve)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b.CWE
+	}
+	rec := func(ids ...string) CVERecord { return CVERecord{CWE: ids} }
+	nvd := func(ids ...string) NVDRecord { return NVDRecord{CWE: ids} }
+	for _, c := range []struct {
+		name  string
+		steps []any
+		want  string
+	}{
+		{"record, NVD with none, record again", []any{rec("CWE-787"), nvd(), rec("CWE-79")}, "CWE-79"},
+		{"record, record again, NVD with none", []any{rec("CWE-787"), rec("CWE-79"), nvd()}, "CWE-79"},
+		{"record, NVD with one", []any{rec("CWE-79"), nvd("CWE-89")}, "CWE-89"},
+		{"NVD with one, record", []any{nvd("CWE-89"), rec("CWE-79")}, "CWE-89"},
+		{"NVD with one, NVD with none, record", []any{nvd("CWE-89"), nvd(), rec("CWE-79")}, "CWE-79"},
+	} {
+		if got := cwe(c.steps...); len(got) != 1 || got[0].ID != c.want {
+			t.Errorf("%s: %+v, want %s", c.name, got, c.want)
+		}
 	}
 }
 

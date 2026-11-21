@@ -64,10 +64,11 @@ type nvdWrite struct {
 
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
 // description), its scores and its NVD ranges replace what the catalogue had (the CVE record's own rows stay; reads prefer NVD's when
-// there are any). NVD's weaknesses replace the CVE's when NVD lists any (they carry the CNA's and CISA's too); NVD's references replace
-// the CVE's, for a CVE whose references are kept (ret.keep), once NVD has tagged them (nvdRefs). A record NVD rejected keeps only its
-// status, so the retention rule drops it unless a list, a signal or a finding holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its pages over several checks
-// never puts back what a later pull already replaced.
+// there are any). NVD's weaknesses replace the CVE's when NVD lists any (they carry the CNA's and CISA's too; cwe_nvd says so, and an
+// answer that lists none hands cwe back to the CVE record); NVD's references replace the CVE's, for a CVE whose references are kept
+// (ret.keep), once NVD has tagged them (nvdRefs). A record NVD rejected keeps only its status, so the retention rule drops it unless a
+// list, a signal or a finding holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its
+// pages over several checks never puts back what a later pull already replaced.
 func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret retention, now time.Time) (nvdWrite, error) {
 	var out nvdWrite
 	stamp := store.FormatTS(now)
@@ -80,9 +81,9 @@ func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret rete
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
 	defer func() { _ = storedMod.Close() }()
-	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, cwe, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, cwe, cwe_nvd, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(cve) DO UPDATE SET published = coalesce(excluded.published, published), modified = coalesce(excluded.modified, modified), nvd_status = excluded.nvd_status, nvd_at = excluded.nvd_at,
-description = excluded.description, cwe = CASE WHEN excluded.cwe = '[]' THEN cwe ELSE excluded.cwe END, updated_at = excluded.updated_at`)
+description = excluded.description, cwe = CASE WHEN excluded.cwe = '[]' THEN cwe ELSE excluded.cwe END, cwe_nvd = excluded.cwe_nvd, updated_at = excluded.updated_at`)
 	if err != nil {
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
@@ -164,7 +165,7 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return out, err
 		}
-		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, string(cwe), stamp); err != nil {
+		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, string(cwe), len(r.CWE) > 0, stamp); err != nil {
 			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 		}
 		if _, err := delMetric.ExecContext(ctx, r.CVE); err != nil {

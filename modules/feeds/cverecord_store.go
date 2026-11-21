@@ -15,9 +15,9 @@ import (
 
 // What a CVE record writes into the catalogue. The record reader is the one writer of feeds_cve.record_at, title, solution, workaround
 // and the ssvc columns and of the cna and adp rows of feeds_cve_range. It writes the description and the published day only while NVD
-// has given none (NVD's English description wins as soon as NVD answers), the weaknesses (cwe) while NVD has not answered or listed none,
-// and the references (feeds_cve_ref) while NVD has tagged none (nvdRefs): NVD's record carries the CNA's and CISA's weaknesses and
-// references, tagged by an analyst. CVSS scores stay NVD's: NVD's record carries the CNA's and CISA's scores too.
+// has given none (NVD's English description wins as soon as NVD answers), the weaknesses (cwe) while NVD's last answer listed none
+// (cwe_nvd = 0), and the references (feeds_cve_ref) while NVD has tagged none (nvdRefs): NVD's record carries the CNA's and CISA's
+// weaknesses and references, tagged by an analyst. CVSS scores stay NVD's: NVD's record carries the CNA's and CISA's scores too.
 
 // importantSQL is the CVEs whose references the catalogue keeps (with the pinned CVEs the caller adds): an exploited-list entry (a
 // custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID.
@@ -79,7 +79,7 @@ func prepareRecordStmts(ctx context.Context, tx *sql.Tx) (*recordStmts, error) {
 		q  string
 	}{
 		{&s.ensure, `INSERT INTO feeds_cve (cve, updated_at) VALUES (?, ?) ON CONFLICT(cve) DO NOTHING`},
-		{&s.update, `UPDATE feeds_cve SET record_at = ?, title = ?, cwe = CASE WHEN nvd_at IS NULL OR cwe = '[]' THEN ? ELSE cwe END, solution = ?, workaround = ?, ssvc_exploitation = ?, ssvc_automatable = ?,
+		{&s.update, `UPDATE feeds_cve SET record_at = ?, title = ?, cwe = CASE WHEN cwe_nvd = 0 THEN ? ELSE cwe END, solution = ?, workaround = ?, ssvc_exploitation = ?, ssvc_automatable = ?,
 ssvc_impact = ?, description = CASE WHEN nvd_at IS NULL OR description = '' THEN ? ELSE description END, published = coalesce(published, ?)
 WHERE cve = ?`},
 		{&s.readAt, `SELECT record_at IS NOT NULL, EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = feeds_cve.cve AND r.origin = 'nvd') FROM feeds_cve WHERE cve = ?`},

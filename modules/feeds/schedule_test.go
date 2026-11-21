@@ -25,23 +25,25 @@ func TestContract_INV8_ErrorBacksOffAndSuccessResets(t *testing.T) {
 	t.Parallel()
 	boom := errors.New("boom")
 	var s State
-	if !s.Due(t0, 6) || !s.NextAttempt(6).IsZero() {
+	if !s.Due(t0, 6, nil) {
 		t.Fatal("a feed never pulled is due immediately")
 	}
 	s = s.Record(t0, nil)
-	if got := s.NextAttempt(6); !got.Equal(t0.Add(6 * time.Hour)) {
-		t.Fatalf("after success: %v", got)
+	// After a success the regular pull is the schedule's: due only once it came due after that pull.
+	if s.Due(t0.Add(6*time.Hour), 6, nil) {
+		t.Error("a source with nothing due is not pulled")
 	}
-	if s.Due(t0.Add(6*time.Hour-time.Second), 6) || !s.Due(t0.Add(6*time.Hour), 6) {
-		t.Error("due boundary")
+	before, after := t0.Add(-time.Minute), t0.Add(6*time.Hour)
+	if s.Due(t0.Add(6*time.Hour), 6, &before) || !s.Due(t0.Add(6*time.Hour), 6, &after) {
+		t.Error("due boundary: the schedule came due before the last pull, or after it")
 	}
 	now := t0.Add(6 * time.Hour)
 	var delays []time.Duration
 	for i := 0; i < 5; i++ {
 		s = s.Record(now, boom)
-		next := s.NextAttempt(24)
+		next := s.RetryAt(24)
 		delays = append(delays, next.Sub(now))
-		if s.Due(next.Add(-time.Second), 24) || !s.Due(next, 24) {
+		if s.Due(next.Add(-time.Second), 24, nil) || !s.Due(next, 24, nil) {
 			t.Fatalf("failure %d: due boundary", i+1)
 		}
 		now = next
@@ -57,7 +59,7 @@ func TestContract_INV8_ErrorBacksOffAndSuccessResets(t *testing.T) {
 		t.Errorf("state = %+v", s)
 	}
 	s = s.Record(now, nil)
-	if s.Failures != 0 || !s.NextAttempt(24).Equal(now.Add(24*time.Hour)) {
+	if s.Failures != 0 || s.Due(now.Add(time.Hour), 24, nil) {
 		t.Errorf("success must reset: %+v", s)
 	}
 }
@@ -65,27 +67,31 @@ func TestContract_INV8_ErrorBacksOffAndSuccessResets(t *testing.T) {
 func TestBackoffNeverExceedsTheInterval(t *testing.T) {
 	t.Parallel()
 	s := State{LastAttempt: t0, LastSuccess: t0.Add(-time.Hour), Failures: 7}
-	if got := s.NextAttempt(1).Sub(t0); got != time.Hour {
+	if got := s.RetryAt(1).Sub(t0); got != time.Hour {
 		t.Errorf("1 h feed retried after %v", got)
 	}
-	if got := s.NextAttempt(24).Sub(t0); got != 320*time.Minute {
+	if got := s.RetryAt(24).Sub(t0); got != 320*time.Minute {
 		t.Errorf("24 h feed retried after %v", got)
 	}
 	// A feed whose very first pull failed is retried by back-off, not at once or never.
 	first := State{}.Record(t0, errors.New("x"))
-	if got := first.NextAttempt(6).Sub(t0); got != 5*time.Minute {
+	if got := first.RetryAt(6).Sub(t0); got != 5*time.Minute {
 		t.Errorf("first failure: %v", got)
 	}
 }
 
 func TestIntervalIsClamped(t *testing.T) {
 	t.Parallel()
-	s := State{LastSuccess: t0, LastAttempt: t0}
-	if got := s.NextAttempt(0).Sub(t0); got != time.Hour {
+	s := State{LastSuccess: t0, LastAttempt: t0, Failures: 1}
+	if got := s.RetryAt(0).Sub(t0); got != 5*time.Minute { // the interval floor (1 h) is above the first back-off
 		t.Errorf("0 h -> %v", got)
 	}
-	if got := s.NextAttempt(100000).Sub(t0); got != 168*time.Hour {
+	s.Failures = 20
+	if got := s.RetryAt(100000).Sub(t0); got != BackoffMax { // the interval ceiling (168 h) is above the back-off cap
 		t.Errorf("huge -> %v", got)
+	}
+	if got := s.RetryAt(0).Sub(t0); got != time.Hour {
+		t.Errorf("0 h with a long back-off -> %v", got)
 	}
 }
 
@@ -113,10 +119,15 @@ func TestContract_INV9_Staleness(t *testing.T) {
 	if !IsStale(t0, time.Time{}, 6) {
 		t.Error("never fetched is stale")
 	}
-	// A job that follows NextAttempt keeps data within MaxDataAge of due while the source answers.
+	// A job that pulls when the schedule says keeps data within MaxDataAge of due while the source answers.
 	var s State
+	var lastDue *time.Time
 	for now := t0; now.Before(t0.Add(72 * time.Hour)); now = now.Add(time.Minute) {
-		if s.Due(now, 6) {
+		if now.Sub(t0)%(6*time.Hour) == 0 { // the schedule's own rhythm
+			d := now
+			lastDue = &d
+		}
+		if s.Due(now, 6, lastDue) {
 			s = s.Record(now, nil)
 		}
 		if s.Failures == 0 && !s.LastSuccess.IsZero() && IsStale(now, s.LastSuccess, 6) {

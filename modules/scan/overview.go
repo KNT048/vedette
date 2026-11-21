@@ -10,15 +10,11 @@ import (
 )
 
 // EngineView is the scan module as Settings › Scanning shows its nuclei card (#850, core INV-40): the newest run that ended, the run
-// going on now with its progress, the next scheduled run and why no scan can start (nil when one can).
+// going on now with its progress, and why no scan can start (nil when one can).
 type EngineView struct {
 	Last        *RunHead
 	Running     *RunHead
-	NextRun     *string
 	BlockReason *string
-	// ScheduleBlocked is why the schedule, on, starts nothing (the organization zone unreadable, or its time outside the shared
-	// window: review #857 L6); nil otherwise.
-	ScheduleBlocked *string
 }
 
 // RunHead is a run without its per-device rows.
@@ -35,7 +31,7 @@ func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 	if err != nil {
 		return EngineView{}, err
 	}
-	v := EngineView{NextRun: cv.NextRun, BlockReason: cv.BlockReason, ScheduleBlocked: cv.ScheduleBlockedReason}
+	v := EngineView{BlockReason: cv.BlockReason}
 	if v.Last, err = s.runHead(ctx, `r.status NOT IN ('queued', 'running', 'stopping')`); err != nil {
 		return EngineView{}, err
 	}

@@ -38,7 +38,6 @@ const ALLOWED: { file: string; key: string; why: string }[] = [
   { file: 'features/findings/NotAdded.tsx', key: 'notAdded.chip', why: '"Not added yet" has one component, this one, used wherever a device nobody added is named' },
   { file: 'features/exposure/OwnerChip.tsx', key: 'status.commitYes', why: 'whether a person confirmed they may scan a public address, not a vulnerability' },
   { file: 'features/exposure/OwnerChip.tsx', key: 'status.commitNo', why: 'whether a person confirmed they may scan a public address, not a vulnerability' },
-  { file: 'features/scan/HistoryTab.tsx', key: 'ident.', why: 'how far a scan identified a device ("OS guessed, not checked"), not a vulnerability' },
   { file: 'features/findings/Recommendation.tsx', key: 'rec.confirmedChip', why: 'a mitigation pack the maintainers reviewed, not a vulnerability' },
   { file: 'features/findings/Plan.tsx', key: 'plan.tier.', why: 'the EPSS likelihood tier ("Likely to be exploited"), a forecast and not a status' },
   { file: 'features/feeds/TierCvePage.tsx', key: 'tierCve.tier.', why: 'the EPSS likelihood tier ("Likely to be exploited"), a forecast and not a status' },

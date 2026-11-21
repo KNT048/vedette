@@ -116,7 +116,7 @@ func (s *Service) queuePendingOnce(ctx context.Context) error {
 
 // Tick is the window job, run every minute. While a window is open it checks first the devices no check has reached yet (at most
 // firstBeforeSweep of them, within a share of the window), then goes on with the pass of the ranges (resuming the one that waits, or
-// starting the window's pass), then checks the rest of the waiting devices, reads SNMP and runs the weekly scans of every port. Every
+// following the pass the schedule started), then checks the rest of the waiting devices, reads SNMP and runs the weekly scans of every port. Every
 // piece is a run: Tick queues or resumes it and waits for it. Outside a window it runs the first pass of a new box, else nothing.
 func (s *Service) Tick(ctx context.Context) error {
 	if err := s.queuePendingOnce(ctx); err != nil {
@@ -155,7 +155,7 @@ func (s *Service) Tick(ctx context.Context) error {
 		return err
 	}
 	// The pass of the ranges; the devices that wait for their check take turns with it between its batches.
-	if err := s.windowSweep(ctx, st, start); err != nil {
+	if err := s.windowSweep(ctx); err != nil {
 		return err
 	}
 	if err := s.drain(ctx); err != nil {
@@ -234,28 +234,15 @@ func (s *Service) drainQueue(ctx context.Context, first bool, limit int, until t
 // after its batch.
 var sweepTurn = time.Minute
 
-// windowSweep goes on with the pass of the ranges inside the window: the pass that waits is resumed, one that is queued or running is
-// followed, and when no pass ended or began in this window a new one starts. The devices that wait for their check take turns with
-// the pass between its batches.
-func (s *Service) windowSweep(ctx context.Context, st Settings, start time.Time) error {
+// windowSweep goes on with the pass of the ranges inside the window: the pass that waits is resumed and one that is queued or
+// running is followed. A new pass is not started here: it starts when the sweep's schedule (inventory.sweep) comes due. The devices
+// that wait for their check take turns with the pass between its batches.
+func (s *Service) windowSweep(ctx context.Context) error {
 	sw, err := s.liveRun(ctx, RunSweep)
-	if err != nil {
+	if err != nil || sw == nil {
 		return err
 	}
-	id := ""
-	switch {
-	case sw != nil:
-		id = sw.ID
-	default:
-		done, err := s.sweptSince(ctx, start)
-		if err != nil || done {
-			return err
-		}
-		if id, err = s.newSweep(ctx, st, run.Spec{Trigger: run.Schedule, RequestedBy: run.System}, nil); err != nil {
-			return err
-		}
-	}
-	_, err = s.followPass(ctx, id, true, true)
+	_, err = s.followPass(ctx, sw.ID, true, true)
 	return err
 }
 
@@ -334,18 +321,6 @@ func (s *Service) nextWaitingCheck(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("sensoractive: read the queue: %w", err)
 	}
 	return id, nil
-}
-
-// sweptSince says a pass began or ended since start: the window's pass is made once.
-func (s *Service) sweptSince(ctx context.Context, start time.Time) (bool, error) {
-	at := s.ts(start)
-	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run WHERE module = ? AND kind = ? AND (queued_at >= ? OR ended_at >= ?)`,
-		ModuleID, RunSweep, at, at).Scan(&n)
-	if err != nil {
-		return false, fmt.Errorf("sensoractive: read the runs: %w", err)
-	}
-	return n > 0, nil
 }
 
 // firstPassDue says no pass was ever made on this box.
@@ -430,9 +405,6 @@ func (s *Service) discover(ctx context.Context, base run.Spec) (Result, error) {
 	res.Status = StatusStopped
 	return res, ErrStopped
 }
-
-// ts is a time as stored.
-func (s *Service) ts(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
 // ---- the runs of one device ----
 

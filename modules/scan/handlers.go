@@ -92,11 +92,5 @@ func patchOf(r *oas.ScanPutScansConfigReq) Patch {
 		p.From = opt(w.From.Set, w.From.Value)
 		p.To = opt(w.To.Set, w.To.Value)
 	}
-	if s, ok := r.Schedule.Get(); ok {
-		p.SchedEnabled = opt(s.Enabled.Set, s.Enabled.Value)
-		p.SchedFrequency = opt(s.Frequency.Set, string(s.Frequency.Value))
-		p.SchedWeekday = opt(s.Weekday.Set, s.Weekday.Value)
-		p.SchedAt = opt(s.At.Set, s.At.Value)
-	}
 	return p
 }

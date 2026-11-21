@@ -148,7 +148,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     const first = (['name', 'url', 'auth', 'parser'] as const).find((k) => n[k])
     if (first) { focusField(first); return }
     // a new feed starts on its default schedule, changed afterwards in this dialog
-    schedule.commit().then(() => save.mutate({ id: feed?.id, name: name.trim(), kind, url: url.trim(), enabled: feed?.enabled ?? true, interval_hours: feed?.interval_hours ?? 6,
+    schedule.commit().then(() => save.mutate({ id: feed?.id, name: name.trim(), kind, url: url.trim(), enabled: feed?.enabled ?? true,
       auth: { type: auth, header_name: auth === 'header' ? header : null, username: auth === 'basic' ? user.trim() : null, secret: secret || undefined }, parser },
     { onSuccess: () => { toast.success(feed ? t('dialog.saved', { name: name.trim() }) : t('dialog.added', { name: name.trim() })); onClose() }, onError: (er) => focusField(serverField(er) ?? 'other') }), () => undefined)
   }

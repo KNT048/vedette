@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
@@ -20,7 +20,7 @@ import (
 
 // Job timing.
 const (
-	// JobTick is how often the schedule and the KEV rescans are looked at: well inside the 60 minutes of S-SCAN-2.
+	// JobTick is how often the KEV rescans are looked at: well inside the 60 minutes of S-SCAN-2.
 	JobTick = time.Minute
 	// rescanSettle lets the inventory and findings match a new KEV entry first (the same event makes the findings).
 	rescanSettle = time.Minute
@@ -41,7 +41,6 @@ const noteWindowEnded = "The scan window ended; the devices not reached are scan
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "rescan", Every: JobTick, Run: svc.RunRescans},
-		{Module: ModuleID, Name: "schedule", Every: JobTick, Run: svc.RunSchedule},
 		{Module: ModuleID, Name: "retention", Every: time.Hour, Housekeeping: true, Run: svc.RunRetention},
 		{Module: ModuleID, Name: "recover", Every: RecoverEvery, Run: svc.RunRecover},
 	}
@@ -437,66 +436,57 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 	return s.start(ctx, runSpec{trigger: trigger, note: note, user: systemUser, ids: ids, first: first, onlyCVEs: onlyCVEs, end: end, inTx: inTx})
 }
 
-// RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
-// the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
-// the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
-// in a later window (#164 review M1). A slot starts at most one run. Until a first scheduled run has started (firstPending;
-// not sched_last, which a missed or empty slot also records) the slots are those of every window day (slotOK first); such an extra slot (not on the weekly weekday) that closed or had nothing to
-// scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
-// slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
-// inside an open window waits for the next one instead of starting at once.
-func (s *Service) RunSchedule(ctx context.Context) error {
-	var last, saved sql.NullString
-	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last, updated_at FROM scan_setting WHERE id = 1`)
-	if err := row.Scan(&last, &saved); err != nil {
-		return fmt.Errorf("scan: reading the schedule: %w", err)
-	}
+// ScheduleKey is the owner key of the regular vulnerability check in core/schedule.
+const ScheduleKey = "scan.vuln"
+
+// ScheduleOwner is what the vulnerability checks register with core/schedule: when they come due is the person's rule (the
+// shared editor); what starts is one run over every device that may be scanned without a pick. By default they run on Sundays at
+// 23:00 inside the scan window, and the first check of a new box is in its first open window. The window is always the scan window.
+// A refusal that passes (no scope yet, a check running, the scanner not ready, the window just closed) holds the due time instead of
+// using it up, so the check starts as soon as it can.
+func (s *Service) ScheduleOwner() schedule.Owner {
+	return schedule.Owner{Module: ModuleID, Key: ScheduleKey, AdminOnly: true, Default: schedule.WeeklyAt("23:00", 7).InWindow(), DefaultOn: true, FirstInWindow: true,
+		Limits: schedule.Limits{Windows: []schedule.WindowMode{schedule.WindowGlobal}, Reason: "Scheduled checks run only inside the scan window (Settings, Scanning, Safety)."},
+		Start:  s.startScheduled}
+}
+
+// startScheduled starts the regular check (S-SCAN-4) inside the schedule's transaction: the run, its steps and its audit rows are
+// written with the schedule's due time. A run that starts because the schedule came due stops by itself when the window it was
+// held for closes (the box's scan window, or the schedule's own); a person's run once now does not. Nothing starts, and the reason is
+// said, while the scope is not confirmed, the scanner is not ready, another check runs or no device may be scanned without a pick.
+func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fire) (string, error) {
 	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return err
-	}
-	now := s.now()
-	loc, ok := s.loc(ctx)
-	if !ok { // the zone unknown: the tick is skipped, the slot stays open (fail closed)
-		return nil
-	}
-	never, err := firstPending(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return err
-	}
-	slot := st.lastSlot(now, loc, never)
-	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
-		return nil
-	}
-	extra := never && !st.slotOK(*slot, false) // a slot only because no first run happened yet: never recorded as missed or empty
-	if extra && saved.Valid && saved.String >= store.FormatTS(*slot) {
-		return nil
-	}
-	end, _ := st.slotWindowEnd(*slot)
-	if !now.Before(end) {
-		if extra {
-			return nil
-		}
-		// A slot from before the schedule was last saved (turned on, moved) was never due: it is passed over quietly.
-		return s.missSlot(ctx, *slot, !saved.Valid || saved.String < store.FormatTS(*slot))
+		return "", err
 	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
-	if err != nil || sc.ConfirmedAt == "" {
-		return err
+	if err != nil {
+		return "", err
 	}
-	if busy, err := s.activeRun(ctx, s.cfg.DB.Reader()); err != nil || busy != "" || !s.scannerReady(ctx) {
-		return err
+	if sc.ConfirmedAt == "" {
+		return "", schedule.Hold(msgNoCommitment)
 	}
-	if c, err := time.Parse(time.RFC3339Nano, sc.ConfirmedAt); extra && (err != nil || !c.Before(*slot)) {
-		return nil
+	var end time.Time
+	if f.Trigger == run.Schedule {
+		if end, err = s.windowEnd(ctx, st, f.Rule); err != nil {
+			return "", err
+		}
+	}
+	if busy, err := s.activeRun(ctx, tx); err != nil {
+		return "", err
+	} else if busy != "" {
+		return "", schedule.Hold("A vulnerability check is already running; the scheduled check starts when it ends.")
+	}
+	if !s.scannerReady(ctx) {
+		return "", schedule.Hold(msgScannerDown)
 	}
 	devs, err := s.cfg.Inventory.Devices(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	auto, err := s.policies(ctx, devs, false) // one batch read
 	if err != nil {
-		return err
+		return "", err
 	}
 	var ids []string
 	var first Current
@@ -509,70 +499,47 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		}
 		ids = append(ids, d.ID)
 	}
-	if len(ids) == 0 { // nothing may be scanned without a pick: the slot is done
-		if extra {
-			return nil
+	if len(ids) == 0 {
+		reason := "No device may be checked without someone picking it, so there was nothing to check."
+		if f.First { // a new box has no devices yet: its first check waits for them
+			return "", schedule.Hold(reason)
 		}
-		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markSlot(ctx, tx, *slot) })
+		return "", schedule.Skip(reason)
 	}
-	// The slot is recorded in the transaction that writes its run (#164 review L4): a failure leaves neither, so a slot
-	// never has a run and still looks open. A start refused because a run or the engine is busy leaves the slot open
-	// for the next tick while its window lasts.
-	mark := func(ctx context.Context, tx *sql.Tx, _ string) error { return markSlot(ctx, tx, *slot) }
-	if _, err := s.startAuto(ctx, "schedule", nil, ids, first, nil, end, mark); err != nil && !errors.Is(err, errRunning) {
-		return err
+	user := systemUser
+	trigger := "schedule"
+	if f.Trigger == run.Manual {
+		user, trigger = f.By, "manual"
 	}
-	return nil
+	return s.startTx(ctx, tx, runSpec{trigger: trigger, user: user, ids: ids, first: first, end: end, scheduleID: f.ScheduleID})
 }
 
-// firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started.
-// sched_last cannot say it: a weekday slot that was missed or had nothing to scan is recorded without a run, and on a box that
-// was off or empty that first Sunday the first-run rule never applied. A run is kept 400 days, so the answer does not go back on a box whose schedule runs at least yearly.
-func firstPending(ctx context.Context, q interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}) (bool, error) {
-	var ran bool
-	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM core_run WHERE module = 'scan' AND kind = 'vuln_check' AND trigger = 'schedule')`).Scan(&ran); err != nil {
-		return false, fmt.Errorf("scan: reading the scheduled runs: %w", err)
-	}
-	return !ran, nil
-}
-
-func markSlot(ctx context.Context, tx *sql.Tx, slot time.Time) error {
-	_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET sched_last = ? WHERE id = 1`, store.FormatTS(slot))
-	return err
-}
-
-// missSlot records a slot whose window closed before its run could start, with an audit row when it was due.
-func (s *Service) missSlot(ctx context.Context, slot time.Time, due bool) error {
-	ts := store.FormatTS(slot)
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if err := markSlot(ctx, tx, slot); err != nil {
-			return err
+// windowEnd is when a check that a rule started now must stop: the end of the window the rule holds its starts in (the box's scan
+// window, or the rule's own); zero for a rule without a window. A window that is not open now means the start is refused: the
+// schedule holds a due time until its window opens, so this is a window that closed or moved between the two reads.
+func (s *Service) windowEnd(ctx context.Context, st Settings, r schedule.Rule) (time.Time, error) {
+	var w schedule.Window
+	switch r.Window {
+	case schedule.WindowGlobal:
+		w = schedule.Window{Days: st.Window.Days, From: st.Window.From, To: st.Window.To}
+	case schedule.WindowCustom:
+		if r.WindowFrom == nil || r.WindowTo == nil {
+			return time.Time{}, nil
 		}
-		if !due {
-			return nil
-		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: systemUser, Action: "scan.schedule.missed", Target: "scan",
-			Detail: "the scheduled run of " + ts + " did not start before its window closed; the next slot runs as planned"})
-	})
-}
-
-// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off; first as in
-// slotOK.
-func (c Settings) lastSlot(now time.Time, loc *time.Location, first bool) *time.Time {
-	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
-		return nil
+		w = schedule.Window{Days: r.WindowDays, From: *r.WindowFrom, To: *r.WindowTo}
+	default:
+		return time.Time{}, nil
 	}
-	at := minutes(c.Schedule.At)
-	local := now.In(loc)
-	for i := range 8 {
-		d := time.Date(local.Year(), local.Month(), local.Day()-i, at/60, at%60, 0, 0, loc)
-		if !d.After(now) && c.slotOK(d, first) {
-			return &d
-		}
+	loc, ok := s.loc(ctx)
+	if !ok {
+		return time.Time{}, schedule.Hold(msgZoneUnknown)
 	}
-	return nil
+	now := s.now()
+	if !w.Contains(now, loc) {
+		return time.Time{}, schedule.Hold("The scan window is closed; the check starts when it opens.")
+	}
+	_, end, _ := w.Span(now, loc)
+	return end, nil
 }
 
 // RunRetention deletes probe rows older than RetentionDays and rescan events older than a year (INV-7).

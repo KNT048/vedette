@@ -29,20 +29,17 @@ export const ScanConfig = z.object({
   stop_on_unresponsive: z.boolean(),
   unresponsive_after: z.number().int().min(2).max(20),
   auto_rescan: z.boolean(),
-  schedule: z.object({ enabled: z.boolean(), frequency: z.enum(['daily', 'weekly']), weekday: day, at: hhmm }),
 })
 export const ScanConfigPatch = z.object({
   window: ScanConfig.shape.window.partial(), rate: ScanConfig.shape.rate, exclusions: ScanConfig.shape.exclusions,
   stop_on_unresponsive: z.boolean(), unresponsive_after: ScanConfig.shape.unresponsive_after, auto_rescan: z.boolean(),
-  schedule: ScanConfig.shape.schedule.partial(),
   dangerous_checks: z.literal(false).describe('Rejected when true: no exploitation, no DoS'),
   version: z.string().max(64).describe('The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)'),
 }).partial()
 export const ScanConfigResponse = z.object({
-  config: ScanConfig, next_run: iso.nullable(), scope: ScanScope,
+  config: ScanConfig, scope: ScanScope,
   can_scan: z.boolean().describe('false without the scope commitment, or while the scanner in the scan container is not available'), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
   version: z.string().describe('Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); "" when this module keeps its own copy'),
-  schedule_blocked_reason: z.string().nullable().describe('Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then'),
 })
 
 export const RunStatus = z.enum(['running', 'stopping', 'done', 'stopped', 'auto_stopped'])

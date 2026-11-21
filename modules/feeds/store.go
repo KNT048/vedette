@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	coreschedule "github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -57,7 +58,7 @@ type sourceRow struct {
 	URL           string
 	DefaultURL    *string
 	Enabled       bool
-	IntervalHours int
+	IntervalHours int // how often the source's schedule pulls it, in hours: read from core_schedule (feeds.source:<id>), never stored here
 	Auth          AuthType
 	HeaderName    *string
 	Username      *string
@@ -96,7 +97,8 @@ func (r sourceRow) state() State {
 	return s
 }
 
-const sourceCols = `id, builtin, name, kind, format, url, default_url, enabled, interval_hours, auth_type, auth_header_name,
+const sourceCols = `id, builtin, name, kind, format, url, default_url, enabled, COALESCE((SELECT MAX(1, (every_minutes + 59) / 60) FROM core_schedule WHERE owner_key = 'feeds.source:' || feeds_source.id AND freq = 'interval'), 24),
+auth_type, auth_header_name,
 auth_username, secret_id, secret_last4, parser, license, created_at, last_fetch, last_success, failures, records, status,
 error, etag, last_modified, catalog_version, rev, answered_by, mirror_etag, mirror_last_modified`
 
@@ -196,11 +198,11 @@ func sourceTx(ctx context.Context, tx *sql.Tx, id string) (sourceRow, error) {
 func (s *Store) SeedBuiltins(ctx context.Context, now time.Time) error {
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		for _, b := range BuiltinSources() {
-			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_source (id, builtin, name, kind, format, url, default_url, enabled, interval_hours, license, created_at)
-VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_source (id, builtin, name, kind, format, url, default_url, enabled, license, created_at)
+VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format = excluded.format, license = excluded.license,
   url = CASE WHEN url = default_url THEN excluded.url ELSE url END, default_url = excluded.default_url`,
-				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK), b.IntervalHours, b.License, store.FormatTS(now))
+				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK), b.License, store.FormatTS(now))
 			if err != nil {
 				return fmt.Errorf("feeds: seed %s: %w", b.ID, err)
 			}
@@ -244,6 +246,9 @@ func retireBuiltins(ctx context.Context, tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_source WHERE id = ? AND builtin = 1`, id); err != nil {
 			return fmt.Errorf("feeds: retire built-in %s: %w", id, err)
 		}
+		if err := coreschedule.DeleteTx(ctx, tx, scheduleKey(id)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -273,10 +278,10 @@ func insertCustom(ctx context.Context, tx *sql.Tx, r sourceRow) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO feeds_source (id, builtin, name, kind, format, url, enabled, interval_hours, auth_type,
+	_, err = tx.ExecContext(ctx, `INSERT INTO feeds_source (id, builtin, name, kind, format, url, enabled, auth_type,
 auth_header_name, auth_username, secret_id, secret_last4, parser, created_at)
-VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, r.Name, string(r.Kind), string(r.Format), r.URL, boolInt(r.Enabled), r.IntervalHours, string(r.Auth),
+VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, r.Name, string(r.Kind), string(r.Format), r.URL, boolInt(r.Enabled), string(r.Auth),
 		r.HeaderName, r.Username, r.SecretID, r.SecretLast4, parser, store.FormatTS(r.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("feeds: insert feed: %w", err)
@@ -291,11 +296,11 @@ func updateCustom(ctx context.Context, tx *sql.Tx, r sourceRow) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET name = ?, kind = ?, format = ?, url = ?, enabled = ?, interval_hours = ?,
+	_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET name = ?, kind = ?, format = ?, url = ?, enabled = ?,
 auth_type = ?, auth_header_name = ?, auth_username = ?, secret_id = ?, secret_last4 = ?, parser = ?, etag = NULL, last_modified = NULL,
 rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END
 WHERE id = ? AND builtin = 0`,
-		r.Name, string(r.Kind), string(r.Format), r.URL, boolInt(r.Enabled), r.IntervalHours, string(r.Auth),
+		r.Name, string(r.Kind), string(r.Format), r.URL, boolInt(r.Enabled), string(r.Auth),
 		r.HeaderName, r.Username, r.SecretID, r.SecretLast4, parser, boolInt(r.Enabled), r.ID)
 	if err != nil {
 		return fmt.Errorf("feeds: update feed: %w", err)
@@ -303,21 +308,21 @@ WHERE id = ? AND builtin = 0`,
 	return nil
 }
 
-// updateSettings is PUT /feeds/sources/{id}: the three things both kinds of feed allow to change.
-func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, hours int, url string, urlChanged bool) error {
+// updateSettings is PUT /feeds/sources/{id}: the two things both kinds of feed allow to change here (how often it pulls is its schedule).
+func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, url string, urlChanged bool) error {
 	var was bool
 	if err := tx.QueryRowContext(ctx, `SELECT enabled FROM feeds_source WHERE id = ?`, id).Scan(&was); err != nil {
 		return fmt.Errorf("feeds: read feed settings: %w", err)
 	}
 	// turning a feed back on forgets its back-off: the admin fixed what failed
-	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
-	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
+	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ? WHERE id = ?`
+	args := []any{boolInt(enabled), boolInt(enabled), id}
 	if urlChanged { // a new address starts a new count of failures (#946 r1 Low) and forgets what the old one said: its count, version
 		// and validators (#946 r2: a count from another address must never judge this one)
-		q = `UPDATE feeds_source SET rev = rev + 1, failures = 0, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL,
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = 0, enabled = ?, url = ?, etag = NULL, last_modified = NULL,
 answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL, kev_copies = NULL, catalog_version = NULL, catalog_released = NULL,
 records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
-		args = []any{boolInt(enabled), hours, url, id}
+		args = []any{boolInt(enabled), url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 		return fmt.Errorf("feeds: update feed settings: %w", err)
@@ -375,7 +380,7 @@ func deleteCustom(ctx context.Context, tx *sql.Tx, id string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_source WHERE id = ? AND builtin = 0`, id); err != nil {
 		return fmt.Errorf("feeds: delete feed: %w", err)
 	}
-	return nil
+	return coreschedule.DeleteTx(ctx, tx, scheduleKey(id))
 }
 
 // customNames lists the names of the custom feeds other than skipID (for CheckName).

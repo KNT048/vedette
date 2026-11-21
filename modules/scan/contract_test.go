@@ -1,11 +1,9 @@
 package scan
 
 import (
-	"database/sql"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 // INV-4: dangerous checks cannot be turned on; the answer always says false, and nothing is saved or audited.
@@ -33,7 +31,6 @@ func TestContract_INV5_ConfigRules(t *testing.T) {
 	t.Parallel()
 	i := func(v int) *int { return &v }
 	s := func(v string) *string { return &v }
-	b := func(v bool) *bool { return &v }
 	cases := []struct {
 		name string
 		p    Patch
@@ -54,16 +51,9 @@ func TestContract_INV5_ConfigRules(t *testing.T) {
 		{"long exclusion is cut", Patch{Exclusions: []string{strings.Repeat("x", 60)}}, `Line 1: "` + strings.Repeat("x", 40) + `" is not an IP or network range. For example 192.168.10.5 or 192.168.20.0/24.`},
 		{"unresponsive 1", Patch{UnresponsiveAfter: i(1)}, "The number of non-responses before auto-stop must be 2 to 20."},
 		{"unresponsive 21", Patch{UnresponsiveAfter: i(21)}, "The number of non-responses before auto-stop must be 2 to 20."},
-		{"frequency", Patch{SchedFrequency: s("hourly")}, "The schedule must be daily or weekly."},
-		{"schedule time", Patch{SchedAt: s("23:5")}, "The schedule time must look like HH:MM."},
-		{"weekday", Patch{SchedWeekday: i(0)}, "The schedule day is not valid."},
-		{"schedule outside window", Patch{SchedAt: s("12:00")}, "The schedule time 12:00 is outside the 22:00 to 05:00 window. Pick a time inside the window or widen the window."},
-		{"weekly day not a window day", Patch{Days: []int{1, 2}}, "The weekly schedule day must be one of the scan window days."},
-		{"off schedule may be outside", Patch{SchedEnabled: b(false), SchedAt: s("12:00"), Days: []int{1}}, ""},
-		{"after midnight is inside", Patch{SchedAt: s("01:30")}, ""},
 		{"CIDR with host bits", Patch{Exclusions: []string{"192.168.20.5/24", "10.0.0.1"}}, ""},
 		{"200 exclusions", Patch{Exclusions: slices.Repeat([]string{"10.0.0.1"}, 200)}, ""},
-		{"edges", Patch{Rate: i(20), UnresponsiveAfter: i(2), From: s("00:00"), To: s("23:59"), SchedAt: s("23:58")}, ""},
+		{"edges", Patch{Rate: i(20), UnresponsiveAfter: i(2), From: s("00:00"), To: s("23:59")}, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -155,20 +145,19 @@ func TestContract_PRE3_POST3_PartialUpdateAudited(t *testing.T) {
 			t.Fatalf("%s: %d", role, code)
 		}
 	}
-	code, b := e.call("PUT", "/scans/config", "admin", `{"rate":7,"window":{"from":"21:00"},"schedule":{"frequency":"daily"},"exclusions":["192.168.10.250"]}`)
+	code, b := e.call("PUT", "/scans/config", "admin", `{"rate":7,"window":{"from":"21:00"},"exclusions":["192.168.10.250"]}`)
 	if code != 200 {
 		t.Fatalf("%d %v", code, b)
 	}
 	c := b["config"].(map[string]any)
 	w := c["window"].(map[string]any)
-	s := c["schedule"].(map[string]any)
-	if c["rate"] != 7.0 || w["from"] != "21:00" || w["to"] != "05:00" || len(w["days"].([]any)) != 7 || s["frequency"] != "daily" || s["at"] != "23:00" ||
+	if c["rate"] != 7.0 || w["from"] != "21:00" || w["to"] != "05:00" || len(w["days"].([]any)) != 7 ||
 		c["auto_rescan"] != true || c["unresponsive_after"] != 3.0 || c["stop_on_unresponsive"] != true || len(c["exclusions"].([]any)) != 1 {
 		t.Fatalf("merged config: %v", c)
 	}
 	a := e.audits()
 	if len(a) != 1 || a[0].User != "admin@acme.example" || a[0].Action != "scan.config" || a[0].Target != "scan" ||
-		a[0].Detail != `{"rate":7,"window":{"days":[1,2,3,4,5,6,7],"from":"21:00","to":"05:00"},"exclusions":1,"auto_rescan":true,"schedule":true}` {
+		a[0].Detail != `{"rate":7,"window":{"days":[1,2,3,4,5,6,7],"from":"21:00","to":"05:00"},"exclusions":1,"auto_rescan":true}` {
 		t.Fatalf("audit: %+v", a)
 	}
 	// an empty list clears; an absent one keeps
@@ -180,64 +169,5 @@ func TestContract_PRE3_POST3_PartialUpdateAudited(t *testing.T) {
 	}
 	if _, b = e.call("GET", "/scans/config", "viewer", ""); b["config"].(map[string]any)["auto_rescan"] != false {
 		t.Fatalf("not stored: %v", b)
-	}
-}
-
-// POST-3: next_run is the next schedule time on a window day (and on the weekday for weekly), in the organization's time zone.
-func TestContract_POST3_NextRun(t *testing.T) {
-	t.Parallel()
-	hcm, err := time.LoadLocation("Asia/Ho_Chi_Minh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	base := Settings{Window: Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00"}, Schedule: Schedule{Enabled: true, Frequency: "weekly", Weekday: 7, At: "23:00"}}
-	at := func(c Settings, now time.Time, loc *time.Location) string {
-		t.Helper()
-		r := c.NextRun(now, loc, false)
-		if r == nil {
-			return "null"
-		}
-		return r.UTC().Format(time.RFC3339)
-	}
-	tue := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC) // Tuesday 17:00 in Ho Chi Minh City
-	if got := at(base, tue, hcm); got != "2026-11-15T16:00:00Z" {
-		t.Fatalf("weekly Sunday 23:00 +07: %s", got)
-	}
-	daily := base
-	daily.Schedule.Frequency = "daily"
-	if got := at(daily, tue, hcm); got != "2026-11-10T16:00:00Z" {
-		t.Fatalf("daily, later today: %s", got)
-	}
-	if got := at(daily, time.Date(2026, 11, 10, 16, 0, 0, 0, time.UTC), hcm); got != "2026-11-11T16:00:00Z" {
-		t.Fatalf("daily, exactly now: %s", got)
-	}
-	weekdays := daily
-	weekdays.Window.Days = []int{1, 2, 3, 4, 5}
-	if got := at(weekdays, time.Date(2026, 11, 13, 17, 0, 0, 0, time.UTC), hcm); got != "2026-11-16T16:00:00Z" { // Friday 23:00 +07 has passed
-		t.Fatalf("daily on window days only: %s", got)
-	}
-	off := base
-	off.Schedule.Enabled = false
-	if got := at(off, tue, hcm); got != "null" {
-		t.Fatalf("off: %s", got)
-	}
-	e := newEnv(t)
-	v, _ := e.svc.Config(e.ctx())
-	if v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // the env's zone is UTC; t0 is a Tuesday; no run yet: tonight
-		t.Fatalf("view next_run: %v", v.NextRun)
-	}
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { return markSlot(e.ctx(), tx, t0.AddDate(0, 0, -2)) }); err != nil {
-		t.Fatal(err)
-	}
-	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // a slot recorded without a run
-		t.Fatalf("view next_run after a slot without a run: %v", v.NextRun)
-	}
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		return seedRun(e.ctx(), tx, "r-sched", "schedule", "done", "2026-11-08T23:00:00.000Z", "a-web01")
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-15T23:00:00.000Z" { // a scheduled run started: the weekly Sunday
-		t.Fatalf("view next_run after a scheduled slot: %v", v.NextRun)
 	}
 }

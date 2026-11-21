@@ -978,8 +978,11 @@
         "15": "15 minutes",
         "60": "1 hour",
         "360": "6 hours",
-        "1440": "24 hours"
+        "1440": "24 hours",
+        "other_one": "{{count}} minute",
+        "other_other": "{{count}} minutes"
       },
+      "limit": "At least 5 minutes. The Wazuh server answers slowly to frequent pulls.",
       "test": "Test connection",
       "testOk": "Connected to Wazuh {{version}}. This user can see {{count}} agents.",
       "waiting": "Reaching the Wazuh manager… this can take up to 30 seconds.",

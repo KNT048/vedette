@@ -51,6 +51,10 @@ func (s *Service) RunPull(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	lastDue, err := s.scheduledDue(ctx) // when each source's schedule last came due
+	if err != nil {
+		return err
+	}
 	pulled := false
 	var kevPulled *sourceRow
 	for _, r := range rows {
@@ -62,7 +66,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 				r = cur
 			}
 		}
-		due := r.state().Due(now, r.IntervalHours)
+		due := r.state().Due(now, r.IntervalHours, lastDue[r.ID])
 		if r.ID == recentFeedID && r.Enabled { // An unfinished fill or walk goes on now, not a day after the last success
 			owed, err := s.st.recentOwed(ctx, r.URL)
 			if err != nil { // the plain schedule this tick, as the re-read above falls back
@@ -70,7 +74,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 			} else if owed {
 				st := r.state()
 				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
-				due = st.Due(now, r.IntervalHours)
+				due = st.Due(now, r.IntervalHours, nil)
 			}
 		}
 		if r.ID == cveOrgFeedID && r.Enabled && r.Failures == 0 { // The whole list is loading: it goes on at the next check

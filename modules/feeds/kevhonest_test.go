@@ -181,6 +181,9 @@ func (a *alerts) list() []string {
 func (e *env) tick(s *Service, d time.Duration) {
 	e.t.Helper()
 	e.setNow(e.clock().Add(d))
+	if _, err := e.sched.Tick(e.t.Context()); err != nil { // the schedules that came due by now
+		e.t.Fatal(err)
+	}
 	if err := s.RunPull(e.t.Context()); err != nil {
 		e.t.Fatal(err)
 	}

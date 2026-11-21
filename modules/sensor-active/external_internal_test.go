@@ -314,25 +314,18 @@ type yesFence struct{}
 
 func (yesFence) OwnEgress(context.Context, netip.Addr) (bool, error) { return true, nil }
 
-// #723 review L4: the module turned off (Stop) while a run waited for the nmap slot ends it once it has the slot, before it asks or
-// sends anything: an external run and a picked identification alike.
-func TestStopDuringTheSlotWaitIsHonoured(t *testing.T) {
+// #723 review L4: once the module is turned off (Stop) an external run and a picked identification end before they queue, ask or send
+// anything; one already queued or running is stopped by core/run with its module (run.Manager.ModuleChanged).
+func TestStopBeforeTheRunIsHonoured(t *testing.T) {
 	t.Parallel()
-	synctest.Test(t, func(t *testing.T) {
-		s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
-		s.runMu.Lock() // another nmap run holds the slot
-		ext, ident := make(chan error, 1), make(chan error, 1)
-		go func() { _, err := s.ScanExternal(t.Context(), ownIP, nmapargv.External, yesFence{}); ext <- err }()
-		go func() { _, err := s.IdentifyDevice(t.Context(), "a-web"); ident <- err }()
-		synctest.Wait() // both wait for the slot
-		s.Stop()
-		s.runMu.Unlock()
-		for name, ch := range map[string]chan error{"external": ext, "identify": ident} {
-			if err := <-ch; !errors.Is(err, ErrStopped) {
-				t.Errorf("%s: err = %v, want ErrStopped", name, err)
-			}
-		}
-	})
+	s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
+	s.Stop()
+	if _, err := s.ScanExternal(t.Context(), ownIP, nmapargv.External, yesFence{}); !errors.Is(err, ErrStopped) {
+		t.Errorf("external: err = %v, want ErrStopped", err)
+	}
+	if _, err := s.IdentifyDevice(t.Context(), "a-web"); !errors.Is(err, ErrStopped) {
+		t.Errorf("identify: err = %v, want ErrStopped", err)
+	}
 }
 
 // #723 review L5: with less of the caller's time left than the run needs (the worker's fence, nmap's 3-minute host timeout, the

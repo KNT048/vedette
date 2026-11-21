@@ -169781,6 +169781,96 @@ func (o NilScanPutScansConfigOKScopeCommitment) Or(d ScanPutScansConfigOKScopeCo
 	return d
 }
 
+// NewNilScanningGetRunsIDOKBlockedBy returns new NilScanningGetRunsIDOKBlockedBy with value set to v.
+func NewNilScanningGetRunsIDOKBlockedBy(v ScanningGetRunsIDOKBlockedBy) NilScanningGetRunsIDOKBlockedBy {
+	return NilScanningGetRunsIDOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKBlockedBy is nullable ScanningGetRunsIDOKBlockedBy.
+type NilScanningGetRunsIDOKBlockedBy struct {
+	Value ScanningGetRunsIDOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKBlockedBy) SetTo(v ScanningGetRunsIDOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKBlockedBy) Get() (v ScanningGetRunsIDOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKBlockedBy) Or(d ScanningGetRunsIDOKBlockedBy) ScanningGetRunsIDOKBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsIDOKChildrenItemBlockedBy returns new NilScanningGetRunsIDOKChildrenItemBlockedBy with value set to v.
+func NewNilScanningGetRunsIDOKChildrenItemBlockedBy(v ScanningGetRunsIDOKChildrenItemBlockedBy) NilScanningGetRunsIDOKChildrenItemBlockedBy {
+	return NilScanningGetRunsIDOKChildrenItemBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsIDOKChildrenItemBlockedBy is nullable ScanningGetRunsIDOKChildrenItemBlockedBy.
+type NilScanningGetRunsIDOKChildrenItemBlockedBy struct {
+	Value ScanningGetRunsIDOKChildrenItemBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsIDOKChildrenItemBlockedBy) SetTo(v ScanningGetRunsIDOKChildrenItemBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsIDOKChildrenItemBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsIDOKChildrenItemBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) Get() (v ScanningGetRunsIDOKChildrenItemBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsIDOKChildrenItemBlockedBy) Or(d ScanningGetRunsIDOKChildrenItemBlockedBy) ScanningGetRunsIDOKChildrenItemBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanningGetRunsIDOKChildrenItemSubject returns new NilScanningGetRunsIDOKChildrenItemSubject with value set to v.
 func NewNilScanningGetRunsIDOKChildrenItemSubject(v ScanningGetRunsIDOKChildrenItemSubject) NilScanningGetRunsIDOKChildrenItemSubject {
 	return NilScanningGetRunsIDOKChildrenItemSubject{
@@ -169865,6 +169955,51 @@ func (o NilScanningGetRunsIDOKSubject) Get() (v ScanningGetRunsIDOKSubject, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanningGetRunsIDOKSubject) Or(d ScanningGetRunsIDOKSubject) ScanningGetRunsIDOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetRunsOKItemsItemBlockedBy returns new NilScanningGetRunsOKItemsItemBlockedBy with value set to v.
+func NewNilScanningGetRunsOKItemsItemBlockedBy(v ScanningGetRunsOKItemsItemBlockedBy) NilScanningGetRunsOKItemsItemBlockedBy {
+	return NilScanningGetRunsOKItemsItemBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningGetRunsOKItemsItemBlockedBy is nullable ScanningGetRunsOKItemsItemBlockedBy.
+type NilScanningGetRunsOKItemsItemBlockedBy struct {
+	Value ScanningGetRunsOKItemsItemBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetRunsOKItemsItemBlockedBy) SetTo(v ScanningGetRunsOKItemsItemBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetRunsOKItemsItemBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningGetRunsOKItemsItemBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) Get() (v ScanningGetRunsOKItemsItemBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetRunsOKItemsItemBlockedBy) Or(d ScanningGetRunsOKItemsItemBlockedBy) ScanningGetRunsOKItemsItemBlockedBy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -170276,6 +170411,51 @@ func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Or(d Scannin
 	return d
 }
 
+// NewNilScanningPostRunsIDResumeOKBlockedBy returns new NilScanningPostRunsIDResumeOKBlockedBy with value set to v.
+func NewNilScanningPostRunsIDResumeOKBlockedBy(v ScanningPostRunsIDResumeOKBlockedBy) NilScanningPostRunsIDResumeOKBlockedBy {
+	return NilScanningPostRunsIDResumeOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDResumeOKBlockedBy is nullable ScanningPostRunsIDResumeOKBlockedBy.
+type NilScanningPostRunsIDResumeOKBlockedBy struct {
+	Value ScanningPostRunsIDResumeOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDResumeOKBlockedBy) SetTo(v ScanningPostRunsIDResumeOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDResumeOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDResumeOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) Get() (v ScanningPostRunsIDResumeOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDResumeOKBlockedBy) Or(d ScanningPostRunsIDResumeOKBlockedBy) ScanningPostRunsIDResumeOKBlockedBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanningPostRunsIDResumeOKSubject returns new NilScanningPostRunsIDResumeOKSubject with value set to v.
 func NewNilScanningPostRunsIDResumeOKSubject(v ScanningPostRunsIDResumeOKSubject) NilScanningPostRunsIDResumeOKSubject {
 	return NilScanningPostRunsIDResumeOKSubject{
@@ -170315,6 +170495,51 @@ func (o NilScanningPostRunsIDResumeOKSubject) Get() (v ScanningPostRunsIDResumeO
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanningPostRunsIDResumeOKSubject) Or(d ScanningPostRunsIDResumeOKSubject) ScanningPostRunsIDResumeOKSubject {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostRunsIDStopOKBlockedBy returns new NilScanningPostRunsIDStopOKBlockedBy with value set to v.
+func NewNilScanningPostRunsIDStopOKBlockedBy(v ScanningPostRunsIDStopOKBlockedBy) NilScanningPostRunsIDStopOKBlockedBy {
+	return NilScanningPostRunsIDStopOKBlockedBy{
+		Value: v,
+	}
+}
+
+// NilScanningPostRunsIDStopOKBlockedBy is nullable ScanningPostRunsIDStopOKBlockedBy.
+type NilScanningPostRunsIDStopOKBlockedBy struct {
+	Value ScanningPostRunsIDStopOKBlockedBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostRunsIDStopOKBlockedBy) SetTo(v ScanningPostRunsIDStopOKBlockedBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostRunsIDStopOKBlockedBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostRunsIDStopOKBlockedBy) SetToNull() {
+	o.Null = true
+	var v ScanningPostRunsIDStopOKBlockedBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostRunsIDStopOKBlockedBy) Get() (v ScanningPostRunsIDStopOKBlockedBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostRunsIDStopOKBlockedBy) Or(d ScanningPostRunsIDStopOKBlockedBy) ScanningPostRunsIDStopOKBlockedBy {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -247047,9 +247272,13 @@ func (s *ScanPutScansConfigReqWindow) SetTo(val OptString) {
 }
 
 type ScanningGetRunsIDOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsIDOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	// The runs that are steps of this one.
 	Children []ScanningGetRunsIDOKChildrenItem `json:"children"`
@@ -247090,6 +247319,11 @@ type ScanningGetRunsIDOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -247102,6 +247336,11 @@ type ScanningGetRunsIDOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsIDOK) GetBlockedBy() NilScanningGetRunsIDOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -247214,6 +247453,11 @@ func (s *ScanningGetRunsIDOK) GetSubject() NilScanningGetRunsIDOKSubject {
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsIDOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsIDOK) GetTitle() string {
 	return s.Title
@@ -247242,6 +247486,11 @@ func (s *ScanningGetRunsIDOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsIDOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsIDOK) SetBlockedBy(val NilScanningGetRunsIDOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -247354,6 +247603,11 @@ func (s *ScanningGetRunsIDOK) SetSubject(val NilScanningGetRunsIDOKSubject) {
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsIDOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsIDOK) SetTitle(val string) {
 	s.Title = val
@@ -247384,10 +247638,39 @@ func (s *ScanningGetRunsIDOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
 }
 
+type ScanningGetRunsIDOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOKBlockedBy) SetTitle(val string) {
+	s.Title = val
+}
+
 type ScanningGetRunsIDOKChildrenItem struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsIDOKChildrenItemBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -247419,6 +247702,11 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsIDOKChildrenItemSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -247431,6 +247719,11 @@ type ScanningGetRunsIDOKChildrenItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) GetBlockedBy() NilScanningGetRunsIDOKChildrenItemBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -247518,6 +247811,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) GetSubject() NilScanningGetRunsIDOKChi
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsIDOKChildrenItem) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsIDOKChildrenItem) GetTitle() string {
 	return s.Title
@@ -247546,6 +247844,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsIDOKChildrenItem) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsIDOKChildrenItem) SetBlockedBy(val NilScanningGetRunsIDOKChildrenItemBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -247633,6 +247936,11 @@ func (s *ScanningGetRunsIDOKChildrenItem) SetSubject(val NilScanningGetRunsIDOKC
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsIDOKChildrenItem) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsIDOKChildrenItem) SetTitle(val string) {
 	s.Title = val
@@ -247661,6 +247969,31 @@ func (s *ScanningGetRunsIDOKChildrenItem) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningGetRunsIDOKChildrenItem) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningGetRunsIDOKChildrenItemBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsIDOKChildrenItemBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -248382,9 +248715,13 @@ func (s *ScanningGetRunsOK) SetTotal(val int) {
 }
 
 type ScanningGetRunsOKItemsItem struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningGetRunsOKItemsItemBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -248416,6 +248753,11 @@ type ScanningGetRunsOKItemsItem struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningGetRunsOKItemsItemSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -248428,6 +248770,11 @@ type ScanningGetRunsOKItemsItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningGetRunsOKItemsItem) GetBlockedBy() NilScanningGetRunsOKItemsItemBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -248515,6 +248862,11 @@ func (s *ScanningGetRunsOKItemsItem) GetSubject() NilScanningGetRunsOKItemsItemS
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningGetRunsOKItemsItem) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningGetRunsOKItemsItem) GetTitle() string {
 	return s.Title
@@ -248543,6 +248895,11 @@ func (s *ScanningGetRunsOKItemsItem) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningGetRunsOKItemsItem) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningGetRunsOKItemsItem) SetBlockedBy(val NilScanningGetRunsOKItemsItemBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -248630,6 +248987,11 @@ func (s *ScanningGetRunsOKItemsItem) SetSubject(val NilScanningGetRunsOKItemsIte
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningGetRunsOKItemsItem) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningGetRunsOKItemsItem) SetTitle(val string) {
 	s.Title = val
@@ -248658,6 +249020,31 @@ func (s *ScanningGetRunsOKItemsItem) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningGetRunsOKItemsItem) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningGetRunsOKItemsItemBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningGetRunsOKItemsItemBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -253147,9 +253534,13 @@ func (s *ScanningPatchScanningEnginesIDReq) SetWithDependencies(val OptBool) {
 }
 
 type ScanningPostRunsIDResumeOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningPostRunsIDResumeOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -253181,6 +253572,11 @@ type ScanningPostRunsIDResumeOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDResumeOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -253193,6 +253589,11 @@ type ScanningPostRunsIDResumeOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningPostRunsIDResumeOK) GetBlockedBy() NilScanningPostRunsIDResumeOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -253280,6 +253681,11 @@ func (s *ScanningPostRunsIDResumeOK) GetSubject() NilScanningPostRunsIDResumeOKS
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningPostRunsIDResumeOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningPostRunsIDResumeOK) GetTitle() string {
 	return s.Title
@@ -253308,6 +253714,11 @@ func (s *ScanningPostRunsIDResumeOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningPostRunsIDResumeOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningPostRunsIDResumeOK) SetBlockedBy(val NilScanningPostRunsIDResumeOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -253395,6 +253806,11 @@ func (s *ScanningPostRunsIDResumeOK) SetSubject(val NilScanningPostRunsIDResumeO
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningPostRunsIDResumeOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningPostRunsIDResumeOK) SetTitle(val string) {
 	s.Title = val
@@ -253423,6 +253839,31 @@ func (s *ScanningPostRunsIDResumeOK) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningPostRunsIDResumeOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningPostRunsIDResumeOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDResumeOKBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -253602,9 +254043,13 @@ func (s *ScanningPostRunsIDResumeOKTrigger) UnmarshalText(data []byte) error {
 }
 
 type ScanningPostRunsIDStopOK struct {
-	// Waiting, or stopped with work left when its engine can go on from its steps.
+	// With queued: the run that holds the lane it waits for; null otherwise.
+	BlockedBy NilScanningPostRunsIDStopOKBlockedBy `json:"blocked_by"`
+	// Waiting, or stopped with work left when its engine can go on from its steps, and the person asking
+	// may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN
+	// sweep).
 	CanResume bool `json:"can_resume"`
-	// Queued, waiting or running.
+	// Queued, waiting or running, and the person asking may stop it (an operator).
 	CanStop bool `json:"can_stop"`
 	Done    int  `json:"done"`
 	// Set exactly when the state is final.
@@ -253636,6 +254081,11 @@ type ScanningPostRunsIDStopOK struct {
 	StopReason NilString `json:"stop_reason"`
 	// What the run is about; null for a run over several devices without one subject.
 	Subject NilScanningPostRunsIDStopOKSubject `json:"subject"`
+	// The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it
+	// starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792
+	// addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254
+	// addresses". Pages show it as it is.
+	Summary string `json:"summary"`
 	// What it does, e.g. "LAN sweep of 192.0.2.0/24, 10.20.0.0/16".
 	Title string `json:"title"`
 	// Units of work (addresses, devices, templates): the sum over its steps; 0 when it does not count them.
@@ -253648,6 +254098,11 @@ type ScanningPostRunsIDStopOK struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Set only while waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetBlockedBy returns the value of BlockedBy.
+func (s *ScanningPostRunsIDStopOK) GetBlockedBy() NilScanningPostRunsIDStopOKBlockedBy {
+	return s.BlockedBy
 }
 
 // GetCanResume returns the value of CanResume.
@@ -253735,6 +254190,11 @@ func (s *ScanningPostRunsIDStopOK) GetSubject() NilScanningPostRunsIDStopOKSubje
 	return s.Subject
 }
 
+// GetSummary returns the value of Summary.
+func (s *ScanningPostRunsIDStopOK) GetSummary() string {
+	return s.Summary
+}
+
 // GetTitle returns the value of Title.
 func (s *ScanningPostRunsIDStopOK) GetTitle() string {
 	return s.Title
@@ -253763,6 +254223,11 @@ func (s *ScanningPostRunsIDStopOK) GetUpdatedAt() time.Time {
 // GetWaitingFor returns the value of WaitingFor.
 func (s *ScanningPostRunsIDStopOK) GetWaitingFor() NilString {
 	return s.WaitingFor
+}
+
+// SetBlockedBy sets the value of BlockedBy.
+func (s *ScanningPostRunsIDStopOK) SetBlockedBy(val NilScanningPostRunsIDStopOKBlockedBy) {
+	s.BlockedBy = val
 }
 
 // SetCanResume sets the value of CanResume.
@@ -253850,6 +254315,11 @@ func (s *ScanningPostRunsIDStopOK) SetSubject(val NilScanningPostRunsIDStopOKSub
 	s.Subject = val
 }
 
+// SetSummary sets the value of Summary.
+func (s *ScanningPostRunsIDStopOK) SetSummary(val string) {
+	s.Summary = val
+}
+
 // SetTitle sets the value of Title.
 func (s *ScanningPostRunsIDStopOK) SetTitle(val string) {
 	s.Title = val
@@ -253878,6 +254348,31 @@ func (s *ScanningPostRunsIDStopOK) SetUpdatedAt(val time.Time) {
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ScanningPostRunsIDStopOK) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+type ScanningPostRunsIDStopOKBlockedBy struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostRunsIDStopOKBlockedBy) GetID() string {
+	return s.ID
+}
+
+// GetTitle returns the value of Title.
+func (s *ScanningPostRunsIDStopOKBlockedBy) GetTitle() string {
+	return s.Title
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostRunsIDStopOKBlockedBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ScanningPostRunsIDStopOKBlockedBy) SetTitle(val string) {
+	s.Title = val
 }
 
 // Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
@@ -254516,6 +255011,180 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) GetTargets() []string {
 // SetTargets sets the value of Targets.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) SetTargets(val []string) {
 	s.Targets = val
+}
+
+type ScanningPostScanningSafetyEstimateOK struct {
+	// Addresses one pass walks: the ranges minus the exclusions.
+	Addresses int `json:"addresses"`
+	// False: a save of this scope is refused (400 scope_too_large).
+	FitsWeek   bool `json:"fits_week"`
+	FitsWindow bool `json:"fits_window"`
+	// One pass at the rate, a floor: an address on the box's own networks costs one packet, one behind a
+	// router 17.
+	PassSeconds int `json:"pass_seconds"`
+	// Windows in a week: the window's days.
+	WeekWindows int `json:"week_windows"`
+	// One window; 0 when the times are not valid.
+	WindowSeconds int `json:"window_seconds"`
+	// Windows one pass needs (1: it fits one window); 0 with no window or nothing to sweep.
+	Windows int `json:"windows"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *ScanningPostScanningSafetyEstimateOK) GetAddresses() int {
+	return s.Addresses
+}
+
+// GetFitsWeek returns the value of FitsWeek.
+func (s *ScanningPostScanningSafetyEstimateOK) GetFitsWeek() bool {
+	return s.FitsWeek
+}
+
+// GetFitsWindow returns the value of FitsWindow.
+func (s *ScanningPostScanningSafetyEstimateOK) GetFitsWindow() bool {
+	return s.FitsWindow
+}
+
+// GetPassSeconds returns the value of PassSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) GetPassSeconds() int {
+	return s.PassSeconds
+}
+
+// GetWeekWindows returns the value of WeekWindows.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWeekWindows() int {
+	return s.WeekWindows
+}
+
+// GetWindowSeconds returns the value of WindowSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWindowSeconds() int {
+	return s.WindowSeconds
+}
+
+// GetWindows returns the value of Windows.
+func (s *ScanningPostScanningSafetyEstimateOK) GetWindows() int {
+	return s.Windows
+}
+
+// SetAddresses sets the value of Addresses.
+func (s *ScanningPostScanningSafetyEstimateOK) SetAddresses(val int) {
+	s.Addresses = val
+}
+
+// SetFitsWeek sets the value of FitsWeek.
+func (s *ScanningPostScanningSafetyEstimateOK) SetFitsWeek(val bool) {
+	s.FitsWeek = val
+}
+
+// SetFitsWindow sets the value of FitsWindow.
+func (s *ScanningPostScanningSafetyEstimateOK) SetFitsWindow(val bool) {
+	s.FitsWindow = val
+}
+
+// SetPassSeconds sets the value of PassSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) SetPassSeconds(val int) {
+	s.PassSeconds = val
+}
+
+// SetWeekWindows sets the value of WeekWindows.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWeekWindows(val int) {
+	s.WeekWindows = val
+}
+
+// SetWindowSeconds sets the value of WindowSeconds.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWindowSeconds(val int) {
+	s.WindowSeconds = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *ScanningPostScanningSafetyEstimateOK) SetWindows(val int) {
+	s.Windows = val
+}
+
+type ScanningPostScanningSafetyEstimateReq struct {
+	// The exclusions as typed; lines that are not an IPv4 address or CIDR are left out.
+	Exclusions []string `json:"exclusions"`
+	// The ranges as typed in the form; lines that are not an internal IPv4 CIDR are left out of the count.
+	LanRanges   []string                                    `json:"lan_ranges"`
+	PacketsPerS int                                         `json:"packets_per_s"`
+	Window      ScanningPostScanningSafetyEstimateReqWindow `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPostScanningSafetyEstimateReq) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPostScanningSafetyEstimateReq) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyEstimateReq) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPostScanningSafetyEstimateReq) GetWindow() ScanningPostScanningSafetyEstimateReqWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPostScanningSafetyEstimateReq) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPostScanningSafetyEstimateReq) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyEstimateReq) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPostScanningSafetyEstimateReq) SetWindow(val ScanningPostScanningSafetyEstimateReqWindow) {
+	s.Window = val
+}
+
+type ScanningPostScanningSafetyEstimateReqWindow struct {
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// HH:MM.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPostScanningSafetyEstimateReqWindow) SetTo(val string) {
+	s.To = val
 }
 
 type ScanningPostScanningSafetyExclusionsOK struct {

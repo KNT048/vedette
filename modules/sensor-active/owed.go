@@ -58,13 +58,16 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 		}
 		var checked, queuedNow, busy, gentle int
 		err = s.db.Reader().QueryRowContext(ctx, `SELECT
-			(SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = ?1 AND p.shape IN ('gentle', 'gentle_titles')),
+			(SELECT count(*) FROM sa_probe p JOIN core_run r ON r.id = p.run_id WHERE r.module = ?3 AND r.subject_kind = 'device' AND r.subject_id = ?1
+				AND p.shape IN ('gentle', 'gentle_titles')),
 			(SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)
-			+ (SELECT count(*) FROM sa_probe p JOIN sa_job j ON j.id = p.job_id WHERE j.asset_id = ?1 AND p.shape IN ('normal', 'versions') AND p.time >= ?2),
-			(SELECT count(*) FROM sa_queue WHERE asset_id = ?1),
-			(SELECT count(*) FROM sa_job WHERE asset_id = ?1 AND kind = 'device' AND status IN ('done', 'failed'))
+			+ (SELECT count(*) FROM sa_probe p JOIN core_run r ON r.id = p.run_id WHERE r.module = ?3 AND r.subject_kind = 'device' AND r.subject_id = ?1
+				AND p.shape IN ('normal', 'versions') AND p.time >= ?2),
+			(SELECT count(*) FROM core_run WHERE module = ?3 AND kind = ?4 AND subject_kind = 'device' AND subject_id = ?1 AND status IN ('queued', 'waiting', 'running')),
+			(SELECT count(*) FROM core_run r WHERE r.module = ?3 AND r.kind = ?4 AND r.subject_kind = 'device' AND r.subject_id = ?1
+				AND r.status IN ('done', 'partial', 'failed') AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.run_id = r.id))
 			+ (SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)`,
-			id, since).Scan(&gentle, &busy, &queuedNow, &checked)
+			id, since, ModuleID, RunCheck).Scan(&gentle, &busy, &queuedNow, &checked)
 		if err != nil {
 			return fmt.Errorf("sensoractive: read the scans of a device: %w", err)
 		}

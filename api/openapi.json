@@ -92268,11 +92268,39 @@
                           },
                           "can_stop": {
                             "type": "boolean",
-                            "description": "Queued, waiting or running"
+                            "description": "Queued, waiting or running, and the person asking may stop it (an operator)"
                           },
                           "can_resume": {
                             "type": "boolean",
-                            "description": "Waiting, or stopped with work left when its engine can go on from its steps"
+                            "description": "Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN sweep)"
+                          },
+                          "summary": {
+                            "type": "string",
+                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                          },
+                          "blocked_by": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "With queued: the run that holds the lane it waits for; null otherwise"
                           }
                         },
                         "required": [
@@ -92298,7 +92326,9 @@
                           "ended_at",
                           "updated_at",
                           "can_stop",
-                          "can_resume"
+                          "can_resume",
+                          "summary",
+                          "blocked_by"
                         ],
                         "additionalProperties": false
                       },
@@ -92534,11 +92564,39 @@
                     },
                     "can_stop": {
                       "type": "boolean",
-                      "description": "Queued, waiting or running"
+                      "description": "Queued, waiting or running, and the person asking may stop it (an operator)"
                     },
                     "can_resume": {
                       "type": "boolean",
-                      "description": "Waiting, or stopped with work left when its engine can go on from its steps"
+                      "description": "Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN sweep)"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                    },
+                    "blocked_by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "With queued: the run that holds the lane it waits for; null otherwise"
                     },
                     "steps": {
                       "type": "array",
@@ -92886,11 +92944,39 @@
                           },
                           "can_stop": {
                             "type": "boolean",
-                            "description": "Queued, waiting or running"
+                            "description": "Queued, waiting or running, and the person asking may stop it (an operator)"
                           },
                           "can_resume": {
                             "type": "boolean",
-                            "description": "Waiting, or stopped with work left when its engine can go on from its steps"
+                            "description": "Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN sweep)"
+                          },
+                          "summary": {
+                            "type": "string",
+                            "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                          },
+                          "blocked_by": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "With queued: the run that holds the lane it waits for; null otherwise"
                           }
                         },
                         "required": [
@@ -92916,7 +93002,9 @@
                           "ended_at",
                           "updated_at",
                           "can_stop",
-                          "can_resume"
+                          "can_resume",
+                          "summary",
+                          "blocked_by"
                         ],
                         "additionalProperties": false
                       },
@@ -92947,6 +93035,8 @@
                     "updated_at",
                     "can_stop",
                     "can_resume",
+                    "summary",
+                    "blocked_by",
                     "steps",
                     "items",
                     "items_total",
@@ -93172,11 +93262,39 @@
                     },
                     "can_stop": {
                       "type": "boolean",
-                      "description": "Queued, waiting or running"
+                      "description": "Queued, waiting or running, and the person asking may stop it (an operator)"
                     },
                     "can_resume": {
                       "type": "boolean",
-                      "description": "Waiting, or stopped with work left when its engine can go on from its steps"
+                      "description": "Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN sweep)"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                    },
+                    "blocked_by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "With queued: the run that holds the lane it waits for; null otherwise"
                     }
                   },
                   "required": [
@@ -93202,7 +93320,9 @@
                     "ended_at",
                     "updated_at",
                     "can_stop",
-                    "can_resume"
+                    "can_resume",
+                    "summary",
+                    "blocked_by"
                   ],
                   "additionalProperties": false
                 }
@@ -93423,11 +93543,39 @@
                     },
                     "can_stop": {
                       "type": "boolean",
-                      "description": "Queued, waiting or running"
+                      "description": "Queued, waiting or running, and the person asking may stop it (an operator)"
                     },
                     "can_resume": {
                       "type": "boolean",
-                      "description": "Waiting, or stopped with work left when its engine can go on from its steps"
+                      "description": "Waiting, or stopped with work left when its engine can go on from its steps, and the person asking may resume it (an operator; an administrator for a kind whose start is an administrator's, a LAN sweep)"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "The state in one line of words, made by the box: \"Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends\", \"Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s\", \"Stopped: Vedette restarted\", \"Done: 254 of 254 addresses\". Pages show it as it is"
+                    },
+                    "blocked_by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "With queued: the run that holds the lane it waits for; null otherwise"
                     }
                   },
                   "required": [
@@ -93453,7 +93601,9 @@
                     "ended_at",
                     "updated_at",
                     "can_stop",
-                    "can_resume"
+                    "can_resume",
+                    "summary",
+                    "blocked_by"
                   ],
                   "additionalProperties": false
                 }
@@ -95299,7 +95449,7 @@
     "/scanning/safety": {
       "put": {
         "operationId": "scanning_put_scanning_safety",
-        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops",
+        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on), scope_too_large (one pass would not end within a week of windows: the message gives the numbers, see POST /scanning/safety/estimate); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops",
         "tags": [
           "scanning"
         ],
@@ -95695,6 +95845,164 @@
         }
       }
     },
+    "/scanning/safety/estimate": {
+      "post": {
+        "operationId": "scanning_post_scanning_safety_estimate",
+        "summary": "What one pass of active discovery over a scope would cost, before it is saved (the range form shows it as it is typed): the addresses, the time of one pass at the rate, and whether it fits one window and a week of windows. Saving a scope that does not fit a week is refused (400 scope_too_large on PUT /scanning/safety and POST /scanning/safety/ranges); one that needs several windows is swept as one run over several nights. Changes nothing",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "viewer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lan_ranges": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": "The ranges as typed in the form; lines that are not an internal IPv4 CIDR are left out of the count"
+                  },
+                  "exclusions": {
+                    "maxItems": 400,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": "The exclusions as typed; lines that are not an IPv4 address or CIDR are left out"
+                  },
+                  "window": {
+                    "type": "object",
+                    "properties": {
+                      "days": {
+                        "maxItems": 7,
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 7,
+                          "description": "1 = Monday … 7 = Sunday"
+                        }
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                        "description": "HH:MM"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                        "description": "HH:MM"
+                      }
+                    },
+                    "required": [
+                      "days",
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "packets_per_s": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                },
+                "required": [
+                  "lan_ranges",
+                  "exclusions",
+                  "window",
+                  "packets_per_s"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addresses": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Addresses one pass walks: the ranges minus the exclusions"
+                    },
+                    "pass_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "One pass at the rate, a floor: an address on the box's own networks costs one packet, one behind a router 17"
+                    },
+                    "window_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "One window; 0 when the times are not valid"
+                    },
+                    "windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Windows one pass needs (1: it fits one window); 0 with no window or nothing to sweep"
+                    },
+                    "week_windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 7,
+                      "description": "Windows in a week: the window's days"
+                    },
+                    "fits_window": {
+                      "type": "boolean"
+                    },
+                    "fits_week": {
+                      "type": "boolean",
+                      "description": "False: a save of this scope is refused (400 scope_too_large)"
+                    }
+                  },
+                  "required": [
+                    "addresses",
+                    "pass_seconds",
+                    "window_seconds",
+                    "windows",
+                    "week_windows",
+                    "fits_window",
+                    "fits_week"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scanning/safety/exclusions": {
       "post": {
         "operationId": "scanning_post_scanning_safety_exclusions",
@@ -95934,7 +96242,7 @@
     "/scanning/safety/ranges": {
       "post": {
         "operationId": "scanning_post_scanning_safety_ranges",
-        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
+        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), scope_too_large, and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
         "tags": [
           "scanning"
         ],

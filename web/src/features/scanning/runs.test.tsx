@@ -21,9 +21,10 @@ describe('Settings › Scanning › Runs', () => {
     const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
     const sweep = within(table).getByRole('link', { name: 'LAN sweep of 192.0.2.0/24, 10.20.0.0/16' })
     expect(sweep).toHaveAttribute('href', '/runs/run-m1')
-    expect(within(table).getByText('Waiting for the scan window (opens 23:00).')).toBeInTheDocument()
-    expect(within(table).getByText('6,528 of 65,792')).toBeInTheDocument()
-    expect(within(table).getByText('Vedette restarted')).toBeInTheDocument()
+    // each row reads as the box's own line of words
+    expect(within(table).getByText('Waiting for the scan window (opens 23:00); 6,528 of 65,792 addresses')).toBeInTheDocument()
+    expect(within(table).getByText('Stopped: Vedette restarted')).toBeInTheDocument()
+    expect(within(table).getByText('Queued behind “Check NAS-PHOTOS”; it starts when that run ends')).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: 'State' }), 'queued')
     await waitFor(() => expect(asked.at(-1)).toBe('?status=queued&limit=25'), T)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Runs of every engine' })).queryByRole('link', { name: /LAN sweep/ })).toBeNull(), T)
@@ -49,7 +50,7 @@ describe('/runs/<id>: one run', () => {
     const user = userEvent.setup()
     renderApp('/runs/run-m1')
     expect(await screen.findByRole('heading', { level: 1, name: 'LAN sweep of 192.0.2.0/24, 10.20.0.0/16' }, T)).toBeInTheDocument()
-    expect(screen.getByText('Waiting for the scan window (opens 23:00).')).toBeInTheDocument()
+    expect(screen.getByText('Waiting for the scan window (opens 23:00); 6,528 of 65,792 addresses')).toBeInTheDocument()
     expect(screen.getByText('About 9 more nights at 50 packets/s')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'NAS-PHOTOS' })).toHaveAttribute('href', '/devices/a-nas02')
     expect(screen.getByText('10.20.3.17').closest('a')).toBeNull() // an address no device has yet is not a link
@@ -59,21 +60,22 @@ describe('/runs/<id>: one run', () => {
     expect(auditStore.get().some((a) => a.action === 'scanning.run_resume' && a.target === 'run-m1')).toBe(true)
   })
 
-  it('an operator may stop it, after a question, but not resume a sweep (it needs an administrator)', async () => {
+  it('an operator may stop it, after a question; Resume of a sweep is not offered (the box says it needs an administrator)', async () => {
     const user = userEvent.setup()
     renderApp('/runs/run-m1', { role: 'operator' })
-    expect(await screen.findByRole('button', { name: 'Resume' }, T)).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Stop' }))
+    await user.click(await screen.findByRole('button', { name: 'Stop' }, T))
+    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull()
     const dlg = await screen.findByRole('dialog', { name: 'Stop this run?' })
     await user.click(within(dlg).getByRole('button', { name: 'Stop the run' }))
     await waitFor(() => expect(runsStore.get().find((r) => r.id === 'run-m1')!.status).toBe('stopped'), T)
-    expect(await screen.findByText('Stopped by it@acme.example', {}, T)).toBeInTheDocument()
+    expect(await screen.findByText('Stopped by it@acme.example; 6,528 of 65,792 addresses done', {}, T)).toBeInTheDocument()
   })
 
-  it('a queued run names the run it waits for, with its link; for a viewer Stop is locked', async () => {
+  it('a queued run names the run it waits for, with its link; a viewer gets no Stop', async () => {
     renderApp('/runs/run-m3', { role: 'viewer' })
     expect(await screen.findByRole('link', { name: 'Check NAS-PHOTOS' }, T)).toHaveAttribute('href', '/runs/run-m2')
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled()
+    expect(screen.getByText('Queued behind')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })
 
   it('a run that is not kept says so and leads to every run', async () => {

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
@@ -293,6 +294,60 @@ func dedupe(in []string) []string {
 	return out
 }
 
+// ScopeCost is what one pass of active discovery over a scope costs (the estimate of the range form): the addresses it walks, the
+// time one pass takes at the scan rate (a floor), one window's length, and how many windows one pass needs against the windows of a
+// week.
+type ScopeCost struct {
+	Addresses   int
+	Pass        time.Duration
+	Window      time.Duration // 0: no window is set
+	Windows     int           // windows one pass needs (1: it fits one)
+	WeekWindows int           // windows in a week (the window's days)
+}
+
+// FitsWeek says one pass ends within a week of windows (or there is nothing to sweep, or no window to measure against).
+func (c ScopeCost) FitsWeek() bool {
+	return c.Addresses == 0 || c.Window <= 0 || c.WeekWindows == 0 || c.Windows <= c.WeekWindows
+}
+
+// SetScopeCost gives the inventory the estimate of a pass over a scope (active discovery's: it knows the probes an address costs and
+// the box's own networks). A save of the scan scope, window or rate that active discovery could not sweep within a week is refused
+// with the numbers (scope_too_large); without an estimate nothing is refused.
+func (s *Service) SetScopeCost(fn func(ctx context.Context, st Settings) ScopeCost) {
+	s.scopeMu.Lock()
+	defer s.scopeMu.Unlock()
+	s.scopeCost = fn
+}
+
+// checkCost refuses next when one pass over its scope does not end within a week of its windows (scope_too_large).
+func (s *Service) checkCost(ctx context.Context, next Settings) error {
+	s.scopeMu.Lock()
+	fn := s.scopeCost
+	s.scopeMu.Unlock()
+	if fn == nil || len(next.LANRanges) == 0 {
+		return nil
+	}
+	c := fn(ctx, next)
+	if c.FitsWeek() {
+		return nil
+	}
+	return badRequest("scope_too_large", fmt.Sprintf("One pass over these ranges covers %d addresses and takes at least %s at %d packets per second, "+
+		"which is %d scan windows of %s; a week has %d. Vedette never takes a scope it cannot sweep within a week: raise the scan rate, "+
+		"widen the window or add days, or narrow the ranges.", c.Addresses, durationWords(c.Pass), next.Active.Rate, c.Windows, durationWords(c.Window), c.WeekWindows))
+}
+
+// durationWords writes d as "6 h 12 min" or "40 min".
+func durationWords(d time.Duration) string {
+	m := int(d.Round(time.Minute) / time.Minute)
+	if m < 60 {
+		return fmt.Sprintf("%d min", max(m, 1))
+	}
+	if m%60 == 0 {
+		return fmt.Sprintf("%d h", m/60)
+	}
+	return fmt.Sprintf("%d h %d min", m/60, m%60)
+}
+
 // SaveSettings stores the scan scope (PRE-5, INV-6, INV-7). scope_confirmed_at stays when the ranges did
 // not change (POST-5). The fragile flag of every device without a manual override follows the new kinds.
 func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInput) (SavedSettings, error) {
@@ -331,6 +386,9 @@ func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInp
 		}
 		if opt.capExclusions && len(in.Active.Exclusions) > MaxExclusions && len(in.Active.Exclusions) > len(prev.Active.Exclusions) {
 			return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
+		}
+		if err := s.checkCost(ctx, in.Settings); err != nil {
+			return err
 		}
 		now := s.now()
 		next := in.Settings

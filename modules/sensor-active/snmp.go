@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
@@ -468,9 +469,6 @@ func (s *Service) SetSNMP(ctx context.Context, actor, id string, in SNMPInput) (
 	if s.secrets == nil {
 		return SNMPDevice{}, snmpOff()
 	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return SNMPDevice{}, err
-	}
 	a, err := s.inv.Asset(ctx, id)
 	if errors.Is(err, ErrNotFound) {
 		return SNMPDevice{}, apierr.New(404, "not_found", "There is no device with this id.")
@@ -737,9 +735,6 @@ func (s *Service) DeleteSNMP(ctx context.Context, actor, id string) error {
 	if s.secrets == nil {
 		return snmpOff()
 	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return err
-	}
 	name := id
 	if a, err := s.inv.Asset(ctx, id); err == nil {
 		name = deviceName(a)
@@ -779,14 +774,15 @@ func (s *Service) dropSNMP(ctx context.Context, tx *sql.Tx, r snmpRow) error {
 	return nil
 }
 
-// DeviceDeleted is sensor-active's part of deleting a device (core/lifecycle, inside the inventory's write): its queued check, its
-// SNMP settings with their secrets, its weekly port record and its legacy SNMP answers go with it. Its finished device checks
-// (sa_job) stay: they are a log, with the device id they ran on.
+// DeviceDeleted is sensor-active's part of deleting a device (core/lifecycle, inside the inventory's write): its queued or waiting
+// checks are stopped, its SNMP settings with their secrets and its weekly port record go with it. Its finished runs stay: they are a
+// log, with the device id and name they ran on.
 func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
-	for _, q := range []string{`DELETE FROM sa_queue WHERE asset_id = ?`, `DELETE FROM sa_all_ports WHERE asset_id = ?`, `DELETE FROM sa_snmp_answer WHERE asset_id = ?`} {
-		if _, err := tx.ExecContext(ctx, q, d.Device); err != nil {
-			return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
-		}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sa_all_ports WHERE asset_id = ?`, d.Device); err != nil {
+		return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
+	}
+	if err := s.runs.SubjectGoneTx(ctx, tx, ModuleID, "device", d.Device, "The device was deleted"); err != nil {
+		return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
 	}
 	r, err := s.snmpRow(ctx, tx, d.Device)
 	if err != nil || r == nil {
@@ -801,8 +797,8 @@ func (s *Service) DeleteCommitted(_ context.Context, d lifecycle.Delete) {
 }
 
 // DeviceMerged is sensor-active's part of a merge (core/lifecycle, inside the inventory's write): device m.From was the same machine
-// as m.Into. Its device checks become Into's (sa_job.asset_id, INV-23: Into's Last checks lists them and its next check compares
-// with them); its queued check, weekly port record and legacy SNMP answers become Into's unless Into has its own. A device has one SNMP
+// as m.Into. Its runs become Into's (the runs' subject, INV-23: Into's Last checks lists them and its next check compares with
+// them); its weekly port record becomes Into's unless Into has its own. A device has one SNMP
 // setting: when only From has one it becomes Into's (a read address that was From's IP stays the address it was: if Into is
 // elsewhere, nothing is sent until a person sets it, INV-10 (i)); when both have one, the one that works is kept (snmpBetter) and the
 // other goes with its secrets, and a notice says which was kept and which removed (sa_snmp_notice, until a person dismisses it).
@@ -811,14 +807,12 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	if from == "" || into == "" || from == into {
 		return nil
 	}
+	if err := s.runs.SubjectMovedTx(ctx, tx, ModuleID, "device", from, into); err != nil {
+		return fmt.Errorf("sensoractive: merge device checks: %w", err)
+	}
 	for _, q := range []string{
-		`UPDATE sa_job SET asset_id = ?2 WHERE asset_id = ?1`,
-		`UPDATE OR IGNORE sa_queue SET asset_id = ?2 WHERE asset_id = ?1`, // into's own queued check stays
-		`DELETE FROM sa_queue WHERE asset_id = ?1`,
 		`UPDATE OR IGNORE sa_all_ports SET asset_id = ?2 WHERE asset_id = ?1`, // a scan record: into's own stays
 		`DELETE FROM sa_all_ports WHERE asset_id = ?1`,
-		`UPDATE OR IGNORE sa_snmp_answer SET asset_id = ?2 WHERE asset_id = ?1`,
-		`DELETE FROM sa_snmp_answer WHERE asset_id = ?1`,
 	} {
 		if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 			return fmt.Errorf("sensoractive: merge device checks: %w", err)
@@ -965,9 +959,6 @@ func (s *Service) CheckSNMP(ctx context.Context, actor, id string) (SNMPCheckRes
 	if s.secrets == nil {
 		return SNMPCheckResult{}, snmpOff()
 	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return SNMPCheckResult{}, err
-	}
 	a, err := s.inv.Asset(ctx, id)
 	if errors.Is(err, ErrNotFound) {
 		return SNMPCheckResult{}, apierr.New(404, "not_found", "There is no device with this id.")
@@ -986,7 +977,7 @@ func (s *Service) CheckSNMP(ctx context.Context, actor, id string) (SNMPCheckRes
 	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *row); lost {
 		return SNMPCheckResult{}, snmpSecretLost()
 	}
-	res, err := s.checkSNMP(ctx, *row)
+	res, err := s.checkSNMP(ctx, actor, label(a), *row)
 	if err != nil {
 		return SNMPCheckResult{}, err
 	}
@@ -1003,7 +994,7 @@ func (s *Service) CheckSNMP(ctx context.Context, actor, id string) (SNMPCheckRes
 	return res, err
 }
 
-func (s *Service) checkSNMP(ctx context.Context, row snmpRow) (SNMPCheckResult, error) {
+func (s *Service) checkSNMP(ctx context.Context, actor, lbl string, row snmpRow) (SNMPCheckResult, error) {
 	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
 		return SNMPCheckResult{}, err
@@ -1031,19 +1022,34 @@ func (s *Service) checkSNMP(ctx context.Context, row snmpRow) (SNMPCheckResult, 
 		res.Reason, res.Message = SNMPUnavailable, msg
 		return res, nil
 	}
-	if !s.lockSNMPWithin(ctx, snmpWait) {
+	got := make(chan []sensorlink.SNMPAnswer, 1) // the work hands its answers over: the caller may stop waiting before the work ends
+	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: "SNMP read of " + lbl, Trigger: run.Manual, RequestedBy: actor,
+		Subject: &run.Subject{Kind: "device", ID: row.AssetID, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
+		func(ctx context.Context) error {
+			if !s.lockSNMPWithin(ctx, snmpWait) {
+				return errSNMPBusy
+			}
+			defer s.snmpMu.Unlock()
+			jobID, err := s.startJob(ctx, KindSNMP, snmpReasonTest, 1)
+			if err != nil {
+				return err
+			}
+			bctx, cancel := context.WithTimeout(ctx, snmpTestBudget)
+			defer cancel()
+			answers, err := s.snmpBatch(bctx, jobID, []snmpTarget{{asset: row.AssetID, ip: row.ReadFrom, row: row}}, true)
+			got <- answers
+			s.closeSNMPJob(ctx, jobID, 1, err)
+			return err
+		}, snmpResult, snmpWait, "The SNMP reader stayed busy, so this read did not start")
+	if errors.Is(err, errSNMPBusy) || errors.Is(err, errNotStarted) {
 		res.Reason = SNMPBusy
 		return res, nil
 	}
-	defer s.snmpMu.Unlock()
-	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonTest, 1)
-	if err != nil {
-		return SNMPCheckResult{}, err
+	var answers []sensorlink.SNMPAnswer
+	select {
+	case answers = <-got:
+	default:
 	}
-	bctx, cancel := context.WithTimeout(ctx, snmpTestBudget)
-	defer cancel()
-	answers, err := s.snmpBatch(bctx, jobID, []snmpTarget{{asset: row.AssetID, ip: row.ReadFrom, row: row}}, true)
-	s.closeSNMPJob(ctx, jobID, 1, err)
 	switch {
 	case errors.Is(err, ErrStopped):
 		return SNMPCheckResult{}, apierr.New(409, "stopped", "The check was stopped: the scan settings or this device's SNMP changed, or the module was turned off.")
@@ -1088,6 +1094,24 @@ func (s *Service) lockSNMPWithin(ctx context.Context, d time.Duration) bool {
 			}
 		}
 	}
+}
+
+// errSNMPBusy says the SNMP reader was busy with another read for the whole wait of a Check now.
+var errSNMPBusy = errors.New("sensoractive: the snmp reader is busy")
+
+// snmpResult is how an snmp_read run ends, from its batch's error.
+func snmpResult(ctx context.Context, err error) run.Result {
+	switch {
+	case err == nil:
+		return run.Result{}
+	case errors.Is(err, errSNMPBusy):
+		return run.Result{Status: run.Failed, Error: "The SNMP reader stayed busy"}
+	case errors.Is(err, ErrStopped) && ctx.Err() != nil:
+		return run.Result{Status: run.Partial, Error: "stopped"}
+	case errors.Is(err, ErrStopped):
+		return run.Result{Status: run.Partial, Error: "Stopped: the window closed, the scan settings or a device's SNMP changed"}
+	}
+	return run.Result{Status: run.Failed, Error: err.Error()}
 }
 
 func (s *Service) closeSNMPJob(ctx context.Context, jobID string, targets int, err error) {
@@ -1381,7 +1405,7 @@ func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, t
 	flags := clip("GET sysDescr sysObjectID sysName entPhysical.1 class model softwareRev serialNum mtxrLicVersion.0; timeout 2s retries 1; each device's own settings at its read address: "+strings.Join(how, ", "), 300)
 	var id int64
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'snmp', ?, ?, ?, ?, 'started')`,
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'snmp', ?, ?, ?, ?, 'started')`,
 			s.now(), jobID, rate, len(targets), flags, compactTargets(addrs))
 		if err != nil {
 			return err
@@ -1476,8 +1500,8 @@ func snmpObservations(asset string, f SNMPFacts) []observe.Observation {
 // snmpRoundDue says the window that is open now has had no round of SNMP reads yet (a stopped one does not count, as for the sweep).
 func (s *Service) snmpRoundDue(ctx context.Context, start time.Time) (bool, error) {
 	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE kind = 'snmp' AND reason = ? AND status IN ('running', 'done', 'failed') AND started_at >= ?`,
-		snmpReasonWindow, store.FormatTS(start)).Scan(&n)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run WHERE module = ? AND kind = ? AND trigger <> 'manual'
+		AND status IN ('running', 'done', 'partial', 'failed') AND queued_at >= ?`, ModuleID, RunSNMP, store.FormatTS(start)).Scan(&n)
 	if err != nil {
 		return false, fmt.Errorf("sensoractive: read jobs: %w", err)
 	}
@@ -1491,9 +1515,6 @@ func (s *Service) snmpRoundDue(ctx context.Context, start time.Time) (bool, erro
 func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if s.snmp == nil || s.secrets == nil {
 		return nil
-	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return err
 	}
 	rows, err := s.snmpRows(ctx, s.db.Reader())
 	if err != nil || len(rows) == 0 {
@@ -1521,6 +1542,48 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if len(lost) > 0 {
 		s.log.WarnContext(ctx, "sensoractive: snmp devices skipped: their saved secret was not restored", "devices", lost)
 	}
+	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: fmt.Sprintf("SNMP read of %d devices", len(usable)), Trigger: run.Schedule,
+		Steps: []run.StepPlan{{Name: "SNMP reads", Total: len(usable)}}}, func(ctx context.Context) error { return s.roundReads(ctx, usable) }, snmpResult, 0, "")
+	if errors.Is(err, ErrStopped) {
+		return nil
+	}
+	return err
+}
+
+// snmpUsable is the devices the window's round reads now: SNMP set up, and a secret this box can open.
+func (s *Service) snmpUsable(ctx context.Context) ([]snmpRow, error) {
+	rows, err := s.snmpRows(ctx, s.db.Reader())
+	if err != nil {
+		return nil, err
+	}
+	usable := rows[:0:0]
+	for _, r := range rows {
+		if gone, _ := s.snmpLost(ctx, s.db.Reader(), r); !gone {
+			usable = append(usable, r)
+		}
+	}
+	return usable, nil
+}
+
+// runSNMP is the Run of an snmp_read from what it stored: the window's round that a restart left queued reads the devices as they
+// are now; a person's read that a restart left queued did not run (its caller is gone).
+func (s *Service) runSNMP(ctx context.Context, x *run.Exec) (run.Result, error) {
+	d, err := x.Run(ctx)
+	if err != nil {
+		return run.Result{}, err
+	}
+	if d.Trigger != run.Schedule {
+		return run.Result{Status: run.Failed, Error: noteLost}, nil
+	}
+	usable, err := s.snmpUsable(ctx)
+	if err != nil {
+		return run.Result{}, err
+	}
+	return snmpResult(ctx, s.roundReads(ctx, usable)), nil
+}
+
+// roundReads is the work of the window's round: the devices in batches of 64, each batch read again when one of its devices changed.
+func (s *Service) roundReads(ctx context.Context, usable []snmpRow) error {
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonWindow, 0)
 	if err != nil {
 		return err
@@ -1563,8 +1626,8 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 		done += len(batch)
 	}
 	s.closeSNMPJob(ctx, jobID, done, err)
-	if errors.Is(err, ErrStopped) {
-		return nil
+	if x := execOf(ctx); x != nil {
+		s.stepProgress(ctx, x, 1, done, len(usable))
 	}
 	return err
 }

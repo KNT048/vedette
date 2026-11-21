@@ -20,3 +20,8 @@
 
 ## Modifying: `logs.Config.Received` (module logs)
 - Gọi sau commit của lô với dòng đã làm sạch; nếu logs đổi thời điểm gọi hay nội dung `Text` (ví dụ cắt khác), INV-1 của ids (dòng bị cắt không đọc) phải đổi theo.
+
+## Modifying: `Attacked` / `ReadAttacked` (layer 1 of a finding's urgency)
+- findings' urgency pass reads `ReadAttacked(since now − 14 days)` while the module is on; a finding becomes "under attack here" for an
+  attack aimed at its device or at any address while the device is affected. The selfcheck reads the same function as of the last pass.
+

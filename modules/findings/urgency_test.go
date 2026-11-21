@@ -226,10 +226,10 @@ func newUrgencyEnv(t *testing.T) *urgencyEnv {
 			}
 			return out, nil
 		},
-		Devices: func(_ context.Context, ids []string) (map[string]Device, error) {
+		Devices: func(context.Context, []string) (map[string]Device, error) {
 			return map[string]Device{"a-1": {Kind: "firewall"}}, nil
 		},
-		Attacks: func(_ context.Context, since time.Time) ([]Attack, error) {
+		Attacks: func(context.Context, time.Time) ([]Attack, error) {
 			e.mu.Lock()
 			defer e.mu.Unlock()
 			return slices.Clone(e.attacks), nil

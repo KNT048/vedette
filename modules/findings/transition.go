@@ -203,7 +203,10 @@ func (t *transition) detected(d Detection) error {
 	if !was.Verified.sticky() || was.Verified.rank() <= d.Verified.rank() {
 		f.Verified = d.Verified
 	}
-	f.RangeOrigin, f.Evidence = d.RangeOrigin, d.Evidence
+	f.RangeOrigin = d.RangeOrigin
+	if !sameEvidence(f.Evidence, d.Evidence) {
+		f.Evidence = d.Evidence
+	}
 	if d.MatchedVersion != "" || d.Basis != DetectScan { // a safe check that saw no version keeps the version matched before
 		f.MatchedVersion = d.MatchedVersion
 	}
@@ -215,10 +218,10 @@ func (t *transition) detected(d Detection) error {
 	default:
 		f.Fix = d.Fix
 	}
-	if t.now.After(f.LastSeen) {
-		f.LastSeen = t.now
-	}
 	f.Detected = true
+	if t.now.Sub(f.LastSeen) >= lastSeenStep || !sameFinding(*f, was) && t.now.After(f.LastSeen) {
+		f.LastSeen = t.now // a pass that changes nothing writes nothing: last seen moves once a day, or with a change
+	}
 	switch {
 	case f.Verified.rank() > was.Verified.rank(): // confirmed, or confirmed by a stronger proof
 		t.emit(SystemUser, EvConfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
@@ -421,6 +424,26 @@ func personNote(note string, required bool) (string, error) {
 		return "", ErrNoteRequired
 	}
 	return note, nil
+}
+
+// lastSeenStep is how far last_seen may lag behind the pass that detected a finding again when nothing else changed: the hourly pass
+// rewrites no row that did not change.
+const lastSeenStep = 24 * time.Hour
+
+// sameEvidence reports whether two evidences say the same, the times of the reading and of the comparison aside (a source that
+// reads the same version again changes nothing the finding says).
+func sameEvidence(a, b *Evidence) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	x, y := *a, *b
+	x.CheckedAt, y.CheckedAt = time.Time{}, time.Time{}
+	if x.Read != nil && y.Read != nil {
+		rx, ry := *x.Read, *y.Read
+		rx.At, ry.At = time.Time{}, time.Time{}
+		x.Read, y.Read = &rx, &ry
+	}
+	return reflect.DeepEqual(x, y)
 }
 
 // sameFinding reports whether two rows are equal but for UpdatedAt.

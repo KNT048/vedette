@@ -7,6 +7,7 @@ import { PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { isLive, useNode, useTree } from './api'
@@ -21,7 +22,6 @@ import { OutsidePanel } from './OutsidePanel'
 import { ProofPanel } from './ProofPanel'
 import { ScanBar, ScanButton, useScanFlow } from './ScanBar'
 import { ScansPanel } from './ScansPanel'
-import { ScheduleSlot } from './ScheduleSlot'
 import { ServicesPanel } from './ServicesPanel'
 import { DeleteTargetDialog, EditTargetDialog } from './TargetDialogs'
 import { TermsPanel } from './TermsPanel'
@@ -105,7 +105,7 @@ function TargetView({ node }: { node: TargetNode }) {
           <Button onClick={() => setDeleting(true)} disabled={!admin} title={needAdmin}><Trash2 />{t('delete.button')}</Button>
         </>} />
       <ScanBar node={node} flow={flow} />
-      <ScheduleSlot node={node} />
+      <ScanSchedule node={node} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[
@@ -133,5 +133,19 @@ function TargetView({ node }: { node: TargetNode }) {
       <EditTargetDialog node={node} open={editing} onOpenChange={setEditing} />
       <DeleteTargetDialog node={node} items={items} open={deleting} onOpenChange={setDeleting} onDone={() => void nav('/exposure')} />
     </>
+  )
+}
+
+/**
+ * How often the box scans the target by itself: the shared schedule editor on the target's schedule (exposure.target:<id>), with the
+ * preview of the next starts, the pause and the window. Scan now is the page's own button, so the editor has no Run now of its own.
+ */
+function ScanSchedule({ node }: { node: TargetNode }) {
+  const { t } = useTranslation('exposure')
+  return (
+    <section aria-label={t('schedule.name', { value: node.value })} className="grid gap-1">
+      <ScheduleEditor ownerKey={node.schedule_key} name={t('schedule.name', { value: node.value })} runNow={false} />
+      {!node.deep ? <p className="text-meta text-muted">{t('schedule.needsTerms')}</p> : null}
+    </section>
   )
 }

@@ -28,6 +28,7 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
   const { t } = useTranslation('exposure')
   const [params, setParams] = useSearchParams()
   const tabHref = useTabHref()
+  const issuesOf = (id: string) => { const p = new URLSearchParams(tabHref('issues').slice(1)); p.set('service', id); return `?${p}` }
   const view: View = params.get('services') === 'closed' ? 'closed' : 'open'
   const setView = (v: View) => { const p = new URLSearchParams(params); if (v === 'open') p.delete('services'); else p.set('services', v); setParams(p, { replace: true }) }
   const rows = services.filter((s) => s.state === view)
@@ -41,7 +42,9 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
     { id: 'web', header: t('services.col.web'), enableSorting: false, cell: ({ row }) => <WebCell s={row.original} /> },
     { id: 'issues', header: t('services.col.issues'), accessorFn: openIssues, cell: ({ row }) => {
       const n = openIssues(row.original)
-      return n > 0 ? <Link className="font-medium text-accent underline-offset-4 hover:underline" to={tabHref('issues')}>{t('services.issues', { count: n })}</Link> : <span className="text-muted">0</span>
+      const s = row.original
+      // to the issues of this service only: each row's link has its own target and its own label
+      return n > 0 ? <Link className="font-medium text-accent underline-offset-4 hover:underline" to={issuesOf(s.id)} aria-label={t('services.issuesOn', { count: n, where: `${s.ip}:${s.port}/${s.proto}` })}>{t('services.issues', { count: n })}</Link> : <span className="text-muted">0</span>
     } },
     { id: 'seen', header: t('services.col.seen'), accessorFn: (s) => s.last_seen, cell: ({ row }) => <Seen i={row.original} /> },
   ]

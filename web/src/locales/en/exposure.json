@@ -580,6 +580,8 @@
   },
   "issues": {
     "view": "Show issues",
+    "onlyService": "Issues on {{where}}",
+    "allServices": "Show the issues of every service",
     "views": {
       "open": "Open ({{count}})",
       "handled": "Handled ({{count}})",
@@ -668,6 +670,8 @@
     },
     "issues_one": "{{count}} issue",
     "issues_other": "{{count}} issues",
+    "issuesOn_one": "{{count}} open issue on {{where}}",
+    "issuesOn_other": "{{count}} open issues on {{where}}",
     "byPort": "By port number, not confirmed",
     "onPurpose": "Often attacked: is it open on purpose?",
     "webChip": "Web",
@@ -723,6 +727,7 @@
     "chosenToast_other": "{{count}} names are scanned from the next scan.",
     "unchosenToast_one": "{{count}} name is no longer scanned.",
     "unchosenToast_other": "{{count}} names are no longer scanned.",
+    "tooMany": "One scan reads at most 300 names, this one included, so at most {{max}} names can be chosen ({{count}} would be). For more, add a subdomain as its own target.",
     "emptyTitle": "No name found yet",
     "emptyNever": "The first scan lists the names under this domain."
   },
@@ -744,5 +749,9 @@
     },
     "emptyTitle": "No scan yet",
     "emptyBody": "Scan now runs the first one."
+  },
+  "schedule": {
+    "name": "Scans of {{value}}",
+    "needsTerms": "Scheduled scans run only once the testing terms are accepted (Ownership), and never with the disruptive checks."
   }
 }

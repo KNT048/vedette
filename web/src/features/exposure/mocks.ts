@@ -20,10 +20,10 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { serviceLabel } from './services'
 import { seedTree, seedTreeRows, type StoredNode, type TreeRows } from './treeSeed'
-import { MAX_ISSUE_IDS, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
+import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { mockDeviceProgress } from '@/lib/progress'
 import type { Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
-import type { BoxIpSettings, Commitment, ScanSchedule, ScheduleEvery, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
+import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
@@ -44,7 +44,6 @@ const commitments = collection<Record<string, Commitment>>('exp_commitments', ()
   }
 }, () => ({}))
 /** INV-36: how often each target is scanned by itself; a target with no entry is weekly (the default, also of older targets). */
-const schedules = collection<Record<string, ScheduleEvery>>('exp_schedules', () => ({}), () => ({}))
 /** Timestamps of verification attempts in the last hour (rate limit, anti-abuse). */
 const attempts = collection<string[]>('exp_attempts', () => [], () => [])
 /** Auto-detect settings. Same defaults on a clean install; only the sample has a last check. */
@@ -236,27 +235,7 @@ function view(t: StoredTarget): Target {
     ip_proof: typed ? { path: '/.well-known/vedette-verify.txt', content: t.token, urls: [`http://${t.value}/.well-known/vedette-verify.txt`, `https://${t.value}/.well-known/vedette-verify.txt`], ptr_domains: targets.get().filter((o) => o.kind === 'domain' && o.verified_at !== null && o.txt_ok).map((o) => o.value) } : null,
     next_check_at: typed && verified && t.expires_at ? plus(t.expires_at, -7) : null,
     scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'ip_not_current' ? 'paused' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
-    schedule: scheduleOf(t, blocked, terms?.version === TERMS_VERSION, !!terms),
   }
-}
-
-/** INV-36: the schedule as the box shows it. The mock has no scan window (Settings › Scanning › Safety): the next scan is when it is due. */
-function scheduleOf(t: StoredTarget, blocked: Target['blocked_reason'], full: boolean, hadTerms: boolean): ScanSchedule {
-  const every = schedules.get()[t.id] ?? 'weekly'
-  if (every === 'off') return { every, next_at: null, note: null }
-  const why = blocked === 'unverified' ? 'ownership is not proved' : blocked === 'expired' ? 'the ownership proof expired'
-    : blocked === 'no_commitment' || !full ? (hadTerms ? 'terms need confirming again' : 'the testing terms are not accepted')
-    : blocked === 'ip_not_current' ? 'the box no longer goes out through this IP' : null
-  if (why) return { every, next_at: null, note: `Not scanned on schedule: ${why}` }
-  const now = new Date()
-  let due = now
-  if (t.last_scan_at) {
-    due = new Date(t.last_scan_at)
-    if (every === 'daily') due.setDate(due.getDate() + 1)
-    else if (every === 'weekly') due.setDate(due.getDate() + 7)
-    else due.setMonth(due.getMonth() + 1)
-  }
-  return { every, next_at: (due < now ? now : due).toISOString(), note: null }
 }
 
 const find = (id: unknown) => targets.get().find((t) => t.id === id)
@@ -639,6 +618,7 @@ const treeHandlers = [
     if (b.selected !== undefined) {
       const hosts = treeRows.get().hosts[n.id] ?? []
       if (scope !== 'selected') return fail(400, 'bad_value', 'Names are chosen only when the scope is "the names I choose".')
+      if (Array.isArray(b.selected) && b.selected.length > MAX_SELECTED) return fail(400, 'invalid', SELECTED_LIMIT_WHY)
       if (!Array.isArray(b.selected) || b.selected.some((h) => !hosts.some((x) => x.id === h))) return fail(400, 'bad_value', 'One of the chosen names is not a name found under this target.')
       const pick = new Set(b.selected)
       treeRows.update((r) => ({ ...r, hosts: { ...r.hosts, [n.id]: hosts.map((h) => ({ ...h, selected: pick.has(h.id) })) } }))
@@ -1063,21 +1043,6 @@ export const handlers = [
     const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null, progress: null }
     mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })
-  }),
-
-  // INV-36: how often the box scans the target by itself (admin).
-  http.put(`${API}/exposure/targets/:id/schedule`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const t = find(params.id)
-    if (!t) return notFound()
-    const { every } = await body<{ every?: string }>(request)
-    if (every !== 'off' && every !== 'daily' && every !== 'weekly' && every !== 'monthly') return fail(400, 'bad_value', 'Choose Off, Daily, Weekly or Monthly.')
-    const was = schedules.get()[t.id] ?? 'weekly'
-    if (was !== every) {
-      schedules.update((m) => ({ ...m, [t.id]: every }))
-      audit('exposure.schedule', t.value, `${every} (was ${was})`)
-    }
-    return HttpResponse.json(view(t))
   }),
 
   // The mock starts every scan at once (no queue), so nothing ever waits to be taken out.

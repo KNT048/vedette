@@ -193,6 +193,8 @@ var seedsInvRows = map[string]bool{
 	// the intrusion alerts reference devices by a foreign key: the tests seed devices with fixed ids and delete one to see its
 	// alerts stay
 	"../../modules/ids/service_test.go": true,
+	// SNMP device rows reference devices by a foreign key: the test database creates a stub device table and fills it by trigger
+	"../../modules/sensor-active/env_test.go": true,
 }
 
 // checksInvRows are the self-check invariants of modules that depend on the inventory and keep a device id without a foreign key:

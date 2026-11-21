@@ -40,9 +40,10 @@ const (
 )
 
 // readFail is the error of a decoder that could not read its input: the download's own size cap (ErrTooLarge, which Fetch words as
-// "larger than …") as it is, anything else as a bad index.
+// "larger than …") or a broken connection (transportErr, when the reader marks it) as it is, anything else as a bad index.
 func readFail(err error, format string, a ...any) error {
-	if errors.Is(err, ErrTooLarge) {
+	var te transportErr
+	if errors.Is(err, ErrTooLarge) || errors.As(err, &te) { // the download's own failure, not the data's
 		return err
 	}
 	return fail(ErrBadSample, format, a...)

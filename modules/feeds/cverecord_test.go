@@ -74,7 +74,31 @@ func spansOf(rs []Range) []span {
 	return out
 }
 
-// The conversion of affected versions to ranges, and everything it refuses to guess.
+// genericRows are the rows the generic comparison reads (Range.Generic).
+func genericRows(rs []Range) []Range {
+	return slices.DeleteFunc(slices.Clone(rs), func(r Range) bool { return !r.Generic() })
+}
+
+// vspan is a row kept in the vendor's notation, with its version_type.
+type vspan struct {
+	span
+	typ string
+}
+
+// vendorSpans are the rows kept in the vendor's notation.
+func vendorSpans(rs []Range) []vspan {
+	out := []vspan{}
+	for _, r := range rs {
+		if r.Generic() {
+			continue
+		}
+		out = append(out, vspan{span{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, r.Fixed, r.DefaultStatus}, r.VersionType})
+	}
+	return out
+}
+
+// The conversion of affected versions to ranges, and everything it refuses to guess (the rows the generic comparison reads; what the
+// refused products keep in their vendor's notation: TestParseCVERecord_VendorRows).
 func TestParseCVERecord_Ranges(t *testing.T) {
 	t.Parallel()
 	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
@@ -120,8 +144,8 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 			[]span{{si: "3.0", ee: "3.0.5", def: k}}, 0},
 	} {
 		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")
-		if err != nil || !slices.Equal(spansOf(got.Ranges), append([]span{}, c.want...)) || got.Skipped != c.skipped {
-			t.Errorf("%s: %+v skipped %d %v, want %+v skipped %d", c.name, spansOf(got.Ranges), got.Skipped, err, c.want, c.skipped)
+		if err != nil || !slices.Equal(spansOf(genericRows(got.Ranges)), append([]span{}, c.want...)) || got.Skipped != c.skipped {
+			t.Errorf("%s: %+v skipped %d %v, want %+v skipped %d", c.name, spansOf(genericRows(got.Ranges)), got.Skipped, err, c.want, c.skipped)
 		}
 		for _, r := range got.Ranges {
 			if r.CVE != "CVE-2026-1000" || r.Origin != OriginCNA || r.Vendor != "acme" || r.Product != "gateway" || r.Part != "" || r.CPE != "" {
@@ -132,11 +156,82 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 	// another product is its own key; "n/a" as the vendor is the assigner's product (VMware's records); company words go
 	got, _ := ParseCVERecord(record(`{"vendor":"Acme Software Corporation","product":"Acme Portal","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},`+
 		`{"vendor":"n/a","product":"Acme Box","versions":[{"version":"2.0","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.x","status":"affected"}]}`), "CVE-2026-1000")
-	if len(got.Ranges) != 2 || got.Ranges[0].Product != "portal" || got.Ranges[1].Vendor != "acme" || got.Ranges[1].Product != "box" || got.Skipped != 1 {
+	if g := genericRows(got.Ranges); len(g) != 2 || g[0].Product != "portal" || g[1].Vendor != "acme" || g[1].Product != "box" || got.Skipped != 1 {
 		t.Fatalf("products: %+v skipped %d", got.Ranges, got.Skipped)
 	}
 	if k := RecordProductKey("Palo Alto Networks", "PAN-OS"); k != (ProductKey{"paloalto", "panos"}) {
 		t.Fatalf("key %+v", k)
+	}
+}
+
+// A product the generic rules refuse keeps its versions as the vendor states them, in rows the generic comparison never reads
+// (version_type "vendor:…"): bounds as written, the fixed release where the record says the versions from there are unaffected,
+// a hotfix range split at its changes, an "affected except" list as one range per fixed release. Git commits, entries limited to
+// some systems and text the column cannot hold safely are left out.
+func TestParseCVERecord_VendorRows(t *testing.T) {
+	t.Parallel()
+	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
+	for _, c := range []struct {
+		name, affected string
+		want           []vspan
+	}{
+		{"VMware's builds per train", `{"vendor":"n/a","product":"VMware ESXi","defaultStatus":"unaffected","versions":[{"version":"8.0","lessThan":"ESXi80U3d-24585383","status":"affected","versionType":"custom"},{"version":"7.0","lessThan":"ESXi70U3s-24585291","status":"affected","versionType":"custom"}]}`,
+			[]vspan{{span{si: "8.0", ee: "ESXi80U3d-24585383", fixed: "ESXi80U3d-24585383", def: u}, "vendor:custom"}, {span{si: "7.0", ee: "ESXi70U3s-24585291", fixed: "ESXi70U3s-24585291", def: u}, "vendor:custom"}}},
+		{"text as written", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"5.x, 4.5.x","status":"affected"}]}`,
+			[]vspan{{span{si: "5.x, 4.5.x", ei: "5.x, 4.5.x", def: u}, "vendor:text"}}},
+		{"a wildcard end", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"5.15","lessThanOrEqual":"5.15.*","status":"affected","versionType":"semver"}]}`,
+			[]vspan{{span{si: "5.15", ei: "5.15.*", def: k}, "vendor:semver"}}},
+		{"hotfixes split the range", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"12.1.0","lessThan":"12.1.10-h2","status":"affected","changes":[{"at":"12.1.4-h12","status":"unaffected"},{"at":"12.1.5","status":"affected"},{"at":"12.1.6-h3","status":"unaffected"},{"at":"12.1.7","status":"affected"}]}]}`,
+			[]vspan{{span{si: "12.1.0", ee: "12.1.4-h12", fixed: "12.1.4-h12", def: u}, "vendor:text"}, {span{si: "12.1.5", ee: "12.1.6-h3", fixed: "12.1.6-h3", def: u}, "vendor:text"},
+				{span{si: "12.1.7", ee: "12.1.10-h2", fixed: "12.1.10-h2", def: u}, "vendor:text"}}},
+		{"affected except the fixed releases", `{"vendor":"Linux","product":"Linux","defaultStatus":"affected","versions":[{"version":"6.0","status":"affected"},{"version":"0","lessThan":"6.0","status":"unaffected","versionType":"semver"},{"version":"6.1.149","lessThanOrEqual":"6.1.*","status":"unaffected","versionType":"semver"},{"version":"6.6.30","lessThanOrEqual":"6.6.*","status":"unaffected","versionType":"semver"},{"version":"6.17","lessThanOrEqual":"*","status":"unaffected","versionType":"original_commit_for_fix"}]},{"vendor":"Linux","product":"Linux","defaultStatus":"unaffected","versions":[{"version":"84c61fe1a75b","lessThan":"2902c3ebcca5","status":"affected","versionType":"git"}]}`,
+			[]vspan{{span{si: "6.0", ee: "6.1.149", fixed: "6.1.149", def: a}, "vendor:semver"}, {span{si: "6.0", ee: "6.6.30", fixed: "6.6.30", def: a}, "vendor:semver"},
+				{span{si: "6.0", ee: "6.17", fixed: "6.17", def: a}, "vendor:semver"}}},
+		{"one bad entry: the product's rows kept as stated", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`,
+			[]vspan{{span{si: "1.0", ee: "1.5", def: k}, "vendor:text"}, {span{si: "2.x", ei: "2.x", def: k}, "vendor:text"}}},
+		{"git commits only", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1da177e4c3f4","lessThan":"6b2c1e3fa9d1","status":"affected","versionType":"git"}]}`, []vspan{}},
+		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
+		{"quotes and semicolons", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0') DROP TABLE x;--","status":"affected"},{"version":"3.x","status":"affected"}]}`,
+			[]vspan{{span{si: "3.x", ei: "3.x", def: k}, "vendor:text"}}},
+	} {
+		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")
+		if err != nil || !slices.Equal(vendorSpans(got.Ranges), c.want) || len(genericRows(got.Ranges)) != 0 {
+			t.Errorf("%s: %+v (%d generic) %v, want %+v", c.name, vendorSpans(got.Ranges), len(genericRows(got.Ranges)), err, c.want)
+		}
+	}
+}
+
+// The rows kept as the vendor states them are bounded: a range of 60 000 hotfix changes, or a record whose products together pass the
+// record's bound, keeps no row of the product over the bound, counted; the work stops at the bound.
+func TestParseCVERecord_StatedRowsBounded(t *testing.T) {
+	t.Parallel()
+	var changes strings.Builder
+	for i := range 60000 {
+		if i > 0 {
+			changes.WriteString(",")
+		}
+		st := "unaffected"
+		if i%2 == 1 {
+			st = "affected"
+		}
+		fmt.Fprintf(&changes, `{"at":"1.%d","status":"%s"}`, i+1, st)
+	}
+	start := time.Now()
+	got, err := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"9.9","status":"affected","changes":[`+changes.String()+`]}]}`), "CVE-2026-1000")
+	if err != nil || len(got.Ranges) != 0 || got.Skipped != 1 || got.StatedDropped != 1 || time.Since(start) > 5*time.Second {
+		t.Fatalf("hotfix flood: %d rows, skipped %d, dropped %d, %v", len(got.Ranges), got.Skipped, got.StatedDropped, err)
+	}
+	var products []string
+	for p := range 5 { // 450 exact text versions each: four fit the record's 2000, the fifth does not
+		var vs []string
+		for i := range 450 {
+			vs = append(vs, fmt.Sprintf(`{"version":"%d.x build %d","status":"affected"}`, p, i))
+		}
+		products = append(products, fmt.Sprintf(`{"vendor":"Acme","product":"P%d","versions":[%s]}`, p, strings.Join(vs, ",")))
+	}
+	got, err = ParseCVERecord(record(strings.Join(products, ",")), "CVE-2026-1000")
+	if err != nil || len(got.Ranges) != 1800 || got.Skipped != 5 || got.StatedDropped != 1 {
+		t.Fatalf("record bound: %d rows, skipped %d, dropped %d, %v", len(got.Ranges), got.Skipped, got.StatedDropped, err)
 	}
 }
 
@@ -211,7 +306,7 @@ func TestParseCVERecord_Hostile(t *testing.T) {
 		t.Errorf("rejected: %+v %v", got, err)
 	}
 	h, err := ParseCVERecord(fixture(t, "cveorg/CVE-2026-0002-hostile.json"), "CVE-2026-0002")
-	if err != nil || len(h.Ranges) != 1 || h.Ranges[0].Vendor != "evil" || h.Skipped != 1 { // the gateway's NUL and SQL are refused
+	if err != nil || len(h.Ranges) != 1 || h.Ranges[0].Vendor != "evil" || h.Skipped != 1 { // the gateway's NUL and SQL are refused, kept in no form
 		t.Fatalf("hostile: %+v %v", h, err)
 	}
 	many := strings.TrimSuffix(strings.Repeat(`{"version":"1.0","status":"affected"},`, recordMaxVersions+1), ",")
@@ -555,7 +650,7 @@ func recordsCurrent(t *testing.T, e *env, o *origin) {
 	t.Helper()
 	write(t, e.db, func(tx *sql.Tx) error {
 		now := e.clock()
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: now, To: now, Until: now})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o.url("/repo")), Mode: modeDone, From: now, To: now, Until: now})
 	})
 }
 
@@ -850,7 +945,7 @@ func changesEnv(t *testing.T) (*env, *origin) {
 			}
 		}
 		midnight := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: midnight, Until: midnight})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o.url("/repo")), Mode: modeDone, From: midnight, Until: midnight})
 	})
 	return e, o
 }
@@ -1082,6 +1177,54 @@ func TestCVERecords_YesterdaysArchiveNotYetPublished(t *testing.T) {
 
 // A read of the whole list never rolls back a record read after the archive's midnight; a partial download that met a disk error is
 // removed.
+// A box whose records an older range reader read (its cursor carries no reader stamp) reads the whole list again, once: every record
+// is replaced, a newer one too, so VMware's ESXi rows that reader dropped appear without waiting for VMware to edit its record; the
+// cursor goes back to the archive's midnight so the changes since are read again.
+func TestCVERecords_ReaderChangeReadsTheWholeListOnce(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, true)
+	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	esxi := fixture(t, "brief/"+briefCVE+".record.json")
+	write(t, e.db, func(tx *sql.Tx) error {
+		r, err := ParseCVERecord(esxi, briefCVE)
+		if err != nil {
+			return err
+		}
+		k, err := recordKeepOf(t.Context(), tx, e.clock(), []string{briefCVE})
+		if err != nil {
+			return err
+		}
+		if _, err := writeRecords(t.Context(), tx, []CVERecord{r}, k, time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)); err != nil { // read after midnight
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), `DELETE FROM feeds_cve_range WHERE cve = ? AND version_type LIKE 'vendor:%'`, briefCVE); err != nil {
+			return err // as the older reader stored it
+		}
+		now := e.clock()
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: now, To: now, Until: now})
+	})
+	const path = "/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip"
+	o.serve(path, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{"cves/2025/22xxx/" + briefCVE + ".json": esxi})))
+	})
+	if owed, _ := e.svc.st.recordsOwed(t.Context(), o.url("/repo")); !owed {
+		t.Fatal("a cursor of an older reader is not owed a pull")
+	}
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve_range WHERE cve = ? AND version_type = 'vendor:custom' AND product = 'esxi'`, briefCVE); n != 3 || o.count(path) != 1 {
+		t.Fatalf("VMware's rows after the reread: %d, archive asked %d times", n, o.count(path))
+	}
+	cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord)
+	if cur.URL != recordCursorURL(o.url("/repo")) || cur.Mode != modeDone || !cur.Until.Equal(time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("cursor %+v", cur)
+	}
+	if owed, _ := e.svc.st.recordsOwed(t.Context(), o.url("/repo")); owed {
+		t.Fatal("still owed after the reread")
+	}
+}
+
 func TestCVERecords_RereadKeepsNewerAndDiskErrorRemovesPart(t *testing.T) {
 	t.Parallel()
 	e, o, _ := recordEnv(t, true)
@@ -1123,7 +1266,7 @@ func TestCVERecords_RereadKeepsNewerAndDiskErrorRemovesPart(t *testing.T) {
 	}
 	write(t, e2.db, func(tx *sql.Tx) error {
 		day := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o2.url("/repo"), Mode: modeFill, From: day, To: day, Until: day, NextIndex: 7, Total: 1000})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o2.url("/repo")), Mode: modeFill, From: day, To: day, Until: day, NextIndex: 7, Total: 1000})
 	})
 	if err := e2.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
 		t.Fatal(err)

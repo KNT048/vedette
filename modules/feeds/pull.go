@@ -168,6 +168,10 @@ type pullPlan struct {
 
 	signals    []publicSignal // metasploit, exploit-db, poc-in-github: the index's CVEs, replaced whole (applyPublicSignals)
 	hasSignals bool
+
+	vendor    vendorRead // msrc, cisco-psirt, fortinet-psirt: the vendor's exploitation claims (applyVendorClaims)
+	hasVendor bool
+	vendorMem *advisoryMemory // cisco-psirt, fortinet-psirt: what the box read of each advisory, kept once the claims are written
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -311,6 +315,12 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildWinRel(ctx, src, p)
 	case DecoderMetasploit, DecoderExploitDB, DecoderPoCGitHub:
 		return s.buildPublicExploit(ctx, src, p, dec)
+	case DecoderMSRC:
+		return s.buildMSRC(ctx, src, p)
+	case DecoderCisco:
+		return s.buildCisco(ctx, src, p)
+	case DecoderFortinet:
+		return s.buildFortinet(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -606,6 +616,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if err := applyPublicSignals(ctx, tx, p.out.Finished, src.ID, p.signals); err != nil {
 					return err
 				}
+			case p.hasVendor:
+				if p.out.Records, err = applyVendorClaims(ctx, tx, p.out.Finished, prevGood(src), src.ID, p.vendor); err != nil {
+					return err
+				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed
 				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
@@ -636,6 +650,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		if err := s.LearnWindowsReleases(ctx); err != nil {
 			s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
 		}
+	}
+	if p.vendorMem != nil && p.out.OK && !stale {
+		s.keepAdvisories(src.ID, p.vendorMem)
 	}
 	row, rerr := s.st.source(ctx, id)
 	if stale || rerr != nil {

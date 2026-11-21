@@ -97,7 +97,7 @@ const steps: Step[] = [
   { name: 'cve lower case', role: 'viewer', method: 'GET', path: (c) => `/feeds/cve/${c.cve!.toLowerCase()}`, status: 200, real: { status: 400, code: 'invalid' } },
   { name: 'cve whose link has an anchor', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2021-3199', status: 200, schema: CveDetail, check: (b) => expect(b.lists[0].links[0]).toMatch(/CHANGELOG.md#563$/) },
   { name: 'cve brief with weaknesses, ranges and tagged references', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2025-22225', status: 200, schema: CveDetail,
-    check: (b) => { expect(b.cwe.map((w: { id: string }) => w.id)).toEqual(['CWE-787', 'CWE-123']); expect(b.ranges).toHaveLength(55); expect(b.references[0]).toMatchObject({ group: 'vendor-advisory' }) } },
+    check: (b) => { expect(b.cwe.map((w: { id: string }) => w.id)).toEqual(['CWE-787', 'CWE-123']); expect(b.ranges.filter((r: { counts: boolean }) => r.counts)).toHaveLength(55); expect(b.fixes.map((f: { train: string }) => f.train)).toEqual(['8.0 U3', '8.0 U2', '7.0 U3']); expect(b.references[0]).toMatchObject({ group: 'vendor-advisory' }) } },
   { name: 'cve brief of a CVE on no list', mockOnly: true, role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-2026-31001', status: 200, schema: CveDetail,
     check: (b) => expect([b.lists, b.matched]).toEqual([[], null]) },
   { name: 'cve not in the data', role: 'viewer', method: 'GET', path: '/feeds/cve/CVE-1999-0001', status: 404, code: 'not_in_data' },
@@ -110,7 +110,7 @@ const steps: Step[] = [
   { name: 'search blank', role: 'viewer', method: 'GET', path: '/feeds/search?q=%20%20', status: 400, code: 'empty_query' },
   { name: 'search 201 characters', role: 'viewer', method: 'GET', path: `/feeds/search?q=${'a'.repeat(201)}`, status: 200, real: { status: 400, code: 'invalid' } },
   { name: 'sources list', role: 'viewer', method: 'GET', path: '/feeds/sources', status: 200, schema: FeedList,
-    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'epss-all', 'nvd-kev', 'nvd-recent', 'cve-org', 'vulncheck-kev', 'ubuntu-osv', 'ubuntu-vex', 'debian-tracker', 'alpine-osv', 'windows-releases', 'nuclei-templates', 'metasploit', 'exploit-db', 'poc-in-github', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif']) } },
+    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'epss-all', 'nvd-kev', 'nvd-recent', 'cve-org', 'vulncheck-kev', 'ubuntu-osv', 'ubuntu-vex', 'debian-tracker', 'alpine-osv', 'windows-releases', 'nuclei-templates', 'metasploit', 'exploit-db', 'poc-in-github', 'msrc', 'cisco-psirt', 'fortinet-psirt', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif']) } },
 
   // ---- roles
   { name: 'no session', role: null, method: 'GET', path: '/feeds/status', status: 401, code: 'unauthenticated' },

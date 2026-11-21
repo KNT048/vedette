@@ -91,6 +91,9 @@ type CVERecord struct {
 	// Skipped is the affected entries whose versions could not be read without guessing (git commits, wildcards, text, holes);
 	// their product has no range from this record.
 	Skipped int
+	// StatedDropped is the products of Skipped whose versions are not kept as the vendor states them either: more rows than
+	// recordMaxStatedProduct, or past recordMaxStated for the record.
+	StatedDropped int
 
 	// asOf is the time an archive's copy is current as of (the daily list's midnight, the end of a day of changes), stored as the record's
 	// read time so it never claims a change logged after it; zero: read by ID now.
@@ -230,7 +233,7 @@ func ParseCVERecord(data []byte, cve string) (CVERecord, error) {
 			out.SSVC = ssvcOf(c)
 		}
 	}
-	out.Ranges, out.Skipped = recordRanges(cve, out.Assigner, cna.Affected, r.Containers.ADP)
+	out.Ranges, out.Skipped, out.StatedDropped = recordRanges(cve, out.Assigner, cna.Affected, r.Containers.ADP)
 	return out, nil
 }
 

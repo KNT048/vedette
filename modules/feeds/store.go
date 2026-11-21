@@ -337,7 +337,8 @@ records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
 stale_failed_checks = 0 WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("feeds: restart the watch: %w", err)
 	}
-	if id == nucleiFeedID || publicExploitFeed(id) { // the next index is taken as it is: the way to accept one the shrink guard refused
+	if id == nucleiFeedID || publicExploitFeed(id) || vendorClaimFeed(id) { // the next index is taken as it is: the way to accept one the shrink guard refused
+		// (a vendor feed then reads every advisory of its feed again; the claims it stored stay, as for the other built-in feeds)
 		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET records = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("feeds: forget the last nuclei index: %w", err)
 		}

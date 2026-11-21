@@ -453,7 +453,7 @@ func TestCVEPage_PlatformRulesAgreeWithFindings(t *testing.T) {
 func TestContract_PRE3_NotInKEV(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if c, b := e.get("/feeds/cve/CVE-2020-0001"); c != 404 || code(b) != "not_in_kev" {
+	if c, b := e.get("/feeds/cve/CVE-2020-0001"); c != 404 || code(b) != "not_in_data" {
 		t.Errorf("%d %v", c, b)
 	}
 }

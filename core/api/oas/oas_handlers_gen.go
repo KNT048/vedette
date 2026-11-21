@@ -21600,7 +21600,8 @@ func (s *Server) handleFeedsDeleteFeedsCustomIDRequest(args [1]string, argsEscap
 
 // handleFeedsGetFeedsCveIDRequest handles feeds_get_feeds_cve_id operation.
 //
-// Details of an exploited CVE and your matching devices.
+// Everything the box knows about a CVE (its brief) and your devices that match its exploited-list
+// entry (404 not_in_data when the vulnerability data does not hold it).
 //
 // GET /feeds/cve/{id}
 func (s *Server) handleFeedsGetFeedsCveIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21679,7 +21680,7 @@ func (s *Server) handleFeedsGetFeedsCveIDRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FeedsGetFeedsCveIDOperation,
-			OperationSummary: "Details of an exploited CVE and your matching devices",
+			OperationSummary: "Everything the box knows about a CVE (its brief) and your devices that match its exploited-list entry (404 not_in_data when the vulnerability data does not hold it)",
 			OperationID:      "feeds_get_feeds_cve_id",
 			Body:             nil,
 			RawBody:          rawBody,

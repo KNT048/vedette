@@ -37,6 +37,12 @@
 - **PRIVACY.md** luồng 1 và `locales/en/core.json` `privacy.flow.1`: các yêu cầu NVD (cửa sổ, đi qua toàn bộ danh sách, `cveId`).
 - Thêm nguồn tín hiệu mới: ghi `feeds_signal` qua `putSignal`, luật `qualifies` của loại đó; CVE có tín hiệu đạt được giữ ở mọi tuổi và được lấy bản ghi NVD (`missingSQL`).
 
+## Modifying: `Store.Brief`, `ReadVector`, `refGroup`, `nvdTag`, `GET /feeds/cve/{id}`, `content/catalog/cwe-names.json`
+- `Brief` is the read model the CVE page, the finding's summary card, the AI context, notices and reports take: a field renamed or dropped breaks `web/src/features/feeds/contract.ts` (`CveBrief`, `CveDetail`), the mock (`mocks.ts`, `briefSamples.ts`), `CvePage.tsx` and every consumer of the brief. Regenerate `api/openapi.json` and `core/api/oas` (`pnpm --dir web openapi`, `make generate`).
+- `ReadVector`'s words and `Summary` are shown and given to the AI as they are: a change of wording changes what people and the AI read.
+- The weakness and reference writers (BRIEF-2) are shared by `writeNVDRecords` and `writeRecords`: a change in one must keep the rule "NVD's when NVD has given them, the record's until then" in both, or the stored rows depend on which pull came first (`TestBrief_CVE2025_22225` runs both orders).
+- `cwe-names.json` is MITRE's CWE List, names only (licence in `THIRD_PARTY_NOTICES.md`); refresh it from the newest `cwec_latest.xml.zip`, weaknesses and groupings.
+
 ## Modifying: `cverecord*.go` (`ParseCVERecord`, `recordRanges`, `RecordProductKey`, the archives), feed `cve-org`, `Store.RangesFromCVEOrg`, `KEVRecordRows`
 
 - **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`, `rangesFrom`): CVE danh sách không có khoảng NVD mang `Vuln.RangesFrom = findings.RangesCVEOrg`/`RangesCVEOrgPartial` từ `kevRecordView` (partial: không bao giờ đóng finding); `FixedIn.Source` "CVE.org affected versions (from the CVE record's CNA)". CPE của hàng là hãng/sản phẩm mục danh sách đã chuẩn hoá (`productid.Norm`), phiên bản đúng nằm trong CPE: đổi cách dựng ⇒ finding đổi (`TestCVEOrgRecordsThroughTheMatcher`).

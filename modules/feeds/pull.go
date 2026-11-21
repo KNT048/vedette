@@ -167,6 +167,7 @@ type pullPlan struct {
 
 	vendor    vendorRead // msrc, cisco-psirt, fortinet-psirt: the vendor's exploitation claims (applyVendorClaims)
 	hasVendor bool
+	vendorMem *advisoryMemory // cisco-psirt, fortinet-psirt: what the box read of each advisory, kept once the claims are written
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -645,6 +646,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		if err := s.LearnWindowsReleases(ctx); err != nil {
 			s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
 		}
+	}
+	if p.vendorMem != nil && p.out.OK && !stale {
+		s.keepAdvisories(src.ID, p.vendorMem)
 	}
 	row, rerr := s.st.source(ctx, id)
 	if stale || rerr != nil {

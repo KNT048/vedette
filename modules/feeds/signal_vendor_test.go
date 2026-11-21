@@ -3,6 +3,7 @@ package feeds
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -35,6 +36,33 @@ func TestClaimedCVEs_SameSentenceNegationsAndScope(t *testing.T) {
 		{"another advisory's CVE", "Exploitation of CVE-2023-20198 has been observed in the wild.", []string{a}, nil},
 		{"the next entry's CVE is another sentence", "Apple is aware of a report that this issue may have been exploited. " + b + ": a memory issue.", []string{a, b}, nil},
 		{"exploiting another flaw first is not this one", "This vulnerability can only be abused as a consequence of a threat actor exploiting a known vulnerability.", []string{a}, nil},
+		// negations, answers, possibilities and purposes: none of these is a claim
+		{"was not", "This vulnerability was not exploited in the wild.", []string{a}, nil},
+		{"hasn't", "The issue hasn't been exploited in the wild.", []string{a}, nil},
+		{"never", "This vulnerability has never been exploited in the wild.", []string{a}, nil},
+		{"no indications", "There are no indications that this vulnerability has been exploited in the wild.", []string{a}, nil},
+		{"no sign", "There is no sign that this has been exploited in attacks.", []string{a}, nil},
+		{"observed no", "Fortinet has observed no exploitation of this issue.", []string{a}, nil},
+		{"observed no active", "Fortinet has observed no active exploitation of this issue.", []string{a}, nil},
+		{"an answer after the phrase", "Exploited in the wild: No", []string{a}, nil},
+		{"known to be, no", "Known to be exploited in the wild: No.", []string{a}, nil},
+		{"could be exploited by", "This vulnerability could be exploited by a remote unauthenticated attacker.", []string{a}, nil},
+		{"can be exploited by", "The vulnerability can be exploited by sending a crafted request.", []string{a}, nil},
+		{"prevent", "Apply the update to prevent the vulnerability from being exploited in the wild.", []string{a}, nil},
+		{"proof of concept could enable", "The PSIRT is aware of public proof-of-concept code that could enable exploitation of this vulnerability.", []string{a}, nil},
+		{"exploited by alone", "An attacker who exploited this vulnerability could run code.", []string{a}, nil},
+		// one sentence, two subjects; one of several
+		{"and is not aware", "The PSIRT became aware of attempted exploitation of " + a + " and is not aware of malicious use of " + b + ".", []string{a, b, c}, []string{a}},
+		{"one of the vulnerabilities", "The PSIRT is aware of attempted exploitation of one of the vulnerabilities that are described in this advisory.", []string{a, b, c}, nil},
+		{"several CVEs of one clause", "The PSIRT is aware of active exploitation of " + a + ", " + b + ", and " + c + ".", []string{a, b, c}, []string{a, b, c}},
+		// vendors' claims as they word them
+		{"Cisco limited", "The Cisco PSIRT is aware of limited exploitation of this vulnerability.", []string{a}, []string{a}},
+		{"Cisco malicious use", "The Cisco PSIRT is aware of malicious use of the vulnerability that is described in this advisory.", []string{a}, []string{a}},
+		{"Cisco attempts", "Updated to indicate active exploitation attempts in the wild.", []string{a}, []string{a}},
+		{"Fortinet found", "This vulnerability was found being exploited in the wild by two malicious accounts.", []string{a}, []string{a}},
+		{"Apple", "Apple is aware of a report that this issue may have been exploited in an extremely sophisticated attack.", []string{a}, []string{a}},
+		{"Chrome", "Google is aware that an exploit for " + a + " exists in the wild.", []string{a}, []string{a}},
+		{"Android", "There are indications that the following may be under limited, targeted exploitation.", []string{a}, []string{a}},
 	} {
 		if got := claimedCVEs(tc.text, tc.scope); !slices.Equal(got, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
@@ -162,7 +190,7 @@ func TestMSRC_ShrinkGuard(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), msrcFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if st := e.feed(msrcFeedID); st.Status != "error" || !strings.Contains(deref(st.Error), "fewer than half of the 150") || len(vendorRows(t, e, msrcFeedID)) != 150 {
+	if st := e.feed(msrcFeedID); st.Status != "error" || !strings.Contains(deref(st.Error), "fewer than the 150 of the last good list") || len(vendorRows(t, e, msrcFeedID)) != 150 {
 		t.Fatalf("%+v %q", st, deref(st.Error))
 	}
 	for _, body := range []string{`{"enabled":false}`, `{"enabled":true}`} {
@@ -212,9 +240,10 @@ func TestCisco_ChangedAdvisoriesClaimsAndRetraction(t *testing.T) {
 	e.setNow(time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC))
 	e.only(ciscoFeedID)
 	e.mirror(ciscoFeedID, o.url(ciscoFeedPath))
-	const one, two, gone, old = "cisco-sa-one-AbC12345", "cisco-sa-two-XyZ98765", "cisco-sa-gone-Qq111111", "cisco-sa-old-Zz000000"
+	const one, two, gone, old, three = "cisco-sa-one-AbC12345", "cisco-sa-two-XyZ98765", "cisco-sa-gone-Qq111111", "cisco-sa-old-Zz000000", "cisco-sa-three-Tt333333"
 	o.body(ciscoFeedPath, `"i1"`, ciscoFeed(
 		[2]string{one, "2026-11-20 16:00:00.0"},
+		[2]string{three, "2026-11-20 18:00:00.0"},
 		[2]string{two, "2026-10-01 16:00:00.0"},
 		[2]string{gone, "2026-09-01 16:00:00.0"},
 		[2]string{"bad id", "2026-09-01 16:00:00.0"},
@@ -226,6 +255,7 @@ func TestCisco_ChangedAdvisoriesClaimsAndRetraction(t *testing.T) {
 		[]string{`{"date":"2026-11-18T16:00:00+00:00","summary":"Initial public release."}`, `{"date":"2026-11-20T16:00:00+00:00","summary":"Added information about active exploitation of CVE-2026-2002."}`},
 		"CVE-2026-2001", "CVE-2026-2002"))
 	o.body(ciscoDocPath(two), `"d2"`, ciscoDoc(two, "2026-09-25T16:00:00+00:00", "The Cisco PSIRT is aware of attempted exploitation of this vulnerability.", nil, "CVE-2026-2003"))
+	o.body(ciscoDocPath(three), `"d5"`, ciscoDoc(three, "2026-11-20T18:00:00+00:00", "The Cisco PSIRT is aware of attempted exploitation of CVE-2026-2002 in products that bundle it.", nil, "CVE-2026-2002"))
 	o.serve(ciscoDocPath(gone), func(w http.ResponseWriter, _ *http.Request) { http.NotFound(w, nil) })
 	if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
 		t.Fatal(err)
@@ -243,15 +273,22 @@ func TestCisco_ChangedAdvisoriesClaimsAndRetraction(t *testing.T) {
 		t.Errorf("a first pull reads every advisory of the feed: %d, %d", o.count(ciscoDocPath(old)), o.count(ciscoFeedPath))
 	}
 
-	// six hours later only "two" changed: it no longer claims its CVE (a correction); "one" is not read again
+	// six hours later "two" and "one" changed, the feed dating both changes before the box's last pull (a change that reached the
+	// feed late is still read: the box compares the feed's own times); "two" no longer claims its CVE (a correction) and goes;
+	// "one" no longer claims CVE-2026-2002, which "three" (not read again) still claims, so the row stays with that link
 	e.setNow(e.clock().Add(6 * time.Hour))
-	o.body(ciscoFeedPath, `"i2"`, ciscoFeed([2]string{two, "2026-11-21 10:00:00.0"}, [2]string{one, "2026-11-20 16:00:00.0"}, [2]string{old, "2026-06-01 16:00:00.0"}))
+	o.body(ciscoFeedPath, `"i2"`, ciscoFeed([2]string{two, "2026-11-21 01:00:00.0"}, [2]string{one, "2026-11-21 02:00:00.0"}, [2]string{three, "2026-11-20 18:00:00.0"},
+		[2]string{old, "2026-06-01 16:00:00.0"}))
 	o.body(ciscoDocPath(two), `"d3"`, ciscoDoc(two, "2026-09-25T16:00:00+00:00", "The Cisco PSIRT is not aware of any malicious use of this vulnerability.", nil, "CVE-2026-2003"))
+	o.body(ciscoDocPath(one), `"d6"`, ciscoDoc(one, "2026-11-18T16:00:00+00:00", "The Cisco PSIRT is not aware of any malicious use of the vulnerabilities that are described in this advisory.", nil,
+		"CVE-2026-2001", "CVE-2026-2002"))
 	if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if got := vendorRows(t, e, ciscoFeedID); len(got) != 1 || got["CVE-2026-2002"] == "" || o.count(ciscoDocPath(one)) != 1 || o.count(ciscoDocPath(two)) != 2 || o.count(ciscoDocPath(old)) != 1 {
-		t.Fatalf("after the correction: %v; %d, %d reads", got, o.count(ciscoDocPath(one)), o.count(ciscoDocPath(two)))
+	got = vendorRows(t, e, ciscoFeedID)
+	if len(got) != 1 || got["CVE-2026-2002"] != `2026-11-20T16:00 https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/`+three+` {"advisory":"`+three+`"} 1` ||
+		o.count(ciscoDocPath(one)) != 2 || o.count(ciscoDocPath(two)) != 2 || o.count(ciscoDocPath(three)) != 1 || o.count(ciscoDocPath(old)) != 1 {
+		t.Fatalf("after the corrections: %v; %d, %d, %d reads", got, o.count(ciscoDocPath(one)), o.count(ciscoDocPath(two)), o.count(ciscoDocPath(three)))
 	}
 
 	// a document that is another advisory's is skipped and counted, not stored
@@ -300,18 +337,20 @@ func TestFortinet_FeedDocumentsAndConditionalReads(t *testing.T) {
 		[2]string{"FG-IR-26-279", ""},                                                     // under investigation: no document
 		[2]string{"FG-IR-26-101", "https://filestore.fortinet.com/../../etc/passwd.json"}, // a bad link is rejected
 	))
-	modified := map[string]bool{}
-	doc := func(path, body string) {
+	// as filestore.fortinet.com: 304 only to the exact Last-Modified it gave
+	doc := func(path, lastModified, body string) {
 		o.serve(path, func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("If-Modified-Since") != "" && !modified[path] {
+			if r.Header.Get("If-Modified-Since") == lastModified {
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}
+			w.Header().Set("Last-Modified", lastModified)
 			_, _ = w.Write([]byte(body))
 		})
 	}
-	doc(p1, fortiDoc("FG-IR-26-100", "2026-04-14T00:00:00", [2]string{"CVE-2026-3001", "<p>An OS command injection may allow an attacker to run commands.</p>"}))
-	doc(p2, fortiDoc("FG-IR-25-910", "2025-11-14T00:00:00",
+	const lm1, lm2 = "Tue, 14 Apr 2026 00:00:00 GMT", "Fri, 14 Nov 2025 08:00:00 GMT"
+	doc(p1, lm1, fortiDoc("FG-IR-26-100", "2026-04-14T00:00:00", [2]string{"CVE-2026-3001", "<p>An OS command injection may allow an attacker to run commands.</p>"}))
+	doc(p2, lm2, fortiDoc("FG-IR-25-910", "2025-11-14T00:00:00",
 		[2]string{"CVE-2025-3002", "A path confusion vulnerability in GUI.\n\nFortinet has observed this to be exploited in the wild."},
 		[2]string{"CVE-2025-3002", "A path confusion vulnerability in GUI.\n\nFortinet has observed this to be exploited in the wild."}))
 	if err := e.svc.Fetch(t.Context(), fortinetFeedID); err != nil {
@@ -334,8 +373,7 @@ func TestFortinet_FeedDocumentsAndConditionalReads(t *testing.T) {
 	// date); the second did not change and answers 304
 	e.setNow(e.clock().Add(6 * time.Hour))
 	o.body(fortiFeedPath, `"r2"`, fortiFeed([2]string{"FG-IR-26-100", "https://filestore.fortinet.com" + p1}, [2]string{"FG-IR-25-910", "https://filestore.fortinet.com" + p2}))
-	modified[p1] = true
-	doc(p1, fortiDoc("FG-IR-26-100", "2026-04-14T00:00:00", [2]string{"CVE-2026-3001", "<p>An OS command injection. This has been reported to be exploited in the wild.</p>"}))
+	doc(p1, "Sat, 21 Nov 2026 09:00:00 GMT", fortiDoc("FG-IR-26-100", "2026-04-14T00:00:00", [2]string{"CVE-2026-3001", "<p>An OS command injection. This has been reported to be exploited in the wild.</p>"}))
 	if err := e.svc.Fetch(t.Context(), fortinetFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +387,7 @@ func TestFortinet_FeedDocumentsAndConditionalReads(t *testing.T) {
 			ims = h.header.Get("If-Modified-Since")
 		}
 	}
-	if ims != "Sat, 21 Nov 2026 05:00:00 GMT" {
+	if ims != lm2 {
 		t.Errorf("If-Modified-Since %q", ims)
 	}
 	// the feed itself unchanged: 304, nothing read
@@ -400,8 +438,8 @@ func TestCSAF_ShapesAndDates(t *testing.T) {
 	if got := fmt.Sprint(ciscoClaims(d)); got != "[{CVE-2026-0001 2026-01-05 00:00:00 +0000 UTC}]" {
 		t.Errorf("claims %s", got)
 	}
-	if d.claimDate("CVE-2026-0002").Day() != 3 {
-		t.Errorf("date of a named CVE: %v", d.claimDate("CVE-2026-0002"))
+	if got := d.claimDates([]string{"CVE-2026-0002"})["CVE-2026-0002"]; got.Day() != 3 {
+		t.Errorf("date of a named CVE: %v", got)
 	}
 }
 
@@ -409,12 +447,64 @@ func TestCiscoFeed_Shapes(t *testing.T) {
 	t.Parallel()
 	refs, st, err := parseCiscoFeed(strings.NewReader(ciscoFeed([2]string{"cisco-sa-a-12345678", "2026-11-20 16:00:00.0"},
 		[2]string{"cisco-sa-..", "2026-11-20 16:00:00.0"}, [2]string{"cisco-sa-b-12345678", "yesterday"})))
-	if err != nil || len(refs) != 1 || refs[0].Path != ciscoDocPath("cisco-sa-a-12345678") || !refs[0].Changed.Equal(time.Date(2026, 11, 20, 16, 0, 0, 0, time.UTC)) || st.Rejected != 2 {
+	if err != nil || len(refs) != 1 || refs[0].Path != ciscoDocPath("cisco-sa-a-12345678") || refs[0].Changed != "2026-11-20 16:00:00.0" || st.Rejected != 2 {
 		t.Fatalf("%v %+v %v", refs, st, err)
 	}
 	for _, bad := range []string{`{}`, `<rss><channel><item>`, `<html/>`} {
 		if _, _, err := parseCiscoFeed(strings.NewReader(bad)); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
+	}
+}
+
+// allocated is how many bytes f allocates.
+func allocated(f func()) uint64 {
+	var a, b runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&a)
+	f()
+	runtime.ReadMemStats(&b)
+	return b.TotalAlloc - a.TotalAlloc
+}
+
+// Every count bound holds while a document is read, before anything is kept: a document of millions of empty elements under the
+// byte cap is refused having allocated little (a decode into slices allocated gigabytes before checking).
+func TestVendorParsers_BoundsHoldWhileReading(t *testing.T) { //nolint:paralleltest // measures allocations
+	elems := func(n int) string { return strings.TrimSuffix(strings.Repeat("{},", n), ",") }
+	const n = (csafMaxBytes - 200) / 3 // about 1.4 million empty elements
+	for name, doc := range map[string]string{
+		"vulnerabilities": `{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01"}},"vulnerabilities":[` + elems(n) + `]}`,
+		"notes":           `{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01"},"notes":[` + elems(n) + `]}}`,
+		"revisions":       `{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01","revision_history":[` + elems(n) + `]}}}`,
+		"threats":         `{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01"}},"vulnerabilities":[{"cve":"CVE-2026-1","threats":[` + elems(n) + `]}]}`,
+	} {
+		var err error
+		if a := allocated(func() { _, err = parseCSAF(strings.NewReader(doc)) }); err == nil || !strings.Contains(err.Error(), "more than") || a > 256<<20 {
+			t.Errorf("%s: %v, %d MB allocated", name, err, a>>20)
+		}
+	}
+	row := `{"value":[{"cveNumber":"CVE-2026-1","releaseDate":"2026-01-01T00:00:00Z","exploited":"Yes","revisions":[` + elems((msrcMaxBytes-200)/3) + `]}]}`
+	var err error
+	if a := allocated(func() { _, err = parseMSRCExploited(strings.NewReader(row)) }); err == nil || !strings.Contains(err.Error(), "more than 500 revisions") || a > 256<<20 {
+		t.Errorf("msrc: %v, %d MB allocated", err, a>>20)
+	}
+
+	// long revision summaries are cut as they are read, and each revision is read once for all the CVEs a document claims
+	var revs, vulns []string
+	long := strings.Repeat("Updated to indicate active exploitation attempts in the wild of CVE-2026-0001 ", 200) // 16 KB
+	for i := range csafMaxNotes / 2 {
+		revs = append(revs, fmt.Sprintf(`{"date":"2026-01-%02dT00:00:00Z","summary":%q}`, 1+i%28, long))
+		vulns = append(vulns, fmt.Sprintf(`{"cve":"CVE-2026-%04d","threats":[{"category":"exploit_status","details":"Exploited:Yes"}]}`, 1000+i))
+	}
+	d, err := parseCSAF(strings.NewReader(`{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01T00:00:00Z","revision_history":[` +
+		strings.Join(revs, ",") + `]}},"vulnerabilities":[` + strings.Join(vulns, ",") + `]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Revisions[0].Summary) != csafMaxRevSummary {
+		t.Errorf("summary of %d bytes kept", len(d.Revisions[0].Summary))
+	}
+	if got := ciscoClaims(d); len(got) != csafMaxNotes/2 || got[0].Date.Day() != 1 {
+		t.Errorf("%d claims, first %+v", len(got), got[:min(1, len(got))])
 	}
 }

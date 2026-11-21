@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"maps"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -49,13 +50,24 @@ func csafFixtureClaims(t *testing.T, name string, claims func(csafDoc) []vendorC
 	return out, docs
 }
 
+// The first measurement's phrase and negation lists, kept for the "before" of the count.
+var (
+	backtestPhraseRE = regexp.MustCompile(`(?i)(exploited in the wild|in[- ]the[- ]wild exploitation|exploits? for [^.]{0,80}? exists? in the wild|` +
+		`actively exploited|active exploitation|under (?:limited,? )?(?:and )?(?:targeted )?exploitation|ha(?:s|ve) been exploited|` +
+		`may have been exploited|being exploited|been observed exploit|aware of [^.]{0,100}?(?:exploitation|exploited|attacks? (?:that )?leverag)|` +
+		`observed [^.]{0,60}?exploit(?:ation|ed)|attempted exploitation|exploitation (?:attempts? )?(?:has|have) been (?:observed|detected|reported)|` +
+		`zero-day exploit|exploited as a zero-day|exploited (?:by|in attacks))`)
+	backtestNegationRE = regexp.MustCompile(`(?i)(to stop|can only be|\bif\b|\bwhether\b|not aware|no (?:known|evidence|indication|reports?)|not been|` +
+		`unaware|is not|are not|not currently|not observed|nor |without evidence|no public)`)
+)
+
 // windowRuleClaims is the first measurement's rule, kept here as the "before" of the count: a CVE within 300 characters of an
 // exploitation phrase (cut at the nearest ". "), with only the 90 characters before the phrase checked for a negation, and, when
 // that window names no CVE, every CVE of a document that has at most two. It read every text of the document.
 func windowRuleClaims(d csafDoc) []string {
 	cves := d.cves()
 	var texts []string
-	for _, n := range d.Document.Notes {
+	for _, n := range d.Notes {
 		texts = append(texts, n.Text)
 	}
 	for _, v := range d.Vulnerabilities {
@@ -63,12 +75,12 @@ func windowRuleClaims(d csafDoc) []string {
 			texts = append(texts, n.Text)
 		}
 		for _, r := range v.References {
-			texts = append(texts, r.Summary)
+			texts = append(texts, r)
 		}
 	}
 	var out []string
 	for _, text := range texts {
-		for _, m := range exploitPhraseRE.FindAllStringIndex(text, -1) {
+		for _, m := range backtestPhraseRE.FindAllStringIndex(text, -1) {
 			a := max(strings.LastIndex(text[:m[0]], ". "), m[0]-300, 0)
 			b := strings.Index(text[m[1]:], ". ")
 			if b < 0 {
@@ -81,7 +93,7 @@ func windowRuleClaims(d csafDoc) []string {
 			if i := strings.LastIndexByte(pre, '.'); i >= 0 {
 				pre = pre[i+1:]
 			}
-			if claimNegationRE.MatchString(pre) {
+			if backtestNegationRE.MatchString(pre) {
 				continue
 			}
 			named := claimCVERE.FindAllString(text[a:b], -1)

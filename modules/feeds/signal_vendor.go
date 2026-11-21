@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -73,6 +74,9 @@ type vendorRead struct {
 	// Whole: the documents are the feed's whole list (Microsoft's), so a CVE none of them claims any more loses its row. Otherwise
 	// (Cisco, Fortinet) only the documents read now are compared: a CVE such a document no longer claims loses the row it gave.
 	Whole bool
+	// Claimed: for each CVE, the links of every advisory the box knows to claim it now (read now or before; Cisco, Fortinet). A row
+	// whose advisory no longer claims its CVE moves to another of them instead of going.
+	Claimed map[string][]string
 	Stats
 }
 
@@ -159,6 +163,17 @@ VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`, cve, SignalExploited, source, store.FormatT
 		}
 		if _, read := claimedBy[h.url]; !r.Whole && !read {
 			continue // the document that gave it was not read this time: it stands
+		}
+		if others := r.Claimed[cve]; len(others) > 0 { // another advisory still claims it: the row stays, with that link
+			detail, err := json.Marshal(map[string]string{"advisory": lastPart(others[0])})
+			if err != nil {
+				return 0, fmt.Errorf("feeds: store claim: %w", err)
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_signal SET url = ?, detail = ?, last_seen = ? WHERE cve = ? AND kind = ? AND source = ?`,
+				others[0], string(detail), stamp, cve, SignalExploited, source); err != nil {
+				return 0, fmt.Errorf("feeds: store claim: %w", err)
+			}
+			continue
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_signal WHERE cve = ? AND kind = ? AND source = ?`, cve, SignalExploited, source); err != nil {
 			return 0, fmt.Errorf("feeds: drop claim: %w", err)

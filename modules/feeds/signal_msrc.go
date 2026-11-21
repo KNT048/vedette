@@ -2,8 +2,6 @@ package feeds
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"io"
 	"net/url"
 	"regexp"
@@ -19,28 +17,28 @@ import (
 // msrcCVEURL is where a person reads Microsoft's page of a CVE.
 const msrcCVEURL = "https://msrc.microsoft.com/update-guide/vulnerability/"
 
-// Bounds of the Security Update Guide list: bytes of one page, pages followed (@odata.nextLink), CVEs of the whole list (198 in
-// November 2026) and revisions read of one CVE. msrcFloor is the shrink guard (as the public-exploit indexes).
+// Bounds of the Security Update Guide list: bytes of one page (the whole list is about 1 MB in November 2026), pages followed
+// (@odata.nextLink), CVEs of the whole list (198), revisions of one CVE and the length of a revision's text read.
 const (
-	msrcMaxBytes     = 32 << 20
+	msrcMaxBytes     = 8 << 20
 	msrcMaxPages     = 20
 	msrcMaxCVEs      = 20_000
 	msrcMaxRevisions = 500
-	msrcFloor        = 100
+	msrcMaxRevText   = 1 << 10
+	msrcShrinkFrom   = 20 // the shrink guard judges a list only after a good one of at least this many CVEs
 )
 
 // msrcExploitedRevRE: a revision that set or corrected the exploited flag dates the claim ("Corrected the Exploitability Index, Exploited
 // flag and CVSS vector"); "Exploit Code Maturity" of a CVSS vector does not.
 var msrcExploitedRevRE = regexp.MustCompile(`(?i)\bexploited\b|exploitation detected`)
 
+type msrcRevision struct {
+	Date, Description string
+}
+
 type msrcVuln struct {
-	CVE         string `json:"cveNumber"`
-	ReleaseDate string `json:"releaseDate"`
-	Exploited   string `json:"exploited"`
-	Revisions   []struct {
-		Date        string `json:"revisionDate"`
-		Description string `json:"unformattedDescription"`
-	} `json:"revisions"`
+	CVE, ReleaseDate, Exploited string
+	Revisions                   []msrcRevision
 }
 
 // msrcPage is one page of the list as parseMSRCExploited read it.
@@ -50,79 +48,88 @@ type msrcPage struct {
 	Stats
 }
 
-// parseMSRCExploited reads one page of the Security Update Guide's vulnerability list. A CVE is a claim when its exploited field is
-// "Yes" (the query asks only for those; others are skipped, not trusted). Its date is the first revision that set the flag, else its
-// release. A row without a CVE id or a readable release date is rejected. The page must be one JSON object with a "value" array
-// (fail-closed).
+// parseMSRCExploited reads one page of the Security Update Guide's vulnerability list as a stream (every bound holds while reading).
+// A CVE is a claim when its exploited field is "Yes" (the query asks only for those; others are skipped, not trusted). Its date is
+// the first revision that set the flag, else its release. A row without a CVE id or a readable release date is rejected. The page
+// must be one JSON object with a "value" array (fail-closed).
 func parseMSRCExploited(r io.Reader) (msrcPage, error) {
-	dec := json.NewDecoder(r)
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return msrcPage{}, readFail(err, "Microsoft's list is not a JSON object.")
-	}
+	j := newJSONStream(r, "Microsoft's list")
 	var (
 		out       msrcPage
 		sawValues bool
 	)
 	tl := newTally()
-	for dec.More() {
-		tok, err := dec.Token()
+	row := 0
+	vuln := func() error {
+		row++
+		var v msrcVuln
+		_, err := j.object(func(k string) (err error) {
+			switch k {
+			case "cveNumber":
+				v.CVE, err = j.str(64)
+			case "releaseDate":
+				v.ReleaseDate, err = j.str(64)
+			case "exploited":
+				v.Exploited, err = j.str(16)
+			case "revisions":
+				err = j.array(msrcMaxRevisions, nil, "revisions of one CVE", func() error {
+					var rv msrcRevision
+					_, err := j.object(func(k string) (err error) {
+						switch k {
+						case "revisionDate":
+							rv.Date, err = j.str(64)
+						case "unformattedDescription":
+							rv.Description, err = j.str(msrcMaxRevText)
+						default:
+							err = j.skip()
+						}
+						return err
+					})
+					v.Revisions = append(v.Revisions, rv)
+					return err
+				})
+			default:
+				err = j.skip()
+			}
+			return err
+		})
 		if err != nil {
-			return msrcPage{}, readFail(err, "Microsoft's list could not be read: %v.", err)
+			return err
 		}
-		key, _ := tok.(string)
-		switch key {
-		case "@odata.nextLink":
-			if err := dec.Decode(&out.Next); err != nil {
-				return msrcPage{}, readFail(err, "Microsoft's list has a bad next page link.")
-			}
-		case "value":
-			sawValues = true
-			if tok, err := dec.Token(); err != nil || tok != json.Delim('[') {
-				return msrcPage{}, readFail(err, "Microsoft's list has no list of CVEs.")
-			}
-			row := 0
-			for dec.More() {
-				if row++; row > msrcMaxCVEs {
-					return msrcPage{}, fail(ErrBadSample, "Microsoft's list names more than %s CVEs.", grouped(msrcMaxCVEs))
-				}
-				var v msrcVuln
-				if err := dec.Decode(&v); err != nil {
-					var te *json.UnmarshalTypeError
-					if !errors.As(err, &te) {
-						return msrcPage{}, readFail(err, "Microsoft's list could not be read: %v.", err)
-					}
-					tl.reject(row, "CVE: a field has the wrong type")
-					continue
-				}
-				if !strings.EqualFold(strings.TrimSpace(v.Exploited), "Yes") {
-					continue
-				}
-				if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(v.CVE)), "ADV") {
-					continue // a Microsoft security advisory (ADV200006) flagged as exploited: no CVE to hold it by
-				}
-				c, ok := msrcClaim(v)
-				if !ok {
-					tl.reject(row, "%s: no CVE id or release date", v.CVE)
-					continue
-				}
-				tl.Accepted++
-				out.Claims = append(out.Claims, c)
-			}
-			if _, err := dec.Token(); err != nil { // ]
-				return msrcPage{}, readFail(err, "Microsoft's list is cut short.")
-			}
+		switch {
+		case !strings.EqualFold(strings.TrimSpace(v.Exploited), "Yes"):
+		case strings.HasPrefix(strings.ToUpper(strings.TrimSpace(v.CVE)), "ADV"):
+			// a Microsoft security advisory (ADV200006) flagged as exploited: no CVE to hold it by
 		default:
-			var skip json.RawMessage
-			if err := dec.Decode(&skip); err != nil {
-				return msrcPage{}, readFail(err, "Microsoft's list could not be read: %v.", err)
+			c, ok := msrcClaim(v)
+			if !ok {
+				tl.reject(row, "%s: no CVE id or release date", v.CVE)
+				return nil
 			}
+			tl.Accepted++
+			out.Claims = append(out.Claims, c)
 		}
+		return nil
 	}
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
-		return msrcPage{}, readFail(err, "Microsoft's list is cut short.")
+	ok, err := j.object(func(k string) (err error) {
+		switch k {
+		case "@odata.nextLink":
+			out.Next, err = j.str(2048)
+		case "value":
+			sawValues, err = j.arrayOK(msrcMaxCVEs, nil, "CVEs", vuln)
+		default:
+			err = j.skip()
+		}
+		return err
+	})
+	if err != nil {
+		return msrcPage{}, err
 	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return msrcPage{}, readFail(err, "Microsoft's list has data after its end.")
+	if !ok {
+		return msrcPage{}, fail(ErrBadSample, "Microsoft's list is not a JSON object.")
+	}
+	if err := j.end(); err != nil {
+		return msrcPage{}, err
 	}
 	if !sawValues {
 		return msrcPage{}, fail(ErrBadSample, "Microsoft's list has no list of CVEs.")
@@ -139,10 +146,7 @@ func msrcClaim(v msrcVuln) (vendorClaim, bool) {
 		return vendorClaim{}, false
 	}
 	date := time.Time{}
-	for i, r := range v.Revisions {
-		if i == msrcMaxRevisions {
-			break
-		}
+	for _, r := range v.Revisions {
 		d, err := time.Parse(time.RFC3339, r.Date)
 		if err != nil || d.Before(release) || !msrcExploitedRevRE.MatchString(r.Description) {
 			continue
@@ -212,9 +216,11 @@ func (s *Service) buildMSRC(ctx context.Context, src sourceRow, p pullPlan) (pul
 	if err := accepted(read.Stats); err != nil {
 		return p, err
 	}
-	// A cut list must not take the flag from CVEs it no longer names, as for the public-exploit indexes.
-	if n, held := len(read.Docs), src.Records; held != nil && *held >= publicExploitShrinkFloor && 2*n < *held && n < msrcFloor {
-		return p, fail(ErrBadSample, "Microsoft's list names %s CVEs, fewer than half of the %s of the last good list; Vedette kept the claims it had. To take this list anyway, turn the feed off and on again.", grouped(n), grouped(*held))
+	// A cut list must not take the flag from CVEs it no longer names: Microsoft's list only grows (a flag corrected away is rare), so
+	// a list that lost more than a tenth of the last good one is refused (feeds_source.records: cleared by a new address or by turning
+	// the feed off and on, the way to take such a list anyway).
+	if n, held := len(read.Docs), src.Records; held != nil && *held >= msrcShrinkFrom && 10*n < 9**held {
+		return p, fail(ErrBadSample, "Microsoft's list names %s CVEs, fewer than the %s of the last good list by more than a tenth; Vedette kept the claims it had. To take this list anyway, turn the feed off and on again.", grouped(n), grouped(*held))
 	}
 	p.out = outcome{OK: true, Bytes: size}
 	p.out.fill(read.Stats, len(read.Docs))

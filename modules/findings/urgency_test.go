@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"slices"
 	"sync"
@@ -595,5 +596,61 @@ func TestRateUrgency_AListedCVEDoesNotFlap(t *testing.T) {
 	f := e.finding("CVE-2026-100005")
 	if f.Urgency != UrgencyExploited || len(e.urgencyEvents(f.ID)) != 0 {
 		t.Fatalf("listed finding %+v, urgency events %v", f, e.urgencyEvents(f.ID))
+	}
+}
+
+// cancelOnRise publishes into a markedPub and cancels a context at the first rise it sees: the pass's next write then fails.
+type cancelOnRise struct {
+	*markedPub
+	cancel context.CancelFunc
+}
+
+func (p cancelOnRise) Publish(ctx context.Context, name string, payload any) error {
+	if name == EventUrgencyRaised {
+		p.cancel()
+	}
+	return p.markedPub.Publish(ctx, name, payload)
+}
+
+// Each write's first-run summary goes out as soon as that write commits: when a later write of the same pass fails, the rises the earlier
+// one stored are told all the same (never stored and untold).
+func TestRateUrgency_ASummaryIsSentWithItsWrite(t *testing.T) { //nolint:paralleltest // it sets the size of a write
+	was := urgencyChunk
+	urgencyChunk = 1
+	t.Cleanup(func() { urgencyChunk = was })
+	const second = "CVE-2026-100002"
+	e := newUrgencyEnv(t)
+	e.feeds.vulns = append(e.feeds.vulns, catalogueOnly(second, "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9"))
+	e.reconciled()
+	now := *e.clock
+	loaded := Signal{Kind: SignalPublicExploit, Source: "nuclei-templates", FirstSeen: now, Qualifies: true, FirstLoad: true, LoadedAt: now}
+	e.setSignals(offList, loaded)
+	e.setSignals(second, loaded)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	e.svc.cfg.Publisher = cancelOnRise{e.pub, cancel}
+	if _, err := e.svc.RateUrgency(ctx, ""); err == nil {
+		t.Fatal("the second write did not fail")
+	}
+	_, backlog, sums := e.pub.told()
+	if len(backlog) != 1 || len(sums) != 1 || sums[0].Findings != 1 || !slices.Equal(sums[0].FindingIDs, backlog) {
+		t.Fatalf("rises %v, summaries %+v: the stored rise must be in a summary", backlog, sums)
+	}
+}
+
+// A safe check that confirms a finding is saved and answered even when the urgency pass after it fails: the scan keeps its link to the
+// finding, and the hourly pass rates it later.
+func TestConfirmFromScan_AFailedUrgencyPassKeepsTheRecord(t *testing.T) {
+	t.Parallel()
+	e := newUrgencyEnv(t)
+	e.svc.cfg.Urgency.Facts = func(context.Context, []string) (map[string]CVEFacts, error) {
+		return nil, errors.New("feeds unreadable")
+	}
+	rec, err := e.svc.ConfirmFromScan(t.Context(), "a-1", offList, Evidence{Summary: "hit", Template: "t", CheckedAt: t0})
+	if err != nil || rec.ID == "" || rec.CVE != offList || !rec.Confirmed() {
+		t.Fatalf("record %+v, error %v", rec, err)
+	}
+	if f := e.finding(offList); f.ID != rec.ID {
+		t.Fatalf("stored %s, answered %s", f.ID, rec.ID)
 	}
 }

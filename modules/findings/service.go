@@ -704,8 +704,8 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	if id == "" {
 		return Record{}, nil
 	}
-	if _, err := s.RateUrgency(ctx, assetID); err != nil {
-		return Record{}, err
+	if _, err := s.RateUrgency(ctx, assetID); err != nil { // the check is saved: its record is the answer; the hourly pass rates it
+		s.cfg.Log.WarnContext(ctx, "findings: rating urgency after a safe check failed", "device", assetID, "error", err)
 	}
 	return s.Get(ctx, id)
 }

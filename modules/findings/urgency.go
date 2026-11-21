@@ -357,8 +357,8 @@ type UrgencyResult struct {
 	FirstRun               int // rises of open findings listed in a first-run summary
 }
 
-// urgencyChunk bounds the findings one write of the pass changes, so the writer is never held for long.
-const urgencyChunk = 500
+// urgencyChunk bounds the findings one write of the pass changes, so the writer is never held for long (a variable for the tests).
+var urgencyChunk = 500
 
 // raised says whether a step raised an open finding into a more urgent layer of 1–4: the one kind of urgency change people are told
 // about (a drop, a rise of a handled finding and a change to 5 never are). A new finding is told by its creation instead.
@@ -404,11 +404,13 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResul
 			plain = append(plain, f.ID)
 		}
 	}
-	summaries := map[string]*FirstRunEvent{}
-	devices := map[string]map[string]bool{}
 	apply := func(wctx context.Context, ids []string, marked bool) error {
 		for chunk := range slices.Chunk(ids, urgencyChunk) {
+			// the first-run summaries of this write go out as soon as it commits: a later write that fails leaves none of its rises untold
+			var summaries map[string]*FirstRunEvent
+			var devices map[string]map[string]bool
 			if err := s.write(wctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+				summaries, devices = map[string]*FirstRunEvent{}, map[string]map[string]bool{}
 				for _, id := range chunk {
 					f, err := loadFinding(ctx, tx, id)
 					if errors.Is(err, ErrNotFound) {
@@ -457,6 +459,7 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResul
 			}); err != nil {
 				return err
 			}
+			s.publishFirstRun(ctx, summaries)
 		}
 		return nil
 	}
@@ -470,7 +473,6 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResul
 	if err := apply(bctx, backlog, true); err != nil {
 		return res, err
 	}
-	s.publishFirstRun(ctx, summaries)
 	return res, nil
 }
 
@@ -492,7 +494,7 @@ func (e *FirstRunEvent) add(f Finding, devices map[string]bool) {
 	}
 }
 
-// publishFirstRun sends the first-run summaries of one pass, one event each, after their writes committed.
+// publishFirstRun sends the first-run summaries of one write, one event each, after it committed.
 func (s *Service) publishFirstRun(ctx context.Context, sums map[string]*FirstRunEvent) {
 	if s.cfg.Publisher == nil || len(sums) == 0 {
 		return

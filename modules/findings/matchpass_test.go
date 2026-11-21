@@ -248,3 +248,22 @@ func TestMatchPass_ACVEOnNoListIsNeverAnnounced(t *testing.T) {
 		})
 	}
 }
+
+// A CVE on no list is compared only with a version the device or a person gives: a banner's version (nmap, a scan, the passive
+// sensor) is a guess, and a distribution's package goes only by the distribution's own word.
+func TestMatchPass_ACVEOnNoListNeedsATrustedReading(t *testing.T) {
+	t.Parallel()
+	v := catalogueOnly("CVE-2026-100001", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")
+	for src, want := range map[string]int{"nmap": 0, "scan": 0, "passive": 0, "": 0, "snmp": 1, "agent": 1, "manual": 1} {
+		a := fortigate()
+		a.Software[0].Source = src
+		if got := len(MatchAsset(a, []Vuln{v}, nil, t0).New); got != want {
+			t.Errorf("source %q: %d findings, want %d", src, got, want)
+		}
+	}
+	pkg := fortigate()
+	pkg.Software[0].Source, pkg.Software[0].Packaged = "agent", true
+	if got := len(MatchAsset(pkg, []Vuln{v}, nil, t0).New); got != 0 {
+		t.Errorf("a distribution's package with no word from the distribution: %d findings", got)
+	}
+}

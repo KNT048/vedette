@@ -897,6 +897,32 @@ func keyedTo(s Software, v Vuln) bool {
 	return false
 }
 
+// trustedReading says whether a row's version may make a finding of a CVE on no exploited list: the device's agent, a person, the
+// device's own SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap,
+// a scan, the passive sensor) or a row of unknown origin: for CVEs nobody is known to exploit, a guess is noise (a distribution's
+// backported package answers with the upstream version in its banner).
+func trustedReading(s Software) bool {
+	switch s.Source {
+	case "agent", "manual", "snmp":
+		return true
+	}
+	return strings.HasPrefix(s.ID, "os:")
+}
+
+// offListReading says whether a row may be compared with a CVE on no exploited list: a trusted reading (never a version guessed
+// from the network), and for a distribution's package (an agent's package row, a package release a person gave) only through the
+// distribution's own word on it: an upstream range does not see the fixes a distribution backports.
+func offListReading(s Software, in swInfo, v Vuln) bool {
+	if !trustedReading(s) {
+		return false
+	}
+	if in.pkgBuilt() {
+		_, ok := distroVerdict(in, v)
+		return ok
+	}
+	return true
+}
+
 // matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
 // name the row (viaNVD, #910).
 func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
@@ -905,7 +931,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 	switch {
 	case keyedTo(s, v):
 		m, out = judge(a, s, in, v, keyIDs(v), now)
-	case named:
+	case named && (v.listed() || offListReading(s, in, v)):
 		m, out = viaNVD(a, s, in, v, now)
 	default:
 		return Match{}, outNone

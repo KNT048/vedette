@@ -86,16 +86,8 @@ const (
 	planDistro  = "distro"
 )
 
-// tierSource says whether a row's version may confirm a tier CVE: the device's agent, a person, the device's own
-// SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap, the scan, the
-// passive sensor) or a row of unknown origin: for CVEs nobody exploits yet a guess is noise, so it is dropped (the brief's worst case).
-func tierSource(s Software) bool {
-	switch s.Source {
-	case "agent", "manual", "snmp":
-		return true
-	}
-	return strings.HasPrefix(s.ID, "os:")
-}
+// tierSource is trustedReading for the plan.
+func tierSource(s Software) bool { return trustedReading(s) }
 
 // tierInfo is the swInfo of a row the plan compares with NVD's ranges, false when it compares none: a source tierSource refuses, no
 // readable version, or a version with a distribution's mark and no package release ("1.18.0-6ubuntu14.6" typed as the version).

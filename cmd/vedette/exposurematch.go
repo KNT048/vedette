@@ -111,15 +111,10 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 	return out, err
 }
 
-// announced says findings tells people about v: the urgency a finding of v starts with (an entry of an exploited list: exploited,
-// the other catalogue CVEs: update recommended) goes through the one rule, findings.Announced. The urgency line mirrors findings'
-// Vuln.startUrgency (match.go), which is not exported yet: when findings exports it, call it here and delete this copy.
+// announced says findings tells people about v: the urgency a finding of v starts with (findings' Vuln.StartUrgency) through the one
+// rule, findings.Announced.
 func announced(v findings.Vuln) bool {
-	urgency := findings.UrgencyUpdate
-	if v.Vendor != "" || v.Product != "" {
-		urgency = findings.UrgencyExploited
-	}
-	return findings.Announced(findings.Finding{Urgency: urgency})
+	return findings.Announced(findings.Finding{Urgency: v.StartUrgency()})
 }
 
 // fixOf is the fix findings.FixOf gives a CVE shown on a service, asked for only by the one that shows it (exposure's rows carry no

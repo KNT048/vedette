@@ -167,13 +167,6 @@ const (
 	FixUnknown       FixKind = "unknown"        // no fix data
 )
 
-// The urgency layers a finding starts with until the urgency pass sets it: exploited when its CVE is on an exploited list, update
-// recommended otherwise.
-const (
-	UrgencyExploited = 2
-	UrgencyUpdate    = 5
-)
-
 // Announced is the one rule of what findings tells the alert path about: only a finding at an urgency above "update recommended" (a
 // CVE on an exploited list until the urgency pass rates it). A finding of a CVE on no list is never announced, whatever creates or
 // changes it: the match pass, a safe check, a person.

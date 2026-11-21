@@ -205,7 +205,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 // and the fix of the line (FixOf, the one resolver). A safe check's detection keeps its own origin; a detection on no line has no fix
 // to read (the fix the finding had stays).
 func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
-	d.Urgency = v.startUrgency()
+	d.Urgency = v.StartUrgency()
 	if d.Basis != DetectScan && d.Basis != DetectPackage {
 		d.RangeOrigin = v.rangeOrigin()
 	}

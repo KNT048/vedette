@@ -201,17 +201,6 @@ type SchemedRange struct {
 	Origin  string // RangeNVD, RangeCNA, RangeADP
 }
 
-// listed says the entry is on an exploited list (the catalogue's other CVEs have no list vendor and product).
-func (v Vuln) listed() bool { return v.Vendor != "" || v.Product != "" }
-
-// startUrgency is the urgency a finding of v starts with (UrgencyExploited on a list, else UrgencyUpdate).
-func (v Vuln) startUrgency() int {
-	if v.listed() {
-		return UrgencyExploited
-	}
-	return UrgencyUpdate
-}
-
 // rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
 func (v Vuln) rangeOrigin() string {
 	switch {

@@ -187,3 +187,79 @@ func TestSchedule_SetPreviewPauseRunOnce(t *testing.T) {
 		t.Fatalf("due while switched off: %+v %v", v, err)
 	}
 }
+
+// gateRunner blocks the scan of one target until it is released, so another target's scan waits in the lane's queue.
+type gateRunner struct {
+	hold    string
+	release chan struct{}
+	scanned chan string
+}
+
+func (r *gateRunner) Scan(ctx context.Context, st ScanTarget) (Content, error) {
+	r.scanned <- st.ID
+	if st.ID == r.hold {
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+		}
+	}
+	return Content{}, nil
+}
+
+// A scheduled scan queued at 02:30 behind another target's long scan, whose testing terms are withdrawn at 03:00, does not scan when it
+// starts at 04:00: the run ends failed with the reason and the target is never sent anything.
+func TestSchedule_AQueuedScanStopsWhenTheTermsAreWithdrawn(t *testing.T) {
+	t.Parallel()
+	e, sch := scheduleEnv(t)
+	d := e.addVerifiedDomain()
+	if _, err := e.commit(d.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(d.ID, false)
+	ip := e.detect(ipA)[0]
+	if _, err := e.commit(ip.ID); err != nil {
+		t.Fatal(err)
+	}
+	r := &gateRunner{hold: ip.ID, release: make(chan struct{}), scanned: make(chan string, 4)}
+	e.svc.SetRunner(r)
+	long, err := e.svc.StartScan(e.ctx(), Actor{Email: "admin@acme.example"}, ip.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := <-r.scanned; got != ip.ID {
+		t.Fatalf("the long scan: %s", got)
+	}
+	key := ScheduleKey(d.ID)
+	v, err := sch.Save(e.ctx(), key, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:30")}, "admin@acme.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.moveTo(*v.NextDueAt)
+	if _, err := sch.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if v, err = sch.Get(e.ctx(), key); err != nil || v.LastRunID == nil {
+		t.Fatalf("the due scan was not queued: %+v %v", v, err)
+	}
+	queued := *v.LastRunID
+	e.advance(30 * time.Minute)
+	if _, err := e.svc.RevokeTerms(e.ctx(), "admin@acme.example", d.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	close(r.release)
+	e.waitScan(long.ID)
+	e.waitScan(queued)
+	var status, errText string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT status, coalesce(error, '') FROM core_run WHERE id = ?`, queued).Scan(&status, &errText); err != nil {
+		t.Fatal(err)
+	}
+	if status != "failed" || !strings.Contains(errText, "testing terms were withdrawn") {
+		t.Fatalf("the queued scheduled scan: %s %q", status, errText)
+	}
+	select {
+	case got := <-r.scanned:
+		t.Fatalf("the target was scanned after its terms were withdrawn: %s", got)
+	default:
+	}
+}

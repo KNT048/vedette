@@ -48,6 +48,8 @@ type OpenedService struct {
 type NewIssue struct {
 	ID       string `json:"id"`
 	TargetID string `json:"target_id"`
+	// Again is how a person had marked it (patched or mitigated) when the scan found it again; "" for an issue new to the target.
+	Again string `json:"again,omitempty"`
 }
 
 // holders reads, in tx, the target that holds each service row of ids now (the scanned target when a row is gone).
@@ -67,7 +69,8 @@ func holders(ctx context.Context, tx *sql.Tx, scanned string, ports []PortRow, i
 }
 
 // issueHolders reads, in tx, the target that holds each issue of ids now; an issue no longer there (merged into another) is left out.
-func issueHolders(ctx context.Context, tx *sql.Tx, ids []string) ([]NewIssue, error) {
+// again says how a person had marked the ones a scan opened again.
+func issueHolders(ctx context.Context, tx *sql.Tx, ids []string, again map[string]string) ([]NewIssue, error) {
 	out := make([]NewIssue, 0, len(ids))
 	for _, id := range ids {
 		var at string
@@ -78,7 +81,7 @@ func issueHolders(ctx context.Context, tx *sql.Tx, ids []string) ([]NewIssue, er
 		if err != nil {
 			return nil, fmt.Errorf("the holder of an issue: %w", err)
 		}
-		out = append(out, NewIssue{ID: id, TargetID: at})
+		out = append(out, NewIssue{ID: id, TargetID: at, Again: again[id]})
 	}
 	return out, nil
 }
@@ -134,10 +137,14 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 			continue // handled or gone since: nothing to announce
 		}
 		text := "New " + sev + " issue: " + title
+		if i.Again != "" {
+			text = "Found again although marked " + strings.ReplaceAll(i.Again, "_", " ") + ": " + title + " (" + sev + ")"
+		}
 		if where != "" {
 			text += " on " + where
 		}
 		rank, loud := severityRank[sev]
+		loud = loud || i.Again != "" // a fix that did not take is told whatever its severity
 		add(i.TargetID, alertLine{rank: rank, quiet: !loud, text: text})
 	}
 	var out []Alert

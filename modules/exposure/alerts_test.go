@@ -123,3 +123,90 @@ func TestAlerts_AMovedPortAlertsOnceOnTheTargetThatHoldsIt(t *testing.T) {
 		t.Fatalf("the child's scan announced it again: %+v", log.all())
 	}
 }
+
+// A first scan that finds nothing open is still the baseline: a port opened after it (a forward for 3389) is news, alerted once, and the
+// event is not the baseline either.
+func TestAlerts_APortAfterAnEmptyFirstScanAlerts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	log := &alertLog{}
+	e.svc.cfg.Alert = log.send
+	run := e.scanIP(Content{}).RunID
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT target_id FROM exp_scan WHERE run_id = ?`, run).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if !e.lastWritten(id).First || len(log.all()) != 0 {
+		t.Fatalf("the empty first scan: first %v, alerts %+v", e.lastWritten(id).First, log.all())
+	}
+	e.advance(ScanEvery)
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 3389, Service: "ms-wbt-server", Ident: IdentProbed}}}})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	w := e.lastWritten(id)
+	if w.First || len(w.Opened) != 1 || w.Opened[0].Port != 3389 {
+		t.Fatalf("the event after the empty scan: %+v", w)
+	}
+	if got := log.all(); len(got) != 1 || !strings.Contains(got[0].Text, "New open port: "+ipA+":3389") {
+		t.Fatalf("alerts after the empty scan: %+v", got)
+	}
+}
+
+// An issue a person marked patched or mitigated that a later scan still reports opens again (the flaw is still there), with an audit row
+// and one alert; accepted, not relevant and false positive keep the person's decision.
+func TestAlerts_AFixThatDidNotTakeOpensAgainOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	log := &alertLog{}
+	e.svc.cfg.Alert = log.send
+	content := Content{Ports: []PortRow{{IP: ipA, Port: 8443, Service: "https-alt", Ident: IdentProbed}, {IP: ipA, Port: 9443, Service: "https-alt", Ident: IdentProbed}},
+		AdminPanels: []AdminRow{{URL: "https://" + ipA + ":8443/admin", Product: "Example Router", IP: ipA, Port: 8443, Risk: "danger"},
+			{URL: "https://" + ipA + ":9443/admin", Product: "Example Switch", IP: ipA, Port: 9443, Risk: "warn"}}}
+	run := e.scanIP(content).RunID
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT target_id FROM exp_scan WHERE run_id = ?`, run).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	issue := func(product string) string {
+		t.Helper()
+		var x string
+		if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM exp_issue WHERE target_id = ? AND title LIKE ?`, id, "%"+product+"%").Scan(&x); err != nil {
+			t.Fatal(err)
+		}
+		return x
+	}
+	router, sw := issue("Example Router"), issue("Example Switch")
+	if _, err := e.svc.HandleIssues(e.ctx(), "it@acme.example", []string{router}, ResolvedPatched, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.HandleIssues(e.ctx(), "it@acme.example", []string{sw}, ResolvedAccepted, "only reachable from the office", e.clock.Now().UTC().AddDate(0, 0, 30).Format("2006-01-02")); err != nil {
+		t.Fatal(err)
+	}
+	scan := func() {
+		t.Helper()
+		e.advance(ScanEvery)
+		e.svc.SetRunner(&fakeRunner{content: content})
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scan()
+	if state, res, _, _, _ := e.issueRow(router); state != IssueOpen || res != "" {
+		t.Fatalf("the patched issue found again: %s %s", state, res)
+	}
+	if state, res, _, _, _ := e.issueRow(sw); state != IssueHandled || res != string(ResolvedAccepted) {
+		t.Fatalf("the accepted issue: %s %s", state, res)
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.issue_reopen' AND user = 'system' AND detail = 'found again by a scan (was patched by it@acme.example)'`); n != 1 {
+		t.Fatalf("the audit of the reopen: %d", n)
+	}
+	got := log.all()
+	if len(got) != 1 || !strings.Contains(got[0].Text, "Found again although marked patched: Admin page of Example Router") || strings.Contains(got[0].Text, "Example Switch") {
+		t.Fatalf("the alert of the reopen: %+v", got)
+	}
+	scan()
+	if n := len(log.all()); n != 1 {
+		t.Fatalf("the reopened issue alerted again: %+v", log.all())
+	}
+}

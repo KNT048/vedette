@@ -264,3 +264,20 @@ func (s *Service) RunAcceptExpiry(ctx context.Context) error {
 	}
 	return nil
 }
+
+// auditAgain writes, in tx, one audit row by the system for each issue a scan opened again after a person marked it patched or
+// mitigated, and returns how each had been marked, by id.
+func (s *Service) auditAgain(ctx context.Context, tx *sql.Tx, again []reopenedIssue) (map[string]string, error) {
+	out := make(map[string]string, len(again))
+	for _, a := range again {
+		what, err := issueLabel(ctx, tx, a.id, IssueOpen)
+		if err != nil {
+			return nil, fmt.Errorf("the issue opened again: %w", err)
+		}
+		if err := s.audit(ctx, tx, SystemUser, "exposure.issue_reopen", what, "found again by a scan (was "+a.was+" by "+a.by+")"); err != nil {
+			return nil, err
+		}
+		out[a.id] = a.was
+	}
+	return out, nil
+}

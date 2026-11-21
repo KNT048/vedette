@@ -480,6 +480,12 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if err != nil {
 		return corerun.Result{}, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
 	}
+	if user == SystemUser && !fresh.Terms.current() { // a scan the box queued by itself waited while the terms were withdrawn
+		err := apiErr(409, "terms_required", "%s was not scanned: its testing terms were withdrawn, or are of an older version, after this scheduled scan was queued. "+
+			"The box scans a target on its schedule only while they are accepted.", t.Value)
+		s.auditFailedScan(ctx, user, t, err)
+		return corerun.Result{}, err
+	}
 	s.runMu.Lock()
 	ex.mode = boxMode(user, fresh.mode()) // a scan the box runs by itself never runs the disruptive checks
 	s.runMu.Unlock()
@@ -645,7 +651,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
 	checked, gone := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID),
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID),
 		checked: checked, gone: gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
@@ -660,7 +666,20 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	return out, err
 }
 
-// hasRows says an earlier scan of target id wrote rows: a name, a service or an issue.
+// baseline says this scan (run runID) is the first of target id: no earlier scan of it wrote its results, and it holds no rows (a child
+// target holds rows its parent scanned before it). Only then is everything it finds the baseline, announced to nobody. An earlier scan
+// that found nothing open still counts: what opens after it is news.
+func (s *Service) baseline(ctx context.Context, id, runID string) bool {
+	var n int
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_scan WHERE target_id = ? AND run_id <> ? AND json_extract(summary, '$.counts') IS NOT NULL)`,
+		id, runID).Scan(&n)
+	if err != nil || n == 1 {
+		return false // when in doubt, news: an alert too many beats a port never announced
+	}
+	return !s.hasRows(ctx, id)
+}
+
+// hasRows says target id holds rows: a name, a service or an issue.
 func (s *Service) hasRows(ctx context.Context, id string) bool {
 	var n int
 	_ = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_service WHERE target_id = ?1) OR EXISTS (SELECT 1 FROM exp_host WHERE target_id = ?1)

@@ -261,16 +261,19 @@ func pruneRecordRefs(ctx context.Context, tx *sql.Tx, pinned []string) error {
 
 // ---- the exploited lists' view, as findings reads it today (KevAffected, RangesFromCVEOrg) ----
 
-// recordSkipVendors are the vendors whose NVD rows findings reads with a comparator of its own: the CNA's versions written another
-// way would reach the generic one and could close an affected device. Juniper: Junos "21.4R3-S5"; Microsoft: Office editions and
-// Windows builds; Citrix: builds written "13.1-49.13" or "13.1.49.13". Their record ranges are stored, and left out of this view.
-var recordSkipVendors = map[string]bool{"juniper": true, "microsoft": true, "citrix": true}
+// recordSkipVendors are the vendors whose NVD rows findings reads with a comparator of its own: the CNA's versions of their products
+// without a version scheme, written another way, would reach the generic comparison and could close an affected device. Juniper:
+// Junos releases "21.4R3-S5" of its other products; Microsoft: Office editions and Windows builds. Their record ranges are stored,
+// and left out of the generic views. A product with a version scheme needs no entry (recordSkipped leaves its record rows to the
+// scheme): Citrix left this list when NetScaler's builds ("13.1-49.13") got theirs.
+var recordSkipVendors = map[string]bool{"juniper": true, "microsoft": true}
 
 // kevRecordView is, for each exploited-list CVE without NVD ranges, the record ranges of the product its owner entry names (the CNA's
 // rows keyed RecordProductKey of the entry's vendor and product), as the matcher's CPE entries: CPE
 // "cpe:2.3:*:<vendor>:<product>:<version or *>:…" with the entry's own names (never a guessed NVD name), an exact version written in
 // the CPE. source is rangesCVEOrg for a complete list (every row says affected or unaffected) and rangesCVEOrgPartial otherwise. A
-// CVE whose entry names several products ("Multiple Products") or a vendor of recordSkipVendors has none.
+// CVE whose entry names several products ("Multiple Products"), a vendor of recordSkipVendors or a product with a version scheme
+// (recordSkipped) has none.
 func kevRecordView(ctx context.Context, q queryer) (map[string][]AffectedRow, map[string]string, error) {
 	rows, err := q.QueryContext(ctx, `SELECT k.cve, k.vendor, k.product FROM feeds_kev k
 WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
@@ -330,7 +333,7 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 	var rows []AffectedRow
 	complete := true
 	for _, r := range ranges {
-		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" || !r.Generic() {
+		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" || !r.Generic() || recordSkipped(r) {
 			continue
 		}
 		rows = append(rows, kevRecordRow(r, cpeVendor, cpeProduct))

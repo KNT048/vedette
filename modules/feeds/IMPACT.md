@@ -57,6 +57,13 @@
 - **findings** (urgency lớp 3, `Store.Signals`): `first_seen` là ngày hiện trên lý do; `qualifies = 0` không bao giờ là lớp 3.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục chỉ mục exploit công khai), `sourcesMock.ts` + `conformance.test.ts` (20 feed có sẵn), `sources_test.go` (host `gitlab.com`, `codeload.github.com`), `heldnote.go` (`poc-in-github`: bao nhiêu CVE đạt).
 
+## Modifying: `signal_claims.go`, `signal_vendor.go`, `signal_msrc.go`, `signal_csaf.go` (feeds `msrc`, `cisco-psirt`, `fortinet-psirt`)
+
+- **Mẫu câu của hãng** (`claimForm`, `ciscoForms`, `fortinetForms`, `claimReader`): trường có cấu trúc (CSAF `exploit_status`, cờ Exploited của Microsoft) quyết trước; nếu không có, chỉ câu khớp đúng một mẫu câu thật của hãng mới là tuyên bố; câu nói về khai thác mà không khớp mẫu nào bị đếm "unclassified" trên nhật ký feed, không bao giờ đoán. Các nguồn văn bản sau này dùng cùng cách (mẫu riêng từng nguồn). Đổi mẫu ⇒ chạy lại `TestVendorClaims_CountsOfTheFrozenFixtures` (24 Cisco, 7 Fortinet, 0 khớp nhầm, 1 câu unclassified), `TestClaimForms_*` và `TestCSAFClaims_WorkIsLinearInTheDocument`.
+- **findings** (urgency lớp 2, `Store.Signals`): hàng `exploited` của ba nguồn này `qualifies = 1` ngay; `first_seen` là ngày nguồn nói, hoặc lần hộp tự thấy khi ngày nguồn cũ hơn lần kéo tốt trước quá 24 giờ. `MatchStamp` chưa có ba feed này (như các feed public-exploit).
+- **Danh mục** (`keepSetSQL`, `publicListedSQL`): CVE có tuyên bố được giữ ở mọi tuổi và có thể hỏi NVD/CVE record theo ID (danh sách công khai, mọi hộp hỏi như nhau).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1.to`), `THIRD_PARTY_NOTICES.md` (mục tuyên bố khai thác của hãng), `sourcesMock.ts` + `conformance.test.ts` (23 feed có sẵn), `sources_test.go` (host `api.msrc.microsoft.com`, `sec.cloudapps.cisco.com`, `filestore.fortinet.com`; chu kỳ 6 giờ), `heldnote_test.go`, `store.go` (tắt/bật lại ⇒ đọc lại từ đầu).
+
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads
 
 - **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.

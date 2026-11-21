@@ -133,6 +133,29 @@
   .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
   .no-print { display: none !important; }
   @page report { size: A4; margin: 16mm; } /* the report's named page only: other pages print with the browser's settings */
+
+  /* The security report (reports/SecurityReport.tsx) prints in colour: its status badges, severity bars and charts keep their
+     meaning on paper. Only .print-report prints, on the light tokens whatever the screen theme, with the browser told to keep
+     backgrounds (print-color-adjust). The light values repeat :root above. */
+  :where(body:has(.print-report)) * { visibility: hidden !important; }
+  .print-report, .print-report * { visibility: visible !important; }
+  :where(html:has(.print-report), body:has(.print-report)) { background: white !important; }
+  .print-report {
+    page: report; position: absolute; left: 0; top: 0; width: 100%; max-width: none !important; padding: 0 !important; border: 0 !important;
+    --paper: #ffffff; --surface: #ffffff; --sunken: #f1f3f0;
+    --ink: #18211d; --muted: #56615c; --rule: #dfe3df;
+    --accent: #1d5a45; --accent-ink: #ffffff; --accent-soft: #e3eee8;
+    --danger: #b42318; --danger-soft: #fbeae8;
+    --warn: #9a5b06; --warn-soft: #fbf1df;
+    --ok: #3b6b1e; --ok-soft: #ebf3e3;
+    --off: #5a635f; --off-soft: #edf0ee;
+    background: white; color: var(--ink); color-scheme: light;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .print-report .report-block { break-inside: avoid; }
+  .print-report h3, .print-report h4 { break-after: avoid; }
+  .print-report tr { break-inside: avoid; }
+  .print-report a { text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

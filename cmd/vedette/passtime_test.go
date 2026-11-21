@@ -229,10 +229,14 @@ func (p *passInv) MatchInput(_ context.Context, id string) (findings.Asset, bool
 	return a, ok, nil
 }
 
-func (p *passInv) AssetIDs(context.Context) ([]string, error) { return slices.Sorted(maps.Keys(p.assets)), nil }
+func (p *passInv) AssetIDs(context.Context) ([]string, error) {
+	return slices.Sorted(maps.Keys(p.assets)), nil
+}
 
 func (p *passInv) IgnoredIDs(context.Context) ([]string, error) { return nil, nil }
 
 func (p *passInv) IsIgnored(context.Context, string) (bool, error) { return false, nil }
 
-func (p *passInv) EffectiveSoftware(context.Context, string) ([]findings.EffectiveSoftware, error) { return nil, nil }
+func (p *passInv) EffectiveSoftware(context.Context, string) ([]findings.EffectiveSoftware, error) {
+	return nil, nil
+}

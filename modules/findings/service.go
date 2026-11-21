@@ -154,7 +154,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	if isNew {
 		return g, evs, nil // the caller announces a new finding (CreatedEvent)
 	}
-	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !joinsList(f, g) { // joining a list: one notice, the caller's
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !raised(f, g) { // a rise: one notice, the caller's
 		emit(EventStatusChanged, e)
 	}
 	return g, evs, nil
@@ -417,12 +417,8 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	if err != nil {
 		return res, err
 	}
-	// The device's findings are rated at once: one this write created enters its layer as news (a new match on the device).
-	fresh := make(map[string]bool, len(res.Created))
-	for _, id := range res.Created {
-		fresh[id] = true
-	}
-	if _, err := s.RateUrgency(ctx, assetID, fresh); err != nil {
+	// The device's findings are rated at once: one this write created enters its layer as news (a new finding is recent).
+	if _, err := s.RateUrgency(ctx, assetID); err != nil {
 		return res, err
 	}
 	return res, nil
@@ -690,8 +686,11 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		if isNew && Announced(g) || !isNew && joinsList(f, g) { // new, or its CVE joined an exploited list since it was made
+		switch {
+		case isNew && Announced(g):
 			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
+		case !isNew && raised(f, g): // its CVE joined an exploited list since it was made: one alert of the rise
+			emit(EventUrgencyRaised, raisedEvent(f, g, SeverityHigh))
 		}
 		id = g.ID
 		return nil

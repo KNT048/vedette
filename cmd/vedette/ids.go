@@ -118,9 +118,9 @@ func (a idsInventory) Names(ctx context.Context, idList []string) (map[string]st
 }
 
 // idsFindings gives the attacked devices' findings for the CVEs an alert names, with the status vocabulary of the findings contract.
-// The findings module on this branch keeps its older statuses, so they are mapped here: an open finding whose CVE an alert named in
-// the last 14 days (ids.AttackWindow) is under_attack (layer 1), another open one has the status of its stored urgency layer
-// (findings.LayerCode: exploited, public_exploit, critical_edge, update_recommended); a handled one keeps its handling. The attacked CVEs are read once per call, whatever the number of devices.
+// The findings module on this branch keeps its older statuses, so they are mapped here: an open finding has the status of its stored
+// urgency layer (findings.LayerCode: under_attack, exploited, public_exploit, critical_edge, update_recommended), which findings rates
+// again as soon as alerts arrive (urgencyOnAlerts); a handled one keeps its handling.
 // The findings rebuild replaces this with findings.View and its one status.
 type idsFindings struct{ d *deps }
 
@@ -128,7 +128,6 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 	if a.d.Findings == nil || a.d.Reg != nil && !a.d.Reg.Enabled("findings") {
 		return nil, nil
 	}
-	var attacked map[string]bool
 	out := map[string][]idsmodule.LinkedFinding{}
 	for assetID, cves := range byDevice {
 		recs, err := a.d.Findings.List(ctx, assetID)
@@ -146,31 +145,10 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 			case findings.StatusRiskAccepted:
 				f.Status = "accepted"
 			default:
-				if attacked == nil {
-					if attacked, err = recentlyAttacked(ctx, idsService(*a.d), clockOf(a.d)); err != nil {
-						return nil, err
-					}
-				}
-				f.Status = findings.LayerCode(r.Row.Urgency)
-				if attacked[r.CVE] {
-					f.Status = "under_attack"
-				}
+				f.Status = findings.LayerCode(r.Row.Urgency) // the stored layer: under_attack is findings' one rule (findings.Urgency)
 			}
 			out[assetID] = append(out[assetID], f)
 		}
-	}
-	return out, nil
-}
-
-// recentlyAttacked is the CVEs an alert named in the last idsmodule.AttackWindow, at any address: layer 1 for an affected device.
-func recentlyAttacked(ctx context.Context, svc *idsmodule.Service, now time.Time) (map[string]bool, error) {
-	as, err := svc.Attacked(ctx, now.Add(-idsmodule.AttackWindow))
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]bool, len(as))
-	for _, a := range as {
-		out[a.CVE] = true
 	}
 	return out, nil
 }

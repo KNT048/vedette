@@ -21,9 +21,9 @@
       "fix_key": "fortinet|fortios|update|7.6.5",
       "device_kind": "firewall",
       "signals": [
-        {"kind": "exploited", "source": "rapid7", "first_seen": "2026-11-19T00:00:00.000Z", "qualifies": true, "url": "https://www.rapid7.com/blog/"}
+        {"kind": "exploited", "source": "rapid7-blog", "first_seen": "2026-11-19T00:00:00.000Z", "qualifies": true, "url": "https://example.com/blog/"}
       ],
-      "want": 2, "want_reasons": [2], "want_since": "2026-11-19", "want_source": "rapid7"
+      "want": 2, "want_reasons": [2], "want_since": "2026-11-19", "want_source": "rapid7-blog"
     },
     {
       "cve": "CVE-2026-123007",
@@ -31,7 +31,7 @@
       "device_kind": "server",
       "cvss": {"score": 7.5, "version": "3.1", "source": "nvd", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"},
       "signals": [
-        {"kind": "public_exploit", "source": "poc-in-github", "first_seen": "2026-11-18T00:00:00.000Z", "qualifies": true, "url": "https://github.com/sfewer-r7/CVE-2026-123007"}
+        {"kind": "public_exploit", "source": "poc-in-github", "first_seen": "2026-11-18T00:00:00.000Z", "qualifies": true, "url": "https://example.com/poc/CVE-2026-123007"}
       ],
       "want": 3, "want_reasons": [3], "want_since": "2026-11-18", "want_source": "poc-in-github"
     },

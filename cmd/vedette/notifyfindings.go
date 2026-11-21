@@ -8,6 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 )
@@ -52,8 +53,12 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 				return notify.FindingInfo{}, false, err
 			}
 			for _, g := range sigs[rec.CVE] {
-				if g.Kind == findings.SignalExploited && g.Qualifies && !slices.Contains(sources, g.Source) {
-					sources = append(sources, g.Source)
+				name := g.Source
+				if b, ok := feeds.BuiltinByID(g.Source); ok {
+					name = b.Name // the feed's own name, never its id
+				}
+				if g.Kind == findings.SignalExploited && g.Qualifies && !slices.Contains(sources, name) {
+					sources = append(sources, name)
 				}
 			}
 		}
@@ -66,6 +71,11 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	title, what, lead := layerTexts(rec.Row.Urgency, info, kev, sources)
 	info.Title = plainText(title, noticeTitleMax)
 	info.What = what + " A device in your inventory runs " + info.Product + "."
+	if rec.Row.Urgency < findings.UrgencyUpdate {
+		if line := urgencyReasons(ctx, n.d, rec.Row); line != "" {
+			info.What += " Why: " + line + "."
+		}
+	}
 	info.Action = plainText(kev.RequiredAction, noticeActionMax)
 	if info.Action == "" {
 		info.Action = "Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device."

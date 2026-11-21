@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -15,8 +16,8 @@ import (
 
 // Urgency says how much a finding matters now, in five layers (fnd_finding.urgency), most urgent first. One function decides it
 // (Urgency) from what the box holds: the signals feeds keeps of the CVE (feeds_signal and the exploited lists), the CVE's CVSS and
-// CISA's SSVC, the class of the device and of the software the flaw is on, and the attacks this network's intrusion alerts saw. Only
-// the urgency pass (RateUrgency) stores it; the match pass gives a new finding the layer of its exploited-list entry until then.
+// CISA's SSVC, the class of the software the flaw is on, and the attacks this network's intrusion alerts saw. Only the urgency pass
+// (RateUrgency) stores it; the match pass gives a new finding the layer of its exploited-list entry until then.
 
 // The urgency layers.
 const (
@@ -45,9 +46,10 @@ type Signal struct {
 	FirstSeen    time.Time // when the source says it, else when the box first saw it
 	Qualifies    bool      // the row passes the quality rule of its kind; a row that does not only keeps its first sighting
 	URL          string
-	// FirstLoad: the row came with the first load of its source on this box (every row of a source's first pull). Its date says
-	// nothing about when the box learned it, so a rise it causes is never news (the first-run rule).
+	// FirstLoad: the row came with the first load of its source on this box (its source's first good pull, which ended at LoadedAt).
+	// Its date says nothing about when the box learned it: a rise it causes soon after that load goes into the first-run summary.
 	FirstLoad bool
+	LoadedAt  time.Time
 }
 
 // CVEFacts is what the box holds about one CVE that its urgency reads.
@@ -61,11 +63,9 @@ type CVEFacts struct {
 
 // Target is the device and software line a finding is on, as its urgency reads them.
 type Target struct {
-	AssetID string
-	// Class is the class of the software's product (core/productid); DeviceKind the device's type in inventory.
-	Class      productid.Class
-	DeviceKind string
-	Affected   bool // the current data detects the flaw on the device
+	AssetID  string
+	Class    productid.Class // the class of the software's product (core/productid)
+	Affected bool            // the current data detects the flaw on the device
 	// Internet: the device is reachable from the Internet (exposure), seen at InternetSeen. A line of the reasons, never a layer.
 	Internet     bool
 	InternetSeen time.Time
@@ -80,14 +80,15 @@ type Attack struct {
 	AlertID   string
 }
 
-// Reason is one layer that applies to a finding, with its source and date ("Exploited in the wild: rapid7, 19 Nov").
+// Reason is one layer that applies to a finding, with its source and date ("Exploited in the wild: Rapid7, 19 Nov").
 type Reason struct {
 	Layer  int
-	Source string    // a feeds source id ("cisa-kev", "rapid7"), "ids" for an attack, the product's class for layer 4
+	Source string    // a feeds source id ("cisa-kev", "rapid7-blog"), "ids" for an attack, the product's class for layer 4
 	Since  time.Time // the source's date (the attack's last event for layer 1, the CVE's publication for layer 4)
 	URL    string    // the source's link, the alert id for an attack; "" when none
-	// FirstLoad: the reason came with the first load of its source (Signal.FirstLoad).
+	// FirstLoad and LoadedAt: the reason came with the first load of its source, which ended then (Signal).
 	FirstLoad bool
+	LoadedAt  time.Time
 }
 
 // Rating is the urgency of a finding with every reason that applies, the most urgent first.
@@ -95,33 +96,77 @@ type Rating struct {
 	Layer   int
 	Reasons []Reason
 	// Since is when the finding's layer began to apply: the earliest reason of that layer (the latest attack for layer 1).
-	Since time.Time
-	// FirstLoad: that reason came with the first load of its source.
-	FirstLoad    bool
+	Since        time.Time
 	Internet     bool
 	InternetSeen time.Time
 }
 
-// News says whether a rise into the rating's layer is news to tell people about at now: an attack here always is; a signal is when
-// its source dated it within RecentKEV and it did not come with the first load of its source (the first-run rule: what a box learns
-// from its first full load is listed, never sent one alert each). Layer 4 dates from the CVE's publication.
-func (r Rating) News(now time.Time) bool {
-	switch {
-	case r.Layer == UrgencyUnderAttack:
-		return true
-	case r.Layer >= UrgencyUpdate || r.FirstLoad || r.Since.IsZero():
-		return false
+// FirstRunWindow is how long after a first load (of a signal source, or of the box itself) the rises it causes go into one first-run
+// summary instead of one alert each: the box's own first discovery runs as long.
+const FirstRunWindow = 36 * time.Hour
+
+// Telling is how a rise of an open finding into a more urgent layer of 1–4 is told.
+type Telling int
+
+// The ways a rise is told.
+const (
+	TellNews     Telling = iota + 1 // one alert (findings.finding.urgency_raised)
+	TellFirstRun                    // one line of the first-run summary (findings.urgency.first_run), no alert of its own
+	TellBacklog                     // counted, silent (under the Backlog mark): old news the list shows
+)
+
+// Tell says how a rise of open finding f to rating r is told at now (installUntil: the end of the box's own first-run window, zero
+// when unknown):
+//   - an attack here is news;
+//   - inside the box's first-run window, or when every reason of the new layer came with its source's first load less than
+//     FirstRunWindow ago, it is a line of the first-run summary (key: "install", or the first reason's source and load day);
+//   - else it is news when the newest reason of the new layer that is not from a first load, or the finding itself, is dated within
+//     RecentKEV (a late NVD range or a device added later makes a new finding of an old flaw: news);
+//   - else it is old news: counted, silent.
+func Tell(f Finding, r Rating, now, installUntil time.Time) (Telling, string) {
+	if r.Layer == UrgencyUnderAttack {
+		return TellNews, ""
 	}
-	return now.Sub(r.Since) <= RecentKEV
+	if now.Before(installUntil) {
+		return TellFirstRun, "install"
+	}
+	var newest time.Time
+	first := true
+	var key string
+	for _, x := range r.Reasons {
+		if x.Layer != r.Layer {
+			continue
+		}
+		if x.FirstLoad && now.Sub(x.LoadedAt) <= FirstRunWindow {
+			if key == "" {
+				key = x.Source + "-" + x.LoadedAt.UTC().Format("20060102")
+			}
+			continue
+		}
+		first = false
+		if x.Since.After(newest) {
+			newest = x.Since
+		}
+	}
+	if first && key != "" {
+		return TellFirstRun, key
+	}
+	if f.FirstSeen.After(newest) {
+		newest = f.FirstSeen
+	}
+	if !newest.IsZero() && now.Sub(newest) <= RecentKEV {
+		return TellNews, ""
+	}
+	return TellBacklog, ""
 }
 
-// Urgency is the one function that rates a finding (SPEC's table of the four layers): the most urgent layer whose rule holds.
+// Urgency is the one function that rates a finding: the most urgent layer whose rule holds.
 //   - 1 under attack here: an intrusion alert in the last AttackWindow named the CVE, aimed at this device, or at any address while
 //     the device is affected.
 //   - 2 exploited in the wild: a qualifying signal of kind exploited (an exploited list's entry is one).
 //   - 3 public exploit available: a qualifying signal of kind public_exploit.
 //   - 4 critical on an edge device: CVSS of 9 or more, attack over the network, no privileges, SSVC automatable not "no", on a product
-//     or device of a class attackers target first (EdgeClass, EdgeDevice).
+//     of a class attackers target first (EdgeClass).
 //   - 5 update recommended: every other finding.
 //
 // attacks may hold other CVEs' attacks: only c's count. now bounds the attack window.
@@ -141,17 +186,13 @@ func Urgency(cve string, c CVEFacts, t Target, attacks []Attack, now time.Time) 
 		}
 		switch g.Kind {
 		case SignalExploited:
-			rs = append(rs, Reason{Layer: UrgencyExploited, Source: g.Source, Since: g.FirstSeen, URL: g.URL, FirstLoad: g.FirstLoad})
+			rs = append(rs, Reason{Layer: UrgencyExploited, Source: g.Source, Since: g.FirstSeen, URL: g.URL, FirstLoad: g.FirstLoad, LoadedAt: g.LoadedAt})
 		case SignalPublicExploit:
-			rs = append(rs, Reason{Layer: UrgencyPublicExploit, Source: g.Source, Since: g.FirstSeen, URL: g.URL, FirstLoad: g.FirstLoad})
+			rs = append(rs, Reason{Layer: UrgencyPublicExploit, Source: g.Source, Since: g.FirstSeen, URL: g.URL, FirstLoad: g.FirstLoad, LoadedAt: g.LoadedAt})
 		}
 	}
 	if criticalEdge(c, t) {
-		src := string(t.Class)
-		if !EdgeClass(t.Class) {
-			src = t.DeviceKind
-		}
-		rs = append(rs, Reason{Layer: UrgencyCriticalEdge, Source: src, Since: c.Published})
+		rs = append(rs, Reason{Layer: UrgencyCriticalEdge, Source: string(t.Class), Since: c.Published})
 	}
 	slices.SortStableFunc(rs, func(a, b Reason) int {
 		if a.Layer == UrgencyUnderAttack && b.Layer == UrgencyUnderAttack {
@@ -161,7 +202,7 @@ func Urgency(cve string, c CVEFacts, t Target, attacks []Attack, now time.Time) 
 	})
 	r := Rating{Layer: UrgencyUpdate, Reasons: rs, Internet: t.Internet, InternetSeen: t.InternetSeen}
 	if len(rs) > 0 {
-		r.Layer, r.Since, r.FirstLoad = rs[0].Layer, rs[0].Since, rs[0].FirstLoad
+		r.Layer, r.Since = rs[0].Layer, rs[0].Since
 	}
 	return r
 }
@@ -171,7 +212,7 @@ func criticalEdge(c CVEFacts, t Target) bool {
 	if c.CVSS == nil || c.CVSS.Score < criticalScore || strings.EqualFold(c.Automatable, "no") {
 		return false
 	}
-	if !EdgeClass(t.Class) && !EdgeDevice(t.DeviceKind) {
+	if !EdgeClass(t.Class) {
 		return false
 	}
 	return networkNoLogin(c.CVSS.Vector)
@@ -201,16 +242,6 @@ func networkNoLogin(vector string) bool {
 func EdgeClass(c productid.Class) bool {
 	return c != productid.ClassNone && c != productid.ClassNetwork && c.Valid()
 }
-
-// edgeDevices are the device types (inventory's kind) of devices at the edge of a network or that manage it.
-var edgeDevices = map[string]bool{
-	"firewall": true, "vpn_gateway": true, "router": true, "modem": true, "sd_wan": true, "load_balancer": true, "proxy": true,
-	"nas": true, "san": true, "backup_appliance": true, "backup_server": true, "hypervisor": true, "bmc": true, "mail_server": true,
-	"network_controller": true, "wireless_controller": true,
-}
-
-// EdgeDevice says whether a device type is one attackers target first (edgeDevices).
-func EdgeDevice(kind string) bool { return edgeDevices[kind] }
 
 // ClassOf is the class of the product a finding is on, read from its fix key (the line's product key leads it).
 func ClassOf(f Finding) productid.Class {
@@ -276,25 +307,28 @@ func (f Finding) Exploited() bool {
 // UrgencySources are what the urgency pass reads besides the findings. A nil Facts: the pass does not run (the layers the match pass
 // starts findings with stay).
 type UrgencySources struct {
-	// Facts returns what the box holds of these CVEs (feeds: signals, CVSS, SSVC, publication); a CVE it holds nothing of is absent.
+	// Facts returns what the box holds of these CVEs (feeds: signals of the feeds that are on, CVSS, SSVC, publication); a CVE it holds
+	// nothing of is absent.
 	Facts func(ctx context.Context, cves []string) (map[string]CVEFacts, error)
-	// Devices returns the type and the Internet exposure of these devices (inventory, exposure); an unknown one is absent. nil: none known.
+	// Devices returns the Internet exposure of these devices (exposure); an unknown one is absent. nil: none known. A line of the reasons
+	// only, never a layer, so nothing reads it until the reasons are shown.
 	Devices func(ctx context.Context, ids []string) (map[string]Device, error)
 	// Attacks returns the CVEs this network's intrusion alerts named since a time (ids). nil: no intrusion detection, layer 1 never applies.
 	Attacks func(ctx context.Context, since time.Time) ([]Attack, error)
+	// FirstRun returns the end of the box's own first-run window (its install's first discovery); zero when unknown or none. nil: none.
+	FirstRun func(ctx context.Context) (time.Time, error)
 }
 
 // Device is what the urgency of a device's findings reads of the device.
 type Device struct {
-	Kind         string // inventory's device type
-	Internet     bool   // reachable from the Internet (exposure)
+	Internet     bool // reachable from the Internet (exposure)
 	InternetSeen time.Time
 }
 
-// TargetOf is the target of a finding on device d: the class of the line's product (ClassOf), the device's type and exposure, and
-// whether the data detects the flaw now.
+// TargetOf is the target of a finding on device d: the class of the line's product (ClassOf), the device's exposure, and whether the
+// data detects the flaw now.
 func TargetOf(f Finding, d Device) Target {
-	return Target{AssetID: f.AssetID, Class: ClassOf(f), DeviceKind: d.Kind, Affected: f.Detected, Internet: d.Internet, InternetSeen: d.InternetSeen}
+	return Target{AssetID: f.AssetID, Class: ClassOf(f), Affected: f.Detected, Internet: d.Internet, InternetSeen: d.InternetSeen}
 }
 
 // UrgencyEvery is the pause between two runs of the urgency pass (it also runs when the module starts, and for a device after each of
@@ -307,18 +341,31 @@ const UrgencyJob = "urgency"
 // UrgencyResult says what one urgency pass did.
 type UrgencyResult struct {
 	Rated, Raised, Lowered int
-	Announced              int // open findings that entered layers 1–4 and were announced as news
+	Announced              int // rises of open findings told as news (one alert each)
+	FirstRun               int // rises of open findings listed in a first-run summary
 }
 
 // urgencyChunk bounds the findings one write of the pass changes, so the writer is never held for long.
 const urgencyChunk = 500
 
+// raised says whether a step raised an open finding into a more urgent layer of 1–4: the one kind of urgency change people are told
+// about (a drop, a rise of a handled finding and a change to 5 never are). A new finding is told by its creation instead.
+func raised(before, after Finding) bool {
+	return before.State != "" && after.Open() && Announced(after) && after.Urgency < before.Urgency
+}
+
+// raisedEvent is the bus event of a rise.
+func raisedEvent(before, after Finding, sev Severity) UrgencyRaisedEvent {
+	return UrgencyRaisedEvent{FindingID: after.ID, AssetID: after.AssetID, CVE: after.CVE, Severity: sev, Basis: record(after, nil, sev).Basis,
+		From: before.Urgency, To: after.Urgency, At: after.UrgencyAt.UTC().Format(time.RFC3339Nano)}
+}
+
 // RateUrgency rates the findings of one device (every device when assetID is "") with Urgency and stores each layer that changed
-// through Transition (urgency_changed), raising and lowering. A lowering is never told. An open finding that enters layers 1–4 is
-// announced once, the way the match pass announces a new exploited match (findings.finding.created): as news when Rating.News holds or
-// the finding is one of fresh (created by the match write that runs this pass), else under the Backlog mark (counted, silent). A handled
-// finding stores its layer and stays silent. Each finding is read again inside its write and rated on that row.
-func (s *Service) RateUrgency(ctx context.Context, assetID string, fresh map[string]bool) (UrgencyResult, error) {
+// through Transition (urgency_changed), raising and lowering. A drop is never told; a handled finding is never told. Every rise of an
+// open finding into a more urgent layer of 1–4 is told once (Tell): as news (findings.finding.urgency_raised), as a line of the
+// first-run summary (findings.urgency.first_run, one event per summary and pass), or as old news under the Backlog mark. Each finding is
+// read again inside its write and rated on that row.
+func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResult, error) {
 	var res UrgencyResult
 	src := s.cfg.Urgency
 	if src.Facts == nil {
@@ -333,20 +380,22 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string, fresh map[str
 	if err != nil {
 		return res, err
 	}
-	var news, backlog []string
+	var plain, backlog []string
 	for _, f := range fs {
 		res.Rated++
 		r := in.rate(f, now)
 		if r.Layer == f.Urgency {
 			continue
 		}
-		if r.News(now) || fresh[f.ID] {
-			news = append(news, f.ID)
-		} else {
+		if t, _ := Tell(f, r, now, in.installUntil); r.Layer < f.Urgency && t == TellBacklog {
 			backlog = append(backlog, f.ID)
+		} else {
+			plain = append(plain, f.ID)
 		}
 	}
-	apply := func(wctx context.Context, ids []string, asNews bool) error {
+	summaries := map[string]*FirstRunEvent{}
+	devices := map[string]map[string]bool{}
+	apply := func(wctx context.Context, ids []string, marked bool) error {
 		for chunk := range slices.Chunk(ids, urgencyChunk) {
 			if err := s.write(wctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 				for _, id := range chunk {
@@ -369,14 +418,32 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string, fresh map[str
 					} else {
 						res.Lowered++
 					}
-					if g.Open() && !Announced(f) && Announced(g) { // entered layers 1–4: one notice, as a new exploited match
-						band := SeverityMedium
-						if c := in.facts[f.CVE].CVSS; c != nil {
-							band = bandOf(*c)
+					if !raised(f, g) {
+						continue
+					}
+					band := SeverityMedium
+					if c := in.facts[f.CVE].CVSS; c != nil {
+						band = bandOf(*c)
+					}
+					t, key := Tell(g, r, now, in.installUntil)
+					if marked {
+						t = TellBacklog
+					}
+					switch t {
+					case TellNews:
+						res.Announced++
+						emit(EventUrgencyRaised, raisedEvent(f, g, band))
+					case TellFirstRun:
+						res.FirstRun++
+						sum := summaries[key]
+						if sum == nil {
+							sum = &FirstRunEvent{Key: key}
+							summaries[key], devices[key] = sum, map[string]bool{}
 						}
-						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: band, Basis: record(g, nil, band).Basis})
-						if asNews {
-							res.Announced++
+						sum.add(g, devices[key])
+					default:
+						if marked { // under the Backlog mark: counted, never sent
+							emit(EventUrgencyRaised, raisedEvent(f, g, band))
 						}
 					}
 				}
@@ -387,25 +454,62 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string, fresh map[str
 		}
 		return nil
 	}
-	if err := apply(ctx, news, true); err != nil {
+	if err := apply(ctx, plain, false); err != nil {
 		return res, err
 	}
-	bctx, asNews := ctx, s.cfg.Backlog == nil // without a Backlog hook nothing can be marked, so nothing is held back
+	bctx := ctx
 	if s.cfg.Backlog != nil {
 		bctx = s.cfg.Backlog(ctx)
 	}
-	return res, apply(bctx, backlog, asNews)
+	if err := apply(bctx, backlog, s.cfg.Backlog != nil); err != nil {
+		return res, err
+	}
+	s.publishFirstRun(ctx, summaries)
+	return res, nil
+}
+
+// add counts one finding into a first-run summary.
+func (e *FirstRunEvent) add(f Finding, devices map[string]bool) {
+	e.Findings++
+	if !devices[f.AssetID] {
+		devices[f.AssetID] = true
+		e.Devices++
+	}
+	if !slices.Contains(e.CVEList, f.CVE) && len(e.CVEList) < MaxBackfillListed {
+		e.CVEList = append(e.CVEList, f.CVE)
+	}
+	if len(e.FindingIDs) < MaxBackfillListed {
+		e.FindingIDs = append(e.FindingIDs, f.ID)
+	}
+	if e.Layer == 0 || f.Urgency < e.Layer {
+		e.Layer = f.Urgency
+	}
+}
+
+// publishFirstRun sends the first-run summaries of one pass, one event each, after their writes committed.
+func (s *Service) publishFirstRun(ctx context.Context, sums map[string]*FirstRunEvent) {
+	if s.cfg.Publisher == nil || len(sums) == 0 {
+		return
+	}
+	pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
+	defer cancel()
+	for _, key := range slices.Sorted(maps.Keys(sums)) {
+		if err := s.cfg.Publisher.Publish(pctx, EventFirstRun, *sums[key]); err != nil {
+			s.cfg.Log.ErrorContext(pctx, "publishing a findings event failed", "event", EventFirstRun, "error", err)
+		}
+	}
 }
 
 // urgencyInputs is what one pass rates findings with, read once.
 type urgencyInputs struct {
-	facts   map[string]CVEFacts
-	devices map[string]Device
-	attacks []Attack
+	facts        map[string]CVEFacts
+	devices      map[string]Device
+	attacks      map[string][]Attack // by CVE
+	installUntil time.Time
 }
 
 func (in urgencyInputs) rate(f Finding, now time.Time) Rating {
-	return Urgency(f.CVE, in.facts[f.CVE], TargetOf(f, in.devices[f.AssetID]), in.attacks, now)
+	return Urgency(f.CVE, in.facts[f.CVE], TargetOf(f, in.devices[f.AssetID]), in.attacks[f.CVE], now)
 }
 
 func (s *Service) urgencyInputs(ctx context.Context, fs []Finding, now time.Time) (urgencyInputs, error) {
@@ -426,9 +530,25 @@ func (s *Service) urgencyInputs(ctx context.Context, fs []Finding, now time.Time
 		}
 	}
 	if s.cfg.Urgency.Attacks != nil {
-		if in.attacks, err = s.cfg.Urgency.Attacks(ctx, now.Add(-AttackWindow)); err != nil {
+		as, err := s.cfg.Urgency.Attacks(ctx, now.Add(-AttackWindow))
+		if err != nil {
 			return in, fmt.Errorf("findings: urgency: reading the attacks: %w", err)
+		}
+		in.attacks = AttacksByCVE(as)
+	}
+	if s.cfg.Urgency.FirstRun != nil {
+		if in.installUntil, err = s.cfg.Urgency.FirstRun(ctx); err != nil {
+			return in, fmt.Errorf("findings: urgency: reading the first-run window: %w", err)
 		}
 	}
 	return in, nil
+}
+
+// AttacksByCVE groups attacks by their CVE, so a pass reads each finding's own.
+func AttacksByCVE(as []Attack) map[string][]Attack {
+	out := map[string][]Attack{}
+	for _, a := range as {
+		out[a.CVE] = append(out[a.CVE], a)
+	}
+	return out
 }

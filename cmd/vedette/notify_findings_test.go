@@ -148,14 +148,18 @@ func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 	s.telegramOn()
 	s.kev("CVE-2026-4003", "Fortinet", "FortiOS")
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET source_id = 'vulncheck-kev', list = 'vulncheck' WHERE cve = 'CVE-2026-4003'`)
+		if _, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET source_id = 'vulncheck-kev', list = 'vulncheck' WHERE cve = 'CVE-2026-4003'`); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_signal SET source = 'vulncheck-kev' WHERE cve = 'CVE-2026-4003' AND source = 'cisa-kev'`)
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
 	s.addFortiGate()
 	got := s.queuedNotices()
-	if len(got) != 1 || !strings.HasPrefix(got[0].What, "VulnCheck KEV lists CVE-2026-4003 (") || strings.Contains(got[0].What, "CISA") {
+	if len(got) != 1 || !strings.HasPrefix(got[0].What, "VulnCheck KEV lists CVE-2026-4003 (") || strings.Contains(got[0].What, "CISA lists") ||
+		strings.Contains(got[0].What, "CISA KEV") {
 		t.Fatalf("notices: %+v", got)
 	}
 }

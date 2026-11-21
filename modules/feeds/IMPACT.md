@@ -220,7 +220,10 @@
 
 ## Modifying: `ReadUrgencyFacts` / `feeds_signal` columns (urgency of findings)
 - findings rates every finding from these facts each hour (cmd/vedette `urgencyFacts`); the selfcheck `findings.urgency_recomputed`
-  reads them on its read-only handle. `FirstLoad` = the row was stored in its source's first pull (`stored_at` = the source's earliest)
+  reads them on its read-only handle. `FirstLoad` = the row was stored in its source's first good pull (by `feeds_fetch_log`, else the source's earliest `stored_at`)
   and is not dated after it: a source that rewrites `stored_at` on every pull would make every signal look new and send alerts.
-- An exploited list's entry without its signal row is added as one (kind exploited, the list's source, its date added).
+- An exploited list's entry without its signal row is added as one (kind exploited, the list's source, its date added). A feed that is
+  off (other than an exploited list) contributes no signal; its rows stay for when it is on again.
+- The first load ends at the source's first good pull in `feeds_fetch_log` (else its earliest row); `UrgencyReader` caches it until
+  `feeds_source` changes (a pull or a switch), so a device's match write does not scan every signal row.
 

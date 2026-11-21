@@ -29,6 +29,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
+	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
@@ -951,6 +952,7 @@ func subscribe(d deps) {
 			return fn(ctx, e.Data)
 		}
 	}
+	d.Bus.Subscribe(idsmodule.EventAlertDetected, urgencyOnAlerts(&d)) // an attack here is layer 1 at once
 	d.Bus.Subscribe(inventory.EventMatchChanged, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.MatchEvent)
 		if !ok {

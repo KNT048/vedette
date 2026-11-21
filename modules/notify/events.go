@@ -26,6 +26,10 @@ const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventFindingRaised        = "findings.finding.severity_raised"
+	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 {finding_id, cve, severity, from, to, at}: one notice per rise.
+	EventUrgencyRaised = "findings.finding.urgency_raised"
+	// EventFirstRun: the rises of a first-run window {key, findings, devices, layer, finding_ids, cve_list}: one summary notice a day.
+	EventFirstRun = "findings.urgency.first_run"
 	// EventDeviceBackfill: one summary of the open findings the first match pass after the device-version rule arrived confirmed
 	// {findings, devices, cves, severity, finding_ids, cve_list}; each of them sent no notice of its own.
 	EventDeviceBackfill  = "findings.device_version.backfilled"
@@ -69,6 +73,8 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventFindingRaised, s.findingRaised)
+	on(EventUrgencyRaised, s.urgencyRaised)
+	on(EventFirstRun, s.urgencyFirstRun)
 	on(EventDeviceBackfill, s.deviceBackfill)
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
@@ -236,6 +242,112 @@ func (s *Service) findingRaised(ctx context.Context, data any) error {
 		}
 		n.What = why + " " + f.What
 	})
+}
+
+// layerChange names a more urgent layer in a notice's change line.
+var layerChange = map[int]string{1: "now under attack here", 2: "now exploited in the wild", 3: "now has a public exploit", 4: "now critical on an edge device"}
+
+// urgencyRaised turns findings.finding.urgency_raised (an open finding rose into a more urgent layer of 1–4) into a notice with the
+// finding's texts for its new layer. The id carries the layer and the rise's time, so every rise is told once, also a finding that
+// dropped and rose again. Old news (the Backlog mark) is only counted. A rise to exploited marks the CVE as one that matched a device.
+func (s *Service) urgencyRaised(ctx context.Context, data any) error {
+	var e struct {
+		FindingID string `json:"finding_id"`
+		CVE       string `json:"cve"`
+		Severity  string `json:"severity"`
+		To        int    `json:"to"`
+		At        string `json:"at"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.FindingID == "" || e.To < 1 || e.To > 4 {
+		return nil
+	}
+	if exploitedLayer(e.To) && kevKey(e.CVE) != "" {
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), true) }); err != nil {
+			return err
+		}
+	}
+	if IsBaseline(ctx) {
+		return nil
+	}
+	at, err := time.Parse(time.RFC3339Nano, e.At)
+	if err != nil {
+		at = s.now()
+	}
+	return s.findingChange(ctx, e.FindingID, e.CVE, Severity(e.Severity), func(_ FindingInfo, _ string, n *Notice) {
+		n.ID += fmt.Sprintf("-urgency-%d-%s", e.To, at.UTC().Format("20060102T150405.000"))
+		n.Change = layerChange[e.To]
+		n.Layer = e.To
+	})
+}
+
+// urgencyFirstRun turns findings.urgency.first_run into one notice: what a first load (of a signal source, or of the box itself) rated
+// urgent on the devices, instead of one alert per finding. One a day per window (the id carries the window and the day); the list in
+// the app holds every finding.
+func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
+	var e struct {
+		Key        string   `json:"key"`
+		Findings   int      `json:"findings"`
+		Devices    int      `json:"devices"`
+		Layer      int      `json:"layer"`
+		FindingIDs []string `json:"finding_ids"`
+		CVEList    []string `json:"cve_list"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.Findings <= 0 || IsBaseline(ctx) {
+		return nil
+	}
+	if s.cfg.Findings == nil {
+		s.cfg.Log.WarnContext(ctx, "finding summary skipped: no finding directory is wired")
+		return nil
+	}
+	sev := Medium
+	if e.Layer >= 1 && e.Layer <= 2 {
+		sev = High
+	}
+	what := "Vedette has just loaded its sources of exploitation news for the first time"
+	if e.Key == "install" {
+		what = "This is Vedette's first look at your network and at its sources of exploitation news"
+	}
+	n := Notice{ID: "nt-first-run-" + clip(e.Key, 80) + "-" + s.now().UTC().Format("20060102"), Kind: KindVuln, Severity: sev, Layer: e.Layer,
+		Link: s.link("/findings?tab=open"), At: s.now(),
+		Title: fmt.Sprintf("Patch first: %s on %s", plural(e.Findings, "urgent finding", "urgent findings"), plural(e.Devices, "device", "devices")),
+		What: what + fmt.Sprintf(", so instead of one alert each, the %s it rated as exploited, with a public exploit or critical on an edge device are listed together here.",
+			plural(e.Findings, "finding", "findings")),
+		Action: "Open Findings, sorted by urgency, and patch the ones at the top first."}
+	seen := map[string]bool{}
+	for _, id := range e.FindingIDs {
+		if len(n.FindingIDs) == maxNoticeItems {
+			break
+		}
+		f, ok, err := s.cfg.Findings.Finding(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+		n.FindingIDs = append(n.FindingIDs, id)
+		for _, d := range f.Devices {
+			if d = strings.TrimSpace(d); d != "" && !seen[d] && len(n.Devices) < maxNoticeItems {
+				seen[d] = true
+				n.Devices = append(n.Devices, d)
+			}
+		}
+	}
+	for _, c := range e.CVEList {
+		if len(n.CVEs) < maxNoticeItems {
+			n.CVEs = append(n.CVEs, c)
+		}
+	}
+	if len(n.FindingIDs) == 0 {
+		return nil
+	}
+	return s.Publish(ctx, n)
 }
 
 // deviceBackfill turns the one summary of the findings the first pass after the device-version rule confirmed into one notice
@@ -757,6 +869,24 @@ func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 	return s.now().Sub(at) < firstDiscoveryWindow, nil
+}
+
+// FirstRunUntil is the end of the box's own first-run window (its first discovery, firstDiscoveryWindow after notify first ran here);
+// zero when not known. Findings folds the urgency rises of that window into one summary.
+func (s *Service) FirstRunUntil(ctx context.Context) (time.Time, error) {
+	var first string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_run_at FROM notify_box WHERE id = 1`).Scan(&first)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return time.Time{}, nil
+	case err != nil:
+		return time.Time{}, fmt.Errorf("notify: read first run: %w", err)
+	}
+	at, err := time.Parse(time.RFC3339Nano, first)
+	if err != nil {
+		return time.Time{}, nil
+	}
+	return at.Add(firstDiscoveryWindow), nil
 }
 
 // discoveryIncident adds a device to the summary incident of the first discovery or of a sensor's learning: the first

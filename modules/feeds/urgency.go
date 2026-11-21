@@ -7,18 +7,21 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 )
 
-// UrgencySignal is a signal row as the urgency of a finding reads it: FirstLoad says the row came with the first load of its source on
-// this box (it was stored in the source's first pull and is not dated after it), so its date says nothing about when the box learned it.
+// UrgencySignal is a signal row as the urgency of a finding reads it. FirstLoad says the row came with the first load of its source on
+// this box (stored no later than the end of the source's first good pull, LoadedAt), so its date says nothing about when the box learned it.
 type UrgencySignal struct {
 	Signal
 	FirstLoad bool
+	LoadedAt  time.Time
 }
 
-// UrgencyFacts is what the box holds about one CVE that the urgency of its findings reads: its signals (an exploited list's entry is
-// one: the list writes its signal row with the entry), the CVSS score PickCVSS picks, CISA's SSVC "automatable" and the publication day.
+// UrgencyFacts is what the box holds about one CVE that the urgency of its findings reads: its signals of the feeds that are on (an
+// exploited list's entry is one: the list writes its signal row with the entry), the CVSS score PickCVSS picks, CISA's SSVC
+// "automatable" and the publication day.
 type UrgencyFacts struct {
 	Signals     []UrgencySignal
 	CVSS        *CVSS
@@ -26,29 +29,35 @@ type UrgencyFacts struct {
 	Published   *time.Time
 }
 
-// UrgencyFacts reads the urgency facts of these CVEs (ReadUrgencyFacts) through the store's reader.
-func (s *Store) UrgencyFacts(ctx context.Context, cves []string) (map[string]UrgencyFacts, error) {
-	return ReadUrgencyFacts(ctx, s.db.Reader(), cves)
+// sourceLoad is what the urgency reads of a signal source: whether it is on, and when its first load ended.
+type sourceLoad struct {
+	off      bool
+	loadedAt string // "" when unknown
 }
 
-// ReadUrgencyFacts reads the urgency facts of these CVEs through q, the store's reader or a read-only handle on the same file (the
-// selfcheck recomputes stored urgencies with it). A CVE the box holds nothing of is absent.
+// UrgencyReader reads urgency facts through q, the store's reader or a read-only handle on the same file (the selfcheck recomputes stored
+// urgencies with it). It keeps what it reads of the sources until a feed pulls again or is switched (the sources' stamp).
+type UrgencyReader struct {
+	q     *sql.DB
+	mu    sync.Mutex
+	stamp string
+	loads map[string]sourceLoad
+}
+
+// NewUrgencyReader returns a reader on q.
+func NewUrgencyReader(q *sql.DB) *UrgencyReader { return &UrgencyReader{q: q} }
+
+// ReadUrgencyFacts reads the urgency facts of these CVEs through q once (NewUrgencyReader(q).Facts).
 func ReadUrgencyFacts(ctx context.Context, q *sql.DB, cves []string) (map[string]UrgencyFacts, error) {
-	firstLoad := map[string]string{} // source → the stamp of its first stored row
-	rows, err := q.QueryContext(ctx, `SELECT source, min(stored_at) FROM feeds_signal GROUP BY source`)
+	return NewUrgencyReader(q).Facts(ctx, cves)
+}
+
+// Facts reads the urgency facts of these CVEs. A CVE the box holds nothing of is absent. The signals of a feed that is off are left out
+// (an exploited list's own rows stay: the list's entries are what the match pass reads, whatever the switch).
+func (r *UrgencyReader) Facts(ctx context.Context, cves []string) (map[string]UrgencyFacts, error) {
+	loads, err := r.sourceLoads(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
-	}
-	for rows.Next() {
-		var src, at string
-		if err := rows.Scan(&src, &at); err != nil {
-			_ = rows.Close()
-			return nil, fmt.Errorf("feeds: urgency facts: %w", err)
-		}
-		firstLoad[src] = at
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
+		return nil, err
 	}
 	out := map[string]UrgencyFacts{}
 	for chunk := range slices.Chunk(cves, 500) {
@@ -56,20 +65,69 @@ func ReadUrgencyFacts(ctx context.Context, q *sql.DB, cves []string) (map[string
 		if err != nil {
 			return nil, fmt.Errorf("feeds: urgency facts: %w", err)
 		}
-		if err := readUrgencySignals(ctx, q, string(part), firstLoad, out); err != nil {
+		if err := readUrgencySignals(ctx, r.q, string(part), loads, out); err != nil {
 			return nil, err
 		}
-		if err := readUrgencyCVEs(ctx, q, string(part), out); err != nil {
+		if err := readUrgencyCVEs(ctx, r.q, string(part), out); err != nil {
 			return nil, err
 		}
-		if err := readUrgencyLists(ctx, q, string(part), out); err != nil {
+		if err := readUrgencyLists(ctx, r.q, string(part), out); err != nil {
 			return nil, err
 		}
 	}
 	return out, nil
 }
 
-func readUrgencySignals(ctx context.Context, q *sql.DB, cves string, firstLoad map[string]string, out map[string]UrgencyFacts) error {
+// sourceLoads reads, once per sources' stamp, each signal source's switch and the end of its first load: the first good pull the fetch
+// log holds, or the earliest stored row when that is earlier (the log keeps 90 days; the rows of the first pull may be gone). The scan
+// of every signal row runs only when a feed pulled or was switched.
+func (r *UrgencyReader) sourceLoads(ctx context.Context) (map[string]sourceLoad, error) {
+	var stamp string
+	if err := r.q.QueryRowContext(ctx, `SELECT count(*) || '|' || ifnull(max(last_success), '') || '|' || ifnull(sum(enabled), 0) || '|' || ifnull(max(last_fetch), '')
+FROM feeds_source`).Scan(&stamp); err != nil {
+		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.loads != nil && r.stamp == stamp {
+		return r.loads, nil
+	}
+	loads := map[string]sourceLoad{}
+	rows, err := r.q.QueryContext(ctx, `SELECT g.source, min(g.stored_at), s.enabled,
+	(SELECT min(l.finished_at) FROM feeds_fetch_log l WHERE l.source_id = g.source AND l.status = 'ok')
+FROM feeds_signal g LEFT JOIN feeds_source s ON s.id = g.source GROUP BY g.source`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
+	}
+	for rows.Next() {
+		var (
+			src, first string
+			enabled    sql.NullBool
+			logged     sql.NullString
+		)
+		if err := rows.Scan(&src, &first, &enabled, &logged); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("feeds: urgency facts: %w", err)
+		}
+		at := first // the first pull's rows share its stamp
+		if logged.Valid {
+			// the log's first good pull ends the first load, unless the log no longer holds it (it ended well after the earliest row)
+			if f, err1 := parseTS(first); err1 == nil {
+				if l, err2 := parseTS(logged.String); err2 == nil && l.Before(f.Add(24*time.Hour)) {
+					at = logged.String
+				}
+			}
+		}
+		loads[src] = sourceLoad{off: enabled.Valid && !enabled.Bool && !isKEVSource(src), loadedAt: at}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
+	}
+	r.stamp, r.loads = stamp, loads
+	return loads, nil
+}
+
+func readUrgencySignals(ctx context.Context, q *sql.DB, cves string, loads map[string]sourceLoad, out map[string]UrgencyFacts) error {
 	rows, err := q.QueryContext(ctx, `SELECT cve, kind, source, first_seen, stored_at, last_seen, qualifies, url, detail FROM feeds_signal
 WHERE cve IN (SELECT value FROM json_each(?)) ORDER BY cve, first_seen, kind, source`, cves)
 	if err != nil {
@@ -96,7 +154,14 @@ WHERE cve IN (SELECT value FROM json_each(?)) ORDER BY cve, first_seen, kind, so
 		if detail.Valid {
 			g.Detail = json.RawMessage(detail.String)
 		}
-		g.FirstLoad = sa == firstLoad[g.Source] && fs <= sa
+		l := loads[g.Source]
+		if l.off {
+			continue
+		}
+		if l.loadedAt != "" {
+			g.FirstLoad = sa <= l.loadedAt && fs <= sa
+			g.LoadedAt, _ = parseTS(l.loadedAt)
+		}
 		f := out[g.CVE]
 		f.Signals = append(f.Signals, g)
 		out[g.CVE] = f
@@ -165,4 +230,23 @@ AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = k.cve AND s.kind = 'e
 		out[cve] = f
 	}
 	return errors.Join(rows.Err(), rows.Close())
+}
+
+// ReadSourceNames reads the name people see of every feed (feeds_source.name), by id: a reasons line names its sources this way, never
+// by id.
+func ReadSourceNames(ctx context.Context, q *sql.DB) (map[string]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, name FROM feeds_source`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: source names: %w", err)
+	}
+	out := map[string]string{}
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("feeds: source names: %w", err)
+		}
+		out[id] = name
+	}
+	return out, errors.Join(rows.Err(), rows.Close())
 }

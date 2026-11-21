@@ -99,8 +99,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 					}
 				default:
 					res.Touched++
-					if joinsList(f, g) { // its CVE joined an exploited list: announced once, as a new exploited match
-						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					if raised(f, g) { // a more urgent layer (its CVE joined an exploited list): one alert of the rise
+						emit(EventUrgencyRaised, raisedEvent(f, g, x.Severity))
 					}
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
 						res.Reopened++
@@ -611,7 +611,7 @@ func Jobs(svc *Service) []jobs.Job {
 	}}, {Module: "findings", Name: "plan", Every: PlanEvery, Run: func(ctx context.Context) error {
 		return svc.RefreshPlan(ctx)
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
-		r, err := svc.RateUrgency(ctx, "", nil)
+		r, err := svc.RateUrgency(ctx, "")
 		svc.cfg.Log.InfoContext(ctx, "findings: urgency pass done", "rated", r.Rated, "raised", r.Raised, "lowered", r.Lowered, "announced", r.Announced)
 		return err
 	}}}

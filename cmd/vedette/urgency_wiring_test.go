@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // seedUrgencyCatalogue stores three catalogue CVEs of FortiOS 7.2.0 to 7.2.8 on no list: one critical over the network with no login
@@ -108,8 +111,13 @@ func TestUrgencyWiring_StoresTheLayersAndTheSelfcheckAgrees(t *testing.T) {
 		}
 		return n
 	}
-	if n := mismatches(); n != 0 {
-		t.Fatalf("no pass recorded yet: %d mismatches", n)
+	if n := mismatches(); n != 1 {
+		t.Fatalf("no pass recorded yet: %d mismatches, want 1 (the pass has not run; the stored layers agree)", n)
+	}
+	s.exec(`INSERT INTO core_job_run (id, module, job, started_at, finished_at, status) VALUES ('jr-urgency-0', 'findings', ?, ?, ?, 'ok')`,
+		findings.UrgencyJob, store.FormatTS(time.Now().Add(-3*time.Hour)), store.FormatTS(time.Now().Add(-3*time.Hour)))
+	if n := mismatches(); n != 1 {
+		t.Fatalf("a pass three hours old: %d mismatches, want 1", n)
 	}
 	started := time.Now().UTC()
 	job := findingsJobs(*s.d)[2]
@@ -145,7 +153,7 @@ func TestUrgencyWiring_FactsMarkTheFirstLoad(t *testing.T) {
 	seedUrgencyCatalogue(t, s)
 	s.kev("CVE-2026-50009", "Fortinet", "FortiOS")
 	s.exec(`DELETE FROM feeds_signal WHERE cve = 'CVE-2026-50009'`)
-	facts, err := urgencyFacts(context.Background(), s.d.DB.Reader(), []string{"CVE-2019-0001", "CVE-2026-50002", "CVE-2026-50001", "CVE-2026-50009"})
+	facts, err := urgencyFacts(context.Background(), feeds.NewUrgencyReader(s.d.DB.Reader()), []string{"CVE-2019-0001", "CVE-2026-50002", "CVE-2026-50001", "CVE-2026-50009"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,5 +168,84 @@ func TestUrgencyWiring_FactsMarkTheFirstLoad(t *testing.T) {
 	}
 	if g := facts["CVE-2026-50009"].Signals; len(g) != 1 || g[0].Kind != findings.SignalExploited || g[0].Source != "cisa-kev" || !g[0].Qualifies {
 		t.Errorf("a list entry without its row: %+v", g)
+	}
+	// a feed turned off raises nothing (its rows stay for when it is on again); an exploited list's entry still counts
+	s.exec(`UPDATE feeds_source SET enabled = 0 WHERE id IN ('metasploit', 'cisa-kev')`)
+	facts, err = urgencyFacts(context.Background(), feeds.NewUrgencyReader(s.d.DB.Reader()), []string{"CVE-2026-50002", "CVE-2026-50009"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := facts["CVE-2026-50002"].Signals; len(g) != 0 {
+		t.Errorf("a feed that is off: %+v", g)
+	}
+	if g := facts["CVE-2026-50009"].Signals; len(g) != 1 {
+		t.Errorf("a list's entry while its feed is off: %+v", g)
+	}
+}
+
+// A rise is one alert with its own id and a reasons line in the feeds' own names: the device's public-exploit finding is told when the
+// device is added (a new finding), and again when a researcher's claim makes it exploited (3→2), "not yet on CISA's list".
+func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.telegramOn()
+	s.exec(`UPDATE notify_box SET first_run_at = ?`, store.FormatTS(time.Now().AddDate(0, 0, -3))) // past the box's first run
+	seedUrgencyCatalogue(t, s)
+	id := s.addFortiGate()
+	byID := func(prefix string) []notify.Notice {
+		var out []notify.Notice
+		for _, n := range s.queuedNotices() {
+			if strings.HasPrefix(n.ID, prefix) {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	var fid string
+	fs, err := s.d.Findings.Findings(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fs {
+		if f.CVE == "CVE-2026-50002" {
+			fid = f.ID
+		}
+	}
+	if got := byID("nt-" + fid + "-urgency-3-"); len(got) != 1 || !strings.Contains(got[0].What, "Why: Public exploit: Metasploit") ||
+		strings.Contains(got[0].Title+got[0].What, "exploited in") {
+		t.Fatalf("the public-exploit rise: %+v", got)
+	}
+	s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES ('CVE-2019-0002', 'exploited', 'rapid7-blog', ?1, ?2, ?2, 1)`,
+		store.FormatTS(time.Now().AddDate(0, -2, 0)), store.FormatTS(time.Now().AddDate(0, -1, 0))) // the source's first load, long ago
+	s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES ('CVE-2026-50002', 'exploited', 'rapid7-blog', ?1, ?1, ?1, 1)`,
+		store.FormatTS(time.Now().Add(-time.Hour)))
+	if err := findingsJobs(*s.d)[2].Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	got := byID("nt-" + fid + "-urgency-2-")
+	if len(got) != 1 || !strings.Contains(got[0].What, "Why: Exploited in the wild: Rapid7") || !strings.Contains(got[0].What, "not yet on CISA's list") ||
+		strings.Contains(got[0].What, "rapid7-blog") {
+		t.Fatalf("the exploited rise: %+v", got)
+	}
+}
+
+// In the box's own first run, what the urgency pass rates urgent is one summary notice, not one alert per finding.
+func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
+	t.Parallel()
+	s := newStack(t) // notify first ran now: the box's first run
+	s.telegramOn()
+	seedUrgencyCatalogue(t, s)
+	s.addFortiGate()
+	var sums, alerts []notify.Notice
+	for _, n := range s.queuedNotices() {
+		switch {
+		case strings.HasPrefix(n.ID, "nt-first-run-install-"):
+			sums = append(sums, n)
+		case strings.Contains(n.ID, "-urgency-"):
+			alerts = append(alerts, n)
+		}
+	}
+	if len(sums) != 1 || len(alerts) != 0 || sums[0].Title != "Patch first: 2 urgent findings on 1 device" || len(sums[0].CVEs) != 2 || len(sums[0].Devices) != 1 {
+		t.Fatalf("summaries %+v, alerts %+v", sums, alerts)
 	}
 }

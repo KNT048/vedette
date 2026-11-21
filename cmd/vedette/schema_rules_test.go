@@ -96,11 +96,6 @@ var jsonColumnAllowList = []string{
 	"resp_rules.actions",
 	"resp_rules.conditions",
 	"resp_settings.value",
-	"sa_all_ports.extra",
-	"sa_all_ports.extra_sw",
-	"sa_all_ports.normal_ports",
-	"sa_all_ports.normal_sw",
-	"sa_all_ports.versioned",
 	"sa_snmp_device.answer",
 	"scan_event.devices",
 }

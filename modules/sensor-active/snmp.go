@@ -778,8 +778,10 @@ func (s *Service) dropSNMP(ctx context.Context, tx *sql.Tx, r snmpRow) error {
 // checks are stopped, its SNMP settings with their secrets and its weekly port record go with it. Its finished runs stay: they are a
 // log, with the device id and name they ran on.
 func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM sa_all_ports WHERE asset_id = ?`, d.Device); err != nil {
-		return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
+	for _, q := range []string{`DELETE FROM sa_all_ports WHERE asset_id = ?`, `DELETE FROM sa_port_read WHERE asset_id = ?`} {
+		if _, err := tx.ExecContext(ctx, q, d.Device); err != nil {
+			return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
+		}
 	}
 	if err := s.runs.SubjectGoneTx(ctx, tx, ModuleID, "device", d.Device, "The device was deleted"); err != nil {
 		return fmt.Errorf("sensoractive: forget a deleted device: %w", err)
@@ -813,6 +815,8 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	for _, q := range []string{
 		`UPDATE OR IGNORE sa_all_ports SET asset_id = ?2 WHERE asset_id = ?1`, // a scan record: into's own stays
 		`DELETE FROM sa_all_ports WHERE asset_id = ?1`,
+		`UPDATE OR IGNORE sa_port_read SET asset_id = ?2 WHERE asset_id = ?1`, // the reads of a port: into's own stay
+		`DELETE FROM sa_port_read WHERE asset_id = ?1`,
 	} {
 		if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
 			return fmt.Errorf("sensoractive: merge device checks: %w", err)

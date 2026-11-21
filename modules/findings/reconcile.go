@@ -94,7 +94,9 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				switch {
 				case !ok:
 					res.Created = append(res.Created, g.ID)
-					emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					if Announced(g) {
+						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					}
 				default:
 					res.Touched++
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
@@ -130,7 +132,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		return res, err
 	}
 	res.Questions = n
-	if cves := announced(added, existing, seen); len(cves) > 0 {
+	if cves := announced(added, existing, seen, byCVE); len(cves) > 0 {
 		emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: cves})
 	}
 	return res, nil
@@ -161,7 +163,7 @@ func deviceLines(a Asset) map[string]line {
 // detectionOf is the detection of one match.
 func detectionOf(x Match, lines map[string]line) Detection {
 	ev := x.Evidence
-	d := Detection{SoftwareID: storedLine(x.SoftwareID), Evidence: &ev, Urgency: 2, RangeOrigin: RangeNVD}
+	d := Detection{SoftwareID: storedLine(x.SoftwareID), Evidence: &ev, Urgency: UrgencyUpdate, RangeOrigin: RangeNVD}
 	l, ok := lines[d.SoftwareID]
 	if ok {
 		d.ProductKey = productKey(l.sw)
@@ -200,6 +202,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 // and the fix of the line (FixOf, the one resolver). A safe check's detection keeps its own origin; a detection on no line has no fix
 // to read (the fix the finding had stays).
 func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
+	d.Urgency = v.startUrgency()
 	if d.Basis != DetectScan && d.Basis != DetectPackage {
 		d.RangeOrigin = v.rangeOrigin()
 	}
@@ -302,8 +305,9 @@ func questionsOfMatch(m MatchResult) []Question {
 	return out
 }
 
-// announced is the CVEs of the questions a write added that the device has no finding for (announced once, as a new question).
-func announced(added []Question, existing []Finding, detected map[string]bool) []UncheckedAddedCVE {
+// announced is the CVEs of the questions a write added that the device has no finding for (announced once, as a new question), of
+// the entries on an exploited list.
+func announced(added []Question, existing []Finding, detected map[string]bool, vulns map[string]Vuln) []UncheckedAddedCVE {
 	has := map[string]bool{}
 	for _, f := range existing {
 		has[f.CVE] = true
@@ -315,7 +319,7 @@ func announced(added []Question, existing []Finding, detected map[string]bool) [
 	var out []UncheckedAddedCVE
 	listed := map[string]bool{}
 	for _, q := range added {
-		if q.CVE == "" || has[q.CVE] || listed[q.CVE] {
+		if q.CVE == "" || has[q.CVE] || listed[q.CVE] || !vulns[q.CVE].listed() { // a CVE on no list is never announced
 			continue
 		}
 		listed[q.CVE] = true

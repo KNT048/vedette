@@ -147,7 +147,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	if isNew {
 		return g, evs, nil // the caller announces a new finding (CreatedEvent)
 	}
-	if e, ok := legacyEvent(f, g, evs); ok {
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) {
 		emit(EventStatusChanged, e)
 	}
 	return g, evs, nil
@@ -563,6 +563,12 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	if err != nil {
 		return Record{}, err
 	}
+	urgency := UrgencyUpdate
+	if kev, err := s.cfg.Feeds.KevInfo(ctx, []string{cve}); err != nil {
+		return Record{}, fmt.Errorf("findings: reading the exploited lists: %w", err)
+	} else if _, ok := kev[cve]; ok {
+		urgency = UrgencyExploited
+	}
 	var id string
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		// A scan that started before a person ignored the device confirms nothing on it
@@ -612,7 +618,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		}
 		e := ev
 		d := Detection{SoftwareID: line, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: version,
-			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
+			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: urgency}
 		if !isNew {
 			d.RangeOrigin = f.RangeOrigin
 		} else {
@@ -622,7 +628,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		if isNew {
+		if isNew && Announced(g) {
 			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
 		}
 		id = g.ID

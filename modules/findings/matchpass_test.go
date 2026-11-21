@@ -2,6 +2,7 @@ package findings
 
 import (
 	"testing"
+	"time"
 )
 
 // catalogueOnly is a CVE on no exploited list: only the catalogue holds it, with NVD's ranges.
@@ -140,4 +141,110 @@ func vulnCVEs(vs []Vuln) []string {
 		out[i] = v.CVE
 	}
 	return out
+}
+
+// A finding of a CVE on no exploited list is never announced and never rated exploited, whatever creates or changes it: the hourly
+// pass, an inventory change (OnMatchChanged), a safe check, the device's own version confirming it, a person confirming it. A CVE on a
+// list still is.
+func TestMatchPass_ACVEOnNoListIsNeverAnnounced(t *testing.T) {
+	t.Parallel()
+	const quiet, loud = "CVE-2026-100001", "CVE-2026-100005"
+	listed := catalogueOnly(loud, "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.8")
+	listed.Vendor, listed.Product = "Fortinet", "FortiOS"
+	quietVuln := catalogueOnly(quiet, "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")
+	type path struct {
+		name string
+		run  func(e *env) error
+	}
+	agent := fortigate()
+	agent.Software[0].Source = "agent" // the device's own reading confirms a version match
+	stated := fortigate()
+	stated.Software[0].Source = "manual" // a person's statement: not confirmed
+	for _, p := range []path{
+		{"reconcile", func(e *env) error { _, err := e.svc.Reconcile(e.t.Context()); return err }},
+		{"inventory change", func(e *env) error { _, err := e.svc.OnMatchChanged(e.t.Context(), "a-1"); return err }},
+		{"safe check", func(e *env) error {
+			if _, err := e.svc.ConfirmFromScan(e.t.Context(), "a-1", quiet, Evidence{Summary: "hit", Template: "t", CheckedAt: t0}); err != nil {
+				return err
+			}
+			_, err := e.svc.ConfirmFromScan(e.t.Context(), "a-1", loud, Evidence{Summary: "hit", Template: "t", CheckedAt: t0})
+			return err
+		}},
+		{"device version", func(e *env) error {
+			e.inv.match["a-1"] = stated
+			if _, err := e.svc.OnMatchChanged(e.t.Context(), "a-1"); err != nil {
+				return err
+			}
+			e.inv.match["a-1"] = agent
+			e.advance(time.Hour)
+			_, err := e.svc.OnMatchChanged(e.t.Context(), "a-1")
+			return err
+		}},
+		{"a person", func(e *env) error {
+			e.inv.match["a-1"] = stated
+			if _, err := e.svc.OnMatchChanged(e.t.Context(), "a-1"); err != nil {
+				return err
+			}
+			fs, err := e.svc.Findings(e.t.Context(), "a-1")
+			if err != nil {
+				return err
+			}
+			for _, f := range fs {
+				if _, err := e.svc.Verify(e.t.Context(), f.ID, "Checked on the device's own console.", "it@example.com"); err != nil {
+					return err
+				}
+			}
+			return nil
+		}},
+	} {
+		t.Run(p.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.inv.match = map[string]Asset{"a-1": fortigate()}
+			e.inv.assets["a-1"] = AssetView{ID: "a-1", Name: "fw01", IP: "192.0.2.1", Kind: "firewall"}
+			e.feeds.vulns = []Vuln{quietVuln, listed}
+			e.feeds.kev = map[string]KevInfo{loud: {Vendor: "Fortinet", Product: "FortiOS"}}
+			if err := p.run(e); err != nil {
+				t.Fatal(err)
+			}
+			fs, err := e.svc.Findings(t.Context(), "a-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			byCVE := map[string]Finding{}
+			for _, f := range fs {
+				byCVE[f.CVE] = f
+			}
+			if f, ok := byCVE[quiet]; !ok || f.Urgency != UrgencyUpdate {
+				t.Errorf("the CVE on no list: %+v, want a finding at urgency %d", f, UrgencyUpdate)
+			}
+			if f, ok := byCVE[loud]; !ok || f.Urgency != UrgencyExploited {
+				t.Errorf("the listed CVE: %+v, want a finding at urgency %d", f, UrgencyExploited)
+			}
+			loudSeen := false
+			for _, ev := range e.pub.take() {
+				id := ""
+				switch x := ev.Payload.(type) {
+				case CreatedEvent:
+					id = x.FindingID
+				case StatusChangedEvent:
+					id = x.FindingID
+				case UncheckedAddedEvent:
+					for _, c := range x.CVEs {
+						if c.CVE == quiet {
+							t.Errorf("announced a question of the CVE on no list: %+v", x)
+						}
+					}
+				}
+				switch id {
+				case byCVE[quiet].ID:
+					t.Errorf("%s announced the CVE on no list: %+v", ev.Name, ev.Payload)
+				case byCVE[loud].ID:
+					loudSeen = true
+				}
+			}
+			if !loudSeen {
+				t.Error("the listed CVE was not announced")
+			}
+		})
+	}
 }

@@ -112,7 +112,8 @@ func exposureService(d deps) *exposure.Service {
 		clock = time.Now
 	}
 	m := exposureMatcher{now: clock}
-	m.vulns, m.catalogue = exposureFeeds(d)
+	m.vulns, m.catalogue, m.stamp = exposureFeeds(d)
+	m.memo = &catalogueMemo{}
 	if d.Inventory != nil {
 		m.catalog = d.Inventory.KevKeysByCPE
 	}

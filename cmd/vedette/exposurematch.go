@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/orgtime"
@@ -27,15 +28,49 @@ import (
 // is set: inventory's curated CPE to KEV keys (inventory.Service.KevKeysByCPE). Catalog keys count only when some entry of the list carries them, so a service is never "compared" against a product the list does not have (INV-20).
 type exposureMatcher struct {
 	vulns func(ctx context.Context) ([]findings.Vuln, error)
-	// catalogue is findings' Feeds.MatchSet: what the services are compared with. nil: the exploited list (vulns) alone.
+	// catalogue is findings' Feeds.MatchSet: what the services are compared with. nil: the exploited list (vulns) alone. It is read
+	// through memo, under the feeds' match stamp (stamp), so a page read costs what it did before the catalogue was read.
 	catalogue func(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error)
+	stamp     func(ctx context.Context) (string, error)
+	memo      *catalogueMemo                                      // nil: read every time
 	catalog   func(ctx context.Context) func(cpe string) []string // inventory.Service.KevKeysByCPE, read once per Match; nil: the list's own CPEs only
 	now       func() time.Time
 }
 
+// catalogueMemo keeps the catalogue sets read under the current match stamp, by the products they were read for: an exposure read
+// (a snapshot, a comparison of two) asks again and again for the same services, and the set changes only when a feed does.
+type catalogueMemo struct {
+	mu    sync.Mutex
+	stamp string
+	sets  map[string][]findings.Vuln // read only once stored: the matcher never changes it
+}
+
+// get returns the set stored for products under stamp, else the one read gives (and keeps it).
+func (c *catalogueMemo) get(stamp, products string, read func() ([]findings.Vuln, error)) ([]findings.Vuln, error) {
+	c.mu.Lock()
+	if c.stamp == stamp {
+		if v, ok := c.sets[products]; ok {
+			c.mu.Unlock()
+			return v, nil
+		}
+	}
+	c.mu.Unlock()
+	v, err := read()
+	if err != nil {
+		return nil, err
+	}
+	c.mu.Lock()
+	if c.stamp != stamp || c.sets == nil {
+		c.stamp, c.sets = stamp, map[string][]findings.Vuln{}
+	}
+	c.sets[products] = v
+	c.mu.Unlock()
+	return v, nil
+}
+
 // exposureFeeds reads the exploited list (exposureMatcher.vulns) and the catalogue (exposureMatcher.catalogue) through the cached
 // reader findings uses (findingsFeeds). The feeds module off is a reason the page shows; nothing is then read.
-func exposureFeeds(d deps) (vulns func(context.Context) ([]findings.Vuln, error), catalogue func(context.Context, findings.MatchScope) ([]findings.Vuln, error)) {
+func exposureFeeds(d deps) (vulns func(context.Context) ([]findings.Vuln, error), catalogue func(context.Context, findings.MatchScope) ([]findings.Vuln, error), stamp func(context.Context) (string, error)) {
 	cache := &vulnCache{}
 	feedsOf := func() (findingsFeeds, error) {
 		if d.Reg != nil && !d.Reg.Enabled("feeds") {
@@ -61,7 +96,14 @@ func exposureFeeds(d deps) (vulns func(context.Context) ([]findings.Vuln, error)
 		}
 		return f.MatchSet(ctx, scope)
 	}
-	return vulns, catalogue
+	stamp = func(ctx context.Context) (string, error) {
+		f, err := feedsOf()
+		if err != nil {
+			return "", err
+		}
+		return f.st.MatchStamp(ctx)
+	}
+	return vulns, catalogue, stamp
 }
 
 func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) (exposure.Matches, error) {
@@ -70,7 +112,8 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 }
 
 // announced says findings tells people about v: the urgency a finding of v starts with (an entry of an exploited list: exploited,
-// the other catalogue CVEs: update recommended) goes through the one rule, findings.Announced.
+// the other catalogue CVEs: update recommended) goes through the one rule, findings.Announced. The urgency line mirrors findings'
+// Vuln.startUrgency (match.go), which is not exported yet: when findings exports it, call it here and delete this copy.
 func announced(v findings.Vuln) bool {
 	urgency := findings.UrgencyUpdate
 	if v.Vendor != "" || v.Product != "" {
@@ -79,13 +122,12 @@ func announced(v findings.Vuln) bool {
 	return findings.Announced(findings.Finding{Urgency: urgency})
 }
 
-// fixKey names the fix of one CVE on one service in match's second result.
-func fixKey(s exposure.ServiceRow, cve string) string {
-	return fmt.Sprintf("%s:%d|%s", s.IP, s.Port, cve)
-}
+// fixOf is the fix findings.FixOf gives a CVE shown on a service, asked for only by the one that shows it (exposure's rows carry no
+// fix yet): nothing is computed for the reads that do not.
+type fixOf func(s exposure.ServiceRow, cve string) findings.Fix
 
-// match is Match and, for each CVE shown on a service (fixKey), the fix findings.FixOf gives it.
-func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) (exposure.Matches, map[string]findings.Fix, error) {
+// match is Match and the fix of each CVE it shows.
+func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) (exposure.Matches, fixOf, error) {
 	vulns, err := m.vulns(ctx)
 	if err != nil {
 		return exposure.Matches{}, nil, err
@@ -144,9 +186,9 @@ func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) 
 		a.Software = append(a.Software, line)
 		sw[id] = line
 	}
-	fixes := map[string]findings.Fix{}
+	none := func(exposure.ServiceRow, string) findings.Fix { return findings.Fix{Kind: findings.FixUnknown} }
 	if len(order) == 0 {
-		return out, fixes, nil
+		return out, none, nil
 	}
 	list := vulns
 	if m.catalogue != nil {
@@ -154,7 +196,16 @@ func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) 
 		for _, ip := range order {
 			all = append(all, *assets[ip])
 		}
-		if list, err = m.catalogue(ctx, findings.NewMatchScope(all, nil)); err != nil {
+		read := func() ([]findings.Vuln, error) { return m.catalogue(ctx, findings.NewMatchScope(all, nil)) }
+		if m.memo == nil || m.stamp == nil {
+			list, err = read()
+		} else {
+			var stamp string
+			if stamp, err = m.stamp(ctx); err == nil {
+				list, err = m.memo.get(stamp, productsOf(all), read)
+			}
+		}
+		if err != nil {
 			return exposure.Matches{}, nil, err
 		}
 	}
@@ -180,7 +231,6 @@ func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) 
 			row := exposure.VulnRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Basis: string(x.Basis), Summary: x.Evidence.Summary}
 			kevRow(&row, *v)
 			out.Vulns = append(out.Vulns, row)
-			fixes[fixKey(s, x.CVE)] = findings.FixOf(a, sw[x.SoftwareID], *v)
 		}
 		for _, x := range res.OtherPlatform { // The banner names another platform than the one the CVE affects
 			s := where[x.SoftwareID]
@@ -222,7 +272,27 @@ func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) 
 			out.Gaps = append(out.Gaps, exposure.GapRow{IP: s.IP, Port: s.Port, Software: n.Software, CVEs: cves})
 		}
 	}
-	return out, fixes, nil
+	return out, func(s exposure.ServiceRow, cve string) findings.Fix {
+		v := byCVE[cve]
+		l, ok := sw[fmt.Sprintf("%s:%d", s.IP, s.Port)]
+		if v == nil || !ok {
+			return findings.Fix{Kind: findings.FixUnknown}
+		}
+		return findings.FixOf(*assets[s.IP], l, *v)
+	}, nil
+}
+
+// productsOf names the products of the assets' software (CPE vendor and product, the version left out), sorted: what a catalogue set
+// is kept under.
+func productsOf(assets []findings.Asset) string {
+	var l []string
+	for _, a := range assets {
+		for _, s := range a.Software {
+			l = append(l, cpeBase(s.CPE))
+		}
+	}
+	slices.Sort(l)
+	return strings.Join(slices.Compact(l), ",")
 }
 
 // Exploited is exposure's ExploitedLookup: the CVE ids among cves that today's list carries, with their name, date and

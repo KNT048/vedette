@@ -108,6 +108,13 @@ export const GeneralHardening = z.object({
   family: z.string().describe('The family the checks are written for ("Linux", "Network device", "General")'),
   checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family'),
 }).describe('Mitigation INV-8: general compromise checks written by reviewed code, not a recommendation for the CVE: never shown as "Vedette confirmed", never run by Vedette. The generated firewall configs and the admin network field are gone')
+export const AiAnswerKey = z.enum(['affected', 'fix', 'workaround', 'urgency'])
+  .describe('affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none published"); urgency = How urgent? (the status reasons, attack vector, privileges)')
+export const AiAnswer = z.object({
+  key: AiAnswerKey,
+  text: z.string().max(1200).describe('A few short sentences; no heading'),
+  links: z.array(z.object({ title: z.string().max(200), url: z.string().regex(/^https?:\/\//) })).max(8).describe('The references the answer rests on, from the brief; http(s) only'),
+})
 export const AiResult = z.object({
   skill: z.enum(['explain', 'mitigation-config']), ts: iso, model: z.string(),
   profile: z.string().optional().describe('Name of the AI profile that answered'),
@@ -117,6 +124,7 @@ export const AiResult = z.object({
   configs: z.array(CodeStep).optional().describe('mitigation-config: config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
   no_config_reason: z.string().optional().describe('#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI\'s words; the page shows it where the configuration would be'),
   shortened: z.boolean().optional().describe('A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
+  answers: z.array(AiAnswer).max(4).optional().describe('mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before'),
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 

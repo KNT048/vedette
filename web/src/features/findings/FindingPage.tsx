@@ -30,6 +30,7 @@ import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
 import { StatusDialog } from './Handle'
+import { CveBriefCard } from './CveBrief'
 
 function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
@@ -122,7 +123,6 @@ function Aside({ f }: { f: FindingDetail }) {
           </Card>
         ) : <p className="text-sm text-muted">{t('aside.noDevice')}</p>}
         {f.kev ? <p className="text-meta text-muted">{f.kev.name}</p> : null}
-        <Link to={`/cve/${f.cve}`} className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('aside.cvePage', { cve: f.cve })}</Link>
       </section>
       <section aria-labelledby="hist-title" className="grid gap-2">
         <h2 id="hist-title" className="text-base font-semibold">{t('history.title')}</h2>
@@ -216,6 +216,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
       {open_ ? null : <ClosedNotice f={f} reopen={reopenButton} />}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
+          <CveBriefCard f={f} />
           {open_ ? body : (
             <details className="group" data-testid="before-closed">
               <summary className="mb-3 w-fit cursor-pointer text-base font-semibold">{t('closed.before')}</summary>

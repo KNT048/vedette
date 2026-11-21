@@ -126,7 +126,7 @@
     "template": "Confirmation template",
     "templateYes": "Yes (nuclei-templates), can be confirmed by scanning",
     "templateNo": "Not yet, version-based assessment only",
-    "description": "Original description",
+    "description": "Description",
     "descriptionHint": "Verbatim from CISA KEV.",
     "descriptionHintVulnCheck": "From VulnCheck KEV (not on the CISA list yet).",
     "requiredActionVulnCheck": "VulnCheck KEV:",
@@ -504,5 +504,104 @@
     "notConfirmed": "Not confirmed yet.",
     "submit": "Add range",
     "added": "{{range}} added. Scan it now from Get started, or Vedette scans it in its next window."
+  },
+  "brief": {
+    "theProduct": "The product",
+    "weakness": "a flaw of type “{{name}}” ({{id}})",
+    "flaw": "a flaw",
+    "how": " that an attacker can use {{vector}}, {{privileges}} and {{user}}",
+    "howNoUser": " that an attacker can use {{vector}} and {{privileges}}",
+    "vector": {
+      "network": "over the network",
+      "adjacent": "from the same local network",
+      "local": "with local access to it",
+      "physical": "with physical access to it"
+    },
+    "privileges": {
+      "none": "without logging in",
+      "low": "with low privileges",
+      "high": "with high privileges"
+    },
+    "user": {
+      "none": "with no action from a user",
+      "needed": "when a user takes an action"
+    },
+    "status": {
+      "exploited": "; attackers use it in real attacks",
+      "public_exploit": "; working exploit code is public"
+    },
+    "sentence": "{{product}} has {{weakness}}{{how}}{{urgency}}.",
+    "facts": {
+      "product": "Product",
+      "severity": "Severity",
+      "weakness": "Weakness",
+      "epss": "Exploit likelihood",
+      "published": "Published",
+      "modified": "Last changed",
+      "nvd": "NVD status",
+      "ssvc": "CISA's assessment",
+      "ids": "Records"
+    },
+    "scoredBy": "CVSS {{version}} by {{source}}",
+    "scorer": {
+      "nvd": "NVD",
+      "cna": "the vendor (CNA)",
+      "adp": "CISA (ADP)"
+    },
+    "epssValue": "{{score}} in the next 30 days, higher than {{percentile}} of CVEs",
+    "ssvcValue": "Exploitation {{exploitation}} · automatable {{automatable}} · impact {{impact}}",
+    "notKnown": "not known",
+    "affected": {
+      "title": "Affected and fixed",
+      "product": "Product",
+      "versions": "Affected",
+      "fixed": "Fixed in",
+      "yourDevice": "Your device",
+      "device": "Your device: {{software}} {{version}}",
+      "deviceFixed": "Your device: {{software}} {{version}} → fixed in {{fixed}}",
+      "noFix": "The version data names no fixed release: the vendor advisory has it.",
+      "all_one": "All affected versions ({{count}} row)",
+      "all_other": "All affected versions ({{count}} rows)",
+      "origin": {
+        "nvd": "From NVD",
+        "cna": "From the CVE record (the vendor)",
+        "adp": "From CISA (ADP)"
+      },
+      "notUsed": "not used for matching while NVD gives versions",
+      "nvdPending": "NVD has not analysed this CVE yet ({{status}}): the affected versions are the vendor's, from the CVE record."
+    },
+    "todo": {
+      "title": "What to do",
+      "fix": "Install the fixed release the vendor advisory names.",
+      "search": "Search {{product}}'s security advisories for {{cve}}.",
+      "vendor": "The vendor's solution:",
+      "workaround": "If you cannot patch yet:",
+      "noWorkaround": "No workaround is published: install the fix.",
+      "required": "{{source}} asks:",
+      "due": "Fix by {{date}}.",
+      "check": "Once it is fixed, Vedette sees the new version at the next check.",
+      "checkNow": "Check the device now"
+    },
+    "advisory": "Vendor advisory",
+    "reading": "How it can be attacked",
+    "sources": "Sources",
+    "ref": {
+      "vendor-advisory": "Vendor advisory",
+      "patch": "Patch",
+      "mitigation": "Mitigation",
+      "release-notes": "Release notes",
+      "exploit": "Exploit",
+      "government-resource": "Government",
+      "third-party-advisory": "Third-party advisory",
+      "technical-description": "Technical description",
+      "issue-tracking": "Issue tracker",
+      "mailing-list": "Mailing list",
+      "vdb-entry": "Vulnerability database",
+      "media-coverage": "News",
+      "other": "Other"
+    },
+    "nvdLink": "NVD",
+    "recordLink": "CVE record",
+    "more": "Affected versions, sources and score"
   }
 }

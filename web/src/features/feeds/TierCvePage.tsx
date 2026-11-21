@@ -55,7 +55,7 @@ export function TierCvePage({ v }: { v: TierCve }) {
 }
 
 /** The devices whose updates to plan fix this CVE, with the update and the evidence. */
-function TierDevices({ cve }: { cve: string }) {
+export function TierDevices({ cve }: { cve: string }) {
   const { t } = useTranslation('feeds')
   const on = useModuleEnabled('findings')
   const q = usePlan()

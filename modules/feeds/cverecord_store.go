@@ -207,7 +207,8 @@ func nullWord(s string) any {
 }
 
 // replaceRecordRanges replaces the record ranges of r's CVE when they differ from the stored ones, and says whether they did and
-// whether the rows the generic comparison reads did (Range.Generic: rows kept in a vendor's notation are not matched).
+// whether the rows a matcher reads did (Range.Generic, or a product's version scheme: SchemeProduct; the other rows kept in a
+// vendor's notation are display-only).
 func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVERecord) (changed, matched bool, err error) {
 	have, err := readRanges(ctx, tx, `WHERE r.cve = ? AND r.origin IN ('cna', 'adp')`, r.CVE)
 	if err != nil {
@@ -225,10 +226,10 @@ func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVE
 	if same(have, want) {
 		return false, false, nil
 	}
-	generic := func(rs []Range) []Range {
-		return slices.DeleteFunc(slices.Clone(rs), func(x Range) bool { return !x.Generic() })
+	read := func(rs []Range) []Range { // the rows a matcher reads: generic ones, and those a product's version scheme reads
+		return slices.DeleteFunc(slices.Clone(rs), func(x Range) bool { return !x.Generic() && !SchemeProduct(x) })
 	}
-	matched = !same(generic(have), generic(want))
+	matched = !same(read(have), read(want))
 	if _, err := st.delRanges.ExecContext(ctx, r.CVE); err != nil {
 		return false, false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 	}

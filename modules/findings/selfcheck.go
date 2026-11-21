@@ -41,8 +41,17 @@ var invariants = []selfcheck.Invariant{
 	},
 }
 
-// catalogueInvariants hold between the findings and feeds' catalogue: they read feeds' tables, so they run on a box's whole database.
+// catalogueInvariants hold between the findings and feeds' catalogue (and inventory's software lines): they read other modules'
+// tables, so they run on a box's whole database.
 var catalogueInvariants = []selfcheck.Invariant{
+	{ // a detected finding names a version its software line runs: the line's effective reading or one of its live readings (a
+		// version or a package release), never a version of another line (a safe check's and a person's word name no version of theirs)
+		Name: "findings.matched_version_on_line",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE f.state = 'open' AND f.detected = 1 AND f.software_id IS NOT NULL
+			AND ifnull(f.matched_version, '') <> '' AND f.basis NOT IN ('scan', 'person')
+			AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id AND f.matched_version IN (ifnull(s.version, ''), ifnull(s.pkg_version, '')))
+			AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = f.software_id AND f.matched_version IN (ifnull(r.version, ''), ifnull(r.pkg_version, '')))`,
+	},
 	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
 		Name:  "findings.cve_in_catalogue",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,

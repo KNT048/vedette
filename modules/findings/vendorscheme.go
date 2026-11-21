@@ -153,8 +153,9 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 	return schemeRead{installed: installed, verdict: verdict, origin: origin, vendor: p.Vendor, product: cmpOr(p.Display, s.Display)}, true
 }
 
-// namesLine says a span starts or ends in the release line of v (same numbers, same variant): the vendor speaks about that line, so
-// its silence about a train of it means "not affected". A line no span names is left to the generic comparison.
+// namesLine says a span starts or ends in the release line of v (same numbers, same variant), or has no start and ends in a later
+// line ("0 lessThan 21.2R3-S9" covers 20.4): the vendor speaks about that line, so its silence about a train of it means "not
+// affected". A line no span reaches is left to the generic comparison.
 func namesLine(spans []versionscheme.Span, v versionscheme.Version) bool {
 	same := func(x *versionscheme.Version) bool {
 		if x == nil || x.Variant != v.Variant || len(x.Line) != len(v.Line) {
@@ -167,8 +168,19 @@ func namesLine(spans []versionscheme.Span, v versionscheme.Version) bool {
 		}
 		return true
 	}
+	before := func(end *versionscheme.Version) bool { // a range from the first release on reaches the earlier lines too
+		if end == nil || end.Variant != v.Variant {
+			return false
+		}
+		for i := range min(len(end.Line), len(v.Line)) {
+			if v.Line[i] != end.Line[i] {
+				return v.Line[i] < end.Line[i]
+			}
+		}
+		return false
+	}
 	for _, sp := range spans {
-		if same(sp.Start) || same(sp.End) {
+		if same(sp.Start) || same(sp.End) || sp.Start == nil && before(sp.End) {
 			return true
 		}
 	}
@@ -184,7 +196,7 @@ func schemeNames(a Asset, s Software, in swInfo, v Vuln) bool {
 
 // schemeDecision is judge's reading of the vendor's rows: the tri-state, the range to name in the evidence (its end is the vendor's
 // fixed release of the device's train), and the note of a proof.
-func schemeDecision(a Asset, s Software, in swInfo, v Vuln, r schemeRead) (Tri, VersionRange, string) {
+func schemeDecision(a Asset, v Vuln, r schemeRead) (Tri, VersionRange, string) {
 	release := releaseName(r.installed)
 	who := clean(r.vendor)
 	if who == "" {

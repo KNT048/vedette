@@ -166,8 +166,8 @@ type Vuln struct {
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV; names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record
 	// Schemed are the ranges a vendor states in its own notation (an ESXi build per release train), read in the version scheme of
-	// the product they name: FixOf names the vendor's fixed release of the device's train from them. The generic comparison never
-	// reads them.
+	// the product they name: the matcher decides a line by them before the generic comparison when they reach its release line
+	// (schemeJudge), and FixOf names the vendor's fixed release of the device's train from them.
 	Schemed []SchemedRange
 	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
 	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
@@ -1202,7 +1202,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	schemed := false
 	if !isWin {
 		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first
-			tri, within, vendorNote = schemeDecision(a, s, in, v, r)
+			tri, within, vendorNote = schemeDecision(a, v, r)
 			proof, schemed = proofRange, true
 		} else {
 			tri, within, every, proof = decide(in, v, key)

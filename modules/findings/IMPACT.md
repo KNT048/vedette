@@ -11,6 +11,13 @@
 - `goneVia` decides patch credit: a change here moves `TestCredit_*` and the fixture count test. The inventory's `MatchSoftware`
   (`ReportedSource`, `MarkedBy`, the effective reading first) is its input.
 
+## Modifying: `schemeJudge`, `schemedSpans`, `namesLine`, `oracleTrains`, `distroCandidates` (vendor rows and distribution fixes, M-9)
+- The matcher and `FixOf` read the vendor's rows through the same `schemeJudge`: a change moves which findings exist and the fix they
+  store together. `TestCount_VendorRowsAndDistributionFixes` (per ecosystem), `TestFixCount_FindingsWithTwoFixedVersions`, the golden
+  tests, and `cmd/vedette` `TestMatchSet_*` (the adapter's `Schemed`, `SchemeCVEs`, `DistroCVEs`).
+- A new scheme is declared in `content/catalog/products` (`scheme`, `record`) and written in `core/versionscheme`; feeds then leaves the
+  product's record rows to it (`recordSkipped`) and reports their changes as `feeds.ranges.updated`.
+
 ## Modifying: `classify`, `classified`, `RiskOf`, `RiskMap`, `AssetRisk`, `riskyUpdate`, `risk` and `risks` of to-fix and plan (INV-26)
 - **One rule**: the marker is `RiskOf` of To fix's own classification (`actionable`, `Planned`), never a cheaper test of its own (#949: a ranking shortcut showed red for findings only in Needs your input, and a different count from the card). Change To fix and the marker changes with it, by design.
 - **Cost and freshness**: `classified` does To fix's per-device work for every device once per change (`gen`, `plan.ver`, the feeds switch, `riskTTL`) and serves both the To fix page (display cap `ToFixLimit`) and every marker; a new input to To fix's classification must also move that key. `ToFix(…, id)` stays uncached (the device's own page).

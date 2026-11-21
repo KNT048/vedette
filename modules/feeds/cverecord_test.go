@@ -575,7 +575,7 @@ func TestRecordRanges_ExploitedListView(t *testing.T) {
 			return err
 		}
 		w, err := writeRecords(t.Context(), tx, recs, k, epoch0)
-		if err == nil && (!w.KEVFirst || len(w.KEVChanged) != 3) { // Junos's versions are not comparable: no rows
+		if err == nil && (!w.KEVFirst || len(w.KEVChanged) != 4) { // Junos's rows: none generic, but the Junos scheme reads them (news)
 			err = fmt.Errorf("write %+v", w)
 		}
 		return err

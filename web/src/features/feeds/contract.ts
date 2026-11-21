@@ -220,7 +220,7 @@ export const Feed = z.object({
   url: z.string(),
   default_url: z.string().nullable().describe('Built-in feeds only; used by "Reset to default"'),
   enabled: z.boolean(),
-  interval_hours: z.number().int().min(1).max(168),
+  interval_hours: z.number().int().min(1).max(168).describe('Read only: how often the feed\'s schedule pulls it, in whole hours (the schedule is feeds.source:<id>, changed with PUT /schedules/{owner_key})'),
   auth: FeedAuth,
   parser: Parser.nullable().describe('null for built-in feeds'),
   last_fetch: z.iso.datetime().nullable(),
@@ -233,7 +233,6 @@ export const Feed = z.object({
 export const FeedList = z.object({ items: z.array(Feed) })
 export const FeedPatch = z.object({
   enabled: z.boolean().optional(),
-  interval_hours: z.number().int().min(1).max(168).optional(),
   url: z.string().max(500).optional().describe('Built-in: a mirror address. Empty string resets it to the default'),
   api_key: z.string().max(500).optional().describe('VulnCheck KEV only, write-only: the customer\'s own API key (8 to 500 characters, no spaces). Saving it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded'),
 })
@@ -242,7 +241,6 @@ export const FeedInput = z.object({
   kind: FeedKind,
   url: z.string().max(500),
   enabled: z.boolean(),
-  interval_hours: z.number().int().min(1).max(168),
   auth: z.object({ type: FeedAuthType, header_name: z.string().max(80).nullable(), username: z.string().max(80).nullable(), secret: z.string().max(500).optional().describe('Write-only; omit on edit to keep the saved secret') }),
   parser: Parser,
 })

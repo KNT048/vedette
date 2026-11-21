@@ -6,8 +6,8 @@ import { toast } from 'sonner'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
-import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
-import { runsPoll, runsPollMs } from './api'
+import { engineStore, runs, scannerStore, timing } from './mocks'
+import { runsPoll } from './api'
 import type { ScanConfig, ScanRun } from './types'
 
 // V1 does not offer the credentialed scan (no backend yet); its GUI is kept, so this file runs it as offered, and one test runs v1.
@@ -21,14 +21,13 @@ const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
 
 timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so
-const RUNNING_POLL_MS = runsPoll.runningMs
 runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
 afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
 describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => {
   it('từ chối thiết bị chưa duyệt, tên miền chưa xác thực, mục lạ, danh sách rỗng, và quét chồng', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' }, { timeout: 4000 }) // the first test loads the page's code
+    await screen.findByRole('table', { name: 'Auto rescan event log' }, { timeout: 4000 }) // the first test loads the page's code
     as('u-op')
     const bad = await postRun(['a-unk01'])
     expect(bad.status).toBe(400)
@@ -51,7 +50,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
 
   it('mục tiêu ngoài đã xác thực chưa được quét ở bản này: 400 out_of_scope nói rõ, không lượt nào bắt đầu', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
     const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; kind: string; selectable: boolean; reason: string | null }[]
     expect(targets.filter((x) => x.kind === 'external').every((x) => !x.selectable)).toBe(true)
@@ -119,7 +118,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
 
   it('thiết bị nằm trong loại trừ cũng bị từ chối khi gọi thẳng API', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-admin')
     await fetch(`${base()}/scans/config`, json('PUT', { exclusions: ['192.168.10.0/24'] }))
     const res = await postRun(['a-web01'])
@@ -129,28 +128,6 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
 })
 
 describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
-  it('#830: one device shows its step, not an empty devices bar; phase-only progress reads right; the page reads every 5 s, every second while stopping', async () => {
-    timing.stepMs = 60_000
-    const running = { id: 'run-x', trigger: 'manual', trigger_note: null, started_at: new Date().toISOString(), started_by: 'it@acme.example', ended_at: null, status: 'running',
-      total: 1, done: 0, current: { label: 'NAS-PHOTOS', ip: '192.168.10.21' }, results: [], matched: 0, stop_reason: null, stop_requested_at: null, identification: [],
-      progress: { phase: 'ports', percent: null, done: null, total: null, unit: null, started_at: new Date(Date.now() - 75_000).toISOString(), phase_started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(), eta: null, message: null } } as unknown as ScanRun
-    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ items: [running], engine_busy: false })))
-    renderApp('/settings/scanning?tab=history')
-    expect(await screen.findByRole('heading', { level: 2, name: 'Device 1 of 1' })).toBeInTheDocument()
-    expect(screen.queryByRole('progressbar', { name: 'Scan progress' })).toBeNull()
-    const step = screen.getByRole('progressbar', { name: 'Checking open ports' }) // a real box today: the phase, no percent yet
-    expect(step).not.toHaveAttribute('aria-valuenow')
-    expect(screen.getByText('Scanning NAS-PHOTOS (192.168.10.21)')).toBeInTheDocument()
-    expect(screen.getByText(/^1 min 1\d s elapsed$/)).toBeInTheDocument()
-    expect(RUNNING_POLL_MS).toBe(5000)
-    expect(runsPollMs({ items: [running], engine_busy: false })).toBe(runsPoll.runningMs)
-    expect(runsPollMs({ items: [{ ...running, status: 'stopping' }], engine_busy: false })).toBe(1000)
-    expect(runsPollMs({ items: [{ ...running, status: 'done' }], engine_busy: true })).toBe(runsPoll.runningMs)
-    expect(runsPollMs({ items: [{ ...running, status: 'done' }], engine_busy: false })).toBe(false)
-    await expectNoA11yViolations()
-  })
-
   it('quét một thiết bị đến khi xong: ghi kết quả vào phát hiện dùng chung, kiểm toán, nhật ký probe', async () => {
     timing.stepMs = 30
     as('u-admin')
@@ -164,20 +141,9 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(auditStore.get().some((a) => a.action === 'scan.start')).toBe(true)
     const probes = (await (await fetch(`${base()}/scans/probes`)).json()).items as { run_id: string | null; ip: string }[]
     expect(probes.some((p) => p.run_id === run.id && p.ip === '192.168.10.21')).toBe(true)
-    cleanup()
-    // xem kết quả có bằng chứng và link tới phát hiện
-    renderApp('/settings/scanning?tab=history')
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /View results of the scan/ })[0]).toBeEnabled(), { timeout: 4000 })
-    await userEvent.click(screen.getAllByRole('button', { name: /View results of the scan/ })[0]!)
-    const dlg = await screen.findByRole('dialog')
-    expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
-    expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
     // Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
     expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
-    expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
-    expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
-    expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
+    expect(run.results.find((r) => r.result === 'matched')!.finding_id).toBe('f-1')
   })
 
   it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện', async () => {
@@ -193,35 +159,20 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     const f = findingsStore.get().find((x) => x.id === 'f-1')!
     expect(f.status).toBe('mitigated')
     expect(f.history).toHaveLength(before) // nuclei reports matches only: "no match" never marks the finding
-    renderApp('/settings/scanning?tab=history')
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /View results of the scan/ })[0]).toBeEnabled(), { timeout: 4000 })
-    await userEvent.click(screen.getAllByRole('button', { name: /View results of the scan/ })[0]!)
-    expect(within(await screen.findByRole('dialog')).getByText('No match reported')).toBeInTheDocument()
   })
 
-  it('"Dừng ngay": đang chạy hiện tiến độ, bấm dừng thì thấy "Đang dừng" rồi "Đã dừng" trong 5 giây, thiết bị chưa quét không bị chạm', async () => {
+  it('"Dừng ngay": bấm dừng thì chạy "stopping" rồi "stopped" trong 5 giây, thiết bị chưa quét không bị chạm', async () => {
     timing.stepMs = 60_000
     timing.stopMs = 300
     as('u-admin')
-    await postRun(['a-web01', 'a-srvad'])
-    renderApp('/settings/scanning?tab=history')
-    const bar = await screen.findByRole('progressbar', { name: 'Scan progress' })
-    expect(bar).toHaveAttribute('aria-valuenow', '0')
-    expect(screen.getByRole('heading', { level: 2, name: 'Device 1 of 2' })).toBeInTheDocument()
-    // #830: the device's own step under the devices bar (the mock starts each device with host discovery, no percent yet)
-    expect(screen.getByRole('progressbar', { name: 'Finding the device' })).not.toHaveAttribute('aria-valuenow')
-    expect(screen.getByText(/Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))
-    const stopping = await screen.findByRole('button', { name: 'Stopping…' }) // The shared busy state
-    expect(stopping).toBeDisabled()
-    expect(stopping).toHaveAttribute('aria-busy', 'true')
+    const started = (await (await postRun(['a-web01', 'a-srvad'])).json()) as ScanRun
+    expect((await fetch(`${base()}/scans/runs/${started.id}/stop`, json('POST', {}))).status).toBe(200)
+    expect((await getRuns())[0]!.status).toBe('stopping')
     const t0 = Date.now()
-    await waitFor(() => expect(screen.getByText(/Last scan was stopped .*: 0\/2 devices done/)).toBeInTheDocument(), { timeout: 5000 })
+    await waitFor(async () => expect((await getRuns())[0]!.status).toBe('stopped'), { timeout: 5000 })
     expect(Date.now() - t0).toBeLessThan(5000)
-    expect(screen.queryByRole('progressbar', { name: 'Scan progress' })).not.toBeInTheDocument()
-    expect(screen.getAllByText('You pressed Stop now.').length).toBeGreaterThan(0)
     const run = (await getRuns())[0]!
-    expect(run.status).toBe('stopped')
+    expect(run.stop_reason).toBe('You pressed Stop now.')
     expect(run.results.every((r) => r.result === 'skipped')).toBe(true)
     // the device being scanned when Stop now came: its requests on the way are in the probe log as stopped; the others have none
     const probes = ((await (await fetch(`${base()}/scans/probes`)).json()).items as { run_id: string | null; result: string }[]).filter((p) => p.run_id === run.id)
@@ -233,7 +184,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
 
   it('dừng lần quét đã kết thúc báo lỗi rõ; dừng hai lần không lỗi', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
     const seeded = (await getRuns())[0]!
     const res = await fetch(`${base()}/scans/runs/${seeded.id}/stop`, json('POST', {}))
@@ -251,7 +202,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
   it('thiết bị không phản hồi: bật tự dừng thì dừng kèm lý do; tắt thì bỏ qua và quét tiếp', async () => {
     timing.stepMs = 30
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
     await postRun(['a-web01', 'a-cam03', 'a-nas02'])
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('auto_stopped'), { timeout: 4000 })
@@ -277,7 +228,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
 
   it('the seeded scheduled and KEV runs, and the seeded rescan matches, never touch a device that needs a hand pick', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; pick_only: boolean }[]
     const pick = targets.filter((x) => x.pick_only)
     expect(pick.length).toBeGreaterThan(0)
@@ -288,17 +239,15 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     for (const e of events.filter((x) => x.result === 'matched')) expect(e.devices.filter((d) => pick.some((p) => p.label === d))).toEqual([])
   })
 
-  it('lịch sử liệt kê lần quét theo lịch, theo KEV mới và lần đã dừng', async () => {
+  it('the rescan log lists every automatic rescan with its result; a stopped one links its run', async () => {
     renderApp('/settings/scanning?tab=history')
-    const table = await screen.findByRole('table', { name: 'History of scans' })
-    expect(within(table).getByText('On schedule')).toBeInTheDocument()
-    expect(within(table).getByText('New KEV with a template')).toBeInTheDocument()
-    expect(within(table).getByText('Stopped')).toBeInTheDocument()
-    await userEvent.click(within(table).getAllByRole('button', { name: /View results of the scan/ })[2]!)
-    const dlg = await screen.findByRole('dialog')
-    expect(within(dlg).getByText('You pressed Stop now.')).toBeInTheDocument()
-    expect(within(dlg).getAllByText('Not scanned').length).toBeGreaterThan(0)
-    await expectNoA11yViolations(dlg)
+    const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
+    const events = ((await (await fetch(`${base()}/scans/events`)).json()) as { items: { cve: string; run_id: string | null; result: string }[] }).items
+    expect(events.length).toBeGreaterThan(0)
+    for (const e of events) expect(within(table).getAllByRole('link', { name: e.cve }).length).toBeGreaterThan(0)
+    const stopped = events.find((e) => e.result === 'stopped' && e.run_id)
+    if (stopped) expect(within(table).getByRole('link', { name: 'see the run' })).toHaveAttribute('href', expect.stringContaining(stopped.run_id!))
+    await expectNoA11yViolations(table)
   })
 })
 
@@ -373,9 +322,6 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     const put = (b: unknown) => fetch(`${base()}/scans/config`, json('PUT', b))
     expect((await put({ window: { days: [0] } })).status).toBe(400) // the old Sunday = 0 is refused
     expect((await put({ window: { days: [8] } })).status).toBe(400)
-    expect((await put({ schedule: { weekday: 0 } })).status).toBe(400)
-    expect((await put({ schedule: { frequency: 'weekly', weekday: 7 } })).status).toBe(200)
-    expect(((await (await fetch(`${base()}/scans/config`)).json()).config as ScanConfig).schedule.weekday).toBe(7)
   })
 
   it('the regular checks use the shared schedule editor on their card', async () => {
@@ -392,7 +338,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
 
   it('API kiểm tra ở biên và không cho bật phép thử nguy hiểm', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-admin')
     const put = (b: unknown) => fetch(`${base()}/scans/config`, json('PUT', b))
     const danger = await put({ dangerous_checks: true })
@@ -403,7 +349,6 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect((await put({ window: { from: '25:00' } })).status).toBe(400)
     expect((await put({ rate: 500 })).status).toBe(400)
     expect((await put({ unresponsive_after: 1 })).status).toBe(400)
-    expect((await put({ schedule: { frequency: 'monthly' } })).status).toBe(400)
     expect((await put({ exclusions: ['1.2.3.4/99'] })).status).toBe(400)
     expect((await put({ rate: 10 })).status).toBe(200)
   })
@@ -415,34 +360,6 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
     expect((await fetch(`${base()}/scans/config`, json('PUT', { rate: 1 }))).status).toBe(403)
     expect((await fetch(`${base()}/scanning/safety`, json('PUT', {}))).status).toBe(403)
-  })
-
-  it('tính lần quét kế tiếp theo lịch hằng ngày, hằng tuần và khi tắt', () => {
-    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 7, at: '23:00' } }
-    const now = new Date(2026, 10, 6, 12, 0) // thứ Sáu
-    expect(new Date(nextRun(c, now)!).getDate()).toBe(6)
-    expect(new Date(nextRun(c, now)!).getHours()).toBe(23)
-    expect(new Date(nextRun(c, new Date(2026, 10, 6, 23, 30))!).getDate()).toBe(7)
-    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 7 } }, now)!).getDay()).toBe(0) // 7 = Sunday
-    expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 1 } }, now)!).getDay()).toBe(1) // 1 = Monday
-    expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
-    expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
-  })
-
-  it('the first scheduled run is the next window of any window day, not the weekly weekday', () => {
-    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' } }
-    const fri = new Date(2026, 10, 13, 14, 40) // Friday 13 Nov 14:40
-    const first = new Date(nextRun(c, fri, true)!)
-    expect([first.getDate(), first.getHours()]).toEqual([13, 23])
-    expect(new Date(nextRun(c, fri, false)!).getDate()).toBe(15) // once a scheduled run happened: the weekly Sunday
-  })
-
-  it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164)', () => {
-    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 1, at: '02:00' } }
-    const fri = new Date(nextRun(c, new Date(2026, 10, 20, 12, 0))!) // Friday noon: Saturday 02:00 is Friday's window
-    expect([fri.getDate(), fri.getHours()]).toEqual([21, 2])
-    const sun = new Date(nextRun(c, new Date(2026, 10, 22, 12, 0))!) // Sunday noon: Monday 02:00 is Sunday's window, so Tuesday
-    expect(sun.getDate()).toBe(24)
   })
 })
 
@@ -508,19 +425,6 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect(await within(table).findByText('Not scanned for 7 days: the scan template never arrived')).toBeInTheDocument()
   })
 
-  it('the schedule says why nothing starts while the time zone cannot be read, not "off"', async () => {
-    zoneStore.set({ readable: false })
-    renderApp('/settings/scanning?tab=engines#nuclei')
-    const cfg = await (await fetch(`${base()}/scans/config`)).json()
-    expect(cfg.next_run).toBeNull()
-    expect(cfg.schedule_blocked_reason).toMatch(/time zone of the organization cannot be read/)
-    expect((await screen.findAllByText(/The schedule is on, but the time zone of the organization cannot be read/)).length).toBeGreaterThan(0)
-    expect(screen.queryByText('The schedule is off.')).toBeNull()
-    as('u-admin')
-    await fetch(`${base()}/scans/config`, json('PUT', { schedule: { enabled: false } }))
-    expect((await (await fetch(`${base()}/scans/config`)).json()).schedule_blocked_reason).toBeNull()
-  })
-
   it('after Stop now, while the scanner is still busy, Scan now is locked with the reason and a start is refused', async () => {
     engineStore.set({ busyUntil: Date.now() + 60_000 })
     as('u-admin')
@@ -575,7 +479,7 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
 
   it('seed giữ bản ghi cũ hơn 80 ngày (không xoá trước 90 ngày)', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'Auto rescan event log' })
     const items = (await (await fetch(`${base()}/scans/probes`)).json()) as { items: { ts: string }[]; retention_days: number }
     expect(items.retention_days).toBe(90)
     expect(Date.now() - Date.parse(items.items.at(-1)!.ts)).toBeGreaterThan(80 * 864e5)

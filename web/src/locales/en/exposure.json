@@ -535,7 +535,6 @@
       "off": "Auto-detect is off: the box checks only when you select Detect now."
     },
     "every": {
-      "1": "every minute",
       "5": "every 5 minutes",
       "10": "every 10 minutes",
       "15": "every 15 minutes",

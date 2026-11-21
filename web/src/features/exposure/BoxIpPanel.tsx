@@ -16,7 +16,7 @@ import { InfoLine } from './InfoLine'
 import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
 import type { BoxIpSettings, IgnoredIp } from './types'
 
-const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
+const PRESETS = [5, 10, 15, 30, 60, 120, 360, 720, 1440]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**

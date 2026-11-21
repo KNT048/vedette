@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, SampleDataNote } from '@/components/common/States'
 import { CredentialedTab } from '@/features/scan/CredentialedTab'
-import { HistoryTab } from '@/features/scan/HistoryTab'
+import { RescanLog } from '@/features/scan/RescanLog'
 import { ProbesTab } from '@/features/scan/ProbesTab'
 import { useRuns } from '@/features/scan/api'
 import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
@@ -44,7 +44,7 @@ function useRunEndToast(on: boolean) {
   }, [live, list, t])
 }
 
-/** History and the probe log belong to the vulnerability checks (scan module, Preview): while it is off they say so, with its switch. */
+/** The rescan log and the probe log belong to the vulnerability checks (scan module, Preview): while it is off they say so, with its switch. */
 function NucleiOnly({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation('scanning')
   const on = useModuleEnabled('scan')
@@ -66,8 +66,8 @@ function Page({ d }: { d: Scanning }) {
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },
-        // Every run of every engine (core lists them whatever module is on); under it the vulnerability checks' own results and rescans
-        { id: 'runs', label: t('page.tab.runs'), panel: <><RunsTab /><NucleiOnly><HistoryTab /></NucleiOnly></> },
+        // Every run of every engine, vulnerability checks included (core lists them whatever module is on); under it the log of the automatic rescans
+        { id: 'runs', label: t('page.tab.runs'), panel: <><RunsTab /><NucleiOnly><RescanLog /></NucleiOnly></> },
         { id: 'probes', label: t('page.tab.probes'), panel: <NucleiOnly><ProbesTab /></NucleiOnly> },
         // Not offered in v1 (no backend); kept for after v1
         ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('page.tab.credentialed'), panel: <CredentialedTab /> }] : []),

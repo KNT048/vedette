@@ -20843,7 +20843,7 @@ func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string
 
 // handleExposurePutExposureBoxIPSettingsRequest handles exposure_put_exposure_box_ip_settings operation.
 //
-// Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval).
+// Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval).
 // Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not
 // possible here either.
 //
@@ -20929,7 +20929,7 @@ func (s *Server) handleExposurePutExposureBoxIPSettingsRequest(args [0]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureBoxIPSettingsOperation,
-			OperationSummary: "Turn auto-detect on or off and set the check interval (1 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
+			OperationSummary: "Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval). Turning it on checks at once. The IP list is kept when it is turned off. Typing an IP is not possible here either",
 			OperationID:      "exposure_put_exposure_box_ip_settings",
 			Body:             request,
 			RawBody:          rawBody,

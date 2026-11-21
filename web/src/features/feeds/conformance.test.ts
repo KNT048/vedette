@@ -79,7 +79,7 @@ async function call(target: 'mock' | 'real', s: Step, c: Ctx): Promise<Res> {
 }
 
 const input = (over: Record<string, unknown> = {}) => ({
-  name: 'Partner blocklist', kind: 'ioc', url: 'https://threat-share.example.net/list.csv', enabled: true, interval_hours: 6,
+  name: 'Partner blocklist', kind: 'ioc', url: 'https://threat-share.example.net/list.csv', enabled: true,
   auth: { type: 'none', header_name: null, username: null }, parser: defaultParser('ioc', 'csv'), ...over,
 })
 const withAuth = (auth: Record<string, unknown>) => input({ name: 'Auth probe', auth: { type: 'none', header_name: null, username: null, ...auth } })
@@ -135,9 +135,7 @@ const steps: Step[] = [
   // ---- built-in feeds
   { name: 'turn a built-in feed off', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { enabled: false }, status: 200, schema: Feed, check: (b) => expect(b.enabled).toBe(false) },
   { name: 'fetch a feed that is off', role: 'admin', method: 'POST', path: '/feeds/sources/ipsum/fetch', body: {}, status: 409, code: 'feed_disabled' },
-  { name: 'turn it on', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { enabled: true, interval_hours: 12 }, status: 200, schema: Feed, check: (b) => expect([b.enabled, b.interval_hours]).toEqual([true, 12]) },
-  { name: 'interval 0', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { interval_hours: 0 }, status: 400, code: 'invalid_body', real: { code: 'invalid' } },
-  { name: 'interval 169', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { interval_hours: 169 }, status: 400, code: 'invalid_body', real: { code: 'invalid' } },
+  { name: 'turn it on', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { enabled: true }, status: 200, schema: Feed, check: (b) => expect([b.enabled]).toEqual([true]) },
   { name: 'mirror with ftp', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { url: 'ftp://mirror.example.net/ipsum.txt' }, status: 400, code: 'invalid_url' },
   { name: 'mirror with http on a public host', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { url: 'http://mirror.example.net/ipsum.txt' }, status: 400, code: 'invalid_url' },
   { name: 'mirror on an internal host', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { url: 'http://10.0.0.5/ipsum.txt' }, status: 200, schema: Feed, check: (b) => expect(b.url).toBe('http://10.0.0.5/ipsum.txt') },
@@ -171,7 +169,6 @@ const steps: Step[] = [
   { name: 'address of a built-in feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy of a built-in', url: 'https://check.torproject.org:443/torbulkexitlist' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Tor exit list" already uses this address.') },
   { name: 'address of another custom feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy', url: 'HTTPS://Threat-Share.example.net/list.csv' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Partner blocklist" already uses this address.') },
   { name: 'http to an internal host is fine', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Internal', url: 'http://feeds.lan/a.csv' }), status: 201, schema: Feed, keep: (b, c) => { c.internal = b.id } },
-  { name: 'interval 0 on a custom feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'I0', interval_hours: 0 }), status: 400, code: 'invalid_body', real: { code: 'invalid' } },
   { name: 'format that does not fit the kind', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'F1', kind: 'vulnerabilities', parser: defaultParser('ioc', 'lines') }), status: 400, code: 'invalid_format' },
   { name: 'header auth, bad header name', role: 'admin', method: 'POST', path: FEED, body: withAuth({ type: 'header', header_name: 'X Api Key', secret: 'abcd1234' }), status: 400, code: 'invalid_auth' },
   { name: 'header auth, empty header name', role: 'admin', method: 'POST', path: FEED, body: withAuth({ type: 'header', header_name: null, secret: 'abcd1234' }), status: 400, code: 'invalid_auth' },
@@ -188,8 +185,8 @@ const steps: Step[] = [
   { name: 'JSONPath without $', role: 'admin', method: 'POST', path: FEED, status: 400, code: 'bad_config',
     body: input({ name: 'Bad path', parser: { ...defaultParser('ioc', 'json'), records_path: 'data[*]' } }) },
   { name: 'edit keeps the saved secret when none is sent', role: 'admin', method: 'PUT', path: (c) => `${FEED}/${c.id}`, status: 200, schema: Feed,
-    body: input({ name: 'Partner blocklist renamed', interval_hours: 24, auth: { type: 'bearer', header_name: null, username: null } }),
-    check: (b) => expect([b.name, b.interval_hours, b.auth.secret_last4]).toEqual(['Partner blocklist renamed', 24, 'efgh']) },
+    body: input({ name: 'Partner blocklist renamed', auth: { type: 'bearer', header_name: null, username: null } }),
+    check: (b) => expect([b.name, b.auth.secret_last4]).toEqual(['Partner blocklist renamed', 'efgh']) },
   { name: 'edit with a new secret', role: 'admin', method: 'PUT', path: (c) => `${FEED}/${c.id}`, status: 200, schema: Feed,
     body: input({ name: 'Partner blocklist renamed', auth: { type: 'bearer', header_name: null, username: null, secret: 'zzzz0000' } }), check: (b) => expect(b.auth.secret_last4).toBe('0000') },
   { name: 'edit: auth none drops the secret', role: 'admin', method: 'PUT', path: (c) => `${FEED}/${c.id}`, status: 200, schema: Feed,

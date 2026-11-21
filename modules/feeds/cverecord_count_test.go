@@ -164,7 +164,7 @@ func TestCount_RecordRangesOfRecentlyListedCVEs(t *testing.T) {
 		r := recs[k.CVE]
 		key := RecordProductKey(k.Vendor, k.Product)
 		has := slices.ContainsFunc(r.Ranges, func(x Range) bool {
-			return x.Origin == OriginCNA && x.Vendor == key.Vendor && x.Product == key.Product
+			return x.Origin == OriginCNA && x.Vendor == key.Vendor && x.Product == key.Product && x.Generic()
 		})
 		if has {
 			withRanges++
@@ -223,7 +223,7 @@ func TestCount_DevicesMatchedByRecordRangesOnly(t *testing.T) {
 				continue // NVD's ranges win
 			}
 			for _, x := range r.Ranges {
-				if slices.Contains(keys, ProductKey{x.Vendor, x.Product}) && inRange(version, x) {
+				if x.Generic() && slices.Contains(keys, ProductKey{x.Vendor, x.Product}) && inRange(version, x) {
 					if p := row.Device + " " + cve; !pairs[p] {
 						pairs[p] = true
 						byProduct[productid.Key(x.Vendor, x.Product)]++

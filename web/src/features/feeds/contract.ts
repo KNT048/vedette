@@ -111,10 +111,18 @@ export const CveRange = z.object({
   cpe: z.string().describe('The CPE match criteria when the origin gave one, else ""'),
   start_including: z.string(), start_excluding: z.string(), end_including: z.string(), end_excluding: z.string(),
   fixed: z.string().describe('The release that fixes the range when the origin states one, else ""'),
-  version_type: z.string().describe('The CVE record\'s versionType ("semver", "custom" …), else ""'),
+  version_type: z.string().describe('The CVE record\'s versionType ("semver", "custom" …), else ""; "vendor:" and that word for a row kept in the vendor\'s own notation, which only the product\'s version scheme reads (it never counts)'),
   default_status: z.enum(['', 'affected', 'unaffected', 'unknown']).describe('A CVE record row\'s defaultStatus; "" for NVD\'s rows'),
   platforms: z.array(z.string()).describe('NVD\'s "running on" operating systems ("microsoft:windows")'),
-  versions: z.string().describe('The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version"'),
+  versions: z.string().describe('The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version"; in the version scheme\'s words when the product has one: "from 8.0 before 8.0 U3d (build 24585383)"'),
+  train: z.string().describe('The release train the row\'s end belongs to, as the product\'s version scheme reads it ("8.0 U3"); "" when no scheme reads the row'),
+  fixed_release: z.string().describe('The fixed release, as the product\'s version scheme reads it ("8.0 U3d (build 24585383)"); "" when none or no scheme reads the row'),
+})
+export const CveFix = z.object({
+  vendor: z.string(), product: z.string(),
+  origin: z.enum(['nvd', 'cna', 'adp']).describe('Who stated it'),
+  train: z.string().describe('The release train ("8.0 U3")'),
+  release: z.string().describe('Its fixed release ("8.0 U3d (build 24585383)")'),
 })
 export const CveRefGroup = z.enum(['vendor-advisory', 'patch', 'mitigation', 'release-notes', 'exploit', 'government-resource', 'third-party-advisory',
   'technical-description', 'issue-tracking', 'mailing-list', 'vdb-entry', 'media-coverage', 'other'])
@@ -142,6 +150,7 @@ export const CveBrief = z.object({
   lists: z.array(CveListEntry).describe('Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists)'),
   signals: z.array(CveSignal).describe('Every signal, oldest first'),
   ranges: z.array(CveRange).describe('Every affected-versions row, the ones that count first'),
+  fixes: z.array(CveFix).describe('The fixed release of each product\'s release train, as its version scheme reads the ranges: the vendor\'s first, one per product and train; empty for a product without a scheme'),
   ranges_from: z.enum(['nvd', 'cna', 'adp']).nullable().describe('The origin of the rows that count; null when there are none'),
   ranges_complete: z.boolean().describe('CVE record rows only: every product\'s list says what an unlisted version is'),
   references: z.array(CveReference).describe('Grouped: ordered by group, then by address'),

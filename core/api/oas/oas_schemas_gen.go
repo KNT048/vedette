@@ -68365,6 +68365,9 @@ type FeedsGetFeedsCveIDOK struct {
 	// The product in plain words: the exploited-list entry's, else the first of products.
 	Display NilString                   `json:"display"`
 	Epss    NilFeedsGetFeedsCveIDOKEpss `json:"epss"`
+	// The fixed release of each product's release train, as its version scheme reads the ranges: the
+	// vendor's first, one per product and train; empty for a product without a scheme.
+	Fixes []FeedsGetFeedsCveIDOKFixesItem `json:"fixes"`
 	// Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists).
 	Lists []FeedsGetFeedsCveIDOKListsItem `json:"lists"`
 	// Devices whose product matches the exploited-list entry; null when the inventory is off or the CVE is
@@ -68434,6 +68437,11 @@ func (s *FeedsGetFeedsCveIDOK) GetDisplay() NilString {
 // GetEpss returns the value of Epss.
 func (s *FeedsGetFeedsCveIDOK) GetEpss() NilFeedsGetFeedsCveIDOKEpss {
 	return s.Epss
+}
+
+// GetFixes returns the value of Fixes.
+func (s *FeedsGetFeedsCveIDOK) GetFixes() []FeedsGetFeedsCveIDOKFixesItem {
+	return s.Fixes
 }
 
 // GetLists returns the value of Lists.
@@ -68569,6 +68577,11 @@ func (s *FeedsGetFeedsCveIDOK) SetDisplay(val NilString) {
 // SetEpss sets the value of Epss.
 func (s *FeedsGetFeedsCveIDOK) SetEpss(val NilFeedsGetFeedsCveIDOKEpss) {
 	s.Epss = val
+}
+
+// SetFixes sets the value of Fixes.
+func (s *FeedsGetFeedsCveIDOK) SetFixes(val []FeedsGetFeedsCveIDOKFixesItem) {
+	s.Fixes = val
 }
 
 // SetLists sets the value of Lists.
@@ -69771,6 +69784,116 @@ func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) SetScore(val float64) {
 	s.Score = val
 }
 
+type FeedsGetFeedsCveIDOKFixesItem struct {
+	// Who stated it.
+	Origin  FeedsGetFeedsCveIDOKFixesItemOrigin `json:"origin"`
+	Product string                              `json:"product"`
+	// Its fixed release ("8.0 U3d (build 24585383)").
+	Release string `json:"release"`
+	// The release train ("8.0 U3").
+	Train  string `json:"train"`
+	Vendor string `json:"vendor"`
+}
+
+// GetOrigin returns the value of Origin.
+func (s *FeedsGetFeedsCveIDOKFixesItem) GetOrigin() FeedsGetFeedsCveIDOKFixesItemOrigin {
+	return s.Origin
+}
+
+// GetProduct returns the value of Product.
+func (s *FeedsGetFeedsCveIDOKFixesItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRelease returns the value of Release.
+func (s *FeedsGetFeedsCveIDOKFixesItem) GetRelease() string {
+	return s.Release
+}
+
+// GetTrain returns the value of Train.
+func (s *FeedsGetFeedsCveIDOKFixesItem) GetTrain() string {
+	return s.Train
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKFixesItem) GetVendor() string {
+	return s.Vendor
+}
+
+// SetOrigin sets the value of Origin.
+func (s *FeedsGetFeedsCveIDOKFixesItem) SetOrigin(val FeedsGetFeedsCveIDOKFixesItemOrigin) {
+	s.Origin = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FeedsGetFeedsCveIDOKFixesItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRelease sets the value of Release.
+func (s *FeedsGetFeedsCveIDOKFixesItem) SetRelease(val string) {
+	s.Release = val
+}
+
+// SetTrain sets the value of Train.
+func (s *FeedsGetFeedsCveIDOKFixesItem) SetTrain(val string) {
+	s.Train = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKFixesItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// Who stated it.
+type FeedsGetFeedsCveIDOKFixesItemOrigin string
+
+const (
+	FeedsGetFeedsCveIDOKFixesItemOriginNvd FeedsGetFeedsCveIDOKFixesItemOrigin = "nvd"
+	FeedsGetFeedsCveIDOKFixesItemOriginCna FeedsGetFeedsCveIDOKFixesItemOrigin = "cna"
+	FeedsGetFeedsCveIDOKFixesItemOriginAdp FeedsGetFeedsCveIDOKFixesItemOrigin = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKFixesItemOrigin values.
+func (FeedsGetFeedsCveIDOKFixesItemOrigin) AllValues() []FeedsGetFeedsCveIDOKFixesItemOrigin {
+	return []FeedsGetFeedsCveIDOKFixesItemOrigin{
+		FeedsGetFeedsCveIDOKFixesItemOriginNvd,
+		FeedsGetFeedsCveIDOKFixesItemOriginCna,
+		FeedsGetFeedsCveIDOKFixesItemOriginAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKFixesItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKFixesItemOriginNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKFixesItemOriginCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKFixesItemOriginAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKFixesItemOrigin) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKFixesItemOrigin(data) {
+	case FeedsGetFeedsCveIDOKFixesItemOriginNvd:
+		*s = FeedsGetFeedsCveIDOKFixesItemOriginNvd
+		return nil
+	case FeedsGetFeedsCveIDOKFixesItemOriginCna:
+		*s = FeedsGetFeedsCveIDOKFixesItemOriginCna
+		return nil
+	case FeedsGetFeedsCveIDOKFixesItemOriginAdp:
+		*s = FeedsGetFeedsCveIDOKFixesItemOriginAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FeedsGetFeedsCveIDOKListsItem struct {
 	DateAdded string `json:"date_added"`
 	// The list's own words.
@@ -70088,6 +70211,9 @@ type FeedsGetFeedsCveIDOKRangesItem struct {
 	EndIncluding  string                                      `json:"end_including"`
 	// The release that fixes the range when the origin states one, else "".
 	Fixed string `json:"fixed"`
+	// The fixed release, as the product's version scheme reads it ("8.0 U3d (build 24585383)"); "" when
+	// none or no scheme reads the row.
+	FixedRelease string `json:"fixed_release"`
 	// Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record.
 	Origin FeedsGetFeedsCveIDOKRangesItemOrigin `json:"origin"`
 	// CPE part: a, o, h; "" for a CVE record row without a CPE.
@@ -70097,10 +70223,15 @@ type FeedsGetFeedsCveIDOKRangesItem struct {
 	Product        string   `json:"product"`
 	StartExcluding string   `json:"start_excluding"`
 	StartIncluding string   `json:"start_including"`
-	Vendor         string   `json:"vendor"`
-	// The CVE record's versionType ("semver", "custom" …), else "".
+	// The release train the row's end belongs to, as the product's version scheme reads it ("8.0 U3"); ""
+	// when no scheme reads the row.
+	Train  string `json:"train"`
+	Vendor string `json:"vendor"`
+	// The CVE record's versionType ("semver", "custom" …), else ""; "vendor:" and that word for a row
+	// kept in the vendor's own notation, which only the product's version scheme reads (it never counts).
 	VersionType string `json:"version_type"`
-	// The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version".
+	// The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version"; in
+	// the version scheme's words when the product has one: "from 8.0 before 8.0 U3d (build 24585383)".
 	Versions string `json:"versions"`
 }
 
@@ -70134,6 +70265,11 @@ func (s *FeedsGetFeedsCveIDOKRangesItem) GetFixed() string {
 	return s.Fixed
 }
 
+// GetFixedRelease returns the value of FixedRelease.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetFixedRelease() string {
+	return s.FixedRelease
+}
+
 // GetOrigin returns the value of Origin.
 func (s *FeedsGetFeedsCveIDOKRangesItem) GetOrigin() FeedsGetFeedsCveIDOKRangesItemOrigin {
 	return s.Origin
@@ -70162,6 +70298,11 @@ func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartExcluding() string {
 // GetStartIncluding returns the value of StartIncluding.
 func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartIncluding() string {
 	return s.StartIncluding
+}
+
+// GetTrain returns the value of Train.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetTrain() string {
+	return s.Train
 }
 
 // GetVendor returns the value of Vendor.
@@ -70209,6 +70350,11 @@ func (s *FeedsGetFeedsCveIDOKRangesItem) SetFixed(val string) {
 	s.Fixed = val
 }
 
+// SetFixedRelease sets the value of FixedRelease.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetFixedRelease(val string) {
+	s.FixedRelease = val
+}
+
 // SetOrigin sets the value of Origin.
 func (s *FeedsGetFeedsCveIDOKRangesItem) SetOrigin(val FeedsGetFeedsCveIDOKRangesItemOrigin) {
 	s.Origin = val
@@ -70237,6 +70383,11 @@ func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartExcluding(val string) {
 // SetStartIncluding sets the value of StartIncluding.
 func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartIncluding(val string) {
 	s.StartIncluding = val
+}
+
+// SetTrain sets the value of Train.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetTrain(val string) {
+	s.Train = val
 }
 
 // SetVendor sets the value of Vendor.

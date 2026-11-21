@@ -29,10 +29,12 @@ func NextDueMismatches(ctx context.Context, db *sql.DB) (int64, error) {
 	return n, nil
 }
 
-// firstRunDue says the stored next due time is a first-run time: the schedule never came due and is due at its reference (Owner.
-// FirstInWindow, known only to the running box; the self-check has no owners), so the scan window holds it until it opens.
+// firstRunDue says the stored next due time is a first-run time: the schedule never came due, is in the scan window and is due at its
+// reference (Owner.FirstInWindow, known only to the running box; the self-check has no owners, so the stored window mode is the
+// marker, the same condition due() uses), and the scan window holds it until it opens. This covers a once rule whose time is past too.
+// The gap that remains: a never-due row in the scan window of an owner without FirstInWindow, stored at its reference, passes.
 func firstRunDue(r row) bool {
-	if !r.Enabled || r.LastDueAt != nil || r.NextDueAt == nil {
+	if !r.Enabled || r.LastDueAt != nil || r.NextDueAt == nil || r.Rule.Window != WindowGlobal {
 		return false
 	}
 	ref := Reference(nil, r.UpdatedAt, r.PausedUntil).Truncate(time.Millisecond)

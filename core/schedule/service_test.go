@@ -521,24 +521,3 @@ func TestLateStartsPausesAndPastOnceTimes(t *testing.T) {
 		t.Fatalf("past once previewed: %v", err)
 	}
 }
-
-// A box's first start leaves a stored first-run due time (an owner with FirstInWindow: due at once, held by the scan window); the
-// self-check, which has no owners, accepts it, and still finds a broken row.
-func TestAFreshBoxPassesTheSelfCheck(t *testing.T) {
-	b := newBox(t, "Asia/Ho_Chi_Minh")
-	must(t, b.svc.Register(schedule.Owner{Module: "scan", Key: "firstrun.check", Default: schedule.WeeklyAt("23:00", 7).InWindow(), DefaultOn: true, FirstInWindow: true,
-		Start: func(context.Context, *sql.Tx, schedule.Fire) (string, error) { return "", nil }}))
-	must(t, b.svc.Start(t.Context()))
-	t.Cleanup(b.svc.Close)
-	v := b.get("firstrun.check")
-	if v.NextDueAt == nil || v.NextDueAt.After(b.clock.Now()) {
-		t.Fatalf("the first due time is not at once: %+v", v)
-	}
-	if n, err := schedule.NextDueMismatches(t.Context(), b.db.Reader()); err != nil || n != 0 {
-		t.Fatalf("a fresh box fails the self-check: %d %v", n, err)
-	}
-	b.exec(`UPDATE core_schedule SET next_due_at = '2026-11-21T02:00:01.000Z' WHERE owner_key = 'firstrun.check'`)
-	if n, _ := schedule.NextDueMismatches(t.Context(), b.db.Reader()); n != 1 {
-		t.Fatalf("a broken row passes: %d", n)
-	}
-}

@@ -147,7 +147,7 @@ func heldCVEOrg(ctx context.Context, tx *sql.Tx) (string, error) {
 	if err := counts(ctx, tx, `SELECT count(*), count(*) FILTER (WHERE c.record_at IS NOT NULL),
 count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd')),
 count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd')
-  AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin IN ('cna', 'adp')))
+  AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin IN ('cna', 'adp') AND `+genericRowSQL+`))
 FROM feeds_cve c`, nil, &all, &read, &gap, &held); err != nil {
 		return "", err
 	}

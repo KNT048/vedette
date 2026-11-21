@@ -330,9 +330,11 @@ func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Ra
 	return out, rows.Err()
 }
 
-// rangeOrigin is the precedence of one CVE's ranges: NVD's rows when NVD gives any, else the CVE record's (origin cna or adp). It
-// returns the rows that count.
+// rangeOrigin is the precedence of one CVE's ranges, applied when they are read: NVD's rows when NVD gives any, else the CVE record's
+// (origin cna or adp) that the generic comparison reads (Range.Generic; a row kept in a vendor's notation never counts here, its
+// product's version scheme reads it: RangeSpan). It returns the rows that count.
 func rangeOrigin(rows []Range) []Range {
+	rows = slices.DeleteFunc(rows, func(r Range) bool { return !r.Generic() })
 	if slices.ContainsFunc(rows, func(r Range) bool { return r.Origin == OriginNVD }) {
 		return slices.DeleteFunc(rows, func(r Range) bool { return r.Origin != OriginNVD })
 	}
@@ -493,8 +495,8 @@ func (s *Store) Catalogue(ctx context.Context, cves []string) (map[string]Catalo
 		}
 		rows, err := db.QueryContext(ctx, `SELECT c.cve, c.published, c.modified, c.nvd_status, c.nvd_at, c.record_at, c.title, c.description, e.epss, e.percentile,
 (SELECT CASE WHEN EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd') THEN 'nvd'
-             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve) END),
-NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin <> 'nvd' AND r.default_status NOT IN ('affected', 'unaffected'))
+             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve AND `+genericRowSQL+`) END),
+NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin <> 'nvd' AND `+genericRowSQL+` AND r.default_status NOT IN ('affected', 'unaffected'))
 FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: catalogue: %w", err)

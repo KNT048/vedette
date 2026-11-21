@@ -27,6 +27,12 @@ import (
 // default_status is the entry's defaultStatus (affected, unaffected, or unknown when absent): a product's list is complete when every
 // row says affected or unaffected. An entry of the product that gives no row and does not say what an unlisted version is makes all of
 // the product's rows unknown.
+//
+// Vendor notation. The versions of a product the rules above refuse are not lost: they are kept as the vendor states them, beside
+// NVD's, with version_type "vendor:" and the entry's versionType ("vendor:custom"; "vendor:text" when it gives none). They are
+// display-only for the generic comparison (Range.Generic, genericRowSQL): every reader that matches reads generic rows only, so what
+// is matched is what it was before these rows were kept. A product's version scheme (core/versionscheme, declared in the product
+// catalogue) reads them per release train (RangeScheme): VMware's "8.0 lessThan ESXi80U3d-24585383". vendorRows says which rows are kept.
 
 // RecordProductKey is the product key of a CVE record's affected entry that names no CPE, as feeds_cve_range stores it: the vendor
 // without its company words and the product without the vendor's name in front, each [a-z0-9] only ("Palo Alto Networks", "PAN-OS"
@@ -42,6 +48,8 @@ var noVendor = map[string]bool{"": true, "na": true, "unknown": true, "unspecifi
 // recordGroup is the rows of one product of one container, as they are read.
 type recordGroup struct {
 	key       [3]string // part, vendor, product
+	cpe       string
+	entries   []cnaAffected // every entry of the product, read again as the vendor states them when the group is unusable
 	rows      []Range
 	complete  bool // every entry of the product says what a version it does not list is
 	unusable  bool
@@ -68,10 +76,11 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			key := [3]string{part, vendor, product}
 			i := slices.IndexFunc(groups, func(g *recordGroup) bool { return g.key == key })
 			if i < 0 {
-				groups = append(groups, &recordGroup{key: key, complete: true})
+				groups = append(groups, &recordGroup{key: key, cpe: cpe, complete: true})
 				i = len(groups) - 1
 			}
 			g := groups[i]
+			g.entries = append(g.entries, a)
 			if g.unusable {
 				continue
 			}
@@ -100,6 +109,10 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			switch {
 			case g.unusable:
 				skipped++
+				for _, r := range vendorRows(g.entries) {
+					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
+					rows = append(rows, r)
+				}
 				continue
 			case len(g.rows) == 0:
 				continue
@@ -117,6 +130,186 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 		conv(OriginADP, a.Affected, "")
 	}
 	return rows, skipped
+}
+
+// VendorNotation is the prefix of the version_type of a row kept as the vendor states it (display-only for the generic comparison).
+const VendorNotation = "vendor:"
+
+// genericRowSQL is the rows of feeds_cve_range (alias r) the generic comparison reads: NVD's and the record rows it can order.
+const genericRowSQL = `r.version_type NOT LIKE 'vendor:%'`
+
+// Generic says the generic comparison reads the row: an NVD row, or a record row it can order (not one kept as the vendor states it).
+func (r Range) Generic() bool { return !strings.HasPrefix(r.VersionType, VendorNotation) }
+
+// vendorRows keeps the versions of a product's entries as the vendor states them, for a product the generic rules refuse: an affected
+// version or range with its bounds as written (lessThan: the end excluded; the fixed release when the record says the versions from
+// there are unaffected, by a change at the end or by defaultStatus), a range with changes split into its affected stretches (each
+// ending at the change to unaffected, its fix), and for an entry whose unlisted versions are affected, one range per unaffected
+// version the entry lists (the fixed release of a branch: "6.1.149" of the kernel), from the version it names as affected when it
+// names one. Left out: git commits (no device reports one), an entry limited to some operating systems or models (the row could not
+// say which), a bound that is not printable ASCII, holds quotes, a backslash or a semicolon, or is longer than the column.
+func vendorRows(entries []cnaAffected) []Range {
+	var out []Range
+	add := func(r Range) {
+		if !slices.ContainsFunc(out, func(h Range) bool { return sameSpan(h, r) && h.DefaultStatus == r.DefaultStatus }) {
+			out = append(out, r)
+		}
+	}
+	for _, a := range entries {
+		if len(a.Versions) > recordMaxVersions || !anyPlatform(a.Platforms) {
+			continue
+		}
+		def := cnaDefault(a.DefaultStatus)
+		if def == DefaultAffected {
+			for _, r := range exceptRows(a) {
+				add(r)
+			}
+			continue
+		}
+		for _, v := range a.Versions {
+			vt := strings.ToLower(strings.TrimSpace(v.VersionType))
+			if !strings.EqualFold(strings.TrimSpace(v.Status), "affected") || vt == "git" || v.LessThan != nil && v.LessThanOrEqual != nil {
+				continue
+			}
+			typ := vendorType(vt)
+			start, ok := vendorBound(v.Version)
+			if !ok {
+				continue
+			}
+			if v.LessThan == nil && v.LessThanOrEqual == nil {
+				switch w := strings.ToLower(start); {
+				case everyVersion[w]:
+					add(Range{VersionType: typ, DefaultStatus: def})
+				case start != "" && !saysNothing[w]:
+					add(Range{StartIncl: start, EndIncl: start, VersionType: typ, DefaultStatus: def})
+				}
+				continue
+			}
+			if saysNothing[strings.ToLower(start)] || everyVersion[strings.ToLower(start)] {
+				start = ""
+			}
+			if v.LessThanOrEqual != nil {
+				end, ok := vendorBound(*v.LessThanOrEqual)
+				if !ok {
+					continue
+				}
+				if end == "*" {
+					end = ""
+				}
+				add(Range{StartIncl: start, EndIncl: end, VersionType: typ, DefaultStatus: def})
+				continue
+			}
+			end, ok := vendorBound(*v.LessThan)
+			if !ok {
+				continue
+			}
+			if end == "*" {
+				end = ""
+			}
+			// the stretches of the range: affected from its start, unaffected from a change, affected again from the next one
+			from, affected := start, true
+			for _, c := range v.Changes {
+				at, ok := vendorBound(c.At)
+				if !ok || at == "" {
+					break
+				}
+				switch st := strings.ToLower(strings.TrimSpace(c.Status)); {
+				case st == "unaffected" && affected:
+					add(Range{StartIncl: from, EndExcl: at, Fixed: at, VersionType: typ, DefaultStatus: def})
+					affected = false
+				case st == "affected" && !affected:
+					from, affected = at, true
+				}
+			}
+			if !affected || from == end && end != "" {
+				continue
+			}
+			r := Range{StartIncl: from, EndExcl: end, VersionType: typ, DefaultStatus: def}
+			if end != "" && def == DefaultUnaffected {
+				r.Fixed = end
+			}
+			for _, c := range v.Changes {
+				if strings.TrimSpace(c.At) == end && strings.EqualFold(strings.TrimSpace(c.Status), "unaffected") {
+					r.Fixed = end
+				}
+			}
+			add(r)
+		}
+	}
+	return out
+}
+
+// exceptRows reads an entry whose unlisted versions are affected (defaultStatus affected): each unaffected version it lists, alone or
+// up to a wildcard of its own branch ("6.1.149" lessThanOrEqual "6.1.*"), or with "and later", is a fixed release; the one version it
+// lists as affected, when it lists one, is where the flaw starts. An unaffected range below a version ("0" lessThan "6.0") only says
+// where the flaw starts.
+func exceptRows(a cnaAffected) []Range {
+	var intro, fixes []string
+	for _, v := range a.Versions {
+		ver, ok := vendorBound(v.Version)
+		if !ok || ver == "" || saysNothing[strings.ToLower(ver)] || strings.EqualFold(strings.TrimSpace(v.VersionType), "git") {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(v.Status)) {
+		case "affected":
+			if v.LessThan == nil && v.LessThanOrEqual == nil && !everyVersion[strings.ToLower(ver)] {
+				intro = append(intro, ver)
+			}
+		case "unaffected":
+			if v.LessThan != nil {
+				continue
+			}
+			if v.LessThanOrEqual != nil {
+				end := strings.TrimSpace(*v.LessThanOrEqual)
+				if end != "*" && !strings.HasSuffix(end, ".*") {
+					continue
+				}
+			}
+			ver = strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(ver, " and later"), " or later"))
+			if ver != "" && !slices.Contains(fixes, ver) {
+				fixes = append(fixes, ver)
+			}
+		}
+	}
+	start := ""
+	if len(intro) == 1 {
+		start = intro[0]
+	}
+	typ := vendorType("")
+	for _, v := range a.Versions {
+		if w := strings.ToLower(strings.TrimSpace(v.VersionType)); w != "" && w != "git" && w != "original_commit_for_fix" {
+			typ = vendorType(w)
+			break
+		}
+	}
+	var out []Range
+	for _, f := range fixes {
+		out = append(out, Range{StartIncl: start, EndExcl: f, Fixed: f, VersionType: typ, DefaultStatus: DefaultAffected})
+	}
+	if len(out) == 0 && start != "" {
+		out = append(out, Range{StartIncl: start, VersionType: typ, DefaultStatus: DefaultAffected})
+	}
+	return out
+}
+
+// vendorType is the version_type of a row kept as the vendor states it: VendorNotation and the entry's versionType ("vendor:custom"),
+// "vendor:text" when it gives none (or one that is not a word).
+func vendorType(vt string) string {
+	w := recordWord(vt)
+	if w == "" {
+		w = "text"
+	}
+	return (VendorNotation + w)[:min(len(VendorNotation)+len(w), 40)]
+}
+
+// vendorBound is a version or bound as the vendor writes it, blanks collapsed ("" for none); ok is false for one the column cannot
+// hold or that is not plain text.
+func vendorBound(s string) (string, bool) {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > nvdMaxVersion || !printableASCII(s) || strings.ContainsAny(s, "\"'`;\\") {
+		return "", false
+	}
+	return s, true
 }
 
 // sameSpan says two rows of one product state the same versions.

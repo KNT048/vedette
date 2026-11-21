@@ -74,7 +74,31 @@ func spansOf(rs []Range) []span {
 	return out
 }
 
-// The conversion of affected versions to ranges, and everything it refuses to guess.
+// genericRows are the rows the generic comparison reads (Range.Generic).
+func genericRows(rs []Range) []Range {
+	return slices.DeleteFunc(slices.Clone(rs), func(r Range) bool { return !r.Generic() })
+}
+
+// vspan is a row kept in the vendor's notation, with its version_type.
+type vspan struct {
+	span
+	typ string
+}
+
+// vendorSpans are the rows kept in the vendor's notation.
+func vendorSpans(rs []Range) []vspan {
+	out := []vspan{}
+	for _, r := range rs {
+		if r.Generic() {
+			continue
+		}
+		out = append(out, vspan{span{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, r.Fixed, r.DefaultStatus}, r.VersionType})
+	}
+	return out
+}
+
+// The conversion of affected versions to ranges, and everything it refuses to guess (the rows the generic comparison reads; what the
+// refused products keep in their vendor's notation: TestParseCVERecord_VendorRows).
 func TestParseCVERecord_Ranges(t *testing.T) {
 	t.Parallel()
 	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
@@ -120,8 +144,8 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 			[]span{{si: "3.0", ee: "3.0.5", def: k}}, 0},
 	} {
 		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")
-		if err != nil || !slices.Equal(spansOf(got.Ranges), append([]span{}, c.want...)) || got.Skipped != c.skipped {
-			t.Errorf("%s: %+v skipped %d %v, want %+v skipped %d", c.name, spansOf(got.Ranges), got.Skipped, err, c.want, c.skipped)
+		if err != nil || !slices.Equal(spansOf(genericRows(got.Ranges)), append([]span{}, c.want...)) || got.Skipped != c.skipped {
+			t.Errorf("%s: %+v skipped %d %v, want %+v skipped %d", c.name, spansOf(genericRows(got.Ranges)), got.Skipped, err, c.want, c.skipped)
 		}
 		for _, r := range got.Ranges {
 			if r.CVE != "CVE-2026-1000" || r.Origin != OriginCNA || r.Vendor != "acme" || r.Product != "gateway" || r.Part != "" || r.CPE != "" {
@@ -132,11 +156,48 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 	// another product is its own key; "n/a" as the vendor is the assigner's product (VMware's records); company words go
 	got, _ := ParseCVERecord(record(`{"vendor":"Acme Software Corporation","product":"Acme Portal","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},`+
 		`{"vendor":"n/a","product":"Acme Box","versions":[{"version":"2.0","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.x","status":"affected"}]}`), "CVE-2026-1000")
-	if len(got.Ranges) != 2 || got.Ranges[0].Product != "portal" || got.Ranges[1].Vendor != "acme" || got.Ranges[1].Product != "box" || got.Skipped != 1 {
+	if g := genericRows(got.Ranges); len(g) != 2 || g[0].Product != "portal" || g[1].Vendor != "acme" || g[1].Product != "box" || got.Skipped != 1 {
 		t.Fatalf("products: %+v skipped %d", got.Ranges, got.Skipped)
 	}
 	if k := RecordProductKey("Palo Alto Networks", "PAN-OS"); k != (ProductKey{"paloalto", "panos"}) {
 		t.Fatalf("key %+v", k)
+	}
+}
+
+// A product the generic rules refuse keeps its versions as the vendor states them, in rows the generic comparison never reads
+// (version_type "vendor:…"): bounds as written, the fixed release where the record says the versions from there are unaffected,
+// a hotfix range split at its changes, an "affected except" list as one range per fixed release. Git commits, entries limited to
+// some systems and text the column cannot hold safely are left out.
+func TestParseCVERecord_VendorRows(t *testing.T) {
+	t.Parallel()
+	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
+	for _, c := range []struct {
+		name, affected string
+		want           []vspan
+	}{
+		{"VMware's builds per train", `{"vendor":"n/a","product":"VMware ESXi","defaultStatus":"unaffected","versions":[{"version":"8.0","lessThan":"ESXi80U3d-24585383","status":"affected","versionType":"custom"},{"version":"7.0","lessThan":"ESXi70U3s-24585291","status":"affected","versionType":"custom"}]}`,
+			[]vspan{{span{si: "8.0", ee: "ESXi80U3d-24585383", fixed: "ESXi80U3d-24585383", def: u}, "vendor:custom"}, {span{si: "7.0", ee: "ESXi70U3s-24585291", fixed: "ESXi70U3s-24585291", def: u}, "vendor:custom"}}},
+		{"text as written", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"5.x, 4.5.x","status":"affected"}]}`,
+			[]vspan{{span{si: "5.x, 4.5.x", ei: "5.x, 4.5.x", def: u}, "vendor:text"}}},
+		{"a wildcard end", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"5.15","lessThanOrEqual":"5.15.*","status":"affected","versionType":"semver"}]}`,
+			[]vspan{{span{si: "5.15", ei: "5.15.*", def: k}, "vendor:semver"}}},
+		{"hotfixes split the range", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"12.1.0","lessThan":"12.1.10-h2","status":"affected","changes":[{"at":"12.1.4-h12","status":"unaffected"},{"at":"12.1.5","status":"affected"},{"at":"12.1.6-h3","status":"unaffected"},{"at":"12.1.7","status":"affected"}]}]}`,
+			[]vspan{{span{si: "12.1.0", ee: "12.1.4-h12", fixed: "12.1.4-h12", def: u}, "vendor:text"}, {span{si: "12.1.5", ee: "12.1.6-h3", fixed: "12.1.6-h3", def: u}, "vendor:text"},
+				{span{si: "12.1.7", ee: "12.1.10-h2", fixed: "12.1.10-h2", def: u}, "vendor:text"}}},
+		{"affected except the fixed releases", `{"vendor":"Linux","product":"Linux","defaultStatus":"affected","versions":[{"version":"6.0","status":"affected"},{"version":"0","lessThan":"6.0","status":"unaffected","versionType":"semver"},{"version":"6.1.149","lessThanOrEqual":"6.1.*","status":"unaffected","versionType":"semver"},{"version":"6.6.30","lessThanOrEqual":"6.6.*","status":"unaffected","versionType":"semver"},{"version":"6.17","lessThanOrEqual":"*","status":"unaffected","versionType":"original_commit_for_fix"}]},{"vendor":"Linux","product":"Linux","defaultStatus":"unaffected","versions":[{"version":"84c61fe1a75b","lessThan":"2902c3ebcca5","status":"affected","versionType":"git"}]}`,
+			[]vspan{{span{si: "6.0", ee: "6.1.149", fixed: "6.1.149", def: a}, "vendor:semver"}, {span{si: "6.0", ee: "6.6.30", fixed: "6.6.30", def: a}, "vendor:semver"},
+				{span{si: "6.0", ee: "6.17", fixed: "6.17", def: a}, "vendor:semver"}}},
+		{"one bad entry: the product's rows kept as stated", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`,
+			[]vspan{{span{si: "1.0", ee: "1.5", def: k}, "vendor:text"}, {span{si: "2.x", ei: "2.x", def: k}, "vendor:text"}}},
+		{"git commits only", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1da177e4c3f4","lessThan":"6b2c1e3fa9d1","status":"affected","versionType":"git"}]}`, []vspan{}},
+		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
+		{"quotes and semicolons", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0') DROP TABLE x;--","status":"affected"},{"version":"3.x","status":"affected"}]}`,
+			[]vspan{{span{si: "3.x", ei: "3.x", def: k}, "vendor:text"}}},
+	} {
+		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")
+		if err != nil || !slices.Equal(vendorSpans(got.Ranges), c.want) || len(genericRows(got.Ranges)) != 0 {
+			t.Errorf("%s: %+v (%d generic) %v, want %+v", c.name, vendorSpans(got.Ranges), len(genericRows(got.Ranges)), err, c.want)
+		}
 	}
 }
 
@@ -211,7 +272,7 @@ func TestParseCVERecord_Hostile(t *testing.T) {
 		t.Errorf("rejected: %+v %v", got, err)
 	}
 	h, err := ParseCVERecord(fixture(t, "cveorg/CVE-2026-0002-hostile.json"), "CVE-2026-0002")
-	if err != nil || len(h.Ranges) != 1 || h.Ranges[0].Vendor != "evil" || h.Skipped != 1 { // the gateway's NUL and SQL are refused
+	if err != nil || len(h.Ranges) != 1 || h.Ranges[0].Vendor != "evil" || h.Skipped != 1 { // the gateway's NUL and SQL are refused, kept in no form
 		t.Fatalf("hostile: %+v %v", h, err)
 	}
 	many := strings.TrimSuffix(strings.Repeat(`{"version":"1.0","status":"affected"},`, recordMaxVersions+1), ",")

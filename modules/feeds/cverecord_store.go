@@ -161,7 +161,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 			nullWord(r.SSVC.Automatable), nullWord(r.SSVC.Impact), r.Description, published, r.CVE); err != nil {
 			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
-		changed, err := replaceRecordRanges(ctx, tx, st, r)
+		changed, matched, err := replaceRecordRanges(ctx, tx, st, r)
 		if err != nil {
 			return out, err
 		}
@@ -169,7 +169,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 			if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET updated_at = ? WHERE cve = ?`, ts, r.CVE); err != nil {
 				return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 			}
-			if kev[r.CVE] && !hasNVD {
+			if kev[r.CVE] && !hasNVD && matched { // only rows the matcher reads are news for findings
 				out.KEVChanged, out.KEVFirst = append(out.KEVChanged, r.CVE), out.KEVFirst && !seen
 			}
 		}
@@ -206,31 +206,39 @@ func nullWord(s string) any {
 	return s
 }
 
-// replaceRecordRanges replaces the record ranges of r's CVE when they differ from the stored ones, and says whether they did.
-func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVERecord) (bool, error) {
+// replaceRecordRanges replaces the record ranges of r's CVE when they differ from the stored ones, and says whether they did and
+// whether the rows the generic comparison reads did (Range.Generic: rows kept in a vendor's notation are not matched).
+func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVERecord) (changed, matched bool, err error) {
 	have, err := readRanges(ctx, tx, `WHERE r.cve = ? AND r.origin IN ('cna', 'adp')`, r.CVE)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	want := r.Ranges
 	if r.State == RecordRejected {
 		want = nil
 	}
-	if len(have) == len(want) && !slices.ContainsFunc(want, func(w Range) bool {
-		return !slices.ContainsFunc(have, func(h Range) bool { return sameRecordRange(h, w) })
-	}) {
-		return false, nil
+	same := func(have, want []Range) bool {
+		return len(have) == len(want) && !slices.ContainsFunc(want, func(w Range) bool {
+			return !slices.ContainsFunc(have, func(h Range) bool { return sameRecordRange(h, w) })
+		})
 	}
+	if same(have, want) {
+		return false, false, nil
+	}
+	generic := func(rs []Range) []Range {
+		return slices.DeleteFunc(slices.Clone(rs), func(x Range) bool { return !x.Generic() })
+	}
+	matched = !same(generic(have), generic(want))
 	if _, err := st.delRanges.ExecContext(ctx, r.CVE); err != nil {
-		return false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
+		return false, false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 	}
 	for _, w := range want {
 		if _, err := st.insRange.ExecContext(ctx, r.CVE, w.Origin, w.Part, clipBytes(w.Vendor), clipBytes(w.Product), w.CPE, w.StartIncl, w.StartExcl,
 			w.EndIncl, w.EndExcl, w.Fixed, w.VersionType, w.DefaultStatus); err != nil {
-			return false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
+			return false, false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
 	}
-	return true, nil
+	return true, matched, nil
 }
 
 // sameRecordRange compares two record ranges of one CVE on every stored column.
@@ -268,7 +276,7 @@ func kevRecordView(ctx context.Context, q queryer) (map[string][]AffectedRow, ma
 WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
   AND k.list = (SELECT k2.list FROM feeds_kev k2 WHERE k2.cve = k.cve AND k2.source_id IN ('cisa-kev', 'vulncheck-kev') ORDER BY `+ownerOrder+` LIMIT 1)
   AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'nvd')
-  AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'cna')`)
+  AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'cna' AND `+genericRowSQL+`)`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
 	}
@@ -296,7 +304,7 @@ WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
 		if err != nil {
 			return nil, nil, err
 		}
-		got, err := readRanges(ctx, q, `WHERE r.origin = 'cna' AND r.cve IN (SELECT value FROM json_each(?))`, string(part))
+		got, err := readRanges(ctx, q, `WHERE r.origin = 'cna' AND `+genericRowSQL+` AND r.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -322,7 +330,7 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 	var rows []AffectedRow
 	complete := true
 	for _, r := range ranges {
-		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" {
+		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" || !r.Generic() {
 			continue
 		}
 		rows = append(rows, kevRecordRow(r, cpeVendor, cpeProduct))

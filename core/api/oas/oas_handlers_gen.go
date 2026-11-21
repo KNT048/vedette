@@ -31271,7 +31271,8 @@ func (s *Server) handleInventoryPostIntakeOsqueryStatusRequest(args [0]string, a
 // list arrives, the box's config gives the agent's software queries (the same read-only queries,
 // nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
 // it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
-// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+// osquery agent of this box reports on the device (Wazuh only, or none). 409 agent_off: a person
+// turned the agent off for this device. 404 not_found. Audited.
 //
 // POST /inventory/agents/devices/{id}/report
 func (s *Server) handleInventoryPostInventoryAgentsDevicesIDReportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31350,7 +31351,7 @@ func (s *Server) handleInventoryPostInventoryAgentsDevicesIDReportRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventoryAgentsDevicesIDReportOperation,
-			OperationSummary: "I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its list arrives, the box's config gives the agent's software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited",
+			OperationSummary: "I updated it: ask the device's osquery agent to send its software now. For 15 minutes, or until its list arrives, the box's config gives the agent's software queries (the same read-only queries, nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no osquery agent of this box reports on the device (Wazuh only, or none). 409 agent_off: a person turned the agent off for this device. 404 not_found. Audited",
 			OperationID:      "inventory_post_inventory_agents_devices_id_report",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -34201,13 +34202,15 @@ func (s *Server) handleInventoryPutInventoryAgentsWazuhRequest(args [0]string, a
 
 // handleInventoryPutInventoryDevicesIDSourcesRequest handles inventory_put_inventory_devices_id_sources operation.
 //
-// Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that
-// traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
-// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
-// window. Off stops it for any device (the run on it stops); what the source found stays and manual
-// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
-// not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
-// ignored device.
+// Turn the network scan, the SNMP reads or the agents' data of one device on or off. On is the
+// person's consent to that traffic: a device added by hand gets it from then on, inside every other
+// safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the
+// device for the next window. Off stops it for any device (the run on it stops); what the source found
+// stays and manual values still win. Agent off: every agent's data for the device is refused and what
+// the agents read stops counting (their software readings and open ports go); on: taken again, and an
+// osquery agent is asked to send its software now. One audit row per source changed. 400 bad_source:
+// neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored:
+// turning a source on for an ignored device.
 //
 // PUT /inventory/devices/{id}/sources
 func (s *Server) handleInventoryPutInventoryDevicesIDSourcesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34301,7 +34304,7 @@ func (s *Server) handleInventoryPutInventoryDevicesIDSourcesRequest(args [1]stri
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPutInventoryDevicesIDSourcesOperation,
-			OperationSummary: "Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device",
+			OperationSummary: "Turn the network scan, the SNMP reads or the agents' data of one device on or off. On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. Agent off: every agent's data for the device is refused and what the agents read stops counting (their software readings and open ports go); on: taken again, and an osquery agent is asked to send its software now. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device",
 			OperationID:      "inventory_put_inventory_devices_id_sources",
 			Body:             request,
 			RawBody:          rawBody,

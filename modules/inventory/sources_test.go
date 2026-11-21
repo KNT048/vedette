@@ -65,7 +65,7 @@ func TestContract_SourcesPerDevice(t *testing.T) {
 	// SNMP on: read, the network scan stays off (that source only).
 	e.ev.reset()
 	got, err := e.svc.SetSources(e.ctx(), who, hand, nil, &on)
-	if err != nil || got != (inventory.Sources{Scan: off, SNMP: on}) {
+	if err != nil || got != (inventory.Sources{Scan: off, SNMP: on, Agent: on}) {
 		t.Fatalf("SNMP on: %+v, %v", got, err)
 	}
 	if scan, snmp = policy(hand); scan.Allowed || !snmp.Allowed {

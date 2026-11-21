@@ -29,7 +29,7 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 		return rateLimited(wait)
 	}
 	if !in.result {
-		return s.touch(ctx, n, touchEvery)
+		return s.touch(ctx, n, touchEvery, 0)
 	}
 	ip, mac, update := binding(n, src, in)
 	if err := s.markResult(ctx, n, ip, mac, update); err != nil {
@@ -432,7 +432,7 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 	ts := store.FormatTS(s.now())
 	gone := false
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, last_result_at = ?1 WHERE id = ?2`, ts, n.id)
+		r, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, last_result_at = ?1, call_gap_s = `+forgetSQL+` WHERE id = ?2`, ts, n.id)
 		if err != nil {
 			return fmt.Errorf("agentintake: mark node: %w", err)
 		}

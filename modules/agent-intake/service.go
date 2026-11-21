@@ -310,8 +310,14 @@ func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrol
 	if _, err := tx.ExecContext(ctx, `UPDATE intake_agent_tokens SET first_enrolled_at = ? WHERE id = ? AND first_enrolled_at IS NULL`, ts, t.id); err != nil {
 		return "", fmt.Errorf("agentintake: mark token used: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen, last_call_at) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?)`,
-		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts, ts); err != nil {
+	// The rhythm it was told: osquery fetches its config every configRefresh; the package reporter (it enrols without an osquery version)
+	// runs once an hour and fetches no config.
+	every := configRefresh
+	if in.osqueryVersion == "" {
+		every = reporterEvery
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen, last_call_at, call_every_s) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?)`,
+		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts, ts, int64(every/time.Second)); err != nil {
 		return "", fmt.Errorf("agentintake: insert node: %w", err)
 	}
 	if replaced && now.Sub(oldAt) < auditEnrollEvery { // one audit row per node per day (a flapping client must not fill core_audit)
@@ -346,6 +352,11 @@ func (s *Service) logReject(ctx context.Context, op string, src netip.Addr, reas
 type nodeRow struct {
 	id, tokenID string
 	lastSeen    time.Time
+	lastCall    time.Time     // its last call (last_call_at), from which the next call's gap is measured
+	lastResult  time.Time     // its last result post (last_result_at), zero when none: a last call equal to it was a result post
+	callEvery   time.Duration // how often it was told to call (call_every_s)
+	callGap     time.Duration // its own smoothed gap between calls (call_gap_s), 0 until learned
+	reportEvery time.Duration // the longest interval of the schedule the box last gave it, without its speed-ups (report_every_s)
 	enrolledAt  time.Time
 	boundIP     netip.Addr
 	boundMAC    string
@@ -365,12 +376,15 @@ type nodeRow struct {
 func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	want := hashHex(key)
 	var n nodeRow
-	var got, seen, enrolled, asked, taken, osTaken string
+	var got, seen, enrolled, asked, taken, osTaken, call, result string
+	var every, gap, report int64
 	var ip, mac sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL, kernel,
 		win_name, win_version, win_target, ifnull(hostname, ''), host_identifier, ifnull(report_asked_at, ''), ifnull(software_taken_at, ''),
-		ifnull(os_taken_at, ''), ifnull(platform, '') FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
-		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname, &n.hostID, &asked, &taken, &osTaken, &n.platform)
+		ifnull(os_taken_at, ''), ifnull(platform, ''), ifnull(last_call_at, last_seen), call_every_s, ifnull(call_gap_s, 0), report_every_s, ifnull(last_result_at, '')
+		FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
+		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname, &n.hostID, &asked, &taken, &osTaken, &n.platform,
+		&call, &every, &gap, &report, &result)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}
@@ -385,6 +399,9 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	n.askedAt, _ = time.Parse(time.RFC3339Nano, asked)
 	n.softwareAt, _ = time.Parse(time.RFC3339Nano, taken)
 	n.osAt, _ = time.Parse(time.RFC3339Nano, osTaken)
+	n.lastCall, _ = time.Parse(time.RFC3339Nano, call)
+	n.lastResult, _ = time.Parse(time.RFC3339Nano, result)
+	n.callEvery, n.callGap, n.reportEvery = time.Duration(every)*time.Second, time.Duration(gap)*time.Second, time.Duration(report)*time.Second
 	if ip.Valid {
 		n.boundIP, _ = netip.ParseAddr(ip.String)
 		n.boundMAC = mac.String
@@ -422,24 +439,59 @@ func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) (*
 	}
 	// osquery fetches its config at start and every config_refresh (the installer sets 300 s): write last_seen at most every configTouch so
 	// that a restart (the installer's) is seen within the installer's wait, not up to a minute later (the log path keeps touchEvery).
-	if err := s.touch(ctx, n, configTouch); err != nil {
+	now := s.now()
+	intervals := nodeSchedule(n, now, src)
+	if err := s.touch(ctx, n, configTouch, steadyEvery()); err != nil {
 		return nil, err
 	}
-	return configResponse(nodeSchedule(n, s.now(), src)), nil
+	return configResponse(intervals), nil
 }
 
-// touch records that the node called, at most once per every.
-func (s *Service) touch(ctx context.Context, n nodeRow, every time.Duration) error {
+// steadyEvery is the longest interval of the schedule without its speed-ups (the first report, a person's ask): a node delivers results
+// at least that often once it runs the schedule, whether or not it fetches its config again.
+func steadyEvery() time.Duration {
+	m := 0
+	for _, q := range schedule {
+		m = max(m, q.interval)
+	}
+	return time.Duration(m) * time.Second
+}
+
+// touch records that the node called (a config fetch), at most once per every, with the gap since its last call (nextGap) and the
+// longest interval of the schedule it is given (report_every_s, steadyEvery).
+func (s *Service) touch(ctx context.Context, n nodeRow, every, report time.Duration) error {
 	now := s.now()
-	if now.Sub(n.lastSeen) < every {
+	if now.Sub(n.lastSeen) < every && (report == 0 || report == n.reportEvery) {
 		return nil
 	}
+	// Learned only between two config fetches in a row: when the call before was a result post, the gap says nothing about the config
+	// refresh (an agent without it fetches its config only when its service starts, often minutes after a result). Written only when
+	// learned: otherwise the column is left as it is now, never set back to a value read before (a result post at the same time may have
+	// forgotten it).
+	var learned any                                                               // nil: call_gap_s unchanged
+	if report != 0 && (n.lastResult.IsZero() || n.lastCall.After(n.lastResult)) { // a config fetch (the log path's touch is no fetch)
+		if gap := nextGap(n.callGap, now.Sub(n.lastCall), n.callEvery); gap != n.callGap {
+			learned = gapSeconds(gap)
+		}
+	}
+	if report == 0 {
+		report = n.reportEvery
+	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1 WHERE id = ?2`, store.FormatTS(now), n.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ?1, last_call_at = ?1, call_gap_s = coalesce(?2, call_gap_s), report_every_s = ?3 WHERE id = ?4`,
+			store.FormatTS(now), learned, int64(report/time.Second), n.id); err != nil {
 			return fmt.Errorf("agentintake: touch node: %w", err)
 		}
 		return nil
 	})
+}
+
+// gapSeconds is the stored call_gap_s of a learned gap (NULL while nothing is learned).
+func gapSeconds(d time.Duration) any {
+	if d <= 0 {
+		return nil
+	}
+	return max(int64(d/time.Second), 1)
 }
 
 // ---- status ----

@@ -29,13 +29,42 @@ type K = AssetKind
 interface CuratedRow { display: string; category: string; kind: K; vendor: string; product: string; aliases: string; version_hint: string; kev_match?: string[] }
 const CURATED = curatedData as CuratedRow[]
 
+// A kev_match fragment "vendor|product" names exploited-list products by whole words, never by a piece of a word or by a list name
+// that names another product. Written the same in core/productid/fragment.go (read its comment); search-golden.json proves they agree.
+const QUALIFIERS = new Set(['software', 'appliance', 'appliances', 'device', 'devices', 'server', 'servers', 'series', 'router', 'routers', 'firmware', 'edition', 'editions', 'community', 'enterprise', 'data', 'center', 'web', 'ui', 'ce', 'ee'])
+const fragmentWords = (s: string) => s.toLowerCase().replace(/[\u00a0\u202f]/g, ' ').replace(/\([^)]*\)/g, ' ').match(/[a-z0-9]+/g) ?? []
+function fragWords(s: string): [string[], boolean] {
+  const t = s.trim()
+  return [fragmentWords(t.endsWith('*') ? t.slice(0, -1) : t), t.endsWith('*')]
+}
+function namesPart(part: string[], frag: string[], star: boolean): boolean {
+  const n = frag.length
+  if (part.length < n) return false
+  for (let i = 0; i < n - 1; i++) if (part[i] !== frag[i]) return false
+  if (star) return part[n - 1]!.startsWith(frag[n - 1]!)
+  return part[n - 1] === frag[n - 1] && part.slice(n).every((w) => QUALIFIERS.has(w))
+}
+function fragmentMatch(fragment: string, vendor: string, product: string): boolean {
+  const cut = fragment.indexOf('|')
+  const [fv, fp] = cut < 0 ? [fragment, ''] : [fragment.slice(0, cut), fragment.slice(cut + 1)]
+  const [v] = fragWords(fv)
+  if (v.length) {
+    const have = fragmentWords(vendor)
+    let found = false
+    for (let i = 0; i + v.length <= have.length && !found; i++) found = v.every((w, j) => have[i + j] === w)
+    if (!found) return false
+  }
+  const [p, star] = fragWords(fp)
+  if (!p.length) return true
+  const name = product.toLowerCase().replace(/[\u00a0\u202f]/g, ' ').replace(/\([^)]*\)/g, ' ')
+  if (namesPart(name.match(/[a-z0-9]+/g) ?? [], p, star)) return true
+  return name.split(/\s*(?:,|\/|&|\band\b)\s*/).some((part) => namesPart(part.match(/[a-z0-9]+/g) ?? [], p, star))
+}
+
 function kevKeysFor(matches: string[] | undefined, fallback: string): string[] {
   if (!matches?.length) return [fallback]
   const keys = new Set<string>()
-  for (const m of matches) {
-    const [v = '', p = ''] = m.toLowerCase().split('|')
-    for (const r of KEV) if (r.vendor.toLowerCase().includes(v) && (!p || r.product.toLowerCase().includes(p))) keys.add(kevKey(r))
-  }
+  for (const m of matches) for (const r of KEV) if (fragmentMatch(m, r.vendor, r.product)) keys.add(kevKey(r))
   return keys.size ? [...keys] : [fallback]
 }
 const sumKev = (keys: string[]) => keys.reduce((n, k) => n + (kevCountOf.get(k) ?? 0), 0)

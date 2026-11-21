@@ -149,6 +149,9 @@
 ## Modifying: `inventory.Service.ScanPolicy(ctx, assetID)`, `ProtectedIPs(ctx)` và `InScope(netip.Addr)`
 - **sensor-active** (mọi probe nmap/SNMP; `ProtectedIPs` là danh sách địa chỉ quét dò bỏ qua, đi qua adapter `sensorInventory` ở `cmd/vedette/sensoractive.go`; sensor-active còn kiểm phạm vi trong bộ nhớ theo `Settings` bằng quy tắc riêng, `TestSensorActiveScopeRuleMatchesTheInventory` giữ hai nơi khớp nhau), **scan** (chọn mục tiêu, `reason`), **scan-credentialed**. Đây là rào chắn SYS-7 phía LAN: đổi/nới phải sửa CONTRACT + test của cả ba module. Lý do `scanning_off`/`scope_not_confirmed` được `sensor-active` coi là trạng thái của hộp (thiết bị ở lại hàng đợi), các lý do khác là của thiết bị (rời hàng đợi); `first_gentle_scan` chỉ cho quét nhẹ: `scan` phải coi nó là từ chối.
 
+## Modifying: `kev_match` fragments of `curated.json` (`Catalog.keysFor`, `productid.FragmentMatch`, `catalog.ts`)
+- A fragment names exploited-list products by whole words (`*` at the end = a family, "windows*"); a list name of several products lands only on the products it names; every fragment names a vendor and a product. The same rule is in `core/productid/fragment.go` (catalogue lines), `catalog.go` and `web/.../catalog.ts`; `search-golden.json` proves Go and web agree. `TestCuratedRows_LinesCarryOnlyTheirOwnNames` counts the rows whose line carries another product's name. Changing a fragment moves findings: `cmd/vedette` `TestReachability_910_Fixture` names each CVE that moves class.
+
 ## Modifying: `ScanDecision.Fragile/Unclassified`, khoá KEV từ CPE (`Catalog.keysForCPE`, `cpe` của `curated.json`), `SetupScope` bật quét chủ động
 - **sensor-active** (`pickedPlan` qua adapter `sensorInventory`), **findings** (khoá KEV của phần mềm nmap là thứ được khớp), **web** (`catalog.ts` đọc cùng `curated.json`, bỏ qua trường `cpe`), **core** (setup gọi `SetupScope`: cam kết giờ bật `active.enabled`).
 

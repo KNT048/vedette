@@ -22,12 +22,18 @@ readers until they read the view of the finding; nothing of it is stored.
 - **M-3 One state machine.** `Transition(finding, trigger)` is total over every state and every trigger (detected, gone, handle,
   reopen, verify, unverify, tick, urgency) and returns the row and the events to append (`fnd_finding_event`, append-only).
   The whole table is written down in `transition_table_test.go` (`TestTransition_EveryStateAndTrigger`). In short: a detection
-  creates (open) or detects again; a finding Vedette closed opens again when detected (a clear safe check only by another safe check);
+  creates (open) or detects again, its basis becoming the newest detection's (a safe check's or a person's confirmation stays as the
+  proof, not as the basis); a finding Vedette closed opens again when detected (a clear safe check not by a banner or a person's
+  statement, only by the device's own reading or another check);
   a person's patched opens again on a reading newer than their mark (`still_detected`); mitigated, accepted, false positive and not
   relevant hold while detected. "Gone" is an edge (only a finding detected until then): open → handled by Vedette, patched when
   something changed on the device (`version_moved` with both versions, `software_removed`, `distro_fixed`, `scan_clear`), not
   relevant when only the data changed (`data_corrected`) or a person said the software is not installed (`not_installed`, under
-  their name). A mitigation or an accepted risk gives way to patch credit. A safe check's proof is not undone by range data.
+  their name). A mitigation or an accepted risk gives way to patch credit. A safe check's proof is not undone by range data, only
+  by a newer reading of the device (a version move, the line gone); a clear safe check does not credit a flaw the device's own
+  reading still shows. A person who marks a finding the way Vedette closed it takes it over with their note; Vedette's patch credit
+  stays, the note becomes an event. A safe check confirms the finding of the line the matcher reads the CVE on (`scanLine`), at the
+  version that line reads; a finding on no line takes it. `TestScanProof_*`.
   An accepted risk reopens once its last day is over everywhere (`AcceptanceEnds`) while detected.
 - **M-4 Invariants (database CHECKs, `Finding.Validate` and `vedette selfcheck`).** Open exactly when there is no resolution, way,
   who or when; accepted exactly with a last day; `version_moved` exactly with two different versions; every open vocabulary value
@@ -36,11 +42,18 @@ readers until they read the view of the finding; nothing of it is stored.
 - **M-5 Patch credit by structure.** How a finding went away depends on what changed, never on which source read the version
   (agent, SNMP, banner, a person's entry, a distribution's package). A person's correction of what a source reads is no update.
   `TestCredit_EverySourceAndEveryWayAFlawGoesAway` (15 of 20 credited; the 5 range corrections are not), `TestCredit_APersonsCorrectionIsNoUpdate`.
+  Known limit: a person who types the new version over a stale banner after a real update gets "not relevant, corrected", not
+  credit (Vedette cannot tell their update from a correction of the banner); a later banner reading of the same version does not
+  turn it into credit.
 - **M-6 Device lifecycle.** Findings take part in a merge and a delete inside the inventory's write (`lifecycle.go`): a merge moves
   each finding to the kept device and to the line that stays (`Merge.Software`; the inventory deletes a folded line after the
   participants ran), folds two findings of one (CVE, line) into the decided one (events copied, `FindingFolded`), and drops the
-  merged device's questions; a delete removes findings, events and questions. Ignoring a device changes no finding: lists leave
-  them out. `TestDeviceMerged_FindingsFollowAFoldedLine`, `TestContract_DeviceMergedKeepsTheBetterFinding`.
+  merged device's questions, and a finding on no line beside a line finding of the same CVE folds into it; a delete removes
+  findings, events and questions. When the inventory deletes software lines for good (removed lines past their retention), its
+  write calls `LinesDeleted` with their ids first: findings that would meet on one (device, CVE, no line) key are folded into the
+  decided one (events, mitigation and response rows follow), then the foreign key leaves the rest on no line. Ignoring a device
+  changes no finding: Home, To fix, the risk marker, the AI context and the reports leave its findings out.
+  `TestDeviceMerged_*`, `TestContract_DeviceMergedKeepsTheBetterFinding`, `TestLinesDeleted_FoldsWhatWouldCollide`.
 - **Removed**: the note-prefix rules, the one-time backfill passes, the history-reading rules, `fnd_plan_done` ("Mark as done" is
   patched on the findings), `fnd_finding_history`, `fnd_version_needed`, `fnd_unchecked`, `fnd_unchecked_seen`, `fnd_not_installed`,
   the closing of findings when a device is ignored.

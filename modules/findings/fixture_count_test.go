@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -30,11 +29,13 @@ type anonFixture struct {
 	} `json:"software"`
 }
 
-// The count test of the model on the export of a test network: findings rows per (device, CVE) in the older model (the export as it
-// is) and after its findings go through Transition into fnd_finding. The older model holds one row per (device, CVE), whatever the
-// software line, and a row for every pair it matched by product name only and closed as checked; the new one holds a row per
-// (device, CVE, software line) that was affected at some time, and every row passes the data invariants (selfcheck).
-func TestFixture_RowsPerDeviceCVEAndLine(t *testing.T) {
+// The export of a test network mapped into the model: findings rows per (device, CVE) in the older model (measured: the export as it
+// is) and the same findings written through Transition into fnd_finding (a mapping, not a match: the export holds no affected-version
+// data, so the matcher cannot run on it). The older model holds one row per (device, CVE), whatever the software line, and a row for
+// every pair it matched by product name only and closed as checked; the new one holds a row per (device, CVE, software line) that was
+// affected at some time with version evidence, and every row passes the selfcheck invariants. A finding Vedette had closed maps to
+// "not relevant, corrected": the export does not say why it was closed (its reason is "not affected"), so no credit is guessed.
+func TestFixture_ExportMapsToOneRowPerLine(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("testdata/anon-findings-before.json")
 	if err != nil {
@@ -111,11 +112,7 @@ func TestFixture_RowsPerDeviceCVEAndLine(t *testing.T) {
 			if x.ResolvedAt == nil || x.Status == string(StatusConfirmed) {
 				continue
 			}
-			via := ViaDataCorrected // no longer detected while nothing on the device changed
-			if p := x.ProvedVersion; p != nil && strings.ContainsAny(*p, "-_") {
-				via = ViaDistroFixed // the distribution's package release the device has is a fixed one
-			}
-			if _, _, err := apply(t.Context(), tx, g, false, Trigger{Kind: TrGone, At: ts(*x.ResolvedAt), Via: via}); err != nil {
+			if _, _, err := apply(t.Context(), tx, g, false, Trigger{Kind: TrGone, At: ts(*x.ResolvedAt), Via: ViaDataCorrected}); err != nil {
 				return err
 			}
 		}
@@ -140,8 +137,8 @@ func TestFixture_RowsPerDeviceCVEAndLine(t *testing.T) {
 	}
 	pairs, maxPair := count(pairsAfter)
 	_, maxLine := count(linesAfter)
-	t.Logf("before: %d rows, %d (device, CVE) pairs, at most %d row per pair, %d rows matched by the product name only", before.rows, before.pairs, before.maxPerPair, before.nameOnly)
-	t.Logf("after:  %d rows, %d (device, CVE) pairs, at most %d rows per pair, at most %d per (device, CVE, line); %v", len(fs), pairs, maxPair, maxLine, byState)
+	t.Logf("measured, the export: %d rows, %d (device, CVE) pairs, at most %d row per pair, %d rows matched by the product name only", before.rows, before.pairs, before.maxPerPair, before.nameOnly)
+	t.Logf("mapped through Transition: %d rows, %d (device, CVE) pairs, at most %d rows per pair, at most %d per (device, CVE, line); %v", len(fs), pairs, maxPair, maxLine, byState)
 	if before.rows != 278 || before.pairs != 278 || before.maxPerPair != 1 || before.nameOnly != 254 {
 		t.Fatalf("the export changed: %+v", before)
 	}

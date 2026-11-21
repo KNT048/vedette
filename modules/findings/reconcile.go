@@ -57,13 +57,21 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				}
 				seen[k] = true
 				f, ok := byKey[k]
-				if line := storedLine(x.SoftwareID); !ok && line != "" {
+				if line := storedLine(x.SoftwareID); line != "" {
 					// a finding on no line (a safe check's hit, or the OS a device stated without a line) takes the line the CVE is now
-					// found on, rather than one closing and another opening for the same flaw
+					// found on, rather than one closing and another opening for the same flaw; beside a finding of that line, the two fold
 					if g, held := byKey[lineKey(x.CVE, "")]; held && !seen[lineKey(x.CVE, "")] {
-						f, ok = g, true // Transition gives it the line (TrDetected)
 						seen[lineKey(x.CVE, "")] = true
 						delete(byKey, lineKey(x.CVE, ""))
+						if !ok {
+							f, ok = g, true // Transition gives it the line (TrDetected)
+						} else {
+							kept, err := s.absorbNoLine(ctx, tx, g, f)
+							if err != nil {
+								return res, err
+							}
+							f = kept
+						}
 					}
 				}
 				if !ok {
@@ -98,10 +106,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
 			continue
 		}
-		via, from, to, by := goneVia(a, lines, f, proofs)
-		if f.Basis == DetectScan && via != ViaSoftwareRemoved {
-			continue // a safe check's proof goes away by a clear safe check, or with its software line
-		}
+		via, from, to, by := goneVia(a, lines, f, proofs) // a safe check's proof holds against data alone (Transition)
 		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)

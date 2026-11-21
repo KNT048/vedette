@@ -76,9 +76,13 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 	if err != nil {
 		return ToFix{}, err
 	}
+	ignored, err := s.ignoredDevices(ctx) // a person's ignored devices are left out of To fix and the risk marker
+	if err != nil {
+		return ToFix{}, fmt.Errorf("findings: to fix: %w", err)
+	}
 	open := map[string][]Record{}
 	for _, r := range recs {
-		if r.Status.Open() {
+		if r.Status.Open() && !ignored[r.AssetID] {
 			open[r.AssetID] = append(open[r.AssetID], r)
 		}
 	}
@@ -109,7 +113,7 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 		if err != nil {
 			return ToFix{}, fmt.Errorf("findings: to fix: reading device %s: %w", id, err)
 		}
-		if !ok { // the device is gone; its findings go with it (Reconcile)
+		if !ok || ignored[id] { // the device is gone (its findings go with it, Reconcile), or ignored
 			continue
 		}
 		d := DeviceUpdates{AssetID: id, Open: len(open[id])}

@@ -203,13 +203,13 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	case intoIgnored && !fromIgnored && fromApproved:
 		// review r2 N2 of #945: an approved device a person watches is never hidden by a join with an ignored row (a join whose
 		// direction is fixed, a chassis or hand-added one, or a person's Merge): the kept row is watched again and its findings
-		// that Ignore closed reopen
+		// are back in the lists
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL WHERE id = ?`, into); err != nil {
 			return "", fmt.Errorf("inventory: watch the joined device: %w", err)
 		}
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" is an approved device that is watched, so "+intoName+" is watched again"
 	case intoIgnored && !fromIgnored:
-		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" close"
+		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" are left out of the lists"
 	case fromIgnored && !intoIgnored:
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
 	}

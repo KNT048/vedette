@@ -128,7 +128,7 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 	out := make([]ai.AssetFact, 0, len(open))
 	for _, r := range open {
 		a, ok := assets[r.AssetID]
-		if !ok {
+		if !ok || a.Ignored { // a device a person ignored is left out, as on every list
 			continue
 		}
 		name := a.IP

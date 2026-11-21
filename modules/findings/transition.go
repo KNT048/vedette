@@ -74,16 +74,19 @@ type Detection struct {
 // error for a person's action that does not apply (the finding is then returned unchanged). The rules:
 //
 //   - detected on a new pair: created, open; confirmed too when the data proves it.
-//   - detected on an existing finding: the detection columns follow the data (a safe check's or a person's confirmation is never
-//     taken back by a weaker one; a finding on no line takes the line it is found on); a finding Vedette had closed opens again (detected_again), except that a clear safe check is
-//     overruled only by another safe check; a finding a person marked patched opens again when a reading newer than their mark still
-//     detects it (still_detected); mitigated, accepted, false positive and not relevant hold.
+//   - detected on an existing finding: the detection columns follow the data, the basis is the newest detection's (a safe check's or a
+//     person's confirmation stays as the proof, never taken back by a weaker one; a finding on no line takes the line it is found
+//     on); a finding Vedette had closed opens again (detected_again), except that a banner or a person's statement does not overrule a
+//     clear safe check; a finding a person marked patched opens again when a reading newer than their mark still detects it
+//     (still_detected); mitigated, accepted, false positive and not relevant hold.
 //   - gone (an edge: only a finding detected until now): an open finding is handled by Vedette, patched when something changed on
 //     the device (version_moved, software_removed, distro_fixed, scan_clear), not relevant when only the data changed
 //     (data_corrected) or a person said the software is not installed (not_installed). A mitigation or an accepted risk gives way to
 //     patch credit (the flaw is gone). A person's patched, false positive and not relevant hold. A safe check's proof is not undone
-//     by range data (data_corrected, distro_fixed).
-//   - handle, reopen, verify, unverify: a person's word, checked like the API reports it.
+//     by range data (data_corrected, distro_fixed), only by a newer reading of the device; a clear safe check does not credit a flaw
+//     the device's own reading still shows.
+//   - handle, reopen, verify, unverify: a person's word, checked like the API reports it. Marking a finding the way Vedette already
+//     closed it takes it over with the person's note, except Vedette's patch credit, which stays (the person's note is an event).
 //   - tick: an accepted risk whose last day is over opens again while detected, else Vedette closes it as corrected.
 //   - urgency: the layer, with an event when it changes.
 func Transition(f Finding, t Trigger) (Finding, []Event, error) {
@@ -194,14 +197,16 @@ func (t *transition) detected(d Detection) error {
 		f.SoftwareID = d.SoftwareID // a finding on no line takes the line the flaw is now found on
 	}
 	// A safe check's or a person's confirmation is never taken back by weaker data; a stronger proof replaces it.
-	if was.Verified.sticky() && was.Verified.rank() > d.Verified.rank() {
-		if was.Verified != VerifiedScan {
-			f.Basis = d.Basis
-		}
-	} else {
-		f.Verified, f.Basis = d.Verified, d.Basis
+	// The basis is what the newest detection rests on; a safe check's or a person's confirmation stays as the proof, never as the
+	// basis: it is evidence of the version it saw, and a newer reading of the device decides what follows.
+	f.Basis = d.Basis
+	if !was.Verified.sticky() || was.Verified.rank() <= d.Verified.rank() {
+		f.Verified = d.Verified
 	}
-	f.RangeOrigin, f.MatchedVersion, f.Evidence = d.RangeOrigin, d.MatchedVersion, d.Evidence
+	f.RangeOrigin, f.Evidence = d.RangeOrigin, d.Evidence
+	if d.MatchedVersion != "" || d.Basis != DetectScan { // a safe check that saw no version keeps the version matched before
+		f.MatchedVersion = d.MatchedVersion
+	}
 	switch key := FixKey(d.ProductKey, d.Fix); {
 	case d.ProductKey == "" && d.Fix == Fix{Kind: FixUnknown}: // the detection brings no fix data (a safe check): the fix stays
 	case key != was.FixKey:
@@ -231,7 +236,8 @@ func (t *transition) detected(d Detection) error {
 			t.emit(SystemUser, EvReopened, EventDetail{Why: WhyStillDetected, ReadingAt: read.Format(tsLayout)})
 		}
 	case was.Via == ViaPerson: // mitigated, accepted, false positive and not relevant hold while detected
-	case was.Via == ViaScanClear && d.Basis != DetectScan: // only a safe check overrules a clear safe check
+	case was.Via == ViaScanClear && (d.Basis == DetectBannerVersion || d.Basis == DetectStatement):
+		// a banner or a person's statement does not overrule a clear safe check; the device's own reading or another check does
 	default: // Vedette closed it, or a person said the software is not installed: the data detects it again
 		t.open()
 		t.emit(SystemUser, EvReopened, EventDetail{Why: WhyDetectedAgain})
@@ -252,7 +258,10 @@ func (t *transition) gone(tr Trigger) error {
 		via = ViaDataCorrected // no version change to credit
 	}
 	if f.Verified == VerifiedScan && (via == ViaDataCorrected || via == ViaDistroFixed) {
-		return nil // range data does not undo what a safe check proved
+		return nil // range data does not undo what a safe check proved; a newer reading of the device does (version_moved, removed)
+	}
+	if via == ViaScanClear && (f.Basis == DetectDeviceVersion || f.Basis == DetectPackage) {
+		return nil // a clear safe check does not credit a flaw the device's own reading still shows
 	}
 	if via != ViaVersionMoved {
 		from, to = "", ""
@@ -302,7 +311,17 @@ func (t *transition) handle(tr Trigger) error {
 	}
 	was := t.before
 	if was.State == StateHandled && was.Resolution == tr.Resolution && was.AcceptedUntil.Equal(until) {
-		return nil // already handled this way
+		switch {
+		case was.Via == ViaPerson:
+			return nil // already handled this way
+		case was.Via.Credit():
+			// Vedette already credited the patch: the credit stays, and a note the person wrote is kept in the history
+			if note != "" {
+				t.emit(t.actor, EvHandled, EventDetail{Resolution: tr.Resolution, Via: ViaPerson, Note: note})
+			}
+			return nil
+		}
+		// Vedette closed it the same way without credit: the person's handling takes it over, with their note
 	}
 	t.close(tr.Resolution, ViaPerson, t.actor, note, until, "", "")
 	return nil

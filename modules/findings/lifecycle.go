@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -80,30 +81,16 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	if err != nil {
 		return fmt.Errorf("findings: reading the findings of a merged device: %w", err)
 	}
-	var ids []string
-	for _, f := range fs {
-		ids = append(ids, f.ID)
+	ranks, err := s.ranks(ctx, tx, fs)
+	if err != nil {
+		return err
 	}
-	applied := map[string]bool{}
-	if s.cfg.Applied != nil && len(ids) > 0 {
-		if applied, err = s.cfg.Applied(ctx, tx, ids); err != nil {
-			return fmt.Errorf("findings: reading the applied mitigation items: %w", err)
+	rank := func(f Finding) int {
+		r := ranks[f.ID]
+		if r == 0 && f.AssetID == into { // a tie keeps the kept device's finding
+			r = 1
 		}
-	}
-	rank := func(f Finding) (int, error) {
-		var byPerson bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM fnd_finding_event WHERE finding_id = ? AND actor <> ?)`, f.ID, SystemUser).Scan(&byPerson); err != nil {
-			return 0, fmt.Errorf("findings: reading a finding of a merged device: %w", err)
-		}
-		switch {
-		case byPerson || f.Via == ViaPerson || applied[f.ID]:
-			return 3, nil
-		case f.Confirmed():
-			return 2, nil
-		case f.AssetID == into:
-			return 1, nil
-		}
-		return 0, nil
+		return r
 	}
 	// Each finding claims its key (CVE, the line that stays); a second one with the same key folds. Into's findings whose key does not
 	// change claim first, then Into's that follow a folded line, then From's, so no update lands on a key another row still holds.
@@ -145,10 +132,7 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	for _, f := range ordered {
 		line := target(f)
-		r, err := rank(f)
-		if err != nil {
-			return err
-		}
+		r := rank(f)
 		k := lineKey(f.CVE, line)
 		h, clash := byKey[k]
 		switch {
@@ -179,6 +163,11 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 			folded++
 		}
 	}
+	n, err := s.settleNoLine(ctx, tx, into)
+	if err != nil {
+		return err
+	}
+	folded += n
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE asset_id = ?`, from); err != nil {
 		return fmt.Errorf("findings: removing the questions of a merged device: %w", err)
 	}
@@ -218,4 +207,155 @@ func (s *Service) foldFinding(ctx context.Context, tx *sql.Tx, gone, kept string
 		return fmt.Errorf("findings: folding a finding of a merged device: %w", err)
 	}
 	return nil
+}
+
+// ranks orders findings for a fold: 3 a person decided it (handled it, wrote an event, or marked a mitigation item applied), 2 it is
+// confirmed, 0 otherwise.
+func (s *Service) ranks(ctx context.Context, tx *sql.Tx, fs []Finding) (map[string]int, error) {
+	ids := make([]string, 0, len(fs))
+	for _, f := range fs {
+		ids = append(ids, f.ID)
+	}
+	applied := map[string]bool{}
+	if s.cfg.Applied != nil && len(ids) > 0 {
+		var err error
+		if applied, err = s.cfg.Applied(ctx, tx, ids); err != nil {
+			return nil, fmt.Errorf("findings: reading the applied mitigation items: %w", err)
+		}
+	}
+	out := make(map[string]int, len(fs))
+	for _, f := range fs {
+		var byPerson bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM fnd_finding_event WHERE finding_id = ? AND actor <> ?)`, f.ID, SystemUser).Scan(&byPerson); err != nil {
+			return nil, fmt.Errorf("findings: reading a finding to fold: %w", err)
+		}
+		switch {
+		case byPerson || f.Via == ViaPerson || applied[f.ID]:
+			out[f.ID] = 3
+		case f.Confirmed():
+			out[f.ID] = 2
+		}
+	}
+	return out, nil
+}
+
+// foldGroup folds every finding of fs (one device, one CVE) into the one that ranks highest (first on a tie) and returns it.
+func (s *Service) foldGroup(ctx context.Context, tx *sql.Tx, fs []Finding) (Finding, error) {
+	ranks, err := s.ranks(ctx, tx, fs)
+	if err != nil {
+		return Finding{}, err
+	}
+	kept := fs[0]
+	for _, f := range fs[1:] {
+		if ranks[f.ID] > ranks[kept.ID] {
+			kept = f
+		}
+	}
+	for _, f := range fs {
+		if f.ID == kept.ID {
+			continue
+		}
+		if err := s.foldFinding(ctx, tx, f.ID, kept.ID); err != nil {
+			return Finding{}, err
+		}
+	}
+	return kept, nil
+}
+
+// settleNoLine folds, for each CVE of the device that has both a finding on no line and findings on lines, the no-line finding into
+// the first line's finding (the decided one keeps its id and takes that line): a safe check's hit is about the software the line is.
+// It returns how many it folded.
+func (s *Service) settleNoLine(ctx context.Context, tx *sql.Tx, assetID string) (int, error) {
+	fs, err := queryFindings(ctx, tx, `asset_id = ?1 AND cve IN (SELECT cve FROM fnd_finding WHERE asset_id = ?1 AND software_id IS NULL)
+		AND cve IN (SELECT cve FROM fnd_finding WHERE asset_id = ?1 AND software_id IS NOT NULL)`, assetID)
+	if err != nil {
+		return 0, err
+	}
+	byCVE := map[string][]Finding{}
+	for _, f := range fs {
+		byCVE[f.CVE] = append(byCVE[f.CVE], f)
+	}
+	n := 0
+	for _, cve := range slices.Sorted(maps.Keys(byCVE)) {
+		group := byCVE[cve]
+		slices.SortStableFunc(group, func(a, b Finding) int { return strings.Compare(a.SoftwareID, b.SoftwareID) })
+		var noLine, line Finding
+		for _, f := range group {
+			switch {
+			case f.SoftwareID == "":
+				noLine = f
+			case line.ID == "":
+				line = f
+			}
+		}
+		if _, err := s.absorbNoLine(ctx, tx, noLine, line); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
+}
+
+// absorbNoLine folds the finding on no line and the finding on a line of the same CVE into one on that line: the one that ranks
+// higher keeps its id (the line finding on a tie). It returns the finding that stays, as stored.
+func (s *Service) absorbNoLine(ctx context.Context, tx *sql.Tx, noLine, line Finding) (Finding, error) {
+	kept, err := s.foldGroup(ctx, tx, []Finding{line, noLine})
+	if err != nil {
+		return Finding{}, err
+	}
+	if kept.ID == noLine.ID {
+		if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET software_id = ? WHERE id = ?`, line.SoftwareID, kept.ID); err != nil {
+			return Finding{}, fmt.Errorf("findings: giving a finding its line: %w", err)
+		}
+	}
+	return loadFinding(ctx, tx, kept.ID)
+}
+
+// LinesDeleted is findings' part of the inventory deleting software lines for good (removed lines past their retention), in the
+// inventory's write: the foreign key then sets software_id NULL on the findings of those lines, so every group that would meet on one
+// (device, CVE, no line) key is folded first into the one that ranks highest (a person's decision, else a confirmed one), with its
+// events, mitigation and response rows (FindingFolded): two removed lines of one CVE, or a removed line beside a finding on no line.
+func (s *Service) LinesDeleted(ctx context.Context, tx *sql.Tx, l lifecycle.LinesDelete) error {
+	if len(l.Lines) == 0 {
+		return nil
+	}
+	gone := make(map[string]bool, len(l.Lines))
+	for _, id := range l.Lines {
+		gone[id] = true
+	}
+	var fs []Finding
+	for _, id := range l.Lines {
+		got, err := queryFindings(ctx, tx, `software_id = ?`, id)
+		if err != nil {
+			return err
+		}
+		fs = append(fs, got...)
+	}
+	groups := map[string][]Finding{}
+	for _, f := range fs {
+		k := f.AssetID + "\x1f" + f.CVE
+		if _, ok := groups[k]; !ok {
+			noLine, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS NULL`, f.AssetID, f.CVE)
+			if err != nil {
+				return err
+			}
+			groups[k] = noLine // the finding on no line first: it keeps the key on a tie
+		}
+		groups[k] = append(groups[k], f)
+	}
+	folded := 0
+	for _, k := range slices.Sorted(maps.Keys(groups)) {
+		if len(groups[k]) < 2 {
+			continue
+		}
+		if _, err := s.foldGroup(ctx, tx, groups[k]); err != nil {
+			return err
+		}
+		folded += len(groups[k]) - 1
+	}
+	if folded == 0 {
+		return nil
+	}
+	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.lines_deleted", Target: l.Lines[0],
+		Detail: fmt.Sprintf("%d software lines deleted: %d findings of one CVE on them folded into one", len(l.Lines), folded)})
 }

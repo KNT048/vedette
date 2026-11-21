@@ -192,6 +192,7 @@ var seedsInvRows = map[string]bool{
 	"../../cmd/vedette/devicelifecycle_test.go":           true,
 	"../../cmd/vedette/softwareline_fixture_test.go":      true,
 	"../../modules/findings/findingstest/findingstest.go": true, // creates the device and line rows findings' tests point at (foreign keys)
+	"../../modules/findings/prune_test.go":                true, // deletes lines as the retention does, to see what the foreign key leaves
 }
 
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {

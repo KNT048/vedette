@@ -266,6 +266,20 @@ func (s *Service) records(ctx context.Context, q querier, fs []Finding, where st
 	return out, nil
 }
 
+// ignoredDevices is the set of devices a person ignored: their findings stay as they are, and every reader of open findings leaves
+// them out (an attribute of the device, never a change of its findings).
+func (s *Service) ignoredDevices(ctx context.Context) (map[string]bool, error) {
+	ids, err := s.cfg.Inventory.IgnoredIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reading the ignored devices: %w", err)
+	}
+	out := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
+}
+
 // AssetRisk is what a device's risk marker reads (inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
 // #949: one rule, never a cheaper test of its own).
 type AssetRisk struct{ Exploited, Updates int }
@@ -526,9 +540,10 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	return out
 }
 
-// ConfirmFromScan records a positive safe check for a CVE on a device (PRE-2): every finding of the CVE on the device is detected
-// with basis scan, verified scan; when the device has none, one is created on no software line. The scan's evidence is checked and
-// truncated like any untrusted reply. It returns the first of the findings in the older read model.
+// ConfirmFromScan records a positive safe check for a CVE on a device (PRE-2). The check is about the software line the CVE is on
+// (scanLine: the line the matcher reads the entry on, when the device has one): that line's finding is detected with basis scan,
+// verified scan, at the version the line reads now; a finding on no line takes the line; a device with no such line gets a finding on
+// no line. The scan's evidence is checked and truncated like any untrusted reply. It returns the finding in the older read model.
 func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev Evidence) (Record, error) {
 	if !ValidCVE(cve) {
 		return Record{}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidCVE)
@@ -537,8 +552,12 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		return Record{}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidEvidence)
 	}
 	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
+	line, version, productKey, err := s.scanLine(ctx, assetID, cve)
+	if err != nil {
+		return Record{}, err
+	}
 	var id string
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		// A scan that started before a person ignored the device confirms nothing on it
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, assetID); err != nil {
 			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
@@ -552,8 +571,29 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		isNew := len(fs) == 0
-		if isNew {
+		var onLine, noLine *Finding
+		for i := range fs {
+			switch fs[i].SoftwareID {
+			case line:
+				onLine = &fs[i]
+			case "":
+				noLine = &fs[i]
+			}
+		}
+		var f Finding
+		isNew := false
+		switch {
+		case onLine != nil && noLine != nil && line != "":
+			if f, err = s.absorbNoLine(ctx, tx, *noLine, *onLine); err != nil {
+				return err
+			}
+		case onLine != nil:
+			f = *onLine
+		case noLine != nil:
+			f = *noLine // it takes the line, when there is one (TrDetected)
+		case line == "" && len(fs) > 0:
+			f = fs[0] // the matcher names no line for the CVE: the finding the device has
+		default:
 			known, err := s.cfg.Inventory.Assets(ctx, []string{assetID})
 			if err != nil {
 				return fmt.Errorf("findings: reading the device: %w", err)
@@ -561,26 +601,24 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 			if _, ok := known[assetID]; !ok {
 				return fmt.Errorf("findings: confirming from scan on device %q: %w", assetID, ErrUnknownAsset)
 			}
-			fs = []Finding{{ID: store.NewID("f"), AssetID: assetID, CVE: cve}}
+			f, isNew = Finding{ID: store.NewID("f"), AssetID: assetID, CVE: cve}, true
 		}
-		for _, f := range fs {
-			e := ev
-			d := Detection{SoftwareID: f.SoftwareID, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: f.MatchedVersion,
-				Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
-			if f.State != "" {
-				d.RangeOrigin = f.RangeOrigin
-			}
-			g, _, err := s.step(ctx, tx, f, isNew, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
-			if err != nil {
-				return err
-			}
-			if isNew {
-				emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
-			}
-			if id == "" {
-				id = g.ID
-			}
+		e := ev
+		d := Detection{SoftwareID: line, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: version,
+			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
+		if !isNew {
+			d.RangeOrigin = f.RangeOrigin
+		} else {
+			d.ProductKey = productKey
 		}
+		g, _, err := s.step(ctx, tx, f, isNew, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
+		if err != nil {
+			return err
+		}
+		if isNew {
+			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
+		}
+		id = g.ID
 		return nil
 	})
 	if err != nil {
@@ -592,9 +630,50 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	return s.Get(ctx, id)
 }
 
-// RescanClear records that a safe check that had matched a CVE on a device came back clear: each finding of the CVE on the device
-// whose detection rests on the safe check goes away via scan_clear (patched by Vedette). A finding detected by a version is left to
-// the match pass.
+// scanLine is the software line of the device a safe check of the CVE is about: the line the matcher reads the entry on (a match,
+// a proof, or a row it could not decide), with the version it reads now and its product. "" when the device has none, or the entry is
+// not on the exploited list.
+func (s *Service) scanLine(ctx context.Context, assetID, cve string) (line, version, product string, err error) {
+	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
+	if err != nil {
+		return "", "", "", fmt.Errorf("findings: reading the device: %w", err)
+	}
+	if !ok {
+		return "", "", "", nil
+	}
+	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	if err != nil {
+		return "", "", "", fmt.Errorf("findings: reading the exploited list: %w", err)
+	}
+	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == cve })
+	if i < 0 {
+		return "", "", "", nil
+	}
+	m := MatchAsset(a, vulns[i:i+1], map[string]bool{cve: true}, s.now()) // as if it had a finding: a proof names its line too
+	var ids []string
+	for _, x := range slices.Concat(m.New, m.Existing) {
+		ids = append(ids, x.SoftwareID)
+		for _, l := range x.Lines {
+			ids = append(ids, l.SoftwareID)
+		}
+	}
+	for _, x := range slices.Concat(m.NotAffected, m.NameOnly, m.Aged, m.Unlisted, m.Asked) {
+		ids = append(ids, x.SoftwareID)
+	}
+	for _, n := range m.NeedVersion {
+		ids = append(ids, n.SoftwareID)
+	}
+	lines := deviceLines(a)
+	for _, id := range ids {
+		if l, ok := lines[storedLine(id)]; ok && storedLine(id) != "" {
+			return l.sw.ID, l.reading.Version, productKey(l.sw), nil
+		}
+	}
+	return "", "", "", nil
+}
+
+// RescanClear records that a safe check that had matched a CVE on a device came back clear: each finding of the CVE a safe check had
+// confirmed goes away via scan_clear (patched by Vedette), unless the device's own reading still shows the flaw (Transition).
 func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 	if !ValidCVE(cve) {
 		return fmt.Errorf("findings: recording a clear rescan: %w", ErrInvalidCVE)
@@ -608,7 +687,7 @@ func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 			return fmt.Errorf("findings: recording a clear rescan: %w", ErrNotFound)
 		}
 		for _, f := range fs {
-			if f.Basis != DetectScan {
+			if f.Verified != VerifiedScan {
 				continue
 			}
 			if _, _, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: ViaScanClear}, emit); err != nil {

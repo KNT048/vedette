@@ -75,3 +75,28 @@ func TestDeviceDeleted_RemovesFindingsEventsAndQuestions(t *testing.T) {
 		t.Fatal("wrong rows removed")
 	}
 }
+
+// After a merge, a finding on no line (the merged device's safe check hit) beside a finding on a line of the same CVE folds into one
+// on that line; the confirmed one keeps its id.
+func TestDeviceMerged_ANoLineFindingJoinsTheLineFinding(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, f := range []Finding{
+			{ID: "f-scan", AssetID: "a-1", CVE: "CVE-2026-1001", FirstSeen: t0, Basis: DetectScan, Verified: VerifiedScan},
+			{ID: "f-line", AssetID: "a-2", CVE: "CVE-2026-1001", SoftwareID: "s-1", FirstSeen: t0},
+		} {
+			if err := writeTestFinding(t.Context(), tx, f); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.mergeDevices(t, lifecycle.Merge{From: "a-1", Into: "a-2"})
+	fs, err := e.svc.Findings(t.Context(), "a-2")
+	if err != nil || len(fs) != 1 || fs[0].ID != "f-scan" || fs[0].SoftwareID != "s-1" || fs[0].Verified != VerifiedScan {
+		t.Fatalf("%+v %v", fs, err)
+	}
+}

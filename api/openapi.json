@@ -38950,6 +38950,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -39079,6 +39133,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -40577,6 +40685,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -40706,6 +40868,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -42206,6 +42422,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -42335,6 +42605,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -43829,6 +44153,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -43958,6 +44336,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -46329,6 +46761,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -46458,6 +46944,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -47932,6 +48472,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
@@ -48061,6 +48655,60 @@
                                 "shortened": {
                                   "description": "A part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
+                                },
+                                "answers": {
+                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "enum": [
+                                          "affected",
+                                          "fix",
+                                          "workaround",
+                                          "urgency"
+                                        ],
+                                        "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (the status reasons, attack vector, privileges)"
+                                      },
+                                      "text": {
+                                        "type": "string",
+                                        "maxLength": 1200,
+                                        "description": "A few short sentences; no heading"
+                                      },
+                                      "links": {
+                                        "maxItems": 8,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "url": {
+                                              "type": "string",
+                                              "pattern": "^https?:\\/\\/"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "description": "The references the answer rests on, from the brief; http(s) only"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "text",
+                                      "links"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [

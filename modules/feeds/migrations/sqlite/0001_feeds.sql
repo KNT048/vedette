@@ -106,7 +106,6 @@ CREATE TABLE feeds_epss_hist (
 -- table (retainedCVE): published inside the window, or on an exploited list (feeds_kev), or with a qualifying signal
 -- (feeds_signal) of any age, or pinned by an open finding. nvd_status and nvd_at are NULL until NVD answered for the CVE;
 -- record_at is when the CVE Program record was last read. A row an exploited list creates before NVD answers has only its id.
--- cwe_nvd is 1 while cwe is the list NVD's last answer gave (NVD listed weaknesses); 0 while it is the CVE record's.
 CREATE TABLE feeds_cve (
     cve               TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     published         TEXT CHECK (published IS NULL OR published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -117,7 +116,6 @@ CREATE TABLE feeds_cve (
     title             TEXT NOT NULL DEFAULT '' CHECK (length(title) <= 500),
     description       TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 4000),
     cwe               TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(cwe) AND json_type(cwe) = 'array'),
-    cwe_nvd           INTEGER NOT NULL DEFAULT 0 CHECK (cwe_nvd IN (0, 1)),
     solution          TEXT NOT NULL DEFAULT '' CHECK (length(solution) <= 4000),
     workaround        TEXT NOT NULL DEFAULT '' CHECK (length(workaround) <= 4000),
     ssvc_exploitation TEXT CHECK (ssvc_exploitation IS NULL OR (length(ssvc_exploitation) BETWEEN 1 AND 40 AND ssvc_exploitation NOT GLOB '*[^a-z0-9_]*')),

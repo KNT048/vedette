@@ -31,7 +31,7 @@ func (st Settings) scanWindow() schedule.Window {
 // starts on: "Friday 23:00 to 05:00" runs until Saturday 05:00. ok is false outside every window.
 func (st Settings) window(t time.Time) (start, end time.Time, ok bool) {
 	w := st.scanWindow()
-	if !w.Contains(t, t.Location()) {
+	if st.From == st.To || !w.Contains(t, t.Location()) { // equal times are no window here, never a whole day
 		return time.Time{}, time.Time{}, false
 	}
 	start, end, ok = w.Span(t, t.Location())
@@ -40,10 +40,18 @@ func (st Settings) window(t time.Time) (start, end time.Time, ok bool) {
 
 // windowLength is how long one window lasts (To after From on the same day, or across midnight); 0 when the
 // times are not valid.
-func (st Settings) windowLength() time.Duration { return st.scanWindow().Length() }
+func (st Settings) windowLength() time.Duration {
+	if st.From == st.To {
+		return 0
+	}
+	return st.scanWindow().Length()
+}
 
 // nextOpening is the first start of a window after t (in t's location); nil when there is none.
 func (st Settings) nextOpening(t time.Time) *time.Time {
+	if st.From == st.To {
+		return nil
+	}
 	w := st.scanWindow()
 	loc := t.Location()
 	start, end, ok := w.Span(t, loc)

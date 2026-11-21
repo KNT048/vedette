@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -585,6 +586,9 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 1 {
 		t.Fatalf("queue length after restart = %d, want 1", n)
 	}
+	if _, err := comesDue(e, run.Schedule); err != nil { // the sweep's schedule queues the pass
+		t.Fatal(err)
+	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +596,8 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	for _, c := range e.nm.calls(t) {
 		kinds = append(kinds, c[1])
 	}
-	// the queued device no check reached yet goes before the day's sweep (top 1000, then the extra ports), then the sweep
+	// the pass the schedule queued, and the queued device's scans (top 1000, then the extra ports): all three ran, whatever their order
+	slices.Sort(kinds)
 	if !slices.Equal(kinds, []string{"-sS", "-sS", "-sn"}) {
 		t.Fatalf("runs = %v", kinds)
 	}
@@ -604,8 +609,9 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	}
 }
 
-// One sweep per window; a new window day sweeps again; a stopped sweep is repeated when the window is open.
-func TestTickSweepsOncePerWindow(t *testing.T) {
+// The window starts no pass of its own: the tick goes on with the pass the schedule queued, once, and a pass that is done is not
+// made again by the ticks that follow; the next due time of the schedule makes the next one.
+func TestTickFollowsThePassTheScheduleQueued(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
 	for range 3 {
@@ -613,15 +619,29 @@ func TestTickSweepsOncePerWindow(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := len(e.nm.calls(t)); n != 1 {
-		t.Fatalf("%d sweeps in one window, want 1", n)
+	if n := len(e.nm.calls(t)); n != 0 {
+		t.Fatalf("%d sweeps although the schedule did not come due, want none", n)
 	}
-	e.setClock(local(10, 2, 0)) // next night
+	if _, err := comesDue(e, run.Schedule); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if err := e.svc.Tick(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(e.nm.calls(t)); n != 1 {
+		t.Fatalf("%d sweeps for one due time, want 1", n)
+	}
+	e.setClock(local(10, 2, 0)) // next night: the schedule comes due again
+	if _, err := comesDue(e, run.Schedule); err != nil {
+		t.Fatal(err)
+	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(e.nm.calls(t)); n != 2 {
-		t.Fatalf("%d sweeps after the next window opened, want 2", n)
+		t.Fatalf("%d sweeps after the next due time, want 2", n)
 	}
 }
 

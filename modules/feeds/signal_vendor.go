@@ -78,6 +78,10 @@ type vendorRead struct {
 	// Claimed: for each CVE, the links of every advisory the box knows to claim it now (read now or before; Cisco, Fortinet). A row
 	// whose advisory no longer claims its CVE moves to another of them instead of going.
 	Claimed map[string][]string
+	// Unclassified: sentences about exploitation in no known form (the first in the advisory UnclassifiedIn): counted on the pull's
+	// note, never read as claims, never rejected rows.
+	Unclassified   int
+	UnclassifiedIn string
 	Stats
 }
 

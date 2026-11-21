@@ -1,10 +1,13 @@
 package feeds
 
 import (
+	"compress/flate"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -61,7 +64,7 @@ var (
 	csafRevNegRE     = regexp.MustCompile(`(?i)\b(?:not|no|never|nor)\b|n't\b`)
 	csafRevPoCRE     = regexp.MustCompile(`(?i)proof[- ]of[- ]concept|\bpoc\b|exploit code|public(?:ly)? (?:disclos|availab)`)
 	// csafExploitedFlagRE: the CSAF threat of category exploit_status as some vendors fill it ("Exploited:Yes").
-	csafExploitedFlagRE = regexp.MustCompile(`(?i)\bexploited\s*:\s*yes\b`)
+	csafExploitedFlagRE = regexp.MustCompile(`(?i)\bexploited\s*:\s*(yes|no)\b`)
 )
 
 type csafNote struct {
@@ -277,12 +280,15 @@ func (d csafDoc) claimDates(cves []string, work *claimWork) map[string]time.Time
 type csafSection func(csafNote) bool
 
 // csafClaims is the CVEs a document claims are exploited, with their dates, and the count of its sentences about exploitation in no
-// known form. Structured first: when any vulnerability has a CSAF threat of category exploit_status, those threats decide
-// ("Exploited: Yes") and no text is read. Otherwise the vendor's forms are read in the document notes section picks (scope: every
+// known form. Structured first: when a vulnerability has a CSAF threat of category exploit_status in a known form ("Exploited: Yes"
+// or "Exploited: No"), those threats decide and no text is read; an exploit_status in another form is counted and the text is read. Otherwise the vendor's forms are read in the document notes section picks (scope: every
 // CVE of the document) and, with perVuln, in each vulnerability's own notes, threats and reference summaries (scope: its CVE). The
 // text read is bounded (csafMaxClaimText) and the work grows with the document's size only (claimWork).
 func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafSection, perVuln bool, work *claimWork) ([]vendorClaim, int, error) {
 	all := d.cves()
+	if len(all) == 0 {
+		return nil, 0, nil // no CVE to claim (an advisory still under investigation)
+	}
 	inDoc := make(map[string]bool, len(all))
 	for _, c := range all {
 		inDoc[c] = true
@@ -297,9 +303,14 @@ func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafS
 			if !strings.EqualFold(t.Category, "exploit_status") {
 				continue
 			}
+			m := csafExploitedFlagRE.FindStringSubmatch(t.Text)
+			if m == nil { // a value in no known form: counted, and the document's text is read as usual
+				r.unclassified++
+				continue
+			}
 			structured = true
-			if inDoc[c] && csafExploitedFlagRE.MatchString(t.Text) {
-				r.claim(c)
+			if inDoc[c] && strings.EqualFold(m[1], "yes") {
+				r.claim(c, true)
 			}
 		}
 	}
@@ -313,8 +324,8 @@ func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafS
 		}
 		for _, v := range d.Vulnerabilities {
 			c := strings.ToUpper(strings.TrimSpace(v.CVE))
-			if !perVuln || !inDoc[c] || len(r.order) == len(all) {
-				continue // every CVE of the document is claimed already: nothing to add
+			if !perVuln || !inDoc[c] {
+				continue
 			}
 			scope, scopeSet := []string{c}, map[string]bool{c: true}
 			texts := make([]string, 0, len(v.Notes)+len(v.Threats)+len(v.References))
@@ -322,7 +333,9 @@ func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafS
 				texts = append(texts, n.Text)
 			}
 			for _, t := range v.Threats {
-				texts = append(texts, t.Text)
+				if !strings.EqualFold(t.Category, "exploit_status") { // counted above already
+					texts = append(texts, t.Text)
+				}
 			}
 			texts = append(texts, v.References...)
 			for _, t := range texts {
@@ -332,9 +345,13 @@ func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafS
 			}
 		}
 	}
-	dates := d.claimDates(r.order, work)
-	out := make([]vendorClaim, 0, len(r.order))
-	for _, c := range r.order {
+	claimed := r.order
+	if !structured {
+		claimed = r.result()
+	}
+	dates := d.claimDates(claimed, work)
+	out := make([]vendorClaim, 0, len(claimed))
+	for _, c := range claimed {
 		out = append(out, vendorClaim{CVE: c, Date: dates[c], Flag: structured})
 	}
 	return out, r.unclassified, nil
@@ -601,8 +618,11 @@ func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csaf
 			return read, 0, err
 		}
 		tl.Accepted++
-		if unclassified > 0 { // new wording is noticed on the feed's log, never read as a claim
-			tl.reject(i+1, "%s: a sentence about exploitation in no known form", ref.ID)
+		if unclassified > 0 { // new wording is noticed on the feed's note, never read as a claim
+			if read.Unclassified == 0 {
+				read.UnclassifiedIn = ref.ID
+			}
+			read.Unclassified += unclassified
 		}
 		link := advisoryURL + ref.ID
 		detail, _ := json.Marshal(map[string]string{"advisory": ref.ID})
@@ -632,6 +652,20 @@ func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csaf
 	return read, size, nil
 }
 
+// unclassifiedNote adds to a pull's note how many sentences about exploitation were in no known form: they are not read as claims,
+// and the note is how new wording gets noticed.
+func unclassifiedNote(note string, r vendorRead) string {
+	if r.Unclassified == 0 {
+		return note
+	}
+	s := "sentences"
+	if r.Unclassified == 1 {
+		s = "sentence"
+	}
+	add := fmt.Sprintf("%s %s about exploitation in no form Vedette knows (first in %s); not read as claims.", grouped(r.Unclassified), s, r.UnclassifiedIn)
+	return strings.TrimSpace(note + " " + add)
+}
+
 // transportReader marks the errors of the connection itself, so a document cut by the network is told from a bad document.
 type transportReader struct{ r io.Reader }
 
@@ -642,7 +676,12 @@ func (e transportErr) Unwrap() error { return e.err }
 
 func (t *transportReader) Read(p []byte) (int, error) {
 	n, err := t.r.Read(p)
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, ErrTooLarge) {
+	var corrupt flate.CorruptInputError
+	switch {
+	case err == nil, errors.Is(err, io.EOF), errors.Is(err, ErrTooLarge):
+	case errors.Is(err, gzip.ErrChecksum), errors.Is(err, gzip.ErrHeader), errors.As(err, &corrupt):
+		// a corrupt compressed body is a bad document (counted), not a broken connection
+	default:
 		err = transportErr{err}
 	}
 	return n, err
@@ -695,6 +734,7 @@ func (s *Service) buildCisco(ctx context.Context, src sourceRow, p pullPlan) (pu
 	read.Reasons = append(read.Reasons, st.Reasons...)
 	p.out = outcome{OK: true, Bytes: size + n}
 	p.out.fill(read.Stats, 0)
+	p.out.Note = unclassifiedNote(p.out.Note, read)
 	p.vendor, p.hasVendor, p.vendorMem = read, true, mem
 	return p, nil
 }
@@ -747,6 +787,7 @@ func (s *Service) buildFortinet(ctx context.Context, src sourceRow, p pullPlan) 
 	read.Reasons = append(read.Reasons, st.Reasons...)
 	p.out = outcome{OK: true, Bytes: size + n, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(read.Stats, 0)
+	p.out.Note = unclassifiedNote(p.out.Note, read)
 	p.vendor, p.hasVendor, p.vendorMem = read, true, mem
 	return p, nil
 }

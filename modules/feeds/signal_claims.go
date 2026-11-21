@@ -29,15 +29,24 @@ const (
 
 // claimForm is one sentence form of a vendor, as a pattern over the canonical sentence (whole sentence).
 type claimForm struct {
-	re    *regexp.Regexp
-	claim bool // the form claims exploitation; false: a known form that claims nothing
-	all   bool // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
+	re   *regexp.Regexp
+	kind formKind
+	all  bool // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
 }
 
-func forms(claim, all bool, patterns ...string) []claimForm {
+// formKind says what a sentence of a form states.
+type formKind int
+
+const (
+	formClaim   formKind = iota // exploitation is known
+	formDenial                  // the vendor knows of no exploitation: of the CVEs it names, or of the vulnerability it speaks of
+	formNeutral                 // a known form that claims nothing (proof-of-concept code, a precondition)
+)
+
+func forms(kind formKind, all bool, patterns ...string) []claimForm {
 	out := make([]claimForm, 0, len(patterns))
 	for _, p := range patterns {
-		out = append(out, claimForm{re: regexp.MustCompile(`^(?:` + p + `)$`), claim: claim, all: all})
+		out = append(out, claimForm{re: regexp.MustCompile(`^(?:` + p + `)$`), kind: kind, all: all})
 	}
 	return out
 }
@@ -45,6 +54,10 @@ func forms(claim, all bool, patterns ...string) []claimForm {
 var (
 	claimWordsRE = regexp.MustCompile(`(?i)exploit|malicious use|in the wild`) // a sentence about exploitation
 	claimCVERE   = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,12}\b`)
+	// claimTurnRE: words of a claim, or of a turn to one, that no sentence of a denial or neutral form holds: such a sentence goes on
+	// past what the form knows and is unclassified, so a claim after a denial is never swallowed.
+	claimTurnRE = regexp.MustCompile(`in the wild|became aware|is aware of (?:the )?(?:active|attempted|limited|successful|exploitation|malicious)|` +
+		`(?:has|have) been exploited|being exploited|, but |(?:has|have|been) observed`)
 	// canonical form
 	claimLinkRE  = regexp.MustCompile(`\s*\["[^"\]]{0,500}"\]`)
 	claimCVEsRE  = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and| or|, and|, or) cve-[0-9]{4}-[0-9]{4,12})*`)
@@ -61,31 +74,37 @@ const (
 	ciscoAwareOf  = ciscoWhen + ciscoPSIRT + ` (?:is|became) aware of (?:the )?`
 	ciscoExploits = `(?:(?:active|attempted|limited|successful) )?exploitation of `
 	ciscoWild     = `(?: in the wild)?(?: after local administrator credentials were compromised)?`
+	// what a denial or a proof-of-concept note speaks of, as Cisco ends those sentences
+	ciscoOf = `(?:this (?:vulnerability|issue)|these vulnerabilities|the (?:vulnerability|vulnerabilities|issue) (?:that (?:is|are) )?described in ` +
+		`(?:this advisory|\{cve\})|any of the other vulnerabilities that are described in this advisory|\{cve\})`
 )
 
 // ciscoForms: Cisco's "Exploitation and Public Announcements" section, as written in its advisories of 2025–2026.
 var ciscoForms = concatForms(
-	forms(true, false,
+	forms(formClaim, false,
 		ciscoAwareOf+ciscoExploits+ciscoOne+ciscoWild,
 		ciscoAwareOf+`malicious use of `+ciscoOne),
-	forms(true, true,
+	forms(formClaim, true,
 		ciscoAwareOf+ciscoExploits+ciscoMany+ciscoWild,
 		ciscoAwareOf+`malicious use of `+ciscoMany),
-	forms(false, false,
-		`(?:except as otherwise noted previously, )?(?:`+ciscoPSIRT+`|cisco) is not aware of [a-z0-9 ,{}()-]{1,300}`,
-		ciscoPSIRT+` is aware that proof-of-concept exploit code is available for [a-z0-9 ,{}()-]{1,200}`,
-		`\{when\} this vulnerability was added to the known exploited vulnerabilit(?:y|ies) \(kev\) [a-z0-9 ,.()-]{1,200}`,
-		`to exploit this vulnerability, an attacker must [a-z0-9 ,()-]{1,300}`),
+	forms(formDenial, false,
+		`(?:except as otherwise noted previously, )?`+ciscoPSIRT+` is not aware of (?:any )?(?:public announcements or )?malicious use of `+ciscoOf+
+			`(?: against any cisco product)?`),
+	forms(formNeutral, false,
+		ciscoPSIRT+` is (?:aware that proof-of-concept exploit code is available for|not aware of proof-of-concept exploit code for) `+ciscoOf,
+		`\{when\} this vulnerability was added to the known exploited vulnerabilit(?:y|ies) \(kev\) (?:database|catalog) of the u\.s`,
+		`to exploit this vulnerability, an attacker must have [a-z0-9 -]{1,60} privileges on an affected (?:system|device)`,
+		`cisco is not aware of successful exploitation by other methods`), // narrows how, not whether: no denial
 )
 
 // fortinetForms: Fortinet's descriptions of a vulnerability, as written in its advisories of 2024–2026.
 var fortinetForms = concatForms(
-	forms(true, false,
+	forms(formClaim, false,
 		`(?:fortinet has observed this to be|this has been (?:observed|reported) to be|this vulnerability was found being|`+
 			`please note that reports show this is being|fortinet is aware of an instance where this vulnerability was) exploited in the wild`+
 			`(?: on [a-z0-9 -]{1,60}| and urges vulnerable customers to [a-z0-9 .,:-]{1,200}|, customers are urged to apply the workaround below|`+
 			` by two malicious forticloud accounts, which were locked out on [0-9-]{10})?`),
-	forms(false, false,
+	forms(formNeutral, false,
 		`(?:however, )?(?:successful )?exploitation requires [a-z0-9 ,()/-]{1,300}`,
 		`the presence of security controls [a-z0-9 ,()-]{1,200} required for exploitation`,
 		`this vulnerability can only be abused as a consequence of [a-z0-9 ,()-]{1,300}`,
@@ -112,26 +131,60 @@ func (w *claimWork) step(n int) {
 	}
 }
 
-// claimReader reads the claims of one document against a vendor's forms, within the scope of its sections.
+// claimReader reads the claims of one document against a vendor's forms, within the scope of its sections. It reads every sentence
+// of a section, then settles (result): a denial that names a CVE takes it out of a claim made for the whole section; a CVE both
+// claimed and denied by name, or a section both claimed and denied as a whole, is a contradiction, not a claim, and is counted as
+// unclassified.
 type claimReader struct {
 	forms        []claimForm
-	claimed      map[string]bool
-	order        []string
+	order        []string        // the CVEs claimed, in order
+	byName       map[string]bool // claimed by a sentence that names it
+	whole        map[string]bool // claimed by a sentence about the section's vulnerabilities
+	deniedByName map[string]bool
+	deniedWhole  bool // a denial about the section's vulnerabilities
+	wholeDone    bool // the whole document's scope is claimed already (its CVEs are not walked again)
 	unclassified int
-	total        int // the CVEs of the document: once all are claimed, nothing is left to read
+	total        int // the CVEs of the document
 	budget       int // bytes of text still read (csafMaxClaimText for a document)
 	work         *claimWork
 }
 
 func newClaimReader(forms []claimForm, budget int, work *claimWork) *claimReader {
-	return &claimReader{forms: forms, claimed: map[string]bool{}, budget: budget, work: work}
+	return &claimReader{forms: forms, byName: map[string]bool{}, whole: map[string]bool{}, deniedByName: map[string]bool{}, budget: budget, work: work}
 }
 
-func (r *claimReader) claim(cve string) {
-	if !r.claimed[cve] {
-		r.claimed[cve] = true
+func (r *claimReader) claim(cve string, named bool) {
+	if !r.byName[cve] && !r.whole[cve] {
 		r.order = append(r.order, cve)
 	}
+	if named {
+		r.byName[cve] = true
+	} else {
+		r.whole[cve] = true
+	}
+}
+
+// result is the CVEs claimed once every sentence is read, denials applied.
+func (r *claimReader) result() []string {
+	out := make([]string, 0, len(r.order))
+	conflictWhole := false
+	for _, c := range r.order {
+		r.work.step(1)
+		switch {
+		case r.deniedByName[c] && r.byName[c]:
+			r.unclassified++ // the same CVE claimed and denied by name
+		case r.deniedByName[c]:
+			// claimed for the whole section, denied by name: not this one
+		case r.deniedWhole && !r.byName[c]:
+			conflictWhole = true
+		default:
+			out = append(out, c)
+		}
+	}
+	if conflictWhole {
+		r.unclassified++ // the section claimed and denied as a whole
+	}
+	return out
 }
 
 // read reads one text (plain or HTML) of a section whose CVEs are scope (scopeSet: the same as a set). It stops when ctx ends.
@@ -150,9 +203,6 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 	}
 	for i, sentence := range claimSentences(text) {
 		r.work.step(1)
-		if r.total > 0 && len(r.order) == r.total {
-			return nil
-		}
 		if i%64 == 0 {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -169,28 +219,41 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 		r.work.step(len(named))
 		var form *claimForm
 		for i := range r.forms {
-			if r.forms[i].re.MatchString(canon) {
-				form = &r.forms[i]
+			f := &r.forms[i]
+			if f.re.MatchString(canon) && (f.kind == formClaim || !claimTurnRE.MatchString(canon)) {
+				form = f
 				break
 			}
 		}
 		switch {
 		case form == nil:
 			r.unclassified++
-		case !form.claim:
+		case form.kind == formNeutral:
+		case form.kind == formDenial && len(named) > 0:
+			for _, c := range named {
+				if scopeSet[c] {
+					r.deniedByName[c] = true
+				}
+			}
+		case form.kind == formDenial:
+			if !strings.HasPrefix(canon, "except as otherwise noted previously") { // that one leaves the claims before it
+				r.deniedWhole = true
+			}
 		case len(named) > 0:
 			for _, c := range named {
 				if scopeSet[c] {
-					r.claim(c)
+					r.claim(c, true)
 				}
 			}
-		case form.all:
+		case form.all || len(scope) == 1:
+			if r.wholeDone && len(scope) == r.total {
+				continue
+			}
 			for _, c := range scope {
-				r.claim(c)
+				r.claim(c, false)
 			}
 			r.work.step(len(scope))
-		case len(scope) == 1:
-			r.claim(scope[0])
+			r.wholeDone = r.wholeDone || len(scope) == r.total
 		default:
 			r.unclassified++ // "this vulnerability" in a section of several
 		}
@@ -198,9 +261,10 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 	return nil
 }
 
-// canonicalSentence is a sentence in the canonical form the forms are written for, and the CVE ids it names (upper case, in order,
-// distinct).
+// canonicalSentence is a sentence in the canonical form the forms are written for, and the CVE ids it names outside link targets
+// (upper case, in order, distinct).
 func canonicalSentence(s string) (string, []string) {
+	s = claimLinkRE.ReplaceAllString(s, "")
 	var named []string
 	seen := map[string]bool{}
 	for _, id := range claimCVERE.FindAllString(s, -1) {
@@ -209,7 +273,6 @@ func canonicalSentence(s string) (string, []string) {
 			named = append(named, id)
 		}
 	}
-	s = claimLinkRE.ReplaceAllString(s, "")
 	s = strings.ToLower(claimSpaceRE.ReplaceAllString(strings.TrimSpace(s), " "))
 	s = strings.TrimRight(s, ".! ")
 	s = claimCVEsRE.ReplaceAllString(s, "{cve}")

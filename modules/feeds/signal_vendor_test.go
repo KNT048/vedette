@@ -18,10 +18,12 @@ func readForms(t *testing.T, forms []claimForm, text string, scope []string) ([]
 		set[c] = true
 	}
 	r := newClaimReader(forms, csafMaxClaimText, nil)
+	r.total = len(scope)
 	if err := r.read(t.Context(), text, scope, set); err != nil {
 		t.Fatal(err)
 	}
-	return r.order, r.unclassified
+	got := r.result()
+	return got, r.unclassified
 }
 
 func TestClaimForms_VendorsOwnSentencesOnly(t *testing.T) {
@@ -47,6 +49,10 @@ func TestClaimForms_VendorsOwnSentencesOnly(t *testing.T) {
 		{"Cisco these", ciscoForms, "The Cisco PSIRT is aware of attempted exploitation of these vulnerabilities.", three, three},
 		{"Cisco SD-WAN: a denial, then a claim", ciscoForms, "The Cisco PSIRT is not aware of any public announcements or malicious use of the vulnerabilities that are described in " + a + " and " + b + ".\r\n\r\n" +
 			"In March 2026, the Cisco PSIRT became aware of active exploitation of the vulnerability that is described in " + c + " only.", three, []string{c}},
+		{"Cisco: a denial in a later sentence narrows a claim about the section", ciscoForms,
+			"The Cisco PSIRT is aware of attempted exploitation of the vulnerabilities that are described in this advisory.\nThe Cisco PSIRT is not aware of any malicious use of " + b + ".", three, []string{a, c}},
+		{"Cisco: except as otherwise noted leaves the claims before it", ciscoForms,
+			"In March 2026, the Cisco PSIRT became aware of active exploitation of the vulnerability that is described in " + c + ".\nExcept as otherwise noted previously, the Cisco PSIRT is not aware of any public announcements or malicious use of the vulnerabilities that are described in this advisory.", three, []string{c}},
 		{"Fortinet observed", fortinetForms, "A path confusion vulnerability.\n\nFortinet has observed this to be exploited in the wild.", one, one},
 		{"Fortinet product", fortinetForms, "Fortinet has observed this to be exploited in the wild on FortiWeb.", one, one},
 		{"Fortinet reported", fortinetForms, "<p>This has been reported to be exploited in the wild, customers are urged to apply the workaround below.</p>", one, one},
@@ -68,7 +74,12 @@ func TestClaimForms_VendorsOwnSentencesOnly(t *testing.T) {
 	}{
 		{"The Cisco PSIRT is not aware of any public announcements or malicious use of the vulnerability that is described in this advisory.", true},
 		{"The Cisco PSIRT is aware that proof-of-concept exploit code is available for the vulnerability described in this advisory.", true},
-		{"The Cisco PSIRT is not aware of malicious use of " + a + ", but is aware of active exploitation of " + b + ".", true},
+		// a denial or a neutral note that goes on into a claim is unclassified, never swallowed by the denial's form
+		{"The Cisco PSIRT is not aware of malicious use of " + a + ", but is aware of active exploitation of " + b + ".", false},
+		{"The Cisco PSIRT is not aware of any malicious use of " + a + ", but is aware of active exploitation of " + b + " in the wild.", false},
+		{"The Cisco PSIRT is aware that proof-of-concept exploit code is available for this vulnerability and is aware of active exploitation in the wild.", false},
+		{"Exploitation requires an authenticated session, and Fortinet has observed this to be exploited in the wild.", false},
+		{"The vulnerability can be exploited via the GUI and has been exploited in the wild on FortiOS.", false},
 		{"The PSIRT became aware of attempted exploitation of " + a + " and is not aware of malicious use of " + b + ".", false},
 		{"The Cisco PSIRT is aware of attempted exploitation of " + a + " and is not aware of malicious use of " + b + ".", false},
 		{"The Cisco PSIRT is aware of attempted exploitation of one of the vulnerabilities that are described in this advisory.", false},
@@ -128,9 +139,19 @@ func TestClaimForms_VendorsOwnSentencesOnly(t *testing.T) {
 			}
 		}
 	}
-	// "this vulnerability" in a section of several CVEs names none of them
-	if got, unclassified := readForms(t, ciscoForms, "The Cisco PSIRT is aware of attempted exploitation of this vulnerability.", three); len(got) != 0 || unclassified != 1 {
-		t.Errorf("this vulnerability of three: %v, %d", got, unclassified)
+	// "this vulnerability" in a section of several CVEs names none of them, and a CVE id inside a link target is not the subject
+	for _, text := range []string{
+		"The Cisco PSIRT is aware of attempted exploitation of this vulnerability.",
+		"The Cisco PSIRT is aware of attempted exploitation of this vulnerability [\"https://www.cve.org/CVERecord?id=" + b + "\"].",
+	} {
+		if got, unclassified := readForms(t, ciscoForms, text, three); len(got) != 0 || unclassified != 1 {
+			t.Errorf("%q in a section of three: %v, %d", text, got, unclassified)
+		}
+	}
+	// a claim about the section and a denial about the section contradict each other: no claim, counted
+	if got, unclassified := readForms(t, ciscoForms, "The Cisco PSIRT is aware of attempted exploitation of these vulnerabilities.\n"+
+		"The Cisco PSIRT is not aware of any malicious use of the vulnerabilities that are described in this advisory.", three); len(got) != 0 || unclassified != 1 {
+		t.Errorf("claimed and denied as a whole: %v, %d", got, unclassified)
 	}
 }
 
@@ -662,5 +683,119 @@ func TestFortinet_ACutConnectionFailsThePull(t *testing.T) {
 	}
 	if st := e.feed(fortinetFeedID); st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 of 2") {
 		t.Fatalf("the bad document counted, the other read: %+v %q", st, deref(st.Error))
+	}
+}
+
+// An exploit_status threat in no known form does not make a document "structured": its text is still read, and the value is counted.
+func TestCSAF_UnknownExploitStatusStillReadsTheText(t *testing.T) {
+	t.Parallel()
+	d, err := parseCSAF(strings.NewReader(`{"document":{"tracking":{"id":"FG-IR-26-1","initial_release_date":"2026-01-01T00:00:00"}},"vulnerabilities":[
+{"cve":"CVE-2026-0001","threats":[{"category":"exploit_status","details":"Exploitation: Detected"}]},
+{"cve":"CVE-2026-0002","references":[{"summary":"Fortinet has observed this to be exploited in the wild."}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs, unclassified, err := fortinetClaims(t.Context(), d, nil)
+	if err != nil || len(cs) != 1 || cs[0].CVE != "CVE-2026-0002" || cs[0].Flag || unclassified != 1 {
+		t.Errorf("%+v %d %v", cs, unclassified, err)
+	}
+}
+
+// A Cisco copy older than the change its feed announced is read again at the next pull, until the document catches up.
+func TestCisco_ADocumentOlderThanItsFeedIsReadAgain(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.setNow(time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC))
+	e.only(ciscoFeedID)
+	e.mirror(ciscoFeedID, o.url(ciscoFeedPath))
+	const id = "cisco-sa-lag-Ab123456"
+	o.body(ciscoFeedPath, `"f"`, ciscoFeed([2]string{id, "2026-11-21 05:00:00.0"}))
+	doc := func(current string) string {
+		return strings.Replace(ciscoDoc(id, "2026-11-01T16:00:00+00:00", "The Cisco PSIRT is aware of attempted exploitation of this vulnerability.", nil, "CVE-2026-4001"),
+			`"current_release_date":"2026-11-21T23:59:59+00:00"`, `"current_release_date":"`+current+`"`, 1)
+	}
+	for i, c := range []struct {
+		current string
+		reads   int
+	}{
+		{"2026-11-20T00:00:00+00:00", 1}, // the old copy: read, not marked
+		{"2026-11-20T00:00:00+00:00", 2}, // read again
+		{"2026-11-21T05:00:00+00:00", 3}, // the change arrived: read and marked
+		{"2026-11-21T05:00:00+00:00", 3}, // not read again
+	} {
+		o.body(ciscoDocPath(id), fmt.Sprintf(`"d%d"`, i), doc(c.current))
+		e.setNow(e.clock().Add(6 * time.Hour))
+		if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
+			t.Fatal(err)
+		}
+		if n := o.count(ciscoDocPath(id)); n != c.reads {
+			t.Errorf("pull %d: %d reads, want %d", i+1, n, c.reads)
+		}
+	}
+}
+
+// A row whose advisory no longer claims its CVE moves to the advisory that now does, read in the same pull; when that one takes
+// it back too, the row goes. A sentence in no known form is told on the pull's note, never as a rejected row.
+func TestCisco_ALinkMovesToTheClaimingDocument(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.setNow(time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC))
+	e.only(ciscoFeedID)
+	e.mirror(ciscoFeedID, o.url(ciscoFeedPath))
+	const a, b, x = "cisco-sa-aaa-Aa111111", "cisco-sa-bbb-Bb222222", "CVE-2026-5001"
+	claim := "The Cisco PSIRT is aware of attempted exploitation of " + x + " in the wild."
+	deny := "The Cisco PSIRT is not aware of any malicious use of " + x + "."
+	o.body(ciscoFeedPath, `"f1"`, ciscoFeed([2]string{a, "2026-11-20 10:00:00.0"}))
+	o.body(ciscoDocPath(a), `"a1"`, ciscoDoc(a, "2026-11-20T10:00:00+00:00", claim+"\nCisco has seen this vulnerability used by a botnet exploit kit.", nil, x))
+	if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
+		t.Fatal(err)
+	}
+	st := e.feed(ciscoFeedID)
+	if got := vendorRows(t, e, ciscoFeedID)[x]; !strings.Contains(got, a) || st.Status != "ok" ||
+		!strings.Contains(deref(st.Error), "1 sentence about exploitation in no form Vedette knows (first in "+a+")") || strings.Contains(deref(st.Error), "rejected") {
+		t.Fatalf("%q; %+v %q", got, st, deref(st.Error))
+	}
+
+	e.setNow(e.clock().Add(6 * time.Hour))
+	o.body(ciscoFeedPath, `"f2"`, ciscoFeed([2]string{b, "2026-11-21 08:00:00.0"}, [2]string{a, "2026-11-21 07:00:00.0"}))
+	o.body(ciscoDocPath(a), `"a2"`, ciscoDoc(a, "2026-11-20T10:00:00+00:00", deny, nil, x))
+	o.body(ciscoDocPath(b), `"b1"`, ciscoDoc(b, "2026-11-21T08:00:00+00:00", claim, nil, x))
+	if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := vendorRows(t, e, ciscoFeedID)[x]; !strings.Contains(got, "/"+b+` {"advisory":"`+b+`"}`) || !strings.HasPrefix(got, "2026-11-20T10:00") {
+		t.Fatalf("moved: %q", got)
+	}
+
+	e.setNow(e.clock().Add(6 * time.Hour))
+	o.body(ciscoFeedPath, `"f3"`, ciscoFeed([2]string{b, "2026-11-21 13:00:00.0"}, [2]string{a, "2026-11-21 07:00:00.0"}))
+	o.body(ciscoDocPath(b), `"b2"`, ciscoDoc(b, "2026-11-21T08:00:00+00:00", deny, nil, x))
+	if err := e.svc.Fetch(t.Context(), ciscoFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := vendorRows(t, e, ciscoFeedID); len(got) != 0 || o.count(ciscoDocPath(a)) != 2 {
+		t.Fatalf("taken back: %v, %d reads of a", got, o.count(ciscoDocPath(a)))
+	}
+}
+
+// A document whose compressed body is corrupt is a bad document (counted), not a failed pull.
+func TestFortinet_ACorruptCompressedDocumentIsCounted(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.setNow(time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC))
+	e.only(fortinetFeedID)
+	e.mirror(fortinetFeedID, o.url(fortiFeedPath))
+	const p1, p2 = "/fortiguard/psirt/csaf_one_fg-ir-26-100.json", "/fortiguard/psirt/csaf_two_fg-ir-25-910.json"
+	o.body(fortiFeedPath, `"r1"`, fortiFeed([2]string{"FG-IR-26-100", "https://filestore.fortinet.com" + p1}, [2]string{"FG-IR-25-910", "https://filestore.fortinet.com" + p2}))
+	o.serve(p1, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		_, _ = w.Write([]byte("this is not a gzip stream"))
+	})
+	o.body(p2, `"d2"`, fortiDoc("FG-IR-25-910", "2025-11-14T00:00:00", [2]string{"CVE-2025-3002", "Fortinet has observed this to be exploited in the wild."}))
+	if err := e.svc.Fetch(t.Context(), fortinetFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if st := e.feed(fortinetFeedID); st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 of 2") {
+		t.Fatalf("%+v %q", st, deref(st.Error))
 	}
 }

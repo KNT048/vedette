@@ -84,8 +84,8 @@ func FuzzClaimForms(f *testing.F) {
 			if err := r.read(t.Context(), text, []string{scope}, map[string]bool{scope: true}); err != nil {
 				t.Fatal(err)
 			}
-			if len(r.order) > 1 || (len(r.order) == 1 && r.order[0] != scope) {
-				t.Fatalf("%q claims %v outside its scope", text, r.order)
+			if got := r.result(); len(got) > 1 || (len(got) == 1 && got[0] != scope) {
+				t.Fatalf("%q claims %v outside its scope", text, got)
 			}
 		}
 	})

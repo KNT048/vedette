@@ -37,23 +37,32 @@ export function briefStatus(b: CveBrief): OpenStatus {
 /** A range's product in words: "vmware esxi" (the CPE's words, as the brief's `products` gives them). */
 export const rangeProduct = (r: Pick<CveRange, 'vendor' | 'product'>) => `${r.vendor} ${r.product}`.replace(/_/g, ' ').trim()
 
-export type FixRow = { product: string; versions: string; fixed: string; origin: CveRange['origin'] }
+export type FixRow = { product: string; train: string; versions: string; fixed: string; origin: CveRange['origin']; names: string[] }
 
 /**
- * The ranges that name a fixed release, one row per product and fixed release, the ones that count first. The rows of the other
- * origin stay: a vendor's fixed release is shown next to NVD's exact versions. When the brief carries one fix per product and
- * release train, those replace this.
+ * The releases that fix the CVE: first the brief's fixes, one per product and release train as the product's version scheme
+ * reads them ("8.0 U3" → "8.0 U3d (build 24585383)"), then the other ranges that name a fixed release, once per product and
+ * release. `names`: the fixed release as the scheme words it and as the record states it, so the device's own fix can be found
+ * among the rows by equality.
  */
 export function fixRows(b: CveBrief): FixRow[] {
   const seen = new Set<string>()
   const rows: FixRow[] = []
-  for (const r of b.ranges) {
-    if (!r.fixed) continue
-    const product = rangeProduct(r)
-    const key = `${product}\n${r.fixed}`
-    if (seen.has(key)) continue
+  const push = (r: FixRow) => {
+    const key = `${r.product}\n${r.train}\n${r.fixed}`
+    if (seen.has(key)) return
     seen.add(key)
-    rows.push({ product, versions: r.versions, fixed: r.fixed, origin: r.origin })
+    rows.push(r)
+  }
+  const trained = new Set(b.fixes.map((f) => `${f.vendor}|${f.product}|${f.train}`))
+  for (const f of b.fixes) {
+    const range = b.ranges.find((r) => r.vendor === f.vendor && r.product === f.product && r.train === f.train && r.fixed_release === f.release)
+    push({ product: rangeProduct(f), train: f.train, versions: range?.versions ?? '', fixed: f.release, origin: f.origin, names: [f.release, range?.fixed ?? ''].filter(Boolean) })
+  }
+  for (const r of b.ranges) {
+    if (!r.fixed && !r.fixed_release) continue
+    if (r.train && trained.has(`${r.vendor}|${r.product}|${r.train}`)) continue
+    push({ product: rangeProduct(r), train: r.train, versions: r.versions, fixed: r.fixed_release || r.fixed, origin: r.origin, names: [r.fixed_release, r.fixed].filter(Boolean) })
   }
   return rows
 }

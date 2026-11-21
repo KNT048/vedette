@@ -48,26 +48,34 @@ export function BriefFacts({ b, product = false }: { b: CveBrief; product?: bool
 }
 
 /**
- * The releases that fix the CVE, one row per product and fixed release. `mark`: the fixed release the device needs (from the
- * finding's own fix): that row says "Your device". Nothing when no range names a fixed release.
+ * The releases that fix the CVE, one row per product and release train (or fixed release). `mark`: the fixed release the device
+ * needs (from the finding's own fix): that row says "Your device". Nothing when no range names a fixed release.
  */
 export function FixTable({ b, mark }: { b: CveBrief; mark?: string | null }) {
   const { t } = useTranslation('feeds')
   const rows = fixRows(b)
   if (!rows.length) return null
+  const trains = rows.some((r) => r.train)
+  const th = 'py-1.5 pr-4 font-medium'
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead className="text-caption text-muted">
-          <tr><th scope="col" className="py-1.5 pr-4 font-medium">{t('brief.affected.product')}</th><th scope="col" className="py-1.5 pr-4 font-medium">{t('brief.affected.versions')}</th><th scope="col" className="py-1.5 font-medium">{t('brief.affected.fixed')}</th></tr>
+          <tr>
+            <th scope="col" className={th}>{t('brief.affected.product')}</th>
+            {trains ? <th scope="col" className={th}>{t('brief.affected.train')}</th> : null}
+            <th scope="col" className={th}>{t('brief.affected.versions')}</th>
+            <th scope="col" className="py-1.5 font-medium">{t('brief.affected.fixed')}</th>
+          </tr>
         </thead>
         <tbody className="divide-y divide-rule border-t border-rule">
           {rows.map((r) => {
-            const mine = !!mark && r.fixed === mark
+            const mine = !!mark && r.names.includes(mark)
             return (
-              <tr key={`${r.product}-${r.fixed}`} className={mine ? 'bg-accent-soft' : undefined} data-device={mine || undefined}>
+              <tr key={`${r.product}-${r.train}-${r.fixed}`} className={mine ? 'bg-accent-soft' : undefined} data-device={mine || undefined}>
                 <td className="py-1.5 pr-4">{r.product}{mine ? <span className="ml-2 text-caption font-medium text-accent">{t('brief.affected.yourDevice')}</span> : null}</td>
-                <td className="py-1.5 pr-4">{r.versions}</td>
+                {trains ? <td className="py-1.5 pr-4">{r.train || '–'}</td> : null}
+                <td className="py-1.5 pr-4">{r.versions || '–'}</td>
                 <td className="py-1.5 font-medium">{r.fixed}</td>
               </tr>
             )

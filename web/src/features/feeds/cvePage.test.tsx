@@ -11,8 +11,14 @@ describe('the CVE page of a full brief', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'CVE-2025-22225' })).toBeInTheDocument()
     expect(screen.getByTestId('cve-sentence')).toHaveTextContent(/^VMware ESXi hypervisor has a flaw of type “Out-of-bounds Write” \(CWE-787\)/)
     const affected = screen.getByRole('heading', { name: 'Affected and fixed' }).closest('section')!
-    expect(within(affected).getByText(/^The version data names no fixed release/)).toBeInTheDocument()
-    await userEvent.click(within(affected).getByText('All affected versions (55 rows)'))
+    // the fixed build of each release train, as VMware states it
+    expect(within(affected).getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent))).toEqual([
+      ['vmware esxi', '8.0 U3', 'from 8.0 before 8.0 U3d (build 24585383)', '8.0 U3d (build 24585383)'],
+      ['vmware esxi', '8.0 U2', 'from 8.0 before 8.0 U2d (build 24585300)', '8.0 U2d (build 24585300)'],
+      ['vmware esxi', '7.0 U3', 'from 7.0 before 7.0 U3s (build 24585291)', '7.0 U3s (build 24585291)'],
+    ])
+    expect(within(affected).queryByText(/^The version data names no fixed release/)).toBeNull()
+    await userEvent.click(within(affected).getByText('All affected versions (58 rows)'))
     expect(within(affected).getByText(/^7\.0, 7\.0 beta, 7\.0 update_1,/)).toBeInTheDocument()
     const todo = screen.getByRole('heading', { name: 'What to do' }).closest('section')!
     expect(within(todo).getByText('No workaround is published: install the fix.')).toBeInTheDocument()

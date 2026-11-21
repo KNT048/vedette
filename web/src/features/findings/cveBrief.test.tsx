@@ -10,16 +10,12 @@ import { server } from '@/test/server'
 import { api } from '@/lib/api'
 import { sessionStore } from '@/mocks/stores'
 import { esxiBrief } from '@/features/feeds/briefSamples'
-import type { CveBrief, CveRange } from '@/features/feeds/types'
+import type { CveBrief } from '@/features/feeds/types'
 import { AiAnswers } from './Recommendation'
 import type { FindingDetail } from './types'
 
-const cna = (versions: string, fixed: string): CveRange => ({
-  origin: 'cna', counts: false, part: '', vendor: 'vmware', product: 'esxi', cpe: '', start_including: '', start_excluding: '', end_including: '', end_excluding: '',
-  fixed, version_type: 'custom', default_status: 'unaffected', platforms: [], versions,
-})
 const FIXED = '8.0 U3d (build 24585383)'
-const brief: CveBrief = { ...esxiBrief, ranges: [...esxiBrief.ranges, cna('8.0 before 8.0 U3d', FIXED), cna('7.0 before 7.0 U3s', '7.0 U3s (build 24585291)')] }
+const brief: CveBrief = esxiBrief // with VMware's fixed build per release train
 
 /** The finding f-2 shown as the ESXi host's finding of CVE-2025-22225, with the fix the finding names. */
 async function esxiFinding(b: CveBrief = brief) {
@@ -54,8 +50,10 @@ describe('the CVE summary card on a finding', () => {
     expect(more).not.toHaveAttribute('open')
     await userEvent.click(within(card).getByText('Affected versions, sources and score'))
     const marked = within(more).getAllByRole('row').filter((r) => r.hasAttribute('data-device'))
-    expect(marked.map((r) => r.textContent)).toEqual([`vmware esxiYour device8.0 before 8.0 U3d${FIXED}`])
-    expect(within(more).getByText('All affected versions (57 rows)')).toBeInTheDocument()
+    expect(marked.map((r) => r.textContent)).toEqual([`vmware esxiYour device8.0 U3from 8.0 before ${FIXED}${FIXED}`])
+    // one row per release train: 8.0 U2 has its own fixed build, so a patched U2d host is not told to move to U3d
+    expect(within(more).getAllByRole('row').slice(1).map((r) => r.querySelectorAll('td')[1]!.textContent)).toEqual(['8.0 U3', '8.0 U2', '7.0 U3'])
+    expect(within(more).getByText('All affected versions (58 rows)')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

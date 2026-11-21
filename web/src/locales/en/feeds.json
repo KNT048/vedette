@@ -568,7 +568,8 @@
         "adp": "From CISA (ADP)"
       },
       "notUsed": "not used for matching while NVD gives versions",
-      "nvdPending": "NVD has not analysed this CVE yet ({{status}}): the affected versions are the vendor's, from the CVE record."
+      "nvdPending": "NVD has not analysed this CVE yet ({{status}}): the affected versions are the vendor's, from the CVE record.",
+      "train": "Release train"
     },
     "todo": {
       "title": "What to do",

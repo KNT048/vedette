@@ -26,9 +26,12 @@ describe('the CVE brief, read for the screens', () => {
   })
 
   it('lists each fixed release once per product, and the list\'s links join the references', () => {
-    const row = { ...esxiBrief.ranges[0]!, origin: 'cna' as const, fixed: '8.0 U3d', versions: '8.0 before 8.0 U3d' }
-    expect(fixRows({ ...esxiBrief, ranges: [row, { ...row, versions: '8.0 U2' }, ...esxiBrief.ranges] })).toEqual([{ product: 'vmware esxi', versions: '8.0 before 8.0 U3d', fixed: '8.0 U3d', origin: 'cna' }])
-    expect(fixRows(esxiBrief)).toEqual([])
+    // the brief's fixes give one row per product and train; ranges of a train they cover are not repeated
+    expect(fixRows(esxiBrief).map((r) => [r.train, r.fixed])).toEqual([['8.0 U3', '8.0 U3d (build 24585383)'], ['8.0 U2', '8.0 U2d (build 24585300)'], ['7.0 U3', '7.0 U3s (build 24585291)']])
+    expect(fixRows(esxiBrief)[0]!.names).toEqual(['8.0 U3d (build 24585383)', 'ESXi80U3d-24585383'])
+    // without a scheme: each range that names a fixed release, once per product and release
+    const row = { ...esxiBrief.ranges[0]!, origin: 'cna' as const, fixed: '2.4.58', versions: 'from 2.0 before 2.4.58' }
+    expect(fixRows({ ...esxiBrief, fixes: [], ranges: [row, { ...row, versions: '2.4.57' }] })).toEqual([{ product: 'vmware esxi', train: '', versions: 'from 2.0 before 2.4.58', fixed: '2.4.58', origin: 'cna', names: ['2.4.58'] }])
     const b = briefOfVuln(vuln, null)
     b.references = []
     b.lists[0]!.links = ['https://acme.example.com/sa-1', 'javascript:alert(1)']

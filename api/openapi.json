@@ -33299,7 +33299,7 @@
     "/feeds/cve/{id}": {
       "get": {
         "operationId": "feeds_get_feeds_cve_id",
-        "summary": "Details of an exploited CVE and your matching devices",
+        "summary": "Everything the box knows about a CVE (its brief) and your devices that match its exploited-list entry (404 not_in_data when the vulnerability data does not hold it)",
         "tags": [
           "feeds"
         ],
@@ -33331,34 +33331,33 @@
                       "type": "string",
                       "pattern": "^CVE-\\d{4}-\\d{4,}$"
                     },
-                    "vendor": {
-                      "type": "string"
-                    },
-                    "product": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
+                    "title": {
+                      "description": "The CNA's title",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "description": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "NVD's English description, else the CNA's"
                     },
-                    "required_action": {
-                      "type": "string"
+                    "display": {
+                      "description": "The product in plain words: the exploited-list entry's, else the first of products",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
-                    "links": {
+                    "products": {
+                      "maxItems": 20,
                       "type": "array",
                       "items": {
-                        "type": "string",
-                        "pattern": "^https?:\\/\\/"
+                        "type": "string"
                       },
-                      "description": "http(s) addresses only"
+                      "description": "Vendor and product of the ranges that count (\"vmware esxi\"), sorted"
                     },
-                    "date_added": {
-                      "type": "string",
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                    },
-                    "due_date": {
+                    "published": {
                       "anyOf": [
                         {
                           "type": "string",
@@ -33369,42 +33368,803 @@
                         }
                       ]
                     },
-                    "ransomware": {
-                      "type": "boolean"
+                    "modified": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nvd_status": {
+                      "description": "NVD's vulnStatus (\"Analyzed\", \"Deferred\" …); null until NVD answered",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "nvd_checked_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "record_read_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When the CVE record was last read"
+                    },
+                    "cwe": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^CWE-\\d+$"
+                          },
+                          "name": {
+                            "description": "MITRE's name; null for an id the CWE List does not hold",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna",
+                                "adp"
+                              ],
+                              "description": "Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ]
+                            },
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "vector": {
+                              "type": "string"
+                            },
+                            "severity": {
+                              "type": "string",
+                              "enum": [
+                                "critical",
+                                "high",
+                                "medium",
+                                "low",
+                                "none"
+                              ]
+                            },
+                            "reading": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "confidentiality": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "low",
+                                        "high"
+                                      ]
+                                    },
+                                    "integrity": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "low",
+                                        "high"
+                                      ]
+                                    },
+                                    "availability": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "low",
+                                        "high"
+                                      ]
+                                    },
+                                    "attack_vector": {
+                                      "type": "string",
+                                      "enum": [
+                                        "network",
+                                        "adjacent",
+                                        "local",
+                                        "physical"
+                                      ]
+                                    },
+                                    "attack_complexity": {
+                                      "type": "string",
+                                      "enum": [
+                                        "low",
+                                        "medium",
+                                        "high"
+                                      ],
+                                      "description": "medium only for CVSS 2.0"
+                                    },
+                                    "attack_requirements": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "none",
+                                            "present"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "CVSS 4.0 only"
+                                    },
+                                    "privileges_required": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "low",
+                                        "high"
+                                      ],
+                                      "description": "For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high)"
+                                    },
+                                    "user_interaction": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "none",
+                                            "required",
+                                            "passive",
+                                            "active"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "null for CVSS 2.0, which has no such metric"
+                                    },
+                                    "scope": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "unchanged",
+                                            "changed"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "CVSS 3.x only"
+                                    },
+                                    "subsequent": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "confidentiality": {
+                                              "type": "string",
+                                              "enum": [
+                                                "none",
+                                                "low",
+                                                "high"
+                                              ]
+                                            },
+                                            "integrity": {
+                                              "type": "string",
+                                              "enum": [
+                                                "none",
+                                                "low",
+                                                "high"
+                                              ]
+                                            },
+                                            "availability": {
+                                              "type": "string",
+                                              "enum": [
+                                                "none",
+                                                "low",
+                                                "high"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "confidentiality",
+                                            "integrity",
+                                            "availability"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "CVSS 4.0 only: the impact on systems beyond the vulnerable one"
+                                    },
+                                    "summary": {
+                                      "type": "string",
+                                      "description": "The reading in one sentence, for example \"Attacker needs local access, low complexity, high privileges needed, no user action; high impact on confidentiality, integrity and availability; can reach beyond the vulnerable component.\""
+                                    }
+                                  },
+                                  "required": [
+                                    "confidentiality",
+                                    "integrity",
+                                    "availability",
+                                    "attack_vector",
+                                    "attack_complexity",
+                                    "attack_requirements",
+                                    "privileges_required",
+                                    "user_interaction",
+                                    "scope",
+                                    "subsequent",
+                                    "summary"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "The CVSS vector read into words (confidentiality, integrity, availability: the impact on the vulnerable system; CVSS 2.0 partial = low, complete = high)"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "version",
+                            "score",
+                            "vector",
+                            "severity",
+                            "reading"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The one picked score: the newest CVSS version, NVD before the CNA before CISA; null when the CVE has no score"
+                    },
+                    "scores": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "nvd",
+                              "cna",
+                              "adp"
+                            ],
+                            "description": "Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP)"
+                          },
+                          "version": {
+                            "type": "string",
+                            "enum": [
+                              "4.0",
+                              "3.1",
+                              "3.0",
+                              "2.0"
+                            ]
+                          },
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "vector": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "version",
+                          "score",
+                          "vector"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every stored score, in the order the pick prefers them"
+                    },
+                    "lists": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "list": {
+                            "type": "string",
+                            "description": "\"cisa\", \"vulncheck\", or \"custom:\" followed by the id of a custom feed"
+                          },
+                          "source": {
+                            "type": "string",
+                            "description": "The feed that holds the entry: \"cisa-kev\", \"vulncheck-kev\" or a custom feed id"
+                          },
+                          "source_name": {
+                            "type": "string",
+                            "description": "That feed's name, as Settings -> Feeds shows it"
+                          },
+                          "vendor": {
+                            "type": "string"
+                          },
+                          "product": {
+                            "type": "string"
+                          },
+                          "display": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "The list's own words"
+                          },
+                          "required_action": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^https?:\\/\\/"
+                            },
+                            "description": "http(s) addresses only"
+                          },
+                          "date_added": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "due_date": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "ransomware": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "list",
+                          "source",
+                          "source_name",
+                          "vendor",
+                          "product",
+                          "display",
+                          "name",
+                          "description",
+                          "required_action",
+                          "links",
+                          "date_added",
+                          "due_date",
+                          "ransomware"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists)"
+                    },
+                    "signals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "description": "Why the CVE is urgent: \"exploited\" (an exploited list or a vendor says so), \"public_exploit\" (a public exploit or a scan template exists), and kinds new sources add"
+                          },
+                          "source": {
+                            "type": "string",
+                            "description": "The feed that saw it (\"cisa-kev\", \"metasploit\", \"nuclei-templates\" …)"
+                          },
+                          "source_name": {
+                            "type": "string",
+                            "description": "That feed's name"
+                          },
+                          "first_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When the source says it (its publication date), else when this box first saw it"
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "qualifies": {
+                            "type": "boolean",
+                            "description": "Passes the quality rule of its kind; a signal that does not is kept for its date only"
+                          },
+                          "url": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^https?:\\/\\/"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "detail": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": [
+                                    "string",
+                                    "number",
+                                    "boolean"
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Small facts for display ({\"stars\": 244, \"authors\": 3})"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "source",
+                          "source_name",
+                          "first_seen",
+                          "last_seen",
+                          "qualifies",
+                          "url",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every signal, oldest first"
+                    },
+                    "ranges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "origin": {
+                            "type": "string",
+                            "enum": [
+                              "nvd",
+                              "cna",
+                              "adp"
+                            ],
+                            "description": "Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record"
+                          },
+                          "counts": {
+                            "type": "boolean",
+                            "description": "The row the matcher reads: NVD's rows when NVD gives any, else the CVE record's"
+                          },
+                          "part": {
+                            "type": "string",
+                            "description": "CPE part: a, o, h; \"\" for a CVE record row without a CPE"
+                          },
+                          "vendor": {
+                            "type": "string"
+                          },
+                          "product": {
+                            "type": "string"
+                          },
+                          "cpe": {
+                            "type": "string",
+                            "description": "The CPE match criteria when the origin gave one, else \"\""
+                          },
+                          "start_including": {
+                            "type": "string"
+                          },
+                          "start_excluding": {
+                            "type": "string"
+                          },
+                          "end_including": {
+                            "type": "string"
+                          },
+                          "end_excluding": {
+                            "type": "string"
+                          },
+                          "fixed": {
+                            "type": "string",
+                            "description": "The release that fixes the range when the origin states one, else \"\""
+                          },
+                          "version_type": {
+                            "type": "string",
+                            "description": "The CVE record's versionType (\"semver\", \"custom\" …), else \"\""
+                          },
+                          "default_status": {
+                            "type": "string",
+                            "enum": [
+                              "",
+                              "affected",
+                              "unaffected",
+                              "unknown"
+                            ],
+                            "description": "A CVE record row's defaultStatus; \"\" for NVD's rows"
+                          },
+                          "platforms": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "NVD's \"running on\" operating systems (\"microsoft:windows\")"
+                          },
+                          "versions": {
+                            "type": "string",
+                            "description": "The versions in words: \"from 2.0 before 2.4.58\", \"up to 3.1\", \"7.0 update_1\", \"every version\""
+                          }
+                        },
+                        "required": [
+                          "origin",
+                          "counts",
+                          "part",
+                          "vendor",
+                          "product",
+                          "cpe",
+                          "start_including",
+                          "start_excluding",
+                          "end_including",
+                          "end_excluding",
+                          "fixed",
+                          "version_type",
+                          "default_status",
+                          "platforms",
+                          "versions"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every affected-versions row, the ones that count first"
+                    },
+                    "ranges_from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "nvd",
+                            "cna",
+                            "adp"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The origin of the rows that count; null when there are none"
+                    },
+                    "ranges_complete": {
+                      "type": "boolean",
+                      "description": "CVE record rows only: every product's list says what an unlisted version is"
+                    },
+                    "references": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "pattern": "^https?:\\/\\/"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "The CVE record's tag words (NVD's are read into them: \"Vendor Advisory\" is vendor-advisory)"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "nvd",
+                              "cna",
+                              "adp"
+                            ],
+                            "description": "Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record"
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "vendor-advisory",
+                              "patch",
+                              "mitigation",
+                              "release-notes",
+                              "exploit",
+                              "government-resource",
+                              "third-party-advisory",
+                              "technical-description",
+                              "issue-tracking",
+                              "mailing-list",
+                              "vdb-entry",
+                              "media-coverage",
+                              "other"
+                            ],
+                            "description": "The one group it is shown under: the first of the groups, in this order, that one of its tags names"
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "tags",
+                          "source",
+                          "group"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Grouped: ordered by group, then by address"
+                    },
+                    "solution": {
+                      "description": "The CNA's solution text; null when the record has none",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "workaround": {
+                      "description": "The CNA's workaround text; null when the record has none",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ssvc": {
+                      "type": "object",
+                      "properties": {
+                        "exploitation": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "automatable": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "technical_impact": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "exploitation",
+                        "automatable",
+                        "technical_impact"
+                      ],
+                      "additionalProperties": false,
+                      "description": "CISA's SSVC decision points (Vulnrichment)"
                     },
                     "epss": {
                       "anyOf": [
                         {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 1
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "percentile": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "day": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "week_ago": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "history": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "day": {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  }
+                                },
+                                "required": [
+                                  "day",
+                                  "score"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The days the box kept (CVEs on a list or with a signal), oldest first"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "percentile",
+                            "day",
+                            "week_ago",
+                            "history"
+                          ],
+                          "additionalProperties": false
                         },
                         {
                           "type": "null"
                         }
                       ]
                     },
-                    "epss_7d_ago": {
-                      "anyOf": [
-                        {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                    "nvd_url": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/"
                     },
-                    "has_template": {
-                      "type": "boolean"
-                    },
-                    "source": {
-                      "description": "Which list the entry is on: \"cisa-kev\", \"vulncheck-kev\" (VulnCheck KEV) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA's",
-                      "type": "string"
-                    },
-                    "display": {
-                      "type": "string"
+                    "record_url": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/"
                     },
                     "matched": {
                       "anyOf": [
@@ -33451,44 +34211,44 @@
                         {
                           "type": "null"
                         }
-                      ]
+                      ],
+                      "description": "Devices whose product matches the exploited-list entry; null when the inventory is off or the CVE is on no exploited list"
                     },
                     "not_affected": {
-                      "description": "devices that run the product but that the platform rules of the findings prove are not affected; left out of matched",
                       "type": "integer",
                       "minimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "published": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding, so matched may list devices that are not findings"
+                      "maximum": 9007199254740991,
+                      "description": "devices that run the product but that the platform rules of the findings prove are not affected; left out of matched"
                     }
                   },
                   "required": [
                     "cve",
-                    "vendor",
-                    "product",
-                    "name",
+                    "title",
                     "description",
-                    "required_action",
-                    "links",
-                    "date_added",
-                    "due_date",
-                    "ransomware",
-                    "epss",
-                    "epss_7d_ago",
-                    "has_template",
                     "display",
+                    "products",
+                    "published",
+                    "modified",
+                    "nvd_status",
+                    "nvd_checked_at",
+                    "record_read_at",
+                    "cwe",
+                    "cvss",
+                    "scores",
+                    "lists",
+                    "signals",
+                    "ranges",
+                    "ranges_from",
+                    "ranges_complete",
+                    "references",
+                    "solution",
+                    "workaround",
+                    "ssvc",
+                    "epss",
+                    "nvd_url",
+                    "record_url",
                     "matched",
-                    "published"
+                    "not_affected"
                   ],
                   "additionalProperties": false
                 }

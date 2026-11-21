@@ -15198,7 +15198,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = FeedsGetFeedsCveIDOperation
-									r.summary = "Details of an exploited CVE and your matching devices"
+									r.summary = "Everything the box knows about a CVE (its brief) and your devices that match its exploited-list entry (404 not_in_data when the vulnerability data does not hold it)"
 									r.operationID = "feeds_get_feeds_cve_id"
 									r.operationGroup = ""
 									r.pathPattern = "/feeds/cve/{id}"

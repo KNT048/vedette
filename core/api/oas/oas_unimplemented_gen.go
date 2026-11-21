@@ -1646,7 +1646,8 @@ func (UnimplementedHandler) FeedsDeleteFeedsCustomID(ctx context.Context, params
 
 // FeedsGetFeedsCveID implements feeds_get_feeds_cve_id operation.
 //
-// Details of an exploited CVE and your matching devices.
+// Everything the box knows about a CVE (its brief) and your devices that match its exploited-list
+// entry (404 not_in_data when the vulnerability data does not hold it).
 //
 // GET /feeds/cve/{id}
 func (UnimplementedHandler) FeedsGetFeedsCveID(ctx context.Context, params FeedsGetFeedsCveIDParams) (r *FeedsGetFeedsCveIDOK, _ error) {

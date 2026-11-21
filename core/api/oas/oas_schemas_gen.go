@@ -68355,32 +68355,55 @@ func (s *ExposurePutExposureTargetsIDTermsReq) SetVersion(val string) {
 type FeedsDeleteFeedsCustomIDNoContent struct{}
 
 type FeedsGetFeedsCveIDOK struct {
-	Cve         string     `json:"cve"`
-	DateAdded   string     `json:"date_added"`
-	Description string     `json:"description"`
-	Display     string     `json:"display"`
-	DueDate     NilString  `json:"due_date"`
-	Epss        NilFloat64 `json:"epss"`
-	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
-	HasTemplate bool       `json:"has_template"`
-	// Http(s) addresses only.
-	Links   []string                          `json:"links"`
-	Matched []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
-	Name    string                            `json:"name"`
+	Cve string `json:"cve"`
+	// The one picked score: the newest CVSS version, NVD before the CNA before CISA; null when the CVE has
+	// no score.
+	Cvss NilFeedsGetFeedsCveIDOKCvss   `json:"cvss"`
+	Cwe  []FeedsGetFeedsCveIDOKCweItem `json:"cwe"`
+	// NVD's English description, else the CNA's.
+	Description string `json:"description"`
+	// The product in plain words: the exploited-list entry's, else the first of products.
+	Display NilString                   `json:"display"`
+	Epss    NilFeedsGetFeedsCveIDOKEpss `json:"epss"`
+	// Its exploited-list entries, the one pages name first (CISA, VulnCheck, then custom lists).
+	Lists []FeedsGetFeedsCveIDOKListsItem `json:"lists"`
+	// Devices whose product matches the exploited-list entry; null when the inventory is off or the CVE is
+	// on no exploited list.
+	Matched  []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
+	Modified NilString                         `json:"modified"`
 	// Devices that run the product but that the platform rules of the findings prove are not affected;
 	// left out of matched.
-	NotAffected OptInt `json:"not_affected"`
-	Product     string `json:"product"`
-	// The day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it.
-	// Older than 12 months: a device that matches by the product name only (no version compared) is not a
-	// finding, so matched may list devices that are not findings.
-	Published      NilString `json:"published"`
-	Ransomware     bool      `json:"ransomware"`
-	RequiredAction string    `json:"required_action"`
-	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or the id of a custom feed;
-	// texts name it, an entry of VulnCheck is never called CISA's.
-	Source OptString `json:"source"`
-	Vendor string    `json:"vendor"`
+	NotAffected  int         `json:"not_affected"`
+	NvdCheckedAt NilDateTime `json:"nvd_checked_at"`
+	// NVD's vulnStatus ("Analyzed", "Deferred" …); null until NVD answered.
+	NvdStatus NilString `json:"nvd_status"`
+	NvdURL    string    `json:"nvd_url"`
+	// Vendor and product of the ranges that count ("vmware esxi"), sorted.
+	Products  []string  `json:"products"`
+	Published NilString `json:"published"`
+	// Every affected-versions row, the ones that count first.
+	Ranges []FeedsGetFeedsCveIDOKRangesItem `json:"ranges"`
+	// CVE record rows only: every product's list says what an unlisted version is.
+	RangesComplete bool `json:"ranges_complete"`
+	// The origin of the rows that count; null when there are none.
+	RangesFrom NilFeedsGetFeedsCveIDOKRangesFrom `json:"ranges_from"`
+	// When the CVE record was last read.
+	RecordReadAt NilDateTime `json:"record_read_at"`
+	RecordURL    string      `json:"record_url"`
+	// Grouped: ordered by group, then by address.
+	References []FeedsGetFeedsCveIDOKReferencesItem `json:"references"`
+	// Every stored score, in the order the pick prefers them.
+	Scores []FeedsGetFeedsCveIDOKScoresItem `json:"scores"`
+	// Every signal, oldest first.
+	Signals []FeedsGetFeedsCveIDOKSignalsItem `json:"signals"`
+	// The CNA's solution text; null when the record has none.
+	Solution NilString `json:"solution"`
+	// CISA's SSVC decision points (Vulnrichment).
+	Ssvc FeedsGetFeedsCveIDOKSsvc `json:"ssvc"`
+	// The CNA's title.
+	Title NilString `json:"title"`
+	// The CNA's workaround text; null when the record has none.
+	Workaround NilString `json:"workaround"`
 }
 
 // GetCve returns the value of Cve.
@@ -68388,9 +68411,14 @@ func (s *FeedsGetFeedsCveIDOK) GetCve() string {
 	return s.Cve
 }
 
-// GetDateAdded returns the value of DateAdded.
-func (s *FeedsGetFeedsCveIDOK) GetDateAdded() string {
-	return s.DateAdded
+// GetCvss returns the value of Cvss.
+func (s *FeedsGetFeedsCveIDOK) GetCvss() NilFeedsGetFeedsCveIDOKCvss {
+	return s.Cvss
+}
+
+// GetCwe returns the value of Cwe.
+func (s *FeedsGetFeedsCveIDOK) GetCwe() []FeedsGetFeedsCveIDOKCweItem {
+	return s.Cwe
 }
 
 // GetDescription returns the value of Description.
@@ -68399,33 +68427,18 @@ func (s *FeedsGetFeedsCveIDOK) GetDescription() string {
 }
 
 // GetDisplay returns the value of Display.
-func (s *FeedsGetFeedsCveIDOK) GetDisplay() string {
+func (s *FeedsGetFeedsCveIDOK) GetDisplay() NilString {
 	return s.Display
 }
 
-// GetDueDate returns the value of DueDate.
-func (s *FeedsGetFeedsCveIDOK) GetDueDate() NilString {
-	return s.DueDate
-}
-
 // GetEpss returns the value of Epss.
-func (s *FeedsGetFeedsCveIDOK) GetEpss() NilFloat64 {
+func (s *FeedsGetFeedsCveIDOK) GetEpss() NilFeedsGetFeedsCveIDOKEpss {
 	return s.Epss
 }
 
-// GetEpss7dAgo returns the value of Epss7dAgo.
-func (s *FeedsGetFeedsCveIDOK) GetEpss7dAgo() NilFloat64 {
-	return s.Epss7dAgo
-}
-
-// GetHasTemplate returns the value of HasTemplate.
-func (s *FeedsGetFeedsCveIDOK) GetHasTemplate() bool {
-	return s.HasTemplate
-}
-
-// GetLinks returns the value of Links.
-func (s *FeedsGetFeedsCveIDOK) GetLinks() []string {
-	return s.Links
+// GetLists returns the value of Lists.
+func (s *FeedsGetFeedsCveIDOK) GetLists() []FeedsGetFeedsCveIDOKListsItem {
+	return s.Lists
 }
 
 // GetMatched returns the value of Matched.
@@ -68433,19 +68446,34 @@ func (s *FeedsGetFeedsCveIDOK) GetMatched() []FeedsGetFeedsCveIDOKMatchedItem {
 	return s.Matched
 }
 
-// GetName returns the value of Name.
-func (s *FeedsGetFeedsCveIDOK) GetName() string {
-	return s.Name
+// GetModified returns the value of Modified.
+func (s *FeedsGetFeedsCveIDOK) GetModified() NilString {
+	return s.Modified
 }
 
 // GetNotAffected returns the value of NotAffected.
-func (s *FeedsGetFeedsCveIDOK) GetNotAffected() OptInt {
+func (s *FeedsGetFeedsCveIDOK) GetNotAffected() int {
 	return s.NotAffected
 }
 
-// GetProduct returns the value of Product.
-func (s *FeedsGetFeedsCveIDOK) GetProduct() string {
-	return s.Product
+// GetNvdCheckedAt returns the value of NvdCheckedAt.
+func (s *FeedsGetFeedsCveIDOK) GetNvdCheckedAt() NilDateTime {
+	return s.NvdCheckedAt
+}
+
+// GetNvdStatus returns the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDOK) GetNvdStatus() NilString {
+	return s.NvdStatus
+}
+
+// GetNvdURL returns the value of NvdURL.
+func (s *FeedsGetFeedsCveIDOK) GetNvdURL() string {
+	return s.NvdURL
+}
+
+// GetProducts returns the value of Products.
+func (s *FeedsGetFeedsCveIDOK) GetProducts() []string {
+	return s.Products
 }
 
 // GetPublished returns the value of Published.
@@ -68453,24 +68481,64 @@ func (s *FeedsGetFeedsCveIDOK) GetPublished() NilString {
 	return s.Published
 }
 
-// GetRansomware returns the value of Ransomware.
-func (s *FeedsGetFeedsCveIDOK) GetRansomware() bool {
-	return s.Ransomware
+// GetRanges returns the value of Ranges.
+func (s *FeedsGetFeedsCveIDOK) GetRanges() []FeedsGetFeedsCveIDOKRangesItem {
+	return s.Ranges
 }
 
-// GetRequiredAction returns the value of RequiredAction.
-func (s *FeedsGetFeedsCveIDOK) GetRequiredAction() string {
-	return s.RequiredAction
+// GetRangesComplete returns the value of RangesComplete.
+func (s *FeedsGetFeedsCveIDOK) GetRangesComplete() bool {
+	return s.RangesComplete
 }
 
-// GetSource returns the value of Source.
-func (s *FeedsGetFeedsCveIDOK) GetSource() OptString {
-	return s.Source
+// GetRangesFrom returns the value of RangesFrom.
+func (s *FeedsGetFeedsCveIDOK) GetRangesFrom() NilFeedsGetFeedsCveIDOKRangesFrom {
+	return s.RangesFrom
 }
 
-// GetVendor returns the value of Vendor.
-func (s *FeedsGetFeedsCveIDOK) GetVendor() string {
-	return s.Vendor
+// GetRecordReadAt returns the value of RecordReadAt.
+func (s *FeedsGetFeedsCveIDOK) GetRecordReadAt() NilDateTime {
+	return s.RecordReadAt
+}
+
+// GetRecordURL returns the value of RecordURL.
+func (s *FeedsGetFeedsCveIDOK) GetRecordURL() string {
+	return s.RecordURL
+}
+
+// GetReferences returns the value of References.
+func (s *FeedsGetFeedsCveIDOK) GetReferences() []FeedsGetFeedsCveIDOKReferencesItem {
+	return s.References
+}
+
+// GetScores returns the value of Scores.
+func (s *FeedsGetFeedsCveIDOK) GetScores() []FeedsGetFeedsCveIDOKScoresItem {
+	return s.Scores
+}
+
+// GetSignals returns the value of Signals.
+func (s *FeedsGetFeedsCveIDOK) GetSignals() []FeedsGetFeedsCveIDOKSignalsItem {
+	return s.Signals
+}
+
+// GetSolution returns the value of Solution.
+func (s *FeedsGetFeedsCveIDOK) GetSolution() NilString {
+	return s.Solution
+}
+
+// GetSsvc returns the value of Ssvc.
+func (s *FeedsGetFeedsCveIDOK) GetSsvc() FeedsGetFeedsCveIDOKSsvc {
+	return s.Ssvc
+}
+
+// GetTitle returns the value of Title.
+func (s *FeedsGetFeedsCveIDOK) GetTitle() NilString {
+	return s.Title
+}
+
+// GetWorkaround returns the value of Workaround.
+func (s *FeedsGetFeedsCveIDOK) GetWorkaround() NilString {
+	return s.Workaround
 }
 
 // SetCve sets the value of Cve.
@@ -68478,9 +68546,14 @@ func (s *FeedsGetFeedsCveIDOK) SetCve(val string) {
 	s.Cve = val
 }
 
-// SetDateAdded sets the value of DateAdded.
-func (s *FeedsGetFeedsCveIDOK) SetDateAdded(val string) {
-	s.DateAdded = val
+// SetCvss sets the value of Cvss.
+func (s *FeedsGetFeedsCveIDOK) SetCvss(val NilFeedsGetFeedsCveIDOKCvss) {
+	s.Cvss = val
+}
+
+// SetCwe sets the value of Cwe.
+func (s *FeedsGetFeedsCveIDOK) SetCwe(val []FeedsGetFeedsCveIDOKCweItem) {
+	s.Cwe = val
 }
 
 // SetDescription sets the value of Description.
@@ -68489,33 +68562,18 @@ func (s *FeedsGetFeedsCveIDOK) SetDescription(val string) {
 }
 
 // SetDisplay sets the value of Display.
-func (s *FeedsGetFeedsCveIDOK) SetDisplay(val string) {
+func (s *FeedsGetFeedsCveIDOK) SetDisplay(val NilString) {
 	s.Display = val
 }
 
-// SetDueDate sets the value of DueDate.
-func (s *FeedsGetFeedsCveIDOK) SetDueDate(val NilString) {
-	s.DueDate = val
-}
-
 // SetEpss sets the value of Epss.
-func (s *FeedsGetFeedsCveIDOK) SetEpss(val NilFloat64) {
+func (s *FeedsGetFeedsCveIDOK) SetEpss(val NilFeedsGetFeedsCveIDOKEpss) {
 	s.Epss = val
 }
 
-// SetEpss7dAgo sets the value of Epss7dAgo.
-func (s *FeedsGetFeedsCveIDOK) SetEpss7dAgo(val NilFloat64) {
-	s.Epss7dAgo = val
-}
-
-// SetHasTemplate sets the value of HasTemplate.
-func (s *FeedsGetFeedsCveIDOK) SetHasTemplate(val bool) {
-	s.HasTemplate = val
-}
-
-// SetLinks sets the value of Links.
-func (s *FeedsGetFeedsCveIDOK) SetLinks(val []string) {
-	s.Links = val
+// SetLists sets the value of Lists.
+func (s *FeedsGetFeedsCveIDOK) SetLists(val []FeedsGetFeedsCveIDOKListsItem) {
+	s.Lists = val
 }
 
 // SetMatched sets the value of Matched.
@@ -68523,19 +68581,34 @@ func (s *FeedsGetFeedsCveIDOK) SetMatched(val []FeedsGetFeedsCveIDOKMatchedItem)
 	s.Matched = val
 }
 
-// SetName sets the value of Name.
-func (s *FeedsGetFeedsCveIDOK) SetName(val string) {
-	s.Name = val
+// SetModified sets the value of Modified.
+func (s *FeedsGetFeedsCveIDOK) SetModified(val NilString) {
+	s.Modified = val
 }
 
 // SetNotAffected sets the value of NotAffected.
-func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val OptInt) {
+func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val int) {
 	s.NotAffected = val
 }
 
-// SetProduct sets the value of Product.
-func (s *FeedsGetFeedsCveIDOK) SetProduct(val string) {
-	s.Product = val
+// SetNvdCheckedAt sets the value of NvdCheckedAt.
+func (s *FeedsGetFeedsCveIDOK) SetNvdCheckedAt(val NilDateTime) {
+	s.NvdCheckedAt = val
+}
+
+// SetNvdStatus sets the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDOK) SetNvdStatus(val NilString) {
+	s.NvdStatus = val
+}
+
+// SetNvdURL sets the value of NvdURL.
+func (s *FeedsGetFeedsCveIDOK) SetNvdURL(val string) {
+	s.NvdURL = val
+}
+
+// SetProducts sets the value of Products.
+func (s *FeedsGetFeedsCveIDOK) SetProducts(val []string) {
+	s.Products = val
 }
 
 // SetPublished sets the value of Published.
@@ -68543,23 +68616,1309 @@ func (s *FeedsGetFeedsCveIDOK) SetPublished(val NilString) {
 	s.Published = val
 }
 
+// SetRanges sets the value of Ranges.
+func (s *FeedsGetFeedsCveIDOK) SetRanges(val []FeedsGetFeedsCveIDOKRangesItem) {
+	s.Ranges = val
+}
+
+// SetRangesComplete sets the value of RangesComplete.
+func (s *FeedsGetFeedsCveIDOK) SetRangesComplete(val bool) {
+	s.RangesComplete = val
+}
+
+// SetRangesFrom sets the value of RangesFrom.
+func (s *FeedsGetFeedsCveIDOK) SetRangesFrom(val NilFeedsGetFeedsCveIDOKRangesFrom) {
+	s.RangesFrom = val
+}
+
+// SetRecordReadAt sets the value of RecordReadAt.
+func (s *FeedsGetFeedsCveIDOK) SetRecordReadAt(val NilDateTime) {
+	s.RecordReadAt = val
+}
+
+// SetRecordURL sets the value of RecordURL.
+func (s *FeedsGetFeedsCveIDOK) SetRecordURL(val string) {
+	s.RecordURL = val
+}
+
+// SetReferences sets the value of References.
+func (s *FeedsGetFeedsCveIDOK) SetReferences(val []FeedsGetFeedsCveIDOKReferencesItem) {
+	s.References = val
+}
+
+// SetScores sets the value of Scores.
+func (s *FeedsGetFeedsCveIDOK) SetScores(val []FeedsGetFeedsCveIDOKScoresItem) {
+	s.Scores = val
+}
+
+// SetSignals sets the value of Signals.
+func (s *FeedsGetFeedsCveIDOK) SetSignals(val []FeedsGetFeedsCveIDOKSignalsItem) {
+	s.Signals = val
+}
+
+// SetSolution sets the value of Solution.
+func (s *FeedsGetFeedsCveIDOK) SetSolution(val NilString) {
+	s.Solution = val
+}
+
+// SetSsvc sets the value of Ssvc.
+func (s *FeedsGetFeedsCveIDOK) SetSsvc(val FeedsGetFeedsCveIDOKSsvc) {
+	s.Ssvc = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FeedsGetFeedsCveIDOK) SetTitle(val NilString) {
+	s.Title = val
+}
+
+// SetWorkaround sets the value of Workaround.
+func (s *FeedsGetFeedsCveIDOK) SetWorkaround(val NilString) {
+	s.Workaround = val
+}
+
+type FeedsGetFeedsCveIDOKCvss struct {
+	Reading  NilFeedsGetFeedsCveIDOKCvssReading `json:"reading"`
+	Score    float64                            `json:"score"`
+	Severity FeedsGetFeedsCveIDOKCvssSeverity   `json:"severity"`
+	// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+	Source  FeedsGetFeedsCveIDOKCvssSource  `json:"source"`
+	Vector  string                          `json:"vector"`
+	Version FeedsGetFeedsCveIDOKCvssVersion `json:"version"`
+}
+
+// GetReading returns the value of Reading.
+func (s *FeedsGetFeedsCveIDOKCvss) GetReading() NilFeedsGetFeedsCveIDOKCvssReading {
+	return s.Reading
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FeedsGetFeedsCveIDOKCvss) GetSeverity() FeedsGetFeedsCveIDOKCvssSeverity {
+	return s.Severity
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKCvss) GetSource() FeedsGetFeedsCveIDOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FeedsGetFeedsCveIDOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FeedsGetFeedsCveIDOKCvss) GetVersion() FeedsGetFeedsCveIDOKCvssVersion {
+	return s.Version
+}
+
+// SetReading sets the value of Reading.
+func (s *FeedsGetFeedsCveIDOKCvss) SetReading(val NilFeedsGetFeedsCveIDOKCvssReading) {
+	s.Reading = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FeedsGetFeedsCveIDOKCvss) SetSeverity(val FeedsGetFeedsCveIDOKCvssSeverity) {
+	s.Severity = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKCvss) SetSource(val FeedsGetFeedsCveIDOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FeedsGetFeedsCveIDOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FeedsGetFeedsCveIDOKCvss) SetVersion(val FeedsGetFeedsCveIDOKCvssVersion) {
+	s.Version = val
+}
+
+// The CVSS vector read into words (confidentiality, integrity, availability: the impact on the
+// vulnerable system; CVSS 2.0 partial = low, complete = high).
+type FeedsGetFeedsCveIDOKCvssReading struct {
+	// Medium only for CVSS 2.0.
+	AttackComplexity FeedsGetFeedsCveIDOKCvssReadingAttackComplexity `json:"attack_complexity"`
+	// CVSS 4.0 only.
+	AttackRequirements NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements `json:"attack_requirements"`
+	AttackVector       FeedsGetFeedsCveIDOKCvssReadingAttackVector          `json:"attack_vector"`
+	Availability       FeedsGetFeedsCveIDOKCvssReadingAvailability          `json:"availability"`
+	Confidentiality    FeedsGetFeedsCveIDOKCvssReadingConfidentiality       `json:"confidentiality"`
+	Integrity          FeedsGetFeedsCveIDOKCvssReadingIntegrity             `json:"integrity"`
+	// For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high).
+	PrivilegesRequired FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired `json:"privileges_required"`
+	// CVSS 3.x only.
+	Scope NilFeedsGetFeedsCveIDOKCvssReadingScope `json:"scope"`
+	// CVSS 4.0 only: the impact on systems beyond the vulnerable one.
+	Subsequent NilFeedsGetFeedsCveIDOKCvssReadingSubsequent `json:"subsequent"`
+	// The reading in one sentence, for example "Attacker needs local access, low complexity, high
+	// privileges needed, no user action; high impact on confidentiality, integrity and availability; can
+	// reach beyond the vulnerable component.".
+	Summary string `json:"summary"`
+	// Null for CVSS 2.0, which has no such metric.
+	UserInteraction NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction `json:"user_interaction"`
+}
+
+// GetAttackComplexity returns the value of AttackComplexity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackComplexity() FeedsGetFeedsCveIDOKCvssReadingAttackComplexity {
+	return s.AttackComplexity
+}
+
+// GetAttackRequirements returns the value of AttackRequirements.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackRequirements() NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return s.AttackRequirements
+}
+
+// GetAttackVector returns the value of AttackVector.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAttackVector() FeedsGetFeedsCveIDOKCvssReadingAttackVector {
+	return s.AttackVector
+}
+
+// GetAvailability returns the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetAvailability() FeedsGetFeedsCveIDOKCvssReadingAvailability {
+	return s.Availability
+}
+
+// GetConfidentiality returns the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetConfidentiality() FeedsGetFeedsCveIDOKCvssReadingConfidentiality {
+	return s.Confidentiality
+}
+
+// GetIntegrity returns the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetIntegrity() FeedsGetFeedsCveIDOKCvssReadingIntegrity {
+	return s.Integrity
+}
+
+// GetPrivilegesRequired returns the value of PrivilegesRequired.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetPrivilegesRequired() FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired {
+	return s.PrivilegesRequired
+}
+
+// GetScope returns the value of Scope.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetScope() NilFeedsGetFeedsCveIDOKCvssReadingScope {
+	return s.Scope
+}
+
+// GetSubsequent returns the value of Subsequent.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetSubsequent() NilFeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	return s.Subsequent
+}
+
+// GetSummary returns the value of Summary.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetSummary() string {
+	return s.Summary
+}
+
+// GetUserInteraction returns the value of UserInteraction.
+func (s *FeedsGetFeedsCveIDOKCvssReading) GetUserInteraction() NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return s.UserInteraction
+}
+
+// SetAttackComplexity sets the value of AttackComplexity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackComplexity(val FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) {
+	s.AttackComplexity = val
+}
+
+// SetAttackRequirements sets the value of AttackRequirements.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackRequirements(val NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) {
+	s.AttackRequirements = val
+}
+
+// SetAttackVector sets the value of AttackVector.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAttackVector(val FeedsGetFeedsCveIDOKCvssReadingAttackVector) {
+	s.AttackVector = val
+}
+
+// SetAvailability sets the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetAvailability(val FeedsGetFeedsCveIDOKCvssReadingAvailability) {
+	s.Availability = val
+}
+
+// SetConfidentiality sets the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetConfidentiality(val FeedsGetFeedsCveIDOKCvssReadingConfidentiality) {
+	s.Confidentiality = val
+}
+
+// SetIntegrity sets the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetIntegrity(val FeedsGetFeedsCveIDOKCvssReadingIntegrity) {
+	s.Integrity = val
+}
+
+// SetPrivilegesRequired sets the value of PrivilegesRequired.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetPrivilegesRequired(val FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) {
+	s.PrivilegesRequired = val
+}
+
+// SetScope sets the value of Scope.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetScope(val NilFeedsGetFeedsCveIDOKCvssReadingScope) {
+	s.Scope = val
+}
+
+// SetSubsequent sets the value of Subsequent.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetSubsequent(val NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) {
+	s.Subsequent = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetUserInteraction sets the value of UserInteraction.
+func (s *FeedsGetFeedsCveIDOKCvssReading) SetUserInteraction(val NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) {
+	s.UserInteraction = val
+}
+
+// Medium only for CVSS 2.0.
+type FeedsGetFeedsCveIDOKCvssReadingAttackComplexity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow    FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "medium"
+	FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh   FeedsGetFeedsCveIDOKCvssReadingAttackComplexity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackComplexity values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackComplexity {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackComplexity{
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow,
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium,
+		FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackComplexity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackComplexity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityMedium
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackComplexityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAttackRequirements string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone    FeedsGetFeedsCveIDOKCvssReadingAttackRequirements = "none"
+	FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent FeedsGetFeedsCveIDOKCvssReadingAttackRequirements = "present"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackRequirements values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackRequirements{
+		FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone,
+		FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackRequirements(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackRequirementsPresent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAttackVector string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork  FeedsGetFeedsCveIDOKCvssReadingAttackVector = "network"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent FeedsGetFeedsCveIDOKCvssReadingAttackVector = "adjacent"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal    FeedsGetFeedsCveIDOKCvssReadingAttackVector = "local"
+	FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical FeedsGetFeedsCveIDOKCvssReadingAttackVector = "physical"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAttackVector values.
+func (FeedsGetFeedsCveIDOKCvssReadingAttackVector) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAttackVector {
+	return []FeedsGetFeedsCveIDOKCvssReadingAttackVector{
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal,
+		FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAttackVector) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAttackVector) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAttackVector(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorNetwork
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorAdjacent
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorLocal
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAttackVectorPhysical
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingAvailability string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone FeedsGetFeedsCveIDOKCvssReadingAvailability = "none"
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow  FeedsGetFeedsCveIDOKCvssReadingAvailability = "low"
+	FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh FeedsGetFeedsCveIDOKCvssReadingAvailability = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingAvailability values.
+func (FeedsGetFeedsCveIDOKCvssReadingAvailability) AllValues() []FeedsGetFeedsCveIDOKCvssReadingAvailability {
+	return []FeedsGetFeedsCveIDOKCvssReadingAvailability{
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone,
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow,
+		FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingAvailability) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingAvailability) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingAvailability(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingAvailabilityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingConfidentiality string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "none"
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow  FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "low"
+	FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh FeedsGetFeedsCveIDOKCvssReadingConfidentiality = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingConfidentiality values.
+func (FeedsGetFeedsCveIDOKCvssReadingConfidentiality) AllValues() []FeedsGetFeedsCveIDOKCvssReadingConfidentiality {
+	return []FeedsGetFeedsCveIDOKCvssReadingConfidentiality{
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone,
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow,
+		FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingConfidentiality) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingConfidentiality) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingConfidentiality(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingConfidentialityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingIntegrity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityNone FeedsGetFeedsCveIDOKCvssReadingIntegrity = "none"
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityLow  FeedsGetFeedsCveIDOKCvssReadingIntegrity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh FeedsGetFeedsCveIDOKCvssReadingIntegrity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingIntegrity values.
+func (FeedsGetFeedsCveIDOKCvssReadingIntegrity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingIntegrity {
+	return []FeedsGetFeedsCveIDOKCvssReadingIntegrity{
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityNone,
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityLow,
+		FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingIntegrity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingIntegrity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingIntegrity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingIntegrityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// For CVSS 2.0, its Authentication read the same way (none, single = low, multiple = high).
+type FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "none"
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow  FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "low"
+	FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired values.
+func (FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) AllValues() []FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired {
+	return []FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired{
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone,
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow,
+		FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequired(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingPrivilegesRequiredHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingScope string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged FeedsGetFeedsCveIDOKCvssReadingScope = "unchanged"
+	FeedsGetFeedsCveIDOKCvssReadingScopeChanged   FeedsGetFeedsCveIDOKCvssReadingScope = "changed"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingScope values.
+func (FeedsGetFeedsCveIDOKCvssReadingScope) AllValues() []FeedsGetFeedsCveIDOKCvssReadingScope {
+	return []FeedsGetFeedsCveIDOKCvssReadingScope{
+		FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged,
+		FeedsGetFeedsCveIDOKCvssReadingScopeChanged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingScope) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingScopeChanged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingScope) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingScope(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged:
+		*s = FeedsGetFeedsCveIDOKCvssReadingScopeUnchanged
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingScopeChanged:
+		*s = FeedsGetFeedsCveIDOKCvssReadingScopeChanged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequent struct {
+	Availability    FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability    `json:"availability"`
+	Confidentiality FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality `json:"confidentiality"`
+	Integrity       FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity       `json:"integrity"`
+}
+
+// GetAvailability returns the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetAvailability() FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability {
+	return s.Availability
+}
+
+// GetConfidentiality returns the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetConfidentiality() FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality {
+	return s.Confidentiality
+}
+
+// GetIntegrity returns the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) GetIntegrity() FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity {
+	return s.Integrity
+}
+
+// SetAvailability sets the value of Availability.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetAvailability(val FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) {
+	s.Availability = val
+}
+
+// SetConfidentiality sets the value of Confidentiality.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetConfidentiality(val FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) {
+	s.Confidentiality = val
+}
+
+// SetIntegrity sets the value of Integrity.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequent) SetIntegrity(val FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) {
+	s.Integrity = val
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailability(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentAvailabilityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentiality(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentConfidentialityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "none"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow  FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "low"
+	FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity = "high"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity values.
+func (FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) AllValues() []FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity {
+	return []FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity{
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow,
+		FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrity(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssReadingSubsequentIntegrityHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssReadingUserInteraction string
+
+const (
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone     FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "none"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "required"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive  FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "passive"
+	FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive   FeedsGetFeedsCveIDOKCvssReadingUserInteraction = "active"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssReadingUserInteraction values.
+func (FeedsGetFeedsCveIDOKCvssReadingUserInteraction) AllValues() []FeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return []FeedsGetFeedsCveIDOKCvssReadingUserInteraction{
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive,
+		FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssReadingUserInteraction) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssReadingUserInteraction) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssReadingUserInteraction(data) {
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionNone
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionRequired
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionPassive
+		return nil
+	case FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive:
+		*s = FeedsGetFeedsCveIDOKCvssReadingUserInteractionActive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssSeverity string
+
+const (
+	FeedsGetFeedsCveIDOKCvssSeverityCritical FeedsGetFeedsCveIDOKCvssSeverity = "critical"
+	FeedsGetFeedsCveIDOKCvssSeverityHigh     FeedsGetFeedsCveIDOKCvssSeverity = "high"
+	FeedsGetFeedsCveIDOKCvssSeverityMedium   FeedsGetFeedsCveIDOKCvssSeverity = "medium"
+	FeedsGetFeedsCveIDOKCvssSeverityLow      FeedsGetFeedsCveIDOKCvssSeverity = "low"
+	FeedsGetFeedsCveIDOKCvssSeverityNone     FeedsGetFeedsCveIDOKCvssSeverity = "none"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssSeverity values.
+func (FeedsGetFeedsCveIDOKCvssSeverity) AllValues() []FeedsGetFeedsCveIDOKCvssSeverity {
+	return []FeedsGetFeedsCveIDOKCvssSeverity{
+		FeedsGetFeedsCveIDOKCvssSeverityCritical,
+		FeedsGetFeedsCveIDOKCvssSeverityHigh,
+		FeedsGetFeedsCveIDOKCvssSeverityMedium,
+		FeedsGetFeedsCveIDOKCvssSeverityLow,
+		FeedsGetFeedsCveIDOKCvssSeverityNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssSeverityCritical:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityHigh:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityMedium:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSeverityNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssSeverity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssSeverity(data) {
+	case FeedsGetFeedsCveIDOKCvssSeverityCritical:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityCritical
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityHigh:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityHigh
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityMedium:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityMedium
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityLow:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityLow
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSeverityNone:
+		*s = FeedsGetFeedsCveIDOKCvssSeverityNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+type FeedsGetFeedsCveIDOKCvssSource string
+
+const (
+	FeedsGetFeedsCveIDOKCvssSourceNvd FeedsGetFeedsCveIDOKCvssSource = "nvd"
+	FeedsGetFeedsCveIDOKCvssSourceCna FeedsGetFeedsCveIDOKCvssSource = "cna"
+	FeedsGetFeedsCveIDOKCvssSourceAdp FeedsGetFeedsCveIDOKCvssSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssSource values.
+func (FeedsGetFeedsCveIDOKCvssSource) AllValues() []FeedsGetFeedsCveIDOKCvssSource {
+	return []FeedsGetFeedsCveIDOKCvssSource{
+		FeedsGetFeedsCveIDOKCvssSourceNvd,
+		FeedsGetFeedsCveIDOKCvssSourceCna,
+		FeedsGetFeedsCveIDOKCvssSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssSource(data) {
+	case FeedsGetFeedsCveIDOKCvssSourceNvd:
+		*s = FeedsGetFeedsCveIDOKCvssSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSourceCna:
+		*s = FeedsGetFeedsCveIDOKCvssSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKCvssSourceAdp:
+		*s = FeedsGetFeedsCveIDOKCvssSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCvssVersion string
+
+const (
+	FeedsGetFeedsCveIDOKCvssVersion40 FeedsGetFeedsCveIDOKCvssVersion = "4.0"
+	FeedsGetFeedsCveIDOKCvssVersion31 FeedsGetFeedsCveIDOKCvssVersion = "3.1"
+	FeedsGetFeedsCveIDOKCvssVersion30 FeedsGetFeedsCveIDOKCvssVersion = "3.0"
+	FeedsGetFeedsCveIDOKCvssVersion20 FeedsGetFeedsCveIDOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKCvssVersion values.
+func (FeedsGetFeedsCveIDOKCvssVersion) AllValues() []FeedsGetFeedsCveIDOKCvssVersion {
+	return []FeedsGetFeedsCveIDOKCvssVersion{
+		FeedsGetFeedsCveIDOKCvssVersion40,
+		FeedsGetFeedsCveIDOKCvssVersion31,
+		FeedsGetFeedsCveIDOKCvssVersion30,
+		FeedsGetFeedsCveIDOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKCvssVersion40:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion31:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion30:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKCvssVersion(data) {
+	case FeedsGetFeedsCveIDOKCvssVersion40:
+		*s = FeedsGetFeedsCveIDOKCvssVersion40
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion31:
+		*s = FeedsGetFeedsCveIDOKCvssVersion31
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion30:
+		*s = FeedsGetFeedsCveIDOKCvssVersion30
+		return nil
+	case FeedsGetFeedsCveIDOKCvssVersion20:
+		*s = FeedsGetFeedsCveIDOKCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKCweItem struct {
+	ID string `json:"id"`
+	// MITRE's name; null for an id the CWE List does not hold.
+	Name NilString `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *FeedsGetFeedsCveIDOKCweItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsCveIDOKCweItem) GetName() NilString {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *FeedsGetFeedsCveIDOKCweItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsCveIDOKCweItem) SetName(val NilString) {
+	s.Name = val
+}
+
+type FeedsGetFeedsCveIDOKEpss struct {
+	Day NilString `json:"day"`
+	// The days the box kept (CVEs on a list or with a signal), oldest first.
+	History    []FeedsGetFeedsCveIDOKEpssHistoryItem `json:"history"`
+	Percentile float64                               `json:"percentile"`
+	Score      float64                               `json:"score"`
+	WeekAgo    NilFloat64                            `json:"week_ago"`
+}
+
+// GetDay returns the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpss) GetDay() NilString {
+	return s.Day
+}
+
+// GetHistory returns the value of History.
+func (s *FeedsGetFeedsCveIDOKEpss) GetHistory() []FeedsGetFeedsCveIDOKEpssHistoryItem {
+	return s.History
+}
+
+// GetPercentile returns the value of Percentile.
+func (s *FeedsGetFeedsCveIDOKEpss) GetPercentile() float64 {
+	return s.Percentile
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpss) GetScore() float64 {
+	return s.Score
+}
+
+// GetWeekAgo returns the value of WeekAgo.
+func (s *FeedsGetFeedsCveIDOKEpss) GetWeekAgo() NilFloat64 {
+	return s.WeekAgo
+}
+
+// SetDay sets the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpss) SetDay(val NilString) {
+	s.Day = val
+}
+
+// SetHistory sets the value of History.
+func (s *FeedsGetFeedsCveIDOKEpss) SetHistory(val []FeedsGetFeedsCveIDOKEpssHistoryItem) {
+	s.History = val
+}
+
+// SetPercentile sets the value of Percentile.
+func (s *FeedsGetFeedsCveIDOKEpss) SetPercentile(val float64) {
+	s.Percentile = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetWeekAgo sets the value of WeekAgo.
+func (s *FeedsGetFeedsCveIDOKEpss) SetWeekAgo(val NilFloat64) {
+	s.WeekAgo = val
+}
+
+type FeedsGetFeedsCveIDOKEpssHistoryItem struct {
+	Day   string  `json:"day"`
+	Score float64 `json:"score"`
+}
+
+// GetDay returns the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) GetDay() string {
+	return s.Day
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) GetScore() float64 {
+	return s.Score
+}
+
+// SetDay sets the value of Day.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) SetDay(val string) {
+	s.Day = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKEpssHistoryItem) SetScore(val float64) {
+	s.Score = val
+}
+
+type FeedsGetFeedsCveIDOKListsItem struct {
+	DateAdded string `json:"date_added"`
+	// The list's own words.
+	Description string    `json:"description"`
+	Display     string    `json:"display"`
+	DueDate     NilString `json:"due_date"`
+	// Http(s) addresses only.
+	Links []string `json:"links"`
+	// "cisa", "vulncheck", or "custom:" followed by the id of a custom feed.
+	List           string `json:"list"`
+	Name           string `json:"name"`
+	Product        string `json:"product"`
+	Ransomware     bool   `json:"ransomware"`
+	RequiredAction string `json:"required_action"`
+	// The feed that holds the entry: "cisa-kev", "vulncheck-kev" or a custom feed id.
+	Source string `json:"source"`
+	// That feed's name, as Settings -> Feeds shows it.
+	SourceName string `json:"source_name"`
+	Vendor     string `json:"vendor"`
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDateAdded() string {
+	return s.DateAdded
+}
+
+// GetDescription returns the value of Description.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetDisplay returns the value of Display.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDisplay() string {
+	return s.Display
+}
+
+// GetDueDate returns the value of DueDate.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetDueDate() NilString {
+	return s.DueDate
+}
+
+// GetLinks returns the value of Links.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetLinks() []string {
+	return s.Links
+}
+
+// GetList returns the value of List.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetList() string {
+	return s.List
+}
+
+// GetName returns the value of Name.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetName() string {
+	return s.Name
+}
+
+// GetProduct returns the value of Product.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetRequiredAction returns the value of RequiredAction.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetRequiredAction() string {
+	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetSource() string {
+	return s.Source
+}
+
+// GetSourceName returns the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetSourceName() string {
+	return s.SourceName
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKListsItem) GetVendor() string {
+	return s.Vendor
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDateAdded(val string) {
+	s.DateAdded = val
+}
+
+// SetDescription sets the value of Description.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetDueDate sets the value of DueDate.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetDueDate(val NilString) {
+	s.DueDate = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetLinks(val []string) {
+	s.Links = val
+}
+
+// SetList sets the value of List.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetList(val string) {
+	s.List = val
+}
+
+// SetName sets the value of Name.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetProduct(val string) {
+	s.Product = val
+}
+
 // SetRansomware sets the value of Ransomware.
-func (s *FeedsGetFeedsCveIDOK) SetRansomware(val bool) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetRansomware(val bool) {
 	s.Ransomware = val
 }
 
 // SetRequiredAction sets the value of RequiredAction.
-func (s *FeedsGetFeedsCveIDOK) SetRequiredAction(val string) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
 // SetSource sets the value of Source.
-func (s *FeedsGetFeedsCveIDOK) SetSource(val OptString) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetSource(val string) {
 	s.Source = val
 }
 
+// SetSourceName sets the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKListsItem) SetSourceName(val string) {
+	s.SourceName = val
+}
+
 // SetVendor sets the value of Vendor.
-func (s *FeedsGetFeedsCveIDOK) SetVendor(val string) {
+func (s *FeedsGetFeedsCveIDOKListsItem) SetVendor(val string) {
 	s.Vendor = val
 }
 
@@ -68668,6 +70027,977 @@ func (s *FeedsGetFeedsCveIDOKMatchedItemHow) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type FeedsGetFeedsCveIDOKRangesFrom string
+
+const (
+	FeedsGetFeedsCveIDOKRangesFromNvd FeedsGetFeedsCveIDOKRangesFrom = "nvd"
+	FeedsGetFeedsCveIDOKRangesFromCna FeedsGetFeedsCveIDOKRangesFrom = "cna"
+	FeedsGetFeedsCveIDOKRangesFromAdp FeedsGetFeedsCveIDOKRangesFrom = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesFrom values.
+func (FeedsGetFeedsCveIDOKRangesFrom) AllValues() []FeedsGetFeedsCveIDOKRangesFrom {
+	return []FeedsGetFeedsCveIDOKRangesFrom{
+		FeedsGetFeedsCveIDOKRangesFromNvd,
+		FeedsGetFeedsCveIDOKRangesFromCna,
+		FeedsGetFeedsCveIDOKRangesFromAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesFrom) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesFromNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesFromCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesFromAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesFrom) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesFrom(data) {
+	case FeedsGetFeedsCveIDOKRangesFromNvd:
+		*s = FeedsGetFeedsCveIDOKRangesFromNvd
+		return nil
+	case FeedsGetFeedsCveIDOKRangesFromCna:
+		*s = FeedsGetFeedsCveIDOKRangesFromCna
+		return nil
+	case FeedsGetFeedsCveIDOKRangesFromAdp:
+		*s = FeedsGetFeedsCveIDOKRangesFromAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKRangesItem struct {
+	// The row the matcher reads: NVD's rows when NVD gives any, else the CVE record's.
+	Counts bool `json:"counts"`
+	// The CPE match criteria when the origin gave one, else "".
+	Cpe string `json:"cpe"`
+	// A CVE record row's defaultStatus; "" for NVD's rows.
+	DefaultStatus FeedsGetFeedsCveIDOKRangesItemDefaultStatus `json:"default_status"`
+	EndExcluding  string                                      `json:"end_excluding"`
+	EndIncluding  string                                      `json:"end_including"`
+	// The release that fixes the range when the origin states one, else "".
+	Fixed string `json:"fixed"`
+	// Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record.
+	Origin FeedsGetFeedsCveIDOKRangesItemOrigin `json:"origin"`
+	// CPE part: a, o, h; "" for a CVE record row without a CPE.
+	Part string `json:"part"`
+	// NVD's "running on" operating systems ("microsoft:windows").
+	Platforms      []string `json:"platforms"`
+	Product        string   `json:"product"`
+	StartExcluding string   `json:"start_excluding"`
+	StartIncluding string   `json:"start_including"`
+	Vendor         string   `json:"vendor"`
+	// The CVE record's versionType ("semver", "custom" …), else "".
+	VersionType string `json:"version_type"`
+	// The versions in words: "from 2.0 before 2.4.58", "up to 3.1", "7.0 update_1", "every version".
+	Versions string `json:"versions"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetCounts() bool {
+	return s.Counts
+}
+
+// GetCpe returns the value of Cpe.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetDefaultStatus returns the value of DefaultStatus.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetDefaultStatus() FeedsGetFeedsCveIDOKRangesItemDefaultStatus {
+	return s.DefaultStatus
+}
+
+// GetEndExcluding returns the value of EndExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetEndExcluding() string {
+	return s.EndExcluding
+}
+
+// GetEndIncluding returns the value of EndIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetEndIncluding() string {
+	return s.EndIncluding
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetOrigin returns the value of Origin.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetOrigin() FeedsGetFeedsCveIDOKRangesItemOrigin {
+	return s.Origin
+}
+
+// GetPart returns the value of Part.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetPart() string {
+	return s.Part
+}
+
+// GetPlatforms returns the value of Platforms.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetPlatforms() []string {
+	return s.Platforms
+}
+
+// GetProduct returns the value of Product.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetProduct() string {
+	return s.Product
+}
+
+// GetStartExcluding returns the value of StartExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartExcluding() string {
+	return s.StartExcluding
+}
+
+// GetStartIncluding returns the value of StartIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetStartIncluding() string {
+	return s.StartIncluding
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersionType returns the value of VersionType.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVersionType() string {
+	return s.VersionType
+}
+
+// GetVersions returns the value of Versions.
+func (s *FeedsGetFeedsCveIDOKRangesItem) GetVersions() string {
+	return s.Versions
+}
+
+// SetCounts sets the value of Counts.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetCounts(val bool) {
+	s.Counts = val
+}
+
+// SetCpe sets the value of Cpe.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetDefaultStatus sets the value of DefaultStatus.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetDefaultStatus(val FeedsGetFeedsCveIDOKRangesItemDefaultStatus) {
+	s.DefaultStatus = val
+}
+
+// SetEndExcluding sets the value of EndExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetEndExcluding(val string) {
+	s.EndExcluding = val
+}
+
+// SetEndIncluding sets the value of EndIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetEndIncluding(val string) {
+	s.EndIncluding = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetOrigin(val FeedsGetFeedsCveIDOKRangesItemOrigin) {
+	s.Origin = val
+}
+
+// SetPart sets the value of Part.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetPart(val string) {
+	s.Part = val
+}
+
+// SetPlatforms sets the value of Platforms.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetPlatforms(val []string) {
+	s.Platforms = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetStartExcluding sets the value of StartExcluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartExcluding(val string) {
+	s.StartExcluding = val
+}
+
+// SetStartIncluding sets the value of StartIncluding.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetStartIncluding(val string) {
+	s.StartIncluding = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersionType sets the value of VersionType.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVersionType(val string) {
+	s.VersionType = val
+}
+
+// SetVersions sets the value of Versions.
+func (s *FeedsGetFeedsCveIDOKRangesItem) SetVersions(val string) {
+	s.Versions = val
+}
+
+// A CVE record row's defaultStatus; "" for NVD's rows.
+type FeedsGetFeedsCveIDOKRangesItemDefaultStatus string
+
+const (
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty      FeedsGetFeedsCveIDOKRangesItemDefaultStatus = ""
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected   FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "affected"
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "unaffected"
+	FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown    FeedsGetFeedsCveIDOKRangesItemDefaultStatus = "unknown"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesItemDefaultStatus values.
+func (FeedsGetFeedsCveIDOKRangesItemDefaultStatus) AllValues() []FeedsGetFeedsCveIDOKRangesItemDefaultStatus {
+	return []FeedsGetFeedsCveIDOKRangesItemDefaultStatus{
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected,
+		FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesItemDefaultStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesItemDefaultStatus) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesItemDefaultStatus(data) {
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusEmpty
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusAffected
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnaffected
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown:
+		*s = FeedsGetFeedsCveIDOKRangesItemDefaultStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who stated it: NVD, the CVE record's CNA (most often the vendor), or an ADP of the record.
+type FeedsGetFeedsCveIDOKRangesItemOrigin string
+
+const (
+	FeedsGetFeedsCveIDOKRangesItemOriginNvd FeedsGetFeedsCveIDOKRangesItemOrigin = "nvd"
+	FeedsGetFeedsCveIDOKRangesItemOriginCna FeedsGetFeedsCveIDOKRangesItemOrigin = "cna"
+	FeedsGetFeedsCveIDOKRangesItemOriginAdp FeedsGetFeedsCveIDOKRangesItemOrigin = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKRangesItemOrigin values.
+func (FeedsGetFeedsCveIDOKRangesItemOrigin) AllValues() []FeedsGetFeedsCveIDOKRangesItemOrigin {
+	return []FeedsGetFeedsCveIDOKRangesItemOrigin{
+		FeedsGetFeedsCveIDOKRangesItemOriginNvd,
+		FeedsGetFeedsCveIDOKRangesItemOriginCna,
+		FeedsGetFeedsCveIDOKRangesItemOriginAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKRangesItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKRangesItemOriginNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKRangesItemOrigin) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKRangesItemOrigin(data) {
+	case FeedsGetFeedsCveIDOKRangesItemOriginNvd:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginNvd
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginCna:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginCna
+		return nil
+	case FeedsGetFeedsCveIDOKRangesItemOriginAdp:
+		*s = FeedsGetFeedsCveIDOKRangesItemOriginAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKReferencesItem struct {
+	// The one group it is shown under: the first of the groups, in this order, that one of its tags names.
+	Group FeedsGetFeedsCveIDOKReferencesItemGroup `json:"group"`
+	// Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record.
+	Source FeedsGetFeedsCveIDOKReferencesItemSource `json:"source"`
+	// The CVE record's tag words (NVD's are read into them: "Vendor Advisory" is vendor-advisory).
+	Tags []string `json:"tags"`
+	URL  string   `json:"url"`
+}
+
+// GetGroup returns the value of Group.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetGroup() FeedsGetFeedsCveIDOKReferencesItemGroup {
+	return s.Group
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetSource() FeedsGetFeedsCveIDOKReferencesItemSource {
+	return s.Source
+}
+
+// GetTags returns the value of Tags.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetTags() []string {
+	return s.Tags
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) GetURL() string {
+	return s.URL
+}
+
+// SetGroup sets the value of Group.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetGroup(val FeedsGetFeedsCveIDOKReferencesItemGroup) {
+	s.Group = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetSource(val FeedsGetFeedsCveIDOKReferencesItemSource) {
+	s.Source = val
+}
+
+// SetTags sets the value of Tags.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetTags(val []string) {
+	s.Tags = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsCveIDOKReferencesItem) SetURL(val string) {
+	s.URL = val
+}
+
+// The one group it is shown under: the first of the groups, in this order, that one of its tags names.
+type FeedsGetFeedsCveIDOKReferencesItemGroup string
+
+const (
+	FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory       FeedsGetFeedsCveIDOKReferencesItemGroup = "vendor-advisory"
+	FeedsGetFeedsCveIDOKReferencesItemGroupPatch                FeedsGetFeedsCveIDOKReferencesItemGroup = "patch"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMitigation           FeedsGetFeedsCveIDOKReferencesItemGroup = "mitigation"
+	FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes         FeedsGetFeedsCveIDOKReferencesItemGroup = "release-notes"
+	FeedsGetFeedsCveIDOKReferencesItemGroupExploit              FeedsGetFeedsCveIDOKReferencesItemGroup = "exploit"
+	FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource   FeedsGetFeedsCveIDOKReferencesItemGroup = "government-resource"
+	FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory   FeedsGetFeedsCveIDOKReferencesItemGroup = "third-party-advisory"
+	FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription FeedsGetFeedsCveIDOKReferencesItemGroup = "technical-description"
+	FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking        FeedsGetFeedsCveIDOKReferencesItemGroup = "issue-tracking"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMailingList          FeedsGetFeedsCveIDOKReferencesItemGroup = "mailing-list"
+	FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry             FeedsGetFeedsCveIDOKReferencesItemGroup = "vdb-entry"
+	FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage        FeedsGetFeedsCveIDOKReferencesItemGroup = "media-coverage"
+	FeedsGetFeedsCveIDOKReferencesItemGroupOther                FeedsGetFeedsCveIDOKReferencesItemGroup = "other"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKReferencesItemGroup values.
+func (FeedsGetFeedsCveIDOKReferencesItemGroup) AllValues() []FeedsGetFeedsCveIDOKReferencesItemGroup {
+	return []FeedsGetFeedsCveIDOKReferencesItemGroup{
+		FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory,
+		FeedsGetFeedsCveIDOKReferencesItemGroupPatch,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMitigation,
+		FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes,
+		FeedsGetFeedsCveIDOKReferencesItemGroupExploit,
+		FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource,
+		FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory,
+		FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription,
+		FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMailingList,
+		FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry,
+		FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage,
+		FeedsGetFeedsCveIDOKReferencesItemGroupOther,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKReferencesItemGroup) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupPatch:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMitigation:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupExploit:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMailingList:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupOther:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKReferencesItemGroup) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKReferencesItemGroup(data) {
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupVendorAdvisory
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupPatch:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupPatch
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMitigation:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMitigation
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupReleaseNotes
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupExploit:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupExploit
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupGovernmentResource
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupThirdPartyAdvisory
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupTechnicalDescription
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupIssueTracking
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMailingList:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMailingList
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupVdbEntry
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupMediaCoverage
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemGroupOther:
+		*s = FeedsGetFeedsCveIDOKReferencesItemGroupOther
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who listed it: NVD, which tags every reference once it analyses the CVE, else the CVE record.
+type FeedsGetFeedsCveIDOKReferencesItemSource string
+
+const (
+	FeedsGetFeedsCveIDOKReferencesItemSourceNvd FeedsGetFeedsCveIDOKReferencesItemSource = "nvd"
+	FeedsGetFeedsCveIDOKReferencesItemSourceCna FeedsGetFeedsCveIDOKReferencesItemSource = "cna"
+	FeedsGetFeedsCveIDOKReferencesItemSourceAdp FeedsGetFeedsCveIDOKReferencesItemSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKReferencesItemSource values.
+func (FeedsGetFeedsCveIDOKReferencesItemSource) AllValues() []FeedsGetFeedsCveIDOKReferencesItemSource {
+	return []FeedsGetFeedsCveIDOKReferencesItemSource{
+		FeedsGetFeedsCveIDOKReferencesItemSourceNvd,
+		FeedsGetFeedsCveIDOKReferencesItemSourceCna,
+		FeedsGetFeedsCveIDOKReferencesItemSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKReferencesItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKReferencesItemSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKReferencesItemSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKReferencesItemSource(data) {
+	case FeedsGetFeedsCveIDOKReferencesItemSourceNvd:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceCna:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKReferencesItemSourceAdp:
+		*s = FeedsGetFeedsCveIDOKReferencesItemSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKScoresItem struct {
+	Score float64 `json:"score"`
+	// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+	Source  FeedsGetFeedsCveIDOKScoresItemSource  `json:"source"`
+	Vector  string                                `json:"vector"`
+	Version FeedsGetFeedsCveIDOKScoresItemVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetSource() FeedsGetFeedsCveIDOKScoresItemSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FeedsGetFeedsCveIDOKScoresItem) GetVersion() FeedsGetFeedsCveIDOKScoresItemVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetSource(val FeedsGetFeedsCveIDOKScoresItemSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FeedsGetFeedsCveIDOKScoresItem) SetVersion(val FeedsGetFeedsCveIDOKScoresItemVersion) {
+	s.Version = val
+}
+
+// Who scored it: NVD, the CVE Numbering Authority (most often the vendor), or CISA (ADP).
+type FeedsGetFeedsCveIDOKScoresItemSource string
+
+const (
+	FeedsGetFeedsCveIDOKScoresItemSourceNvd FeedsGetFeedsCveIDOKScoresItemSource = "nvd"
+	FeedsGetFeedsCveIDOKScoresItemSourceCna FeedsGetFeedsCveIDOKScoresItemSource = "cna"
+	FeedsGetFeedsCveIDOKScoresItemSourceAdp FeedsGetFeedsCveIDOKScoresItemSource = "adp"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKScoresItemSource values.
+func (FeedsGetFeedsCveIDOKScoresItemSource) AllValues() []FeedsGetFeedsCveIDOKScoresItemSource {
+	return []FeedsGetFeedsCveIDOKScoresItemSource{
+		FeedsGetFeedsCveIDOKScoresItemSourceNvd,
+		FeedsGetFeedsCveIDOKScoresItemSourceCna,
+		FeedsGetFeedsCveIDOKScoresItemSourceAdp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKScoresItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKScoresItemSourceNvd:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceCna:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceAdp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKScoresItemSource) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKScoresItemSource(data) {
+	case FeedsGetFeedsCveIDOKScoresItemSourceNvd:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceNvd
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceCna:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceCna
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemSourceAdp:
+		*s = FeedsGetFeedsCveIDOKScoresItemSourceAdp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKScoresItemVersion string
+
+const (
+	FeedsGetFeedsCveIDOKScoresItemVersion40 FeedsGetFeedsCveIDOKScoresItemVersion = "4.0"
+	FeedsGetFeedsCveIDOKScoresItemVersion31 FeedsGetFeedsCveIDOKScoresItemVersion = "3.1"
+	FeedsGetFeedsCveIDOKScoresItemVersion30 FeedsGetFeedsCveIDOKScoresItemVersion = "3.0"
+	FeedsGetFeedsCveIDOKScoresItemVersion20 FeedsGetFeedsCveIDOKScoresItemVersion = "2.0"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDOKScoresItemVersion values.
+func (FeedsGetFeedsCveIDOKScoresItemVersion) AllValues() []FeedsGetFeedsCveIDOKScoresItemVersion {
+	return []FeedsGetFeedsCveIDOKScoresItemVersion{
+		FeedsGetFeedsCveIDOKScoresItemVersion40,
+		FeedsGetFeedsCveIDOKScoresItemVersion31,
+		FeedsGetFeedsCveIDOKScoresItemVersion30,
+		FeedsGetFeedsCveIDOKScoresItemVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDOKScoresItemVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDOKScoresItemVersion40:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion31:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion30:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDOKScoresItemVersion) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDOKScoresItemVersion(data) {
+	case FeedsGetFeedsCveIDOKScoresItemVersion40:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion40
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion31:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion31
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion30:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion30
+		return nil
+	case FeedsGetFeedsCveIDOKScoresItemVersion20:
+		*s = FeedsGetFeedsCveIDOKScoresItemVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDOKSignalsItem struct {
+	// Small facts for display ({"stars": 244, "authors": 3}).
+	Detail NilFeedsGetFeedsCveIDOKSignalsItemDetail `json:"detail"`
+	// When the source says it (its publication date), else when this box first saw it.
+	FirstSeen time.Time `json:"first_seen"`
+	// Why the CVE is urgent: "exploited" (an exploited list or a vendor says so), "public_exploit" (a
+	// public exploit or a scan template exists), and kinds new sources add.
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
+	// Passes the quality rule of its kind; a signal that does not is kept for its date only.
+	Qualifies bool `json:"qualifies"`
+	// The feed that saw it ("cisa-kev", "metasploit", "nuclei-templates" …).
+	Source string `json:"source"`
+	// That feed's name.
+	SourceName string    `json:"source_name"`
+	URL        NilString `json:"url"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetDetail() NilFeedsGetFeedsCveIDOKSignalsItemDetail {
+	return s.Detail
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetKind returns the value of Kind.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetKind() string {
+	return s.Kind
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetQualifies returns the value of Qualifies.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetQualifies() bool {
+	return s.Qualifies
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetSource() string {
+	return s.Source
+}
+
+// GetSourceName returns the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetSourceName() string {
+	return s.SourceName
+}
+
+// GetURL returns the value of URL.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) GetURL() NilString {
+	return s.URL
+}
+
+// SetDetail sets the value of Detail.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetDetail(val NilFeedsGetFeedsCveIDOKSignalsItemDetail) {
+	s.Detail = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetQualifies sets the value of Qualifies.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetQualifies(val bool) {
+	s.Qualifies = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetSourceName sets the value of SourceName.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetSourceName(val string) {
+	s.SourceName = val
+}
+
+// SetURL sets the value of URL.
+func (s *FeedsGetFeedsCveIDOKSignalsItem) SetURL(val NilString) {
+	s.URL = val
+}
+
+type FeedsGetFeedsCveIDOKSignalsItemDetail map[string]FeedsGetFeedsCveIDOKSignalsItemDetailItem
+
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetail) init() FeedsGetFeedsCveIDOKSignalsItemDetail {
+	m := *s
+	if m == nil {
+		m = map[string]FeedsGetFeedsCveIDOKSignalsItemDetailItem{}
+		*s = m
+	}
+	return m
+}
+
+// FeedsGetFeedsCveIDOKSignalsItemDetailItem represents sum type.
+type FeedsGetFeedsCveIDOKSignalsItemDetailItem struct {
+	// Type selects the active sum variant, switch on this field.
+	Type    FeedsGetFeedsCveIDOKSignalsItemDetailItemType
+	String  string
+	Float64 float64
+	Bool    bool
+	Null    struct{}
+}
+
+// FeedsGetFeedsCveIDOKSignalsItemDetailItemType is oneOf type of FeedsGetFeedsCveIDOKSignalsItemDetailItem.
+type FeedsGetFeedsCveIDOKSignalsItemDetailItemType string
+
+// Possible values for FeedsGetFeedsCveIDOKSignalsItemDetailItemType.
+const (
+	StringFeedsGetFeedsCveIDOKSignalsItemDetailItem  FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "string"
+	Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "float64"
+	BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem    FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "bool"
+	NullFeedsGetFeedsCveIDOKSignalsItemDetailItem    FeedsGetFeedsCveIDOKSignalsItemDetailItemType = "struct{}"
+)
+
+// IsString reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is string.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsString() bool {
+	return s.Type == StringFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsFloat64 reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is float64.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsFloat64() bool {
+	return s.Type == Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsBool reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is bool.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsBool() bool {
+	return s.Type == BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// IsNull reports whether FeedsGetFeedsCveIDOKSignalsItemDetailItem is struct{}.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) IsNull() bool {
+	return s.Type == NullFeedsGetFeedsCveIDOKSignalsItemDetailItem
+}
+
+// SetString sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to string.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetString(v string) {
+	s.Type = StringFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.String = v
+}
+
+// GetString returns string and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is string.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetString() (v string, ok bool) {
+	if !s.IsString() {
+		return v, false
+	}
+	return s.String, true
+}
+
+// NewStringFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from string.
+func NewStringFeedsGetFeedsCveIDOKSignalsItemDetailItem(v string) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetString(v)
+	return s
+}
+
+// SetFloat64 sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to float64.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetFloat64(v float64) {
+	s.Type = Float64FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Float64 = v
+}
+
+// GetFloat64 returns float64 and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is float64.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetFloat64() (v float64, ok bool) {
+	if !s.IsFloat64() {
+		return v, false
+	}
+	return s.Float64, true
+}
+
+// NewFloat64FeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from float64.
+func NewFloat64FeedsGetFeedsCveIDOKSignalsItemDetailItem(v float64) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetFloat64(v)
+	return s
+}
+
+// SetBool sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to bool.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetBool(v bool) {
+	s.Type = BoolFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Bool = v
+}
+
+// GetBool returns bool and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is bool.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetBool() (v bool, ok bool) {
+	if !s.IsBool() {
+		return v, false
+	}
+	return s.Bool, true
+}
+
+// NewBoolFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from bool.
+func NewBoolFeedsGetFeedsCveIDOKSignalsItemDetailItem(v bool) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetBool(v)
+	return s
+}
+
+// SetNull sets FeedsGetFeedsCveIDOKSignalsItemDetailItem to struct{}.
+func (s *FeedsGetFeedsCveIDOKSignalsItemDetailItem) SetNull(v struct{}) {
+	s.Type = NullFeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.Null = v
+}
+
+// GetNull returns struct{} and true boolean if FeedsGetFeedsCveIDOKSignalsItemDetailItem is struct{}.
+func (s FeedsGetFeedsCveIDOKSignalsItemDetailItem) GetNull() (v struct{}, ok bool) {
+	if !s.IsNull() {
+		return v, false
+	}
+	return s.Null, true
+}
+
+// NewNullFeedsGetFeedsCveIDOKSignalsItemDetailItem returns new FeedsGetFeedsCveIDOKSignalsItemDetailItem from struct{}.
+func NewNullFeedsGetFeedsCveIDOKSignalsItemDetailItem(v struct{}) FeedsGetFeedsCveIDOKSignalsItemDetailItem {
+	var s FeedsGetFeedsCveIDOKSignalsItemDetailItem
+	s.SetNull(v)
+	return s
+}
+
+// CISA's SSVC decision points (Vulnrichment).
+type FeedsGetFeedsCveIDOKSsvc struct {
+	Automatable     NilString `json:"automatable"`
+	Exploitation    NilString `json:"exploitation"`
+	TechnicalImpact NilString `json:"technical_impact"`
+}
+
+// GetAutomatable returns the value of Automatable.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetAutomatable() NilString {
+	return s.Automatable
+}
+
+// GetExploitation returns the value of Exploitation.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetExploitation() NilString {
+	return s.Exploitation
+}
+
+// GetTechnicalImpact returns the value of TechnicalImpact.
+func (s *FeedsGetFeedsCveIDOKSsvc) GetTechnicalImpact() NilString {
+	return s.TechnicalImpact
+}
+
+// SetAutomatable sets the value of Automatable.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetAutomatable(val NilString) {
+	s.Automatable = val
+}
+
+// SetExploitation sets the value of Exploitation.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetExploitation(val NilString) {
+	s.Exploitation = val
+}
+
+// SetTechnicalImpact sets the value of TechnicalImpact.
+func (s *FeedsGetFeedsCveIDOKSsvc) SetTechnicalImpact(val NilString) {
+	s.TechnicalImpact = val
 }
 
 type FeedsGetFeedsCveIDTierOK struct {
@@ -153897,6 +156227,411 @@ func (o NilExposurePutExposureTargetsIDTermsOKValidity) Get() (v ExposurePutExpo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTargetsIDTermsOKValidity) Or(d ExposurePutExposureTargetsIDTermsOKValidity) ExposurePutExposureTargetsIDTermsOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvss returns new NilFeedsGetFeedsCveIDOKCvss with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvss(v FeedsGetFeedsCveIDOKCvss) NilFeedsGetFeedsCveIDOKCvss {
+	return NilFeedsGetFeedsCveIDOKCvss{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvss is nullable FeedsGetFeedsCveIDOKCvss.
+type NilFeedsGetFeedsCveIDOKCvss struct {
+	Value FeedsGetFeedsCveIDOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvss) SetTo(v FeedsGetFeedsCveIDOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvss) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvss) Get() (v FeedsGetFeedsCveIDOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvss) Or(d FeedsGetFeedsCveIDOKCvss) FeedsGetFeedsCveIDOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReading returns new NilFeedsGetFeedsCveIDOKCvssReading with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReading(v FeedsGetFeedsCveIDOKCvssReading) NilFeedsGetFeedsCveIDOKCvssReading {
+	return NilFeedsGetFeedsCveIDOKCvssReading{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReading is nullable FeedsGetFeedsCveIDOKCvssReading.
+type NilFeedsGetFeedsCveIDOKCvssReading struct {
+	Value FeedsGetFeedsCveIDOKCvssReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReading) SetTo(v FeedsGetFeedsCveIDOKCvssReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReading) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) Get() (v FeedsGetFeedsCveIDOKCvssReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReading) Or(d FeedsGetFeedsCveIDOKCvssReading) FeedsGetFeedsCveIDOKCvssReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements returns new NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements(v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	return NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements is nullable FeedsGetFeedsCveIDOKCvssReadingAttackRequirements.
+type NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingAttackRequirements
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) SetTo(v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) Get() (v FeedsGetFeedsCveIDOKCvssReadingAttackRequirements, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingAttackRequirements) Or(d FeedsGetFeedsCveIDOKCvssReadingAttackRequirements) FeedsGetFeedsCveIDOKCvssReadingAttackRequirements {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingScope returns new NilFeedsGetFeedsCveIDOKCvssReadingScope with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingScope(v FeedsGetFeedsCveIDOKCvssReadingScope) NilFeedsGetFeedsCveIDOKCvssReadingScope {
+	return NilFeedsGetFeedsCveIDOKCvssReadingScope{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingScope is nullable FeedsGetFeedsCveIDOKCvssReadingScope.
+type NilFeedsGetFeedsCveIDOKCvssReadingScope struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingScope
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingScope) SetTo(v FeedsGetFeedsCveIDOKCvssReadingScope) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingScope) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingScope
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) Get() (v FeedsGetFeedsCveIDOKCvssReadingScope, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingScope) Or(d FeedsGetFeedsCveIDOKCvssReadingScope) FeedsGetFeedsCveIDOKCvssReadingScope {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingSubsequent returns new NilFeedsGetFeedsCveIDOKCvssReadingSubsequent with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingSubsequent(v FeedsGetFeedsCveIDOKCvssReadingSubsequent) NilFeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	return NilFeedsGetFeedsCveIDOKCvssReadingSubsequent{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingSubsequent is nullable FeedsGetFeedsCveIDOKCvssReadingSubsequent.
+type NilFeedsGetFeedsCveIDOKCvssReadingSubsequent struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingSubsequent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) SetTo(v FeedsGetFeedsCveIDOKCvssReadingSubsequent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingSubsequent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) Get() (v FeedsGetFeedsCveIDOKCvssReadingSubsequent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingSubsequent) Or(d FeedsGetFeedsCveIDOKCvssReadingSubsequent) FeedsGetFeedsCveIDOKCvssReadingSubsequent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKCvssReadingUserInteraction returns new NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction with value set to v.
+func NewNilFeedsGetFeedsCveIDOKCvssReadingUserInteraction(v FeedsGetFeedsCveIDOKCvssReadingUserInteraction) NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	return NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction is nullable FeedsGetFeedsCveIDOKCvssReadingUserInteraction.
+type NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction struct {
+	Value FeedsGetFeedsCveIDOKCvssReadingUserInteraction
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) SetTo(v FeedsGetFeedsCveIDOKCvssReadingUserInteraction) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKCvssReadingUserInteraction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) Get() (v FeedsGetFeedsCveIDOKCvssReadingUserInteraction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKCvssReadingUserInteraction) Or(d FeedsGetFeedsCveIDOKCvssReadingUserInteraction) FeedsGetFeedsCveIDOKCvssReadingUserInteraction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKEpss returns new NilFeedsGetFeedsCveIDOKEpss with value set to v.
+func NewNilFeedsGetFeedsCveIDOKEpss(v FeedsGetFeedsCveIDOKEpss) NilFeedsGetFeedsCveIDOKEpss {
+	return NilFeedsGetFeedsCveIDOKEpss{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKEpss is nullable FeedsGetFeedsCveIDOKEpss.
+type NilFeedsGetFeedsCveIDOKEpss struct {
+	Value FeedsGetFeedsCveIDOKEpss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKEpss) SetTo(v FeedsGetFeedsCveIDOKEpss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKEpss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKEpss) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKEpss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKEpss) Get() (v FeedsGetFeedsCveIDOKEpss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKEpss) Or(d FeedsGetFeedsCveIDOKEpss) FeedsGetFeedsCveIDOKEpss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKRangesFrom returns new NilFeedsGetFeedsCveIDOKRangesFrom with value set to v.
+func NewNilFeedsGetFeedsCveIDOKRangesFrom(v FeedsGetFeedsCveIDOKRangesFrom) NilFeedsGetFeedsCveIDOKRangesFrom {
+	return NilFeedsGetFeedsCveIDOKRangesFrom{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKRangesFrom is nullable FeedsGetFeedsCveIDOKRangesFrom.
+type NilFeedsGetFeedsCveIDOKRangesFrom struct {
+	Value FeedsGetFeedsCveIDOKRangesFrom
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKRangesFrom) SetTo(v FeedsGetFeedsCveIDOKRangesFrom) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKRangesFrom) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKRangesFrom
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) Get() (v FeedsGetFeedsCveIDOKRangesFrom, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKRangesFrom) Or(d FeedsGetFeedsCveIDOKRangesFrom) FeedsGetFeedsCveIDOKRangesFrom {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDOKSignalsItemDetail returns new NilFeedsGetFeedsCveIDOKSignalsItemDetail with value set to v.
+func NewNilFeedsGetFeedsCveIDOKSignalsItemDetail(v FeedsGetFeedsCveIDOKSignalsItemDetail) NilFeedsGetFeedsCveIDOKSignalsItemDetail {
+	return NilFeedsGetFeedsCveIDOKSignalsItemDetail{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDOKSignalsItemDetail is nullable FeedsGetFeedsCveIDOKSignalsItemDetail.
+type NilFeedsGetFeedsCveIDOKSignalsItemDetail struct {
+	Value FeedsGetFeedsCveIDOKSignalsItemDetail
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDOKSignalsItemDetail) SetTo(v FeedsGetFeedsCveIDOKSignalsItemDetail) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDOKSignalsItemDetail) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDOKSignalsItemDetail
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) Get() (v FeedsGetFeedsCveIDOKSignalsItemDetail, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDOKSignalsItemDetail) Or(d FeedsGetFeedsCveIDOKSignalsItemDetail) FeedsGetFeedsCveIDOKSignalsItemDetail {
 	if v, ok := o.Get(); ok {
 		return v
 	}

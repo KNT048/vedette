@@ -1,6 +1,6 @@
 // The CVE summary card of a finding and "Ask my AI": one sentence from the brief's fields, the status reasons, the fix for this
 // device with the vendor advisory, the workaround or the plain "none published" line, and behind one click the affected versions
-// with this device's row marked; the AI's answer as four headed answers in a fixed order.
+// per release train; the AI's answer as four headed answers in a fixed order.
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -12,6 +12,7 @@ import { sessionStore } from '@/mocks/stores'
 import { esxiBrief } from '@/features/feeds/briefSamples'
 import type { CveBrief } from '@/features/feeds/types'
 import { AiAnswers } from './Recommendation'
+import { FixTable } from '@/features/feeds/BriefParts'
 import type { FindingDetail } from './types'
 
 const FIXED = '8.0 U3d (build 24585383)'
@@ -49,10 +50,10 @@ describe('the CVE summary card on a finding', () => {
     const more = within(card).getByText('Affected versions, sources and score').closest('details')!
     expect(more).not.toHaveAttribute('open')
     await userEvent.click(within(card).getByText('Affected versions, sources and score'))
-    const marked = within(more).getAllByRole('row').filter((r) => r.hasAttribute('data-device'))
-    expect(marked.map((r) => r.textContent)).toEqual([`vmware esxiYour device8.0 U3from 8.0 before ${FIXED}${FIXED}`])
     // one row per release train: 8.0 U2 has its own fixed build, so a patched U2d host is not told to move to U3d
-    expect(within(more).getAllByRole('row').slice(1).map((r) => r.querySelectorAll('td')[1]!.textContent)).toEqual(['8.0 U3', '8.0 U2', '7.0 U3'])
+    expect(within(more).getAllByRole('row').slice(1).map((r) => r.querySelectorAll('td')[0]!.textContent)).toEqual(['8.0 U3', '8.0 U2', '7.0 U3'])
+    // the finding names its fixed release but not its product and train: no row is marked rather than one guessed from the text
+    expect(within(more).getAllByRole('row').filter((r) => r.hasAttribute('data-device'))).toEqual([])
     expect(within(more).getByText('All affected versions (58 rows)')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -69,6 +70,17 @@ describe('the CVE summary card on a finding', () => {
     renderApp('/findings/f-2')
     const card = (await screen.findByRole('heading', { name: /^About CVE-/ })).closest('section')!
     expect(await within(card).findByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
+  })
+})
+
+describe('the fixed releases table', () => {
+  it('marks the device\'s row by product and release train, never by the release text', () => {
+    const { unmount } = render(<FixTable b={brief} mark={{ key: 'vmware|esxi', train: '8.0 U2' }} />)
+    expect(screen.getAllByRole('row').filter((r) => r.hasAttribute('data-device')).map((r) => r.querySelectorAll('td')[0]!.textContent)).toEqual(['8.0 U2'])
+    expect(screen.queryByRole('columnheader', { name: 'Product' })).toBeNull() // one product: the page names it already
+    unmount()
+    render(<FixTable b={brief} mark={{ key: 'vmware|workstation', train: '8.0 U2' }} />)
+    expect(screen.getAllByRole('row').filter((r) => r.hasAttribute('data-device'))).toEqual([])
   })
 })
 

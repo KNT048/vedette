@@ -5,7 +5,6 @@ import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import type { OpenStatus, Reason } from '@/features/findings/types'
 import type { CveBrief, CveRange, CveRefGroup } from './types'
 
-const day = (iso: string) => iso.slice(0, 10)
 const web = (u: string) => /^https?:\/\//i.test(u)
 
 /** The urgency layer of a signal kind; other kinds (new sources) are shown with their source but give no layer. */
@@ -18,7 +17,7 @@ const LAYER: Record<string, number> = { exploited: 2, public_exploit: 3 }
 export function briefReasons(b: CveBrief): Reason[] {
   const due = new Map(b.lists.map((l) => [l.source, l.due_date]))
   const out: Reason[] = b.signals.filter((s) => s.qualifies && LAYER[s.kind]).map((s) => ({
-    layer: LAYER[s.kind]!, source: s.source, name: s.source_name, date: day(s.first_seen), url: s.url,
+    layer: LAYER[s.kind]!, source: s.source, name: s.source_name, date: s.first_seen, url: s.url,
     detail: typeof s.detail?.stars === 'number' ? `${s.detail.stars} stars` : null, due: s.kind === 'exploited' ? due.get(s.source) ?? null : null,
   }))
   for (const l of b.lists) {
@@ -28,22 +27,22 @@ export function briefReasons(b: CveBrief): Reason[] {
   return out.sort((a, c) => a.layer - c.layer || a.date.localeCompare(c.date))
 }
 
-/** The status the CVE has by its own signals (no device): the most urgent layer, else "Update recommended". */
-export function briefStatus(b: CveBrief): OpenStatus {
-  const layer = Math.min(5, ...briefReasons(b).map((r) => r.layer))
-  return OPEN_FINDING_STATUSES[layer - 1]!
+/** The status the CVE has by its own signals (no device): the most urgent layer; null when no list or signal gives one. */
+export function briefStatus(b: CveBrief): OpenStatus | null {
+  const layers = briefReasons(b).map((r) => r.layer)
+  return layers.length ? OPEN_FINDING_STATUSES[Math.min(...layers) - 1]! : null
 }
 
 /** A range's product in words: "vmware esxi" (the CPE's words, as the brief's `products` gives them). */
 export const rangeProduct = (r: Pick<CveRange, 'vendor' | 'product'>) => `${r.vendor} ${r.product}`.replace(/_/g, ' ').trim()
 
-export type FixRow = { product: string; train: string; versions: string; fixed: string; origin: CveRange['origin']; names: string[] }
+export type FixRow = { key: string; product: string; train: string; versions: string; fixed: string; origin: CveRange['origin'] }
 
 /**
  * The releases that fix the CVE: first the brief's fixes, one per product and release train as the product's version scheme
- * reads them ("8.0 U3" → "8.0 U3d (build 24585383)"), then the other ranges that name a fixed release, once per product and
- * release. `names`: the fixed release as the scheme words it and as the record states it, so the device's own fix can be found
- * among the rows by equality.
+ * reads them ("8.0 U3" → "8.0 U3d (build 24585383)"), then the other ranges that end at a release, once per product and release:
+ * the release the range names as fixed, else the version it ends before (NVD's "before 2.4.58" gives 2.4.58), printed as the
+ * range states it. `key`: "vendor|product", with `train` the row a device's own fix is matched to.
  */
 export function fixRows(b: CveBrief): FixRow[] {
   const seen = new Set<string>()
@@ -57,12 +56,13 @@ export function fixRows(b: CveBrief): FixRow[] {
   const trained = new Set(b.fixes.map((f) => `${f.vendor}|${f.product}|${f.train}`))
   for (const f of b.fixes) {
     const range = b.ranges.find((r) => r.vendor === f.vendor && r.product === f.product && r.train === f.train && r.fixed_release === f.release)
-    push({ product: rangeProduct(f), train: f.train, versions: range?.versions ?? '', fixed: f.release, origin: f.origin, names: [f.release, range?.fixed ?? ''].filter(Boolean) })
+    push({ key: `${f.vendor}|${f.product}`, product: rangeProduct(f), train: f.train, versions: range?.versions ?? '', fixed: f.release, origin: f.origin })
   }
   for (const r of b.ranges) {
-    if (!r.fixed && !r.fixed_release) continue
+    const fixed = r.fixed_release || r.fixed || r.end_excluding
+    if (!fixed) continue
     if (r.train && trained.has(`${r.vendor}|${r.product}|${r.train}`)) continue
-    push({ product: rangeProduct(r), train: r.train, versions: r.versions, fixed: r.fixed_release || r.fixed, origin: r.origin, names: [r.fixed_release, r.fixed].filter(Boolean) })
+    push({ key: `${r.vendor}|${r.product}`, product: rangeProduct(r), train: r.train, versions: r.versions, fixed, origin: r.origin })
   }
   return rows
 }
@@ -117,11 +117,14 @@ export function briefSentence(t: TFunction<'feeds'>, b: CveBrief): string {
   const cwe = b.cwe.find((c) => c.name)
   const weakness = cwe ? t('brief.weakness', { name: cwe.name, id: cwe.id }) : t('brief.flaw')
   const r = b.cvss?.reading
-  const how = r ? t('brief.how', {
-    vector: t(`brief.vector.${r.attack_vector}`),
-    privileges: t(`brief.privileges.${r.privileges_required}`),
-    user: t(r.user_interaction === null ? 'brief.user.unknown' : r.user_interaction === 'none' ? 'brief.user.none' : 'brief.user.needed'),
-  }) : ''
+  // CVSS 2.0 has no user interaction metric: the clause is left out, never guessed
+  const how = !r ? '' : r.user_interaction === null
+    ? t('brief.howNoUser', { vector: t(`brief.vector.${r.attack_vector}`), privileges: t(`brief.privileges.${r.privileges_required}`) })
+    : t('brief.how', {
+      vector: t(`brief.vector.${r.attack_vector}`),
+      privileges: t(`brief.privileges.${r.privileges_required}`),
+      user: t(r.user_interaction === 'none' ? 'brief.user.none' : 'brief.user.needed'),
+    })
   const status = briefStatus(b)
   const urgency = status === 'exploited' ? t('brief.status.exploited') : status === 'public_exploit' ? t('brief.status.public_exploit') : ''
   return t('brief.sentence', { product, weakness, how, urgency })

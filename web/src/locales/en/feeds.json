@@ -557,8 +557,6 @@
       "versions": "Affected",
       "fixed": "Fixed in",
       "yourDevice": "Your device",
-      "device": "Your device: {{software}} {{version}}",
-      "deviceFixed": "Your device: {{software}} {{version}} → fixed in {{fixed}}",
       "noFix": "The version data names no fixed release: the vendor advisory has it.",
       "all_one": "All affected versions ({{count}} row)",
       "all_other": "All affected versions ({{count}} rows)",
@@ -568,7 +566,6 @@
         "adp": "From CISA (ADP)"
       },
       "notUsed": "not used for matching while NVD gives versions",
-      "nvdPending": "NVD has not analysed this CVE yet ({{status}}): the affected versions are the vendor's, from the CVE record.",
       "train": "Release train"
     },
     "todo": {
@@ -579,12 +576,9 @@
       "workaround": "If you cannot patch yet:",
       "noWorkaround": "No workaround is published: install the fix.",
       "required": "{{source}} asks:",
-      "due": "Fix by {{date}}.",
-      "check": "Once it is fixed, Vedette sees the new version at the next check.",
-      "checkNow": "Check the device now"
+      "due": "Fix by {{date}}."
     },
     "advisory": "Vendor advisory",
-    "reading": "How it can be attacked",
     "sources": "Sources",
     "ref": {
       "vendor-advisory": "Vendor advisory",

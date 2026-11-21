@@ -13,9 +13,9 @@ describe('the CVE page of a full brief', () => {
     const affected = screen.getByRole('heading', { name: 'Affected and fixed' }).closest('section')!
     // the fixed build of each release train, as VMware states it
     expect(within(affected).getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent))).toEqual([
-      ['vmware esxi', '8.0 U3', 'from 8.0 before 8.0 U3d (build 24585383)', '8.0 U3d (build 24585383)'],
-      ['vmware esxi', '8.0 U2', 'from 8.0 before 8.0 U2d (build 24585300)', '8.0 U2d (build 24585300)'],
-      ['vmware esxi', '7.0 U3', 'from 7.0 before 7.0 U3s (build 24585291)', '7.0 U3s (build 24585291)'],
+      ['8.0 U3', 'from 8.0 before 8.0 U3d (build 24585383)', '8.0 U3d (build 24585383)'],
+      ['8.0 U2', 'from 8.0 before 8.0 U2d (build 24585300)', '8.0 U2d (build 24585300)'],
+      ['7.0 U3', 'from 7.0 before 7.0 U3s (build 24585291)', '7.0 U3s (build 24585291)'],
     ])
     expect(within(affected).queryByText(/^The version data names no fixed release/)).toBeNull()
     await userEvent.click(within(affected).getByText('All affected versions (58 rows)'))
@@ -28,6 +28,8 @@ describe('the CVE page of a full brief', () => {
     expect(within(sources).getByText('Government')).toBeInTheDocument()
     expect(screen.getByText('CVSS 3.1 by NVD')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'CWE-787: Out-of-bounds Write' })).toHaveAttribute('href', 'https://cwe.mitre.org/data/definitions/787.html')
+    // published over a year ago, no device matched: nothing explains a finding the reader did not ask about
+    expect(screen.queryByText(/name-only matches are not findings/)).toBeNull()
     await expectNoA11yViolations()
   })
 })

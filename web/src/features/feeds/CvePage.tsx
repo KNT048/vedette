@@ -3,7 +3,7 @@
 // sources; the facts (severity with who scored it, weakness, EPSS, dates) and your devices on the side.
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { PageHeader, Section } from '@/components/common/PageHeader'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
@@ -58,12 +58,15 @@ function Brief({ b }: { b: CveDetail }) {
   const { t } = useTranslation('feeds')
   const k = b.lists[0]
   const advisory = fixLink(b)
+  const status = briefStatus(b)
+  // an old CVE: a device that matches by name only is listed but is no finding; said beside the list, only when it lists devices
+  const old = !!k && !!b.matched?.length && !!b.published && b.published < yearAgo()
   const product = b.display ?? b.products[0] ?? t('brief.theProduct')
   return (
     <>
       <PageHeader title={b.cve} stories={['S-FEED-1', 'S-FEED-3']}
         meta={<span className="flex flex-wrap items-center gap-2">
-          <StatusBadge code={briefStatus(b)} />
+          {status ? <StatusBadge code={status} /> : null}
           <SeverityBadge severity={b.cvss ? { band: b.cvss.severity, score: b.cvss.score, version: b.cvss.version, vector: b.cvss.vector } : null} />
           {k?.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}
           {k ? <span className="text-meta text-muted">{t('cve.inKev', { date: fmtDate(k.date_added) })}</span> : null}
@@ -76,7 +79,6 @@ function Brief({ b }: { b: CveDetail }) {
         <div>
           <Section id="affected" title={t('brief.affected.title')}>
             <div className="grid gap-3">
-              {b.ranges_from && b.ranges_from !== 'nvd' && b.nvd_status ? <p className="text-meta text-muted">{t('brief.affected.nvdPending', { status: b.nvd_status })}</p> : null}
               {fixRows(b).length ? <FixTable b={b} /> : (
                 <p className="text-sm">{t('brief.affected.noFix')}</p>
               )}
@@ -106,7 +108,8 @@ function Brief({ b }: { b: CveDetail }) {
           <Slot name="cve.panels" props={{ cve: b.cve }} />
         </div>
         <aside aria-label={t('cve.matched')} className="grid content-start gap-2">
-          <Section title={t('cve.matched')} stories={['S-FEED-1', 'S-TIER-4']}>
+          <Section title={t('cve.matched')} stories={['S-FEED-1', 'S-TIER-4']}
+            info={old ? <><p>{t('cve.oldNote', { date: fmtDate(b.published) })}</p><p>{t('cve.oldNoteInfo')}</p></> : undefined}>
             {k ? <Devices b={b} /> : <TierDevices cve={b.cve} />}
           </Section>
           <Section title={t('cve.facts')}>
@@ -126,7 +129,6 @@ function Devices({ b }: { b: CveDetail }) {
   const openFindings = useFindings(undefined, findingsOn).data?.items.filter((f) => f.cve === b.cve && isOpen(f.status)).length ?? 0
   return (
     <>
-      {b.published && b.published < yearAgo() ? <Notice tone="off" className="mb-3" title={t('cve.oldNote', { date: fmtDate(b.published) })} info={t('cve.oldNoteInfo')} /> : null}
       {b.matched === null ? <ModuleOff module="inventory" /> : b.matched.length === 0 && b.not_affected ? (
         <p className="text-sm text-muted">{t('cve.notAffected', { count: b.not_affected })}</p>
       ) : b.matched.length === 0 ? (

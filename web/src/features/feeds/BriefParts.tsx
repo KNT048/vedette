@@ -47,14 +47,19 @@ export function BriefFacts({ b, product = false }: { b: CveBrief; product?: bool
   return <KeyValue items={items} />
 }
 
+/** The row a device's own fix belongs to: its product ("vendor|product", as the brief's rows) and release train. */
+export type FixMark = { key: string; train: string }
+
 /**
- * The releases that fix the CVE, one row per product and release train (or fixed release). `mark`: the fixed release the device
- * needs (from the finding's own fix): that row says "Your device". Nothing when no range names a fixed release.
+ * The releases that fix the CVE, one row per product and release train (or fixed release). The product column shows only when the
+ * rows name more than one product: the page already names the CVE's product. `mark`: the row of the device's own fix, matched by
+ * product and train (never by the release text); no mark when the finding does not say which row it is.
  */
-export function FixTable({ b, mark }: { b: CveBrief; mark?: string | null }) {
+export function FixTable({ b, mark }: { b: CveBrief; mark?: FixMark | null }) {
   const { t } = useTranslation('feeds')
   const rows = fixRows(b)
   if (!rows.length) return null
+  const products = new Set(rows.map((r) => r.key)).size > 1
   const trains = rows.some((r) => r.train)
   const th = 'py-1.5 pr-4 font-medium'
   return (
@@ -62,7 +67,7 @@ export function FixTable({ b, mark }: { b: CveBrief; mark?: string | null }) {
       <table className="w-full text-left text-sm">
         <thead className="text-caption text-muted">
           <tr>
-            <th scope="col" className={th}>{t('brief.affected.product')}</th>
+            {products ? <th scope="col" className={th}>{t('brief.affected.product')}</th> : null}
             {trains ? <th scope="col" className={th}>{t('brief.affected.train')}</th> : null}
             <th scope="col" className={th}>{t('brief.affected.versions')}</th>
             <th scope="col" className="py-1.5 font-medium">{t('brief.affected.fixed')}</th>
@@ -70,13 +75,13 @@ export function FixTable({ b, mark }: { b: CveBrief; mark?: string | null }) {
         </thead>
         <tbody className="divide-y divide-rule border-t border-rule">
           {rows.map((r) => {
-            const mine = !!mark && r.names.includes(mark)
+            const mine = !!mark && mark.key === r.key && !!r.train && mark.train === r.train
             return (
-              <tr key={`${r.product}-${r.train}-${r.fixed}`} className={mine ? 'bg-accent-soft' : undefined} data-device={mine || undefined}>
-                <td className="py-1.5 pr-4">{r.product}{mine ? <span className="ml-2 text-caption font-medium text-accent">{t('brief.affected.yourDevice')}</span> : null}</td>
+              <tr key={`${r.key}-${r.train}-${r.fixed}`} className={mine ? 'bg-accent-soft' : undefined} data-device={mine || undefined}>
+                {products ? <td className="py-1.5 pr-4">{r.product}</td> : null}
                 {trains ? <td className="py-1.5 pr-4">{r.train || '–'}</td> : null}
                 <td className="py-1.5 pr-4">{r.versions || '–'}</td>
-                <td className="py-1.5 font-medium">{r.fixed}</td>
+                <td className="py-1.5 font-medium">{r.fixed}{mine ? <span className="ml-2 text-caption font-medium text-accent">{t('brief.affected.yourDevice')}</span> : null}</td>
               </tr>
             )
           })}

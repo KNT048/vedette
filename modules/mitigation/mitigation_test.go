@@ -79,6 +79,9 @@ func (fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]findings.
 func (fakeFeeds) CVSS(context.Context, []string) (map[string]findings.CVSS, error) { return nil, nil }
 
 func (fakeFeeds) Vulns(context.Context) ([]findings.Vuln, error) { return nil, nil }
+func (fakeFeeds) MatchSet(context.Context, findings.MatchScope) ([]findings.Vuln, error) {
+	return nil, nil
+}
 
 func (fakeFeeds) TierStatus(context.Context) (findings.TierStatus, error) {
 	return findings.TierStatus{}, nil

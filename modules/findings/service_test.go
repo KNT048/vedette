@@ -124,6 +124,8 @@ func (f *fakeFeeds) CVSS(_ context.Context, cves []string) (map[string]CVSS, err
 
 func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
 
+func (f *fakeFeeds) MatchSet(context.Context, MatchScope) ([]Vuln, error) { return f.vulns, nil }
+
 func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
 
 func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]TierVuln, error) {

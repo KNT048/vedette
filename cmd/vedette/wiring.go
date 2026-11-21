@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -512,6 +513,110 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 			out[i].EPSS = *v.EPSS
 		}
 		out[i].Published = published[v.CVE] // zero when NVD has not answered: counts as recent
+	}
+	return out, nil
+}
+
+// MatchSet is what findings' match pass compares the devices with (findings.Feeds.MatchSet): the exploited lists' entries (Vulns),
+// then every other catalogue CVE whose ranges name a product the devices run (scope.Keep) or that a finding holds (scope.Pinned), with
+// the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE record's), the publication
+// day, EPSS and the distributions' word. Nothing while the feeds module is off.
+func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
+	if a.on != nil && !a.on() {
+		return nil, nil
+	}
+	kev, err := a.Vulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	listed := make(map[string]bool, len(kev))
+	for _, v := range kev {
+		listed[v.CVE] = true
+	}
+	products, err := a.st.RangeProducts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var keys []feeds.ProductKey
+	for _, k := range products {
+		if scope.Keep(k.Vendor, k.Product) {
+			keys = append(keys, k)
+		}
+	}
+	ranges, err := a.st.Ranges(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	var pins []string
+	pinSet := map[string]bool{}
+	for _, c := range scope.Pinned {
+		if !listed[c] && !pinSet[c] {
+			pins = append(pins, c)
+			pinSet[c] = true
+		}
+	}
+	pinned, err := a.st.RangesOf(ctx, pins)
+	if err != nil {
+		return nil, err
+	}
+	byCVE := map[string][]feeds.Range{}
+	for _, r := range pinned { // every range of a pinned CVE
+		byCVE[r.CVE] = append(byCVE[r.CVE], r)
+	}
+	for _, r := range ranges { // the ranges of the scope's products of the others
+		if !listed[r.CVE] && !pinSet[r.CVE] {
+			byCVE[r.CVE] = append(byCVE[r.CVE], r)
+		}
+	}
+	cves := slices.Sorted(maps.Keys(byCVE))
+	if len(cves) == 0 {
+		return kev, nil
+	}
+	cat, err := a.st.Catalogue(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	distro, err := a.st.DistroFixesFor(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	loading, err := a.st.DistroLoading(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := slices.Clip(kev) // the cached list is never written: a later append copies
+	for _, cve := range cves {
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading}
+		complete := true
+		for _, r := range byCVE[cve] {
+			v.Origin = r.Origin
+			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+			if row, ok := r.MatchRow(); ok {
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE,
+					Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
+			}
+		}
+		switch {
+		case v.Origin == feeds.OriginNVD:
+		case complete:
+			v.RangesFrom = findings.RangesCVEOrg
+		default:
+			v.RangesFrom = findings.RangesCVEOrgPartial
+		}
+		if e, ok := cat[cve]; ok {
+			if e.Published != nil {
+				v.Published = *e.Published
+			}
+			if e.EPSS != nil {
+				v.EPSS = *e.EPSS
+			}
+		}
+		for _, d := range distro[cve] {
+			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
+		}
+		if len(v.Affected) > 0 || len(v.Distro) > 0 {
+			out = append(out, v)
+		}
 	}
 	return out, nil
 }

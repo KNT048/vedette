@@ -395,24 +395,31 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	if !ok {
 		return UpsertResult{}, fmt.Errorf("findings: matching device %q: %w", assetID, ErrUnknownAsset)
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	pinned, err := s.pinnedCVEs(ctx, assetID)
 	if err != nil {
-		return UpsertResult{}, fmt.Errorf("findings: reading the exploited list: %w", err)
+		return UpsertResult{}, err
 	}
-	return s.UpsertFromMatch(ctx, a, vulns)
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, pinned))
+	if err != nil {
+		return UpsertResult{}, fmt.Errorf("findings: reading the catalogue: %w", err)
+	}
+	set := newMatchSet(vulns)
+	dev := set.forDevice(a)
+	a.winList = dev
+	return s.upsert(ctx, a, dev, cveSet(vulns), nil)
 }
 
 // UpsertFromMatch matches the device's software against vulns and writes the result through Transition (applyMatch): a detected
 // (CVE, software line) is created or detected again, a finding of a CVE of vulns that is no longer detected goes away the way the
 // data says (patched with credit, or corrected), and the device's questions are rewritten.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
-	return s.upsert(ctx, a, vulns, nil)
+	return s.upsert(ctx, a, vulns, cveSet(vulns), nil)
 }
 
 // upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose questions the device's become
 // instead of the ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which
 // replaces them.
-func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
+func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -442,7 +449,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		if whole != nil {
 			qm = *whole
 		}
-		r, err := s.applyMatch(ctx, tx, a, vulns, m, qm, existing, now, emit)
+		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
 		res = r
 		return err
 	})
@@ -675,16 +682,17 @@ func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, Mat
 	if !ok {
 		return Asset{}, MatchResult{}, false, nil
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, []string{cve}))
 	if err != nil {
-		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the exploited list: %w", err)
+		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the catalogue: %w", err)
 	}
-	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == cve })
+	dev := newMatchSet(vulns).forDevice(a)
+	i := slices.IndexFunc(dev, func(v Vuln) bool { return v.CVE == cve })
 	if i < 0 {
 		return Asset{}, MatchResult{}, false, nil
 	}
-	a.winList = vulns
-	return a, MatchAsset(a, vulns[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
+	a.winList = dev
+	return a, MatchAsset(a, dev[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
 }
 
 // RescanClear records that a safe check that had matched a CVE on a device came back clear: each finding of the CVE a safe check had

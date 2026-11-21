@@ -390,6 +390,36 @@ func (s *Store) DistroFixesOf(ctx context.Context, cve string) ([]DistroFix, err
 	return out[cve], err
 }
 
+// DistroFixesFor is DistroFixes for these CVEs, on an exploited list or not: what the distributions say about the catalogue CVEs the
+// match pass compares.
+func (s *Store) DistroFixesFor(ctx context.Context, cves []string) (map[string][]DistroFix, error) {
+	out := map[string][]DistroFix{}
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read distro: %w", err)
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected')
+AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read distro: %w", err)
+		}
+		for rows.Next() {
+			var f DistroFix
+			if err := rows.Scan(&f.Distro, &f.Release, &f.Package, &f.CVE, &f.Status, &f.Fixed, &f.Pro); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: read distro: %w", err)
+			}
+			out[f.CVE] = append(out[f.CVE], f)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: read distro: %w", err)
+		}
+	}
+	return out, nil
+}
+
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro

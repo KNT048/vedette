@@ -86,8 +86,6 @@ const (
 	planDistro  = "distro"
 )
 
-// DistroPackage is a source package of one release as the distributions' security data names it, for Feeds.TierDistro.
-type DistroPackage struct{ Distro, Release, Package string }
 
 // tierSource says whether a row's version may confirm a tier CVE: the device's agent, a person, the device's own
 // SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap, the scan, the

@@ -39,7 +39,7 @@ func (e *env) matchPass(t *testing.T, a Asset, m MatchResult) {
 		if err != nil {
 			return err
 		}
-		_, err = e.svc.applyMatch(t.Context(), tx, a, vulns, m, m, existing, now, emit)
+		_, err = e.svc.applyMatch(t.Context(), tx, a, vulns, cveSet(vulns), m, m, existing, now, emit)
 		return err
 	}); err != nil {
 		t.Fatal(err)

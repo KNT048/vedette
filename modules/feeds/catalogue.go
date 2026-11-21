@@ -349,6 +349,61 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 	return out, nil
 }
 
+// RangeProducts is every product a catalogue range names (CPE vendor and product, or a CVE record's product key), each once: the
+// match pass keeps those its devices run and reads only their ranges (Ranges).
+func (s *Store) RangeProducts(ctx context.Context) ([]ProductKey, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_cve_range`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: range products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []ProductKey
+	for rows.Next() {
+		var k ProductKey
+		if err := rows.Scan(&k.Vendor, &k.Product); err != nil {
+			return nil, fmt.Errorf("feeds: range products: %w", err)
+		}
+		out = append(out, k)
+	}
+	return out, rows.Err()
+}
+
+// RangesOf returns the ranges of these CVEs with the precedence of rangeOrigin applied per CVE, sorted by CVE, then as stored. A CVE
+// the catalogue does not hold, or holds without ranges, is absent.
+func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
+	var out []Range
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, per := range groupByCVE(rows) {
+			out = append(out, rangeOrigin(per)...)
+		}
+	}
+	return out, nil
+}
+
+// MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as
+// "cpe:2.3:*:<vendor>:<product>:…" of its own key (kevRecordRow). ok is false for a record row of a vendor whose versions findings
+// compares with rules of its own (recordSkipVendors).
+func (r Range) MatchRow() (AffectedRow, bool) {
+	if r.Origin != OriginNVD && recordSkipVendors[r.Vendor] {
+		return AffectedRow{}, false
+	}
+	if r.CPE == "" {
+		if r.Vendor == "" || r.Product == "" {
+			return AffectedRow{}, false
+		}
+		return kevRecordRow(r, r.Vendor, r.Product), true
+	}
+	return r.AffectedRow(), true
+}
+
 // groupByCVE splits rows sorted by CVE into one slice per CVE.
 func groupByCVE(rows []Range) [][]Range {
 	var out [][]Range
@@ -607,16 +662,20 @@ func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error)
 	return src, err
 }
 
+// matchStampFeeds are the feeds whose pulls may change what the match pass reads: the exploited lists, the catalogue's records, the
+// distributions' data, EPSS, the scan templates, the public-exploit indexes and the vendors' exploitation claims (their signals
+// change no match yet, but the urgency read of the findings keys on the same stamp).
+const matchStampFeeds = `'alpine-osv', 'cisa-kev', 'cisco-psirt', 'cve-org', 'debian-tracker', 'epss-all', 'exploit-db', 'fortinet-psirt', 'metasploit',
+'msrc', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'poc-in-github', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev'`
+
 // MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and
 // rev (turned on or off) of the feeds that write them (each written in the pull's own transaction), and the count and newest change
 // of the exploited-list entries and of their catalogue rows. findings (through cmd/vedette) keeps one read of the list per stamp,
 // instead of reading the ranges once per device.
-// The public-exploit feeds (metasploit, exploit-db, poc-in-github) are not in it yet: nothing it keys reads their signals. The
-// urgency read of the findings (Signals) must add them, as nuclei-templates is.
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
-(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('alpine-osv', 'cisa-kev', 'cve-org', 'debian-tracker', 'epss-all', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev') ORDER BY id))
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN (`+matchStampFeeds+`) ORDER BY id))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(c.updated_at), '') FROM feeds_cve c WHERE c.cve IN (SELECT cve FROM feeds_kev))`).Scan(&stamp)
 	if err != nil {

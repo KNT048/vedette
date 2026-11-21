@@ -2,14 +2,18 @@ package inventory
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/store"
 )
 
 // What a person declared is what the device is, where the matcher reads it so (INV-45). A device added by hand as "FortiGate,
@@ -64,6 +68,9 @@ var osProducts, modelProducts = func() (map[string]osProduct, map[string][]strin
 	return out, models
 }()
 
+// osKeys are the keys of osProducts, sorted: the products a declared line may be of.
+var osKeys = slices.Sorted(maps.Keys(osProducts))
+
 // appliance says whether a catalog kind is a box whose product is the device itself (not a computer that runs it).
 func appliance(kind string) bool {
 	switch devicetypes.ActsAs(kind) {
@@ -104,50 +111,172 @@ func outranking(d *Device) bool {
 	return slices.ContainsFunc(d.Software, func(sw Software) bool { return sw.Source == "agent" })
 }
 
-// applyDeclared puts the declared identity on a listed device (INV-45). It never fails the read: when the matcher's view of the
-// device cannot be read the device keeps the values its observations give, and the error is logged.
-func (s *Service) applyDeclared(ctx context.Context, d *Device) {
-	cands := declaredCandidates(d.Software)
-	if len(cands) == 0 || d.OS != nil && d.OS.Source == "manual" {
-		return // no candidate, or the person typed the OS
+// declaredEvidence marks the stored OS observation a declared row decided: an observation of source manual whose evidence is
+// declaredEvidence + the software line's id. A person's own OS carries the person's name as evidence instead, so the two never mix.
+const declaredEvidence = "declared:"
+
+// declaredObsSQL is the condition on inv_observation rows that are such a stored decision.
+const declaredObsSQL = `(field = 'os' AND source = 'manual' AND substr(ifnull(evidence, ''), 1, 9) = 'declared:')`
+
+// declaredRow is the software line a stored OS came from: the id after declaredEvidence when source and evidence say a declared row
+// decided it, "" otherwise.
+func declaredRow(source, evidence string) string {
+	if source != "manual" || !strings.HasPrefix(evidence, declaredEvidence) {
+		return ""
+	}
+	return strings.TrimPrefix(evidence, declaredEvidence)
+}
+
+// declaredChoice is the declared row that is the device's OS, with the OS text it gives; nil when none (INV-45). detected is what
+// the sources read (the winner of the OS field without a declared row), nil when none read one. The matcher chooses among the
+// candidates (Config.DeclaredOS) once a source it may prefer reads the device; without a matcher a candidate fills only an OS no
+// source gives. The choice is stored by recomputeColumns; nothing reads it again at read time.
+func (s *Service) declaredChoice(ctx context.Context, tx *sql.Tx, id string, detected *Observed) (*Software, string, error) {
+	if _, _, _, typed, err := manualOS(ctx, tx, id); err != nil || typed {
+		return nil, "", err // the person typed the OS
+	}
+	lines, err := declaredLines(ctx, tx, id, osKeys)
+	if err != nil || len(lines) == 0 {
+		return nil, "", err // no declared row: most devices stop here, without reading their software
+	}
+	devs := []Device{{Software: []Software{}}}
+	devs[0].ID, devs[0].OS = id, detected
+	if err := loadSoftware(ctx, tx, `(SELECT ?)`, map[string]int{id: 0}, devs, []any{id}); err != nil {
+		return nil, "", err
+	}
+	d := &devs[0]
+	cands := slices.DeleteFunc(declaredCandidates(d.Software), func(c *Software) bool { return !slices.Contains(lines, c.ID) })
+	if len(cands) == 0 {
+		return nil, "", nil
 	}
 	var row *Software
 	version := ""
 	switch {
 	case s.declared != nil && outranking(d):
-		md, ok, err := s.MatchInput(ctx, d.ID)
+		var os *string
+		if detected != nil {
+			os = &detected.Value
+		} else {
+			none := ""
+			os = &none
+		}
+		md, ok, err := s.matchInput(ctx, tx, id, os)
 		if err != nil {
-			s.log.WarnContext(ctx, "inventory: the matcher's view of a device could not be read; it shows what its sources read", "device", d.ID, "error", err.Error())
-			return
+			return nil, "", err
 		}
 		if ok {
 			ids := make([]string, len(cands))
 			for i, c := range cands {
 				ids[i] = c.ID
 			}
-			id, v, err := s.declared(md, ids)
+			chosen, v, err := s.declared(md, ids)
 			if err != nil {
-				s.log.WarnContext(ctx, "inventory: the matcher could not choose a device's declared OS; it shows what its sources read", "device", d.ID, "error", err.Error())
-				return
+				s.log.WarnContext(ctx, "inventory: the matcher could not choose a device's declared OS; it keeps what its sources read", "device", id, "error", err.Error())
+				return nil, "", nil
 			}
-			if i := slices.IndexFunc(cands, func(c *Software) bool { return c.ID == id }); i >= 0 {
+			if i := slices.IndexFunc(cands, func(c *Software) bool { return c.ID == chosen }); i >= 0 {
 				row, version = cands[i], v
 			}
 		}
 	case s.declared != nil: // nothing outranks the row: the matcher keeps the newest candidate
 		row, version = cands[0], s.osVersion(deref(cands[0].Version))
 	}
-	if row == nil && d.OS == nil { // no matcher (or an ignored device): a candidate only fills an empty OS
+	if row == nil && detected == nil { // no matcher (or an ignored device): a candidate only fills an empty OS
 		row = cands[0]
 		version = s.osVersion(deref(row.Version))
 	}
-	if row == nil || version == "" && d.OS != nil && d.OS.Basis != basisGuess {
-		return // a row without a version never hides an OS a source read
+	if row == nil || version == "" && detected != nil && detected.Basis != basisGuess {
+		return nil, "", nil // a row without a version never hides an OS a source read
 	}
+	text := strings.TrimSpace(row.Product + " " + version)
+	if !osText(text) {
+		return nil, "", nil
+	}
+	return row, text, nil
+}
+
+// storeDeclared makes the OS field of a device follow the declared row, in recomputeColumns' transaction: the decision is one
+// observation (source manual, evidence declaredEvidence + the row's id), kept while the choice stands and deleted when it does not,
+// and it becomes best["os"] so inv_asset.os and os_obs_id hold it. The observation is the row's own reading (its confidence and time).
+func (s *Service) storeDeclared(ctx context.Context, tx *sql.Tx, id string, best map[string]obs) error {
+	var detected *Observed
+	if w, ok := best["os"]; ok {
+		mac := ""
+		if m, ok := best["mac"]; ok {
+			mac = m.value
+		}
+		detected = &Observed{Value: w.value, Source: w.source, Confidence: w.confidence, SeenAt: w.seenAt, Basis: osBasis(w.value, w.source, mac)}
+	}
+	row, text, err := s.declaredChoice(ctx, tx, id, detected)
+	if err != nil {
+		return err
+	}
+	var have struct{ id, value, seen, evidence string }
+	var conf float64
+	err = tx.QueryRowContext(ctx, `SELECT id, value, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ? AND `+declaredObsSQL+` ORDER BY id LIMIT 1`, id).
+		Scan(&have.id, &have.value, &conf, &have.seen, &have.evidence)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("inventory: read the declared OS: %w", err)
+	}
+	if row != nil && have.id != "" && have.value == text && conf == row.Confidence && have.seen == row.seenAt && have.evidence == declaredEvidence+row.ID {
+		best["os"] = obs{id: have.id, field: "os", value: text, source: "manual", confidence: conf, seenAt: have.seen}
+		return nil
+	}
+	if have.id != "" {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND `+declaredObsSQL, id); err != nil {
+			return fmt.Errorf("inventory: drop the declared OS: %w", err)
+		}
+	}
+	if row == nil {
+		return nil
+	}
+	o := obs{id: store.NewID("o"), field: "os", value: text, source: "manual", confidence: row.Confidence, seenAt: row.seenAt}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, first_seen, evidence) VALUES (?, ?, 'os', ?, 'manual', ?, ?, ?, ?)`,
+		o.id, id, o.value, o.confidence, o.seenAt, o.seenAt, declaredEvidence+row.ID); err != nil {
+		return fmt.Errorf("inventory: record the declared OS: %w", err)
+	}
+	best["os"] = o
+	return nil
+}
+
+// ReconcileDeclaredOS stores the declared-OS decision of the devices that have a declared row and no decision, and drops a decision
+// no declared row backs: the devices of a box that ran before the decision was stored. A box that is up to date selects nothing, so
+// the job "declared-os-reconcile" costs a query at start-up; a device it cannot store is logged and skipped.
+func (s *Service) ReconcileDeclaredOS(ctx context.Context) error {
+	ids, err := devicesToDecide(ctx, s.db.Reader(), osKeys)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+			changed, err := s.RecomputeAsset(ctx, tx, id)
+			if changed {
+				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true})
+			}
+			return err
+		})
+		if err != nil { // one device never holds the others back
+			s.log.WarnContext(ctx, "inventory: the declared OS of a device could not be stored", "device", id, "error", err.Error())
+		}
+	}
+	return nil
+}
+
+// fillDeclaredHardware gives a device whose OS a declared row decided the maker and model that row names, when no source reads them
+// (the catalog's line: a FortiOS row is a FortiGate by Fortinet). It reads the stored decision (the OS's software id), never decides
+// the OS.
+func fillDeclaredHardware(d *Device) {
+	if d.OS == nil || d.OS.SoftwareID == "" {
+		return
+	}
+	i := slices.IndexFunc(d.Software, func(s Software) bool { return s.ID == d.OS.SoftwareID })
+	if i < 0 {
+		return
+	}
+	row := d.Software[i]
 	at := func(v string) *Observed {
-		return &Observed{Value: v, Source: "manual", Confidence: row.Confidence, SeenAt: row.seenAt, SoftwareID: row.ID}
+		return &Observed{Value: v, Source: "manual", Confidence: d.OS.Confidence, SeenAt: d.OS.SeenAt, SoftwareID: row.ID}
 	}
-	d.OS = at(strings.TrimSpace(row.Product + " " + version))
 	if m := osProducts[productid.Key(row.Vendor, row.Product)].model; d.Model == nil && m != "" {
 		d.Model = at(m)
 	}

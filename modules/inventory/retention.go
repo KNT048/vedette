@@ -122,6 +122,13 @@ func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, er
 					return err
 				}
 			}
+			moved, err := s.RecomputeAsset(ctx, tx, id) // an agent row that covered a person's OS row is gone
+			if err != nil {
+				return err
+			}
+			if moved {
+				o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+			}
 			if err := s.auditTx(ctx, tx, systemActor, "inventory.software_expired", deviceName(ctx, tx, id), fmt.Sprintf("agent: %d items not reported for 30 days", n)); err != nil {
 				return err
 			}

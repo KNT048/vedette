@@ -1,7 +1,7 @@
 # MCP-server Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-MCP-1 · Ghi chú: đây là MCP **do Vedette phục vụ**; MCP/kết nối **ra ngoài** của AI thuộc `core/conn` · Last verified: 2026-11-13
-> GUI nằm dưới `core` (`web/src/features/core/{contract,McpSection,mocks}.ts`, mục `/core/mcp`). Backend: `modules/mcp-server` (package `mcpserver`), nối ở `cmd/vedette/mcpserver.go`.
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-MCP-1 · Ghi chú: đây là MCP **do Vedette phục vụ**; MCP/kết nối **ra ngoài** của AI thuộc `core/conn` · Last verified: 2026-11-21 (mọi câu đã đối chiếu với mã)
+> GUI nằm dưới `core` (`web/src/features/core/{contract.ts,McpSection.tsx,mocks.ts}`, mục `/core/mcp`). Backend: `modules/mcp-server` (package `mcpserver`), nối ở `cmd/vedette/mcpserver.go`.
 
 ## Invariants (luôn đúng)
 - **INV-1** **Chỉ đọc**: bảy công cụ cố định, theo thứ tự `tools/list` — `list_assets`, `get_asset` (scope `assets`); `list_findings`, `get_finding` (scope `findings`); `lookup_cve`, `lookup_ioc`, `hot_vulnerabilities` (scope `feeds`). Mỗi công cụ có `inputSchema` (`additionalProperties: false`), `outputSchema`, chú thích `readOnlyHint: true`, `destructiveHint: false`. Không công cụ ghi, không công cụ chạy lệnh, không đường vào `response` (SYS-8).
@@ -59,4 +59,4 @@ Cổng đóng, không route `/core/mcp*` (404), không job. Token giữ nguyên 
 1. ~~Loopback trong container `core`~~ Đã chốt: trong container nghe `0.0.0.0:8765`, đơn vị Quadlet và `compose.yaml` publish `127.0.0.1:8765` của máy. Máy khác: đường hầm SSH/proxy của khách.
 2. ~~Giới hạn trang và tốc độ~~ Đã chốt.
 3. ~~Bằng chứng quét trong `get_finding`~~ Đã chốt: chỉ tóm tắt, mẫu và lúc kiểm; request/response thô ở lại hộp.
-4. ~~Tên bảng~~ `mcp_tokens` (WP-06).
+4. ~~Tên bảng~~ `mcp_tokens`.

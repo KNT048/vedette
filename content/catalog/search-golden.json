@@ -24,45 +24,41 @@
     },
     {
      "id": "cisco-asa-firepower-ftd",
-     "kev_count": 18,
+     "kev_count": 15,
      "kev": [
       "cisco|adaptive security appliance (asa)",
       "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
       "cisco|adaptive security appliance and firepower threat defense",
       "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
       "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
-      "cisco|secure firewall asa software and cisco secure ftd software",
-      "cisco|secure firewall management center (fmc)",
-      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+      "cisco|secure firewall asa software and cisco secure ftd software"
      ]
     },
     {
      "id": "cisco-ios-ios-xe-router-or-switch",
-     "kev_count": 46,
+     "kev_count": 40,
      "kev": [
-      "cisco|cisco ios xe web ui",
       "cisco|ios",
       "cisco|ios and ios xe",
       "cisco|ios and ios xe software",
       "cisco|ios software",
       "cisco|ios software and cisco ios xe software",
+      "cisco|ios, ios xr, and ios xe",
+      "cisco|ios, xr, and xe software",
       "cisco|ios xe software",
       "cisco|ios xe web ui",
-      "cisco|ios xr",
-      "cisco|ios, ios xr, and ios xe",
-      "cisco|ios, xr, and xe software"
+      "cisco|cisco ios xe web ui"
      ]
     },
     {
      "id": "cisco-rv-series-router-small-business",
-     "kev_count": 12,
+     "kev_count": 9,
      "kev": [
-      "cisco|identity services engine",
       "cisco|rv series routers",
-      "cisco|small business rv series routers",
       "cisco|small business rv160, rv260, rv340, and rv345 series routers",
       "cisco|small business rv320 and rv325 dual gigabit wan vpn routers",
-      "cisco|small business rv320 and rv325 routers"
+      "cisco|small business rv320 and rv325 routers",
+      "cisco|small business rv series routers"
      ]
     },
     {
@@ -105,8 +101,8 @@
       "sonicwall|sma100 appliances",
       "sonicwall|sma1000 appliance",
       "sonicwall|sma1000 appliances",
-      "sonicwall|sslvpn sma100",
-      "sonicwall|secure remote access (sra)"
+      "sonicwall|secure remote access (sra)",
+      "sonicwall|sslvpn sma100"
      ]
     },
     {
@@ -120,12 +116,11 @@
     },
     {
      "id": "check-point-security-gateway",
-     "kev_count": 5,
+     "kev_count": 4,
      "kev": [
       "check point|multiple products",
       "check point|quantum security gateways",
-      "check point|security gateway",
-      "check point|smartconsole"
+      "check point|security gateway"
      ]
     },
     {
@@ -151,21 +146,19 @@
     },
     {
      "id": "draytek-vigor-router",
-     "kev_count": 5,
+     "kev_count": 3,
      "kev": [
-      "draytek|multiple vigor routers",
       "draytek|vigor routers",
-      "draytek|vigorconnect"
+      "draytek|multiple vigor routers"
      ]
     },
     {
      "id": "tp-link-router-archer-er",
-     "kev_count": 6,
+     "kev_count": 5,
      "kev": [
       "tp-link|archer ax21",
       "tp-link|multiple archer devices",
       "tp-link|multiple routers",
-      "tp-link|tl-wa855re",
       "tp-link|tl-wr841n"
      ]
     },
@@ -222,23 +215,20 @@
     },
     {
      "id": "netgear-router-or-access-point",
-     "kev_count": 8,
+     "kev_count": 7,
      "kev": [
       "netgear|dgn2200 devices",
-      "netgear|jgs516pe devices",
-      "netgear|multiple devices",
-      "netgear|multiple routers",
+      "netgear|wnr2000v5 router",
       "netgear|wireless access point (wap) devices",
       "netgear|wireless router dgn2200",
-      "netgear|wnr2000v5 router"
+      "netgear|multiple devices",
+      "netgear|multiple routers"
      ]
     },
     {
      "id": "d-link-router-nas-or-camera",
      "kev_count": 27,
      "kev": [
-      "d-link|dcs-2530l and dcs-2670l devices",
-      "d-link|dcs-930l devices",
       "d-link|dir-300 router",
       "d-link|dir-600 router",
       "d-link|dir-605 router",
@@ -249,16 +239,18 @@
       "d-link|dir-823x",
       "d-link|dir-825 r1 devices",
       "d-link|dir-859 router",
-      "d-link|dnr-322l",
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
       "d-link|dns-320 device",
       "d-link|dns-320 storage device",
+      "d-link|dnr-322l",
       "d-link|dsl-2750b devices",
       "d-link|dsl-2760u",
       "d-link|dwl-2600ap access point",
       "d-link|multiple nas devices",
       "d-link|multiple routers",
-      "d-link|routers",
-      "d-link and trendnet|multiple devices"
+      "d-link and trendnet|multiple devices",
+      "d-link|routers"
      ]
     },
     {
@@ -286,9 +278,9 @@
     },
     {
      "id": "aruba-hpe-procurve-switch",
-     "kev_count": 1,
+     "kev_count": 0,
      "kev": [
-      "hewlett packard (hp)|procurve manager (pcm), pcm+, identity driven manager (idm), and application lifecycle management"
+      "hpe|procurve"
      ]
     }
    ]
@@ -310,9 +302,8 @@
     },
     {
      "id": "fortinet-forticlient-ssl-vpn",
-     "kev_count": 4,
+     "kev_count": 1,
      "kev": [
-      "fortinet|forticlient ems",
       "fortinet|fortios and fortiproxy ssl-vpn"
      ]
     },
@@ -519,16 +510,14 @@
     },
     {
      "id": "cisco-asa-firepower-ftd",
-     "kev_count": 18,
+     "kev_count": 15,
      "kev": [
       "cisco|adaptive security appliance (asa)",
       "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
       "cisco|adaptive security appliance and firepower threat defense",
       "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
       "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
-      "cisco|secure firewall asa software and cisco secure ftd software",
-      "cisco|secure firewall management center (fmc)",
-      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+      "cisco|secure firewall asa software and cisco secure ftd software"
      ]
     },
     {
@@ -563,16 +552,14 @@
    "items": [
     {
      "id": "cisco-asa-firepower-ftd",
-     "kev_count": 18,
+     "kev_count": 15,
      "kev": [
       "cisco|adaptive security appliance (asa)",
       "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
       "cisco|adaptive security appliance and firepower threat defense",
       "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
       "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
-      "cisco|secure firewall asa software and cisco secure ftd software",
-      "cisco|secure firewall management center (fmc)",
-      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+      "cisco|secure firewall asa software and cisco secure ftd software"
      ]
     },
     {
@@ -611,12 +598,9 @@
    "items": [
     {
      "id": "wordpress",
-     "kev_count": 7,
+     "kev_count": 4,
      "kev": [
       "wordpress|core",
-      "wordpress|file manager plugin",
-      "wordpress|snap creek duplicator plugin",
-      "wordpress|social warfare plugin",
       "wordpress|wordpress core"
      ]
     },
@@ -866,11 +850,10 @@
     },
     {
      "id": "microsoft-exchange-server",
-     "kev_count": 19,
+     "kev_count": 18,
      "kev": [
       "microsoft|exchange",
-      "microsoft|exchange server",
-      "microsoft|internet key exchange (ike) service extensions"
+      "microsoft|exchange server"
      ]
     },
     {
@@ -1276,8 +1259,6 @@
      "id": "d-link-router-nas-or-camera",
      "kev_count": 27,
      "kev": [
-      "d-link|dcs-2530l and dcs-2670l devices",
-      "d-link|dcs-930l devices",
       "d-link|dir-300 router",
       "d-link|dir-600 router",
       "d-link|dir-605 router",
@@ -1288,16 +1269,18 @@
       "d-link|dir-823x",
       "d-link|dir-825 r1 devices",
       "d-link|dir-859 router",
-      "d-link|dnr-322l",
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
       "d-link|dns-320 device",
       "d-link|dns-320 storage device",
+      "d-link|dnr-322l",
       "d-link|dsl-2750b devices",
       "d-link|dsl-2760u",
       "d-link|dwl-2600ap access point",
       "d-link|multiple nas devices",
       "d-link|multiple routers",
-      "d-link|routers",
-      "d-link and trendnet|multiple devices"
+      "d-link and trendnet|multiple devices",
+      "d-link|routers"
      ]
     },
     {
@@ -1423,8 +1406,6 @@
      "id": "d-link-router-nas-or-camera",
      "kev_count": 27,
      "kev": [
-      "d-link|dcs-2530l and dcs-2670l devices",
-      "d-link|dcs-930l devices",
       "d-link|dir-300 router",
       "d-link|dir-600 router",
       "d-link|dir-605 router",
@@ -1435,16 +1416,18 @@
       "d-link|dir-823x",
       "d-link|dir-825 r1 devices",
       "d-link|dir-859 router",
-      "d-link|dnr-322l",
+      "d-link|dcs-2530l and dcs-2670l devices",
+      "d-link|dcs-930l devices",
       "d-link|dns-320 device",
       "d-link|dns-320 storage device",
+      "d-link|dnr-322l",
       "d-link|dsl-2750b devices",
       "d-link|dsl-2760u",
       "d-link|dwl-2600ap access point",
       "d-link|multiple nas devices",
       "d-link|multiple routers",
-      "d-link|routers",
-      "d-link and trendnet|multiple devices"
+      "d-link and trendnet|multiple devices",
+      "d-link|routers"
      ]
     },
     {
@@ -1561,9 +1544,8 @@
     },
     {
      "id": "fortinet-forticlient-ssl-vpn",
-     "kev_count": 4,
+     "kev_count": 1,
      "kev": [
-      "fortinet|forticlient ems",
       "fortinet|fortios and fortiproxy ssl-vpn"
      ]
     },
@@ -1587,19 +1569,18 @@
       "sonicwall|sma100 appliances",
       "sonicwall|sma1000 appliance",
       "sonicwall|sma1000 appliances",
-      "sonicwall|sslvpn sma100",
-      "sonicwall|secure remote access (sra)"
+      "sonicwall|secure remote access (sra)",
+      "sonicwall|sslvpn sma100"
      ]
     },
     {
      "id": "citrix-netscaler-adc-gateway",
-     "kev_count": 21,
+     "kev_count": 20,
      "kev": [
       "citrix|netscaler",
+      "citrix|sd-wan and netscaler",
       "citrix|netscaler adc and gateway",
       "citrix|netscaler adc and netscaler gateway",
-      "citrix|netscaler sd-wan enterprise, cloudbridge virtual wan, and xenmobile server",
-      "citrix|sd-wan and netscaler",
       "citrix|application delivery controller (adc) and gateway",
       "citrix|application delivery controller (adc), gateway, and sd-wan wanop appliance"
      ]
@@ -1661,8 +1642,8 @@
      "id": "kemp-loadmaster",
      "kev_count": 2,
      "kev": [
-      "progress|kemp loadmaster",
-      "progress|loadmaster"
+      "progress|loadmaster",
+      "progress|kemp loadmaster"
      ]
     },
     {
@@ -1887,16 +1868,14 @@
     },
     {
      "id": "cisco-asa-firepower-ftd",
-     "kev_count": 18,
+     "kev_count": 15,
      "kev": [
       "cisco|adaptive security appliance (asa)",
       "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)",
       "cisco|adaptive security appliance and firepower threat defense",
       "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)",
       "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
-      "cisco|secure firewall asa software and cisco secure ftd software",
-      "cisco|secure firewall management center (fmc)",
-      "cisco|secure firewall management center (fmc) and security cloud control (scc) firewall management"
+      "cisco|secure firewall asa software and cisco secure ftd software"
      ]
     },
     {
@@ -1953,9 +1932,9 @@
    "items": [
     {
      "id": "aruba-hpe-procurve-switch",
-     "kev_count": 1,
+     "kev_count": 0,
      "kev": [
-      "hewlett packard (hp)|procurve manager (pcm), pcm+, identity driven manager (idm), and application lifecycle management"
+      "hpe|procurve"
      ]
     },
     {
@@ -1967,10 +1946,9 @@
     },
     {
      "id": "active-directory-domain-controller",
-     "kev_count": 6,
+     "kev_count": 5,
      "kev": [
       "microsoft|active directory",
-      "microsoft|active directory federation services",
       "microsoft|netlogon",
       "microsoft|kerberos key distribution center (kdc)"
      ]

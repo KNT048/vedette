@@ -125,6 +125,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		return out, err
 	}
 	defer st.close()
+	added := map[string]bool{} // CVEs whose description gains Apple's claim in this write (appleNoteAdded)
 	for i, r := range recs {
 		if i%ctxEvery == 0 {
 			if err := ctx.Err(); err != nil {
@@ -156,6 +157,9 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		readAt := ts
 		if !r.asOf.IsZero() && r.asOf.Before(now) {
 			readAt = store.FormatTS(r.asOf)
+		}
+		if err := appleNoteAdded(ctx, tx, r.CVE, r.Description, added); err != nil {
+			return out, err
 		}
 		if _, err := st.update.ExecContext(ctx, readAt, r.Title, string(cwe), r.Solution, r.Workaround, nullWord(r.SSVC.Exploitation),
 			nullWord(r.SSVC.Automatable), nullWord(r.SSVC.Impact), r.Description, published, r.CVE); err != nil {
@@ -195,6 +199,9 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		out.Stored++
 	}
 	out.KEVFirst = out.KEVFirst && len(out.KEVChanged) > 0
+	if err := applyAppleClaims(ctx, tx, now, added); err != nil { // the descriptions written may carry Apple's word on exploitation
+		return out, err
+	}
 	return out, nil
 }
 

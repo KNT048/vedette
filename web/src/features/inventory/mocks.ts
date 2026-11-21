@@ -619,7 +619,6 @@ function applyFragilePolicy() {
 
 const publicWazuh = ({ password: _p, ...rest }: StoredWazuh): WazuhConnection => rest
 const wazuhAgentCount = () => Math.max(allAssets().filter((a) => a.kind === 'server' || a.kind === 'pc').length, 1)
-const INTERVALS = [5, 15, 60, 360, 1440]
 /** Kiểm tra form Wazuh như máy chủ thật sẽ làm; mô phỏng các lỗi hay gặp: sai địa chỉ, không tới được, sai mật khẩu. */
 function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { status: number; code: string; message: string } | null {
   const url = typeof b.url === 'string' ? b.url.trim() : ''
@@ -630,7 +629,7 @@ function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { st
   if (!/^[\w.@-]{1,64}$/.test(user)) return { status: 400, code: 'bad_username', message: 'Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters).' }
   if (!b.password && !prev) return { status: 400, code: 'password_required', message: 'Enter the password of the read-only API user.' }
   if (b.password && b.password.length > 200) return { status: 400, code: 'bad_password', message: 'The password is too long (up to 200 characters).' }
-  if (!INTERVALS.includes(Number(b.interval_minutes))) return { status: 400, code: 'bad_interval', message: 'Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes.' }
+  if (!(Number(b.interval_minutes) >= 5)) return { status: 400, code: 'bad_interval', message: 'The interval is at least 5 minutes. The Wazuh server answers slowly to frequent pulls.' }
   if (/unreachable|\.invalid$|(^|\.)down(\.|$)/i.test(u.hostname)) return { status: 502, code: 'wazuh_unreachable', message: `Could not reach ${u.origin}. Check the address and port (55000 by default) and that this box may connect to the Wazuh server.` }
   if (b.password === 'wrong') return { status: 422, code: 'wazuh_auth', message: 'Wazuh refused the user name or password. Check the read-only API user you created.' }
   return null

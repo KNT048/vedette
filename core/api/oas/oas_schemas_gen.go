@@ -55203,7 +55203,7 @@ type ExposureGetExposureTargetsOKBoxIP struct {
 	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
 	// "Detect now". Default on.
 	Auto bool `json:"auto"`
-	// Minutes between automatic checks, 1 to 1440. Default 60.
+	// Minutes between automatic checks, 5 to 1440. Default 60.
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposureGetExposureTargetsOKBoxIPLastRun `json:"last_run"`
@@ -64449,7 +64449,7 @@ type ExposurePutExposureBoxIPSettingsOK struct {
 	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
 	// "Detect now". Default on.
 	Auto bool `json:"auto"`
-	// Minutes between automatic checks, 1 to 1440. Default 60.
+	// Minutes between automatic checks, 5 to 1440. Default 60.
 	IntervalMin int `json:"interval_min"`
 	// The last automatic or manual detection; null before the first one.
 	LastRun NilExposurePutExposureBoxIPSettingsOKLastRun `json:"last_run"`
@@ -72408,16 +72408,18 @@ type FeedsGetFeedsSourcesOKItemsItem struct {
 	Auth       FeedsGetFeedsSourcesOKItemsItemAuth `json:"auth"`
 	Builtin    bool                                `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                             `json:"default_url"`
-	Enabled       bool                                  `json:"enabled"`
-	Error         NilString                             `json:"error"`
-	Format        FeedsGetFeedsSourcesOKItemsItemFormat `json:"format"`
-	ID            string                                `json:"id"`
-	IntervalHours int                                   `json:"interval_hours"`
-	Kind          FeedsGetFeedsSourcesOKItemsItemKind   `json:"kind"`
-	LastFetch     NilDateTime                           `json:"last_fetch"`
-	License       NilString                             `json:"license"`
-	Name          string                                `json:"name"`
+	DefaultURL NilString                             `json:"default_url"`
+	Enabled    bool                                  `json:"enabled"`
+	Error      NilString                             `json:"error"`
+	Format     FeedsGetFeedsSourcesOKItemsItemFormat `json:"format"`
+	ID         string                                `json:"id"`
+	// Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:,
+	// changed with PUT /schedules/{owner_key}).
+	IntervalHours int                                 `json:"interval_hours"`
+	Kind          FeedsGetFeedsSourcesOKItemsItemKind `json:"kind"`
+	LastFetch     NilDateTime                         `json:"last_fetch"`
+	License       NilString                           `json:"license"`
+	Name          string                              `json:"name"`
 	// Null for built-in feeds.
 	Parser  NilFeedsGetFeedsSourcesOKItemsItemParser `json:"parser"`
 	Records NilInt                                   `json:"records"`
@@ -73582,16 +73584,18 @@ type FeedsPostFeedsCustomCreated struct {
 	Auth       FeedsPostFeedsCustomCreatedAuth `json:"auth"`
 	Builtin    bool                            `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                         `json:"default_url"`
-	Enabled       bool                              `json:"enabled"`
-	Error         NilString                         `json:"error"`
-	Format        FeedsPostFeedsCustomCreatedFormat `json:"format"`
-	ID            string                            `json:"id"`
-	IntervalHours int                               `json:"interval_hours"`
-	Kind          FeedsPostFeedsCustomCreatedKind   `json:"kind"`
-	LastFetch     NilDateTime                       `json:"last_fetch"`
-	License       NilString                         `json:"license"`
-	Name          string                            `json:"name"`
+	DefaultURL NilString                         `json:"default_url"`
+	Enabled    bool                              `json:"enabled"`
+	Error      NilString                         `json:"error"`
+	Format     FeedsPostFeedsCustomCreatedFormat `json:"format"`
+	ID         string                            `json:"id"`
+	// Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:,
+	// changed with PUT /schedules/{owner_key}).
+	IntervalHours int                             `json:"interval_hours"`
+	Kind          FeedsPostFeedsCustomCreatedKind `json:"kind"`
+	LastFetch     NilDateTime                     `json:"last_fetch"`
+	License       NilString                       `json:"license"`
+	Name          string                          `json:"name"`
 	// Null for built-in feeds.
 	Parser  NilFeedsPostFeedsCustomCreatedParser `json:"parser"`
 	Records NilInt                               `json:"records"`
@@ -74275,13 +74279,12 @@ func (s *FeedsPostFeedsCustomCreatedStatus) UnmarshalText(data []byte) error {
 }
 
 type FeedsPostFeedsCustomReq struct {
-	Auth          FeedsPostFeedsCustomReqAuth   `json:"auth"`
-	Enabled       bool                          `json:"enabled"`
-	IntervalHours int                           `json:"interval_hours"`
-	Kind          FeedsPostFeedsCustomReqKind   `json:"kind"`
-	Name          string                        `json:"name"`
-	Parser        FeedsPostFeedsCustomReqParser `json:"parser"`
-	URL           string                        `json:"url"`
+	Auth    FeedsPostFeedsCustomReqAuth   `json:"auth"`
+	Enabled bool                          `json:"enabled"`
+	Kind    FeedsPostFeedsCustomReqKind   `json:"kind"`
+	Name    string                        `json:"name"`
+	Parser  FeedsPostFeedsCustomReqParser `json:"parser"`
+	URL     string                        `json:"url"`
 }
 
 // GetAuth returns the value of Auth.
@@ -74292,11 +74295,6 @@ func (s *FeedsPostFeedsCustomReq) GetAuth() FeedsPostFeedsCustomReqAuth {
 // GetEnabled returns the value of Enabled.
 func (s *FeedsPostFeedsCustomReq) GetEnabled() bool {
 	return s.Enabled
-}
-
-// GetIntervalHours returns the value of IntervalHours.
-func (s *FeedsPostFeedsCustomReq) GetIntervalHours() int {
-	return s.IntervalHours
 }
 
 // GetKind returns the value of Kind.
@@ -74327,11 +74325,6 @@ func (s *FeedsPostFeedsCustomReq) SetAuth(val FeedsPostFeedsCustomReqAuth) {
 // SetEnabled sets the value of Enabled.
 func (s *FeedsPostFeedsCustomReq) SetEnabled(val bool) {
 	s.Enabled = val
-}
-
-// SetIntervalHours sets the value of IntervalHours.
-func (s *FeedsPostFeedsCustomReq) SetIntervalHours(val int) {
-	s.IntervalHours = val
 }
 
 // SetKind sets the value of Kind.
@@ -75349,16 +75342,18 @@ type FeedsPostFeedsSourcesIDFetchOK struct {
 	Auth       FeedsPostFeedsSourcesIDFetchOKAuth `json:"auth"`
 	Builtin    bool                               `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                            `json:"default_url"`
-	Enabled       bool                                 `json:"enabled"`
-	Error         NilString                            `json:"error"`
-	Format        FeedsPostFeedsSourcesIDFetchOKFormat `json:"format"`
-	ID            string                               `json:"id"`
-	IntervalHours int                                  `json:"interval_hours"`
-	Kind          FeedsPostFeedsSourcesIDFetchOKKind   `json:"kind"`
-	LastFetch     NilDateTime                          `json:"last_fetch"`
-	License       NilString                            `json:"license"`
-	Name          string                               `json:"name"`
+	DefaultURL NilString                            `json:"default_url"`
+	Enabled    bool                                 `json:"enabled"`
+	Error      NilString                            `json:"error"`
+	Format     FeedsPostFeedsSourcesIDFetchOKFormat `json:"format"`
+	ID         string                               `json:"id"`
+	// Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:,
+	// changed with PUT /schedules/{owner_key}).
+	IntervalHours int                                `json:"interval_hours"`
+	Kind          FeedsPostFeedsSourcesIDFetchOKKind `json:"kind"`
+	LastFetch     NilDateTime                        `json:"last_fetch"`
+	License       NilString                          `json:"license"`
+	Name          string                             `json:"name"`
 	// Null for built-in feeds.
 	Parser  NilFeedsPostFeedsSourcesIDFetchOKParser `json:"parser"`
 	Records NilInt                                  `json:"records"`
@@ -76227,16 +76222,18 @@ type FeedsPutFeedsCustomIDOK struct {
 	Auth       FeedsPutFeedsCustomIDOKAuth `json:"auth"`
 	Builtin    bool                        `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                     `json:"default_url"`
-	Enabled       bool                          `json:"enabled"`
-	Error         NilString                     `json:"error"`
-	Format        FeedsPutFeedsCustomIDOKFormat `json:"format"`
-	ID            string                        `json:"id"`
-	IntervalHours int                           `json:"interval_hours"`
-	Kind          FeedsPutFeedsCustomIDOKKind   `json:"kind"`
-	LastFetch     NilDateTime                   `json:"last_fetch"`
-	License       NilString                     `json:"license"`
-	Name          string                        `json:"name"`
+	DefaultURL NilString                     `json:"default_url"`
+	Enabled    bool                          `json:"enabled"`
+	Error      NilString                     `json:"error"`
+	Format     FeedsPutFeedsCustomIDOKFormat `json:"format"`
+	ID         string                        `json:"id"`
+	// Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:,
+	// changed with PUT /schedules/{owner_key}).
+	IntervalHours int                         `json:"interval_hours"`
+	Kind          FeedsPutFeedsCustomIDOKKind `json:"kind"`
+	LastFetch     NilDateTime                 `json:"last_fetch"`
+	License       NilString                   `json:"license"`
+	Name          string                      `json:"name"`
 	// Null for built-in feeds.
 	Parser  NilFeedsPutFeedsCustomIDOKParser `json:"parser"`
 	Records NilInt                           `json:"records"`
@@ -76920,13 +76917,12 @@ func (s *FeedsPutFeedsCustomIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsCustomIDReq struct {
-	Auth          FeedsPutFeedsCustomIDReqAuth   `json:"auth"`
-	Enabled       bool                           `json:"enabled"`
-	IntervalHours int                            `json:"interval_hours"`
-	Kind          FeedsPutFeedsCustomIDReqKind   `json:"kind"`
-	Name          string                         `json:"name"`
-	Parser        FeedsPutFeedsCustomIDReqParser `json:"parser"`
-	URL           string                         `json:"url"`
+	Auth    FeedsPutFeedsCustomIDReqAuth   `json:"auth"`
+	Enabled bool                           `json:"enabled"`
+	Kind    FeedsPutFeedsCustomIDReqKind   `json:"kind"`
+	Name    string                         `json:"name"`
+	Parser  FeedsPutFeedsCustomIDReqParser `json:"parser"`
+	URL     string                         `json:"url"`
 }
 
 // GetAuth returns the value of Auth.
@@ -76937,11 +76933,6 @@ func (s *FeedsPutFeedsCustomIDReq) GetAuth() FeedsPutFeedsCustomIDReqAuth {
 // GetEnabled returns the value of Enabled.
 func (s *FeedsPutFeedsCustomIDReq) GetEnabled() bool {
 	return s.Enabled
-}
-
-// GetIntervalHours returns the value of IntervalHours.
-func (s *FeedsPutFeedsCustomIDReq) GetIntervalHours() int {
-	return s.IntervalHours
 }
 
 // GetKind returns the value of Kind.
@@ -76972,11 +76963,6 @@ func (s *FeedsPutFeedsCustomIDReq) SetAuth(val FeedsPutFeedsCustomIDReqAuth) {
 // SetEnabled sets the value of Enabled.
 func (s *FeedsPutFeedsCustomIDReq) SetEnabled(val bool) {
 	s.Enabled = val
-}
-
-// SetIntervalHours sets the value of IntervalHours.
-func (s *FeedsPutFeedsCustomIDReq) SetIntervalHours(val int) {
-	s.IntervalHours = val
 }
 
 // SetKind sets the value of Kind.
@@ -77401,16 +77387,18 @@ type FeedsPutFeedsSourcesIDOK struct {
 	Auth       FeedsPutFeedsSourcesIDOKAuth `json:"auth"`
 	Builtin    bool                         `json:"builtin"`
 	// Built-in feeds only; used by "Reset to default".
-	DefaultURL    NilString                      `json:"default_url"`
-	Enabled       bool                           `json:"enabled"`
-	Error         NilString                      `json:"error"`
-	Format        FeedsPutFeedsSourcesIDOKFormat `json:"format"`
-	ID            string                         `json:"id"`
-	IntervalHours int                            `json:"interval_hours"`
-	Kind          FeedsPutFeedsSourcesIDOKKind   `json:"kind"`
-	LastFetch     NilDateTime                    `json:"last_fetch"`
-	License       NilString                      `json:"license"`
-	Name          string                         `json:"name"`
+	DefaultURL NilString                      `json:"default_url"`
+	Enabled    bool                           `json:"enabled"`
+	Error      NilString                      `json:"error"`
+	Format     FeedsPutFeedsSourcesIDOKFormat `json:"format"`
+	ID         string                         `json:"id"`
+	// Read only: how often the feed's schedule pulls it, in whole hours (the schedule is feeds.source:,
+	// changed with PUT /schedules/{owner_key}).
+	IntervalHours int                          `json:"interval_hours"`
+	Kind          FeedsPutFeedsSourcesIDOKKind `json:"kind"`
+	LastFetch     NilDateTime                  `json:"last_fetch"`
+	License       NilString                    `json:"license"`
+	Name          string                       `json:"name"`
 	// Null for built-in feeds.
 	Parser  NilFeedsPutFeedsSourcesIDOKParser `json:"parser"`
 	Records NilInt                            `json:"records"`
@@ -78096,9 +78084,8 @@ func (s *FeedsPutFeedsSourcesIDOKStatus) UnmarshalText(data []byte) error {
 type FeedsPutFeedsSourcesIDReq struct {
 	// VulnCheck KEV only, write-only: the customer's own API key (8 to 500 characters, no spaces). Saving
 	// it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded.
-	APIKey        OptString `json:"api_key"`
-	Enabled       OptBool   `json:"enabled"`
-	IntervalHours OptInt    `json:"interval_hours"`
+	APIKey  OptString `json:"api_key"`
+	Enabled OptBool   `json:"enabled"`
 	// Built-in: a mirror address. Empty string resets it to the default.
 	URL OptString `json:"url"`
 }
@@ -78111,11 +78098,6 @@ func (s *FeedsPutFeedsSourcesIDReq) GetAPIKey() OptString {
 // GetEnabled returns the value of Enabled.
 func (s *FeedsPutFeedsSourcesIDReq) GetEnabled() OptBool {
 	return s.Enabled
-}
-
-// GetIntervalHours returns the value of IntervalHours.
-func (s *FeedsPutFeedsSourcesIDReq) GetIntervalHours() OptInt {
-	return s.IntervalHours
 }
 
 // GetURL returns the value of URL.
@@ -78131,11 +78113,6 @@ func (s *FeedsPutFeedsSourcesIDReq) SetAPIKey(val OptString) {
 // SetEnabled sets the value of Enabled.
 func (s *FeedsPutFeedsSourcesIDReq) SetEnabled(val OptBool) {
 	s.Enabled = val
-}
-
-// SetIntervalHours sets the value of IntervalHours.
-func (s *FeedsPutFeedsSourcesIDReq) SetIntervalHours(val OptInt) {
-	s.IntervalHours = val
 }
 
 // SetURL sets the value of URL.
@@ -139463,7 +139440,7 @@ type InventoryGetInventoryAgentsDevicesIDReportOK struct {
 	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
 	// null for the other agents.
 	State NilInventoryGetInventoryAgentsDevicesIDReportOKState `json:"state"`
-	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
+	// Agent wazuh: how often Vedette pulls from the Wazuh server, in minutes (5 or more); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
 }
 
@@ -156819,7 +156796,7 @@ type InventoryPostInventoryAgentsDevicesIDReportOK struct {
 	// since quiet_since" and, for osquery, the command to check the service) or never_reported (osquery);
 	// null for the other agents.
 	State NilInventoryPostInventoryAgentsDevicesIDReportOKState `json:"state"`
-	// Agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise.
+	// Agent wazuh: how often Vedette pulls from the Wazuh server, in minutes (5 or more); null otherwise.
 	WazuhIntervalMinutes NilInt `json:"wazuh_interval_minutes"`
 }
 
@@ -157452,7 +157429,8 @@ func (s *InventoryPostInventoryAgentsWazuhTestOK) SetVersion(val string) {
 }
 
 type InventoryPostInventoryAgentsWazuhTestReq struct {
-	// 5, 15, 60, 360 or 1440.
+	// Minutes between pulls, 5 or more. It is the schedule agent-intake.wazuh, which the schedule editor
+	// changes too.
 	IntervalMinutes int `json:"interval_minutes"`
 	// Leave blank when editing to keep the saved password.
 	Password OptString `json:"password"`
@@ -159662,7 +159640,8 @@ func (s *InventoryPutInventoryAgentsWazuhOKStatus) UnmarshalText(data []byte) er
 }
 
 type InventoryPutInventoryAgentsWazuhReq struct {
-	// 5, 15, 60, 360 or 1440.
+	// Minutes between pulls, 5 or more. It is the schedule agent-intake.wazuh, which the schedule editor
+	// changes too.
 	IntervalMinutes int `json:"interval_minutes"`
 	// Leave blank when editing to keep the saved password.
 	Password OptString `json:"password"`
@@ -205923,98 +205902,6 @@ func (o OptResponsePutResponseCatalogIDReqVerify) Get() (v ResponsePutResponseCa
 
 // Or returns value if set, or given parameter if does not.
 func (o OptResponsePutResponseCatalogIDReqVerify) Or(d ResponsePutResponseCatalogIDReqVerify) ResponsePutResponseCatalogIDReqVerify {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptScanPutScansConfigReqSchedule returns new OptScanPutScansConfigReqSchedule with value set to v.
-func NewOptScanPutScansConfigReqSchedule(v ScanPutScansConfigReqSchedule) OptScanPutScansConfigReqSchedule {
-	return OptScanPutScansConfigReqSchedule{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptScanPutScansConfigReqSchedule is optional ScanPutScansConfigReqSchedule.
-type OptScanPutScansConfigReqSchedule struct {
-	Value ScanPutScansConfigReqSchedule
-	Set   bool
-}
-
-// IsSet returns true if OptScanPutScansConfigReqSchedule was set.
-func (o OptScanPutScansConfigReqSchedule) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptScanPutScansConfigReqSchedule) Reset() {
-	var v ScanPutScansConfigReqSchedule
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptScanPutScansConfigReqSchedule) SetTo(v ScanPutScansConfigReqSchedule) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptScanPutScansConfigReqSchedule) Get() (v ScanPutScansConfigReqSchedule, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptScanPutScansConfigReqSchedule) Or(d ScanPutScansConfigReqSchedule) ScanPutScansConfigReqSchedule {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptScanPutScansConfigReqScheduleFrequency returns new OptScanPutScansConfigReqScheduleFrequency with value set to v.
-func NewOptScanPutScansConfigReqScheduleFrequency(v ScanPutScansConfigReqScheduleFrequency) OptScanPutScansConfigReqScheduleFrequency {
-	return OptScanPutScansConfigReqScheduleFrequency{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptScanPutScansConfigReqScheduleFrequency is optional ScanPutScansConfigReqScheduleFrequency.
-type OptScanPutScansConfigReqScheduleFrequency struct {
-	Value ScanPutScansConfigReqScheduleFrequency
-	Set   bool
-}
-
-// IsSet returns true if OptScanPutScansConfigReqScheduleFrequency was set.
-func (o OptScanPutScansConfigReqScheduleFrequency) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptScanPutScansConfigReqScheduleFrequency) Reset() {
-	var v ScanPutScansConfigReqScheduleFrequency
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptScanPutScansConfigReqScheduleFrequency) SetTo(v ScanPutScansConfigReqScheduleFrequency) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptScanPutScansConfigReqScheduleFrequency) Get() (v ScanPutScansConfigReqScheduleFrequency, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptScanPutScansConfigReqScheduleFrequency) Or(d ScanPutScansConfigReqScheduleFrequency) ScanPutScansConfigReqScheduleFrequency {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -262603,11 +262490,7 @@ type ScanGetScansConfigOK struct {
 	CanScan         bool                       `json:"can_scan"`
 	Config          ScanGetScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
-	NextRun         NilDateTime                `json:"next_run"`
-	// Set while the schedule is on but nothing automated can start because the organization time zone
-	// cannot be read; next_run is null then.
-	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
-	Scope                 ScanGetScansConfigOKScope `json:"scope"`
+	Scope           ScanGetScansConfigOKScope  `json:"scope"`
 	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
 	// GET /scanning safety.version); "" when this module keeps its own copy.
 	Version string `json:"version"`
@@ -262631,16 +262514,6 @@ func (s *ScanGetScansConfigOK) GetConfig() ScanGetScansConfigOKConfig {
 // GetDangerousChecks returns the value of DangerousChecks.
 func (s *ScanGetScansConfigOK) GetDangerousChecks() bool {
 	return s.DangerousChecks
-}
-
-// GetNextRun returns the value of NextRun.
-func (s *ScanGetScansConfigOK) GetNextRun() NilDateTime {
-	return s.NextRun
-}
-
-// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
-func (s *ScanGetScansConfigOK) GetScheduleBlockedReason() NilString {
-	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -262673,16 +262546,6 @@ func (s *ScanGetScansConfigOK) SetDangerousChecks(val bool) {
 	s.DangerousChecks = val
 }
 
-// SetNextRun sets the value of NextRun.
-func (s *ScanGetScansConfigOK) SetNextRun(val NilDateTime) {
-	s.NextRun = val
-}
-
-// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
-func (s *ScanGetScansConfigOK) SetScheduleBlockedReason(val NilString) {
-	s.ScheduleBlockedReason = val
-}
-
 // SetScope sets the value of Scope.
 func (s *ScanGetScansConfigOK) SetScope(val ScanGetScansConfigOKScope) {
 	s.Scope = val
@@ -262698,11 +262561,10 @@ type ScanGetScansConfigOKConfig struct {
 	// IP or CIDR.
 	Exclusions []string `json:"exclusions"`
 	// Requests per second.
-	Rate               int                                `json:"rate"`
-	Schedule           ScanGetScansConfigOKConfigSchedule `json:"schedule"`
-	StopOnUnresponsive bool                               `json:"stop_on_unresponsive"`
-	UnresponsiveAfter  int                                `json:"unresponsive_after"`
-	Window             ScanGetScansConfigOKConfigWindow   `json:"window"`
+	Rate               int                              `json:"rate"`
+	StopOnUnresponsive bool                             `json:"stop_on_unresponsive"`
+	UnresponsiveAfter  int                              `json:"unresponsive_after"`
+	Window             ScanGetScansConfigOKConfigWindow `json:"window"`
 }
 
 // GetAutoRescan returns the value of AutoRescan.
@@ -262718,11 +262580,6 @@ func (s *ScanGetScansConfigOKConfig) GetExclusions() []string {
 // GetRate returns the value of Rate.
 func (s *ScanGetScansConfigOKConfig) GetRate() int {
 	return s.Rate
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ScanGetScansConfigOKConfig) GetSchedule() ScanGetScansConfigOKConfigSchedule {
-	return s.Schedule
 }
 
 // GetStopOnUnresponsive returns the value of StopOnUnresponsive.
@@ -262755,11 +262612,6 @@ func (s *ScanGetScansConfigOKConfig) SetRate(val int) {
 	s.Rate = val
 }
 
-// SetSchedule sets the value of Schedule.
-func (s *ScanGetScansConfigOKConfig) SetSchedule(val ScanGetScansConfigOKConfigSchedule) {
-	s.Schedule = val
-}
-
 // SetStopOnUnresponsive sets the value of StopOnUnresponsive.
 func (s *ScanGetScansConfigOKConfig) SetStopOnUnresponsive(val bool) {
 	s.StopOnUnresponsive = val
@@ -262773,96 +262625,6 @@ func (s *ScanGetScansConfigOKConfig) SetUnresponsiveAfter(val int) {
 // SetWindow sets the value of Window.
 func (s *ScanGetScansConfigOKConfig) SetWindow(val ScanGetScansConfigOKConfigWindow) {
 	s.Window = val
-}
-
-type ScanGetScansConfigOKConfigSchedule struct {
-	// HH:MM.
-	At        string                                      `json:"at"`
-	Enabled   bool                                        `json:"enabled"`
-	Frequency ScanGetScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday.
-	Weekday int `json:"weekday"`
-}
-
-// GetAt returns the value of At.
-func (s *ScanGetScansConfigOKConfigSchedule) GetAt() string {
-	return s.At
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *ScanGetScansConfigOKConfigSchedule) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetFrequency returns the value of Frequency.
-func (s *ScanGetScansConfigOKConfigSchedule) GetFrequency() ScanGetScansConfigOKConfigScheduleFrequency {
-	return s.Frequency
-}
-
-// GetWeekday returns the value of Weekday.
-func (s *ScanGetScansConfigOKConfigSchedule) GetWeekday() int {
-	return s.Weekday
-}
-
-// SetAt sets the value of At.
-func (s *ScanGetScansConfigOKConfigSchedule) SetAt(val string) {
-	s.At = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *ScanGetScansConfigOKConfigSchedule) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetFrequency sets the value of Frequency.
-func (s *ScanGetScansConfigOKConfigSchedule) SetFrequency(val ScanGetScansConfigOKConfigScheduleFrequency) {
-	s.Frequency = val
-}
-
-// SetWeekday sets the value of Weekday.
-func (s *ScanGetScansConfigOKConfigSchedule) SetWeekday(val int) {
-	s.Weekday = val
-}
-
-type ScanGetScansConfigOKConfigScheduleFrequency string
-
-const (
-	ScanGetScansConfigOKConfigScheduleFrequencyDaily  ScanGetScansConfigOKConfigScheduleFrequency = "daily"
-	ScanGetScansConfigOKConfigScheduleFrequencyWeekly ScanGetScansConfigOKConfigScheduleFrequency = "weekly"
-)
-
-// AllValues returns all ScanGetScansConfigOKConfigScheduleFrequency values.
-func (ScanGetScansConfigOKConfigScheduleFrequency) AllValues() []ScanGetScansConfigOKConfigScheduleFrequency {
-	return []ScanGetScansConfigOKConfigScheduleFrequency{
-		ScanGetScansConfigOKConfigScheduleFrequencyDaily,
-		ScanGetScansConfigOKConfigScheduleFrequencyWeekly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanGetScansConfigOKConfigScheduleFrequency) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanGetScansConfigOKConfigScheduleFrequencyDaily:
-		return []byte(s), nil
-	case ScanGetScansConfigOKConfigScheduleFrequencyWeekly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanGetScansConfigOKConfigScheduleFrequency) UnmarshalText(data []byte) error {
-	switch ScanGetScansConfigOKConfigScheduleFrequency(data) {
-	case ScanGetScansConfigOKConfigScheduleFrequencyDaily:
-		*s = ScanGetScansConfigOKConfigScheduleFrequencyDaily
-		return nil
-	case ScanGetScansConfigOKConfigScheduleFrequencyWeekly:
-		*s = ScanGetScansConfigOKConfigScheduleFrequencyWeekly
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type ScanGetScansConfigOKConfigWindow struct {
@@ -267824,11 +267586,7 @@ type ScanPutScansConfigOK struct {
 	CanScan         bool                       `json:"can_scan"`
 	Config          ScanPutScansConfigOKConfig `json:"config"`
 	DangerousChecks bool                       `json:"dangerous_checks"`
-	NextRun         NilDateTime                `json:"next_run"`
-	// Set while the schedule is on but nothing automated can start because the organization time zone
-	// cannot be read; next_run is null then.
-	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
-	Scope                 ScanPutScansConfigOKScope `json:"scope"`
+	Scope           ScanPutScansConfigOKScope  `json:"scope"`
 	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
 	// GET /scanning safety.version); "" when this module keeps its own copy.
 	Version string `json:"version"`
@@ -267852,16 +267610,6 @@ func (s *ScanPutScansConfigOK) GetConfig() ScanPutScansConfigOKConfig {
 // GetDangerousChecks returns the value of DangerousChecks.
 func (s *ScanPutScansConfigOK) GetDangerousChecks() bool {
 	return s.DangerousChecks
-}
-
-// GetNextRun returns the value of NextRun.
-func (s *ScanPutScansConfigOK) GetNextRun() NilDateTime {
-	return s.NextRun
-}
-
-// GetScheduleBlockedReason returns the value of ScheduleBlockedReason.
-func (s *ScanPutScansConfigOK) GetScheduleBlockedReason() NilString {
-	return s.ScheduleBlockedReason
 }
 
 // GetScope returns the value of Scope.
@@ -267894,16 +267642,6 @@ func (s *ScanPutScansConfigOK) SetDangerousChecks(val bool) {
 	s.DangerousChecks = val
 }
 
-// SetNextRun sets the value of NextRun.
-func (s *ScanPutScansConfigOK) SetNextRun(val NilDateTime) {
-	s.NextRun = val
-}
-
-// SetScheduleBlockedReason sets the value of ScheduleBlockedReason.
-func (s *ScanPutScansConfigOK) SetScheduleBlockedReason(val NilString) {
-	s.ScheduleBlockedReason = val
-}
-
 // SetScope sets the value of Scope.
 func (s *ScanPutScansConfigOK) SetScope(val ScanPutScansConfigOKScope) {
 	s.Scope = val
@@ -267919,11 +267657,10 @@ type ScanPutScansConfigOKConfig struct {
 	// IP or CIDR.
 	Exclusions []string `json:"exclusions"`
 	// Requests per second.
-	Rate               int                                `json:"rate"`
-	Schedule           ScanPutScansConfigOKConfigSchedule `json:"schedule"`
-	StopOnUnresponsive bool                               `json:"stop_on_unresponsive"`
-	UnresponsiveAfter  int                                `json:"unresponsive_after"`
-	Window             ScanPutScansConfigOKConfigWindow   `json:"window"`
+	Rate               int                              `json:"rate"`
+	StopOnUnresponsive bool                             `json:"stop_on_unresponsive"`
+	UnresponsiveAfter  int                              `json:"unresponsive_after"`
+	Window             ScanPutScansConfigOKConfigWindow `json:"window"`
 }
 
 // GetAutoRescan returns the value of AutoRescan.
@@ -267939,11 +267676,6 @@ func (s *ScanPutScansConfigOKConfig) GetExclusions() []string {
 // GetRate returns the value of Rate.
 func (s *ScanPutScansConfigOKConfig) GetRate() int {
 	return s.Rate
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ScanPutScansConfigOKConfig) GetSchedule() ScanPutScansConfigOKConfigSchedule {
-	return s.Schedule
 }
 
 // GetStopOnUnresponsive returns the value of StopOnUnresponsive.
@@ -267976,11 +267708,6 @@ func (s *ScanPutScansConfigOKConfig) SetRate(val int) {
 	s.Rate = val
 }
 
-// SetSchedule sets the value of Schedule.
-func (s *ScanPutScansConfigOKConfig) SetSchedule(val ScanPutScansConfigOKConfigSchedule) {
-	s.Schedule = val
-}
-
 // SetStopOnUnresponsive sets the value of StopOnUnresponsive.
 func (s *ScanPutScansConfigOKConfig) SetStopOnUnresponsive(val bool) {
 	s.StopOnUnresponsive = val
@@ -267994,96 +267721,6 @@ func (s *ScanPutScansConfigOKConfig) SetUnresponsiveAfter(val int) {
 // SetWindow sets the value of Window.
 func (s *ScanPutScansConfigOKConfig) SetWindow(val ScanPutScansConfigOKConfigWindow) {
 	s.Window = val
-}
-
-type ScanPutScansConfigOKConfigSchedule struct {
-	// HH:MM.
-	At        string                                      `json:"at"`
-	Enabled   bool                                        `json:"enabled"`
-	Frequency ScanPutScansConfigOKConfigScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday.
-	Weekday int `json:"weekday"`
-}
-
-// GetAt returns the value of At.
-func (s *ScanPutScansConfigOKConfigSchedule) GetAt() string {
-	return s.At
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *ScanPutScansConfigOKConfigSchedule) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetFrequency returns the value of Frequency.
-func (s *ScanPutScansConfigOKConfigSchedule) GetFrequency() ScanPutScansConfigOKConfigScheduleFrequency {
-	return s.Frequency
-}
-
-// GetWeekday returns the value of Weekday.
-func (s *ScanPutScansConfigOKConfigSchedule) GetWeekday() int {
-	return s.Weekday
-}
-
-// SetAt sets the value of At.
-func (s *ScanPutScansConfigOKConfigSchedule) SetAt(val string) {
-	s.At = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *ScanPutScansConfigOKConfigSchedule) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetFrequency sets the value of Frequency.
-func (s *ScanPutScansConfigOKConfigSchedule) SetFrequency(val ScanPutScansConfigOKConfigScheduleFrequency) {
-	s.Frequency = val
-}
-
-// SetWeekday sets the value of Weekday.
-func (s *ScanPutScansConfigOKConfigSchedule) SetWeekday(val int) {
-	s.Weekday = val
-}
-
-type ScanPutScansConfigOKConfigScheduleFrequency string
-
-const (
-	ScanPutScansConfigOKConfigScheduleFrequencyDaily  ScanPutScansConfigOKConfigScheduleFrequency = "daily"
-	ScanPutScansConfigOKConfigScheduleFrequencyWeekly ScanPutScansConfigOKConfigScheduleFrequency = "weekly"
-)
-
-// AllValues returns all ScanPutScansConfigOKConfigScheduleFrequency values.
-func (ScanPutScansConfigOKConfigScheduleFrequency) AllValues() []ScanPutScansConfigOKConfigScheduleFrequency {
-	return []ScanPutScansConfigOKConfigScheduleFrequency{
-		ScanPutScansConfigOKConfigScheduleFrequencyDaily,
-		ScanPutScansConfigOKConfigScheduleFrequencyWeekly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanPutScansConfigOKConfigScheduleFrequency) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanPutScansConfigOKConfigScheduleFrequencyDaily:
-		return []byte(s), nil
-	case ScanPutScansConfigOKConfigScheduleFrequencyWeekly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanPutScansConfigOKConfigScheduleFrequency) UnmarshalText(data []byte) error {
-	switch ScanPutScansConfigOKConfigScheduleFrequency(data) {
-	case ScanPutScansConfigOKConfigScheduleFrequencyDaily:
-		*s = ScanPutScansConfigOKConfigScheduleFrequencyDaily
-		return nil
-	case ScanPutScansConfigOKConfigScheduleFrequencyWeekly:
-		*s = ScanPutScansConfigOKConfigScheduleFrequencyWeekly
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type ScanPutScansConfigOKConfigWindow struct {
@@ -268182,10 +267819,9 @@ type ScanPutScansConfigReq struct {
 	// IP or CIDR.
 	Exclusions []string `json:"exclusions"`
 	// Requests per second.
-	Rate               OptInt                           `json:"rate"`
-	Schedule           OptScanPutScansConfigReqSchedule `json:"schedule"`
-	StopOnUnresponsive OptBool                          `json:"stop_on_unresponsive"`
-	UnresponsiveAfter  OptInt                           `json:"unresponsive_after"`
+	Rate               OptInt  `json:"rate"`
+	StopOnUnresponsive OptBool `json:"stop_on_unresponsive"`
+	UnresponsiveAfter  OptInt  `json:"unresponsive_after"`
 	// The version of the shared safety block this page read (version of GET /scans/config). Given and not
 	// the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so an exclusion added
 	// since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings
@@ -268212,11 +267848,6 @@ func (s *ScanPutScansConfigReq) GetExclusions() []string {
 // GetRate returns the value of Rate.
 func (s *ScanPutScansConfigReq) GetRate() OptInt {
 	return s.Rate
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ScanPutScansConfigReq) GetSchedule() OptScanPutScansConfigReqSchedule {
-	return s.Schedule
 }
 
 // GetStopOnUnresponsive returns the value of StopOnUnresponsive.
@@ -268259,11 +267890,6 @@ func (s *ScanPutScansConfigReq) SetRate(val OptInt) {
 	s.Rate = val
 }
 
-// SetSchedule sets the value of Schedule.
-func (s *ScanPutScansConfigReq) SetSchedule(val OptScanPutScansConfigReqSchedule) {
-	s.Schedule = val
-}
-
 // SetStopOnUnresponsive sets the value of StopOnUnresponsive.
 func (s *ScanPutScansConfigReq) SetStopOnUnresponsive(val OptBool) {
 	s.StopOnUnresponsive = val
@@ -268282,96 +267908,6 @@ func (s *ScanPutScansConfigReq) SetVersion(val OptString) {
 // SetWindow sets the value of Window.
 func (s *ScanPutScansConfigReq) SetWindow(val OptScanPutScansConfigReqWindow) {
 	s.Window = val
-}
-
-type ScanPutScansConfigReqSchedule struct {
-	// HH:MM.
-	At        OptString                                 `json:"at"`
-	Enabled   OptBool                                   `json:"enabled"`
-	Frequency OptScanPutScansConfigReqScheduleFrequency `json:"frequency"`
-	// 1 = Monday … 7 = Sunday.
-	Weekday OptInt `json:"weekday"`
-}
-
-// GetAt returns the value of At.
-func (s *ScanPutScansConfigReqSchedule) GetAt() OptString {
-	return s.At
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *ScanPutScansConfigReqSchedule) GetEnabled() OptBool {
-	return s.Enabled
-}
-
-// GetFrequency returns the value of Frequency.
-func (s *ScanPutScansConfigReqSchedule) GetFrequency() OptScanPutScansConfigReqScheduleFrequency {
-	return s.Frequency
-}
-
-// GetWeekday returns the value of Weekday.
-func (s *ScanPutScansConfigReqSchedule) GetWeekday() OptInt {
-	return s.Weekday
-}
-
-// SetAt sets the value of At.
-func (s *ScanPutScansConfigReqSchedule) SetAt(val OptString) {
-	s.At = val
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *ScanPutScansConfigReqSchedule) SetEnabled(val OptBool) {
-	s.Enabled = val
-}
-
-// SetFrequency sets the value of Frequency.
-func (s *ScanPutScansConfigReqSchedule) SetFrequency(val OptScanPutScansConfigReqScheduleFrequency) {
-	s.Frequency = val
-}
-
-// SetWeekday sets the value of Weekday.
-func (s *ScanPutScansConfigReqSchedule) SetWeekday(val OptInt) {
-	s.Weekday = val
-}
-
-type ScanPutScansConfigReqScheduleFrequency string
-
-const (
-	ScanPutScansConfigReqScheduleFrequencyDaily  ScanPutScansConfigReqScheduleFrequency = "daily"
-	ScanPutScansConfigReqScheduleFrequencyWeekly ScanPutScansConfigReqScheduleFrequency = "weekly"
-)
-
-// AllValues returns all ScanPutScansConfigReqScheduleFrequency values.
-func (ScanPutScansConfigReqScheduleFrequency) AllValues() []ScanPutScansConfigReqScheduleFrequency {
-	return []ScanPutScansConfigReqScheduleFrequency{
-		ScanPutScansConfigReqScheduleFrequencyDaily,
-		ScanPutScansConfigReqScheduleFrequencyWeekly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ScanPutScansConfigReqScheduleFrequency) MarshalText() ([]byte, error) {
-	switch s {
-	case ScanPutScansConfigReqScheduleFrequencyDaily:
-		return []byte(s), nil
-	case ScanPutScansConfigReqScheduleFrequencyWeekly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ScanPutScansConfigReqScheduleFrequency) UnmarshalText(data []byte) error {
-	switch ScanPutScansConfigReqScheduleFrequency(data) {
-	case ScanPutScansConfigReqScheduleFrequencyDaily:
-		*s = ScanPutScansConfigReqScheduleFrequencyDaily
-		return nil
-	case ScanPutScansConfigReqScheduleFrequencyWeekly:
-		*s = ScanPutScansConfigReqScheduleFrequencyWeekly
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type ScanPutScansConfigReqWindow struct {

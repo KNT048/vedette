@@ -301,7 +301,7 @@ export const WazuhConnection = z.object({
 })
 export const WazuhInput = z.object({
   url: z.string().max(200), username: z.string().max(64), password: z.string().max(200).optional().describe('Leave blank when editing to keep the saved password'),
-  interval_minutes: z.number().int().describe('5, 15, 60, 360 or 1440'),
+  interval_minutes: z.number().int().describe('Minutes between pulls, 5 or more. It is the schedule agent-intake.wazuh, which the schedule editor changes too'),
 })
 export const WazuhTestResult = z.object({ ok: z.literal(true), version: z.string(), agents: z.number().int().describe('Number of Wazuh agents the API user can read') })
 /** How an enrolled osquery agent is doing, from its own check-ins against its own schedule (it asks for its config every 5 minutes). */
@@ -330,7 +330,7 @@ export const AgentReport = z.object({
   off: z.boolean().describe('A person turned the agent off for this device: its data is refused and it cannot be asked (409 agent_off)'),
   os: AgentOs.nullable().describe('agent osquery: the machine\'s system, which picks the service commands to show; null otherwise'),
   stale: z.boolean().describe('state quiet: no agent reports this device now (an ask reaches an osquery agent only when it is back); false otherwise'),
-  wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server (5, 15, 60, 360 or 1440); null otherwise'),
+  wazuh_interval_minutes: z.number().int().nullable().describe('agent wazuh: how often Vedette pulls from the Wazuh server, in minutes (5 or more); null otherwise'),
 })
 
 /** S-INV-1: SNMP is set up per device, like a Zabbix host's SNMP interface. Each device has its own version, community or

@@ -9,7 +9,6 @@ import (
 var (
 	ErrInvalidURL       = errors.New("feeds: invalid feed address")
 	ErrHTTPSRequired    = fmt.Errorf("%w: use https:// (http:// is only allowed for internal addresses)", ErrInvalidURL)
-	ErrInvalidInterval  = errors.New("feeds: invalid interval")
 	ErrInvalidFormat    = errors.New("feeds: format does not fit the feed kind")
 	ErrInvalidName      = errors.New("feeds: invalid feed name")
 	ErrDuplicateName    = errors.New("feeds: duplicate feed name")

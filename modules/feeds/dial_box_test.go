@@ -251,7 +251,7 @@ func TestDialGuard_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 	e.mirror("tor-exit", "https://example.com/list.txt")
 	e.mirror("et-open", "http://intranet.lan/list.txt")
 
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if tlsHits.Load() != 1 || e.feed("tor-exit").Status != "ok" {
@@ -261,7 +261,7 @@ func TestDialGuard_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 		t.Errorf("the LAN feed while unknown: hits %d, %+v, error %v", plainHits.Load(), lan, deref(lan.Error))
 	}
 	known.Store(true)
-	if err := e.svc.RunPull(t.Context()); err != nil { // the unknown pull left the feed due: no back-off to wait out
+	if err := e.runPull(t.Context()); err != nil { // the unknown pull left the feed due: no back-off to wait out
 		t.Fatal(err)
 	}
 	if plainHits.Load() != 1 || e.feed("et-open").Status != "ok" {

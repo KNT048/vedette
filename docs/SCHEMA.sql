@@ -353,7 +353,6 @@ CREATE TABLE feeds_source (
     url             TEXT    NOT NULL CHECK (length(url) BETWEEN 1 AND 500),
     default_url     TEXT    CHECK ((builtin = 1) = (default_url IS NOT NULL)),
     enabled         INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-    interval_hours  INTEGER NOT NULL CHECK (interval_hours BETWEEN 1 AND 168),
     auth_type       TEXT    NOT NULL DEFAULT 'none' CHECK (auth_type IN ('none', 'header', 'bearer', 'basic')),
     auth_header_name TEXT,
     auth_username   TEXT,
@@ -847,13 +846,12 @@ CREATE TABLE intake_wazuh (
     username           TEXT    NOT NULL CHECK (length(username) BETWEEN 1 AND 64),
     secret_id          TEXT    NOT NULL REFERENCES core_secret (id),
     password_last4     TEXT    NOT NULL CHECK (length(password_last4) IN (0, 4)),
-    interval_minutes   INTEGER NOT NULL CHECK (interval_minutes IN (5, 15, 60, 360, 1440)),
     tls_pin            TEXT    NOT NULL CHECK (tls_pin = 'system' OR (length(tls_pin) = 64 AND tls_pin NOT GLOB '*[^0-9a-f]*')),
     tls_pin_first_seen TEXT    NOT NULL,
     generation         INTEGER NOT NULL DEFAULT 1,
     status             TEXT    NOT NULL DEFAULT 'never' CHECK (status IN ('never', 'connected', 'error')),
     last_sync          TEXT,
-    next_pull          TEXT    NOT NULL,
+    next_pull          TEXT,
     agents             INTEGER NOT NULL DEFAULT 0 CHECK (agents >= 0),
     packages           INTEGER NOT NULL DEFAULT 0 CHECK (packages >= 0),
     error              TEXT    CHECK (error IS NULL OR length(error) <= 500),
@@ -1637,8 +1635,6 @@ CREATE TABLE exp_attempt (
 
 CREATE TABLE exp_setting (
     id               INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    auto             INTEGER NOT NULL DEFAULT 1 CHECK (auto IN (0, 1)),
-    interval_min     INTEGER NOT NULL DEFAULT 60 CHECK (interval_min BETWEEN 1 AND 1440),
     last_run_at      TEXT CHECK (last_run_at IS NULL OR last_run_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_run_ok      INTEGER CHECK (last_run_ok IS NULL OR last_run_ok IN (0, 1)),
     last_run_message TEXT CHECK (last_run_message IS NULL OR length(last_run_message) <= 1000),
@@ -1680,13 +1676,9 @@ CREATE TABLE scan_setting (
     stop_on_unresponsive INTEGER NOT NULL DEFAULT 1 CHECK (stop_on_unresponsive IN (0, 1)),
     unresponsive_after   INTEGER NOT NULL DEFAULT 3 CHECK (unresponsive_after BETWEEN 2 AND 20),
     auto_rescan          INTEGER NOT NULL DEFAULT 1 CHECK (auto_rescan IN (0, 1)),
-    sched_enabled        INTEGER NOT NULL DEFAULT 1 CHECK (sched_enabled IN (0, 1)),
-    sched_frequency      TEXT NOT NULL DEFAULT 'weekly' CHECK (sched_frequency IN ('daily', 'weekly')),
-    sched_weekday        INTEGER NOT NULL DEFAULT 7 CHECK (sched_weekday BETWEEN 1 AND 7),
-    sched_at             TEXT NOT NULL DEFAULT '23:00' CHECK (sched_at GLOB '[0-2][0-9]:[0-5][0-9]' AND sched_at < '24:00'),
     updated_at           TEXT CHECK (updated_at IS NULL OR updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    updated_by           TEXT CHECK (updated_by IS NULL OR length(updated_by) BETWEEN 1 AND 320)
-, sched_last TEXT CHECK (sched_last IS NULL OR sched_last GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_at TEXT CHECK (kev_read_at IS NULL OR kev_read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_cve TEXT NOT NULL DEFAULT '' CHECK (length(kev_read_cve) <= 64));
+    updated_by           TEXT CHECK (updated_by IS NULL OR length(updated_by) BETWEEN 1 AND 320),
+    kev_read_at TEXT CHECK (kev_read_at IS NULL OR kev_read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), kev_read_cve TEXT NOT NULL DEFAULT '' CHECK (length(kev_read_cve) <= 64));
 
 CREATE TABLE "scan_event" (
     id          TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),

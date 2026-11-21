@@ -20,7 +20,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
   const sched = useSchedule('scan.vuln')
   const dis = !can
   // what holds every start while the schedule is on, said before a due time is skipped
-  const blocked = !sched.data?.enabled ? null : data.schedule_blocked_reason ?? (data.can_scan ? null : t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked'))
+  const blocked = !sched.data?.enabled ? null : data.can_scan ? null : t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked')
   return (
     <div className="grid gap-5">
       {/* the card already has its own button to run the checks now, with their progress */}

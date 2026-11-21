@@ -8,7 +8,7 @@ const (
 	ExpiringDays       = 5  // at most this many days left: validity "expiring"
 	DeepRounds         = 5  // rounds of a full check (finds every IP of a load balancer); a round asks each of the three services once
 	LightRounds        = 1  // rounds of the check at a short interval
-	MinIntervalMin     = 1  // auto-detect interval bounds and default, in minutes (1 minute to 24 hours)
+	MinIntervalMin     = 5  // auto-detect interval bounds and default, in minutes (5 minutes to 24 hours)
 	MaxIntervalMin     = 1440
 	DefaultIntervalMin = 60
 	MaxTargets         = 20

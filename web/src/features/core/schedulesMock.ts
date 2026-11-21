@@ -21,11 +21,11 @@ const base: Rule = { freq: 'daily', every_minutes: null, at_time: null, weekdays
 
 /** The owners the box registers (the modules adopt core/schedule one by one; their keys and limits are these). */
 const OWNERS: Record<string, Owner> = {
-  'scan.vuln': { module: 'scan', perSubject: false, limits: {}, adminOnly: true, defaultOn: true, rule: { freq: 'weekly', at_time: '23:00', weekdays: [7], window: 'global' } },
+  'scan.vuln': { module: 'scan', perSubject: false, limits: { windows: ['global'], reason: 'Scheduled checks run only inside the scan window (Settings, Scanning, Safety).' }, adminOnly: true, defaultOn: true, rule: { freq: 'weekly', at_time: '23:00', weekdays: [7], window: 'global' } },
   'inventory.sweep': { module: 'sensor-active', perSubject: false, limits: {}, adminOnly: true, defaultOn: true, rule: { freq: 'daily', at_time: '22:00', window: 'global' } },
   'exposure.target': { module: 'exposure', perSubject: true, limits: {}, defaultOn: false, rule: { freq: 'weekly', at_time: '02:30', weekdays: [1], window: 'global' } },
   'reports.def': { module: 'reports', perSubject: true, limits: { freqs: ['weekly', 'monthly'], reason: 'A report covers a week or a month.' }, defaultOn: false, rule: { freq: 'weekly', at_time: '08:00', weekdays: [1] } },
-  'feeds.source': { module: 'feeds', perSubject: true, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 60, reason: 'Sources ask clients not to poll more often.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 60 } },
+  'feeds.source': { module: 'feeds', perSubject: true, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 60, windows: ['none'], reason: 'Sources ask clients not to poll more often.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 60 } },
   'exposure.public_ip': { module: 'exposure', perSubject: false, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 5, max_every_minutes: 1440, reason: 'The lookup services rate-limit; a change is found at the next check.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 15 } },
   'agent-intake.wazuh': { module: 'agent-intake', perSubject: false, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 5, reason: 'The Wazuh server answers slowly to frequent pulls.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 15 } },
 }

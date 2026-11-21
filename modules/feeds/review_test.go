@@ -15,7 +15,7 @@ import (
 // Tests of the independent review of WP-20 (feat/feeds-module): each was written red first.
 
 func vulnFeedBody(name, u string) string {
-	return `{"name":"` + name + `","kind":"vulnerabilities","url":"` + u + `","enabled":true,"interval_hours":24,
+	return `{"name":"` + name + `","kind":"vulnerabilities","url":"` + u + `","enabled":true,
 "auth":{"type":"none","header_name":null,"username":null},
 "parser":{"format":"csv","records_path":"","delimiter":",","has_header":true,"fields":{"cve":{"source":"cve","regex":"","trim":true,"lowercase":false,"date_format":"auto"},
 "vendor":{"source":"vendor","regex":"","trim":true,"lowercase":false,"date_format":"auto"},"date":{"source":"date","regex":"","trim":true,"lowercase":false,"date_format":"auto"}}}}`
@@ -112,11 +112,11 @@ func TestContract_INV14_HaveWhileInventoryWasOffAddsTheDeviceLater(t *testing.T)
 	if c, _, raw := e.do("POST", "/feeds/weekly/"+id, "operator", `{"answer":"have"}`); c != 200 {
 		t.Fatal(c, raw)
 	}
-	if err := e.svc.RunPull(t.Context()); err != nil || len(e.inv.added) != 0 {
+	if err := e.runPull(t.Context()); err != nil || len(e.inv.added) != 0 {
 		t.Fatalf("inventory off: %v, %d devices", err, len(e.inv.added))
 	}
 	e.gate.Set("inventory", true)
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if len(e.inv.added) != 1 || e.inv.added[0].Key != "synology|diskstation manager" {
@@ -126,7 +126,7 @@ func TestContract_INV14_HaveWhileInventoryWasOffAddsTheDeviceLater(t *testing.T)
 	for _, a := range []string{"not_relevant", "have"} {
 		e.do("POST", "/feeds/weekly/"+id, "operator", `{"answer":"`+a+`"}`)
 	}
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if len(e.inv.added) != 1 {
 		t.Errorf("%d devices", len(e.inv.added))
 	}
@@ -269,7 +269,7 @@ func TestContract_INV8_DatabaseFailureLeavesATraceAndBacksOff(t *testing.T) {
 	}
 	hits := o.count("/c2.csv")
 	// back-off: the job does not hit the source again at once
-	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/c2.csv") != hits {
+	if err := e.runPull(t.Context()); err != nil || o.count("/c2.csv") != hits {
 		t.Errorf("RunPull right after a failure: %v, %d more requests", err, o.count("/c2.csv")-hits)
 	}
 	if e.feed(id).Failures != 1 || len(e.pub.named(EventFetchFailed)) != 1 {
@@ -296,7 +296,7 @@ func TestReenablingAFeedResetsItsBackOff(t *testing.T) {
 		t.Errorf("failures after re-enabling: %d", f.Failures)
 	}
 	before := o.count("/kev.json")
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if o.count("/kev.json") != before+1 {
 		t.Error("a re-enabled feed waits for its old back-off")
 	}

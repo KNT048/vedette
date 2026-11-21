@@ -23,6 +23,7 @@ import (
 // Config is what NewService needs. IPFetch, Publisher, Runner, TwoStep, Gateway, Appliances, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
+	Schedules SchedulePort // keeps the public IP detection's schedule in step with the box-ip form; nil: that form cannot be saved
 	Audit     *audit.Log
 	Resolver  Resolver     // DNS TXT lookups of domain verification
 	Prober    EgressProber // the three public IP services (PublicServiceProber); tests pass a fake

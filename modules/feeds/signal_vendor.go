@@ -39,9 +39,9 @@ const (
 	fortinetNotice = "Facts from Fortinet's public PSIRT advisories (CSAF), Fortinet Terms of Use. Each claim links its advisory."
 )
 
-// vendorClaimFeed reports a feed of the vendor exploitation claims.
+// vendorClaimFeed reports a feed of exploitation claims: a vendor's advisories or a prose source (textClaimFeed).
 func vendorClaimFeed(id string) bool {
-	return id == msrcFeedID || id == ciscoFeedID || id == fortinetFeedID
+	return id == msrcFeedID || id == ciscoFeedID || id == fortinetFeedID || textClaimFeed(id)
 }
 
 // vendorTimeout bounds one pull of a vendor feed: a first pull reads about 50 advisories one by one.
@@ -146,7 +146,10 @@ func applyVendorClaims(ctx context.Context, tx *sql.Tx, now, prevGood time.Time,
 		if h, had := held[cve]; had {
 			url, detail := h.url, any(nil)
 			if claims, read := claimedBy[h.url]; read && !claims[cve] { // its link no longer claims it: the claiming document's link
-				url, detail = w.url, w.detail
+				url, detail = w.url, nullWord(w.detail) // a post has no detail: NULL
+				if detail == nil {
+					detail = sql.NullString{}
+				}
 			}
 			if detail == nil {
 				_, err = tx.ExecContext(ctx, `UPDATE feeds_signal SET last_seen = ? WHERE cve = ? AND kind = ? AND source = ?`, stamp, cve, SignalExploited, source)
@@ -180,12 +183,16 @@ VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`, cve, SignalExploited, source, store.FormatT
 			continue // the document that gave it was not read this time: it stands
 		}
 		if others := r.Claimed[cve]; len(others) > 0 { // another advisory still claims it: the row stays, with that link
-			detail, err := json.Marshal(map[string]string{"advisory": lastPart(others[0])})
-			if err != nil {
-				return 0, fmt.Errorf("feeds: store claim: %w", err)
+			var detail any = sql.NullString{} // a post has no detail
+			if !textClaimFeed(source) {
+				b, err := json.Marshal(map[string]string{"advisory": lastPart(others[0])})
+				if err != nil {
+					return 0, fmt.Errorf("feeds: store claim: %w", err)
+				}
+				detail = string(b)
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE feeds_signal SET url = ?, detail = ?, last_seen = ? WHERE cve = ? AND kind = ? AND source = ?`,
-				others[0], string(detail), stamp, cve, SignalExploited, source); err != nil {
+				others[0], detail, stamp, cve, SignalExploited, source); err != nil {
 				return 0, fmt.Errorf("feeds: store claim: %w", err)
 			}
 			continue

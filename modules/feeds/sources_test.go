@@ -24,6 +24,10 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"api.msrc.microsoft.com":                     true, // Microsoft's list of the CVEs it flags exploited (Security Update Guide)
 		"sec.cloudapps.cisco.com":                    true, // Cisco's advisory feed and the CSAF documents of its advisories
 		"filestore.fortinet.com":                     true, // FortiGuard's advisory feed and the CSAF documents of its advisories
+		"chromereleases.googleblog.com":              true, // Google's Chrome Releases blog (its Atom feed)
+		"source.android.com":                         true, // Android's monthly security bulletins
+		"www.rapid7.com":                             true, // Rapid7's blog (its RSS feed)
+		"cloudblog.withgoogle.com":                   true, // Google Threat Intelligence's blog (its RSS feed)
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -62,8 +66,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 23 {
-		t.Fatalf("expected the 23 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 27 {
+		t.Fatalf("expected the 27 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

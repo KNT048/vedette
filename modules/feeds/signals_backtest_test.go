@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"maps"
 	"path/filepath"
 	"regexp"
@@ -211,6 +212,210 @@ func TestVendorClaims_CountsOfTheFrozenFixtures(t *testing.T) {
 	}
 	for id, c := range got {
 		t.Logf("%s: %d claims, %d dated in the window; the window rule flags %d", id, c.pairs, c.inWindow, c.before)
+		if c != want[id] {
+			t.Errorf("%s: %+v, want %+v", id, c, want[id])
+		}
+	}
+}
+
+// The frozen prose fixtures of testdata/textclaims were read on 21 November 2026 and cut to what the decoders read: Rapid7's and
+// Google Threat Intelligence's feeds that day (20 posts each: title, link, date and only the sentences that name a CVE and speak of
+// exploitation); Chrome Releases' posts since June 2025 that name a CVE (the sentences that speak of exploitation, and each line that
+// names CVE ids reduced to the ids); Android's bulletins of June 2025 to November 2026 (the publication date and the notes); Apple's
+// CVE records published since June 2025 as NVD holds them (id, publication, the sentences of the description that speak of
+// exploitation, the links of Apple's release pages). No other text.
+
+func textFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	return gunzipBytes(t, fixtureBytesIn(t, filepath.Join("testdata", "textclaims"), name))
+}
+
+// windowRuleProse is the first measurement's rule on prose (the "before" of the count): a CVE within before/after characters of an
+// exploitation phrase, cut at the nearest ". " when sentence is set, with only the 90 characters before the phrase checked for a
+// negation.
+func windowRuleProse(text string, before, after int, sentence bool) []string {
+	text = regexp.MustCompile(`[ \t\r\f\v]+`).ReplaceAllString(text, " ")
+	var out []string
+	for _, m := range backtestPhraseRE.FindAllStringIndex(text, -1) {
+		a, b := max(0, m[0]-before), min(len(text), m[1]+after)
+		if sentence {
+			if i := strings.LastIndex(text[:m[0]], ". "); i > a {
+				a = i
+			}
+			if i := strings.Index(text[m[1]:], ". "); i >= 0 && m[1]+i < b {
+				b = m[1] + i
+			}
+		}
+		pre := text[max(0, m[0]-90):m[0]]
+		if i := strings.LastIndexByte(pre, '.'); i >= 0 {
+			pre = pre[i+1:]
+		}
+		if backtestNegationRE.MatchString(pre) {
+			continue
+		}
+		for _, c := range claimCVERE.FindAllString(text[a:b], -1) {
+			if c = strings.ToUpper(c); !slices.Contains(out, c) {
+				out = append(out, c)
+			}
+		}
+	}
+	return out
+}
+
+// Count test of the prose sources: per source, the (CVE, date) claims extracted from the frozen fixtures, those dated in the window of
+// the measurement, the CVEs the measurement's window rule flags on the same text, and the sentences in no known form. CVE-2026-123890
+// is flagged from Rapid7's post of 19 November 2026. Apple's claims are read from each CVE's own record, so a claim cannot reach the
+// CVE of the next entry of a release page (the measurement's two Apple false matches were such neighbours): no CVE that shares a
+// release page with a claimed one is flagged unless its own record says it.
+func TestTextClaims_CountsOfTheFrozenFixtures(t *testing.T) {
+	t.Parallel()
+	type count struct {
+		vendorCount
+		unclassified int
+	}
+	got := map[string]count{}
+	claimsOf := map[string]map[string]time.Time{}
+	keep := func(id string, cve string, d time.Time) {
+		if claimsOf[id] == nil {
+			claimsOf[id] = map[string]time.Time{}
+		}
+		if was, ok := claimsOf[id][cve]; !ok || d.Before(was) {
+			claimsOf[id][cve] = d
+		}
+	}
+
+	for _, src := range []struct {
+		id, file      string
+		before, after int
+	}{{rapid7FeedID, "rapid7.xml.gz", 250, 450}, {gtiFeedID, "gti.xml.gz", 250, 450}, {chromeFeedID, "chrome.xml.gz", 200, 50}} {
+		posts, err := parsePostFeed(bytes.NewReader(textFixture(t, src.file)), src.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var read vendorRead
+		forms := map[string][]claimForm{rapid7FeedID: rapid7Forms, gtiFeedID: gtiForms, chromeFeedID: chromeForms}[src.id]
+		if err := postClaims(t.Context(), posts, forms, &read); err != nil {
+			t.Fatal(err)
+		}
+		if read.Rejected != 0 {
+			t.Errorf("%s: %d posts rejected: %+v", src.id, read.Rejected, read.Reasons)
+		}
+		before := map[string]bool{}
+		for _, p := range posts {
+			for _, c := range windowRuleProse(proseText(p.Title+"\n"+p.Body), src.before, src.after, true) {
+				before[c] = true
+			}
+		}
+		for _, d := range read.Docs {
+			for _, c := range d.Claims {
+				keep(src.id, c.CVE, c.Date)
+			}
+		}
+		c := count{vendorCount: countIn(claimsOf[src.id]), unclassified: read.Unclassified}
+		c.before = len(before)
+		got[src.id] = c
+	}
+
+	sc := bufio.NewScanner(bytes.NewReader(textFixture(t, "android.jsonl.gz")))
+	sc.Buffer(nil, 1<<20)
+	before := map[string]bool{}
+	var android count
+	for sc.Scan() {
+		var b struct{ Month, URL, Page string }
+		if err := json.Unmarshal(sc.Bytes(), &b); err != nil {
+			t.Fatal(err)
+		}
+		month, err := time.Parse("2006-01", b.Month)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := SeedFromAndroidPage(t.Context(), b.URL, []byte(b.Page), month)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range r.Claims {
+			d, _ := time.Parse(time.RFC3339, c.Date)
+			keep(androidFeedID, c.CVE, d)
+		}
+		for _, c := range windowRuleProse(proseText(b.Page), 300, 300, true) {
+			before[c] = true
+		}
+	}
+	android.vendorCount = countIn(claimsOf[androidFeedID])
+	android.before = len(before)
+	got[androidFeedID] = android
+
+	// Apple: each record's own description
+	sc = bufio.NewScanner(bytes.NewReader(textFixture(t, "apple.jsonl.gz")))
+	sc.Buffer(nil, 1<<20)
+	pages := map[string][]string{} // Apple's release page → its CVEs
+	stated := map[string]bool{}    // the records whose own description states it
+	var apple count
+	for sc.Scan() {
+		var r struct {
+			CVE, Published, Description string
+			Advisories                  []string
+		}
+		if err := json.Unmarshal(sc.Bytes(), &r); err != nil {
+			t.Fatal(err)
+		}
+		for _, a := range r.Advisories {
+			pages[a] = append(pages[a], r.CVE)
+		}
+		stated[r.CVE] = strings.Contains(r.Description, "may have been exploited")
+		ok, err := appleClaimed(t.Context(), r.CVE, r.Description)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok {
+			d, err := time.Parse(time.RFC3339, r.Published)
+			if err != nil {
+				t.Fatal(err)
+			}
+			keep(appleClaimSource, r.CVE, d)
+		}
+	}
+	apple.vendorCount = countIn(claimsOf[appleClaimSource])
+	got[appleClaimSource] = apple
+	neighbours := map[string]bool{}
+	for _, cves := range pages {
+		claimedHere := false
+		for _, c := range cves {
+			_, ok := claimsOf[appleClaimSource][c]
+			claimedHere = claimedHere || ok
+		}
+		for _, c := range cves {
+			if _, ok := claimsOf[appleClaimSource][c]; claimedHere && !ok {
+				neighbours[c] = true
+			}
+		}
+	}
+
+	if d := claimsOf[rapid7FeedID]["CVE-2026-123890"]; d.Format(time.DateOnly) != "2026-11-19" {
+		t.Errorf("CVE-2026-123890 from Rapid7: %v, want 19 Nov 2026", d)
+	}
+	for cve, says := range stated {
+		if _, claimed := claimsOf[appleClaimSource][cve]; claimed != says {
+			t.Errorf("apple %s: claimed %v, its own record says it %v", cve, claimed, says)
+		}
+	}
+	if len(neighbours) != 135 {
+		t.Errorf("apple: %d CVEs share a release page with a claimed CVE, want 135 (none of them is flagged)", len(neighbours))
+	}
+	for id, cs := range claimsOf {
+		for _, cve := range slices.Sorted(maps.Keys(cs)) {
+			t.Logf("%s %s %s", id, cve, cs[cve].Format(time.DateOnly))
+		}
+	}
+	want := map[string]count{
+		rapid7FeedID:     {vendorCount{5, 5, 7}, 6},
+		gtiFeedID:        {vendorCount{5, 5, 3}, 10},
+		chromeFeedID:     {vendorCount{10, 9, 25}, 0},
+		androidFeedID:    {vendorCount{6, 4, 2}, 0},
+		appleClaimSource: {vendorCount{5, 3, 0}, 0}, // the window rule read Apple's release pages, which the box does not read
+	}
+	for id, c := range got {
+		t.Logf("%s: %d claims, %d dated in the window; the window rule flags %d; %d sentences in no known form", id, c.pairs, c.inWindow, c.before, c.unclassified)
 		if c != want[id] {
 			t.Errorf("%s: %+v, want %+v", id, c, want[id])
 		}

@@ -195,6 +195,9 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		out.Stored++
 	}
 	out.KEVFirst = out.KEVFirst && len(out.KEVChanged) > 0
+	if err := applyAppleClaims(ctx, tx, now); err != nil { // the descriptions written may carry Apple's word on exploitation
+		return out, err
+	}
 	return out, nil
 }
 

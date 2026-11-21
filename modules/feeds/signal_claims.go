@@ -4,6 +4,7 @@ import (
 	"context"
 	"html"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -28,10 +29,17 @@ const (
 )
 
 // claimForm is one sentence form of a vendor, as a pattern over the canonical sentence (whole sentence).
+//
+// A form for prose (a blog post) names its parts: the group "cve" is its subject, so only the CVE ids written there are claimed,
+// never another id the sentence also names; each group named "o" and a number is an open part (who says it, what follows), which a
+// negation or a hedge (claimHedgeRE) in it turns the sentence away from the form: it is then tried against the next form and, if no
+// form takes it, counted as unclassified. A claim is never read from a sentence that says it might, could or did not happen.
 type claimForm struct {
-	re   *regexp.Regexp
-	kind formKind
-	all  bool // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
+	re      *regexp.Regexp
+	kind    formKind
+	all     bool  // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
+	subject int   // the submatch index of the group "cve", 0 when the form has none (its subject is every CVE id it names)
+	open    []int // the submatch indexes of the open parts
 }
 
 // formKind says what a sentence of a form states.
@@ -46,7 +54,16 @@ const (
 func forms(kind formKind, all bool, patterns ...string) []claimForm {
 	out := make([]claimForm, 0, len(patterns))
 	for _, p := range patterns {
-		out = append(out, claimForm{re: regexp.MustCompile(`^(?:` + p + `)$`), kind: kind, all: all})
+		f := claimForm{re: regexp.MustCompile(`^(?:` + p + `)$`), kind: kind, all: all}
+		for i, name := range f.re.SubexpNames() {
+			switch {
+			case name == "cve":
+				f.subject = i
+			case strings.HasPrefix(name, "o"):
+				f.open = append(f.open, i)
+			}
+		}
+		out = append(out, f)
 	}
 	return out
 }
@@ -63,6 +80,13 @@ var (
 	claimCVEsRE  = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and| or|, and|, or) cve-[0-9]{4}-[0-9]{4,12})*`)
 	claimWhenRE  = regexp.MustCompile(`^(?:in|on) (?:january|february|march|april|may|june|july|august|september|october|november|december)(?: [0-9]{1,2},)? [0-9]{4}, `)
 	claimSpaceRE = regexp.MustCompile(`\s+`)
+	// claimHedgeRE: words that turn an open part of a prose form away from a claim: a negation, a condition, a possibility, an
+	// expectation, a doubt, a test or a question.
+	// "may" is the month when a day follows it ("between May 27 and June 9").
+	claimHedgeRE = regexp.MustCompile(`\bmay\b(?:$|[^ 0-9]| [^0-9])|\b(?:not|no|never|nor|none|neither|without|unless|if|whether|could|would|might|can|cannot|should|` +
+		`possibl[a-z]*|potential(?:ly)?|likely|unlikely|expect[a-z]*|risks?|prevent[a-z]*|hypothetical(?:ly)?|theoretical(?:ly)?|` +
+		`den(?:y|ies|ied)|false|unconfirmed|unverified|alleged(?:ly)?|believes?|believed|rumou?rs?|tests?|testing|tested|labs?|demonstrat[a-z]*|` +
+		`simulat[a-z]*|proof-of-concept|poc)\b|n't\b|\?`)
 )
 
 // The parts of Cisco's sentences.
@@ -147,6 +171,9 @@ type claimReader struct {
 	total        int // the CVEs of the document
 	budget       int // bytes of text still read (csafMaxClaimText for a document)
 	work         *claimWork
+	// prose: a blog post or a bulletin, read by named forms only: a sentence that names no CVE id is passed over, and only one that
+	// names one and speaks of exploitation as a fact would (claimProseRE) is counted when no form takes it.
+	prose bool
 }
 
 func newClaimReader(forms []claimForm, budget int, work *claimWork) *claimReader {
@@ -208,22 +235,34 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 				return err
 			}
 		}
-		if !claimWordsRE.MatchString(sentence) {
+		if !claimWordsRE.MatchString(sentence) || r.prose && (!claimCVERE.MatchString(sentence) || !claimProseRE.MatchString(sentence)) {
 			continue
 		}
 		if len(sentence) > maxClaimSentence || strings.HasSuffix(sentence, "?") {
 			r.unclassified++
 			continue
 		}
-		canon, named := canonicalSentence(sentence)
+		canon, named, tokens := canonicalSentence(sentence)
 		r.work.step(len(named))
 		var form *claimForm
 		for i := range r.forms {
 			f := &r.forms[i]
-			if f.re.MatchString(canon) && (f.kind == formClaim || !claimTurnRE.MatchString(canon)) {
-				form = f
-				break
+			if f.subject == 0 && len(f.open) == 0 {
+				if f.re.MatchString(canon) && (f.kind == formClaim || !claimTurnRE.MatchString(canon)) {
+					form = f
+					break
+				}
+				continue
 			}
+			m := f.re.FindStringSubmatchIndex(canon)
+			if m == nil || f.kind != formClaim && claimTurnRE.MatchString(canon) || hedged(canon, m, f.open) {
+				continue
+			}
+			form = f
+			if f.subject > 0 {
+				named = subjectCVEs(canon, m[2*f.subject], m[2*f.subject+1], tokens)
+			}
+			break
 		}
 		switch {
 		case form == nil:
@@ -261,9 +300,9 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 	return nil
 }
 
-// canonicalSentence is a sentence in the canonical form the forms are written for, and the CVE ids it names outside link targets
-// (upper case, in order, distinct).
-func canonicalSentence(s string) (string, []string) {
+// canonicalSentence is a sentence in the canonical form the forms are written for, the CVE ids it names outside link targets
+// (upper case, in order, distinct), and the ids of each {cve} of the canonical form, in order.
+func canonicalSentence(s string) (string, []string, [][]string) {
 	s = claimLinkRE.ReplaceAllString(s, "")
 	var named []string
 	seen := map[string]bool{}
@@ -275,9 +314,45 @@ func canonicalSentence(s string) (string, []string) {
 	}
 	s = strings.ToLower(claimSpaceRE.ReplaceAllString(strings.TrimSpace(s), " "))
 	s = strings.TrimRight(s, ".! ")
+	var tokens [][]string
+	for _, list := range claimCVEsRE.FindAllString(s, -1) {
+		var ids []string
+		for _, id := range claimCVERE.FindAllString(list, -1) {
+			ids = append(ids, strings.ToUpper(id))
+		}
+		tokens = append(tokens, ids)
+	}
 	s = claimCVEsRE.ReplaceAllString(s, "{cve}")
 	s = claimWhenRE.ReplaceAllString(s, "{when} ")
-	return s, named
+	return s, named, tokens
+}
+
+// hedged says whether an open part of a form's match holds a negation or a hedge.
+func hedged(canon string, m, open []int) bool {
+	for _, g := range open {
+		if m[2*g] >= 0 && claimHedgeRE.MatchString(canon[m[2*g]:m[2*g+1]]) {
+			return true
+		}
+	}
+	return false
+}
+
+// subjectCVEs is the CVE ids of the {cve} of the canonical form between from and to (the subject of a form).
+func subjectCVEs(canon string, from, to int, tokens [][]string) []string {
+	if from < 0 {
+		return nil
+	}
+	first := strings.Count(canon[:from], "{cve}")
+	n := strings.Count(canon[from:to], "{cve}")
+	var out []string
+	for i := first; i < first+n && i < len(tokens); i++ {
+		for _, id := range tokens[i] {
+			if !slices.Contains(out, id) {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 // stripTags replaces each HTML tag (a "<" with a ">" within 500 bytes and no "<" between) by a line break, in one pass.

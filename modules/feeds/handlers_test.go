@@ -176,6 +176,7 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	e.svc.claimSeed = map[string][]claimDoc{} // no seed claims unless a test gives some
 	e.svc.wait = func(ctx context.Context, d time.Duration) error {
 		if d > 0 {
 			e.mu.Lock()
@@ -590,7 +591,7 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 22, "id") != "hagezi-tif" || at(b, "items", 23) != nil {
+	if c != 200 || at(b, "items", 26, "id") != "hagezi-tif" || at(b, "items", 27) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)

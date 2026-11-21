@@ -203,6 +203,9 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 			}
 		}
 	}
+	if err := applyAppleClaims(ctx, tx, now); err != nil { // the descriptions written may carry Apple's word on exploitation
+		return out, err
+	}
 	return out, nil
 }
 

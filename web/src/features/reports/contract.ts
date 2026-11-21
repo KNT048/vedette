@@ -221,6 +221,7 @@ export const ReportHandled = z.object({
   totals: z.array(z.object({ resolution: HandledStatus, via: Via, n: z.number().int() })).describe('Handled in the period by resolution'),
   devices: z.array(z.object({ device: DeviceRef, items: z.array(HandledItem) })),
   more: z.number().int().describe('Handled findings not listed (a report lists 100 at most)'),
+  median_days: z.number().min(0).nullable().describe('Median days from first seen to handled, of the findings patched or mitigated in the period; null when none'),
 })
 export const ReportOpen = z.object({
   grouping: z.enum(['device', 'cve']), total: z.number().int(),
@@ -271,6 +272,7 @@ export const SentReportItem = z.object({
   id: z.string(), definition_id: z.string(), title: z.string().max(120), sent_at: iso,
   period: z.object({ from: iso, to: iso }),
   trigger: z.enum(['manual', 'schedule']), recipients: z.array(email), status: z.enum(['sent', 'failed']), error: z.string().nullable(),
+  sent_by: z.string().nullable().describe('Who pressed Send now; null for a scheduled send'),
 })
 export const SentReport = SentReportItem.extend({ document: ReportDocument.describe('Exactly what was sent') })
 

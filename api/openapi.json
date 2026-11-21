@@ -75482,12 +75482,25 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
                           "description": "Handled findings not listed (a report lists 100 at most)"
+                        },
+                        "median_days": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
                         }
                       },
                       "required": [
                         "totals",
                         "devices",
-                        "more"
+                        "more",
+                        "median_days"
                       ],
                       "additionalProperties": false
                     },
@@ -76834,6 +76847,13 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "sent_by": {
+                            "description": "Who pressed Send now; null for a scheduled send",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -76845,7 +76865,8 @@
                           "trigger",
                           "recipients",
                           "status",
-                          "error"
+                          "error",
+                          "sent_by"
                         ],
                         "additionalProperties": false
                       }
@@ -76958,6 +76979,13 @@
                       ]
                     },
                     "error": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "sent_by": {
+                      "description": "Who pressed Send now; null for a scheduled send",
                       "type": [
                         "string",
                         "null"
@@ -77596,12 +77624,25 @@
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991,
                               "description": "Handled findings not listed (a report lists 100 at most)"
+                            },
+                            "median_days": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
                             }
                           },
                           "required": [
                             "totals",
                             "devices",
-                            "more"
+                            "more",
+                            "median_days"
                           ],
                           "additionalProperties": false
                         },
@@ -78858,6 +78899,7 @@
                     "recipients",
                     "status",
                     "error",
+                    "sent_by",
                     "document"
                   ],
                   "additionalProperties": false
@@ -81016,6 +81058,13 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "sent_by": {
+                      "description": "Who pressed Send now; null for a scheduled send",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -81027,7 +81076,8 @@
                     "trigger",
                     "recipients",
                     "status",
-                    "error"
+                    "error",
+                    "sent_by"
                   ],
                   "additionalProperties": false
                 }

@@ -60,18 +60,19 @@ const OPEN = (end: number): (Omit<ReportFinding, 'first_seen'> & { age: number }
   { finding_id: 'f-107', cve: 'CVE-2024-6387', device: D.nas, product: 'OpenSSH', version: '8.9p1', status: 'public_exploit', reasons: [{ layer: 3, source: 'github-poc', name: 'GitHub', date: day(end, 12), url: null, detail: '244 stars', due: null }], severity: sev('high', 8.1), verification: byDevice, fix: fix('distro_update', 'OpenSSH', '1:8.9p1-3ubuntu0.10', 'USN-6859-1'), age: 12 },
 ]
 
-type Row = Omit<HandledItem, 'handled'> & { device: DeviceRef; age: number; handled: Omit<Handled, 'at' | 'accepted_until'> }
+/** `age` = days since it was handled, back from the end of the period; `took` = days from first seen to handled. */
+type Row = Omit<HandledItem, 'handled'> & { device: DeviceRef; age: number; took: number; handled: Omit<Handled, 'at' | 'accepted_until'> }
 const h = (resolution: Handled['resolution'], via: Handled['via'], by: string, note: string | null = null, from_version: string | null = null, to_version: string | null = null) =>
   ({ resolution, via, by, note, from_version, to_version })
 const PERSON = 'it@acme.example'
 const HANDLED: Row[] = [
-  { device: D.ws, age: 2, finding_id: 'f-201', cve: 'CVE-2023-38831', product: 'WinRAR', severity: sev('high', 7.8), handled: h('patched', 'version_moved', 'system', null, '6.24', '7.23') },
-  { device: D.ws, age: 2, finding_id: 'f-202', cve: 'CVE-2023-40477', product: 'WinRAR', severity: sev('high', 7.8), handled: h('patched', 'version_moved', 'system', null, '6.24', '7.23') },
-  { device: D.web, age: 4, finding_id: 'f-203', cve: 'CVE-2024-6387', product: 'OpenSSH', severity: sev('high', 8.1), handled: h('patched', 'person', PERSON, 'Updated from the distribution packages.') },
-  { device: D.web, age: 5, finding_id: 'f-204', cve: 'CVE-2021-44228', product: 'Apache Log4j', severity: sev('critical', 10), handled: h('mitigated', 'person', PERSON, 'JNDI lookups turned off until the vendor update.') },
-  { device: D.lap, age: 3, finding_id: 'f-205', cve: 'CVE-2023-40031', product: 'Notepad++', severity: sev('high', 7.8), handled: h('patched', 'software_removed', 'system') },
-  { device: D.nas, age: 6, finding_id: 'f-206', cve: 'CVE-2023-23397', product: 'Microsoft Outlook', severity: sev('critical', 9.8), handled: h('accepted', 'person', PERSON, 'Replaced at the end of the month.') },
-  { device: D.prn, age: 1, finding_id: 'f-207', cve: 'CVE-2022-3942', product: 'HP LaserJet firmware', severity: sev('medium', 6.1), handled: h('not_relevant', 'data_corrected', 'system') },
+  { device: D.ws, age: 2, took: 3, finding_id: 'f-201', cve: 'CVE-2023-38831', product: 'WinRAR', severity: sev('high', 7.8), handled: h('patched', 'version_moved', 'system', null, '6.24', '7.23') },
+  { device: D.ws, age: 2, took: 3, finding_id: 'f-202', cve: 'CVE-2023-40477', product: 'WinRAR', severity: sev('high', 7.8), handled: h('patched', 'version_moved', 'system', null, '6.24', '7.23') },
+  { device: D.web, age: 4, took: 9, finding_id: 'f-203', cve: 'CVE-2024-6387', product: 'OpenSSH', severity: sev('high', 8.1), handled: h('patched', 'person', PERSON, 'Updated from the distribution packages.') },
+  { device: D.web, age: 5, took: 2, finding_id: 'f-204', cve: 'CVE-2021-44228', product: 'Apache Log4j', severity: sev('critical', 10), handled: h('mitigated', 'person', PERSON, 'JNDI lookups turned off until the vendor update.') },
+  { device: D.lap, age: 3, took: 6, finding_id: 'f-205', cve: 'CVE-2023-40031', product: 'Notepad++', severity: sev('high', 7.8), handled: h('patched', 'software_removed', 'system') },
+  { device: D.nas, age: 6, took: 14, finding_id: 'f-206', cve: 'CVE-2023-23397', product: 'Microsoft Outlook', severity: sev('critical', 9.8), handled: h('accepted', 'person', PERSON, 'Replaced at the end of the month.') },
+  { device: D.prn, age: 1, took: 1, finding_id: 'f-207', cve: 'CVE-2022-3942', product: 'HP LaserJet firmware', severity: sev('medium', 6.1), handled: h('not_relevant', 'data_corrected', 'system') },
 ]
 
 const TARGETS = (end: number): ExposureTarget[] => [
@@ -103,7 +104,7 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
     .map(({ age, ...f }): ReportFinding => ({ ...f, first_seen: new Date(end - age * DAY).toISOString() }))
     .sort((a, b) => rank(a.status) - rank(b.status) || (b.severity?.score ?? 0) - (a.severity?.score ?? 0) || a.cve.localeCompare(b.cve))
   const handled = clean ? [] : HANDLED.filter((r) => keep(r.device) && (o.include_not_relevant || r.handled.resolution !== 'not_relevant'))
-    .map(({ age, ...r }) => ({ ...r, handled: { ...r.handled, at: new Date(end - age * DAY).toISOString(), accepted_until: r.handled.resolution === 'accepted' ? day(end, -30) : null } }))
+    .map(({ age, took, ...r }) => ({ ...r, took, handled: { ...r.handled, at: new Date(end - age * DAY).toISOString(), accepted_until: r.handled.resolution === 'accepted' ? day(end, -30) : null } }))
     .filter((r) => Date.parse(r.handled.at) >= from)
   const fresh = open.filter((f) => Date.parse(f.first_seen) >= from)
 
@@ -130,12 +131,14 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
       totals.set(k, { resolution: x.resolution, via: x.via, n: (totals.get(k)?.n ?? 0) + 1 })
     }
     const devices = new Map<string, { device: DeviceRef; items: HandledItem[] }>()
-    for (const { device, ...item } of handled.slice(0, groupLimit)) {
+    for (const { device, took: _took, ...item } of handled.slice(0, groupLimit)) {
       const g = devices.get(device.id) ?? { device, items: [] }
       g.items.push(item)
       devices.set(device.id, g)
     }
-    doc.handled = { totals: [...totals.values()], devices: [...devices.values()], more: Math.max(0, handled.length - groupLimit) }
+    const days = handled.filter((r) => r.handled.resolution === 'patched' || r.handled.resolution === 'mitigated').map((r) => r.took).sort((a, b) => a - b)
+    const median = days.length ? (days.length % 2 ? days[(days.length - 1) / 2]! : (days[days.length / 2 - 1]! + days[days.length / 2]!) / 2) : null
+    doc.handled = { totals: [...totals.values()], devices: [...devices.values()], more: Math.max(0, handled.length - groupLimit), median_days: median }
   }
   if (s.open) {
     const groups = new Map<string, { key: string; label: string; status: OpenStatus; items: ReportFinding[] }>()

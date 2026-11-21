@@ -1081,6 +1081,9 @@ func rangesUpdated(d *deps) func(ctx context.Context, data any) error {
 		}
 		st, ok := feedsKEV{d}.store()
 		if ev.First || !ok {
+			if ev.Catalogue { // RematchAll reads the lines of listed CVEs only: the catalogue CVEs need the match pass too
+				wake()
+			}
 			if ev.First {
 				ctx = notify.WithBaseline(ctx)
 			}

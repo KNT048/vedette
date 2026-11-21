@@ -12,8 +12,9 @@ import (
 // The class "a vendor's own rows or a distribution's word decide, not NVD's generic ranges": for each ecosystem, devices whose finding
 // only the vendor's notation (read in the product's version scheme) or the distribution's fixed package can decide, with what a
 // person checking the vendor's advisory would expect. The count is the cases the matcher gets right, per ecosystem; a wrong case is
-// logged. It reruns like any test. Measured: before the match pass read vendor rows, Oracle's trains and distribution-only CVEs, 16 of
-// 31 right (ESXi 6/10, NetScaler 2/4, Junos 1/3, kernel 2/3, running kernel 1/3, distribution 1/2, Java 4/6); after, 31 of 31.
+// logged. It reruns like any test. Measured on 34 cases: 34 right with this matcher. The matcher before vendor rows, Oracle's trains
+// and distribution-only CVEs were read got 20 right (ESXi 8/12, NetScaler 3/5, Junos 1/3, kernel 2/3, running kernel 1/3,
+// distribution 1/2, Java 4/6), measured with this file and the Software.Guess field added to the older matcher.
 
 // ecoCase is one device and one CVE: want says the device is affected; fix is the fix the finding must name ("" when not affected or
 // when any fix will do).

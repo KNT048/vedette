@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/findings/findingstest"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // seedVendorRow writes one CVE record range of cve as the reader keeps a vendor's own notation (origin cna, no CPE, the product's
@@ -166,12 +168,13 @@ func TestRangesUpdated_CatalogueChangeWakesTheMatchPass(t *testing.T) {
 	if err := on(ctx, feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-7201", "CVE-2026-7202"}}); err != nil || len(woke) != 2 {
 		t.Fatalf("a CVE no list holds: woke %v %v", woke, err)
 	}
+	if err := on(ctx, feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-7201"}, First: true, Catalogue: true}); err != nil || len(woke) != 3 {
+		t.Fatalf("the first fill with a catalogue change: woke %v %v", woke, err)
+	}
 }
 
-// The findings self-checks that read other modules' tables, on rows written as a box holds them: range precedence exempts a
-// finding of a product with a version scheme (its vendor's rows decide before NVD's), never one of another product; a detected
-// finding's version must be one its software line runs.
-func TestSelfcheck_RangePrecedenceAndMatchedVersion(t *testing.T) {
+// A detected finding's version must be one its software line runs (a self-check reading inventory's lines).
+func TestSelfcheck_MatchedVersionOnLine(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
@@ -217,10 +220,73 @@ func TestSelfcheck_RangePrecedenceAndMatchedVersion(t *testing.T) {
 		t.Fatalf("no invariant %s", name)
 		return 0
 	}
-	if n := count("findings.range_precedence"); n != 1 {
-		t.Errorf("range_precedence %d, want 1 (the finding of a product without a scheme)", n)
-	}
 	if n := count("findings.matched_version_on_line"); n != 1 {
 		t.Errorf("matched_version_on_line %d, want 1 (the test line runs no version, so 2.0 is none it runs)", n)
 	}
+}
+
+// Range precedence exempts a finding whose line is a product with a version scheme, resolved as the matcher resolves it: a NetScaler
+// line nmap names "netscaler gateway" by its CPE is NetScaler, whose vendor rows decide before NVD's. A finding of another product
+// that rests on the CVE record's rows while NVD has rows breaks precedence.
+func TestSelfcheck_RangePrecedenceResolvesTheLineProduct(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "adc-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := []inventory.SoftwareItem{
+		{Display: "Citrix NetScaler Gateway 14.1-12.30", Vendor: "citrix", Product: "netscaler gateway", Version: "14.1-12.30",
+			CPE: "cpe:2.3:a:citrix:netscaler_gateway:14.1-12.30:*:*:*:*:*:*:*", Confidence: 0.8},
+		{Display: "Acme Box 2.0", Vendor: "acme", Product: "box", Version: "2.0", Confidence: 0.8},
+	}
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "nmap"); err != nil {
+		t.Fatal(err)
+	}
+	dev, ok, err := s.d.Inventory.MatchInput(ctx, id)
+	if err != nil || !ok || len(dev.Software) != 2 {
+		t.Fatalf("lines %+v %v %v", dev.Software, ok, err)
+	}
+	line := map[string]string{}
+	for _, sw := range dev.Software {
+		line[sw.Product] = sw.ID
+	}
+	const ts = "2026-11-01T00:00:00.000Z"
+	err = s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, "CVE-2025-5777", time.Now().AddDate(0, -3, 0), 0); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, "CVE-2025-5777", "cpe:2.3:a:citrix:netscaler_gateway:*:*:*:*:*:*:*:*", "14.1", "", "", "14.1-43.56"); err != nil {
+			return err
+		}
+		ins := `INSERT INTO fnd_finding (id, asset_id, cve, software_id, detected, basis, verified, range_origin, fix_kind, fix_key, state,
+			urgency, urgency_at, first_seen, last_seen, updated_at) VALUES (?, ?, 'CVE-2025-5777', ?, 1, 'banner_version', 'no', 'cna', 'update', ?, 'open', 2, ?, ?, ?, ?)`
+		for _, r := range [][3]string{
+			{"f-ns", line[items[0].Product], "citrix|netscaler gateway|update|14.1-43.56"}, // Citrix's rows decided: the scheme product
+			{"f-box", line[items[1].Product], "acme|box|update|2.1"},                       // a record row beat NVD's
+		} {
+			if r[1] == "" {
+				return fmt.Errorf("no line for %s", r[0])
+			}
+			if _, err := tx.ExecContext(ctx, ins, r[0], id, r[1], r[2], ts, ts, ts, ts); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, inv := range selfcheck.Registered() {
+		if inv.Name != "findings.range_precedence" {
+			continue
+		}
+		n, err := inv.Count(ctx, s.d.DB.Reader())
+		if err != nil || n != 1 {
+			t.Fatalf("range_precedence %d %v, want 1 (the Acme finding only)", n, err)
+		}
+		return
+	}
+	t.Fatal("no range_precedence invariant")
 }

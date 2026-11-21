@@ -321,6 +321,15 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			if id == "" { // no device may take it (resolve: an agent-only report of an unbound agent, an address not confirmed lately)
 				continue
 			}
+			if c.source == string(observe.Agent) && !isNew {
+				off, err := agentRefused(ctx, tx, id)
+				if err != nil {
+					return err
+				}
+				if off { // a person turned the agent off for this device (ChangeSources): nothing of it is taken
+					continue
+				}
+			}
 			if isNew {
 				created[id] = c.source
 				if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", c.target(), id); err != nil {
@@ -1039,15 +1048,15 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 // no device has that id. Read only.
 func (s *Service) AgentDevice(ctx context.Context, id string) (observe.AgentDevice, bool, error) {
 	var agent, ip, mac string
-	var box bool
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, ''), is_box = 1 FROM inv_asset WHERE id = ?`, id).Scan(&agent, &ip, &mac, &box)
+	var box, off bool
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, ''), is_box = 1, coalesce(agent_source, '') = 'off' FROM inv_asset WHERE id = ?`, id).Scan(&agent, &ip, &mac, &box, &off)
 	if errors.Is(err, sql.ErrNoRows) {
 		return observe.AgentDevice{}, false, nil
 	}
 	if err != nil {
 		return observe.AgentDevice{}, false, fmt.Errorf("inventory: read device agent: %w", err)
 	}
-	d := observe.AgentDevice{Agent: agent, MAC: mac, IsBox: box}
+	d := observe.AgentDevice{Agent: agent, MAC: mac, IsBox: box, AgentOff: off && !box}
 	if a, perr := netip.ParseAddr(ip); perr == nil {
 		d.IP = a
 	}

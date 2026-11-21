@@ -93,8 +93,6 @@ var jsonColumnAllowList = []string{
 	"sa_all_ports.normal_ports",
 	"sa_all_ports.normal_sw",
 	"sa_all_ports.versioned",
-	"sa_job.found",
-	"sa_snmp.scope",
 	"sa_snmp_device.answer",
 	"scan_event.devices",
 }

@@ -61,9 +61,6 @@ func (s *Service) similarSource(ctx context.Context, id string) error {
 	if s.secrets == nil {
 		return snmpOff()
 	}
-	if err := s.moveCredentials(ctx); err != nil {
-		return err
-	}
 	if _, err := s.inv.Asset(ctx, id); errors.Is(err, ErrNotFound) {
 		return apierr.New(404, "not_found", "There is no device with this id.")
 	} else if err != nil {

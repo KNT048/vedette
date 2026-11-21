@@ -336,6 +336,7 @@
   "POST /runs/{id}/resume": "core",
   "POST /runs/{id}/stop": "core",
   "POST /scanning/engines/nmap-discovery/run": "core",
+  "POST /scanning/safety/estimate": "core",
   "POST /scanning/safety/exclusions": "core",
   "POST /scanning/safety/ranges": "core",
   "POST /scans/credentialed": "scan-credentialed",

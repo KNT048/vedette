@@ -387,6 +387,11 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer exposureService(d).Close() // OpenVAS's start and feed update end with the box; the run manager ends the scan that runs
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
 	scanService(d)                   // builds the scan module's service, which registers its kind of run before the manager starts
+	if d.SensorDispatcher != nil {   // the same for active discovery: its sweeps, checks and reads are runs
+		if _, err := sensorActiveService(ctx, d); err != nil {
+			log.WarnContext(ctx, "sensor-active: the module cannot start", "error", err)
+		}
+	}
 	// Runs: the ones a previous process left are recorded (stopped by the restart, the resumable queued again), then the queue
 	// starts. Closed before the module services above, so a run's work ends before the service it uses.
 	if err := d.Runs.Start(ctx); err != nil {

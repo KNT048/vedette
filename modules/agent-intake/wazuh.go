@@ -506,14 +506,21 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 }
 
 // wazuhAgentSeen records the address and card the pull just delivered an agent's data to (#849: the Devices list tells Wazuh from
-// osquery by them).
-func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac string) error {
+// osquery by them), and when Wazuh last heard from the agent, which the device's agent is judged by (NodeHealth): the pull's time while
+// Wazuh lists the agent active (Wazuh itself says it hears from it, by its own clock, so the manager's clock never meets the box's), its
+// lastKeepAlive while Wazuh lists it disconnected (never after the pull; the pull's time when it does not parse), so a disconnected
+// agent the pull still lists turns quiet.
+func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac, status, keepAlive string) error {
+	heard := s.now()
+	if t, err := time.Parse(time.RFC3339, keepAlive); err == nil && status != "active" && t.Before(heard) {
+		heard = t.UTC()
+	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		// Only for the connection saved now: a pull of a deleted or replaced one writes nothing here (review #855 r2 L2).
 		_, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at)
 			SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM intake_wazuh WHERE id = 1 AND generation = ?2)
 			ON CONFLICT (agent_id) DO UPDATE SET generation = excluded.generation, ip = excluded.ip, mac = excluded.mac, seen_at = excluded.seen_at`,
-			id, generation, ip.String(), mac, store.FormatTS(s.now()))
+			id, generation, ip.String(), mac, store.FormatTS(heard))
 		if err != nil {
 			return fmt.Errorf("agentintake: wazuh agent: %w", err)
 		}
@@ -723,7 +730,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 			return 0, err
 		}
 	}
-	if err := s.wazuhAgentSeen(ctx, a.ID, generation, ip, mac); err != nil {
+	if err := s.wazuhAgentSeen(ctx, a.ID, generation, ip, mac, a.Status, a.LastKeepAlive); err != nil {
 		return 0, err
 	}
 	items, dropped := mapPackages(withWindows(wazuhSnaps(pkgs, wazuhKernel(a)), wazuhWindows(a)), maxRows)

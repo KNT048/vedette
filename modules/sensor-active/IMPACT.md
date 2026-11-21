@@ -1,10 +1,17 @@
 # Sensor-active — Change Impact Map
 
+## Modifying: runs (`runs.go`, `sweep.go`, `driver.go`; INV-29)
+- **core/run** owns the record, the queue and the lanes: the kinds are registered by `New` on `Config.Runs` (the box's manager, before it starts); a kind renamed or a lane changed changes what the Runs tab, the run page, `GET /runs` filters and the restart recovery see. `cmd/vedette/main.go` builds the service before the manager starts so the recovery knows the kinds.
+- **The window's driver** (`Tick`) resumes waiting runs one at a time; a change to the order (first checks, pass, rest, SNMP, weekly) is INV-27's.
+- **Steps of a pass** are CIDR blocks and their done counts are the cursor: changing how blocks are planned or walked (`planSweep`, `stepCursor`) changes where a resumed pass goes on; a pass planned by an older build is read back by `stepOf` (a block no range holds now is ended "no longer in the scope").
+- **Items** of a device check are what `JobsOf` and core's History words read (`loadFound`); changing `foundItems` changes the device page's Last checks.
+- **Range form**: `Settings.Cost` is the estimate of `POST /scanning/safety/estimate` and of the inventory's `scope_too_large` refusal (`cmd/vedette` `sweepCost`).
+
 
 ## Modifying: `Jobs`, `JobRow`, `JobProbe` (read only)
-- **What a device check found** (`DeviceFound`, `sa_job.found` and `sa_job.asset_id`, migration 0012, INV-23): `cmd/vedette/scanninghistory.go` `foundText` turns it into the words of a device check (History and the device page's Last checks). Renaming a reach (`top100`, `top1000`, `extra`, `all`) or a JSON key changes those words; old rows keep their JSON, so a rename needs both spellings read. `JobsOf` matches a device's checks by `asset_id` (older rows by address) and its SNMP reads by its SNMP read address only while SNMP is set up on it: the device page's Last checks and History filtered to a device read it (`?asset=`). `modules/core/export_policy.go` lists both columns.
-- **core** `GET /scanning/history` reads them through `cmd/vedette/scanninghistory.go` (`jobHistory`): the words of a History row come from `sa_job` (status, error, targets, new_devices, reason) and the results of the job's probes. Changing a probe's result text (`"ok: %d hosts up"` in `service.go`, `"ok: %d of %d answered"` / `"failed: …"` in `snmp.go`) or a `sa_queue`/`sa_job` reason (`check_now`, `scan_now`, `window`, `snmp_test`, `snmp_read`) changes what History says: update `jobHistory` and `TestJobHistory_OutcomeInWords`.
-- **Cost**: one read per kind on `sa_job (kind, started_at)` and one on `sa_probe (job_id)` for the listed jobs, every 30 s while the tab is open.
+- **What a device check found** (`DeviceFound`, the items of its run: `foundItems` / `loadFound`, INV-23): `cmd/vedette/scanninghistory.go` `foundText` turns it into the words of a device check (History, the device page's Last checks).
+- **core** `GET /scanning/history` reads them through `cmd/vedette/scanninghistory.go` (`jobHistory`): the words of a History row come from the run (status, error, total/done, the items marked new) and its probes.
+- **Cost**: one read of `core_run (module, kind, queued_at)` and one of `sa_probe (run_id)` for the listed runs, every 30 s while the tab is open; a device check's items are read per listed check.
 
 ## Modifying: `snmpPolicy`, `scope.excluded`, the SNMP target checks of `snmpBatch`/`snmpChanged` (INV-22)
 - **inventory** `SNMPPolicy` (INV-37) decides per device; `Inventory` gained `SNMPPolicy` (adapter `cmd/vedette/sensoractive.go`, fakes in `env_test.go`, `toctou_test.go`). Binding SNMP to lan_ranges again, or dropping the exclusion check, changes which addresses get SNMP packets: change `TestSNMPSourcesAndScope`.
@@ -51,7 +58,7 @@
 ## Modifying: cổng `sensoractive.Inventory` (`InScope`, `ScanPolicy`, `MarkFirstScan`, `Settings`, `Asset`, `Addresses`, `ProtectedIPs`) và `core/observe`
 - **inventory** (adapter `sensorInventory` ở `cmd/vedette/sensoractive.go`, nơi `ProtectedIPs` thêm địa chỉ giao diện của hộp; quét dò thử phạm vi trong bộ nhớ bằng `Settings.InScope` của module, phải khớp `inventory.InScope`: `TestSensorActiveScopeRuleMatchesTheInventory`; chính sách `unknown` → quét nhẹ do `inventory.ScanPolicy`; `ScanPolicy` từ chối `box` và `regular_scan_never`; sự kiện `inventory.asset.updated`/`.deleted` dừng lượt quét thiết bị đang chạy qua `AssetChanged`: thêm lý do hoặc đổi chính sách phải giữ `TestSensorActiveDeviceChangeStopsTheRunningScan`): đổi chữ ký hay ngữ nghĩa `ScanPolicy`/`InScope`/`Settings`/`DeviceRefs`/`Devices` của inventory phải sửa adapter và chạy `TestSensorActive*`. sensor-active là bên ghi duy nhất của `source=nmap` (`snmp` chưa có). `observe.ServiceSink` (nối `Services: d.Inventory` ở `cmd/vedette/sensoractive.go`): cận của `servicesOf` phải khớp INV-23 của inventory (tcp/udp, 1..65535, tên/phiên bản ≤ 100, ≤ 1000), không thì một mục sai làm hỏng cả lần ghi và job thiết bị thành `failed`; bỏ `Services` thì mục Open services trên GUI rỗng mãi. Lần quét thường gọi `ReplaceServices`, lần quét nhẹ gọi `AddServices` (`recordDevice(…, kind)`): thêm một kiểu quét mới phải chọn một trong hai, và chỉ kiểu quét đủ 1000 cổng mới được thay danh sách (`TestGentleScanAfterANormalOneKeepsItsServices`).
 
-## Modifying: nhật ký `sa_probe` (`Service.Probes`), `sa_sweep` (con trỏ lượt quét dò) và danh mục `scan_probes`
+## Modifying: nhật ký `sa_probe` (`Service.Probes`), the cursor of a pass (its steps, INV-29) và danh mục `scan_probes`
 - **core** (`/core/logs/export`: đăng ký `scan_probes` qua `sensoractive.ExportProbes`), **scan** (trang Probes hiển thị nhật ký của chính `scan`; hai nguồn cùng danh mục, chưa gộp).
 
 ## Modifying: seam `Prober`, bộ điều phối và worker (giao thức sensor vai `active`)
@@ -82,7 +89,6 @@
 - **scan**: danh sách cổng là `modules/scan/commonports` (quét bề mặt dùng chung): thêm/bớt cổng đổi `-p` của mẫu, độ dài `sa_probe.flags` (≤ 1000), `TestExternalPortsAreTheSurfaceList` và `Ports` mà exposure hiện ("on 98 TCP ports").
 - **core/egressip** (chuyển từ exposure): worker dùng `Prober` cho rào own-IP và `IsPublicIPv4` cho văn phạm; đổi luật 2/3, danh sách dịch vụ hay dải bị từ chối là đổi cả exposure (INV-2, INV-3, INV-13 của nó) lẫn văn phạm `external` và rào worker. Thêm luồng ra cho container `scan` khi được nối: PRIVACY luồng 9 (dòng deferred).
 - **core/sensorlink**: lý do kết quả `not_own_ip` và `egress_unverified` (`resultCode`); `Dispatcher.outcome` đổi chúng thành `ErrWorkerRefused` + `ErrNotOwnIP` / `ErrEgressUnverified`. **Image `scan` base** mang `/etc/ssl/certs/ca-certificates.crt` (sao từ image Go): bỏ nó thì rào worker luôn trả `egress_unverified`. Không tăng proto.
-- **Migration 0005** dựng lại `sa_job` và `sa_probe` như 0003/0004 (giữ id, bộ đếm AUTOINCREMENT, mọi kind/shape cũ): thêm mẫu sau này cũng phải dựng lại cả hai và giữ `TestMigration000{3,4,5}KeepsTheProbeCounter` (mỗi test chạy các migration trước số của nó).
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
 
 ## Modifying: nmap on a terminal, the worker's own phase, a pass per job (#830)
@@ -134,5 +140,5 @@
 
 ## Modifying: first checks and waiting checks (INV-27, INV-28)
 - `owed.go` queues by what the policy allows and what the jobs show: a change of `ScanPolicy` (scope, switch, kinds) changes which devices owe a first check; `SettingsChanged` resets the memory so a changed range reaches them in the open window. The web row `web/src/features/inventory/DeviceSources.tsx` + `firstCheck.ts` words it from `GET /scanning` (window, scope, next opening): a change of the window shape or of `next_run_at` changes those words.
-- `drainQueue(firstReasons)` runs before the sweep in `Tick`: a new queue reason that should not wait behind a sweep is added to `firstReasons`; the history trigger of a reason is in `cmd/vedette/scanninghistory.go` (`check_now`, `check_wait` = person).
+- `drainQueue(first)` runs before the pass in `Tick`: the devices no check reached yet (no probe of a check of theirs) go first; the others take turns with the pass between its batches (`followPass`); the history reads a person's check by its trigger (manual).
 - `lockWithin` is shared with `ScanExternal`; its `onWait` is the only hook. `running.view` is the exposure scan's progress for the waiting words; an exposure caller that wraps its context's sink without `View()` leaves the wait without a time.

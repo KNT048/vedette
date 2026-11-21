@@ -98,6 +98,25 @@ type RangeAdd struct {
 	Confirmed        bool
 }
 
+// ScopeCostInput is POST /scanning/safety/estimate: the scope, window and rate as typed in the form.
+type ScopeCostInput struct {
+	LANRanges, Exclusions []string
+	Days                  []int
+	From, To              string
+	PacketsPerS           int
+}
+
+// ScopeCost is what one pass of active discovery over a scope costs (ScopeCost in contract.ts).
+type ScopeCost struct {
+	Addresses     int  `json:"addresses"`
+	PassSeconds   int  `json:"pass_seconds"`
+	WindowSeconds int  `json:"window_seconds"`
+	Windows       int  `json:"windows"`
+	WeekWindows   int  `json:"week_windows"`
+	FitsWindow    bool `json:"fits_window"`
+	FitsWeek      bool `json:"fits_week"`
+}
+
 // SafetyChanged refuses a write built on a block that changed since the person read it (409 Code: safety_changed, scope_changed;
 // review #860 H1/M1). Nothing was stored; Current is the block now, which the answer carries (error.safety) for the page to show.
 type SafetyChanged struct {
@@ -182,7 +201,7 @@ type RunningJob struct {
 // Its errors: ErrDiscoveryModuleOff, ErrDiscoveryOff, ErrScopeNotConfirmed, ErrRunBusy, ErrNmapBusy, ErrNmapUnavailable, a
 // *RunTooSoon, a *RunRefusal, record's error, or a failure of the box.
 type DiscoveryRunner interface {
-	Run(ctx context.Context, actor string, targets []string, record func(RunConsent) error) (RunningJob, error)
+	Run(ctx context.Context, actor string, targets []string, record func(tx *sql.Tx, c RunConsent) error) (RunningJob, error)
 }
 
 // RunConsent is what a person's run will scan, for its audit row (the consent): the run, and the ranges of a sweep or the devices
@@ -223,10 +242,11 @@ type ScanningConfig struct {
 	Log       *slog.Logger
 	Safety    SafetyStore
 	Engines   []ScanEngine
-	Discovery DiscoveryRunner                                               // nil: the run answers 501
-	History   func(ctx context.Context, asset string) ([]HistoryRun, error) // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it), newest first; nil: none
-	TimeZone  func(ctx context.Context) string                              // the organization's zone; nil or "": UTC
-	MemoryMB  func() (int, bool)                                            // MemTotal of the box; nil or false: unknown
+	Discovery DiscoveryRunner                                                 // nil: the run answers 501
+	Estimate  func(ctx context.Context, in ScopeCostInput) (ScopeCost, error) // POST /scanning/safety/estimate; nil: 501
+	History   func(ctx context.Context, asset string) ([]HistoryRun, error)   // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it), newest first; nil: none
+	TimeZone  func(ctx context.Context) string                                // the organization's zone; nil or "": UTC
+	MemoryMB  func() (int, bool)                                              // MemTotal of the box; nil or false: unknown
 }
 
 // ScanningHandlers implements GET /scanning, PUT /scanning/safety, POST /scanning/safety/ranges and /exclusions, PATCH /scanning/engines/{id} and POST
@@ -515,6 +535,20 @@ func (h *ScanningHandlers) savedView(ctx context.Context, st Safety, adjusted []
 	return out
 }
 
+// ScanningPostScanningSafetyEstimate implements POST /scanning/safety/estimate (viewer): the cost of one pass over a scope as typed,
+// before it is saved. Changes nothing.
+func (h *ScanningHandlers) ScanningPostScanningSafetyEstimate(ctx context.Context, req *oas.ScanningPostScanningSafetyEstimateReq) (*oas.ScanningPostScanningSafetyEstimateOK, error) {
+	if h.cfg.Estimate == nil {
+		return nil, apierr.NotImplemented()
+	}
+	c, err := h.cfg.Estimate(ctx, ScopeCostInput{LANRanges: req.LanRanges, Exclusions: req.Exclusions, Days: req.Window.Days,
+		From: req.Window.From, To: req.Window.To, PacketsPerS: req.PacketsPerS})
+	if err != nil {
+		return nil, err
+	}
+	return encode[oas.ScanningPostScanningSafetyEstimateOK](c)
+}
+
 // ScanningPostScanningSafetyRanges implements POST /scanning/safety/ranges (admin): "+ New range" where the person is (#842). The
 // inventory adds the range in one transaction with the same rules, attestation, audit row (inventory.settings) and event as the PUT.
 func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context, req *oas.ScanningPostScanningSafetyRangesReq) (*oas.ScanningPostScanningSafetyRangesOK, error) {
@@ -638,17 +672,15 @@ func (h *ScanningHandlers) ScanningPostScanningEnginesNmapDiscoveryRun(ctx conte
 	if req.Targets != nil && len(targets) == 0 {
 		return nil, apierr.Invalid("Name at least one device to check, or leave the list out to scan the whole network.")
 	}
-	// The audit row is the person's consent: written before any packet, in its own transaction; if it cannot be written the
-	// run does not start (review #857 M2). It names the run and what it covers.
-	record := func(c RunConsent) error {
-		detail := "check " + strings.Join(c.Devices, ", ")
+	// The audit row is the person's consent: written in the transaction that queues the run, before any packet; if it cannot be
+	// written the run is not queued (review #857 M2). It names the run and what it covers.
+	record := func(tx *sql.Tx, c RunConsent) error {
+		detail := "check " + strings.Join(c.Devices, ", ") + " now, whatever the window"
 		if len(c.Devices) == 0 {
-			detail = "sweep of " + strings.Join(c.Ranges, ", ") + " and the scans of the devices it queues"
+			detail = "sweep of " + strings.Join(c.Ranges, ", ") + " and the scans of the devices it finds now, whatever the window, until " +
+				store.FormatTS(c.Until) + " at the latest"
 		}
-		detail += " now, whatever the window, until " + store.FormatTS(c.Until) + " at the latest"
-		return h.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			return h.cfg.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "scanning.run", Target: c.ID, Detail: clipRunes(detail, 1900)})
-		})
+		return h.cfg.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "scanning.run", Target: c.ID, Detail: clipRunes(detail, 1900)})
 	}
 	run, err := h.cfg.Discovery.Run(ctx, p.Email, targets, record)
 	if err != nil {

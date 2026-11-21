@@ -60,6 +60,33 @@ type NVDRecord struct {
 	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
 	// entry without one.
 	Platforms [][]string
+	// CWE is the weaknesses NVD lists ("CWE-787"), NVD's own and the ones it carries from the CNA and CISA's ADP, in NVD's order,
+	// without repeats; NVD's placeholders ("NVD-CWE-Other", "NVD-CWE-noinfo") are not weaknesses and are left out.
+	CWE []string
+	// Refs is the references NVD lists, with NVD's tags in the words of the CVE record ("Vendor Advisory" is vendor-advisory:
+	// nvdTag), source "nvd". NVD tags the references when it analyses a CVE; before that they carry none.
+	Refs []RecordRef
+}
+
+// RefsNVD is the source of a reference NVD lists (feeds_cve_ref.source); the CVE record's are OriginCNA and OriginADP.
+const RefsNVD = "nvd"
+
+// nvdTagWords are NVD's reference tags whose CVE record word is not the tag itself, lower case with dashes.
+var nvdTagWords = map[string]string{"us-government-resource": "government-resource", "press/media-coverage": "media-coverage", "tool-signature": "signature"}
+
+// nvdTag is an NVD reference tag in the CVE record's words: "Vendor Advisory" is vendor-advisory, "US Government Resource" is
+// government-resource, so one vocabulary names a reference whichever source tagged it.
+func nvdTag(t string) string {
+	w := strings.ToLower(strings.Join(strings.Fields(t), "-"))
+	if r, ok := nvdTagWords[w]; ok {
+		return r
+	}
+	return w
+}
+
+// Tagged says whether NVD gave any of the references a tag: NVD has analysed them.
+func (r NVDRecord) Tagged() bool {
+	return slices.ContainsFunc(r.Refs, func(x RecordRef) bool { return len(x.Tags) > 0 })
 }
 
 // CVSS is the picked score of the record (PickCVSS).
@@ -145,7 +172,9 @@ type nvdRecordJSON struct {
 			Lang  string `json:"lang"`
 			Value string `json:"value"`
 		} `json:"descriptions"`
-		Metrics        json.RawMessage `json:"metrics"` // decoded on its own: metricsOf
+		Metrics        json.RawMessage `json:"metrics"`    // decoded on its own: metricsOf
+		Weaknesses     json.RawMessage `json:"weaknesses"` // decoded on its own: weaknessesOf
+		References     json.RawMessage `json:"references"` // decoded on its own: referencesOf
 		Configurations []struct {
 			Operator string `json:"operator"`
 			Nodes    []struct {
@@ -177,6 +206,48 @@ func metricsOf(raw json.RawMessage) []Metric {
 		return nil
 	}
 	return metricsFrom(m)
+}
+
+// weaknessesOf decodes a record's `weaknesses` on its own: a malformed value leaves the record without weaknesses, nothing more.
+func weaknessesOf(raw json.RawMessage) []string {
+	var ws []struct {
+		Description []struct {
+			Value string `json:"value"`
+		} `json:"description"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &ws) != nil {
+		return nil
+	}
+	var out []string
+	for _, w := range ws {
+		for _, d := range w.Description {
+			if v := strings.TrimSpace(d.Value); cweRE.MatchString(v) && !slices.Contains(out, v) && len(out) < recordMaxCWE {
+				out = append(out, v)
+			}
+		}
+	}
+	return out
+}
+
+// referencesOf decodes a record's `references` on its own, within the caps of a CVE record's (addRef); a malformed value leaves the
+// record without references.
+func referencesOf(raw json.RawMessage) []RecordRef {
+	var rs []struct {
+		URL  string   `json:"url"`
+		Tags []string `json:"tags"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &rs) != nil {
+		return nil
+	}
+	var out []RecordRef
+	for _, r := range rs {
+		tags := make([]string, 0, len(r.Tags))
+		for _, t := range r.Tags {
+			tags = append(tags, nvdTag(t))
+		}
+		out = addRef(out, r.URL, tags, RefsNVD)
+	}
+	return out
 }
 
 // ParseNVD reads one NVD CVE API 2.0 answer. A record with a bad id, dates or status is rejected and counted, as is one with an
@@ -214,7 +285,8 @@ func ParseNVD(data []byte) (NVDPage, error) {
 			tl.reject(row, "%s: vulnStatus %s is not usable", id, quoteVal(status))
 			continue
 		}
-		rec := NVDRecord{CVE: id, Published: pub, LastModified: mod, Status: status, Metrics: metricsOf(v.CVE.Metrics), Affected: []AffectedRow{}}
+		rec := NVDRecord{CVE: id, Published: pub, LastModified: mod, Status: status, Metrics: metricsOf(v.CVE.Metrics), Affected: []AffectedRow{},
+			CWE: weaknessesOf(v.CVE.Weaknesses), Refs: referencesOf(v.CVE.References)}
 		for _, d := range v.CVE.Descriptions {
 			if strings.EqualFold(strings.TrimSpace(d.Lang), "en") {
 				rec.Description = cleanDescription(d.Value)

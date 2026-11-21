@@ -11,6 +11,7 @@ import { scanningPoll } from './api'
 import { ScanNowButton, ScansRunningIndicator } from './ScanNow'
 
 scanningPoll.runningMs = 500
+const T = { timeout: 4000 }
 const base = () => `${location.origin}/api/v1`
 const as = (userId: string) => sessionStore.set({ userId })
 const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
@@ -103,6 +104,18 @@ describe('Settings › Scanning: every engine on one page', () => {
     expect(inventorySettingsStore.get().active).toMatchObject({ rate: 100, exclusions: ['192.168.10.250'] })
   })
 
+  it('Safety: the form shows what one pass of the scope as typed costs, and says before saving that a scope too large for a week is refused', async () => {
+    renderApp('/settings/scanning?tab=safety')
+    expect(await screen.findByText(/^One pass: [0-9,]+ addresses, at least/, {}, T)).toBeInTheDocument()
+    const r = screen.getByLabelText('Network ranges, one per line')
+    await userEvent.type(r, '{enter}10.0.0.0/8') // about 16.7 million addresses: weeks of windows at 10 packets/s
+    await userEvent.selectOptions(screen.getByLabelText('Discovery and SNMP'), '10')
+    expect(await screen.findByText(/Saving is refused: raise the scan rate/, {}, T)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/never takes a scope it cannot sweep within a week/)
+  })
+
   it('Safety: changing the ranges asks for the commitment again; the server refuses a save without it while discovery is on', async () => {
     renderApp('/settings/scanning?tab=safety')
     const r = await screen.findByLabelText('Network ranges, one per line')
@@ -128,7 +141,7 @@ describe('Settings › Scanning: every engine on one page', () => {
       view.unmount()
     }
     const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins: the run's own page
-    expect(await screen.findByText('You pressed Stop now.', {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(await screen.findByText(/^Stopped: You pressed Stop now\./, {}, { timeout: 4000 })).toBeInTheDocument() // the run's own line, from the box
     v2.unmount()
     renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
     expect(await screen.findByRole('button', { name: 'Check this device now' }, { timeout: 4000 })).toBeInTheDocument()

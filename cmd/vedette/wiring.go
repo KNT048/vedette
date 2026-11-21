@@ -1143,11 +1143,13 @@ func agentReports(d *deps) findings.AgentReports {
 		if err != nil {
 			return false
 		}
-		switch st.Agent {
-		case agentintake.ReportBox, agentintake.ReportWazuh:
+		switch {
+		case st.Off: // a person turned the agent off for this device: its data is refused
+			return false
+		case st.Agent == agentintake.ReportBox:
 			return true
-		case agentintake.ReportOsquery:
-			return !st.Stale
+		case st.Agent == agentintake.ReportOsquery, st.Agent == agentintake.ReportWazuh:
+			return !st.Stale // NodeHealth: quiet is "no agent reports this device now"
 		}
 		return false
 	}

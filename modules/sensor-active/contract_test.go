@@ -111,7 +111,7 @@ func TestContract_INV2_NothingWithoutScopeAndSwitch(t *testing.T) {
 			if n := len(e.nm.calls(t)); n != 0 {
 				t.Fatalf("%d nmap runs", n)
 			}
-			if e.count(`SELECT count(*) FROM sa_job`) != 0 {
+			if e.count(`SELECT count(*) FROM jobs_v`) != 0 {
 				t.Fatal("a job row was written")
 			}
 		})
@@ -122,7 +122,7 @@ func TestContract_INV2_NothingWithoutScopeAndSwitch(t *testing.T) {
 func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
-		e.base = local(9, 12, 0) // Monday noon, window is 01:00-05:00
+		e.setBase(local(9, 12, 0)) // Monday noon, window is 01:00-05:00
 		e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}
 	})
 	e.sweptBefore() // not a new box: its first pass is behind it
@@ -148,7 +148,7 @@ func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 func TestContract_INV3_StopsWhenTheWindowCloses(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 2}, func(e *env) {
-		e.base = local(9, 4, 59).Add(58 * time.Second)                                // 2 s to the end of the window
+		e.setBase(local(9, 4, 59).Add(58 * time.Second))                              // 2 s to the end of the window
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} }) // 126 hosts: batches of 64 and 62
 	})
 	start := time.Now()
@@ -165,11 +165,11 @@ func TestContract_INV3_StopsWhenTheWindowCloses(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 2 {
 		t.Fatalf("%d runs, want 2", n)
 	}
-	if got := e.str(`SELECT status FROM sa_job`); got != "stopped" {
-		t.Fatalf("job status = %q", got)
+	if got := e.str(`SELECT status || ': ' || waiting_for FROM core_run`); !strings.HasPrefix(got, "waiting: the scan window (opens ") {
+		t.Fatalf("run = %q, want it waiting for the next window", got)
 	}
-	if got := e.count(`SELECT count(*) FROM sa_job WHERE finished_at IS NULL`); got != 0 {
-		t.Fatal("the job was left running")
+	if got := e.count(`SELECT count(*) FROM core_run WHERE status IN ('running', 'stopping')`); got != 0 {
+		t.Fatal("the run was left running")
 	}
 	rows := e.count(`SELECT count(*) FROM sa_probe WHERE result LIKE 'stopped:%'`)
 	if rows != 1 {
@@ -203,7 +203,7 @@ func TestContract_INV3_SettingsChangeStopsTheRunningScan(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("the run was not stopped by the settings change")
 	}
-	if got := e.str(`SELECT status FROM sa_job`); got != "stopped" {
+	if got := e.str(`SELECT status FROM jobs_v`); got != "stopped" {
 		t.Fatalf("job status = %q", got)
 	}
 }
@@ -317,7 +317,7 @@ func TestContract_INV5_FailedGentleScanIsNotMarked(t *testing.T) {
 	if len(e.inv.markedIDs()) != 0 {
 		t.Fatal("a failed gentle scan set first_scan_at: the one scan must be retried")
 	}
-	if got := e.str(`SELECT status FROM sa_job`); got != "failed" {
+	if got := e.str(`SELECT status FROM jobs_v`); got != "failed" {
 		t.Fatalf("job status = %q", got)
 	}
 	if got := e.str(`SELECT result FROM sa_probe`); !strings.HasPrefix(got, "failed: nmap exited with code 1") {
@@ -342,7 +342,7 @@ func TestContract_INV6_MissingNmapIsUnavailable(t *testing.T) {
 	if err := e.svc.Tick(e.ctx()); !errors.Is(err, sa.ErrUnavailable) {
 		t.Fatalf("Tick err = %v: the job history must show why nothing runs", err)
 	}
-	if e.count(`SELECT count(*) FROM sa_job`) != 0 {
+	if e.count(`SELECT count(*) FROM jobs_v`) != 0 {
 		t.Fatal("a job was recorded for a run that could not start")
 	}
 	// present but not executable
@@ -391,8 +391,8 @@ func TestContract_INV7_UntrustedOutputIsDiscarded(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if res.Status != sa.StatusFailed || res.Targets != 0 {
-				t.Fatalf("result = %+v, want a failed sweep with no finished targets", res)
+			if res.Status != sa.StatusFailed || res.NewDevices != 0 {
+				t.Fatalf("result = %+v, want a failed sweep that recorded nothing", res)
 			}
 			if n := len(e.sink.observations()); n != 0 {
 				t.Fatalf("%d observations recorded from bad output", n)
@@ -486,7 +486,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := e.nm.calls(t)
-	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	probes, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +510,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	old := func(days int) {
 		ts := store.FormatTS(e.clock().AddDate(0, 0, -days))
 		if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, ts, probes[0].JobID)
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, ts, probes[0].JobID)
 			return err
 		}); err != nil {
 			t.Fatal(err)
@@ -569,8 +569,8 @@ func TestEventPayloads(t *testing.T) {
 // The queue survives a restart: a new Service on the same database drains it.
 func TestQueueSurvivesARestart(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) }) // outside the window: it only queues
-	e.sweptBefore()                                                       // not a new box: no first pass
+	e := newEnv(t, fakeOpts{}, func(e *env) { e.setBase(local(9, 12, 0)) }) // outside the window: it only queues
+	e.sweptBefore()                                                         // not a new box: no first pass
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}
@@ -580,7 +580,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	if err := e.svc.Tick(e.ctx()); err != nil || len(e.nm.calls(t)) != 0 {
 		t.Fatalf("Tick outside the window: %v, %d runs", err, len(e.nm.calls(t)))
 	}
-	e.base, e.t0 = local(9, 2, 0), time.Now() // the window opens; a new process starts
+	e.setClock(local(9, 2, 0)) // the window opens; a new process starts
 	e.build()
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 1 {
 		t.Fatalf("queue length after restart = %d, want 1", n)
@@ -592,13 +592,14 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	for _, c := range e.nm.calls(t) {
 		kinds = append(kinds, c[1])
 	}
-	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) { // the day's sweep, then the queued device (top 1000, then the extra ports)
+	// the queued device no check reached yet goes before the day's sweep (top 1000, then the extra ports), then the sweep
+	if !slices.Equal(kinds, []string{"-sS", "-sS", "-sn"}) {
 		t.Fatalf("runs = %v", kinds)
 	}
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 0 {
 		t.Fatalf("queue length after the scan = %d", n)
 	}
-	if got := e.str(`SELECT reason FROM sa_job WHERE kind = 'device'`); got != "discovered" {
+	if got := e.str(`SELECT reason FROM jobs_v WHERE kind = 'device'`); got != "discovered" {
 		t.Fatalf("job reason = %q", got)
 	}
 }
@@ -615,62 +616,12 @@ func TestTickSweepsOncePerWindow(t *testing.T) {
 	if n := len(e.nm.calls(t)); n != 1 {
 		t.Fatalf("%d sweeps in one window, want 1", n)
 	}
-	e.base, e.t0 = local(10, 2, 0), time.Now() // next night
+	e.setClock(local(10, 2, 0)) // next night
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(e.nm.calls(t)); n != 2 {
 		t.Fatalf("%d sweeps after the next window opened, want 2", n)
-	}
-	// a stopped job does not count as "done for this window"
-	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE sa_job SET status = 'stopped'`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.svc.Tick(e.ctx()); err != nil {
-		t.Fatal(err)
-	}
-	if n := len(e.nm.calls(t)); n != 3 {
-		t.Fatalf("%d sweeps after a stopped one, want 3", n)
-	}
-}
-
-// A job a restart left "running" is closed by the next tick.
-func TestTickClosesInterruptedJobs(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) })
-	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, status) VALUES ('saj-old', 'sweep', ?, 'running')`, store.FormatTS(e.clock()))
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.svc.Tick(e.ctx()); err != nil {
-		t.Fatal(err)
-	}
-	if got := e.str(`SELECT status || ': ' || error FROM sa_job WHERE id = 'saj-old'`); got != "stopped: interrupted by a restart" {
-		t.Fatalf("job = %q", got)
-	}
-}
-
-// A device whose scan failed is retried a few times, then dropped from the queue.
-func TestQueueDropsADeviceAfterRepeatedFailures(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t, fakeOpts{exitCode: 1})
-	e.inv.set(func(s *sa.Settings) { s.Enabled = true })
-	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
-		t.Fatal(err)
-	}
-	for range 3 {
-		// the sweep fails too (exit 1) and counts as done for the window; only the device is retried each tick
-		if err := e.svc.Tick(e.ctx()); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if n, _ := e.svc.QueueLen(e.ctx()); n != 0 {
-		t.Fatalf("queue length = %d, want the device dropped after 3 failures", n)
 	}
 }
 

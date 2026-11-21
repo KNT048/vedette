@@ -33,6 +33,15 @@ func (m *Manager) dispatchLoop() {
 	}
 }
 
+type idKey struct{}
+
+// IDFrom is the id of the run whose work ctx belongs to: the context a Kind's Run is called with carries it, so the work another
+// module does for that run (a scan of a device inside a vulnerability check) is recorded against it. "" when ctx is no run's.
+func IDFrom(ctx context.Context) string {
+	id, _ := ctx.Value(idKey{}).(string)
+	return id
+}
+
 // starting is a run the dispatcher moved to running, to hand to its Kind.
 type starting struct {
 	id      string
@@ -131,7 +140,7 @@ func (m *Manager) launch(s starting) {
 		m.mu.Unlock()
 		return // the row stays running: the next start recovers it
 	}
-	ctx, cancel := context.WithCancelCause(m.base)
+	ctx, cancel := context.WithCancelCause(context.WithValue(m.base, idKey{}, s.id))
 	m.live[s.id] = cancel
 	m.runs.Add(1)
 	m.mu.Unlock()

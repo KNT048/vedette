@@ -236,7 +236,7 @@ func TestServiceHealthFromTheWorker(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
 	e := newEnv(t, fakeOpts{})
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +534,7 @@ func TestOversizedResultEndsTheProbeRowFailed(t *testing.T) {
 	e := newEnv(t, fakeOpts{})
 	r := newDRig(t)
 	r.beat(t, true)
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -741,7 +741,7 @@ func TestSweepStopsWhenTheWorkerIsUnavailable(t *testing.T) {
 	e := newEnv(t, fakeOpts{}, func(e *env) { e.inv.st.LANRanges = []string{"192.168.10.0/24"} })
 	r := newDRig(t)
 	r.beat(t, true)
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, Prober: r.d, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -784,13 +784,13 @@ wait:
 	if got := e.str(`SELECT result FROM sa_probe ORDER BY id DESC LIMIT 1`); got != "failed: worker_unavailable" {
 		t.Fatalf("last probe row = %q", got)
 	}
-	if got := e.str(`SELECT status FROM sa_job WHERE kind = 'sweep'`); got != sa.StatusStopped {
-		t.Fatalf("sweep job status = %q", got)
+	if got := e.str(`SELECT status || ': ' || waiting_for FROM core_run WHERE kind = 'lan_sweep'`); got != "waiting: the scan worker to be available" {
+		t.Fatalf("sweep run = %q", got)
+	}
+	if got := e.count(`SELECT done FROM core_run WHERE kind = 'lan_sweep'`); got != len(j1.Targets) {
+		t.Fatalf("cursor = %d addresses, want %d (the first batch)", got, len(j1.Targets))
 	}
 	last := j1.Targets[len(j1.Targets)-1]
-	if got := e.str(`SELECT cursor FROM sa_sweep WHERE id = 1`); got != last {
-		t.Fatalf("cursor = %q, want %q", got, last)
-	}
 	// the worker is back: the next Tick runs the sweep again, from the cursor
 	r.beat(t, true)
 	stop := serve(t, r, xml)

@@ -21,7 +21,7 @@ var assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at,
 	(SELECT f.value FROM inv_observation f WHERE f.asset_id = a.id AND f.field = 'os' AND f.source = 'passive' AND m.source = 'passive'
 		AND f.seen_at = m.seen_at ORDER BY f.id LIMIT 1),
-	` + quietExpr
+	` + quietExpr + `, o.evidence`
 
 const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id
@@ -64,11 +64,12 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var d Device
 		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc, ignoredAt sql.NullString
 		var v, m, o, h, x obsCols
-		var frameOS sql.NullString // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
+		var osEvidence sql.NullString // where the stored OS came from when a declared row decided it (declaredEvidence)
+		var frameOS sql.NullString    // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
 		var approved, fragile, suspicious, box, quiet bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
-			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS, &quiet); err != nil {
+			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS, &quiet, &osEvidence); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
 		d.Site = "hq" // one site
@@ -80,6 +81,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		if d.OS != nil {
 			d.OS.Basis = osBasis(d.OS.Value, d.OS.Source, mac.String)
+			d.OS.SoftwareID = declaredRow(d.OS.Source, osEvidence.String)
 		}
 		if d.Model != nil {
 			d.Model.Basis = modelBasis(d.Model.Source, frameOS.String, mac.String)
@@ -118,7 +120,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	}
 	for i := range out {
 		out[i].observedHW = &[2]string{obsValue(out[i].Vendor), obsValue(out[i].Model)}
-		s.applyDeclared(ctx, &out[i])
+		fillDeclaredHardware(&out[i])
 	}
 	return out, nil
 }
@@ -351,7 +353,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 			current[c.String] = true
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?`, id)
+	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, id) // the declared decision is the software row's, not an observation a source made
 	if err != nil {
 		return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
 	}

@@ -1,6 +1,6 @@
 # Ids Contract
 
-> Tier: tuỳ chọn (tắt mặc định, Preview) · Story: S-IDS-1 · Last verified: 2026-11-21 (lát đầu: sự kiện IPS/IDS trong log tường lửa nhận được → `ids_alert`, sự cố `intrusion`, cổng "CVE bị tấn công" cho findings, `GET /detection/alerts*`)
+> Tier: tuỳ chọn (tắt mặc định, Preview) · Story: S-IDS-1 · Last verified: 2026-11-21 (mọi khẳng định đã đối chiếu với code)
 > Nguồn hành vi thực tế: `web/src/features/detection/{contract,mocks}.ts`.
 
 ## Invariants (luôn đúng)
@@ -16,12 +16,12 @@
 ## Postconditions
 - **POST-1** Sau mỗi flush, cảnh báo đã ghi được phát `ids.alert.detected` (`AlertEvent`: `alert_id, source, target, title, what, action, severity, link, at, devices`); notify mở, đếm hay **nâng** sự cố kind `intrusion` khoá (`source` = địa chỉ tấn công, `target` = `cve:<các CVE>` hoặc `rule:<sid>:<chữ ký>`): một sự cố mỗi (CVE hoặc quy tắc, nguồn) khi còn lặp; critical khi thiết bị bị nhắm bị ảnh hưởng. `link` = `/detection/alerts/<id>`. Thứ tự cố định: nặng nhất trước (critical trước), rồi mới nhất, rồi địa chỉ nguồn, đích sự cố. Một khoá sự cố đã phát trong giờ đồng hồ này với mức bằng hay cao hơn thì không phát lại (hàng cảnh báo vẫn đếm sự kiện); mức tăng thì phát lại, và notify nâng sự cố đang mở lên mức đó với một tin riêng (`<id>-raised-<mức>`). Trần `AlertEventsPerHour` = 100 lần phát mỗi giờ đồng hồ (như `IocEventsPerHour` của logs): quá trần, cảnh báo vẫn lưu và hiện, và **một** sự cố tóm tắt mỗi giờ (`source=ids`, `target=more intrusion alerts <giờ>`, `link=/detection`, mức cao nhất trong phần không phát, tối thiểu medium); khi phần không phát ở một lượt sau trong cùng giờ có mức cao hơn mức tóm tắt đã phát (một cuộc tấn công vào thiết bị bị ảnh hưởng sau khi hết trần), tóm tắt được phát lại cùng khoá với mức mới và số đếm hiện tại, nên notify nâng nó và gửi tin nâng (tối đa vài tin mỗi giờ). `TestACriticalAlertAfterTheBudgetRaisesTheHoursSummary`. `TestAFloodOfForgedSourcesIsAnnouncedWithinTheHourlyBudgetMostSevereFirst`, `TestARepeatAtAnAffectedDeviceRaisesTheIncident`, `TestAFailedFlushKeepsItsAlertsAndFindingsAreReadOncePerPage`.
 - **POST-2** `GET /detection/alerts` (viewer): cửa sổ `24h|7d|30d` theo sự kiện cuối (khác → 400 `bad_window`), `cve` (sai dạng → 400 `invalid_cve`), `device` (nguồn hoặc đích), `q` trên chữ ký, nhóm, địa chỉ, tên thiết bị, CVE; sắp `last` (mặc định) hay `count`, hoà theo id; `offset`/`limit` ≤ 200; `total` là số khớp mọi trang. `GET /detection/alerts/{id}` → 404 `not_found` khi không có. `incident` = sự cố intrusion mới nhất của khoá mở trước hoặc lúc sự kiện cuối (notify `IncidentOf`), `null` khi notify tắt.
-- **POST-3** Cổng cho findings: `Attacked(ctx, since)` → mỗi (CVE, địa chỉ đích): thiết bị, lần đầu/cuối, số sự kiện, cảnh báo mới nhất. Findings quyết lớp 1 ("Under attack here": một cảnh báo trong `AttackWindow` = 14 ngày nêu CVE, nhắm thiết bị, hay nhắm bất kỳ địa chỉ nào khi thiết bị đang bị ảnh hưởng). `TestAttackedPortRaisesAnAffectedFindingToUnderAttack` (consumer giả), `cmd/vedette` `TestWiringFirewallIPSEventRaisesAnIntrusionIncidentAndTheFindingIsUnderAttack`.
+- **POST-3** Cổng "CVE bị tấn công": `Attacked(ctx, since)` → mỗi (CVE, địa chỉ đích): thiết bị, lần đầu/cuối, số sự kiện, cảnh báo mới nhất. Module findings chưa đọc cổng này; người đọc duy nhất là bộ chuyển `idsFindings` (`cmd/vedette/ids.go`): finding mở của thiết bị mà một cảnh báo trong `AttackWindow` = 14 ngày nêu CVE (tại bất kỳ địa chỉ đích nào) có trạng thái `under_attack` trong `findings` của cảnh báo, finding mở khác `exploited`. `TestAttackedPortRaisesAnAffectedFindingToUnderAttack` (consumer giả), `cmd/vedette` `TestWiringFirewallIPSEventRaisesAnIntrusionIncidentAndTheFindingIsUnderAttack`.
 
 ## Forbidden
 - **FORBID-1** Chặn hay sửa lưu lượng (phát hiện không bao giờ chặn); mở cổng, chạy tiến trình, gọi ra ngoài.
 - **FORBID-2** Diễn giải nội dung dòng thành lệnh; rẽ nhánh trên văn bản `what`/`title` (chỉ để hiển thị).
-- **FORBID-3** Đọc bảng của module khác: inventory, findings, notify chỉ qua cổng (`Inventory`, `Findings`, `Incidents`) do `cmd/vedette/ids.go` nối.
+- **FORBID-3** Đọc bảng của module khác: inventory, findings, notify chỉ qua cổng (`Inventory`, `Findings`, `Incidents`) do `cmd/vedette/ids.go` nối (địa chỉ → thiết bị qua `logsInventory` của `cmd/vedette/logs.go`, nên gồm cả địa chỉ đọc SNMP lấy từ sensor-active `ReadAddresses`).
 
 ## Endpoints owned (từ `contract.ts`)
 | Method | Path | Vai tối thiểu | Story |
@@ -43,4 +43,4 @@ Không route `/detection/alerts*` (404), không job `flush`, `Offer` không làm
 
 ## Dependencies
 - **DEPENDS ON**: `core`, `inventory` (thiết bị của địa chỉ), `logs` (dòng nhận được). Mềm: `notify` (sự cố), `findings` (finding liên quan).
-- **DEPENDED ON BY**: `findings` (lớp 1 của mức khẩn, qua `Attacked`), core (tổng quan Intrusion detection).
+- **DEPENDED ON BY**: core (tổng quan Intrusion detection: `Summarize`, `NativeIPS`, `cmd/vedette/detection.go`). Module findings không import ids (xem POST-3).

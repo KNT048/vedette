@@ -497,7 +497,7 @@ var slugRE = regexp.MustCompile(`[^a-z0-9]+`)
 
 // addCurated makes every curated product resolvable: a product the catalogue files list takes the curated class when it has
 // none; any other becomes a product of its own with the curated CPEs and the exploited-list keys its kev_match fragments name
-// (a key whose vendor contains the vendor fragment and whose product contains the product fragment, as the inventory reads them).
+// (FragmentMatch, as the inventory reads them).
 // Curated products are not in Products: their CPEs are names a scan prints, not aliases for the matcher.
 func (c *catalogue) addCurated(data, kevData []byte) error {
 	var rows []curatedRow
@@ -563,8 +563,8 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 	return nil
 }
 
-// curatedKEV adds to keys the exploited-list keys a curated row's kev_match fragments name: a key whose vendor contains the vendor
-// fragment and whose product contains the product fragment, as the inventory's catalogue reads them. For a product the catalogue
+// curatedKEV adds to keys the exploited-list keys a curated row's kev_match fragments name (FragmentMatch: whole words, a list name
+// of several products lands on the ones it names), as the inventory's catalogue reads them. For a product the catalogue
 // files list (own set), only the product's own names are taken: a list name that holds the product's name or is held by it
 // ("Connect Secure, Policy Secure, and Neurons", "Pulse Connect Secure" for Connect Secure; "Exchange" for Exchange Server), never a
 // neighbour the fragment also reaches (WinRAR for 7-Zip, FortiOS for FortiClient), nor a name another product of the files claims
@@ -572,10 +572,9 @@ func (c *catalogue) addCurated(data, kevData []byte) error {
 // alone.
 func curatedKEV(keys, match []string, kev []struct{ Vendor, Product string }, own *Product, claimed map[string]string) []string {
 	for _, m := range match {
-		v, pr, _ := strings.Cut(strings.ToLower(m), "|")
 		for _, k := range kev {
 			kk := Key(k.Vendor, k.Product)
-			if !strings.Contains(strings.ToLower(k.Vendor), v) || pr != "" && !strings.Contains(spaced(strings.ToLower(k.Product)), pr) || slices.Contains(keys, kk) {
+			if !FragmentMatch(m, k.Vendor, k.Product) || slices.Contains(keys, kk) {
 				continue
 			}
 			if own != nil && (!ownName(own.Product, own.Vendor, k.Product) || claimed[kk] != "" && claimed[kk] != own.ID) {

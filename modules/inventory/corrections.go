@@ -42,7 +42,7 @@ const badOS = "The operating system is at most 200 characters and cannot contain
 
 // manualOS is the OS a person set on the device, when and who (the observation's evidence), ok false when none.
 func manualOS(ctx context.Context, q querier, id string) (value, setAt, setBy string, ok bool, err error) {
-	err = q.QueryRowContext(ctx, `SELECT value, seen_at, ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt, &setBy)
+	err = q.QueryRowContext(ctx, `SELECT value, seen_at, ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL+` ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt, &setBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", "", false, nil
 	}
@@ -107,7 +107,7 @@ func (s *Service) setOSTx(ctx context.Context, tx *sql.Tx, actor, id, name, os s
 	if err := tx.QueryRowContext(ctx, `SELECT os FROM inv_asset WHERE id = ?`, id).Scan(&shown); err != nil {
 		return false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
-	// One correction per device: the previous one goes, so an older value set again cannot lose to a newer one.
+	// One correction per device: the previous one goes (a declared row's stored OS too: the person's OS decides now), so an older value set again cannot lose to a newer one.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, id); err != nil {
 		return false, fmt.Errorf("inventory: clear the corrected OS: %w", err)
 	}

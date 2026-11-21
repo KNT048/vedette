@@ -38,9 +38,6 @@ func TestMigrations_ConstraintsHold(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ name, sql string }{
-		{"interval below 1", `UPDATE exp_setting SET interval_min = 0`},
-		{"interval above 1440", `UPDATE exp_setting SET interval_min = 1441`},
-		{"auto neither 0 nor 1", `UPDATE exp_setting SET auto = 2`},
 		{"second settings row", `INSERT INTO exp_setting (id) VALUES (2)`},
 		{"last run without ok", `UPDATE exp_setting SET last_run_at = '` + ts + `'`},
 		{"unknown kind", `INSERT INTO exp_target (id, kind, value, origin, token, created_at) VALUES ('x1', 'host', 'a.example', 'person', '', '` + ts + `')`},

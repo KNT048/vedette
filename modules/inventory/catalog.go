@@ -170,8 +170,8 @@ func (c *Catalog) add(e *catEntry) {
 	}
 }
 
-// keysFor turns the "vendor|product" fragments of a curated entry into real KEV keys: a pair matches when its
-// vendor contains the vendor fragment and its product contains the product fragment (empty = any).
+// keysFor turns the "vendor|product" fragments of a curated entry into real KEV keys: a pair matches when a fragment names it by
+// whole words (productid.FragmentMatch; empty = any), never by a piece of a word or by a list name that names another product.
 func (c *Catalog) keysFor(matches []string, fallback string) []string {
 	if len(matches) == 0 {
 		return []string{fallback}
@@ -179,9 +179,8 @@ func (c *Catalog) keysFor(matches []string, fallback string) []string {
 	var keys []string
 	seen := map[string]bool{}
 	for _, m := range matches {
-		v, p, _ := strings.Cut(strings.ToLower(m), "|")
 		for _, r := range c.kev {
-			if strings.Contains(strings.ToLower(r.Vendor), v) && (p == "" || strings.Contains(strings.ToLower(r.Product), p)) {
+			if productid.FragmentMatch(m, r.Vendor, r.Product) {
 				if k := productid.Key(r.Vendor, r.Product); !seen[k] {
 					seen[k] = true
 					keys = append(keys, k)

@@ -2,9 +2,10 @@
 
 > Package `modules/mcp-server` (`mcpserver`); nối ở `cmd/vedette/mcpserver.go`. Test: `go test ./modules/mcp-server/... -run Contract`, `go test ./cmd/vedette -run 'MCP'`.
 
-## Modifying: `Tools` (tập công cụ, schema, phạm vi) — 2 người gọi
+## Modifying: `Tools` (tập công cụ, schema, phạm vi) — 3 người gọi
 - **Agent/SIEM của khách** (ngoài hệ thống): đổi tên công cụ/schema trả về → agent đã cấu hình hỏng không báo lỗi rõ. Thêm công cụ = đổi bề mặt dữ liệu rời hộp theo tay người dùng: đặt vào một phạm vi sẵn có, ghi vào CONTRACT INV-1 và PRIVACY luồng 13. `TestContract_INV7_AnswersFitTheirOutputSchema` bắt câu trả lời lệch schema.
-- **web/features/core/McpSection**: hiển thị `tools[]`/`scopes[]` từ `GET /core/mcp` và nhãn `mcp.tools.<tên>` trong `core.json`; thêm công cụ → thêm nhãn, mock `MCP_TOOLS`.
+- **`McpHandlers.CoreGetCoreMcp`** (`handlers.go`): trả `tools[]` (tên + phạm vi) và `scopes[]` cho `GET /core/mcp`; hợp đồng `get /core/mcp` ở `web/src/features/core/contract.ts`.
+- **web/features/core/McpSection**: hiển thị `tools[]`/`scopes[]` từ `GET /core/mcp` và nhãn `mcp.tools.<tên>` trong `core.json`; thêm công cụ → thêm nhãn, mock `MCP_TOOLS` trong `web/src/features/core/mocks.ts`.
 
 ## Modifying: `Source` (cổng dữ liệu) và `mcpSource` (cmd/vedette)
 - Là **người tiêu thụ** `inventory.Service.Devices/Device`, `findings.Service.List/Get`, `feeds.FeedHandlers.FeedsGetFeedsCveID/Search/Hot`: đổi trường ở đó không tự lọt ra (danh sách cho phép từng trường) nhưng có thể làm mất trường ở đây. Lọc bí mật nằm ở `mcpSource`, không dựa vào module nguồn; `TestMCPServerOnTheRealWiring` kiểm MAC, ghi chú, request/response quét và người duyệt không tới agent.
@@ -17,6 +18,9 @@
 
 ## Modifying: bind/port (`-mcp-listen`, `DefaultListen`)
 - Đổi từ loopback sang giao diện khác = thay đổi bảo mật + PRIVACY (INV-5, FORBID-4); `New` và `parseMCPListen` từ chối, test `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. Cờ nằm trong `newFlags`; để trống thì `parseMCPListen` chọn `0.0.0.0:8765` trong container, `127.0.0.1:8765` ngoài container. Đơn vị Quadlet của `core` (`host/ops/quadlet.go`, `PublishPort=127.0.0.1:8765:8765`) và `deploy/compose/container-only/compose.yaml` (`127.0.0.1:8765:8765`) dựa vào mặc định đó, **không truyền cờ**: unit/compose mới với image cũ (rollback, khởi động lại trước bước image) phải vẫn chạy, mà image cũ từ chối `0.0.0.0`. Đổi cổng = đổi cả hai nơi, `install.sh` (kiểm cổng trống), `Endpoint` (báo `127.0.0.1` + cùng cổng) và chữ trên màn hình; đổi mẫu đơn vị cần dòng legacy trong `host/ops/quadlet_legacy.go`. Bỏ `InContainer`/`inContainer` → MCP lại không tới được ở cả hai kiểu cài.
+
+## Modifying: bảng `mcp_tokens`
+- `modules/core/export_policy.go` liệt kê cột nào của `mcp_tokens` được xuất (`token_hash` bị bỏ qua); thêm/đổi cột → sửa chính sách xuất ở đó. `core/server/modules.go` ánh xạ tiền tố `/core/mcp` vào module (tắt → 404); `modules/core/handlers_privacy.go` đọc công tắc cho luồng 13, `web/src/features/core/PrivacySection.tsx` link tới `/settings/mcp`; nối dây ở `cmd/vedette/{main,modules,handler,mcpserver}.go`.
 
 ## Modifying: `recordCall` / giới hạn
 - Bỏ dòng audit mỗi lời gọi vi phạm INV-8 (`TestContract_INV6_INV8_…`); nới giới hạn làm tăng trần dòng audit.

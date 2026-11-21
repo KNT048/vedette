@@ -155,8 +155,9 @@ type Service struct {
 	nvdNext     time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)
 	nvdBookedAt time.Time // the clock reading the last slot was booked at: a later reading before it is a clock stepped back
 
-	wait func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
-	free func(dir string) (int64, bool)                   // tests: replaces the free disk space the CVE records download checks
+	wait      func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
+	free      func(dir string) (int64, bool)                   // tests: replaces the free disk space the CVE records download checks
+	claimSeed map[string][]claimDoc                            // tests: replaces the release's seed of exploitation claims (nil: the release's)
 }
 
 // NewService checks the dependencies.

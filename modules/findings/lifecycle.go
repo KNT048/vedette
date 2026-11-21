@@ -219,4 +219,3 @@ func (s *Service) foldFinding(ctx context.Context, tx *sql.Tx, gone, kept string
 	}
 	return nil
 }
-

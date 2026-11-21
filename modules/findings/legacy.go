@@ -3,8 +3,6 @@ package findings
 import (
 	"math"
 	"time"
-
-	"github.com/knt048/vedette/core/orgtime"
 )
 
 // The older read model of a finding (Record, Status, HistoryEntry) and the older event payloads, projected from the findings model.
@@ -60,7 +58,7 @@ type HistoryEntry struct {
 type Record struct {
 	ID, AssetID, CVE string
 	Status           Status
-	Severity         Severity // the CVSS band of the CVE (high when it has no score yet)
+	Severity         Severity // the CVSS band of the CVE (medium while it has no score)
 	Confidence       float64
 	Basis            Basis
 	Evidence         *Evidence
@@ -78,7 +76,9 @@ type Record struct {
 }
 
 // Confirmed reports whether a safe check or a person confirmed the finding.
-func (r Record) Confirmed() bool { return r.Row.Verified == VerifiedScan || r.Row.Verified == VerifiedPerson }
+func (r Record) Confirmed() bool {
+	return r.Row.Verified == VerifiedScan || r.Row.Verified == VerifiedPerson
+}
 
 // ByDevice reports whether the version the device itself reports confirms the finding.
 func (r Record) ByDevice() bool { return r.Row.Verified == VerifiedDevice }
@@ -96,8 +96,8 @@ func record(f Finding, evs []Event, band Severity) Record {
 	r := Record{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Status: LegacyStatus(f), Severity: band, Evidence: f.Evidence,
 		ResolvedBy: f.ResolvedBy, ResolvedAt: f.ResolvedAt, ResolutionNote: f.Note, SoftwareID: f.SoftwareID, AcceptedUntil: f.AcceptedUntil,
 		FirstSeen: f.FirstSeen, LastSeen: f.LastSeen, Row: f}
-	if r.Severity == "" {
-		r.Severity = SeverityHigh
+	if r.Severity == "" { // not scored yet
+		r.Severity = SeverityMedium
 	}
 	switch {
 	case f.Verified == VerifiedScan || f.Basis == DetectScan:
@@ -221,6 +221,3 @@ func bandOf(c CVSS) Severity {
 	}
 	return "info"
 }
-
-// acceptedDay is the last day of an acceptance as the older texts write it.
-func acceptedDay(t time.Time) string { return orgtime.CalendarDay(t) }

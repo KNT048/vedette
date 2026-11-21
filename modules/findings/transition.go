@@ -75,7 +75,7 @@ type Detection struct {
 //
 //   - detected on a new pair: created, open; confirmed too when the data proves it.
 //   - detected on an existing finding: the detection columns follow the data (a safe check's or a person's confirmation is never
-//     taken back by a weaker one); a finding Vedette had closed opens again (detected_again), except that a clear safe check is
+//     taken back by a weaker one; a finding on no line takes the line it is found on); a finding Vedette had closed opens again (detected_again), except that a clear safe check is
 //     overruled only by another safe check; a finding a person marked patched opens again when a reading newer than their mark still
 //     detects it (still_detected); mitigated, accepted, false positive and not relevant hold.
 //   - gone (an edge: only a finding detected until now): an open finding is handled by Vedette, patched when something changed on
@@ -190,6 +190,9 @@ func (t *transition) detected(d Detection) error {
 		return nil
 	}
 	was := t.before
+	if f.SoftwareID == "" && d.SoftwareID != "" {
+		f.SoftwareID = d.SoftwareID // a finding on no line takes the line the flaw is now found on
+	}
 	// A safe check's or a person's confirmation is never taken back by weaker data; a stronger proof replaces it.
 	if was.Verified.sticky() && was.Verified.rank() > d.Verified.rank() {
 		if was.Verified != VerifiedScan {

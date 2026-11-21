@@ -57,6 +57,15 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				}
 				seen[k] = true
 				f, ok := byKey[k]
+				if line := storedLine(x.SoftwareID); !ok && line != "" {
+					// a finding on no line (a safe check's hit, or the OS a device stated without a line) takes the line the CVE is now
+					// found on, rather than one closing and another opening for the same flaw
+					if g, held := byKey[lineKey(x.CVE, "")]; held && !seen[lineKey(x.CVE, "")] {
+						f, ok = g, true // Transition gives it the line (TrDetected)
+						seen[lineKey(x.CVE, "")] = true
+						delete(byKey, lineKey(x.CVE, ""))
+					}
+				}
 				if !ok {
 					f = Finding{ID: store.NewID("f"), AssetID: a.ID, CVE: x.CVE}
 				}
@@ -146,17 +155,11 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	if ok {
 		d.ProductKey = productKey(l.sw)
 	}
-	src := ""
+	src, pkg := "", ""
 	if r := ev.Read; r != nil {
-		d.MatchedVersion, d.ReadAt, src = r.Version, r.At, r.Source
-		if r.Pkg != "" && l.sw.Packaged {
-			d.MatchedVersion = r.Pkg
-		}
+		d.MatchedVersion, d.ReadAt, src, pkg = r.Version, r.At, r.Source, r.Pkg
 	} else if ok {
-		d.MatchedVersion, d.ReadAt, src = l.reading.Version, l.sw.SeenAt, l.sw.Source
-		if l.reading.Pkg != "" && l.sw.Packaged {
-			d.MatchedVersion = l.reading.Pkg
-		}
+		d.MatchedVersion, d.ReadAt, src, pkg = l.reading.Version, l.sw.SeenAt, l.sw.Source, l.reading.Pkg
 	}
 	if src == "" && ok {
 		src = l.sw.Source
@@ -164,8 +167,8 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	switch {
 	case x.Basis == BasisScan:
 		d.Basis, d.Verified, d.RangeOrigin = DetectScan, VerifiedScan, RangeScan
-	case ok && l.sw.Packaged && l.sw.PkgVersion != "":
-		d.Basis, d.RangeOrigin = DetectPackage, RangeDistro
+	case pkg != "": // the match compared a distribution's package release, whoever read it
+		d.Basis, d.RangeOrigin, d.MatchedVersion = DetectPackage, RangeDistro, pkg
 	case src == "manual":
 		d.Basis = DetectStatement
 	case src == "agent" || src == SourceSNMP:

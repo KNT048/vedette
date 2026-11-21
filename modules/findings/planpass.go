@@ -26,9 +26,9 @@ type planState struct {
 	fullAt  time.Time // when the last full pass finished
 	lastRun time.Time // when the job last ran: a longer gap (the findings module was off) makes the next run a full pass
 	devices map[string]planDevice
-	ver     uint64              // moves on every change of devices: the risk marker's cache (RiskMap) is dropped when it does
-	dirty   map[string]bool     // devices to compare again at the next run
-	dropped map[string]bool     // devices deleted since the run started: never written back by it (review r1 #4 of #804)
+	ver     uint64          // moves on every change of devices: the risk marker's cache (RiskMap) is dropped when it does
+	dirty   map[string]bool // devices to compare again at the next run
+	dropped map[string]bool // devices deleted since the run started: never written back by it (review r1 #4 of #804)
 }
 
 type planDevice struct {
@@ -245,4 +245,3 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		"items_esu", kinds["esu"], "items_distro", kinds["distro"], "took", s.now().Sub(start))
 	return errors.Join(failed...)
 }
-

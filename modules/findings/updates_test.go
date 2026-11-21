@@ -46,7 +46,7 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatalf("one action for the 4 findings of one product: %+v", u)
 	}
 	x := u.Exploited[0]
-	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "high" ||
+	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "medium" ||
 		!slices.Contains(x.CVEs, "CVE-2099-0002") || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
 		t.Fatalf("action %+v", x)
 	}

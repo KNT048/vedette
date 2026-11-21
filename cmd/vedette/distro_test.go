@@ -73,7 +73,7 @@ func TestDistroFixReachesFindings(t *testing.T) {
 	}
 	install("1:9.6p1-3ubuntu13.14")
 	// the agent read another release at or above Ubuntu's fix: an update the device got (patched), with Ubuntu's word as the proof
-	if f := finding(); f.Status != findings.StatusPatched || f.ResolutionReason != findings.ReasonFixedByUpdate || !strings.Contains(f.ResolutionNote, "this device has 1:9.6p1-3ubuntu13.14") {
+	if f := finding(); f.Status != findings.StatusPatched || f.Row.Via != findings.ViaVersionMoved || f.Row.FromVersion != "1:9.6p1-3ubuntu13.4" || f.Row.ToVersion != "1:9.6p1-3ubuntu13.14" {
 		t.Fatalf("after the update: %+v", f)
 	}
 }
@@ -147,7 +147,7 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 		t.Fatalf("the new kernel is installed but does not run yet, and the finding closed: %+v", f)
 	}
 	install("7.0.0-43-generic", old, updated, meta) // rebooted
-	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusPatched || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
+	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusPatched || f.Row.Via != findings.ViaVersionMoved || f.Row.FromVersion != "7.0.0-30.30" || f.Row.ToVersion != "7.0.0-43.43" {
 		t.Fatalf("after the reboot to 7.0.0-43: %+v", f)
 	}
 }
@@ -276,7 +276,8 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 	if recs := give("10.2_p1-r0"); len(recs) != 1 || recs[0].Status != findings.StatusSuspected || !strings.Contains(recs[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {
 		t.Fatalf("below the 3.23 fix: %+v", recs)
 	}
-	if recs := give("10.2_p1-r1"); len(recs) != 1 || recs[0].Status != findings.StatusNotRelevant || !strings.Contains(recs[0].ResolutionNote, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
+	// the person corrected the release a scan's banner gave no word on: Vedette corrected its match, no patch credit
+	if recs := give("10.2_p1-r1"); len(recs) != 1 || recs[0].Status != findings.StatusNotRelevant || recs[0].Row.Via != findings.ViaDataCorrected {
 		t.Fatalf("at the 3.23 fix: %+v", recs)
 	}
 }

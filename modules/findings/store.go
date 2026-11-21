@@ -93,12 +93,12 @@ const findingColumns = `id, asset_id, cve, software_id, detected, basis, verifie
 
 func scanFinding(s scanner) (Finding, error) {
 	var (
-		f                                            Finding
-		basis, verified, fixKind, state              string
-		softwareID, matched, fixVersion, fixRef      sql.NullString
-		evidence, resolution, via, resolvedBy, note  sql.NullString
-		resolvedAt, until, from, to                  sql.NullString
-		urgencyAt, first, last, updated              string
+		f                                           Finding
+		basis, verified, fixKind, state             string
+		softwareID, matched, fixVersion, fixRef     sql.NullString
+		evidence, resolution, via, resolvedBy, note sql.NullString
+		resolvedAt, until, from, to                 sql.NullString
+		urgencyAt, first, last, updated             string
 	)
 	if err := s.Scan(&f.ID, &f.AssetID, &f.CVE, &softwareID, &f.Detected, &basis, &verified, &f.RangeOrigin, &matched, &fixKind, &fixVersion, &fixRef,
 		&f.FixKey, &evidence, &state, &resolution, &via, &resolvedBy, &resolvedAt, &note, &until, &from, &to, &f.Urgency, &urgencyAt,
@@ -307,8 +307,8 @@ const questionColumns = `id, asset_id, software_id, cve, kind, detail, cves, ask
 
 func scanQuestion(s scanner) (Question, error) {
 	var (
-		q                                      Question
-		kind, asked                            string
+		q                                       Question
+		kind, asked                             string
 		softwareID, cve, detail, answer, by, at sql.NullString
 	)
 	if err := s.Scan(&q.ID, &q.AssetID, &softwareID, &cve, &kind, &detail, &q.Cves, &asked, &answer, &by, &at); err != nil {

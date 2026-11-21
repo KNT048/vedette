@@ -619,7 +619,6 @@ func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 	})
 }
 
-
 // Handle marks findings of one device handled by a person, with one note (POST /findings/handle): all of ids must be findings of one
 // device (else ErrManyDevices). A finding that already has this handling is skipped. One event and one audit row per finding, all
 // or nothing.

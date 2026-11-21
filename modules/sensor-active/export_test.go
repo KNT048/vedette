@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
 )
+
+// The driver looks for devices waiting for their turn every second in tests, not every minute.
+func init() { sweepTurn = time.Second }
 
 // SetBeforeSNMPBatch makes fn run as every SNMP batch starts, before it registers (a test acting in that window; #855).
 func SetBeforeSNMPBatch(s *Service, fn func()) { s.beforeSNMPBatch = fn }

@@ -390,6 +390,7 @@ const (
 	ScanningPostRunsIDResumeOperation                        OperationName = "ScanningPostRunsIDResume"
 	ScanningPostRunsIDStopOperation                          OperationName = "ScanningPostRunsIDStop"
 	ScanningPostScanningEnginesNmapDiscoveryRunOperation     OperationName = "ScanningPostScanningEnginesNmapDiscoveryRun"
+	ScanningPostScanningSafetyEstimateOperation              OperationName = "ScanningPostScanningSafetyEstimate"
 	ScanningPostScanningSafetyExclusionsOperation            OperationName = "ScanningPostScanningSafetyExclusions"
 	ScanningPostScanningSafetyRangesOperation                OperationName = "ScanningPostScanningSafetyRanges"
 	ScanningPutScanningSafetyOperation                       OperationName = "ScanningPutScanningSafety"

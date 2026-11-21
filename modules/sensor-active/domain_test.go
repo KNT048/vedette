@@ -70,7 +70,7 @@ func domainEnv(t *testing.T, txt string) *env {
 	go func() { defer close(done); _ = w.Run(ctx) }()
 	t.Cleanup(func() { cancel(); <-done })
 	waitFor(t, "the first heartbeat of the worker", func() bool { return !strings.Contains(d.NmapHealth(), "has not reported") })
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, Prober: d, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, Prober: d, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}

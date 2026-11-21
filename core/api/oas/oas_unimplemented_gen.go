@@ -1646,7 +1646,8 @@ func (UnimplementedHandler) FeedsDeleteFeedsCustomID(ctx context.Context, params
 
 // FeedsGetFeedsCveID implements feeds_get_feeds_cve_id operation.
 //
-// Details of an exploited CVE and your matching devices.
+// Everything the box knows about a CVE (its brief) and your devices that match its exploited-list
+// entry (404 not_in_data when the vulnerability data does not hold it).
 //
 // GET /feeds/cve/{id}
 func (UnimplementedHandler) FeedsGetFeedsCveID(ctx context.Context, params FeedsGetFeedsCveIDParams) (r *FeedsGetFeedsCveIDOK, _ error) {
@@ -2443,7 +2444,8 @@ func (UnimplementedHandler) InventoryPostIntakeOsqueryStatus(ctx context.Context
 // list arrives, the box's config gives the agent's software queries (the same read-only queries,
 // nothing else) a 60 s interval; osquery reads its config every 5 minutes. An open ask is answered as
 // it is; a new ask within 10 minutes of the last: 429 rate_limited (retry_after). 409 cannot_ask: no
-// osquery agent of this box reports on the device (Wazuh only, or none). 404 not_found. Audited.
+// osquery agent of this box reports on the device (Wazuh only, or none). 409 agent_off: a person
+// turned the agent off for this device. 404 not_found. Audited.
 //
 // POST /inventory/agents/devices/{id}/report
 func (UnimplementedHandler) InventoryPostInventoryAgentsDevicesIDReport(ctx context.Context, params InventoryPostInventoryAgentsDevicesIDReportParams) (r *InventoryPostInventoryAgentsDevicesIDReportOK, _ error) {
@@ -2650,13 +2652,15 @@ func (UnimplementedHandler) InventoryPutInventoryAgentsWazuh(ctx context.Context
 
 // InventoryPutInventoryDevicesIDSources implements inventory_put_inventory_devices_id_sources operation.
 //
-// Turn the network scan or the SNMP reads of one device on or off. On is the person's consent to that
-// traffic: a device added by hand gets it from then on, inside every other safety rule (scope,
-// exclusions, window, fragile, never scan); turning the network scan on queues the device for the next
-// window. Off stops it for any device (the run on it stops); what the source found stays and manual
-// values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404
-// not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an
-// ignored device.
+// Turn the network scan, the SNMP reads or the agents' data of one device on or off. On is the
+// person's consent to that traffic: a device added by hand gets it from then on, inside every other
+// safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the
+// device for the next window. Off stops it for any device (the run on it stops); what the source found
+// stays and manual values still win. Agent off: every agent's data for the device is refused and what
+// the agents read stops counting (their software readings and open ports go); on: taken again, and an
+// osquery agent is asked to send its software now. One audit row per source changed. 400 bad_source:
+// neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored:
+// turning a source on for an ignored device.
 //
 // PUT /inventory/devices/{id}/sources
 func (UnimplementedHandler) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *InventoryPutInventoryDevicesIDSourcesReq, params InventoryPutInventoryDevicesIDSourcesParams) (r *InventoryPutInventoryDevicesIDSourcesOK, _ error) {
@@ -3865,6 +3869,19 @@ func (UnimplementedHandler) ScanningPostScanningEnginesNmapDiscoveryRun(ctx cont
 	return r, ht.ErrNotImplemented
 }
 
+// ScanningPostScanningSafetyEstimate implements scanning_post_scanning_safety_estimate operation.
+//
+// What one pass of active discovery over a scope would cost, before it is saved (the range form shows
+// it as it is typed): the addresses, the time of one pass at the rate, and whether it fits one window
+// and a week of windows. Saving a scope that does not fit a week is refused (400 scope_too_large on
+// PUT /scanning/safety and POST /scanning/safety/ranges); one that needs several windows is swept as
+// one run over several nights. Changes nothing.
+//
+// POST /scanning/safety/estimate
+func (UnimplementedHandler) ScanningPostScanningSafetyEstimate(ctx context.Context, req *ScanningPostScanningSafetyEstimateReq) (r *ScanningPostScanningSafetyEstimateOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ScanningPostScanningSafetyExclusions implements scanning_post_scanning_safety_exclusions operation.
 //
 // Add one exclusion where the person is ("+ New exclusion" in a dialog, #842), without sending the
@@ -3886,12 +3903,13 @@ func (UnimplementedHandler) ScanningPostScanningSafetyExclusions(ctx context.Con
 // edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick,
 // and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new
 // one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
-// too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with
-// error.safety, the current block) when the stored ranges are not shown_ranges or the stored
-// confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the
-// block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying
-// when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed.
-// Returns the whole safety block with its new version, and adjusted when the range was normalized.
+// too_many_ranges (16), scope_too_large, and scope_not_confirmed when confirm is not true; 409
+// scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or
+// the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200
+// with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range,
+// and saying when the add confirmed a scope that was not confirmed) and publishes
+// inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when
+// the range was normalized.
 //
 // POST /scanning/safety/ranges
 func (UnimplementedHandler) ScanningPostScanningSafetyRanges(ctx context.Context, req *ScanningPostScanningSafetyRangesReq) (r *ScanningPostScanningSafetyRangesOK, _ error) {
@@ -3904,10 +3922,11 @@ func (UnimplementedHandler) ScanningPostScanningSafetyRanges(ctx context.Context
 // the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
 // /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
 // no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
-// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409
-// safety_changed (with error.safety, the current block) when version is not the stored one: re-read,
-// merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow
-// stops.
+// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on),
+// scope_too_large (one pass would not end within a week of windows: the message gives the numbers, see
+// POST /scanning/safety/estimate); 409 safety_changed (with error.safety, the current block) when
+// version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a
+// run that the new values no longer allow stops.
 //
 // PUT /scanning/safety
 func (UnimplementedHandler) ScanningPutScanningSafety(ctx context.Context, req *ScanningPutScanningSafetyReq) (r *ScanningPutScanningSafetyOK, _ error) {

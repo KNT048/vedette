@@ -812,7 +812,12 @@ CREATE TABLE intake_agent_tokens (
     created_at    TEXT NOT NULL,
     expires_at    TEXT,
     last_received TEXT
-, created_by TEXT CHECK (created_by IS NULL OR length(created_by) BETWEEN 1 AND 256), first_enrolled_at TEXT);
+, created_by TEXT CHECK (created_by IS NULL OR length(created_by) BETWEEN 1 AND 256), first_enrolled_at TEXT,
+    -- the device a person made the token for (the device page's agent row: Create agent token, then Show setup); NULL for a token
+    -- made for any machine. The device's own agent row shows it until a machine enrols with it.
+    device_id     TEXT REFERENCES inv_asset (id) ON DELETE SET NULL);
+
+CREATE INDEX intake_agent_tokens_device_idx ON intake_agent_tokens (device_id) WHERE device_id IS NOT NULL;
 
 CREATE TABLE intake_osquery_nodes (
     id              TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
@@ -827,6 +832,12 @@ CREATE TABLE intake_osquery_nodes (
     last_result_at  TEXT,
     bound_ip        TEXT,
     bound_mac       TEXT, reported TEXT NOT NULL DEFAULT '' CHECK (length(reported) <= 64), approved_at TEXT, kernel TEXT NOT NULL DEFAULT '' CHECK (length(kernel) <= 100), win_name TEXT NOT NULL DEFAULT '' CHECK (length(win_name) <= 200), win_version TEXT NOT NULL DEFAULT '' CHECK (length(win_version) <= 40), win_target TEXT NOT NULL DEFAULT '' CHECK (win_target IN ('', 'x64', 'x86', 'arm64')), report_asked_at TEXT, software_taken_at TEXT, os_taken_at TEXT, last_call_at TEXT,
+    -- The node's rhythm (nodestate.go NodeHealth): call_every_s is how often it was told to call (osquery: the config refresh the
+    -- install scripts set; the package reporter: its hourly run), call_gap_s its own smoothed gap between config fetches (NULL until it has
+    -- fetched its config twice), report_every_s the longest interval of the schedule the box last gave it without its speed-ups (it delivers results at least that often).
+    call_every_s    INTEGER NOT NULL DEFAULT 300 CHECK (call_every_s BETWEEN 60 AND 86400),
+    call_gap_s      INTEGER CHECK (call_gap_s IS NULL OR call_gap_s BETWEEN 1 AND 172800),
+    report_every_s  INTEGER NOT NULL DEFAULT 3600 CHECK (report_every_s BETWEEN 60 AND 86400),
     UNIQUE (token_id, host_identifier)
 );
 
@@ -868,56 +879,6 @@ CREATE INDEX intake_osquery_nodes_seen_idx ON intake_osquery_nodes (last_seen);
 
 -- module sensor-active
 
-CREATE TABLE sa_sweep (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    cursor     TEXT    CHECK (cursor IS NULL OR length(cursor) BETWEEN 7 AND 15),
-    updated_at TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
-CREATE TABLE sa_queue (
-    asset_id  TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
-    queued_at TEXT    NOT NULL CHECK (queued_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    reason    TEXT    NOT NULL CHECK (length(reason) BETWEEN 1 AND 64),
-    attempts  INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0)
-);
-
-CREATE TABLE sa_first_pass (
-    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    started_at TEXT    NOT NULL CHECK (started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
-
-CREATE TABLE sa_snmp (
-    id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    name           TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 64),
-    version        TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),
-    username       TEXT    CHECK (username IS NULL OR length(username) BETWEEN 1 AND 64),
-    auth           TEXT    CHECK (auth IS NULL OR auth IN ('sha', 'sha256')),
-    priv           TEXT    CHECK (priv IS NULL OR priv = 'aes128'),
-    secret_id      TEXT    NOT NULL CHECK (length(secret_id) BETWEEN 1 AND 96),
-    secret_last4   TEXT    NOT NULL DEFAULT '' CHECK (length(secret_last4) <= 4),
-    priv_secret_id TEXT    CHECK (priv_secret_id IS NULL OR length(priv_secret_id) BETWEEN 1 AND 96),
-    priv_last4     TEXT    NOT NULL DEFAULT '' CHECK (length(priv_last4) <= 4),
-    scope          TEXT    NOT NULL CHECK (json_valid(scope) AND json_type(scope) = 'array' AND json_array_length(scope) BETWEEN 1 AND 16 AND length(scope) <= 1000),
-    created_at     TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_answer_at TEXT    CHECK (last_answer_at IS NULL OR last_answer_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    answered       INTEGER NOT NULL DEFAULT 0 CHECK (answered >= 0), port INTEGER CHECK (port IS NULL OR port BETWEEN 1 AND 65535),
-    CHECK ((version = 'v2c' AND username IS NULL AND auth IS NULL AND priv IS NULL AND priv_secret_id IS NULL)
-        OR (version = 'v3' AND username IS NOT NULL AND auth IS NOT NULL AND (priv IS NULL) = (priv_secret_id IS NULL)))
-);
-
-CREATE TABLE "sa_job" (
-    id          TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind        TEXT    NOT NULL CHECK (kind IN ('sweep', 'device', 'snmp', 'external')),
-    reason      TEXT    CHECK (reason IS NULL OR length(reason) <= 64),
-    started_at  TEXT    NOT NULL CHECK (started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    finished_at TEXT    CHECK (finished_at IS NULL OR finished_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    status      TEXT    NOT NULL CHECK (status IN ('running', 'done', 'stopped', 'failed')),
-    targets     INTEGER NOT NULL DEFAULT 0 CHECK (targets >= 0),
-    new_devices INTEGER NOT NULL DEFAULT 0 CHECK (new_devices >= 0),
-    error       TEXT    CHECK (error IS NULL OR length(error) <= 1000)
-, asset_id TEXT CHECK (asset_id IS NULL OR length(asset_id) BETWEEN 1 AND 96), found TEXT CHECK (found IS NULL OR (json_valid(found) AND json_type(found) = 'object' AND length(found) <= 8000)));
-
 CREATE TABLE sa_all_ports (
     asset_id     TEXT NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
     last_at      TEXT CHECK (last_at IS NULL OR last_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -938,7 +899,7 @@ CREATE TABLE sa_all_ports (
 CREATE TABLE "sa_probe" (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     time         TEXT    NOT NULL CHECK (time GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    job_id       TEXT    NOT NULL REFERENCES sa_job (id),
+    run_id       TEXT    REFERENCES core_run (id) ON DELETE SET NULL,
     shape        TEXT    NOT NULL CHECK (shape IN ('sweep', 'normal', 'gentle', 'versions', 'gentle_titles', 'snmp', 'external', 'external_full', 'external_disruptive', 'all_ports', 'extra_ports', 'port_versions')),
     rate         INTEGER NOT NULL CHECK (rate BETWEEN 1 AND 1000),
     hosts        INTEGER NOT NULL CHECK (hosts BETWEEN 1 AND 64),
@@ -947,16 +908,8 @@ CREATE TABLE "sa_probe" (
     result       TEXT    NOT NULL CHECK (length(result) <= 200)
 );
 
-CREATE TABLE sa_snmp_answer (
-    credential_id TEXT NOT NULL REFERENCES sa_snmp (id) ON DELETE CASCADE,
-    asset_id      TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    ip            TEXT NOT NULL CHECK (length(ip) BETWEEN 7 AND 15),
-    answered_at   TEXT NOT NULL CHECK (answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), sys_descr TEXT CHECK (sys_descr IS NULL OR length(sys_descr) BETWEEN 1 AND 200), sys_object_id TEXT CHECK (sys_object_id IS NULL OR length(sys_object_id) BETWEEN 1 AND 200),
-    PRIMARY KEY (credential_id, asset_id)
-);
-
 CREATE TABLE sa_snmp_device (
-    asset_id          TEXT    NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
+    asset_id          TEXT    NOT NULL PRIMARY KEY REFERENCES inv_asset (id) ON DELETE CASCADE CHECK (length(asset_id) BETWEEN 1 AND 96),
     read_from         TEXT    NOT NULL CHECK (length(read_from) BETWEEN 7 AND 15),
     read_from_default INTEGER NOT NULL CHECK (read_from_default IN (0, 1)),
     version           TEXT    NOT NULL CHECK (version IN ('v2c', 'v3')),
@@ -984,17 +937,9 @@ CREATE TABLE sa_snmp_notice (
     text TEXT    NOT NULL CHECK (length(text) BETWEEN 1 AND 2000)
 );
 
-CREATE UNIQUE INDEX sa_snmp_name_ux ON sa_snmp (name COLLATE NOCASE);
-
-CREATE INDEX sa_job_started_ix ON sa_job (kind, started_at);
-
 CREATE INDEX sa_probe_time_ix ON sa_probe (time);
 
-CREATE INDEX sa_probe_job_ix ON sa_probe (job_id);
-
-CREATE INDEX sa_snmp_answer_asset_ix ON sa_snmp_answer (asset_id);
-
-CREATE INDEX sa_job_asset_ix ON sa_job (asset_id, started_at) WHERE asset_id IS NOT NULL;
+CREATE INDEX sa_probe_run_ix ON sa_probe (run_id);
 
 -- module honeypot
 

@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -89,13 +90,14 @@ func (f *fakeSafety) AddExclusion(_ context.Context, actor, entry string) (core.
 }
 
 type fakeRunner struct {
+	db      *store.DB // the record is written in the transaction that queues the run
 	err     error
 	targets [][]string
 	started int // runs started: after their record
 }
 
 // Run records the run as sensor-active does, before it starts: a sweep of the scope, or the devices named.
-func (f *fakeRunner) Run(_ context.Context, _ string, targets []string, record func(core.RunConsent) error) (core.RunningJob, error) {
+func (f *fakeRunner) Run(ctx context.Context, _ string, targets []string, record func(*sql.Tx, core.RunConsent) error) (core.RunningJob, error) {
 	f.targets = append(f.targets, targets)
 	if f.err != nil {
 		return core.RunningJob{}, f.err
@@ -107,7 +109,7 @@ func (f *fakeRunner) Run(_ context.Context, _ string, targets []string, record f
 	for _, t := range targets {
 		c.Devices = append(c.Devices, t+" (a-1)")
 	}
-	if err := record(c); err != nil {
+	if err := f.db.Write(ctx, func(tx *sql.Tx) error { return record(tx, c) }); err != nil {
 		return core.RunningJob{}, err
 	}
 	f.started++
@@ -139,7 +141,7 @@ func newScanningStack(t *testing.T) *scanningStack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &scanningStack{stack: &stack{t: t, db: db, reg: reg}, runner: &fakeRunner{}, safety: &fakeSafety{st: core.Safety{
+	s := &scanningStack{stack: &stack{t: t, db: db, reg: reg}, runner: &fakeRunner{db: db}, safety: &fakeSafety{st: core.Safety{
 		LANRanges: []string{"192.168.18.0/24"}, ConfirmedAt: ptr("2026-11-01T00:00:00.000Z"), ConfirmedBy: ptr("admin@acme.example"),
 		Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00", PacketsPerS: 50, RequestsPerS: 5, Exclusions: []string{"192.168.18.9"},
 		FragileKinds: []string{"printer"}, RegularScanKinds: []string{}, FragileDevices: 3, Version: "v1",
@@ -437,13 +439,13 @@ func TestContract_INV40_RunNow(t *testing.T) {
 	if !slices.Equal(s.runner.targets[0], []string{"192.168.18.20"}) {
 		t.Fatalf("targets = %v", s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND target = 'sar-1' AND detail LIKE 'check 192.168.18.20 (a-1) now%2026-11-16T04:00:00.000Z%'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND target = 'sar-1' AND detail = 'check 192.168.18.20 (a-1) now, whatever the window'`); n != 1 {
 		t.Fatalf("scanning.run rows = %d", n)
 	}
 	if code, _ := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{}`); code != http.StatusAccepted || len(s.runner.targets[1]) != 0 {
 		t.Fatalf("Scan the LAN now: %d, targets %v", code, s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = 'sar-1' AND detail LIKE 'sweep of 192.168.18.0/24 and the scans of the devices it queues now%'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = 'sar-1' AND detail LIKE 'sweep of 192.168.18.0/24 and the scans of the devices it finds now, whatever the window, until %'`); n != 1 {
 		t.Fatalf("whole scope rows = %d", n)
 	}
 	if code, body := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":[" "]}`); code != http.StatusBadRequest || errCode(body) != "invalid" {

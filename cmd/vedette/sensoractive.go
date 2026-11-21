@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -41,7 +42,7 @@ func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, er
 	// Production never runs nmap in this process: the Dispatcher hands the command to the worker in the scan
 	// container, and the service reads nmap's health from the worker's heartbeat (the Dispatcher is the Prober itself, so its
 	// NmapHealth is found by the service's type assertion).
-	s, err := newSensorActive(ctx, d, d.SensorDispatcher)
+	s, err := newSensorActive(ctx, d, d.SensorDispatcher, d.Runs)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,10 @@ func snmpService(ctx context.Context, d deps) *sensoractive.Service {
 //
 // Production passes the Dispatcher (sensorActiveService, the only non-test caller); the parameter exists so the tests can pass a
 // local Prober on a fake nmap. nil is refused: Config would then fall back to starting nmap in this process.
-func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*sensoractive.Service, error) {
+//
+// runs is the box's run manager the module's kinds are registered on (one service per database registers them); nil (a test's own
+// service) gives the service a run manager of its own over the database.
+func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober, runs *corerun.Manager) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
@@ -81,15 +85,23 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
 		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit, // SNMP reads go through the same Dispatcher
 		LocalPrefixes: func(ctx context.Context) []netip.Prefix { return boxNetworks(ctx, d.HostNet) }}
+	if runs != nil { // a nil *run.Manager inside the field would not compare equal to nil; the kinds are registered before the manager starts
+		cfg.Runs = runs
+	}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
 		})
 	}
-	svc, err := sensoractive.New(cfg)
+	svc, err := sensoractive.New(cfg) //nolint:contextcheck // a run manager of the service's own (tests) lives as long as the service, not a request
 	if err != nil {
 		return nil, err
 	}
+	// a scope active discovery could not sweep within a week is refused when it is saved, with the numbers (the range form's rule)
+	d.Inventory.SetScopeCost(func(ctx context.Context, st inventory.Settings) inventory.ScopeCost {
+		return sweepCost(ctx, d, sensoractive.Settings{LANRanges: st.LANRanges, Exclusions: st.Active.Exclusions, Days: st.Active.Days,
+			From: st.Active.From, To: st.Active.To, Rate: st.Active.Rate})
+	})
 	// A remote worker (the Dispatcher) cannot have reported this early, so only a local nmap is worth a warning at start; the
 	// status page says whether the worker reports.
 	_, remote := prober.(*sensoractive.Dispatcher)
@@ -97,7 +109,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 		d.Log.WarnContext(ctx, "sensor-active is unavailable", "reason", h.Message)
 	}
 	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now
-		d.Reg.OnChange(func(id string, enabled bool) {
+		d.Reg.OnChange(func(id string, enabled bool) { //nolint:contextcheck // a module switch has no context; Stop ends the module's runs on their own
 			switch {
 			case id != "sensor-active":
 			case enabled:
@@ -107,7 +119,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			}
 		})
 		if !d.Reg.Enabled("sensor-active") {
-			svc.Stop() // off at start: nothing SNMP leaves until the module is turned on
+			svc.Stop() //nolint:contextcheck // off at start: nothing SNMP leaves until the module is turned on
 		}
 	}
 	if d.Bus == nil {
@@ -364,4 +376,17 @@ func (a sensorInventory) SimilarDevices(ctx context.Context, assetID string) ([]
 		out[i] = sensoractive.SimilarDevice{ID: d.ID, IP: d.IP, Vendor: d.Vendor, Kind: d.Kind, SameMaker: d.SameMaker, SameType: d.SameType, Approved: d.Approved}
 	}
 	return out, nil
+}
+
+// sweepCost is what one pass of active discovery over st's scope costs (sensoractive Settings.Cost, the box's own networks at one
+// packet an address), with the windows of a week: the range form's estimate and the inventory's refusal of a scope too large.
+func sweepCost(ctx context.Context, d deps, st sensoractive.Settings) inventory.ScopeCost {
+	c := st.Cost(boxNetworks(ctx, d.HostNet))
+	days := map[int]bool{}
+	for _, x := range st.Days {
+		if x >= 1 && x <= 7 {
+			days[x] = true
+		}
+	}
+	return inventory.ScopeCost{Addresses: c.Addresses, Pass: c.Pass, Window: c.Window, Windows: c.Windows, WeekWindows: len(days)}
 }

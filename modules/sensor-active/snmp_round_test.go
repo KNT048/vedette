@@ -229,7 +229,7 @@ func TestADeviceThatMovesAsTheSecondScanStartsStopsIt(t *testing.T) {
 		}
 	}
 	var err error
-	svc, err = sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path,
+	svc, err = e.newService(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path,
 		Prober: probeFunc(func(ctx context.Context, _ []string) (sa.Output, error) {
 			mu.Lock()
 			defer mu.Unlock()

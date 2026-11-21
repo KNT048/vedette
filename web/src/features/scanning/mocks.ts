@@ -147,6 +147,28 @@ const masked = (cidr: string) => {
   return `${[24, 16, 8, 0].map((s) => Math.floor(m / 2 ** s) % 256).join('.')}/${b}`
 }
 
+/** What one pass over a scope costs (POST /scanning/safety/estimate), as the box counts it: an address behind a router costs 17
+ *  packets (the mock treats every range as routed), one window is from-to, a week has a window per day. */
+function scopeCost(ranges: string[], excl: string[], days: number[], from: string, to: string, pps: number) {
+  const valid = ranges.filter((r) => CIDR_RE.test(r)).map(masked)
+  const size = (c: string) => 2 ** (32 - Number(c.split('/')[1]))
+  let addresses = valid.reduce((n, r) => n + size(r), 0)
+  for (const x of excl) {
+    const c = IPV4_RE.test(x) ? `${x}/32` : CIDR_RE.test(x) ? masked(x) : null
+    if (c && coveredBy(c, valid)) addresses -= size(c)
+  }
+  addresses = Math.max(0, addresses)
+  const mins = (t: string) => { const [h, m] = t.split(':').map(Number) as [number, number]; return h * 60 + m }
+  let win = (mins(to) - mins(from)) * 60
+  if (win < 0) win += 24 * 3600
+  const pass = Math.floor((addresses * 17) / Math.max(1, pps))
+  const weekWindows = new Set(days).size
+  const windows = addresses > 0 && win > 0 ? Math.max(1, Math.ceil(pass / win)) : 0
+  return { addresses, pass_seconds: pass, window_seconds: win, windows, week_windows: weekWindows,
+    fits_window: windows <= 1, fits_week: addresses === 0 || win === 0 || weekWindows === 0 || windows <= weekWindows }
+}
+const TOO_LARGE = 'One pass over these ranges does not end within a week of scan windows. Vedette never takes a scope it cannot sweep within a week: raise the scan rate, widen the window or add days, or narrow the ranges.'
+
 /** c (a CIDR or an IPv4 address, its /32) lies inside one of list's ranges or addresses: adding it changes nothing. */
 const coveredBy = (c: string, list: string[]) => {
   const r = cidrRange(c.includes('/') ? c : `${c}/32`)
@@ -163,7 +185,7 @@ const minAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
 const runBase = (r: Partial<RunRow> & Pick<RunRow, 'id' | 'module' | 'kind' | 'lane' | 'title' | 'status' | 'queued_at'>): RunRow => ({
   trigger: 'manual', trigger_note: null, requested_by: 'admin@acme.example', schedule_id: null, subject: null, parent_id: null,
   waiting_for: null, stop_reason: null, error: null, total: 0, done: 0, started_at: null, ended_at: null, updated_at: r.queued_at,
-  can_stop: false, can_resume: false, steps: [], items: [], items_total: 0, log: [], children: [], ...r,
+  can_stop: false, can_resume: false, summary: '', blocked_by: null, steps: [], items: [], items_total: 0, log: [], children: [], ...r,
 })
 export const runsStore = collection<RunRow[]>('core_runs', () => [
   runBase({ id: 'run-m1', module: 'sensor-active', kind: 'lan_sweep', lane: 'nmap', title: 'LAN sweep of 192.0.2.0/24, 10.20.0.0/16', trigger: 'schedule', requested_by: 'system',
@@ -184,11 +206,11 @@ export const runsStore = collection<RunRow[]>('core_runs', () => [
       { ts: minAgo(1490), level: 'info', text: '192.0.2.0/24 swept: 12 hosts answered' },
       { ts: minAgo(1020), level: 'info', text: 'Waiting for the scan window (opens 23:00)' },
     ] }),
-  runBase({ id: 'run-m2', module: 'sensor-active', kind: 'device_check', lane: 'checks', title: 'Check NAS-PHOTOS',
+  runBase({ id: 'run-m2', module: 'sensor-active', kind: 'device_check', lane: 'nmap', title: 'Check NAS-PHOTOS',
     subject: { kind: 'device', id: 'a-nas02', label: 'NAS-PHOTOS' }, status: 'running', queued_at: minAgo(3), started_at: minAgo(3), updated_at: minAgo(1),
     total: 5, done: 3, steps: [{ seq: 1, name: 'identify services', status: 'running', total: 5, done: 3, note: null, started_at: minAgo(3), ended_at: null }],
     log: [{ ts: minAgo(3), level: 'info', text: 'Started' }] }),
-  runBase({ id: 'run-m3', module: 'sensor-active', kind: 'device_check', lane: 'checks', title: 'Check WEB01',
+  runBase({ id: 'run-m3', module: 'sensor-active', kind: 'device_check', lane: 'nmap', title: 'Check WEB01',
     subject: { kind: 'device', id: 'a-web01', label: 'WEB01' }, status: 'queued', queued_at: minAgo(2) }),
   runBase({ id: 'run-m4', module: 'scan', kind: 'vuln_check', lane: 'nuclei', title: 'Vulnerability checks of 12 devices', trigger: 'schedule', requested_by: 'system',
     status: 'done', queued_at: minAgo(600), started_at: minAgo(600), ended_at: minAgo(540), updated_at: minAgo(540), total: 12, done: 12,
@@ -255,14 +277,35 @@ function allRunRows(): RunRow[] {
   const ids = new Set(own.map((r) => r.id))
   return [...own, ...engineRuns().filter((r) => !ids.has(r.id))]
 }
+/** What the box adds as it reads a run (core/run summary.go): the line of words, the run a queued one waits for, and the buttons of the
+ *  person asking (an operator stops and resumes; a LAN sweep resumes for an administrator only). */
+const UNITS: Record<string, string> = { lan_sweep: 'addresses', device_check: 'devices', snmp_read: 'devices', all_ports: 'devices', vuln_check: 'devices' }
+const n = (x: number) => x.toLocaleString('en-US')
+function present(r: RunRow, all: RunRow[]): RunRow {
+  const role = currentUser()?.role
+  const operator = role === 'operator' || role === 'admin'
+  const holder = r.status === 'queued' ? all.find((x) => x.lane === r.lane && x.id !== r.id && (x.status === 'running' || x.status === 'stopping')) : undefined
+  const count = r.total > 0 ? `${n(r.done)} of ${n(r.total)}${UNITS[r.kind] ? ` ${UNITS[r.kind]}` : ''}` : ''
+  const join = (...p: string[]) => p.filter(Boolean).join('; ')
+  const summary = r.status === 'queued' ? (holder ? `Queued behind “${holder.title}”; it starts when that run ends` : 'Queued; it starts in a moment')
+    : r.status === 'waiting' ? join(`Waiting for ${r.waiting_for ?? 'a person to resume it'}`, count)
+    : r.status === 'running' ? (count || 'Running')
+    : r.status === 'stopping' ? join(`Stopping: ${r.stop_reason ?? 'a stop was asked'}`, count)
+    : r.status === 'done' ? (count ? `Done: ${count}` : 'Done')
+    : r.status === 'partial' ? join(`Partly done: ${r.error ?? 'part of the work was not done'}`, count)
+    : r.status === 'failed' ? `Failed: ${r.error ?? 'the run did not finish'}`
+    : join((r.stop_reason ?? '').startsWith('Stopped') ? r.stop_reason! : `Stopped: ${r.stop_reason ?? 'a stop was asked'}`, r.total > 0 && r.done < r.total ? `${count} done` : '')
+  return { ...r, summary, blocked_by: holder ? { id: holder.id, title: holder.title } : null,
+    can_stop: r.can_stop && operator, can_resume: r.can_resume && operator && (r.kind !== 'lan_sweep' || role === 'admin') }
+}
 const runSummary = (r: RunRow): z.infer<typeof RunSchema> => {
-  const { steps: _s, items: _i, items_total: _t, log: _l, children: _c, ...run } = r
+  const { steps: _s, items: _i, items_total: _t, log: _l, children: _c, ...run } = present(r, allRunRows())
   return run
 }
 const runDetail = (id: string): RunRow | undefined => {
   const all = allRunRows()
   const r = all.find((x) => x.id === id)
-  return r && { ...r, children: all.filter((x) => x.parent_id === id).map(runSummary) }
+  return r && { ...present(r, all), children: all.filter((x) => x.parent_id === id).map(runSummary) }
 }
 function setRun(id: string, fn: (r: RunRow) => RunRow) {
   runsStore.update((l) => l.map((r) => (r.id === id ? withButtons({ ...fn(r), updated_at: nowIso() }) : r)))
@@ -366,6 +409,7 @@ export const handlers = [
     if (excl.length > 200) return fail(400, 'too_many_exclusions', 'The exclusion list can have at most 200 lines.')
     for (const x of excl) if (!IPV4_RE.test(x) && !(CIDR_RE.test(x) && masked(x) === x)) return fail(400, 'bad_exclusion', `Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
     if (st.active.enabled && !b.scope?.confirmed) return fail(400, 'scope_not_confirmed', 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.')
+    if (!scopeCost(clean, excl, w.days, w.from!, w.to!, pps).fits_week) return fail(400, 'scope_too_large', TOO_LARGE)
     const same = [...clean].sort().join() === [...st.lan_ranges].sort().join()
     const who = currentUser()?.email ?? null
     inventorySettingsStore.set({
@@ -378,6 +422,12 @@ export const handlers = [
     checkRate.set({ requests_per_s: rps })
     audit('inventory.settings', 'scan scope', `${clean.length} ranges`)
     return HttpResponse.json({ ...scanningView().safety, adjusted })
+  }),
+
+  http.post(`${API}/scanning/safety/estimate`, async ({ request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const b = await body<{ lan_ranges: string[]; exclusions: string[]; window: { days: number[]; from: string; to: string }; packets_per_s: number }>(request)
+    return HttpResponse.json(scopeCost(b.lan_ranges ?? [], b.exclusions ?? [], b.window?.days ?? [], b.window?.from ?? '00:00', b.window?.to ?? '00:00', b.packets_per_s ?? 1))
   }),
 
   // "+ New range" where the person is (#842): one range added in one step, the same rules as the PUT (inventory POST of the backend)

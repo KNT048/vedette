@@ -11,7 +11,7 @@ import { fmtDateTime } from '@/lib/format'
 import { RUN_STATUSES } from '@/lib/statusCodes'
 import { runMoves, runWaits, useRunList } from './api'
 import { runHref } from './places'
-import { RunBar, RunStateChip, useKindLabel, useRunCount, useRunReason, useStartedBy } from './RunParts'
+import { RunBar, RunStateChip, useKindLabel, useStartedBy } from './RunParts'
 import type { Run } from './types'
 
 const link = 'font-medium text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
@@ -19,17 +19,15 @@ const PAGE = 25
 /** The kinds the engines register today (the list is open: a kind not named here is still listed, under its own name). */
 const KINDS = ['lan_sweep', 'device_check', 'snmp_read', 'all_ports', 'vuln_check', 'exposure_scan']
 
-/** The state of one run in its row: the chip, why (what it waits for, why it stopped), and how far it got. */
+/** The state of one run in its row: the chip, the box's line of words (what it waits for, how far it got, why it stopped) and a bar. */
 function State({ r }: { r: Run }) {
   const { t } = useTranslation('scanning')
-  const reason = useRunReason()(r)
-  const count = useRunCount()(r)
-  const showCount = count && (runMoves(r.status) || runWaits(r.status) || r.status === 'partial' || r.status === 'stopped')
+  const showBar = r.total > 0 && (runMoves(r.status) || runWaits(r.status) || r.status === 'partial' || r.status === 'stopped')
   return (
     <div className="grid min-w-0 justify-items-start gap-1 text-meta">
       <RunStateChip status={r.status} />
-      {reason ? <span className="text-muted">{reason}</span> : null}
-      {showCount ? <span className="grid w-full max-w-56 gap-1"><span className="tabular-nums">{count}</span><RunBar done={r.done} total={r.total} label={t('runs.progressOf', { title: r.title })} /></span> : null}
+      <span className="text-muted [overflow-wrap:anywhere]">{r.summary}</span>
+      {showBar ? <span className="grid w-full max-w-56 gap-1"><RunBar done={r.done} total={r.total} label={t('runs.progressOf', { title: r.title })} /></span> : null}
     </div>
   )
 }

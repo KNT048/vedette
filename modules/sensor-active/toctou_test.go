@@ -66,7 +66,7 @@ func (h *hookInv) SNMPPolicy(ctx context.Context, id string) (sa.Decision, error
 
 func buildWith(t *testing.T, e *env, inv sa.Inventory) *sa.Service {
 	t.Helper()
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestContract_INV2_ScanningTurnedOffDuringTheChecksSendsNothing(t *testing.T
 	if !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("err = %v, want ErrStopped", err)
 	}
-	if got := e.str(`SELECT status FROM sa_job`); got != "stopped" {
+	if got := e.str(`SELECT status FROM jobs_v`); got != "stopped" {
 		t.Fatalf("job status = %q", got)
 	}
 }
@@ -151,8 +151,8 @@ func TestContract_INV1_SweepExclusionSavedBetweenCheckAndExecSendsNothing(t *tes
 					t.Fatalf("%s was excluded before nmap started, yet it is in the sweep argv (DiscoverRanges err = %v)", victim, err)
 				}
 			}
-			if !errors.Is(err, sa.ErrStopped) {
-				t.Fatalf("err = %v, want ErrStopped", err)
+			if err != nil && !errors.Is(err, sa.ErrStopped) { // the cut batch is swept again under the new settings
+				t.Fatalf("err = %v", err)
 			}
 		})
 	}

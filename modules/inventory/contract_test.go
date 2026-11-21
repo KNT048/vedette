@@ -193,6 +193,15 @@ var seedsInvRows = map[string]bool{
 	"../../cmd/vedette/softwareline_fixture_test.go":      true,
 	"../../modules/findings/findingstest/findingstest.go": true, // creates the device and line rows findings' tests point at (foreign keys)
 	"../../modules/findings/prune_test.go":                true, // deletes lines as the retention does, to see what the foreign key leaves
+	// the intrusion alerts reference devices by a foreign key: the tests seed devices with fixed ids and delete one to see its
+	// alerts stay
+	"../../modules/ids/service_test.go": true,
+}
+
+// checksInvRows are the self-check invariants of modules that depend on the inventory and keep a device id without a foreign key:
+// they count their own rows whose device is gone, so they read inv_asset ids. They may read; a write there still fails.
+var checksInvRows = map[string]bool{
+	"../../modules/findings/selfcheck.go": true,
 }
 
 func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
@@ -200,6 +209,7 @@ func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 	// FORBID-4: no other Go package touches inv_* tables. The scan is by effect on the source tree: any SQL verb
 	// followed by an inv_ table outside modules/inventory fails.
 	re := regexp.MustCompile(`(?i)\b(from|join|into|update|delete\s+from)\s+inv_`)
+	writes := regexp.MustCompile(`(?i)\b(into|update|delete\s+from)\s+inv_`)
 	root := filepath.Join("..", "..")
 	var bad []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -223,7 +233,7 @@ func TestContract_INV2_OnlyTheServiceWritesInvTables(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if re.Match(b) {
+		if checksInvRows[filepath.ToSlash(path)] && writes.Match(b) || !checksInvRows[filepath.ToSlash(path)] && re.Match(b) {
 			bad = append(bad, path)
 		}
 		return nil

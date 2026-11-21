@@ -10,8 +10,8 @@ import (
 
 // registerLifecycle adds the modules' parts of a device merge or delete to d.Lifecycle (core/lifecycle): the inventory runs them
 // inside its own write, so every module's rows change with the device or none does. They run whether or not their module is on: the
-// rows exist either way. Sensor-active adds its own when its service is built (sensorActiveService). Exposure and agent-intake keep
-// no device id (the gateway link is read from the inventory; an agent binds through the inventory's own row), so they have no part.
+// rows exist either way. Sensor-active adds its own when its service is built (sensorActiveService). Exposure keeps no device id (the
+// gateway link is read from the inventory); agent-intake's only one is the device a token was made for (a delete clears it by its foreign key).
 func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 	h := d.Lifecycle
 	if h == nil {
@@ -35,6 +35,9 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 		h.Register(lifecycle.Participant{Name: "feeds", DeviceMerged: fs.DeviceMerged, DeviceDeleted: fs.DeviceDeleted})
 	}
 	h.Register(idsParticipant(idsService(*d)))
+	if d.AgentIntake != nil {
+		h.Register(lifecycle.Participant{Name: "agent-intake", DeviceMerged: d.AgentIntake.DeviceMerged}) // the tokens made for a device
+	}
 }
 
 // sensorActiveParticipant is sensor-active's part of a device merge or delete: its queued check, SNMP settings and device checks.

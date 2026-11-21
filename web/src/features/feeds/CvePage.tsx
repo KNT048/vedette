@@ -23,8 +23,9 @@ export default function CvePage() {
   const { id: raw = '' } = useParams()
   const id = raw.trim().toUpperCase() // the API only knows CVE ids in capitals; the mock used to forgive a lower-case address
   const cve = useCve(id)
-  // S-TIER-1: a CVE on no exploited list answers from the tier data instead of a dead end
-  const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
+  // S-TIER-1: a CVE on no exploited list (its brief names no list entry, or the catalogue does not hold it) answers from the tier
+  // data instead of a dead end
+  const notInKev = (cve.error instanceof ApiError && cve.error.code === 'not_in_data') || cve.data?.lists.length === 0
   const tier = useTierCve(id, notInKev)
   // "See findings" only when this CVE has open findings (a matched device may not be a finding, or all are closed)
   const findingsOn = useModuleEnabled('findings') === true
@@ -45,7 +46,11 @@ export default function CvePage() {
       {crumbs}
       {!CVE_ID.test(id) ? <EmptyState title={t('cve.notAnId', { id: raw.trim().slice(0, 80) })}>{t('cve.notAnIdBody')}<p className="mt-2"><Link to={`/lookup?q=${encodeURIComponent(raw.trim().slice(0, 200))}`} className="text-accent underline-offset-4 hover:underline">{t('cve.tryLookup')}</Link></p></EmptyState> : null}
       {CVE_ID.test(id) ? <QueryState query={cve}>
-        {(v) => (
+        {(b) => {
+          const k = b.lists[0]
+          if (!k) return <EmptyState title={t('cve.notListed', { cve: b.cve })}>{t('cve.notListedBody')}</EmptyState>
+          const v = { ...k, cve: b.cve, published: b.published, epss: b.epss?.score ?? null, has_template: b.signals.some((g) => g.kind === 'public_exploit' && g.source === 'nuclei-templates'), matched: b.matched, not_affected: b.not_affected }
+          return (
           <>
             <PageHeader title={t('cve.title', { cve: v.cve, product: v.display })} stories={['S-FEED-1', 'S-FEED-3']}
               meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<StatusBadge code="exploited" /><span className="text-meta text-muted">{t('cve.inKev', { date: fmtDate(v.date_added) })}</span></span>} />
@@ -101,7 +106,8 @@ export default function CvePage() {
               </aside>
             </div>
           </>
-        )}
+          )
+        }}
       </QueryState> : null}
       {CVE_ID.test(id) && cve.error ? <p className="mt-4 text-sm"><Link to={`/lookup?q=${encodeURIComponent(id)}`} className="text-accent underline-offset-4 hover:underline">{t('cve.tryLookup')}</Link></p> : null}
     </>

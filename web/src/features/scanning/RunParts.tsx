@@ -18,18 +18,6 @@ export function useKindLabel() {
   return (kind: string) => t(`runs.kind.${kind}`, { defaultValue: kind.replaceAll('_', ' ') })
 }
 
-/** Why it is in its state, from what the run stored: what it waits for, why it stopped, what went wrong. Null when nothing to say. */
-export function useRunReason() {
-  const { t } = useTranslation('scanning')
-  return (r: Run): string | null => {
-    if (r.status === 'waiting' && r.waiting_for) return t('runs.waitingFor', { what: r.waiting_for })
-    if (r.status === 'queued') return t('runs.queuedNote')
-    if ((r.status === 'stopped' || r.status === 'stopping') && r.stop_reason) return r.stop_reason
-    if ((r.status === 'failed' || r.status === 'partial') && r.error) return r.error
-    return null
-  }
-}
-
 /** "6,528 of 65,792", or null when the run does not count its work. */
 export function useRunCount() {
   const { t } = useTranslation('scanning')

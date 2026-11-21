@@ -25,7 +25,7 @@ func TestGUIReal_LinksReachTheGUIUnchanged(t *testing.T) {
 	if c != 200 {
 		t.Fatalf("GET /feeds/cve = %d %v", c, b)
 	}
-	got, _ := at(b, "links").([]any)
+	got, _ := at(b, "lists", 0, "links").([]any)
 	if len(got) != len(want) {
 		t.Fatalf("links = %v, want %v", got, want)
 	}

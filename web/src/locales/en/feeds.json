@@ -138,6 +138,8 @@
     "toFindings_one": "See the open finding and what to do",
     "toFindings_other": "See the {{count}} open findings and what to do",
     "tryLookup": "Look up this ID",
+    "notListed": "{{cve}} is not on an exploited list",
+    "notListedBody": "The vulnerability data on this box holds it, but no exploited list names it.",
     "notAnId": "“{{id}}” is not a CVE ID",
     "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number.",
     "notAffected_one": "1 device runs this product but is not affected: Vedette checked its platform (see its findings).",

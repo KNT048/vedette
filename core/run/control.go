@@ -317,3 +317,43 @@ func tree(ctx context.Context, tx *sql.Tx, id string) ([]string, error) {
 	}
 	return ids, rows.Err()
 }
+
+// SubjectMovedTx gives the runs of module whose subject is device from to device into, inside the caller's transaction (a merge of
+// two devices that were one machine: the runs of the one that goes are the history of the one that stays). The label snapshot stays.
+func (m *Manager) SubjectMovedTx(ctx context.Context, tx *sql.Tx, module, subjectKind, from, into string) error {
+	_, err := tx.ExecContext(ctx, `UPDATE core_run SET subject_id = ?, updated_at = ? WHERE module = ? AND subject_kind = ? AND subject_id = ?`,
+		into, m.now(), module, subjectKind, from)
+	if err != nil {
+		return fmt.Errorf("run: move subject: %w", err)
+	}
+	return nil
+}
+
+// SubjectGoneTx stops, inside the caller's transaction, the runs of module about subject that have not started or wait (queued,
+// waiting) with reason: their subject is gone (a deleted device). A running one is the module's to stop.
+func (m *Manager) SubjectGoneTx(ctx context.Context, tx *sql.Tx, module, subjectKind, subjectID, reason string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND subject_kind = ? AND subject_id = ? AND status IN (?, ?)`,
+		module, subjectKind, subjectID, string(Queued), string(Waiting))
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	now := m.now()
+	for _, id := range ids {
+		if _, err := m.stopTx(ctx, tx, id, reason, now); err != nil {
+			return fmt.Errorf("run: stop for a gone subject: %w", err)
+		}
+	}
+	return nil
+}

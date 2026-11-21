@@ -106,6 +106,7 @@ func (g *gateFor) gate(_ context.Context, actor string, ip netip.Addr) (bool, er
 func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
+	s.startRuns()
 	var mu sync.Mutex
 	answer := xmlResult(nmapFixture(t, "external.xml"))
 	w := startFakeScanWorker(t, s, func(sensorlink.Job) *sensorlink.JobResult { mu.Lock(); defer mu.Unlock(); return answer })
@@ -284,6 +285,7 @@ func (m *modeAt) now(_ context.Context, actor, id string) (exposure.ScanMode, er
 func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
+	s.startRuns()
 	var amu sync.Mutex
 	answer := xmlResult(nmapFixture(t, "external_full.xml"))
 	w := startFakeScanWorkerFull(t, s, true, func(sensorlink.Job) *sensorlink.JobResult { amu.Lock(); defer amu.Unlock(); return answer })
@@ -354,6 +356,7 @@ func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 func TestExposureDeepScanOldWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
+	s.startRuns()
 	w := startFakeScanWorker(t, s, func(sensorlink.Job) *sensorlink.JobResult { return xmlResult(nmapFixture(t, "external_full.xml")) })
 	sc := exposureServicesFor(*s.d, (&gateFor{ok: true}).gate, (&modeAt{mode: exposure.ScanMode{Full: true}}).now)
 	for deadline := time.Now().Add(20 * time.Second); strings.Contains(s.d.SensorDispatcher.NmapHealth(), "has not reported"); waitTick(t) {

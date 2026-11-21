@@ -473,3 +473,13 @@ func TestWiringRangesUpdateRematchesOnlyItsDevices(t *testing.T) {
 		t.Fatalf("a FortiOS update: %d match events, want 1", n)
 	}
 }
+
+// startRuns starts the stack's run manager, as serve does: the runs of the module services built on it (sensor-active's service scan,
+// a vulnerability check) then start. A test that builds its own sensor-active service gives it a manager of its own instead.
+func (s *stack) startRuns() {
+	s.t.Helper()
+	if err := s.d.Runs.Start(s.t.Context()); err != nil {
+		s.t.Fatal(err)
+	}
+	s.t.Cleanup(s.d.Runs.Close)
+}

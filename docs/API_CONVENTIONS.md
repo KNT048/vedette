@@ -390,7 +390,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_certificate` | 404 | This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address. | `GET /intake/ca.pem`, `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi hộp phục vụ HTTP trên loopback (không có chứng chỉ để ghim); `GET /inventory/agents` vẫn trả script với chỗ trống CA ghi rõ (agent-intake, WP-26 lát 3) |
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
 | `not_found` | 404 | This ${what} no longer exists. | 52 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |
-| `not_in_kev` | 404 | This CVE is not on the exploited list (CISA KEV) in the current data. | `GET /feeds/cve/{id}` |
+| `not_in_data` | 404 | The vulnerability data on this box does not hold this CVE. | `GET /feeds/cve/{id}` (and, with its own sentence, `GET /feeds/cve/{id}/tier`) |
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 

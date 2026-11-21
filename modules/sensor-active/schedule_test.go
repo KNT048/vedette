@@ -18,54 +18,15 @@ import (
 func markSweepDone(t *testing.T, e *env, id string) {
 	t.Helper()
 	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES (?, 'sweep', ?, ?, 'done')`, id, store.FormatTS(e.clock()), store.FormatTS(e.clock()))
+		_, err := tx.ExecContext(e.ctx(), doneRunSQL, id, sa.RunSweep, store.FormatTS(e.clock()), "")
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// M4: a device scan cut by its deadline counts as an attempt and goes to the back of the queue, so it cannot
-// block the devices behind it window after window (and is dropped after maxAttempts).
-func TestQueueDeviceCutByTheDeadlineGoesToTheBack(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t, fakeOpts{slowFrom: 1}) // every nmap run sleeps 30 s, longer than what is left of the window
-	for _, id := range []string{"a-printer", "a-web"} {
-		if err := e.svc.Enqueue(e.ctx(), id, "discovered"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for i, day := range []int{9, 10, 11} {
-		e.base, e.t0 = local(day, 4, 59).Add(57*time.Second), time.Now() // 3 s before the window closes
-		markSweepDone(t, e, "saj-sweep-"+string(rune('a'+i)))
-		if err := e.svc.Tick(e.ctx()); err != nil && !errors.Is(err, sa.ErrStopped) {
-			t.Fatal(err)
-		}
-		if i == 0 {
-			if got := e.count(`SELECT attempts FROM sa_queue WHERE asset_id = 'a-printer'`); got != 1 {
-				t.Fatalf("a-printer was cut by its deadline: attempts = %d, want 1", got)
-			}
-			if got := e.str(`SELECT asset_id FROM sa_queue ORDER BY queued_at, asset_id LIMIT 1`); got != "a-web" {
-				t.Fatalf("first in the queue = %q, want a-web: the cut device goes to the back", got)
-			}
-		}
-	}
-	var printer, web int
-	for _, c := range e.nm.calls(t) {
-		switch {
-		case slices.Contains(c, "192.168.10.30"):
-			printer++
-		case slices.Contains(c, "192.168.10.20"):
-			web++
-		}
-	}
-	if web == 0 {
-		t.Fatalf("three windows: a-printer cut %d times, a-web behind it never scanned", printer)
-	}
-}
-
-// A scan stopped by a settings change is not an attempt: only a deadline is.
-func TestQueueDeviceStoppedBySettingsKeepsItsAttempts(t *testing.T) {
+// A check stopped by turning active scanning off waits (a waiting run) for scanning to be turned on again.
+func TestQueueDeviceStoppedBySettingsKeepsWaiting(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1})
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
@@ -82,8 +43,8 @@ func TestQueueDeviceStoppedBySettingsKeepsItsAttempts(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	if got := e.count(`SELECT attempts FROM sa_queue WHERE asset_id = 'a-web'`); got != 0 {
-		t.Fatalf("attempts = %d after a stop by settings, want 0", got)
+	if got := e.count(`SELECT count(*) FROM queue_v WHERE asset_id = 'a-web'`); got != 1 {
+		t.Fatalf("the check stopped by turning scanning off left the queue (%d), want it waiting", got)
 	}
 }
 
@@ -92,13 +53,13 @@ func TestQueueDeviceStoppedBySettingsKeepsItsAttempts(t *testing.T) {
 func TestSweepCutByTheWindowResumesWhereItStopped(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 2}, func(e *env) {
-		e.base = local(9, 4, 59).Add(57 * time.Second)
+		e.setBase(local(9, 4, 59).Add(57 * time.Second))
 		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} }) // batches .1-.64 and .65-.126
 	})
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
 		t.Fatalf("first window: err = %v, want ErrStopped", err)
 	}
-	e.base, e.t0 = local(10, 4, 59).Add(57*time.Second), time.Now()
+	e.setClock(local(10, 4, 59).Add(57 * time.Second))
 	_, _ = e.svc.DiscoverRanges(e.ctx())
 	calls := e.nm.calls(t)
 	if len(calls) < 3 {
@@ -115,7 +76,7 @@ func TestSweepNewPassStartsAfterTheLastEnded(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
 	for day := 9; day <= 10; day++ {
-		e.base, e.t0 = local(day, 2, 0), time.Now()
+		e.setClock(local(day, 2, 0))
 		if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
 			t.Fatal(err)
 		}
@@ -124,8 +85,8 @@ func TestSweepNewPassStartsAfterTheLastEnded(t *testing.T) {
 	if len(calls) != 2 || !slices.Equal(targetsOf(calls[0]), targetsOf(calls[1])) {
 		t.Fatalf("%d runs; each finished pass must cover the whole range again", len(calls))
 	}
-	if got := e.count(`SELECT count(*) FROM sa_sweep WHERE cursor IS NOT NULL`); got != 0 {
-		t.Fatal("the cursor of a finished pass was kept")
+	if got := e.count(`SELECT count(*) FROM core_run WHERE kind = 'lan_sweep' AND status = 'done'`); got != 2 {
+		t.Fatalf("%d passes done, want two runs, one per pass", got)
 	}
 	if n := len(e.inv.checked); n != 0 {
 		t.Fatalf("InScope was called %d times: addresses are tested in memory against the settings read once per batch", n)
@@ -170,7 +131,7 @@ func TestContract_INV5_FirstScanIsMarkedWhenNmapFinishedEvenIfRecordingFails(t *
 	}
 	sw := &failingSoftware{sink: e.sink, fail: errors.New("database is locked")}
 	// the gentle scan records only its ports (it leaves the software alone), so that is the write that fails
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Services: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Services: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +184,7 @@ func TestContract_INV3_WindowIsReadInTheConfiguredZone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t, fakeOpts{}, func(e *env) {
-				e.base = c.at.UTC() // the clock says UTC; only the zone makes it 03:00 or 12:00
+				e.setBase(c.at.UTC()) // the clock says UTC; only the zone makes it 03:00 or 12:00
 				e.loc = func() *time.Location { return zone }
 			})
 			_, err := e.svc.DiscoverRanges(e.ctx())
@@ -274,7 +235,7 @@ func TestProbeRowsAreCompact(t *testing.T) {
 		"sweep 100 64 192.168.10.1-192.168.10.64; sweep 100 62 192.168.10.65-192.168.10.126; normal 100 1 192.168.10.20; extra_ports 100 1 192.168.10.20" {
 		t.Fatalf("probe rows = %q", got)
 	}
-	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
+	probes, err := e.svc.Probes(e.ctx(), e.baseTime().Add(-time.Hour), 100)
 	if err != nil || len(probes) != 4 {
 		t.Fatalf("Probes = %d rows, %v", len(probes), err)
 	}
@@ -283,8 +244,8 @@ func TestProbeRowsAreCompact(t *testing.T) {
 	}
 }
 
-// L5: pruning the probe log also removes the jobs that have no probe row left; a job with a recent probe stays.
-func TestPruneRemovesOldJobsWithTheirProbes(t *testing.T) {
+// L5: pruning drops the probe rows older than the retention; the runs are core/run's to prune (400 days).
+func TestPruneRemovesOldProbes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
 	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
@@ -292,10 +253,10 @@ func TestPruneRemovesOldJobsWithTheirProbes(t *testing.T) {
 	}
 	old := store.FormatTS(e.clock().AddDate(0, 0, -400))
 	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
-		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj-old', 'sweep', ?, ?, 'done')`, old, old); err != nil {
+		if _, err := tx.ExecContext(e.ctx(), doneRunSQL, "run-old", sa.RunSweep, old, ""); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, 'saj-old', 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, old)
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, 'run-old', 'sweep', 10, 1, '--privileged -sn -n --max-rate 10', '10.0.0.1', 'ok')`, old)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -303,8 +264,8 @@ func TestPruneRemovesOldJobsWithTheirProbes(t *testing.T) {
 	if n, err := e.svc.Prune(e.ctx()); err != nil || n != 1 {
 		t.Fatalf("Prune = %d, %v; want 1", n, err)
 	}
-	if got := e.count(`SELECT count(*) FROM sa_job`); got != 1 {
-		t.Fatalf("%d jobs after pruning, want only the recent one", got)
+	if got := e.count(`SELECT count(*) FROM sa_probe WHERE run_id = 'run-old'`); got != 0 {
+		t.Fatalf("%d old probes after pruning", got)
 	}
 }
 
@@ -327,11 +288,11 @@ func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
 	e := newEnv(t, fakeOpts{})
 	p := &pendingInv{fakeInv: e.inv, ids: []string{"a-printer"}}
 	e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true}
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: p, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: p, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.base, e.t0 = local(9, 2, 0), time.Now() // inside the 01:00-05:00 window
+	e.setClock(local(9, 2, 0)) // inside the 01:00-05:00 window
 	markSweepDone(t, e, "saj-sweep-p")
 	if err := svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -374,7 +335,7 @@ func TestWindowQueuesTheNormalScanADeviceOwes(t *testing.T) {
 	e.inv.mu.Lock()
 	e.inv.decision = map[string]sa.Decision{"a-printer": {Reason: "fragile_passive_only", Fragile: true}}
 	e.inv.mu.Unlock()
-	e.base, e.t0 = local(10, 2, 0), time.Now()
+	e.setClock(local(10, 2, 0))
 	markSweepDone(t, e, "saj-sweep-b")
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -391,16 +352,16 @@ func TestWindowQueuesTheNormalScanADeviceOwes(t *testing.T) {
 	if web == 0 || printerNormal != 0 {
 		t.Fatalf("normal scans of a-web = %d (want at least 1), of the fragile a-printer = %d", web, printerNormal)
 	}
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
+	if n := e.count(`SELECT count(*) FROM jobs_v WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
 		t.Fatalf("%d jobs of the owed scan", n)
 	}
 	// window 3: the scan has run, so nothing is owed
-	e.base, e.t0 = local(11, 2, 0), time.Now()
+	e.setClock(local(11, 2, 0))
 	markSweepDone(t, e, "saj-sweep-c")
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM sa_job WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
+	if n := e.count(`SELECT count(*) FROM jobs_v WHERE asset_id = 'a-web' AND reason = 'normal_owed'`); n != 1 {
 		t.Fatalf("%d jobs of the owed scan after the next window, want still 1", n)
 	}
 }

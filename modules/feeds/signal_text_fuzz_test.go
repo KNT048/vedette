@@ -96,23 +96,43 @@ func FuzzProseForms(f *testing.F) {
 	})
 }
 
-// FuzzProseListTail: a claim on a list of ids holds only when what follows the list goes on about the exploitation (nothing, a stop,
-// a preposition); any other word may open a clause about the last id alone, and the sentence is not read.
+// FuzzProseListTail: after a list of two ids, only nothing, a stop, "by", "against" or "as" lets the claim hold for both. Any other
+// word, and a clause verb after "by", "against" or "as", must leave both unclaimed. The oracle is this list, not the decoder's rule.
 func FuzzProseListTail(f *testing.F) {
-	for _, w := range []string{"allows", "affects", "enables", "exists", "against", "in", "", "which", "is"} {
-		f.Add(w, "the same release.")
+	for _, w := range []string{"allows", "affects", "enables", "exists", "against", "in", "which", "is", "by", "as", "via"} {
+		f.Add(w, "the same release", "allows")
 	}
-	f.Fuzz(func(t *testing.T, word, rest string) {
-		if strings.ContainsAny(word, " .,;:()?!<>&\n\r\t") || claimCVERE.MatchString(rest) || strings.ContainsAny(rest, "<&") {
+	f.Fuzz(func(t *testing.T, word, middle, verb string) {
+		letters := func(s string) bool {
+			if s == "" {
+				return false
+			}
+			for _, r := range s {
+				if r < 'a' || r > 'z' {
+					return false
+				}
+			}
+			return true
+		}
+		if !letters(word) || !letters(verb) || strings.ContainsAny(middle, ",;:.!?<>&()\"") || claimCVERE.MatchString(middle) ||
+			strings.IndexFunc(middle, func(r rune) bool { return r > 127 || r < ' ' }) >= 0 {
 			return
 		}
-		sentence := "Rapid7 MDR has observed exploitation of CVE-2026-1111, and CVE-2026-2222 " + word + " " + rest
-		got, _, err := proseClaims(t.Context(), proseForms, "", sentence)
+		const head = "Rapid7 MDR has observed exploitation of CVE-2026-1111 and CVE-2026-2222 "
+		allowed := word == "by" || word == "against" || word == "as"
+		got, _, err := proseClaims(t.Context(), proseForms, "", head+word+" "+middle+" files.")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(got) > 0 && !proseListTailRE.MatchString(strings.ToLower(" "+word)) && word != "" {
-			t.Fatalf("%q claims %v", sentence, got)
+		if !allowed && len(got) > 0 {
+			t.Fatalf("%q claims %v", head+word+" "+middle, got)
+		}
+		clauseVerbs := map[string]bool{"allows": true, "affects": true, "enables": true, "exists": true, "is": true, "lets": true, "permits": true, "requires": true, "remains": true, "impacts": true}
+		if allowed && clauseVerbs[verb] {
+			sentence := head + word + " " + middle + " " + verb + " file reads."
+			if got, _, _ := proseClaims(t.Context(), proseForms, "", sentence); len(got) > 0 {
+				t.Fatalf("%q claims %v", sentence, got)
+			}
 		}
 	})
 }

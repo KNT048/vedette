@@ -42,6 +42,7 @@ type claimForm struct {
 	open    []int // the submatch indexes of the open parts
 	tail    int   // the submatch index of the open part "o2" (what follows the claim), 0 when none
 	vuln    int   // the submatch index of the open part "o3" (the words before a parenthesised id), 0 when none
+	by      int   // the submatch index of the open part "o1" (who says it), 0 when none
 }
 
 // formKind says what a sentence of a form states.
@@ -64,6 +65,8 @@ func forms(kind formKind, all bool, patterns ...string) []claimForm {
 			case strings.HasPrefix(name, "o"):
 				f.open = append(f.open, i)
 				switch name {
+				case "o1":
+					f.by = i
 				case "o2":
 					f.tail = i
 				case "o3":
@@ -105,14 +108,20 @@ var (
 		`simulat[a-z]*|proof-of-concept|poc|(?:is|are|was|were|be|been|turned out to be|proved|proven) (?:to be )?(?:wrong|incorrect|inaccurate)|` +
 		`erroneous(?:ly)?|mistaken(?:ly)?|retract[a-z]*|debunk[a-z]*|disput[a-z]*|unsubstantiated|speculat[a-z]*|reportedly|purported(?:ly)?|` +
 		`claims? that|claimed that|ctfs?|capture the flag|(?:all|each|both|none|some) of which failed|failed attempts? to exploit|` +
+		`(?:which|that|attempts?|they|it|all|each|both|every attempt|none|some)(?: [a-z]+)? failed|` +
 		`unsuccessful(?:ly)?|determin(?:e|ing) which)\b|n't\b|\?`)
 	// proseListTailRE: what may follow a claim whose subject is a list of ids: nothing, a stop, or a preposition that goes on about the
 	// exploitation ("… exploitation of CVE-A and CVE-B against …"). Anything else may open a clause about the last id alone ("…, and
 	// CVE-B allows …", "…, which is a separate bug"), so the sentence is not read.
-	proseListTailRE = regexp.MustCompile(`^ ?(?:$|[.;:)]|(?:in|by|against|as|to|from|since|on|via|during|targeting|affecting|between|across|at|through|after|before|until|over|within)\b)`)
+	proseListTailRE = regexp.MustCompile(`^ ?(?:$|[.;:)]|(?:by|against|as)\b)`)
+	// proseListClauseRE: a clause in the tail of a list claim, up to its first stop ("… against servers in the region allows …").
+	proseListClauseRE = regexp.MustCompile(`\b(?:is|are|was|were|has|have|had|remains?|appears?|seems?|could|can|may|might|will|would|should|does|did|do|` +
+		`allows?|affects?|enables?|exists?|impacts?|lets?|permits?|requires?|resides?|leads?|stems?|causes?|gives?|grants?|includes?)\b`)
+	// proseHearsayRE: who says it, when it is hearsay ("A forum user claims …", "The seller claimed …", "Posts say …").
+	proseHearsayRE = regexp.MustCompile(`\b(?:claims?|claimed|says?|said|alleges?|alleged(?:ly)?|asserts?|asserted)\b`)
 	// proseOtherRE: the words before a parenthesised id that make it another vulnerability than the one exploited ("a bypass of the
 	// fix for an older vulnerability (CVE-X)").
-	proseOtherRE = regexp.MustCompile(`\b(?:bypass(?:es|ed)?|related|similar|older|earlier|previous(?:ly)?|prior|patch(?:es)? for|fix(?:es)? for|variants?|another|other|different)\b`)
+	proseOtherRE = regexp.MustCompile(`\b(?:bypass(?:es|ed)? (?:of|for)|related to|similar to|variants? of|older|patch(?:es)? for|fix(?:es)? for)\b`)
 )
 
 // The parts of Cisco's sentences.
@@ -283,7 +292,8 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 			m := f.re.FindStringSubmatchIndex(canon)
 			if m == nil || f.kind != formClaim && claimTurnRE.MatchString(canon) || hedged(canon, m, f.open) ||
 				r.prose && f.tail > 0 && m[2*f.tail] >= 0 && proseClauseRE.MatchString(canon[m[2*f.tail]:m[2*f.tail+1]]) ||
-				r.prose && f.vuln > 0 && m[2*f.vuln] >= 0 && proseOtherRE.MatchString(canon[m[2*f.vuln]:m[2*f.vuln+1]]) {
+				r.prose && f.vuln > 0 && m[2*f.vuln] >= 0 && proseOtherRE.MatchString(canon[m[2*f.vuln]:m[2*f.vuln+1]]) ||
+				r.prose && f.by > 0 && m[2*f.by] >= 0 && proseHearsayRE.MatchString(canon[m[2*f.by]:m[2*f.by+1]]) {
 				continue
 			}
 			form = f
@@ -293,7 +303,7 @@ func (r *claimReader) read(ctx context.Context, text string, scope []string, sco
 				if f.tail > 0 && m[2*f.tail] >= 0 {
 					tail = canon[m[2*f.tail]:m[2*f.tail+1]]
 				}
-				if r.prose && (len(subject) != len(named) || len(subject) > 1 && !proseListTailRE.MatchString(tail)) {
+				if r.prose && (len(subject) != len(named) || len(subject) > 1 && !listTailClean(tail)) {
 					form = nil // the sentence names a CVE the claim may not bind to: no guess, the sentence is counted
 					break
 				}
@@ -367,6 +377,18 @@ func canonicalSentence(s string, prose bool) (string, []string, [][]string) {
 	s = lists.ReplaceAllString(s, "{cve}")
 	s = claimWhenRE.ReplaceAllString(s, "{when} ")
 	return s, named, tokens
+}
+
+// listTailClean says whether what follows a list of ids lets the claim hold for every id: nothing, a stop, or "by", "against" or "as"
+// with no clause up to the next stop.
+func listTailClean(tail string) bool {
+	if !proseListTailRE.MatchString(tail) {
+		return false
+	}
+	if i := strings.IndexAny(tail, ",;:"); i >= 0 {
+		tail = tail[:i]
+	}
+	return !proseListClauseRE.MatchString(tail)
 }
 
 // hedged says whether an open part of a form's match holds a negation or a hedge.

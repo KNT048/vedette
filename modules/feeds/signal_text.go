@@ -83,7 +83,7 @@ const (
 	proseAdj  = `(?:(?:active|ongoing|limited|targeted|widespread|mass|renewed|continued|zero-day|0-day|in-the-wild|real-world|attempted|successful),? )*`
 	proseSees = `(?:confirmed|identified|observed|detected|reported|attributes|attributed|(?:is|are|became|was|were) aware of|` +
 		`(?:has|have|had) (?:also )?(?:seen|observed|confirmed|identified|detected|reported))`
-	proseVuln  = `(?:an? (?P<o3>[^{}()]{1,120})\()?` // "a zero-day vulnerability (" before the id (hedge-checked)
+	proseVuln  = `(?:(?:an?|another) (?P<o3>[^{}()]{1,120})\()?` // "a zero-day vulnerability (" before the id (hedge-checked)
 	proseActor = `(?:threat actors?|the actors?|attackers|adversaries|(?:an?|the) (?:[a-z0-9-]+ )?campaign|unc[0-9]{1,6}|apt[0-9]{1,4}|` +
 		`\((?:formerly tracked as )?unc[0-9]{1,6}\))`
 )

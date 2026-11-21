@@ -534,16 +534,16 @@ function Body() {
         ) },
         ...(findingsOn ? [{ id: 'findings', label: t('findings:device.tab'), badge: summary ? tabCount(summary.open, t('findings:device.tabCount')) : undefined, panel: <DeviceFindings assetId={a.id} summary={summary} /> }] : []),
         { id: 'software', label: t('detail.tabs.software'), badge: tabCount(a.software.length, t('detail.tabs.softwareCount')), panel: (
-          <Section id="software" title={t('software.title')} description={t('software.description')} info={t('software.descriptionInfo')}
+          <Section id="software" title={t('software.title')} info={<><p>{t('software.description')}</p><p>{t('software.descriptionInfo')}</p></>}
             actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
             <SoftwareList d={d} />
           </Section>
         ) },
         { id: 'services', label: t('detail.tabs.services'), badge: tabCount(a.services.length, t('detail.tabs.servicesCount')), panel: (
-          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
+          <Section id="services" title={t('services.title')} info={<><p>{t('services.description')}</p><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
-          <Section id="obs" title={t('obs.title')} description={t('obs.description')} info={<><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
+          <Section id="obs" title={t('obs.title')} info={<><p>{t('obs.description')}</p><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
             <Observations list={d.observations} />
           </Section>
         ) },

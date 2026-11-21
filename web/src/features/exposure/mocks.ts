@@ -22,6 +22,7 @@ import { serviceLabel } from './services'
 import { seedTree, seedTreeRows, type StoredNode, type TreeRows } from './treeSeed'
 import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { mockDeviceProgress } from '@/lib/progress'
+import { scheduleSubjects } from '@/features/core/schedulesMock'
 import type { Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
 import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 import { fmtDate, fmtDateTime } from '@/lib/format'
@@ -558,6 +559,15 @@ function outsideNodeAsk(n: StoredNode) {
   return HttpResponse.json(outsideNodeView(n.id))
 }
 
+// The schedules mock asks here whether a target exists and whether its scan can start now, as the box's owner of exposure.target does.
+scheduleSubjects['exposure.target'] = (id) => {
+  const n = nodeOf(id)
+  if (!n) return { gone: true }
+  const b = nodeView(n).blocked
+  return { gone: false, refuse: b === 'disabled' ? `${n.value} is switched off, so it is not scanned.` : b === 'proof' ? `${n.value} has no ownership proof, so it cannot be scanned. Finish verification first.`
+    : b === 'no_commitment' ? `${n.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${n.value} and that the scan is authorized.` : undefined }
+}
+
 const treeHandlers = [
   http.get(`${API}/exposure/tree`, () => {
     const denied = guard('viewer'); if (denied) return denied
@@ -760,7 +770,7 @@ const treeHandlers = [
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ ids: string[]; resolution: Resolution; note: string; accepted_until?: string }>(request)
     const ids = issueIdsOf(b.ids)
-    if (!ids) return fail(400, 'bad_value', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
+    if (!ids) return fail(400, 'invalid', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
     if (!RESOLUTIONS.includes(b.resolution as Resolution)) return fail(400, 'bad_value', 'Choose how the issues were handled.')
     if (typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'bad_value', 'The note is at most 500 characters.')
     if ((b.resolution === 'false_positive' || b.resolution === 'not_relevant' || b.resolution === 'accepted') && b.note.trim().length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
@@ -783,7 +793,7 @@ const treeHandlers = [
   http.post(`${API}/exposure/issues/reopen`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const ids = issueIdsOf((await body<{ ids: string[] }>(request)).ids)
-    if (!ids) return fail(400, 'bad_value', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
+    if (!ids) return fail(400, 'invalid', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
     let reopened = 0
     treeRows.update((r) => ({ ...r, issues: r.issues.map((i) => {
       if (!ids.has(i.id) || i.state !== 'handled') return i

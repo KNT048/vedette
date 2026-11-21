@@ -1,10 +1,16 @@
-// The same script of API calls runs against the GUI mock (always) and against the real Go backend (only when VITE_EXPOSURE_REAL_URL is
-// set: a box with the inventory and exposure modules on, prepared with web/e2e/qa/real-box.mjs; VITE_EXPOSURE_QA_PASSWORD is the password
-// of admin@qa.test, op@qa.test and view@qa.test). The mock is the approved behaviour: every step states the status and error code the mock
-// gives and, where the real backend deliberately differs, what it gives instead. Every 2xx body is checked against contract.ts.
-//   VITE_EXPOSURE_REAL_URL=http://127.0.0.1:8080 VITE_EXPOSURE_QA_PASSWORD=... pnpm --dir web exec vitest run src/features/exposure/conformance.test.ts
-// The script adds two targets under example.org (their ownership check asks DNS for a record that is not there) and deletes them at the
-// end; nothing is ever scanned (no target is proved).
+// The same script of API calls runs against the GUI mock (always, also in CI) and against the real Go backend (only when
+// VITE_EXPOSURE_REAL_URL is set; CI does not start a box, so this leg runs by hand before a change of the exposure handlers is merged).
+// The mock is the approved behaviour: every step states the status and error code both give, and every 2xx body is checked against
+// contract.ts.
+// The real leg needs a box built from the same commit, as a container-only install (no vedette-host: a domain's token is then random
+// instead of asked of the host), with the feeds, inventory and exposure modules on and three accounts:
+//   go build -o /tmp/vedette-conf/vedette ./cmd/vedette
+//   /tmp/vedette-conf/vedette -db /tmp/vedette-conf/vedette.db -key /tmp/vedette-conf/vedette.key -listen 127.0.0.1:18431 -host-socket ''
+//   BOX_URL=http://127.0.0.1:18431 SETUP_CODE=<setup_code from its log> QA_PASSWORD=<a long password> BOX_MODULES=feeds,inventory,exposure \
+//     BOX_SKIP_DATA=1 node web/e2e/qa/real-box.mjs
+//   VITE_EXPOSURE_REAL_URL=http://127.0.0.1:18431 VITE_EXPOSURE_QA_PASSWORD=<the same password> pnpm --dir web exec vitest run src/features/exposure/conformance.test.ts
+// The script adds two targets under example.org (their ownership check asks the box's DNS resolver for a record that is not there) and
+// deletes them at the end; nothing is ever scanned (no target is proved).
 import { describe, expect, it } from 'vitest'
 import { http, passthrough } from 'msw'
 import { z, type ZodType } from 'zod'
@@ -121,7 +127,7 @@ const steps: Step[] = [
     check: (b) => expect(b).toEqual({ handled: 0, skipped: 1 }) },
   { name: 'handle: a note for not relevant', role: 'operator', method: 'POST', path: '/exposure/issues/handle', body: { ids: ['xi-none'], resolution: 'not_relevant', note: 'x' }, status: 400, code: 'note_required' },
   { name: 'handle: accepted needs a last day', role: 'operator', method: 'POST', path: '/exposure/issues/handle', body: { ids: ['xi-none'], resolution: 'accepted', note: 'a partner needs it' }, status: 400, code: 'bad_until' },
-  { name: 'handle: no ids', role: 'operator', method: 'POST', path: '/exposure/issues/handle', body: { ids: [], resolution: 'patched', note: '' }, status: 400, real: { code: 'invalid' } },
+  { name: 'handle: no ids', role: 'operator', method: 'POST', path: '/exposure/issues/handle', body: { ids: [], resolution: 'patched', note: '' }, status: 400, code: 'invalid' },
   { name: 'handle: a viewer', role: 'viewer', method: 'POST', path: '/exposure/issues/handle', body: { ids: ['xi-none'], resolution: 'patched', note: '' }, status: 403 },
   { name: 'reopen: unknown issues are skipped', role: 'operator', method: 'POST', path: '/exposure/issues/reopen', body: { ids: ['xi-none'] }, status: 200,
     check: (b) => expect(b).toEqual({ reopened: 0, skipped: 1 }) },
@@ -132,11 +138,10 @@ const steps: Step[] = [
   { name: 'an operator changes nothing', role: 'operator', method: 'PUT', path: S, body: { enabled: false, paused_until: null, rule: { freq: 'weekly', every_minutes: null, at_time: '02:30', weekdays: [1], month_day: null, once_at: null, tz: 'org', window: 'global', window_days: null, window_from: null, window_to: null } }, status: 403 },
   { name: 'every 3 days at 02:30 on working days', role: 'admin', method: 'PUT', path: S, body: { enabled: true, paused_until: null, rule: { freq: 'interval', every_minutes: 4320, at_time: '02:30', weekdays: null, month_day: null, once_at: null, tz: 'org', window: 'custom', window_days: [1, 2, 3, 4, 5], window_from: '00:00', window_to: '00:00' } }, status: 200, schema: Schedule,
     check: (b) => { expect(b.rule.freq).toBe('interval'); expect(b.upcoming).toHaveLength(3) } },
-  { name: 'run once now of a node without a proof', role: 'admin', method: 'POST', path: (c) => `${S(c)}/run`, status: 200, real: { status: 409, code: 'not_started' } },
+  { name: 'run once now of a node without a proof', role: 'admin', method: 'POST', path: (c) => `${S(c)}/run`, status: 409, code: 'not_started' },
   // the end: the nodes go, and their schedules with them
   { name: 'delete the apex', role: 'admin', method: 'DELETE', path: N('apex'), status: 204 },
-  // the mock's schedules do not know which targets exist; the box answers 404 for the schedule of a deleted target
-  { name: 'its schedule is gone', role: 'viewer', method: 'GET', path: S, status: 200, real: { status: 404, code: 'not_found' } },
+  { name: 'its schedule is gone', role: 'viewer', method: 'GET', path: S, status: 404, code: 'not_found' },
   { name: 'the child moved up', role: 'viewer', method: 'GET', path: N('child'), status: 200, schema: TargetNode, check: (b) => expect(b.parent_id).toBeNull() },
   { name: 'delete the child', role: 'admin', method: 'DELETE', path: N('child'), status: 204 },
 ]

@@ -36,7 +36,7 @@ describe('ScheduleEditor', () => {
 
   it('shows the rule and the next start, and changes it in a dialog with the next three starts', async () => {
     const u = userEvent.setup()
-    render(<Harness ownerKey="exposure.target:tgt-1" />)
+    render(<Harness ownerKey="exposure.target:xt-11" />)
     expect(await screen.findByText('Every 3 days at 02:30, only Mon–Fri, all day', undefined, T)).toBeInTheDocument()
     expect(screen.getByText(/^Next start: /)).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Change the schedule of Outside scan' }))
@@ -67,7 +67,7 @@ describe('ScheduleEditor', () => {
 
   it('pauses, resumes and runs once, opening the run it started', async () => {
     const u = userEvent.setup()
-    render(<Harness ownerKey="exposure.target:tgt-2" />)
+    render(<Harness ownerKey="exposure.target:xt-14" />)
     await u.click(await screen.findByRole('button', { name: 'Change the schedule of Outside scan' }, T))
     const dlg = within(await screen.findByRole('dialog'))
     // nobody saved this one yet: a target's scans are on by default (weekly), so the fields show at once

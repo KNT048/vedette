@@ -394,6 +394,7 @@
       "findings.unconfirm": "Undid a finding confirmation",
       "findings.basis_raised": "Finding confidence raised",
       "findings.scan_confirmed": "Scan confirmed a finding",
+      "findings.lines_deleted": "Removed software lines: findings folded",
       "findings.rescan_clear": "Re-scan cleared a finding",
       "findings.no_longer_matches": "Finding no longer matches its device",
       "findings.matches_again": "Finding matches its device again",

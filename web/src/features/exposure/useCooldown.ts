@@ -10,12 +10,15 @@ export const checkPause = { seconds: 30 }
 export function useCooldown() {
   const [until, setUntil] = useState(0)
   const [now, setNow] = useState(() => Date.now())
+  // The tick keeps `now` moving until the pause is over, then stops. It must start even when the pause has already ended by the time the
+  // effect runs (a zero-second pause, or a slow render): otherwise `now` stays behind `until` and the button would wait for ever.
   useEffect(() => {
-    if (until <= Date.now()) return
-    const id = setInterval(() => setNow(Date.now()), 250)
+    if (until === 0) return
+    const id = setInterval(() => { const n = Date.now(); setNow(n); if (n >= until) clearInterval(id) }, 250)
     return () => clearInterval(id)
   }, [until])
-  const start = useCallback((seconds: number) => { setNow(Date.now()); setUntil(Date.now() + seconds * 1000) }, [])
+  // `now` and `until` come from one reading of the clock, so start(0) is exactly free
+  const start = useCallback((seconds: number) => { const n = Date.now(); setNow(n); setUntil(n + seconds * 1000) }, [])
   return { left: Math.max(0, Math.ceil((until - now) / 1000)), start }
 }
 

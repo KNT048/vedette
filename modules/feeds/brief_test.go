@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -375,5 +376,37 @@ func TestCWENames(t *testing.T) {
 	}
 	if got := weaknesses([]string{"CWE-787", "CWE-9999999"}); got[1] != (Weakness{ID: "CWE-9999999"}) {
 		t.Errorf("an id the list does not hold: %+v", got)
+	}
+}
+
+// CVE-2026-88779 (the public record sample): NetScaler states "13.1-64.28" and its FIPS/NDcPP fix "13.1-37.282" without the word, so
+// both end in train 13.1 of ADC: the brief names no train or fixed release for them, and keeps the 14.1 line's (and Gateway's 13.1, stated once).
+func TestBrief_TwoEndsInOneTrainNameNoFix(t *testing.T) {
+	t.Parallel()
+	_, recs := loadRecordSample(t)
+	rec, ok := recs["CVE-2026-88779"]
+	if !ok {
+		t.Fatal("CVE-2026-88779 is not in the sample")
+	}
+	rows, _, _ := briefRanges(rec.Ranges)
+	var trains, plain []string
+	for _, r := range rows {
+		if r.Product != "adc" {
+			continue
+		}
+		if r.Train != "" {
+			trains = append(trains, r.Train+" "+r.FixedRelease)
+		} else {
+			plain = append(plain, r.Versions)
+		}
+	}
+	if !slices.ContainsFunc(trains, func(s string) bool { return strings.HasPrefix(s, "14.1 ") }) || slices.ContainsFunc(trains, func(s string) bool { return strings.HasPrefix(s, "13.1 ") }) ||
+		!slices.Contains(plain, "before 13.1-37.282") {
+		t.Fatalf("trains %q, rows without one %q", trains, plain)
+	}
+	for _, f := range briefFixes(rows) {
+		if f.Product == "adc" && f.Train == "13.1" {
+			t.Fatalf("fix named for the ambiguous train: %+v", f)
+		}
 	}
 }

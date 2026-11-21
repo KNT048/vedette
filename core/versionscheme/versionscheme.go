@@ -192,11 +192,13 @@ type Verdict struct {
 // reads (and Tenable's checks for ESXi do): a range whose end is a release of the installed version's train decides alone, by the
 // place inside the train (8.0 U2e is past U2d, whatever the U3d build). When no range ends in that train, release order decides: a
 // train older than a range's end and not before its start is affected (8.0 U1 under "8.0 lessThan U2d": its fix is in a later
-// train), a later one is not. The fix is the end of the deciding range, the nearest when several.
+// train), a later one is not. The fix is the end of the deciding range, the nearest when several. A train two ranges end in at
+// different releases (Conflicts) is not comparable, and never named as a fix.
 func Judge(installed Version, spans []Span) Verdict {
 	if installed.LineStart {
 		return Verdict{}
 	}
+	conflicts := Conflicts(spans)
 	in := func(sp Span) bool { // another variant's bound does not name the installed line: outside
 		if sp.Start != nil {
 			if c, ok := order(*sp.Start, installed); !ok || c > 0 {
@@ -217,7 +219,7 @@ func Judge(installed Version, spans []Span) Verdict {
 				continue
 			}
 			hit = true
-			if sp.End != nil && !sp.EndIncl {
+			if sp.End != nil && !sp.EndIncl && !conflicts[sp.End.Train] {
 				if c, _ := order(*sp.End, ptrOr(fix, *sp.End)); fix == nil || c < 0 {
 					e := *sp.End
 					fix = &e
@@ -229,6 +231,9 @@ func Judge(installed Version, spans []Span) Verdict {
 		}
 		return Verdict{State: Affected, Fix: fix}
 	}
+	if conflicts[installed.Train] {
+		return Verdict{}
+	}
 	var same []Span
 	for _, sp := range spans {
 		if sp.End != nil && sameTrain(*sp.End, installed) {
@@ -239,6 +244,28 @@ func Judge(installed Version, spans []Span) Verdict {
 		return decide(same)
 	}
 	return decide(spans)
+}
+
+// Conflicts is the trains (Version.Train) in which two ranges of one product end at two different releases: the notation did not say
+// which line each belongs to (NetScaler's FIPS build "13.1-37.282" written without the word, beside "13.1-64.28"), so nothing in that
+// train is compared and no fixed release is named for it.
+func Conflicts(spans []Span) map[string]bool {
+	out := map[string]bool{}
+	ends := map[string]Version{}
+	for _, sp := range spans {
+		if sp.End == nil {
+			continue
+		}
+		e := *sp.End
+		if prev, ok := ends[e.Train]; ok && sameTrain(prev, e) {
+			if c, _ := order(prev, e); c != 0 {
+				out[e.Train] = true
+			}
+			continue
+		}
+		ends[e.Train] = e
+	}
+	return out
 }
 
 func ptrOr(p *Version, v Version) Version {

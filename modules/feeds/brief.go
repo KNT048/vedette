@@ -304,18 +304,9 @@ func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 		if counts && r.Origin != OriginNVD && r.DefaultStatus != DefaultAffected && r.DefaultStatus != DefaultUnaffected {
 			complete = false
 		}
-		br := BriefRange{Range: r, Counts: counts, Versions: rangeVersions(r)}
-		if _, sp, fixed, ok := RangeScheme(r); ok {
-			br.Versions = schemeVersions(sp, br.Versions)
-			if sp.End != nil {
-				br.Train = sp.End.Train
-			}
-			if fixed != nil {
-				br.Train, br.FixedRelease = fixed.Train, fixed.Display
-			}
-		}
-		out = append(out, br)
+		out = append(out, BriefRange{Range: r, Counts: counts, Versions: rangeVersions(r)})
 	}
+	schemeWords(out)
 	slices.SortStableFunc(out, func(a, b BriefRange) int {
 		if a.Counts == b.Counts {
 			return 0
@@ -326,6 +317,49 @@ func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 		return 1
 	})
 	return out, from, complete
+}
+
+// schemeWords words the rows their product's version scheme reads (RangeScheme): their versions in the scheme's words, their train and
+// fixed release. A train two of a product's rows end in at different releases (versionscheme.Conflicts: NetScaler's FIPS build
+// written without the word) is named for none of them: those rows keep their words as written.
+func schemeWords(rows []BriefRange) {
+	type read struct {
+		i     int
+		sp    versionscheme.Span
+		fixed *versionscheme.Version
+	}
+	byProduct := map[[3]string][]read{}
+	var order [][3]string
+	for i, r := range rows {
+		if _, sp, fixed, ok := RangeScheme(r.Range); ok {
+			k := [3]string{r.Part, r.Vendor, r.Product}
+			if _, seen := byProduct[k]; !seen {
+				order = append(order, k)
+			}
+			byProduct[k] = append(byProduct[k], read{i, sp, fixed})
+		}
+	}
+	for _, k := range order {
+		reads := byProduct[k]
+		spans := make([]versionscheme.Span, len(reads))
+		for j, rd := range reads {
+			spans[j] = rd.sp
+		}
+		conflicts := versionscheme.Conflicts(spans)
+		for _, rd := range reads {
+			if rd.sp.End != nil && conflicts[rd.sp.End.Train] {
+				continue
+			}
+			br := &rows[rd.i]
+			br.Versions = schemeVersions(rd.sp, br.Versions)
+			if rd.sp.End != nil {
+				br.Train = rd.sp.End.Train
+			}
+			if rd.fixed != nil {
+				br.Train, br.FixedRelease = rd.fixed.Train, rd.fixed.Display
+			}
+		}
+	}
 }
 
 // schemeVersions words a range its product's scheme reads: its bounds in the scheme's words ("from 8.0 before 8.0 U3d (build

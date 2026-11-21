@@ -7,11 +7,12 @@ import (
 
 // RangeScheme is the version scheme of the product a range names (core/productid's catalogue product of its CPE or of its record
 // key, ByRangeName), with the range read in it: its bounds as a versionscheme.Span, and its fixed release when it states one. ok is
-// false when the product has no scheme or a bound does not read in it: then the row says only what its words say. The matcher reads
-// a row kept in a vendor's notation (Range.Generic false) only through this; the brief shows each row's train and fixed release.
+// false when the product has no scheme, a bound does not read in it, or the row names one version in its CPE (pinnedInCPE): then the
+// row says only what its words say. The matcher reads a row kept in a vendor's notation (Range.Generic false) only through this;
+// the brief shows each row's train and fixed release.
 func RangeScheme(r Range) (s *versionscheme.Scheme, sp versionscheme.Span, fixed *versionscheme.Version, ok bool) {
 	p, found := productid.ByRangeName(r.Part, r.Vendor, r.Product)
-	if !found || p.Scheme == "" || r.StartExcl != "" {
+	if !found || p.Scheme == "" || r.StartExcl != "" || pinnedInCPE(r) {
 		return nil, versionscheme.Span{}, nil, false
 	}
 	s, found = versionscheme.Lookup(p.Scheme)
@@ -35,6 +36,16 @@ func RangeScheme(r Range) (s *versionscheme.Scheme, sp versionscheme.Span, fixed
 		fixed = sp.End // the versions from the end on are unaffected: the vendor's fixed release
 	}
 	return s, sp, fixed, true
+}
+
+// pinnedInCPE says a row without bounds names its version in its CPE (NVD's "cpe:2.3:o:vmware:esxi:8.0:update_3:…"): not every
+// version, and not a range a scheme reads (the CPE's version and update are NVD's words, not the vendor's notation).
+func pinnedInCPE(r Range) bool {
+	if r.StartIncl != "" || r.EndIncl != "" || r.EndExcl != "" {
+		return false
+	}
+	f := cpeFields(r.CPE)
+	return len(f) > 6 && (f[5] != "*" || f[6] != "*" && f[6] != "")
 }
 
 // BriefFix is the fixed release a vendor states for one release train of a product, as its version scheme reads the CVE's ranges.

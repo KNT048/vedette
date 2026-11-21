@@ -32,7 +32,7 @@ import (
 // NVD's, with version_type "vendor:" and the entry's versionType ("vendor:custom"; "vendor:text" when it gives none). They are
 // display-only for the generic comparison (Range.Generic, genericRowSQL): every reader that matches reads generic rows only, so what
 // is matched is what it was before these rows were kept. A product's version scheme (core/versionscheme, declared in the product
-// catalogue) reads them per release train (RangeScheme): VMware's "8.0 lessThan ESXi80U3d-24585383". vendorRows says which rows are kept.
+// catalogue) reads them per release train (RangeScheme): VMware's "8.0 lessThan ESXi80U3d-24585383". statedRows says which rows are kept.
 
 // RecordProductKey is the product key of a CVE record's affected entry that names no CPE, as feeds_cve_range stores it: the vendor
 // without its company words and the product without the vendor's name in front, each [a-z0-9] only ("Palo Alto Networks", "PAN-OS"
@@ -58,7 +58,8 @@ type recordGroup struct {
 
 // recordRanges converts the CNA's affected list and each ADP's into ranges of cve (recordGroup rules above). skipped is the products
 // that had entries but no usable rows.
-func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) (rows []Range, skipped int) {
+func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) (rows []Range, skipped, statedDropped int) {
+	stated := 0 // the rows kept as the vendor states them, at most recordMaxStated a record
 	conv := func(origin string, list []cnaAffected, fallback string) {
 		if len(list) == 0 {
 			return
@@ -109,7 +110,13 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			switch {
 			case g.unusable:
 				skipped++
-				for _, r := range vendorRows(g.entries) {
+				got, ok := statedRows(g.entries, min(recordMaxStatedProduct, recordMaxStated-stated))
+				if !ok { // more rows than a product or the record may keep: none of the product's, counted
+					statedDropped++
+					continue
+				}
+				stated += len(got)
+				for _, r := range got {
 					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
 					rows = append(rows, r)
 				}
@@ -129,8 +136,16 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	for _, a := range adps {
 		conv(OriginADP, a.Affected, "")
 	}
-	return rows, skipped
+	return rows, skipped, statedDropped
 }
+
+// recordMaxStatedProduct and recordMaxStated bound the rows kept as the vendor states them, per product and per record (415 is the
+// most one product of the count sample has: Cisco's list of every affected ASA release). A product over either is kept in no form and
+// counted (CVERecord.StatedDropped): a hostile record of many hotfix changes cannot make thousands of rows.
+const (
+	recordMaxStatedProduct = 500
+	recordMaxStated        = 2000
+)
 
 // VendorNotation is the prefix of the version_type of a row kept as the vendor states it (display-only for the generic comparison).
 const VendorNotation = "vendor:"
@@ -141,21 +156,28 @@ const genericRowSQL = `r.version_type NOT LIKE 'vendor:%'`
 // Generic says the generic comparison reads the row: an NVD row, or a record row it can order (not one kept as the vendor states it).
 func (r Range) Generic() bool { return !strings.HasPrefix(r.VersionType, VendorNotation) }
 
-// vendorRows keeps the versions of a product's entries as the vendor states them, for a product the generic rules refuse: an affected
+// statedRows keeps the versions of a product's entries as the vendor states them, for a product the generic rules refuse: an affected
 // version or range with its bounds as written (lessThan: the end excluded; the fixed release when the record says the versions from
 // there are unaffected, by a change at the end or by defaultStatus), a range with changes split into its affected stretches (each
 // ending at the change to unaffected, its fix), and for an entry whose unlisted versions are affected, one range per unaffected
 // version the entry lists (the fixed release of a branch: "6.1.149" of the kernel), from the version it names as affected when it
 // names one. Left out: git commits (no device reports one), an entry limited to some operating systems or models (the row could not
 // say which), a bound that is not printable ASCII, holds quotes, a backslash or a semicolon, or is longer than the column.
-func vendorRows(entries []cnaAffected) []Range {
-	var out []Range
+// At most limit rows: ok is false past it (the work stops there too).
+func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
+	type key struct{ si, ei, ee, fixed, typ, def string }
+	seen := map[key]bool{}
 	add := func(r Range) {
-		if !slices.ContainsFunc(out, func(h Range) bool { return sameSpan(h, r) && h.DefaultStatus == r.DefaultStatus }) {
+		k := key{r.StartIncl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus}
+		if !seen[k] {
+			seen[k] = true
 			out = append(out, r)
 		}
 	}
 	for _, a := range entries {
+		if len(out) > limit {
+			return nil, false
+		}
 		if len(a.Versions) > recordMaxVersions || !anyPlatform(a.Platforms) {
 			continue
 		}
@@ -209,6 +231,9 @@ func vendorRows(entries []cnaAffected) []Range {
 			// the stretches of the range: affected from its start, unaffected from a change, affected again from the next one
 			from, affected := start, true
 			for _, c := range v.Changes {
+				if len(out) > limit {
+					return nil, false
+				}
 				at, ok := vendorBound(c.At)
 				if !ok || at == "" {
 					break
@@ -236,7 +261,10 @@ func vendorRows(entries []cnaAffected) []Range {
 			add(r)
 		}
 	}
-	return out
+	if len(out) > limit {
+		return nil, false
+	}
+	return out, true
 }
 
 // exceptRows reads an entry whose unlisted versions are affected (defaultStatus affected): each unaffected version it lists, alone or
@@ -245,6 +273,7 @@ func vendorRows(entries []cnaAffected) []Range {
 // where the flaw starts.
 func exceptRows(a cnaAffected) []Range {
 	var intro, fixes []string
+	fixed := map[string]bool{}
 	for _, v := range a.Versions {
 		ver, ok := vendorBound(v.Version)
 		if !ok || ver == "" || saysNothing[strings.ToLower(ver)] || strings.EqualFold(strings.TrimSpace(v.VersionType), "git") {
@@ -266,7 +295,8 @@ func exceptRows(a cnaAffected) []Range {
 				}
 			}
 			ver = strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(ver, " and later"), " or later"))
-			if ver != "" && !slices.Contains(fixes, ver) {
+			if ver != "" && !fixed[ver] {
+				fixed[ver] = true
 				fixes = append(fixes, ver)
 			}
 		}

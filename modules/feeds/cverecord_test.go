@@ -201,6 +201,40 @@ func TestParseCVERecord_VendorRows(t *testing.T) {
 	}
 }
 
+// The rows kept as the vendor states them are bounded: a range of 60 000 hotfix changes, or a record whose products together pass the
+// record's bound, keeps no row of the product over the bound, counted; the work stops at the bound.
+func TestParseCVERecord_StatedRowsBounded(t *testing.T) {
+	t.Parallel()
+	var changes strings.Builder
+	for i := range 60000 {
+		if i > 0 {
+			changes.WriteString(",")
+		}
+		st := "unaffected"
+		if i%2 == 1 {
+			st = "affected"
+		}
+		fmt.Fprintf(&changes, `{"at":"1.%d","status":"%s"}`, i+1, st)
+	}
+	start := time.Now()
+	got, err := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"9.9","status":"affected","changes":[`+changes.String()+`]}]}`), "CVE-2026-1000")
+	if err != nil || len(got.Ranges) != 0 || got.Skipped != 1 || got.StatedDropped != 1 || time.Since(start) > 5*time.Second {
+		t.Fatalf("hotfix flood: %d rows, skipped %d, dropped %d, %v", len(got.Ranges), got.Skipped, got.StatedDropped, err)
+	}
+	var products []string
+	for p := range 5 { // 450 exact text versions each: four fit the record's 2000, the fifth does not
+		var vs []string
+		for i := range 450 {
+			vs = append(vs, fmt.Sprintf(`{"version":"%d.x build %d","status":"affected"}`, p, i))
+		}
+		products = append(products, fmt.Sprintf(`{"vendor":"Acme","product":"P%d","versions":[%s]}`, p, strings.Join(vs, ",")))
+	}
+	got, err = ParseCVERecord(record(strings.Join(products, ",")), "CVE-2026-1000")
+	if err != nil || len(got.Ranges) != 1800 || got.Skipped != 5 || got.StatedDropped != 1 {
+		t.Fatalf("record bound: %d rows, skipped %d, dropped %d, %v", len(got.Ranges), got.Skipped, got.StatedDropped, err)
+	}
+}
+
 // The fields of a whole record: the PAN-OS record with CISA's ADP (CPE names, SSVC, CWE) and the Java4Shell record.
 func TestParseCVERecord_Fields(t *testing.T) {
 	t.Parallel()
@@ -616,7 +650,7 @@ func recordsCurrent(t *testing.T, e *env, o *origin) {
 	t.Helper()
 	write(t, e.db, func(tx *sql.Tx) error {
 		now := e.clock()
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: now, To: now, Until: now})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o.url("/repo")), Mode: modeDone, From: now, To: now, Until: now})
 	})
 }
 
@@ -911,7 +945,7 @@ func changesEnv(t *testing.T) (*env, *origin) {
 			}
 		}
 		midnight := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: midnight, Until: midnight})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o.url("/repo")), Mode: modeDone, From: midnight, Until: midnight})
 	})
 	return e, o
 }
@@ -1143,6 +1177,54 @@ func TestCVERecords_YesterdaysArchiveNotYetPublished(t *testing.T) {
 
 // A read of the whole list never rolls back a record read after the archive's midnight; a partial download that met a disk error is
 // removed.
+// A box whose records an older range reader read (its cursor carries no reader stamp) reads the whole list again, once: every record
+// is replaced, a newer one too, so VMware's ESXi rows that reader dropped appear without waiting for VMware to edit its record; the
+// cursor goes back to the archive's midnight so the changes since are read again.
+func TestCVERecords_ReaderChangeReadsTheWholeListOnce(t *testing.T) {
+	t.Parallel()
+	e, o, _ := recordEnv(t, true)
+	e.setNow(time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC))
+	esxi := fixture(t, "brief/"+briefCVE+".record.json")
+	write(t, e.db, func(tx *sql.Tx) error {
+		r, err := ParseCVERecord(esxi, briefCVE)
+		if err != nil {
+			return err
+		}
+		k, err := recordKeepOf(t.Context(), tx, e.clock(), []string{briefCVE})
+		if err != nil {
+			return err
+		}
+		if _, err := writeRecords(t.Context(), tx, []CVERecord{r}, k, time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)); err != nil { // read after midnight
+			return err
+		}
+		if _, err := tx.ExecContext(t.Context(), `DELETE FROM feeds_cve_range WHERE cve = ? AND version_type LIKE 'vendor:%'`, briefCVE); err != nil {
+			return err // as the older reader stored it
+		}
+		now := e.clock()
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o.url("/repo"), Mode: modeDone, From: now, To: now, Until: now})
+	})
+	const path = "/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip"
+	o.serve(path, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "a.zip", time.Time{}, bytes.NewReader(dailyArchive(t, map[string][]byte{"cves/2025/22xxx/" + briefCVE + ".json": esxi})))
+	})
+	if owed, _ := e.svc.st.recordsOwed(t.Context(), o.url("/repo")); !owed {
+		t.Fatal("a cursor of an older reader is not owed a pull")
+	}
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cve_range WHERE cve = ? AND version_type = 'vendor:custom' AND product = 'esxi'`, briefCVE); n != 3 || o.count(path) != 1 {
+		t.Fatalf("VMware's rows after the reread: %d, archive asked %d times", n, o.count(path))
+	}
+	cur, _ := e.svc.st.nvdCursor(t.Context(), selectorRecord)
+	if cur.URL != recordCursorURL(o.url("/repo")) || cur.Mode != modeDone || !cur.Until.Equal(time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("cursor %+v", cur)
+	}
+	if owed, _ := e.svc.st.recordsOwed(t.Context(), o.url("/repo")); owed {
+		t.Fatal("still owed after the reread")
+	}
+}
+
 func TestCVERecords_RereadKeepsNewerAndDiskErrorRemovesPart(t *testing.T) {
 	t.Parallel()
 	e, o, _ := recordEnv(t, true)
@@ -1184,7 +1266,7 @@ func TestCVERecords_RereadKeepsNewerAndDiskErrorRemovesPart(t *testing.T) {
 	}
 	write(t, e2.db, func(tx *sql.Tx) error {
 		day := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: o2.url("/repo"), Mode: modeFill, From: day, To: day, Until: day, NextIndex: 7, Total: 1000})
+		return saveNVDCursor(t.Context(), tx, selectorRecord, recentCursor{URL: recordCursorURL(o2.url("/repo")), Mode: modeFill, From: day, To: day, Until: day, NextIndex: 7, Total: 1000})
 	})
 	if err := e2.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
 		t.Fatal(err)

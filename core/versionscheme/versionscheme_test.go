@@ -140,6 +140,25 @@ func TestNetScaler_BuildInLine(t *testing.T) {
 	}
 }
 
+// CVE-2026-88779: NetScaler's FIPS/NDcPP fix written without the word ("13.1-37.282" beside "13.1-64.28") reads as the plain 13.1
+// line; two ends in one train make that train not comparable, never a fix.
+func TestNetScaler_TwoEndsInOneTrain(t *testing.T) {
+	t.Parallel()
+	sp := spans(t, NetScaler, [3]string{"0", "14.1-47.48", ""}, [3]string{"0", "13.1-64.28", ""}, [3]string{"0", "13.1-37.282", ""})
+	if c := Conflicts(sp); !c["13.1"] || c["14.1"] || len(c) != 1 {
+		t.Fatalf("conflicts %v", c)
+	}
+	runJudge(t, NetScaler, sp, []judgeCase{
+		{"13.1 plain", "13.1-50.10", "", NotComparable, "", "which line 37.282 belongs to is not said"},
+		{"14.1", "14.1-40.1", "", Affected, "14.1-47.48", "its own train decides"},
+		{"13.0", "13.0-92.21", "", Affected, "14.1-47.48", "older line: the conflicting train is no fix"},
+	})
+	// the same end stated twice (CNA and ADP) is no conflict
+	if c := Conflicts(spans(t, NetScaler, [3]string{"0", "13.1-64.28", ""}, [3]string{"0", "13.1-64.28", ""})); len(c) != 0 {
+		t.Fatalf("a repeated end: %v", c)
+	}
+}
+
 // The Linux kernel: a stable branch's fix decides for that branch; a branch without one is placed by release order (the mainline fix
 // above it); a distribution's kernel is never read.
 func TestLinuxKernel(t *testing.T) {

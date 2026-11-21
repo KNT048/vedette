@@ -122,6 +122,7 @@ type fileEntry struct {
 	Nmap          []string      `json:"nmap"`
 	Patterns      []filePattern `json:"patterns"`
 	Record        []string      `json:"record"`
+	KEVShared     []string      `json:"kev_shared"`
 }
 
 type filePattern struct {
@@ -150,6 +151,9 @@ type entry struct {
 	// network OS rows) and the curated names that pass ownName. A curated-only product (a picker row) names its key alone: the names
 	// its fragments reach are for the row, never a reason to move another product's item onto it (ByKEV).
 	named map[string]bool
+	// shared are exploited-list names that name the product together with others ("VMware|ESXi and Workstation"): kept in its match
+	// keys, never resolved to it (ByKEV), so a person who picks that row for Workstation gets no ESXi line.
+	shared []string
 }
 
 // name records that the product names an exploited-list name (entry.named).
@@ -239,6 +243,14 @@ func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
 	if err := c.addCurated(curated, kev); err != nil {
 		return nil, fmt.Errorf("%w: curated.json: %w", errData, err)
 	}
+	for _, e := range c.entries { // a shared name is matched, never owned (after the curated rows named what they reach)
+		for _, k := range e.shared {
+			if !slices.Contains(e.p.KEV, k) {
+				e.p.KEV = append(e.p.KEV, k)
+			}
+			delete(e.named, k)
+		}
+	}
 	return c, nil
 }
 
@@ -270,6 +282,13 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 		p.CPEs = append(p.CPEs, CPEName{Part: f[0], Vendor: f[1], Product: strings.TrimSuffix(f[2], "*"), Prefix: strings.HasSuffix(f[2], "*")})
 	}
 	e := &entry{p: p}
+	for _, k := range fe.KEVShared {
+		v, pr, ok := strings.Cut(k, "|")
+		if !ok || k != Key(v, pr) || k == p.Key {
+			return nil, fmt.Errorf("kev_shared %q is not a lower-case vendor|product key of another name", k)
+		}
+		e.shared = append(e.shared, k)
+	}
 	for _, fp := range fe.Patterns {
 		re, err := regexp.Compile(fp.Re)
 		if err != nil || !strings.HasPrefix(fp.Re, "(?i)^") {

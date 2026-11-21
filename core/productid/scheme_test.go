@@ -1,6 +1,7 @@
 package productid
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -48,5 +49,26 @@ func TestCatalogue_UnknownSchemeRefused(t *testing.T) {
 	fsys := fstest.MapFS{"products/x.json": {Data: []byte(`{"products":[{"id":"x","display":"X","vendor":"Acme","product":"X","scheme":"acme-build"}]}`)}}
 	if _, err := load(fsys, catalogdata.Curated, catalogdata.KEVProducts); err == nil || !strings.Contains(err.Error(), "acme-build") {
 		t.Fatalf("loaded: %v", err)
+	}
+}
+
+// An exploited-list name that names ESXi with other products ("ESXi and Workstation") stays one of ESXi's match keys but never
+// resolves to ESXi: a person who picks that row for Workstation or Fusion gets no ESXi line.
+func TestKEVShared(t *testing.T) {
+	t.Parallel()
+	esxi, ok := ByKey("vmware|esxi")
+	if !ok {
+		t.Fatal("no ESXi")
+	}
+	for _, k := range []string{"vmware|esxi and workstation", "vmware|esxi, workstation, and fusion", "vmware|vmware esxi and horizon daas"} {
+		if !slices.Contains(esxi.KEV, k) {
+			t.Errorf("%s is not an ESXi match key", k)
+		}
+		if p, ok := ByKEV(k); ok {
+			t.Errorf("%s resolves to %s", k, p.ID)
+		}
+	}
+	if p, ok := ByKEV("broadcom|vmware esx"); !ok || p.ID != "vmware-esxi" {
+		t.Errorf("Broadcom's ESX name: %+v %v", p, ok)
 	}
 }

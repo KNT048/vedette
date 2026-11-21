@@ -324,12 +324,13 @@ func declaredLines(ctx context.Context, q querier, assetID string, keys []string
 	return idsOf(ctx, q, `SELECT w.id FROM inv_software w WHERE w.asset_id = ? AND `+fmt.Sprintf(declaredLineSQL, placeholders(len(keys))), args...)
 }
 
-// devicesToDecide are the devices whose stored declared-OS decision may be missing (a declared line and no decision) or stale (a
+// devicesToDecide are the devices whose stored declared-OS decision may be missing (a declared line, no decision and no OS a person typed: that one decides) or stale (a
 // decision and no declared line): the work of ReconcileDeclaredOS.
 func devicesToDecide(ctx context.Context, q querier, keys []string) ([]string, error) {
 	in := fmt.Sprintf(declaredLineSQL, placeholders(len(keys)))
 	return idsOf(ctx, q, `SELECT a.id FROM inv_asset a WHERE
-		(EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`) AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`))
+		(EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`) AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`)
+			AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL+`))
 		OR (EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`) AND NOT EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`))
 		ORDER BY a.id`, append(anyOf(keys), anyOf(keys)...)...)
 }

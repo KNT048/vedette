@@ -49,7 +49,7 @@ var readingsDecls = map[string]bool{
 // rules over its input), and the declared OS of a device (it asks the matcher's rule which declared row is the OS).
 func matchInputCaller(rel, name string) bool {
 	return strings.HasPrefix(rel, "modules/findings/") || rel == "cmd/vedette/wiring.go" || rel == "cmd/vedette/reports.go" && name == "Fixes" ||
-		rel == "modules/inventory/declared.go" && name == "declaredChoice"
+		rel == "modules/inventory/declared.go" && name == "declaredChoice" || rel == "modules/inventory/wiring.go" && name == "MatchInput"
 }
 
 // linePredicates are constants of the line model other readers may use: guessLine says whether a line's value is only nmap's guess
@@ -190,11 +190,11 @@ func mentionsReadings(n ast.Node, inv bool, tainted map[string]bool) bool {
 	return found
 }
 
-// callsMatchInput says whether a declaration calls MatchInput.
+// callsMatchInput says whether a declaration calls MatchInput or its transaction form matchInput.
 func callsMatchInput(decl ast.Decl) bool {
 	found := false
 	ast.Inspect(decl, func(n ast.Node) bool {
-		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "MatchInput" {
+		if sel, ok := n.(*ast.SelectorExpr); ok && (sel.Sel.Name == "MatchInput" || sel.Sel.Name == "matchInput") {
 			found = true
 		}
 		return !found

@@ -53,7 +53,8 @@ func TestScanningOffDuringDrainKeepsTheQueue(t *testing.T) {
 		}
 	}
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error { // today's sweep is done: Tick goes to the queue
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj-review2', 'sweep', ?, ?, 'done')`, store.FormatTS(clock()), store.FormatTS(clock()))
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, queued_at, started_at, ended_at, updated_at)
+			VALUES ('run-review2', 'sensor-active', 'lan_sweep', 'nmap', 'LAN sweep', 'schedule', 'system', 'done', ?1, ?1, ?2, ?2)`, store.FormatTS(clock()), store.FormatTS(clock()))
 		return err
 	}); err != nil {
 		t.Fatal(err)

@@ -33,6 +33,17 @@ type Run struct {
 	UpdatedAt   string   `json:"updated_at"`
 	CanStop     bool     `json:"can_stop"`
 	CanResume   bool     `json:"can_resume"`
+	// Summary is the run's state in one line of words, made by the box (summary.go): what it waits for, how far it got, why it
+	// stopped. Every page shows this line rather than building its own.
+	Summary string `json:"summary"`
+	// BlockedBy is the run that holds the lane a queued run waits for; nil when the run is not queued or its lane is free.
+	BlockedBy *Ref `json:"blocked_by"`
+}
+
+// Ref names another run.
+type Ref struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 // Step is a step of a run.
@@ -95,6 +106,8 @@ type Filter struct {
 const runCols = `r.id, r.module, r.kind, r.lane, r.title, r.trigger, r.trigger_note, r.requested_by, r.schedule_id, r.subject_kind,
 	r.subject_id, r.subject_label, r.parent_id, r.status, r.waiting_for, r.stop_reason, r.error, r.total, r.done, r.queued_at,
 	r.started_at, r.ended_at, r.updated_at,
+	(SELECT h.id FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
+	(SELECT h.title FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
 	(NOT EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id)
 	 OR EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id AND s.status <> 'done'))`
 
@@ -105,15 +118,18 @@ type querier interface {
 
 type scanner interface{ Scan(dest ...any) error }
 
-func (m *Manager) scanRun(s scanner) (Run, error) {
+func (m *Manager) scanRun(ctx context.Context, s scanner) (Run, error) {
 	var r Run
-	var subKind, subID, subLabel *string
+	var subKind, subID, subLabel, blockID, blockTitle *string
 	var workLeft bool
 	err := s.Scan(&r.ID, &r.Module, &r.Kind, &r.Lane, &r.Title, &r.Trigger, &r.TriggerNote, &r.RequestedBy, &r.ScheduleID, &subKind,
 		&subID, &subLabel, &r.ParentID, &r.Status, &r.WaitingFor, &r.StopReason, &r.Error, &r.Total, &r.Done, &r.QueuedAt,
-		&r.StartedAt, &r.EndedAt, &r.UpdatedAt, &workLeft)
+		&r.StartedAt, &r.EndedAt, &r.UpdatedAt, &blockID, &blockTitle, &workLeft)
 	if err != nil {
 		return Run{}, err
+	}
+	if blockID != nil && blockTitle != nil {
+		r.BlockedBy = &Ref{ID: *blockID, Title: *blockTitle}
 	}
 	if subKind != nil && subID != nil {
 		r.Subject = &Subject{Kind: *subKind, ID: *subID}
@@ -123,6 +139,7 @@ func (m *Manager) scanRun(s scanner) (Run, error) {
 	}
 	r.CanStop = r.Status == Queued || r.Status == Waiting || r.Status == Running
 	r.CanResume = m.canResume(r, workLeft)
+	r.Summary = m.summary(ctx, r)
 	return r, nil
 }
 
@@ -194,7 +211,7 @@ func (m *Manager) readRuns(ctx context.Context, q querier, query string, args ..
 	defer func() { _ = rows.Close() }()
 	out := []Run{}
 	for rows.Next() {
-		r, err := m.scanRun(rows)
+		r, err := m.scanRun(ctx, rows)
 		if err != nil {
 			return nil, fmt.Errorf("run: list: %w", err)
 		}
@@ -204,7 +221,7 @@ func (m *Manager) readRuns(ctx context.Context, q querier, query string, args ..
 }
 
 func (m *Manager) getTx(ctx context.Context, q querier, id string) (Run, error) {
-	r, err := m.scanRun(q.QueryRowContext(ctx, `SELECT `+runCols+` FROM core_run r WHERE r.id = ?`, id))
+	r, err := m.scanRun(ctx, q.QueryRowContext(ctx, `SELECT `+runCols+` FROM core_run r WHERE r.id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Run{}, ErrNotFound
 	}

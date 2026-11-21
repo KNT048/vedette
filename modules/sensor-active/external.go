@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/knt048/vedette/core/progress"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -24,7 +24,7 @@ import (
 // A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19): nmapargv.ExternalFull or
 // ExternalDisruptive, every TCP port with nmap's scripts, sent only after core's DeepGate said the terms still allow it.
 
-// KindExternal is the sa_job kind of an external run (migration 0005).
+// KindExternal is the kind of the scan events of a service scan for exposure.
 const KindExternal = "external"
 
 // Errors of ScanExternal. No packet went to ip with ErrBusy (another nmap run kept the slot), ErrNoTime (too little of the caller's
@@ -207,25 +207,56 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	if own == nil {
 		return External{}, ErrNotOwnIP
 	}
-	need, run := boundsOf(kind)
-	wait := min(busyWait, left(ctx, run)-need-coreFenceTime)
+	need, budget := boundsOf(kind)
+	wait := min(busyWait, left(ctx, budget)-need-coreFenceTime)
 	if wait < 0 {
 		return External{}, ErrNoTime
 	}
-	stops := s.stops.Load()
-	if !s.lockWithin(ctx, wait, nil) {
-		if ctx.Err() != nil {
-			return External{}, ErrStopped
-		}
-		return External{}, ErrBusy
-	}
-	defer s.runMu.Unlock()
-	if s.stops.Load() != stops { // the module was turned off while the run waited for the slot (#723 review L4)
+	if s.off.Load() { // the module is off: nothing is queued
 		return External{}, ErrStopped
 	}
+	got := make(chan External, 1) // the work hands its result over: the caller may stop waiting before the work ends
+	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: "Service scan of " + ip.String() + " for External exposure", Trigger: run.Event,
+		TriggerNote: "an exposure scan", Subject: &run.Subject{Kind: "address", ID: ip.String(), Label: ip.String()}},
+		func(ctx context.Context) error {
+			res, err := s.serviceScan(ctx, ip, kind, own, dom)
+			got <- res
+			return err
+		}, func(ctx context.Context, err error) run.Result {
+			switch {
+			case err == nil:
+				return run.Result{}
+			case errors.Is(err, ErrStopped) && ctx.Err() != nil:
+				return run.Result{Status: run.Partial, Error: "stopped"}
+			}
+			return run.Result{Status: run.Failed, Error: err.Error()}
+		}, wait, "The scanner stayed busy, so this service scan did not start")
+	switch {
+	case errors.Is(err, errNotStarted):
+		return External{}, ErrBusy
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return External{}, ErrStopped
+	}
+	select {
+	case res := <-got:
+		return res, err
+	default:
+		return External{}, err
+	}
+}
+
+// serviceScan is the work of a service_scan run: nmap on the public address, under the run lock.
+func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
+	stops := s.stops.Load()
+	s.lockRun(ctx)
+	defer s.runMu.Unlock()
+	if s.stops.Load() != stops || ctx.Err() != nil { // the module was turned off while the run waited for the slot (#723 review L4)
+		return External{}, ErrStopped
+	}
+	targets := []netip.Addr{ip}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, view: viewOf(ctx)})
+	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, runID: runIDOf(ctx)})
 	defer s.setCur(nil)
 	if err := s.available(jctx); err != nil {
 		return External{}, err
@@ -456,12 +487,4 @@ func keepEnd(s string, n int) string {
 		return string(r[len(r)-max(n, 0):])
 	}
 	return "…" + string(r[len(r)-n+1:])
-}
-
-// viewOf is the progress of the job whose context this is, when its sink keeps one (the Tracker of an exposure scan); nil otherwise.
-func viewOf(ctx context.Context) func() *progress.View {
-	if t, ok := progress.SinkFrom(ctx).(interface{ View() *progress.View }); ok {
-		return t.View
-	}
-	return nil
 }

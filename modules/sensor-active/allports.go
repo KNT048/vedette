@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -82,7 +83,10 @@ func allPortsPlan(dec Decision, st Settings) (rate int, why string) {
 // tries again. A device that answers on every port counts as done for the week. A run that failed otherwise, or whose end could not
 // be recorded, is tried once more in the next window (held for the rest of this one), then waits for the next week (review r2 M1).
 func (s *Service) allPortsRound(ctx context.Context) error {
-	for ctx.Err() == nil && s.urgent.Load() == 0 {
+	for ctx.Err() == nil {
+		if other, _, err := s.laneBusy(ctx, ""); err != nil || other != "" {
+			return err // a person's check or a scan for exposure waits for the lane: it goes first, the round goes on at the next tick
+		}
 		st, err := s.permit(ctx)
 		if err != nil {
 			return nil // outside the window, scanning off, nmap missing: nothing now
@@ -96,7 +100,10 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 		if err != nil || id == "" {
 			return err
 		}
-		err = s.scanDevice(ctx, id, "all_ports", true)
+		lbl := s.deviceLabel(ctx, id)
+		err = s.doWork(ctx, run.Spec{Kind: RunAllPorts, Title: "Scan of every port of " + lbl, Trigger: run.Schedule,
+			Subject: &run.Subject{Kind: "device", ID: id, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
+			func(ctx context.Context) error { return s.scanDevice(ctx, id, "all_ports", true) }, s.allPortsResult, 0, "")
 		switch {
 		case err == nil:
 			err = s.markAllPorts(ctx, id, allPortsDone)
@@ -114,6 +121,21 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// allPortsResult is how an all_ports run ends, from scanDevice's error.
+func (s *Service) allPortsResult(ctx context.Context, err error) run.Result {
+	switch {
+	case errors.Is(err, errAnswersEverywhere):
+		return run.Result{Status: run.Partial, Error: "The device answers on every port (a firewall or a SYN proxy): this scan learns nothing"}
+	case errors.Is(err, ErrStopped) && ctx.Err() == nil:
+		return run.Result{Status: run.Partial, Error: "It gave way to other work; it stays due"}
+	}
+	r := s.scanResult(ctx, err)
+	if r.Status == run.Waiting { // the round asks for it again when it is due: this run does not wait
+		return run.Result{Status: run.Partial, Error: "Not done: it waits for " + r.WaitingFor + "; it stays due"}
+	}
+	return r
 }
 
 // failAllPorts handles a weekly run that failed (not a stop, not a refusal): the first failure is held out of this window and tried

@@ -179,16 +179,10 @@ var exportPolicy = map[string]tablePolicy{
 	"resp_identity":                {export: "user_id channel address linked_at"},
 	"resp_link_codes":              {skipAll: true, skip: "user_id channel address code_hash expires_at sent_at tries"},
 	"resp_tokens":                  {skipAll: true, skip: "token_hash kind decision action_id user_id address channel key_id expires_at used_at"},
-	"sa_all_ports":                 {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"},     // ports, products and versions, like inv_service and inv_software
-	"sa_job":                       {export: "id kind reason started_at finished_at status targets new_devices error asset_id", json: "found"}, // found: ports and nmap's OS guess of a device check, like inv_service
-	"sa_probe":                     {export: "id time job_id shape rate hosts flags targets result"},
-	"sa_queue":                     {export: "asset_id queued_at reason attempts"},
-	"sa_sweep":                     {export: "id cursor updated_at"},
-	"sa_first_pass":                {export: "id started_at"},
-	"sa_snmp_answer":               {export: "credential_id asset_id ip answered_at sys_descr sys_object_id"},                                                                                                                                          // #829 C4: which device answered which credential last
+	"sa_all_ports":                 {export: "asset_id last_at outcome extra_at", json: "extra extra_sw versioned normal_ports normal_sw"}, // ports, products and versions, like inv_service and inv_software
+	"sa_probe":                     {export: "id time run_id shape rate hosts flags targets result"},
 	"sa_snmp_device":               {export: "asset_id read_from read_from_default version username auth priv secret_last4 priv_last4 port created_at updated_at last_checked_at last_status last_answer_at answer", skip: "secret_id priv_secret_id"}, // the community and v3 passwords stay in core_secret
-	"sa_snmp_notice":               {export: "id at text"},                                                                                                                                                                                             // what the move of the credentials did
-	"sa_snmp":                      {export: "id name version username auth priv secret_last4 priv_last4 scope created_at updated_at last_answer_at answered port", skip: "secret_id priv_secret_id"},                                                  // the community and v3 passwords stay in core_secret
+	"sa_snmp_notice":               {export: "id at text"},                                                                                                                                                                                             // which SNMP settings a merge of two devices kept
 	"scan_event":                   {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":                   {export: "id ts run_id ip label template request result"},
 	"scan_setting":                 {export: "id stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve"},

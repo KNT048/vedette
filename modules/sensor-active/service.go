@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/progress"
+	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -35,8 +35,6 @@ const (
 	maxRun = 2 * time.Hour
 	// ProbeRetention is how long sa_probe rows are kept (INV-9 asks for at least 90 days).
 	ProbeRetention = 365 * 24 * time.Hour
-	// maxAttempts is how many times a queued device is tried after nmap failed before it is dropped.
-	maxAttempts = 3
 	// finishTimeout bounds the writes that must happen even when the run was cancelled.
 	finishTimeout = 30 * time.Second
 )
@@ -64,6 +62,9 @@ type Config struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	SNMP    SNMPReader
+	// Runs is the box's run manager (core/run): every sweep, device check, SNMP read and scan of every port is a run of it. The kinds
+	// are registered by New, before the manager starts. Nil (tests): the service builds and starts its own over DB.
+	Runs *run.Manager
 	// LocalPrefixes is the IPv4 networks the box has a card on: a sweep reaches them with one ARP request an address,
 	// everything else through a router with SweepProbes packets. Only the sweep-time estimate reads it; nil: every range counts
 	// as routed.
@@ -74,6 +75,12 @@ type Config struct {
 type Service struct {
 	db  *store.DB
 	inv Inventory
+	// runs is the run manager; ownRuns when New made it (Close closes it). pend is the work a caller handed with a run that has not
+	// started; waits the callers that wait for a run's end (runs.go). Both guarded by mu.
+	runs    *run.Manager
+	ownRuns bool
+	pend    map[string]*pending
+	waits   map[string]chan outcome
 	// bg holds the background SNMP reads ApplySNMPToSimilar queues
 	bg sync.WaitGroup
 	// pendingQueued: queuePendingOnce has queued the devices waiting for their gentle scan in this process
@@ -113,26 +120,53 @@ type Service struct {
 	off atomic.Bool
 	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
 	beforeSNMPBatch func()
-	// urgent counts the runs waiting in lockWithin (a Scan now identification, an exposure scan): while it is above zero the
-	// weekly scan of every port gives the slot up.
-	urgent atomic.Int32
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
 	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
-	// snmpMoveMu and snmpMoved: the old SNMP credentials are moved to their devices once (snmp_move.go).
-	snmpMoveMu sync.Mutex
-	snmpMoved  atomic.Bool
 	// allPortsHeld are the devices whose weekly run failed in the window that started at allPortsHeldIn: the round leaves them
 	// to the next window.
 	allPortsHeld   map[string]bool
 	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
-	// manualUntil is firstUntil for a sweep a person started (Scan the LAN now, INV-21); manual is that run, or the device checks a
-	// person started, while it goes on.
-	manualUntil time.Time
-	manual      *manualRun
+	// personUntil is the end of the hour of a pass a person asked to go on now (Scan the LAN now on a pass that waited for the
+	// window), by run: in memory, so a restart leaves the pass to the window.
+	personUntil map[string]time.Time
+	// yielded is the passes that wait only because they gave way to other work in the nmap lane: they go on once it is done
+	// (resumeYielded, followPass); a pass that waits for anything else is resumed by the window's driver only.
+	yielded map[string]bool
+}
+
+func (s *Service) setYielded(id string, on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.yielded == nil {
+		s.yielded = map[string]bool{}
+	}
+	if on {
+		s.yielded[id] = true
+	} else {
+		delete(s.yielded, id)
+	}
+}
+
+// recoverYielded marks, at start, a person's pass that waits within its hour as one that gave way (a pass of a person can wait in
+// its hour for nothing else but the lane, the worker or the settings): the end of the next run of the lane, or the window's driver,
+// resumes it, as before the restart. The hour of a window's pass a person asked to go on now (personUntil) is not kept: that pass
+// waits for the window after a restart.
+func (s *Service) recoverYielded(ctx context.Context) {
+	sw, err := s.liveRun(ctx, RunSweep)
+	if err != nil || sw == nil || sw.Status != run.Waiting || !s.clock().Before(s.sweepUntil(*sw)) {
+		return
+	}
+	s.setYielded(sw.ID, true)
+}
+
+func (s *Service) isYielded(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.yielded[id]
 }
 
 // firstPassFor bounds the first pass: it may run outside the window for at most this long; a sweep it did not finish goes on from
@@ -141,18 +175,19 @@ const firstPassFor = time.Hour
 
 // windowNow is the window rule of every automatic run (INV-3): whether the window is open now, and when it ends. Inside a window it
 // is that window's own end, whatever else runs. Outside one it is open until firstUntil while the first pass of a new box runs,
-// and, for the runs of a person's "Scan the LAN now" only (ctx marked by withManual), until manualUntil (INV-21,
-// #857): a manual run never opens or lengthens the window of the box's own runs (rounds, queue, SNMP).
+// and, for the runs of a person's "Scan the LAN now" only (ctx marked by withManualUntil: the person's sweep and the checks of the
+// devices it found), until the end of its hour (INV-21, #857): a manual run never opens or lengthens the window of the box's own
+// runs (rounds, queue, SNMP).
 func (s *Service) windowNow(ctx context.Context, st Settings) (end time.Time, ok bool) {
 	if _, end, ok = st.window(s.local()); ok {
 		return end, true
 	}
 	s.mu.Lock()
 	until := s.firstUntil
-	if isManual(ctx) && s.manualUntil.After(until) {
-		until = s.manualUntil
-	}
 	s.mu.Unlock()
+	if m := manualUntil(ctx); m.After(until) {
+		until = m
+	}
 	if s.clock().Before(until) {
 		return until, true
 	}
@@ -177,11 +212,10 @@ type running struct {
 	// scan stops it (lockWithin); it stays due.
 	weekly  bool
 	started time.Time // when it was registered (setCur), for Settings › Scanning
-	// manual: a run of a person's "Scan the LAN now" (INV-21): the window it is checked against is its manualUntil too (windowNow).
-	manual bool
-	// view is the run's own progress (the exposure scan reports it through the Tracker of its context), for the person's check that
-	// waits behind it (INV-28); nil when the run reports none.
-	view func() *progress.View
+	// until: a run of a person's "Scan the LAN now" (INV-21): the window it is checked against is open until then too (windowNow).
+	until time.Time
+	// runID is the run whose work it is (core_run), for Settings › Scanning.
+	runID string
 }
 
 // New returns the service.
@@ -189,7 +223,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Inventory == nil || cfg.Observe == nil || cfg.Software == nil {
 		return nil, errors.New("sensoractive: New needs DB, Inventory, Observe and Software")
 	}
-	s := &Service{db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, svc: cfg.Services, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudgetLimits(sweepNewPerMinute, sweepNewPerHour)}
+	s := &Service{pend: map[string]*pending{}, waits: map[string]chan outcome{}, db: cfg.DB, inv: cfg.Inventory, obs: cfg.Observe, sw: cfg.Software, svc: cfg.Services, events: cfg.Events, path: cfg.NmapPath, clock: cfg.Clock, log: cfg.Log, loc: cfg.Location, budget: capture.NewFloodBudgetLimits(sweepNewPerMinute, sweepNewPerHour)}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -209,8 +243,40 @@ func New(cfg Config) (*Service, error) {
 	if r, ok := s.prober.(SNMPReader); ok && s.snmp == nil {
 		s.snmp = r // the Dispatcher sends the reads to the scan worker too
 	}
+	s.runs = cfg.Runs
+	if s.runs == nil {
+		m, err := run.New(run.Config{DB: cfg.DB, Audit: cfg.Audit, Log: s.log, Clock: s.clock, Gate: moduleGate{s}})
+		if err != nil {
+			return nil, err
+		}
+		s.runs, s.ownRuns = m, true
+	}
+	if err := s.registerKinds(); err != nil {
+		return nil, err
+	}
+	s.recoverYielded(context.Background())
+	if s.ownRuns {
+		if err := s.runs.Start(context.Background()); err != nil {
+			return nil, err
+		}
+	}
 	return s, nil
 }
+
+// moduleGate is the module switch of a run manager of the service's own: on unless Stop ran (and no Resume since).
+type moduleGate struct{ s *Service }
+
+func (g moduleGate) Enabled(id string) bool { return id != ModuleID || !g.s.off.Load() }
+
+// Close stops the run manager the service made itself (Config.Runs nil); a shared one is the box's to close.
+func (s *Service) Close() {
+	if s.ownRuns {
+		s.runs.Close()
+	}
+}
+
+// Runs is the run manager the service's runs are on.
+func (s *Service) Runs() *run.Manager { return s.runs }
 
 func (s *Service) now() string { return store.FormatTS(s.clock()) }
 
@@ -332,36 +398,26 @@ func (s *Service) blocked(ctx context.Context, assetID, reason string) {
 
 // ---- jobs ----
 
-func (s *Service) startJob(ctx context.Context, kind, reason string, targets int) (string, error) {
-	return s.startJobOf(ctx, kind, reason, targets, "")
-}
-
-// startJobOf is startJob naming the device the job is for (sa_job.asset_id; "" for none).
-func (s *Service) startJobOf(ctx context.Context, kind, reason string, targets int, assetID string) (string, error) {
-	id := store.NewID("saj")
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_job (id, kind, reason, started_at, status, targets, asset_id) VALUES (?, ?, ?, ?, 'running', ?, ?)`, id, kind, nullable(reason), s.now(), targets, nullable(assetID))
-		return err
-	})
-	if err != nil {
-		return "", fmt.Errorf("sensoractive: start job: %w", err)
+// startJob says the work of ctx's run starts (sensor.scan.started) and returns the run's id: the run_id of its probes.
+func (s *Service) startJob(ctx context.Context, kind, _ string, targets int) (string, error) {
+	x := execOf(ctx)
+	if x == nil {
+		return "", errors.New("sensoractive: work outside a run")
 	}
-	s.publish(ctx, EventScanStarted, StartedEvent{JobID: id, Kind: kind, Targets: targets})
-	return id, nil
+	s.publish(ctx, EventScanStarted, StartedEvent{JobID: x.ID(), Kind: kind, Targets: targets})
+	return x.ID(), nil
 }
 
-// finishJob closes the job even when the run was cancelled, so it is never left "running".
+// finishJob says the work of a run ended (sensor.scan.finished) and writes the line of its log; core/run records the run's end.
 func (s *Service) finishJob(ctx context.Context, id, status string, targets, newDevices int, errText string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE sa_job SET finished_at = ?, status = ?, targets = ?, new_devices = ?, error = ? WHERE id = ?`,
-			s.now(), status, targets, newDevices, nullable(clip(errText, 1000)), id)
-		return err
-	})
-	if err != nil {
-		s.log.ErrorContext(ctx, "sensoractive: closing a job failed", "job", id, "error", err)
-		return
+	if x := execOf(ctx); x != nil && errText != "" {
+		lvl := run.Warn
+		if status == StatusFailed {
+			lvl = run.Error
+		}
+		s.runWrite(ctx, "log", x.Log(ctx, lvl, clip(errText, 1000)))
 	}
 	s.publish(ctx, EventScanFinished, FinishedEvent{JobID: id, Targets: targets, NewDevices: newDevices, Status: status})
 }
@@ -378,28 +434,6 @@ func clip(s string, n int) string {
 		return string(r[:n])
 	}
 	return s
-}
-
-// failInterrupted closes jobs a restart left "running" (nothing runs now: the caller holds runMu). It writes
-// only when there is something to close, since Tick calls it every minute.
-func (s *Service) failInterrupted(ctx context.Context) error {
-	// An snmp job runs under snmpMu, not runMu: it is closed only when no snmp job runs now either.
-	kinds := `kind <> 'snmp'`
-	if s.snmpMu.TryLock() {
-		defer s.snmpMu.Unlock()
-		kinds = `1 = 1`
-	}
-	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE status = 'running' AND `+kinds).Scan(&n); err != nil {
-		return fmt.Errorf("sensoractive: read jobs: %w", err)
-	}
-	if n == 0 {
-		return nil
-	}
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE sa_job SET status = 'stopped', finished_at = ?, error = 'interrupted by a restart' WHERE status = 'running' AND `+kinds, s.now())
-		return err
-	})
 }
 
 // ---- the run of nmap ----
@@ -595,9 +629,13 @@ func (s *Service) Stop() {
 	s.mu.Lock()
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
-	s.stopManual()
 	if cur != nil {
 		cur.cancel()
+	}
+	// its runs that have not ended stop too: on the box core/run does it when the module switch moves; a manager of the service's own
+	// (tests) has no switch board
+	if s.ownRuns {
+		s.runs.ModuleChanged(ModuleID, false)
 	}
 	if snmp != nil {
 		snmp.cancel()
@@ -605,7 +643,12 @@ func (s *Service) Stop() {
 }
 
 // Resume is the module turned on again: SNMP reads may be sent again (Stop's off flag is cleared).
-func (s *Service) Resume() { s.off.Store(false) }
+func (s *Service) Resume() {
+	s.off.Store(false)
+	if s.ownRuns { // its queued runs start again (on the box core/run hears the module switch itself)
+		s.runs.ModuleChanged(ModuleID, true)
+	}
+}
 
 // isPicked says the registered run is an identification a person asked for (running.picked).
 func (s *Service) isPicked() bool {
@@ -642,7 +685,7 @@ func compactTargets(ts []netip.Addr) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote, ports ...int) (int64, error) {
+func (s *Service) insertProbe(ctx context.Context, runID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote, ports ...int) (int64, error) {
 	if kind.IsGentle() {
 		rate = 1
 	}
@@ -652,8 +695,8 @@ func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.K
 	}
 	var id int64
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.now(), nullable(runID), kind.Name(), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
 		if err != nil {
 			return err
 		}
@@ -682,7 +725,7 @@ func (s *Service) finishProbe(ctx context.Context, id int64, result string) {
 // Probes returns the probe log from since on, oldest first, at most limit rows (INV-9). Argv is the flag part stored with the row, so
 // history stays true when the templates change; Target is the merged ranges of the addresses probed.
 func (s *Service) Probes(ctx context.Context, since time.Time, limit int) ([]Probe, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, flags, targets, result, job_id FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT time, shape, rate, flags, targets, result, COALESCE(run_id, '') FROM sa_probe WHERE time >= ? ORDER BY id LIMIT ?`, store.FormatTS(since), clamp(limit, 1, 100000))
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read probes: %w", err)
 	}
@@ -711,12 +754,11 @@ func ExportProbes(ctx context.Context, db *store.DB, from, to time.Time, w io.Wr
 	if !to.IsZero() {
 		hi = store.FormatTS(to)
 	}
-	return logexport.Rows{SQL: `SELECT id, time, job_id, shape, rate, hosts, flags, targets, result FROM sa_probe
+	return logexport.Rows{SQL: `SELECT id, time, run_id, shape, rate, hosts, flags, targets, result FROM sa_probe
 		WHERE (? = '' OR time >= ?) AND (? = '' OR time <= ?) ORDER BY id`, Args: []any{lo, lo, hi, hi}}.Write(ctx, db.Reader(), w)
 }
 
-// Prune deletes probe rows older than ProbeRetention and the jobs that no longer have any probe row, and
-// returns how many probe rows went.
+// Prune deletes probe rows older than ProbeRetention and returns how many went (core/run prunes the runs).
 func (s *Service) Prune(ctx context.Context) (int, error) {
 	var n int64
 	cutoff := store.FormatTS(s.clock().Add(-ProbeRetention))
@@ -725,10 +767,7 @@ func (s *Service) Prune(ctx context.Context) (int, error) {
 		if err != nil {
 			return err
 		}
-		if n, err = res.RowsAffected(); err != nil {
-			return err
-		}
-		_, err = tx.ExecContext(ctx, `DELETE FROM sa_job WHERE started_at < ? AND status <> 'running' AND id NOT IN (SELECT job_id FROM sa_probe)`, cutoff)
+		n, err = res.RowsAffected()
 		return err
 	})
 	return int(n), err
@@ -742,191 +781,6 @@ type Result struct {
 	Targets    int
 	NewDevices int
 	Status     string
-}
-
-// nextBatch takes up to MaxBatch addresses from w that the settings snapshot st puts in scope and the
-// inventory does not protect (INV-1; a device declared by hand, set to never, fragile after its gentle scan, or
-// the box itself). The test is made in memory against st, so an address costs no storage read. It returns
-// fewer only when the ranges are used up.
-func (s *Service) nextBatch(ctx context.Context, st Settings, w *walker) ([]netip.Addr, error) {
-	prot, err := s.inv.ProtectedIPs(ctx)
-	if err != nil {
-		return nil, err
-	}
-	skip := make(map[netip.Addr]bool, len(prot))
-	for _, a := range prot {
-		skip[a.Unmap()] = true
-	}
-	sc := newScope(st)
-	var batch []netip.Addr
-	for len(batch) < MaxBatch {
-		a, ok := w.next()
-		if !ok {
-			break
-		}
-		if sc.contains(a) && !skip[a] {
-			batch = append(batch, a)
-		}
-	}
-	return batch, nil
-}
-
-func rangeSize(ps []netip.Prefix) int {
-	n := 0
-	for _, p := range mergePrefixes(ps) {
-		n += prefixSize(p)
-	}
-	return n
-}
-
-// cursor reads where the current sweep pass stands (invalid: no pass in progress).
-func (s *Service) cursor(ctx context.Context) (netip.Addr, error) {
-	var c sql.NullString
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT cursor FROM sa_sweep WHERE id = 1`).Scan(&c)
-	if errors.Is(err, sql.ErrNoRows) {
-		return netip.Addr{}, nil
-	}
-	if err != nil {
-		return netip.Addr{}, fmt.Errorf("sensoractive: read sweep cursor: %w", err)
-	}
-	a, _ := netip.ParseAddr(c.String) // NULL or junk: start the pass over
-	return a, nil
-}
-
-// setCursor stores the last address of a finished batch; the zero Addr ends the pass.
-func (s *Service) setCursor(ctx context.Context, a netip.Addr) {
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
-	defer cancel()
-	var v any
-	if a.IsValid() {
-		v = a.String()
-	}
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_sweep (id, cursor, updated_at) VALUES (1, ?, ?)
-			ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor, updated_at = excluded.updated_at`, v, s.now())
-		return err
-	})
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: storing the sweep cursor failed; the batch may be probed again", "error", err)
-	}
-}
-
-// DiscoverRanges continues the sweep of the confirmed ranges with nmap host discovery (PRE-1). A pass probes
-// every address of lan_ranges outside the exclusions and the protected devices at most once, in ascending
-// order and in batches of MaxBatch; the cursor of the pass is stored after every batch, so a window that
-// cuts it is continued the next day where it stopped, and only a pass that reached the end is followed by a
-// new one. The settings are read again before every batch (and again inside probe), and SettingsChanged stops
-// the batch in progress. A batch cut off by the window or a stop is dropped, finished batches stay stored,
-// and the job is "stopped" (POST-3). Hosts found are recorded in the inventory by MAC; devices that are new
-// there reach the queue through inventory.asset.discovered.
-func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
-	s.lockRun(ctx)
-	defer s.runMu.Unlock()
-	jctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	s.setCur(&running{cancel: cancel, manual: isManual(ctx)})
-	defer s.setCur(nil)
-	st, err := s.permit(jctx)
-	if err != nil {
-		return Result{}, err
-	}
-	macs, err := s.knownMACs(ctx)
-	if err != nil {
-		return Result{}, err
-	}
-	after, err := s.cursor(ctx)
-	if err != nil {
-		return Result{}, err
-	}
-	if w := st.sweepWarning(s.localPrefixes(ctx)); w != "" {
-		s.log.WarnContext(ctx, "sensoractive: a full sweep does not fit one window", "estimate", w)
-	}
-
-	ps := prefixes(st.LANRanges)
-	id, err := s.startJob(ctx, KindSweep, "", rangeSize(ps))
-	if err != nil {
-		return Result{}, err
-	}
-	res := Result{JobID: id}
-	// A sweep a person started reports how far it is (#850): the addresses swept out of the scope, batch by batch. Each batch's own
-	// nmap reports would start at 0 again (#830 FAIL 2), so the batches run without the sink.
-	sink := progress.SinkFrom(ctx)
-	pctx, planned := jctx, int64(newScope(st).count())
-	if sink != nil {
-		pctx = progress.WithSink(jctx, nil)
-		sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Total: planned, Unit: progress.UnitHosts, NewPass: true})
-	}
-	var failed int
-	var firstErr string
-	status := StatusDone
-	w := newWalker(ps, after)
-loop:
-	for {
-		if st, err = s.inv.Settings(jctx); err == nil {
-			err = st.allowed()
-		}
-		if err != nil {
-			status, firstErr = StatusStopped, "stopped: "+err.Error()
-			break
-		}
-		if _, ok := s.windowNow(jctx, st); !ok {
-			status, firstErr = StatusStopped, "stopped: the window closed"
-			break
-		}
-		batch, err := s.nextBatch(jctx, st, w)
-		if err != nil {
-			status, firstErr = StatusFailed, "reading the scope failed"
-			if jctx.Err() != nil {
-				status, firstErr = StatusStopped, "stopped"
-			}
-			break
-		}
-		if len(batch) == 0 {
-			s.setCursor(ctx, netip.Addr{}) // the pass reached the end of the ranges
-			break
-		}
-		hosts, err := s.probe(pctx, id, nmapargv.Sweep, st.Rate, batch)
-		switch {
-		case errors.Is(err, ErrStopped):
-			status, firstErr = StatusStopped, stoppedText
-			break loop
-		case errors.Is(err, ErrUnavailable):
-			// The worker is gone (or nmap is): the batches that are left would each fail the same way and burn a probe row.
-			// Stop without moving the cursor; a stopped sweep is run again by a later Tick, from the cursor.
-			status, firstErr = StatusStopped, "stopped: "+err.Error()
-			break loop
-		case err == nil:
-			var n int
-			if n, err = s.recordSweep(ctx, hosts, batch, macs); err == nil {
-				res.Targets += len(batch)
-				res.NewDevices += n
-				s.setCursor(ctx, batch[len(batch)-1])
-				if sink != nil {
-					sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Done: int64(res.Targets), Total: max(planned, int64(res.Targets)), Unit: progress.UnitHosts})
-				}
-				continue
-			}
-			fallthrough
-		default:
-			failed++
-			if firstErr == "" {
-				firstErr = err.Error()
-			}
-			s.setCursor(ctx, batch[len(batch)-1])
-			s.log.WarnContext(ctx, "sensoractive: a sweep batch failed", "job", id, "error", err)
-		}
-	}
-	if status == StatusDone && failed > 0 {
-		status, firstErr = StatusFailed, fmt.Sprintf("%d batches failed; first: %s", failed, firstErr)
-	} else if status == StatusDone {
-		firstErr = ""
-	}
-	res.Status = status
-	s.finishJob(ctx, id, status, res.Targets, res.NewDevices, firstErr)
-	if status == StatusStopped {
-		return res, ErrStopped
-	}
-	return res, nil
 }
 
 // knownMACs reads the MAC of every device of the inventory (uncapped, lower case).
@@ -946,7 +800,7 @@ func (s *Service) knownMACs(ctx context.Context) (map[string]bool, error) {
 // inventory already has is free whatever its IP (DHCP churn), every other MAC is charged against the budget of new devices, even at
 // an IP the inventory already has. Only the first entry for a target counts: one result can carry many for one address. known is the
 // MACs of the inventory and gains the MACs recorded here.
-func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.Addr, known map[string]bool) (int, error) {
+func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.Addr, known map[string]bool) (map[netip.Addr]bool, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	var obs []observe.Observation
@@ -985,17 +839,17 @@ func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.A
 		s.log.WarnContext(ctx, "sensoractive: new devices over the budget were not recorded", "dropped", n)
 	}
 	if len(obs) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 	if err := s.obs.Record(ctx, obs); err != nil {
-		return 0, fmt.Errorf("sensoractive: recording hosts: %w", err) // the budget is not spent: the next try meets the same budget
+		return nil, fmt.Errorf("sensoractive: recording hosts: %w", err) // the budget is not spent: the next try meets the same budget
 	}
 	s.budget.Commit(admitted, admittedV, now)
-	fresh := 0
+	fresh := map[netip.Addr]bool{}
 	for _, c := range admitted {
 		if !known[c.MAC] {
 			known[c.MAC] = true
-			fresh++
+			fresh[c.IP] = true
 		}
 	}
 	return fresh, nil
@@ -1027,6 +881,14 @@ func (s *Service) setCur(r *running) {
 	s.cur = r
 }
 
+// runIDOf is the id of ctx's run, "" outside one.
+func runIDOf(ctx context.Context) string {
+	if x := execOf(ctx); x != nil {
+		return x.ID()
+	}
+	return ""
+}
+
 // ---- one device ----
 
 // ScanDevice identifies one device with nmap (PRE-2): the inventory's ScanPolicy must allow it, the window
@@ -1035,8 +897,32 @@ func (s *Service) setCur(r *running) {
 // is registered before the checks and its address published as soon as it is known, so a SettingsChanged that
 // arrives while it is still checking reaches it. A refusal by policy or scope publishes
 // sensor.scan.blocked and sends nothing. reason says why it was asked ("discovered", ...).
+// Outside a run (a caller of its own) the check is a device_check run made for it, which it waits for.
 func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error {
-	return s.scanDevice(ctx, assetID, reason, false)
+	if execOf(ctx) != nil {
+		return s.scanDevice(ctx, assetID, reason, false)
+	}
+	if st, err := s.inv.Settings(ctx); err != nil { // nothing may run: no run is recorded
+		return err
+	} else if err := st.allowed(); err != nil {
+		s.blocked(ctx, assetID, reasonOf(err))
+		return err
+	}
+	if err := s.available(ctx); err != nil {
+		return err
+	}
+	lbl := assetID // no read of the device before its checks: they read it in order (INV-1)
+	words := reasonWords[reason]
+	return s.doWork(ctx, run.Spec{Kind: RunCheck, Title: "Check of " + lbl, Trigger: run.Event, TriggerNote: words,
+		Subject: &run.Subject{Kind: "device", ID: assetID, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
+		func(ctx context.Context) error { return s.scanDevice(ctx, assetID, reason, false) },
+		func(ctx context.Context, err error) run.Result {
+			r := s.scanResult(ctx, err)
+			if r.Status == run.Waiting { // its caller asks again: this run does not wait
+				return run.Result{Status: run.Partial, Error: "Not done: it waits for " + r.WaitingFor}
+			}
+			return r
+		}, 0, "")
 }
 
 // scanDevice is ScanDevice; all makes it the weekly scan of every port (nmapargv.AllPorts), which only a device that is not
@@ -1049,14 +935,16 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	defer cancel()
 	// The weekly run is registered with its kind before its policy is read, so a change of the device in between
 	// reaches it.
-	cur := &running{cancel: cancel, asset: assetID, weekly: all, manual: isManual(ctx)}
+	cur := &running{cancel: cancel, asset: assetID, weekly: all, until: manualUntil(ctx), runID: runIDOf(ctx)}
 	if all {
 		cur.kind = nmapargv.AllPorts
 	}
 	s.setCur(cur)
 	defer s.setCur(nil)
-	if all && s.urgent.Load() > 0 { // a Scan now identification or an exposure scan waits for the slot: it goes first
-		return ErrStopped
+	if all { // other work waits for the nmap lane (a person's check, a scan for exposure): it goes first
+		if other, _, err := s.laneBusy(jctx, runIDOf(ctx)); err == nil && other != "" {
+			return ErrStopped
+		}
 	}
 	// A run stopped by a settings or device change while it checks is not a failure: whatever the storage
 	// read then returns (context canceled), the caller sees ErrStopped and does not count an attempt.
@@ -1132,7 +1020,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	}
 	s.setKind(kind)
 
-	id, err := s.startDeviceJob(ctx, reason, assetID)
+	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
 		return err
 	}
@@ -1185,7 +1073,7 @@ func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip ne
 	if err := s.recordHost(ctx, assetID, ip, h, kind); err != nil {
 		return err
 	}
-	s.saveFound(ctx, jobID, foundOf(h, kind, extraFailed, prev))
+	s.saveFound(ctx, assetID, ip, foundOf(h, kind, extraFailed, prev))
 	return nil
 }
 
@@ -1384,82 +1272,6 @@ func (s *Service) lockRun(ctx context.Context) {
 	s.runMu.Lock()
 }
 
-// lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended). Its callers (a Scan now
-// identification, an exposure scan) go before the weekly scan of every port: a weekly run that holds the slot is
-// stopped (it stays due; its partial result is dropped), and the weekly round starts no device while one waits. onWait, when set, is
-// called when the slot is found taken and every waitNote after.
-func (s *Service) lockWithin(ctx context.Context, d time.Duration, onWait func()) bool {
-	if s.runMu.TryLock() {
-		return true
-	}
-	s.urgent.Add(1)
-	defer s.urgent.Add(-1)
-	s.stopWeekly()
-	give := time.NewTimer(d)
-	defer give.Stop()
-	tick := time.NewTicker(500 * time.Millisecond)
-	defer tick.Stop()
-	last := time.Now()
-	if onWait != nil {
-		onWait()
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-give.C:
-			return s.runMu.TryLock()
-		case <-tick.C:
-			s.stopWeekly()
-			if s.runMu.TryLock() {
-				return true
-			}
-			if onWait != nil && time.Since(last) >= waitNote {
-				last = time.Now()
-				onWait()
-			}
-		}
-	}
-}
-
-// waitNote is how often the page's words about a wait for the nmap slot are made again (the estimate moves).
-const waitNote = 5 * time.Second
-
-// reasonCheckWait is the queue reason of a device check a person started that waits for the nmap slot.
-const reasonCheckWait = "check_wait"
-
-// waitingFor says what a person's check waits for, in the words of the page: the running exposure scan with its estimate when the
-// scan reports one (rounded up to a minute), without a time when it does not.
-func (s *Service) waitingFor() string {
-	s.mu.Lock()
-	cur := s.cur
-	var view func() *progress.View
-	external := false
-	if cur != nil {
-		view, external = cur.view, cur.external
-	}
-	s.mu.Unlock()
-	switch {
-	case cur == nil:
-		return "Waiting for the scanner to be free"
-	case !external:
-		return "Waiting for the running network scan to finish"
-	}
-	msg := "Waiting for the running external scan to finish"
-	if view != nil {
-		if v := view(); v != nil && v.ETA != nil {
-			if at, err := time.Parse(time.RFC3339Nano, *v.ETA); err == nil {
-				if left := at.Sub(s.clock()); left > time.Minute {
-					msg += fmt.Sprintf(", about %d min", int((left+time.Minute-1)/time.Minute))
-				} else if left > 0 {
-					msg += ", less than a minute"
-				}
-			}
-		}
-	}
-	return msg
-}
-
 // stopWeekly cancels the weekly scan of every port that holds the slot, if one does.
 func (s *Service) stopWeekly() {
 	s.mu.Lock()
@@ -1470,50 +1282,18 @@ func (s *Service) stopWeekly() {
 	}
 }
 
-// IdentifyDevice identifies one device for the vulnerability scan a person started with Scan now: the same nmap device
-// scan and recording as ScanDevice, with the scan shape of pickedPlan, and at once (the window does not apply, as for Scan now
-// itself). Every other rule of a device scan holds: scanning on, scope confirmed, the device's address in scope right before the
-// command line is built (INV-1), the probe log (INV-9), one nmap at a time, the stop on a change of settings or of the device.
-// A refusal publishes sensor.scan.blocked and sends nothing. The result says what was recorded, or why nothing was; err is
-// ErrStopped when the run was stopped, ErrNotFound for an unknown device, or a failure of nmap, the worker or storage.
-func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identification, error) {
-	return s.identifyDevice(ctx, assetID, busyWait, false)
-}
-
-// identifyDevice is IdentifyDevice that waits up to wait for the slot. person is a check a person started (Check this device now):
-// it waits right behind whatever holds nmap, for as long as its run lasts (INV-28), says on its progress what it waits for, and keeps
-// a row in the queue while it waits so a restart does not lose it.
-func (s *Service) identifyDevice(ctx context.Context, assetID string, wait time.Duration, person bool) (Identification, error) {
+// identifyIn is the identification of one device a person asked for, inside its run (a device_check with trigger manual): the
+// shape of pickedPlan, at once whatever the window, every other rule of a device scan (IdentifyDevice).
+func (s *Service) identifyIn(ctx context.Context, assetID string) (Identification, error) {
 	stops := s.stops.Load()
-	var onWait func()
-	waited := false
-	if person {
-		onWait = func() {
-			if !waited {
-				waited = true
-				if err := s.Enqueue(context.WithoutCancel(ctx), assetID, reasonCheckWait); err != nil {
-					s.log.WarnContext(ctx, "sensoractive: keeping a device check a person started while it waits failed", "asset", assetID, "error", err)
-				}
-			}
-			progress.Report(ctx, progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Message: s.waitingFor()})
-		}
-	}
-	if !s.lockWithin(ctx, wait, onWait) { // discovery is running nmap: Scan now does not wait for a sweep that may last the whole window
-		if ctx.Err() != nil {
-			return Identification{}, ErrStopped
-		}
-		return Identification{Why: WhyBusy}, nil
-	}
+	s.lockRun(ctx)
 	defer s.runMu.Unlock()
-	if s.stops.Load() != stops { // the module was turned off while it waited (#723)
+	if s.stops.Load() != stops || ctx.Err() != nil { // the module was turned off while it waited (#723)
 		return Identification{}, ErrStopped
-	}
-	if waited {
-		progress.Report(ctx, progress.Phase(progress.PhaseDiscovery, "")) // the waiting words go
 	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, asset: assetID, picked: true})
+	s.setCur(&running{cancel: cancel, asset: assetID, picked: true, runID: runIDOf(ctx)})
 	defer s.setCur(nil)
 	stopped := func(err error) error {
 		if jctx.Err() != nil {
@@ -1580,7 +1360,7 @@ func (s *Service) identifyDevice(ctx context.Context, assetID string, wait time.
 		return refuse(reasonBox)
 	}
 	s.setKind(kind)
-	id, err := s.startDeviceJob(ctx, "scan_now", assetID)
+	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
 	if err != nil {
 		return Identification{}, err
 	}
@@ -1613,268 +1393,6 @@ func (s *Service) identifyDevice(ctx context.Context, assetID string, wait time.
 	return Identification{Found: found, Why: why}, nil
 }
 
-// ---- the queue and the schedule ----
-
-// Enqueue remembers a device for its scan inside a window (a device another sensor saw first). It survives a
-// restart; queueing a device twice keeps one row.
-func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
-	if l := len(assetID); l < 1 || l > 96 {
-		return errors.New("sensoractive: bad device id")
-	}
-	if reason == "" || len(reason) > 64 {
-		reason = "queued"
-	}
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO sa_queue (asset_id, queued_at, reason) VALUES (?, ?, ?)`, assetID, s.now(), reason)
-		return err
-	})
-}
-
-// queuePendingOnce queues, once per process, every device the inventory says still waits for its one gentle scan (PendingGentle):
-// the devices inventory migration 0004 gave a new gentle scan with titles never get an inventory.asset.discovered event. Queueing is
-// INSERT OR IGNORE, so a device already queued keeps its row; a failed read is tried again at the next tick.
-func (s *Service) queuePendingOnce(ctx context.Context) error {
-	p, ok := s.inv.(PendingGentle)
-	if !ok || s.pendingQueued.Load() {
-		return nil
-	}
-	ids, err := p.PendingGentleScans(ctx)
-	if err != nil {
-		return fmt.Errorf("sensoractive: read the devices waiting for their gentle scan: %w", err)
-	}
-	for _, id := range ids {
-		if err := s.Enqueue(ctx, id, "gentle_titles"); err != nil {
-			return err
-		}
-	}
-	s.pendingQueued.Store(true)
-	return nil
-}
-
-type queued struct {
-	id, reason string
-	attempts   int
-}
-
-func (s *Service) queue(ctx context.Context) ([]queued, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT asset_id, reason, attempts FROM sa_queue ORDER BY queued_at, asset_id LIMIT 500`)
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: read queue: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []queued
-	for rows.Next() {
-		var q queued
-		if err := rows.Scan(&q.id, &q.reason, &q.attempts); err != nil {
-			return nil, err
-		}
-		out = append(out, q)
-	}
-	return out, rows.Err()
-}
-
-// QueueLen is the number of devices waiting for a scan.
-func (s *Service) QueueLen(ctx context.Context) (int, error) {
-	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_queue`).Scan(&n)
-	return n, err
-}
-
-// leave takes a device out of the queue; failed counts an attempt and, if the device has attempts left, moves
-// it to the back of the queue so one device that cannot finish never blocks the ones behind it.
-func (s *Service) leave(ctx context.Context, id string, failed bool) {
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		if failed {
-			if _, err := tx.ExecContext(ctx, `UPDATE sa_queue SET attempts = attempts + 1, queued_at = ? WHERE asset_id = ?`, s.now(), id); err != nil {
-				return err
-			}
-			_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ? AND attempts >= ?`, id, maxAttempts)
-			return err
-		}
-		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, id)
-		return err
-	})
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: updating the queue failed", "asset", id, "error", err)
-	}
-}
-
-// Tick is the window job, run every minute: while a window is open it starts the day's sweep (once per
-// window, also when the module or scanning is turned on inside an open window) and then scans the queued
-// devices one by one. Outside a window, or with scanning off, it does nothing.
-func (s *Service) Tick(ctx context.Context) error {
-	if err := s.queuePendingOnce(ctx); err != nil {
-		return err
-	}
-	// the SNMP old credentials are moved to their devices once, at the first tick after the upgrade (window or not).
-	if err := s.moveCredentials(ctx); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: moving the snmp credentials to their devices failed; tried again at the next tick", "error", err)
-	}
-	if s.runMu.TryLock() {
-		err := s.failInterrupted(ctx)
-		s.runMu.Unlock()
-		if err != nil {
-			return err
-		}
-	}
-	st, err := s.inv.Settings(ctx)
-	if err != nil {
-		return err
-	}
-	if st.allowed() != nil {
-		return nil
-	}
-	s.resumeChecks(ctx)
-	start, _, ok := st.window(s.local())
-	if !ok {
-		due, err := s.firstPassDue(ctx)
-		if err != nil || !due {
-			return err
-		}
-		return s.firstPass(ctx)
-	}
-	if err := s.available(ctx); err != nil {
-		return err
-	}
-	// The devices a person turned the network scan on for, that a new range now covers, or that no check ever reached are checked
-	// first, before the sweep: a sweep of wide ranges takes the whole window and the queue behind it would wait for the next one (INV-27).
-	if err := s.queueOwedNormal(ctx, start); err != nil {
-		s.log.WarnContext(ctx, "sensoractive: queueing the devices that owe a scan failed; tried again in the next window", "error", err)
-	}
-	firstFor := min(st.windowLength()/firstShare, firstMax)
-	if err := s.drainQueue(ctx, firstReasons, firstBeforeSweep, s.clock().Add(firstFor)); err != nil {
-		return err
-	}
-	var done int
-	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('running', 'done', 'failed') AND started_at >= ?`, store.FormatTS(start)).Scan(&done)
-	if err != nil {
-		return fmt.Errorf("sensoractive: read jobs: %w", err)
-	}
-	if done == 0 {
-		if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
-			s.log.WarnContext(ctx, "sensoractive: the sweep did not run", "error", err)
-		}
-	}
-	if err := s.drain(ctx); err != nil {
-		return err
-	}
-	// Then the window's round of SNMP reads: the sweep and the queue may have found the devices it reads.
-	if err := s.snmpRound(ctx, start); err != nil {
-		return err
-	}
-	// Then the weekly scans of every port, one device at a time while the window has room for one.
-	return s.allPortsRound(ctx)
-}
-
-// firstPassDue says the first pass has never started (no sa_first_pass row) and no sweep ever finished on this box (an older box
-// that has swept has had its first look). It runs exactly once: a pass that was stopped or cut by its deadline is not
-// run again; its sweep goes on from the cursor in the next window.
-func (s *Service) firstPassDue(ctx context.Context) (bool, error) {
-	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM sa_first_pass) + (SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('done', 'failed'))`).Scan(&n)
-	if err != nil {
-		return false, fmt.Errorf("sensoractive: read the first pass: %w", err)
-	}
-	return n == 0, nil
-}
-
-// markFirstPass records that the first pass starts; false when another call recorded it first.
-func (s *Service) markFirstPass(ctx context.Context) (bool, error) {
-	var n int64
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		r, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO sa_first_pass (id, started_at) VALUES (1, ?)`, s.now())
-		if err != nil {
-			return err
-		}
-		n, err = r.RowsAffected()
-		return err
-	})
-	if err != nil {
-		return false, fmt.Errorf("sensoractive: record the first pass: %w", err)
-	}
-	return n == 1, nil
-}
-
-// firstPass is the one discovery pass of a box that has never swept, run at once instead of at the next window (otherwise
-// a box set up at 11:00 identified nothing until 23:00). It is the window's own work, a sweep and then the queued devices'
-// scans (gentle first for fragile and unclassified ones), with the window counted open for at most firstPassFor. Every
-// other rule holds: scanning on, scope confirmed, exclusions, rate, the probe log, the stop on a change of settings. It runs once:
-// sa_first_pass is written before the sweep starts.
-func (s *Service) firstPass(ctx context.Context) error {
-	if err := s.available(ctx); err != nil {
-		return err // not started: the next Tick tries again
-	}
-	if first, err := s.markFirstPass(ctx); err != nil || !first {
-		return err
-	}
-	s.mu.Lock()
-	s.firstUntil = s.clock().Add(firstPassFor)
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		s.firstUntil = time.Time{}
-		s.mu.Unlock()
-	}()
-	s.log.InfoContext(ctx, "sensoractive: first pass of a new box, outside the window", "for", firstPassFor.String())
-	if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
-		s.log.WarnContext(ctx, "sensoractive: the first sweep did not run", "error", err)
-	}
-	return s.drain(ctx)
-}
-
-// firstReasons are the queue reasons of a device whose first check is owed (INV-27): its network scan was turned on, a range now
-// covers it, no check ever reached it, or a person's check had to wait. firstBeforeSweep is the most of them one tick scans before the
-// window's sweep; the rest follow the sweep as every queued device does.
-var firstReasons = []string{"scan_on", "first_check", "check_now"}
-
-const firstBeforeSweep = 25
-
-// firstShare and firstMax bound the time the first checks take before the sweep: a quarter of the window, at most 30 minutes, so the
-// sweep (discovery of new devices) always runs in the window.
-const (
-	firstShare = 4
-	firstMax   = 30 * time.Minute
-)
-
-// drain scans the queued devices in order while the window is open.
-func (s *Service) drain(ctx context.Context) error { return s.drainQueue(ctx, nil, 0, time.Time{}) }
-
-// drainQueue is drain for the queued devices with one of reasons (all when nil), at most limit of them (all when 0), starting none
-// after until (no end when zero). A check_wait row belongs to a person's run (resumeChecks), never to the window.
-func (s *Service) drainQueue(ctx context.Context, reasons []string, limit int, until time.Time) error {
-	list, err := s.queue(ctx)
-	if err != nil {
-		return err
-	}
-	scanned := 0
-	for _, q := range list {
-		if ctx.Err() != nil {
-			return nil
-		}
-		if q.reason == reasonCheckWait || (reasons != nil && !slices.Contains(reasons, q.reason)) {
-			continue
-		}
-		if (limit > 0 && scanned >= limit) || (!until.IsZero() && !s.clock().Before(until)) {
-			return nil
-		}
-		scanned++
-		err := s.ScanDevice(ctx, q.id, q.reason)
-		switch {
-		case err == nil, errors.Is(err, ErrBlocked), errors.Is(err, ErrNotFound):
-			s.leave(ctx, q.id, false)
-		case errors.Is(err, errDeadline):
-			s.leave(ctx, q.id, true) // an attempt, and to the back; the next device finds the window closed itself
-		case errors.Is(err, ErrOutsideWindow), errors.Is(err, ErrStopped), errors.Is(err, ErrUnavailable),
-			errors.Is(err, ErrScanningOff), errors.Is(err, ErrScopeNotConfirmed), errors.Is(err, ErrNoRanges):
-			return nil // the rest waits for the next window
-		default:
-			s.log.WarnContext(ctx, "sensoractive: a device scan failed", "asset", q.id, "error", err)
-			s.leave(ctx, q.id, true)
-		}
-	}
-	return nil
-}
-
 // SettingsChanged reacts to inventory.settings.changed: it bumps the settings version (a run that has not
 // started nmap yet sees it and stops), and if a run is registered and the settings no longer allow it (scanning
 // off, scope unconfirmed, outside the window, a lower rate, an address of the run out of scope), it is stopped
@@ -1893,9 +1411,10 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	var targets []netip.Addr
 	var rate int
 	var deadline time.Time
-	var picked, external, manual bool
+	var picked, external bool
+	var until time.Time
 	if cur != nil {
-		targets, rate, deadline, picked, external, manual = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external, cur.manual
+		targets, rate, deadline, picked, external, until = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external, cur.until
 	}
 	s.mu.Unlock()
 	if cur == nil || external { // an external run is not under the LAN settings
@@ -1908,11 +1427,7 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	}
 	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3). A picked
 	// identification is not bound to the window; the rate and the scope still bind it.
-	wctx := ctx
-	if manual {
-		wctx = withManual(ctx)
-	}
-	end, ok := s.windowNow(wctx, st)
+	end, ok := s.windowNow(withManualUntil(ctx, until), st)
 	if (!ok && !picked) || st.Rate < rate || (!picked && !deadline.IsZero() && end.Before(deadline)) {
 		cur.cancel()
 		return nil
@@ -2038,8 +1553,5 @@ func (s *Service) dropRefused(ctx context.Context, assetID string) {
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return
 	}
-	_ = s.db.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM sa_queue WHERE asset_id = ?`, assetID)
-		return err
-	})
+	s.dropWaiting(context.WithoutCancel(ctx), assetID, "The device may no longer be checked")
 }

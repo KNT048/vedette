@@ -41,7 +41,7 @@ func TestProbeGoesThroughProber(t *testing.T) {
 	e := newEnv(t, fakeOpts{})
 	fp := &fakeProber{xml: xml, count: func() int { return e.count(`SELECT COUNT(*) FROM sa_probe WHERE result = 'started'`) }}
 	e.inv.decision["a-web"] = sa.Decision{Allowed: true, Rate: 100, Reason: "ok"}
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: fp, Clock: e.clock})
+	svc, err := e.newService(sa.Config{DB: e.db, Inventory: e.inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: fp, Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}

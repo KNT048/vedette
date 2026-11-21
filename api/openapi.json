@@ -32140,7 +32140,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Minutes between automatic checks, 1 to 1440. Default 60"
+                          "description": "Minutes between automatic checks, 5 to 1440. Default 60"
                         },
                         "last_run": {
                           "anyOf": [

@@ -37,11 +37,12 @@ function fragWords(s: string): [string[], boolean] {
   const t = s.trim()
   return [fragmentWords(t.endsWith('*') ? t.slice(0, -1) : t), t.endsWith('*')]
 }
+const familyWord = (word: string, family: string) => word.startsWith(family) && (word.length === family.length || /[0-9]/.test(word[family.length]!))
 function namesPart(part: string[], frag: string[], star: boolean): boolean {
   const n = frag.length
   if (part.length < n) return false
   for (let i = 0; i < n - 1; i++) if (part[i] !== frag[i]) return false
-  if (star) return part[n - 1]!.startsWith(frag[n - 1]!)
+  if (star) return familyWord(part[n - 1]!, frag[n - 1]!)
   return part[n - 1] === frag[n - 1] && part.slice(n).every((w) => QUALIFIERS.has(w))
 }
 function fragmentMatch(fragment: string, vendor: string, product: string): boolean {
@@ -60,6 +61,8 @@ function fragmentMatch(fragment: string, vendor: string, product: string): boole
   if (namesPart(name.match(/[a-z0-9]+/g) ?? [], p, star)) return true
   return name.split(/\s*(?:,|\/|&|\band\b)\s*/).some((part) => namesPart(part.match(/[a-z0-9]+/g) ?? [], p, star))
 }
+
+export { fragmentMatch }
 
 function kevKeysFor(matches: string[] | undefined, fallback: string): string[] {
   if (!matches?.length) return [fallback]

@@ -2,6 +2,7 @@ package productid
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -17,7 +18,8 @@ import (
 //     no other. A part names the product when it is the fragment's words alone, or the fragment's words and then only qualifiers
 //     ("software", "appliance", "devices" ...: words that do not name another product).
 //   - A fragment ending in "*" names a family: the part starts with the fragment's words and may go on ("windows*" for every
-//     Windows component, "rv*" for RV160, RV320 ... in the last word).
+//     Windows component). Its last word is the fragment's word, or that word and then a model number ("rv*" for RV160 and RV320, not
+//     for RVS4000; "chrome*" not for ChromeOS; "java*" not for JavaFX).
 //   - Text in brackets is left out on both sides ("Adaptive Security Appliance (ASA)").
 
 var (
@@ -97,7 +99,7 @@ func namesPart(part, frag []string, star bool) bool {
 		}
 	}
 	if star {
-		return strings.HasPrefix(part[n-1], frag[n-1])
+		return familyWord(part[n-1], frag[n-1])
 	}
 	if part[n-1] != frag[n-1] {
 		return false
@@ -108,4 +110,36 @@ func namesPart(part, frag []string, star bool) bool {
 		}
 	}
 	return true
+}
+
+// familyWord says whether word is the family's word, or that word followed by a model number (a digit and what follows it).
+func familyWord(word, family string) bool {
+	rest, ok := strings.CutPrefix(word, family)
+	return ok && (rest == "" || rest[0] >= '0' && rest[0] <= '9')
+}
+
+// NearMiss says whether a list name looks like a fragment's product but the fragment does not name it: the vendor matches, and a
+// part of the name starts with the fragment's words and goes on with words that are no qualifier ("FortiOS SSL-VPN" for
+// "fortinet|fortios"). Such a name may be another product ("Cisco IOS XR" for IOS) or a component of the row's own product; a
+// person has to decide which, so the catalogue's tests list every one.
+func NearMiss(fragment, vendor, product string) bool {
+	if FragmentMatch(fragment, vendor, product) {
+		return false
+	}
+	fv, fp, _ := strings.Cut(fragment, "|")
+	if v, _ := fragWords(fv); len(v) > 0 && !hasRun(words(vendor), v) {
+		return false
+	}
+	p, _ := fragWords(fp)
+	if len(p) == 0 {
+		return false
+	}
+	name := bracketRE.ReplaceAllString(strings.ToLower(spaced(product)), " ")
+	for _, part := range append([]string{name}, partSplit.Split(name, -1)...) {
+		w := wordRE.FindAllString(part, -1)
+		if len(w) > len(p) && slices.Equal(w[:len(p)], p) {
+			return true
+		}
+	}
+	return false
 }

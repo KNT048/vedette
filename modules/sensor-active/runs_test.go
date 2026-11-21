@@ -3,6 +3,7 @@ package sensoractive_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
@@ -27,7 +28,7 @@ type heldProber struct {
 }
 
 func newHeld(hold ...int) *heldProber {
-	h := &heldProber{hold: map[int]bool{}, started: make(chan int, 16), release: make(chan struct{})}
+	h := &heldProber{hold: map[int]bool{}, started: make(chan int, 4096), release: make(chan struct{})}
 	for _, n := range hold {
 		h.hold[n] = true
 	}
@@ -408,5 +409,96 @@ func TestRunsTheQueueTakesTurnsWithThePass(t *testing.T) {
 	}
 	if i, j := slices.Index(order, "check"), slices.Index(order, "sweep 192.168.10.65"); i < 0 || j < 0 || i > j {
 		t.Fatalf("order %q: want the check between the two batches", order)
+	}
+}
+
+// In the next window a pass that waits goes on before the devices beyond the first checks' cap: a device takes its turn only after
+// a batch of the pass, so the pass is never held behind the whole queue.
+func TestRunsAWaitingPassGoesOnBeforeTheRestOfTheQueue(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) {
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+	})
+	held := newHeld(2)
+	e.withProber(held)
+	e.setClock(local(9, 4, 59).Add(56 * time.Second)) // the window's end cuts the second batch
+	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrStopped) {
+		t.Fatalf("the first window: %v", err)
+	}
+	if s := sweepRuns(e); len(s) != 1 || s[0].Done != 64 || s[0].Status != run.Waiting {
+		t.Fatalf("the pass after the first window: %+v", s)
+	}
+	var late []string // the addresses of the devices beyond the cap of first checks
+	for i := range 30 {
+		id, ip := fmt.Sprintf("a-q%d", i), netip.AddrFrom4([4]byte{192, 168, 10, byte(90 + i)})
+		e.inv.mu.Lock()
+		e.inv.assets[id] = ip
+		e.inv.mu.Unlock()
+		if err := e.svc.Enqueue(e.ctx(), id, "discovered"); err != nil {
+			t.Fatal(err)
+		}
+		if i >= 25 {
+			late = append(late, ip.String())
+		}
+	}
+	calls := newHeld()
+	e.withProber(calls)
+	e.setClock(local(10, 2, 0)) // the next window
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	pass, firstLate := -1, -1
+	for i, c := range calls.calls() {
+		switch {
+		case slices.Contains(c, "-sn") && pass < 0:
+			pass = i
+		case firstLate < 0 && slices.ContainsFunc(late, func(ip string) bool { return slices.Contains(c, ip) }):
+			firstLate = i
+		}
+	}
+	if pass < 0 || firstLate < 0 || pass > firstLate {
+		t.Fatalf("the pass's batch was nmap job %d, the first check beyond the cap job %d: want the pass first", pass, firstLate)
+	}
+	if s := sweepRuns(e); s[0].Status != run.Done || s[0].Done != 126 {
+		t.Fatalf("the pass: %+v", s[0])
+	}
+}
+
+// The scan worker gone in the middle of a window with devices waiting: the driver does not resume them over and over; the pass and
+// the checks wait, and the next tick tries again.
+func TestRunsNoBusyLoopWhileTheWorkerIsGone(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, func(e *env) {
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+	})
+	var mu sync.Mutex
+	n := 0
+	e.withProber(probeFunc(func(_ context.Context, argv []string) (sa.Output, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		n++
+		if slices.Contains(argv, "-sn") && n == 1 {
+			return sa.Output{XML: emptyScan}, nil
+		}
+		return sa.Output{}, sa.ErrWorkerUnavailable // the worker goes away after the pass's first batch
+	}))
+	for i := range 3 {
+		id := fmt.Sprintf("a-w%d", i)
+		e.inv.mu.Lock()
+		e.inv.assets[id] = netip.AddrFrom4([4]byte{192, 168, 10, byte(100 + i)})
+		e.inv.mu.Unlock()
+	}
+	start := time.Now()
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if took := time.Since(start); took > 30*time.Second {
+		t.Fatalf("the tick took %v", took)
+	}
+	if resumes := e.count(`SELECT count(*) FROM core_run_log l JOIN core_run r ON r.id = l.run_id WHERE r.kind = 'device_check' AND l.text = 'Resumed'`); resumes > 10 {
+		t.Fatalf("%d resumes of the waiting checks while the worker was gone", resumes)
+	}
+	if s := sweepRuns(e); len(s) != 1 || s[0].Status != run.Waiting {
+		t.Fatalf("the pass: %+v", s)
 	}
 }

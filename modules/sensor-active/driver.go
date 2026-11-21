@@ -131,6 +131,7 @@ func (s *Service) Tick(ctx context.Context) error {
 	}
 	start, _, ok := st.window(s.local())
 	if !ok {
+		s.resumeYielded(ctx, "") // a person's pass that gave way goes on within its hour (after a restart too)
 		due, err := s.firstPassDue(ctx)
 		if err != nil || !due {
 			return err
@@ -264,7 +265,8 @@ func (s *Service) windowSweep(ctx context.Context, st Settings, start time.Time)
 // the settings) is resumed once, as the window's driver does at each tick.
 func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce bool) (run.Run, error) {
 	var r run.Run
-	resumed := !resumeOnce // a pass that waits for something else than the lane is resumed at most once per call (the worker came back)
+	resumed := !resumeOnce     // a pass that waits for something else than the lane is resumed at most once per call (the worker came back)
+	tried := map[string]bool{} // the checks given a turn in this call: one that waits again (the worker gone) is not tried again
 	for range 10000 {
 		if ctx.Err() != nil {
 			return r, nil
@@ -286,20 +288,10 @@ func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce b
 				s.awaitTurn(ctx, other)
 				continue
 			}
-			if turns {
-				if next, err := s.nextWaitingCheck(ctx); err != nil {
-					return r, err
-				} else if next != "" {
-					s.expect(next)
-					if err := s.runs.Resume(ctx, next, run.System); err == nil {
-						s.awaitTurn(ctx, next)
-					}
-					continue
-				}
-			}
+			// the pass goes on first: a waiting device takes its turn only after one of its batches (the running case below)
 			if !s.isYielded(id) {
-				if resumed {
-					return r, nil
+				if resumed || s.available(ctx) != nil {
+					return r, nil // it waits for the worker or the settings: the next tick tries again
 				}
 				resumed = true
 			}
@@ -310,8 +302,9 @@ func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce b
 			}
 			continue
 		}
-		if turns { // a device waiting for its check makes the pass give way after its batch
-			if next, err := s.nextWaitingCheck(ctx); err == nil && next != "" {
+		if turns && s.available(ctx) == nil { // a device waiting for its check makes the pass give way after its batch
+			if next, err := s.nextWaitingCheck(ctx); err == nil && next != "" && !tried[next] {
+				tried[next] = true
 				if err := s.runs.Resume(ctx, next, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
 					return r, err
 				}

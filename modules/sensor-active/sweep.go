@@ -202,6 +202,7 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 	sink := progress.SinkFrom(ctx) // a person's Scan the LAN now reports how far it is
 	pctx := progress.WithSink(jctx, nil)
 	newDevices, failed, retries, firstErr := 0, 0, 0, ""
+	sent := false // a batch was sent since this start: only then does the pass give way to other work
 	finish := func(r run.Result) (run.Result, error) {
 		status := StatusDone
 		switch r.Status {
@@ -236,7 +237,7 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 			walked := step.Done
 			cursor := newCursor(sp, walked)
 			for {
-				if r, wait := s.sweepMayGoOn(jctx, x); wait {
+				if r, wait := s.sweepMayGoOn(jctx, x, sent); wait {
 					return finish(r)
 				}
 				st, err = s.inv.Settings(jctx)
@@ -255,6 +256,7 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 				}
 				if len(batch) > 0 {
 					hosts, err := s.probe(pctx, x.ID(), nmapargv.Sweep, st.Rate, batch)
+					sent = true
 					switch {
 					case errors.Is(err, ErrStopped):
 						if jctx.Err() != nil {
@@ -342,12 +344,16 @@ func (s *Service) addNewRanges(ctx context.Context, x *run.Exec) ([]run.Step, er
 
 // sweepMayGoOn says whether the sweep waits now instead of sending its next batch, and for what: the settings no longer allow it,
 // the window closed, or another run asked for the nmap lane.
-func (s *Service) sweepMayGoOn(ctx context.Context, x *run.Exec) (run.Result, bool) {
+// sent: the pass sent a batch since it last started; it gives way only then, so it always moves between two turns of other work.
+func (s *Service) sweepMayGoOn(ctx context.Context, x *run.Exec, sent bool) (run.Result, bool) {
 	if ctx.Err() != nil {
 		return run.Result{Status: run.Partial, Error: "stopped"}, true
 	}
 	if r := s.sweepWait(ctx); r.Status == run.Waiting {
 		return r, true
+	}
+	if !sent {
+		return run.Result{}, false
 	}
 	if _, title, err := s.laneBusy(ctx, x.ID()); err == nil && title != "" {
 		s.setYielded(x.ID(), true)

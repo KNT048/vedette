@@ -251,6 +251,9 @@ func (s *Service) await(ctx context.Context, id string, startWithin time.Duratio
 				if err := s.runs.Stop(bg, id, run.System, "The work that asked for it stopped"); err != nil && !errors.Is(err, run.ErrEnded) {
 					s.log.WarnContext(bg, "sensoractive: stopping a run whose caller gave up failed", "run", id, "error", err)
 				}
+				if now, err := s.runs.Read(bg, id); err == nil {
+					r = now // stopped while queued: the work handed to it is dropped (the deferred clean-up)
+				}
 			}
 			return r, got, ctx.Err()
 		case <-give:

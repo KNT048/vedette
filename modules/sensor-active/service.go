@@ -151,6 +151,18 @@ func (s *Service) setYielded(id string, on bool) {
 	}
 }
 
+// recoverYielded marks, at start, a person's pass that waits within its hour as one that gave way (a pass of a person can wait in
+// its hour for nothing else but the lane, the worker or the settings): the end of the next run of the lane, or the window's driver,
+// resumes it, as before the restart. The hour of a window's pass a person asked to go on now (personUntil) is not kept: that pass
+// waits for the window after a restart.
+func (s *Service) recoverYielded(ctx context.Context) {
+	sw, err := s.liveRun(ctx, RunSweep)
+	if err != nil || sw == nil || sw.Status != run.Waiting || !s.clock().Before(s.sweepUntil(*sw)) {
+		return
+	}
+	s.setYielded(sw.ID, true)
+}
+
 func (s *Service) isYielded(id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -242,6 +254,7 @@ func New(cfg Config) (*Service, error) {
 	if err := s.registerKinds(); err != nil {
 		return nil, err
 	}
+	s.recoverYielded(context.Background())
 	if s.ownRuns {
 		if err := s.runs.Start(context.Background()); err != nil {
 			return nil, err

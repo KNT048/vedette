@@ -119,7 +119,7 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn boo
 	out := DeviceUpdates{AssetID: assetID}
 	var open []Record
 	for _, r := range recs {
-		if r.Status.Open() {
+		if r.Status.Open() && Announced(r.Row) { // a finding of a CVE on no list is a recommended update (Planned), never exploited
 			open = append(open, r)
 		}
 	}

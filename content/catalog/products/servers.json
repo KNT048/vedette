@@ -17,7 +17,7 @@
   {"id": "redis", "display": "Redis", "vendor": "Redis", "product": "Redis", "cpe": ["a:redis:redis"], "linux": ["redis-server", "redis"]},
   {"id": "postgresql", "display": "PostgreSQL", "vendor": "PostgreSQL", "product": "PostgreSQL", "cpe": ["a:postgresql:postgresql"], "linux": ["postgresql", "postgresql-12", "postgresql-13", "postgresql-14", "postgresql-15", "postgresql-16", "postgresql-17", "postgresql-server"], "windows_prefix": ["postgresql "]},
   {"id": "docker-engine", "display": "Docker Engine", "vendor": "Docker", "product": "Docker Engine", "linux": ["docker-ce", "docker.io"], "windows": ["docker engine"]},
-  {"id": "jenkins", "display": "Jenkins", "vendor": "Jenkins", "product": "Jenkins", "cpe": ["a:jenkins:jenkins"], "linux": ["jenkins"]},
+  {"id": "jenkins", "display": "Jenkins", "vendor": "Jenkins", "product": "Jenkins", "cpe": ["a:jenkins:jenkins"], "linux": ["jenkins"], "record": ["Jenkins Project|Jenkins"]},
   {"id": "gitlab", "display": "GitLab", "vendor": "GitLab", "product": "GitLab", "kev": ["gitlab|community and enterprise editions", "gitlab|community edition and enterprise edition"], "cpe": ["a:gitlab:gitlab"], "linux": ["gitlab-ce", "gitlab-ee"]},
   {"id": "roundcube-webmail", "display": "Roundcube Webmail", "vendor": "Roundcube", "product": "Roundcube Webmail", "cpe": ["a:roundcube:webmail"], "class": "mail", "linux": ["roundcube", "roundcube-core"]},
   {"id": "imagemagick", "display": "ImageMagick", "vendor": "ImageMagick", "product": "ImageMagick", "cpe": ["a:imagemagick:imagemagick"], "linux": ["imagemagick"]},

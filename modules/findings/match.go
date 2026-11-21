@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Basis says how a finding was established.
@@ -164,6 +165,13 @@ type Vuln struct {
 	Affected    []Affected
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV; names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record
+	// Schemed are the ranges a vendor states in its own notation (an ESXi build per release train), read in the version scheme of
+	// the product they name: FixOf names the vendor's fixed release of the device's train from them. The generic comparison never
+	// reads them.
+	Schemed []SchemedRange
+	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
+	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
+	Origin string
 	// NVDAnswered: the feeds module recorded an answer for the CVE's affected configurations (feeds_affected_cve: NVD's, or the
 	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
 	// about NVD, so the "could not be checked" list does not claim "no NVD data" (#910, #920).
@@ -184,6 +192,36 @@ const (
 	RangesCVEOrg        = "cve.org"
 	RangesCVEOrgPartial = "cve.org-partial"
 )
+
+// SchemedRange is one range a vendor states in its notation, read in its product's version scheme.
+type SchemedRange struct {
+	Product string                // the core/productid key of the product it names
+	Scheme  *versionscheme.Scheme // the product's version scheme
+	Span    versionscheme.Span
+	Origin  string // RangeNVD, RangeCNA, RangeADP
+}
+
+// listed says the entry is on an exploited list (the catalogue's other CVEs have no list vendor and product).
+func (v Vuln) listed() bool { return v.Vendor != "" || v.Product != "" }
+
+// startUrgency is the urgency a finding of v starts with (UrgencyExploited on a list, else UrgencyUpdate).
+func (v Vuln) startUrgency() int {
+	if v.listed() {
+		return UrgencyExploited
+	}
+	return UrgencyUpdate
+}
+
+// rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
+func (v Vuln) rangeOrigin() string {
+	switch {
+	case v.Origin != "":
+		return v.Origin
+	case v.fromCVEOrg():
+		return RangeCNA
+	}
+	return RangeNVD
+}
 
 // listName is how texts name the list the entry is on: VulnCheck's entries are never called CISA's.
 func (v Vuln) listName() string {
@@ -579,6 +617,17 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		infos[i].edgeHost = host
 	}
 	named := nvdCandidates(sws, vulns) // #910: per row, the entries whose NVD list may name it
+	allRows := make([]int, len(sws))
+	namedRows := map[int][]int{} // entry -> the rows its NVD list may name, in row order
+	for i := range sws {
+		allRows[i] = i
+		for vi := range named[i] {
+			namedRows[vi] = append(namedRows[vi], i)
+		}
+	}
+	for vi := range namedRows {
+		slices.Sort(namedRows[vi])
+	}
 	for vi, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
@@ -592,7 +641,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		var unchecked []Unchecked // #910: rows of the product that could not be checked
 		needs, bestRow := false, -1
 		var matched []Match // every row the entry matches: each software line is its own finding (Match.Lines)
-		for i, s := range sws {
+		rows := allRows
+		if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
+			rows = namedRows[vi]
+		}
+		for _, i := range rows {
+			s := sws[i]
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
 			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 				// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
@@ -838,6 +892,9 @@ func betterMatch(m, best Match) bool {
 
 // keyedTo reports whether the software's KEV keys match the entry: its key, or for "Multiple Products" its vendor.
 func keyedTo(s Software, v Vuln) bool {
+	if v.Vendor == "" && v.Product == "" || len(s.KevKeys) == 0 {
+		return false // a catalogue CVE on no exploited list has no key
+	}
 	if strings.Contains(v.Vendor, "|") || strings.Contains(v.Product, "|") {
 		return false // the key separator cannot be part of a KEV vendor or product
 	}
@@ -853,6 +910,32 @@ func keyedTo(s Software, v Vuln) bool {
 	return false
 }
 
+// trustedReading says whether a row's version may make a finding of a CVE on no exploited list: the device's agent, a person, the
+// device's own SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap,
+// a scan, the passive sensor) or a row of unknown origin: for CVEs nobody is known to exploit, a guess is noise (a distribution's
+// backported package answers with the upstream version in its banner).
+func trustedReading(s Software) bool {
+	switch s.Source {
+	case "agent", "manual", "snmp":
+		return true
+	}
+	return strings.HasPrefix(s.ID, "os:")
+}
+
+// offListReading says whether a row may be compared with a CVE on no exploited list: a trusted reading (never a version guessed
+// from the network), and for a distribution's package (an agent's package row, a package release a person gave) only through the
+// distribution's own word on it: an upstream range does not see the fixes a distribution backports.
+func offListReading(s Software, in swInfo, v Vuln) bool {
+	if !trustedReading(s) {
+		return false
+	}
+	if in.pkgBuilt() {
+		_, ok := distroVerdict(in, v)
+		return ok
+	}
+	return true
+}
+
 // matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
 // name the row (viaNVD, #910).
 func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
@@ -861,7 +944,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 	switch {
 	case keyedTo(s, v):
 		m, out = judge(a, s, in, v, keyIDs(v), now)
-	case named:
+	case named && (v.listed() || offListReading(s, in, v)):
 		m, out = viaNVD(a, s, in, v, now)
 	default:
 		return Match{}, outNone
@@ -985,6 +1068,9 @@ func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 func rowVendors(s Software) []string {
 	n := identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}
 	out := []string{n.vendor}
+	if r := productid.NormVendor(s.Vendor); r != n.vendor { // a CVE record's range of a product the catalogue does not list
+		out = append(out, r)
+	}
 	for _, a := range cpeAliases[n] {
 		out = append(out, a.vendor)
 	}
@@ -1324,6 +1410,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {
 		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)
+		if r := recordIdentity(s.Vendor, s.Product); r.ok() {
+			in.ids = append(in.ids, r)
+		}
 	}
 	return in
 }
@@ -1682,6 +1771,15 @@ func everyVersion(c CPE) bool {
 type identity struct {
 	vendor, product string
 	prefix          bool
+	// record: the name a CVE record writes for a product without a CPE (company words and the vendor's name in front dropped,
+	// recordIdentity); it names only a record's range (part ANY), never an NVD CPE.
+	record bool
+}
+
+// recordIdentity is a software's own names as a CVE record's product key is written (feeds' RecordProductKey: "Palo Alto Networks",
+// "PAN-OS" is paloalto|panos), so a record range of a product the catalogue does not list still reaches it.
+func recordIdentity(vendor, product string) identity {
+	return identity{vendor: productid.NormVendor(vendor), product: productid.NormProduct(product, vendor), record: true}
 }
 
 func (i identity) ok() bool { return i.vendor != "" && i.product != "" }
@@ -1710,6 +1808,9 @@ func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
 	}
 	cv, cp = productid.Norm(cv), productid.Norm(cp)
 	for _, i := range ids {
+		if i.record && c.Part.Kind != Any {
+			continue
+		}
 		if i.matches(cv, cp) {
 			return true, true
 		}

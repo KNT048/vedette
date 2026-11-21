@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/knt048/vedette/core/selfcheck"
@@ -40,8 +41,28 @@ var invariants = []selfcheck.Invariant{
 	},
 }
 
+// catalogueInvariants hold between the findings and feeds' catalogue: they read feeds' tables, so they run on a box's whole database.
+var catalogueInvariants = []selfcheck.Invariant{
+	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
+		Name:  "findings.cve_in_catalogue",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,
+	},
+	{ // every catalogue CVE published before the window has an exploited-list entry, a qualifying signal or a finding
+		Name: "findings.catalogue_retention",
+		Query: `SELECT count(*) FROM feeds_cve c WHERE c.published < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-366 days')
+			AND NOT EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = c.cve)
+			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
+			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
+	},
+	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for
+		Name: "findings.range_precedence",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
+			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`,
+	},
+}
+
 func init() {
-	for _, inv := range invariants {
+	for _, inv := range append(slices.Clone(invariants), catalogueInvariants...) {
 		selfcheck.Register(inv)
 	}
 }

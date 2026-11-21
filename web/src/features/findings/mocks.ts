@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
+import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
@@ -374,9 +374,30 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
     note: 'Based on: general practice, no source in the data names it',
     side_effect: `Devices on other networks can no longer open port 443 of ${dev} until you delete the rule; its own network is not routed through the gateway and still can.`,
   }]
-  const len = paragraphs.join('').length + steps.join('').length + (configs?.[0]?.code.length ?? 0)
+  const answers = skill === 'explain' ? undefined : askAnswers(f, r.kev, dev)
+  const len = paragraphs.join('').length + steps.join('').length + (configs?.[0]?.code.length ?? 0) + (answers ?? []).reduce((n, a) => n + a.text.length, 0)
   const prof = aiCandidates(jobOf(skill))[0]
-  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations, configs }
+  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations, configs, answers }
+}
+
+/** "Ask my AI": the four answers, rephrasing only what the finding and the exploited-list entry hold, each with its links. */
+function askAnswers(f: Finding, k: KevInfo | null, dev: string): AiAnswer[] {
+  const kv = knownFor(f, k)
+  const by = [...f.history].reverse().find((h) => h.action === 'confirmed')?.user
+  const version = kv ? ` ${dev} runs ${kv.software} ${kv.version}.` : ''
+  const affected = f.basis === 'person' ? `Yes: confirmed by ${by ?? 'a person'}.${version}`
+    : f.basis === 'scan' ? `Yes: a safe check confirmed it on ${dev}.${version}`
+    : f.basis === 'version' ? `Likely: the version matches the affected range, nothing has confirmed it yet.${version}`
+    : `Needs a check: only the product name matches; the version of ${dev} is not known.`
+  const links = (k?.links ?? []).filter((u) => /^https?:\/\//i.test(u)).map((u) => ({ title: new URL(u).hostname.replace(/^www\./, ''), url: u }))
+  const vendor = links.filter((l) => !/(^|\.)(cisa|nist)\.gov$/.test(l.title))
+  const cisa = links.filter((l) => /(^|\.)cisa\.gov$/.test(l.title))
+  return [
+    { key: 'affected', text: affected, links: [] },
+    { key: 'fix', text: 'Install the fixed release the vendor advisory names.', links: vendor.slice(0, 2) },
+    { key: 'workaround', text: 'None published.', links: [] },
+    { key: 'urgency', text: k ? `Attackers use it in real attacks: on CISA KEV since ${fmtDate(k.date_added)}${k.due_date ? `, due ${fmtDate(k.due_date)}` : ''}${k.ransomware ? '; ransomware groups use it' : ''}.` : 'No sign of exploitation in the data.', links: cisa.slice(0, 1) },
+  ]
 }
 
 /** GET /findings/summary (#825), computed as the box does: open = confirmed + suspected; the trend counts, at the end of each UTC day, the

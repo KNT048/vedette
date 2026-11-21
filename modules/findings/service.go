@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -66,6 +68,9 @@ type Have struct {
 // Service owns fnd_finding, fnd_finding_event and fnd_question. Every change of a finding goes through Transition and runs in one
 // transaction with its events and its core_audit row (SYS-3); bus events go out after the commit.
 type Service struct {
+	// rematched counts the writes whose device read differently inside the write than when its match was computed (the match was
+	// computed again): a measure that a device read twice compares equal, so the hourly pass stays on its fast path.
+	rematched  atomic.Int64
 	cfg        ServiceConfig
 	now        func() time.Time
 	plan       planState       // "Updates to plan": in memory, see planpass.go
@@ -147,7 +152,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	if isNew {
 		return g, evs, nil // the caller announces a new finding (CreatedEvent)
 	}
-	if e, ok := legacyEvent(f, g, evs); ok {
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !joinsList(f, g) { // joining a list: one notice, the caller's
 		emit(EventStatusChanged, e)
 	}
 	return g, evs, nil
@@ -395,24 +400,31 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	if !ok {
 		return UpsertResult{}, fmt.Errorf("findings: matching device %q: %w", assetID, ErrUnknownAsset)
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	pinned, err := s.pinnedCVEs(ctx, assetID)
 	if err != nil {
-		return UpsertResult{}, fmt.Errorf("findings: reading the exploited list: %w", err)
+		return UpsertResult{}, err
 	}
-	return s.UpsertFromMatch(ctx, a, vulns)
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, pinned))
+	if err != nil {
+		return UpsertResult{}, fmt.Errorf("findings: reading the catalogue: %w", err)
+	}
+	set := newMatchSet(vulns)
+	dev := set.forDevice(a)
+	a.winList = dev
+	return s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
 }
 
 // UpsertFromMatch matches the device's software against vulns and writes the result through Transition (applyMatch): a detected
 // (CVE, software line) is created or detected again, a finding of a CVE of vulns that is no longer detected goes away the way the
 // data says (patched with credit, or corrected), and the device's questions are rewritten.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
-	return s.upsert(ctx, a, vulns, nil)
+	return s.upsert(ctx, a, vulns, cveSet(vulns), nil, false)
 }
 
 // upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose questions the device's become
 // instead of the ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which
 // replaces them.
-func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
+func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -420,8 +432,23 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			return UpsertResult{}, fmt.Errorf("findings: reading the products answered on Home: %w", err)
 		}
 	}
+	haveOf := func(fs []Finding) map[string]bool {
+		out := make(map[string]bool, len(fs))
+		for _, f := range fs {
+			out[f.CVE] = true
+		}
+		return out
+	}
+	// The match is computed before the write, against the findings the device has now, so the writer is held only for the writing;
+	// a finding created meanwhile (a safe check) makes the write compute it again.
+	before, err := findingsOf(ctx, s.cfg.DB.Reader(), a.ID)
+	if err != nil {
+		return UpsertResult{}, err
+	}
+	haveBefore := haveOf(before)
+	matched := MatchAsset(a, vulns, haveBefore, s.now())
 	var res UpsertResult
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
 		// A match read before a person ignored the device writes nothing; asked inside the write.
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, a.ID); err != nil {
@@ -429,20 +456,48 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		} else if ig {
 			return nil
 		}
+		// The device as the inventory holds it now: no inventory write can commit while this write runs, so a reading that arrived
+		// after the match was computed (a device that reported its update meanwhile) is matched here, never overwritten by an older one.
+		changed := false
+		if reread {
+			fresh, ok, err := s.cfg.Inventory.MatchInput(ctx, a.ID)
+			if err != nil {
+				return fmt.Errorf("findings: reading the device: %w", err)
+			}
+			if !ok {
+				return nil // deleted (or ignored) since the match was computed
+			}
+			fresh.winList = a.winList
+			if changed = !reflect.DeepEqual(fresh, a); changed {
+				a = fresh // its entries stay the ones read for the older reading: a product it did not run waits for the next pass
+			}
+		}
 		existing, err := findingsOf(ctx, tx, a.ID)
 		if err != nil {
 			return err
 		}
-		have := map[string]bool{}
-		for _, f := range existing {
-			have[f.CVE] = true
+		have := haveOf(existing)
+		if changed || !maps.Equal(have, haveBefore) {
+			matched = MatchAsset(a, vulns, have, now)
 		}
-		m := haveScope(a, vulns, MatchAsset(a, vulns, have, now), since, have, now)
+		if changed {
+			s.rematched.Add(1)
+			// the entries were chosen for the older reading: only the CVEs this write compares are judged (a CVE another device
+			// brought into the set never closes a finding this reading may make), and the questions are those of the whole match
+			mine := cveSet(vulns)
+			judged = maps.Clone(judged)
+			maps.DeleteFunc(judged, func(c string, _ bool) bool { return !mine[c] })
+			if whole != nil {
+				w := MatchAsset(a, a.winList, nil, now)
+				whole = &w
+			}
+		}
+		m := haveScope(a, vulns, matched, since, have, now)
 		qm := m
 		if whole != nil {
 			qm = *whole
 		}
-		r, err := s.applyMatch(ctx, tx, a, vulns, m, qm, existing, now, emit)
+		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
 		res = r
 		return err
 	})
@@ -556,6 +611,12 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	if err != nil {
 		return Record{}, err
 	}
+	urgency := UrgencyUpdate
+	if kev, err := s.cfg.Feeds.KevInfo(ctx, []string{cve}); err != nil {
+		return Record{}, fmt.Errorf("findings: reading the exploited lists: %w", err)
+	} else if _, ok := kev[cve]; ok {
+		urgency = UrgencyExploited
+	}
 	var id string
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		// A scan that started before a person ignored the device confirms nothing on it
@@ -605,7 +666,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		}
 		e := ev
 		d := Detection{SoftwareID: line, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: version,
-			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: 2}
+			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: urgency}
 		if !isNew {
 			d.RangeOrigin = f.RangeOrigin
 		} else {
@@ -615,7 +676,7 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		if isNew {
+		if isNew && Announced(g) || !isNew && joinsList(f, g) { // new, or its CVE joined an exploited list since it was made
 			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
 		}
 		id = g.ID
@@ -675,16 +736,17 @@ func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, Mat
 	if !ok {
 		return Asset{}, MatchResult{}, false, nil
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, []string{cve}))
 	if err != nil {
-		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the exploited list: %w", err)
+		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the catalogue: %w", err)
 	}
-	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == cve })
+	dev := newMatchSet(vulns).forDevice(a)
+	i := slices.IndexFunc(dev, func(v Vuln) bool { return v.CVE == cve })
 	if i < 0 {
 		return Asset{}, MatchResult{}, false, nil
 	}
-	a.winList = vulns
-	return a, MatchAsset(a, vulns[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
+	a.winList = dev
+	return a, MatchAsset(a, dev[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
 }
 
 // RescanClear records that a safe check that had matched a CVE on a device came back clear: each finding of the CVE a safe check had

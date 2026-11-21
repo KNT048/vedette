@@ -236,7 +236,10 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => 
     const label = await screen.findByText('Your AI')
     const block = label.closest('[data-ai="true"]') as HTMLElement
     expect(within(block).getByText('AI-generated, needs human review')).toBeInTheDocument()
-    expect(within(block).getByText(/Update WordPress to the latest release/)).toBeInTheDocument()
+    // four short answers under the page's own headings, in a fixed order, instead of free paragraphs
+    expect(within(block).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(['Am I affected?', 'How do I fix it?', 'What if I cannot patch yet?', 'How urgent is it?'])
+    expect(within(block).getByText(/^Attackers use it in real attacks: on CISA KEV since/)).toBeInTheDocument()
+    expect(within(block).queryByText(/Update WordPress to the latest release/)).not.toBeInTheDocument()
     // the config skill answers with a config block to copy, with its source and side effect
     expect(within(block).getByText('Configuration to review before pasting')).toBeInTheDocument()
     expect(within(block).getByText(/^nft add rule inet filter forward/)).toBeInTheDocument()

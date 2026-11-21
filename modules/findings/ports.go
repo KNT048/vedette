@@ -218,6 +218,11 @@ type Feeds interface {
 	CVSS(ctx context.Context, cves []string) (map[string]CVSS, error)
 	// Vulns returns the exploited-vulnerability list with the NVD affected ranges, for matching.
 	Vulns(ctx context.Context) ([]Vuln, error)
+	// MatchSet returns what the match pass compares the devices with: every exploited-list entry (as Vulns) and every other catalogue
+	// CVE whose ranges name a product of scope (MatchScope.Keep) or that scope pins, each with its ranges as the catalogue's precedence
+	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
+	// the scope's packages. None while the feeds module is off.
+	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
 	// TierStatus says what the tier feeds hold, for GET /findings/plan.
 	TierStatus(ctx context.Context) (TierStatus, error)
 	// TierVulns returns the CVEs of the tier data (nvd-recent, with the EPSS of epss-all) published in the last 12 months whose NVD

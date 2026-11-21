@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 )
 
@@ -36,7 +37,9 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Inventory != nil {
 		fd.Inventory = feedsInventory{d.Inventory}
 	}
-	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
+	db := d.DB
+	fd.Pins = func(ctx context.Context) ([]string, error) { return findings.PinnedCVEs(ctx, db) } // the catalogue keeps a finding's CVE
+	if d.Bus != nil {                                                                             // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
 	// The alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date

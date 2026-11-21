@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -330,6 +332,9 @@ type vulnCache struct {
 	mu    sync.Mutex
 	stamp string
 	vulns []findings.Vuln // read only once built: the matcher never changes it
+	// productsStamp and products: feeds' RangeProducts as read under that stamp
+	productsStamp string
+	products      []feeds.RangeProduct
 }
 
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
@@ -514,6 +519,188 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 		out[i].Published = published[v.CVE] // zero when NVD has not answered: counts as recent
 	}
 	return out, nil
+}
+
+// MatchSet is what findings' match pass compares the devices with (findings.Feeds.MatchSet): the exploited lists' entries (Vulns),
+// then every other catalogue CVE whose ranges name a product the devices run (scope.Keep) or that a finding holds (scope.Pinned), with
+// the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE record's), the publication
+// day, EPSS and the distributions' word. Nothing while the feeds module is off.
+func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
+	if a.on != nil && !a.on() {
+		return nil, nil
+	}
+	kev, err := a.Vulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	listed := make(map[string]bool, len(kev))
+	for _, v := range kev {
+		listed[v.CVE] = true
+	}
+	products, err := a.rangeProducts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var keys []feeds.ProductKey
+	for _, k := range products {
+		v, p := feeds.MatchName(k.Vendor, k.Product, k.Record)
+		if scope.Keep(v, p, k.Record) || k.Record && scope.Keep(k.Vendor, k.Product, true) {
+			keys = append(keys, feeds.ProductKey{Vendor: k.Vendor, Product: k.Product})
+		}
+	}
+	ranges, err := a.st.Ranges(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	var pins []string
+	pinSet := map[string]bool{}
+	for _, c := range scope.Pinned {
+		if !listed[c] && !pinSet[c] {
+			pins = append(pins, c)
+			pinSet[c] = true
+		}
+	}
+	pinned, err := a.st.RangesOf(ctx, pins)
+	if err != nil {
+		return nil, err
+	}
+	byCVE := map[string][]feeds.Range{}
+	for _, r := range pinned { // every range of a pinned CVE
+		byCVE[r.CVE] = append(byCVE[r.CVE], r)
+	}
+	for _, r := range ranges { // the ranges of the scope's products of the others
+		if !listed[r.CVE] && !pinSet[r.CVE] {
+			byCVE[r.CVE] = append(byCVE[r.CVE], r)
+		}
+	}
+	cves := slices.Sorted(maps.Keys(byCVE))
+	for _, c := range pins { // a pinned CVE whose ranges are all gone (rejected) is still judged: its findings go away
+		if _, ok := byCVE[c]; !ok {
+			cves = append(cves, c)
+		}
+	}
+	if len(cves) == 0 {
+		return kev, nil
+	}
+	cat, err := a.st.Catalogue(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	distro, err := a.st.DistroFixesFor(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	loading, err := a.st.DistroLoading(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := slices.Clone(kev) // the cached list is never written
+	for _, cve := range cves {
+		e, inCatalogue := cat[cve]
+		rows := byCVE[cve]
+		if len(rows) == 0 && !inCatalogue {
+			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
+		}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, Origin: recordOrigin(rows)}
+		complete := true
+		for _, r := range rows {
+			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+			if row, ok := r.MatchRow(); ok {
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE,
+					Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
+			}
+		}
+		switch {
+		case v.Origin == feeds.OriginNVD || len(rows) == 0:
+		case complete:
+			v.RangesFrom = findings.RangesCVEOrg
+		default:
+			v.RangesFrom = findings.RangesCVEOrgPartial
+		}
+		if e.Published != nil {
+			v.Published = *e.Published
+		}
+		if e.EPSS != nil {
+			v.EPSS = *e.EPSS
+		}
+		for _, d := range distro[cve] {
+			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
+		}
+		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] {
+			out = append(out, v)
+		}
+	}
+	if err := a.withSchemed(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// withSchemed adds to each entry of vulns the ranges its vendor states in its own notation, read in the version scheme of the
+// product they name (feeds.RangeScheme): what findings.FixOf names the vendor's fixed release of a device's train from.
+func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) error {
+	cves := make([]string, len(vulns))
+	at := make(map[string]int, len(vulns))
+	for i, v := range vulns {
+		cves[i] = v.CVE
+		at[v.CVE] = i
+	}
+	rows, err := a.st.VendorRangesOf(ctx, cves)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		s, sp, _, ok := feeds.RangeScheme(r)
+		if !ok {
+			continue
+		}
+		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+		if !ok {
+			continue
+		}
+		i := at[r.CVE]
+		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin})
+	}
+	return nil
+}
+
+// recordOrigin is the origin of a CVE's ranges as the catalogue's precedence gave them: nvd when any is NVD's, else cna when the CNA
+// gave any, else adp ("" for none).
+func recordOrigin(rows []feeds.Range) string {
+	origin := ""
+	for _, r := range rows {
+		switch {
+		case r.Origin == feeds.OriginNVD:
+			return feeds.OriginNVD
+		case r.Origin == feeds.OriginCNA || origin == "":
+			origin = r.Origin
+		}
+	}
+	return origin
+}
+
+// rangeProducts is feeds' RangeProducts, read once per match stamp (the stamp moves with every pull that writes ranges).
+func (a findingsFeeds) rangeProducts(ctx context.Context) ([]feeds.RangeProduct, error) {
+	if a.cache == nil {
+		return a.st.RangeProducts(ctx)
+	}
+	stamp, err := a.st.MatchStamp(ctx)
+	if err != nil {
+		return nil, err
+	}
+	a.cache.mu.Lock()
+	p, ok := a.cache.products, a.cache.products != nil && a.cache.productsStamp == stamp
+	a.cache.mu.Unlock()
+	if ok {
+		return p, nil
+	}
+	p, err = a.st.RangeProducts(ctx)
+	if err == nil {
+		a.cache.mu.Lock()
+		a.cache.productsStamp, a.cache.products = stamp, p
+		a.cache.mu.Unlock()
+	}
+	return p, err
 }
 
 // rangesFrom maps the source feeds stored for a CVE's ranges to what findings may do with them: "" (NVD), a

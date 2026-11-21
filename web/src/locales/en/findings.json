@@ -184,8 +184,6 @@
     "cisaTitle": "What CISA requires",
     "vulncheckTitle": "What VulnCheck KEV says",
     "ransomware": "Ransomware groups have used this flaw, so handle it before the deadline.",
-    "fixTitle": "Fixed version and vendor advisory",
-    "noFixedVersion": "Fixed version not known yet: the vendor advisory names it.",
     "fixedIn": "Fixed in {{fixed}}: upgrade {{device}} from {{version}} to {{fixed}} or later.",
     "fixedFeatureUpdate": "NVD names the fix for {{branch}} ({{fixed}}), not for the Windows release {{device}} runs ({{version}}): Microsoft no longer updates that release, so no monthly update brings it this fix. Move {{device}} to a Windows release Microsoft still services (a feature update). If Windows Update still offers it monthly updates, install the latest and check Microsoft's advisory.",
     "fixedEsu": "Fixed in {{fixed}}, an Extended Security Update: Microsoft updates {{branch}} past the end of its support only for devices enrolled in Extended Security Updates. If {{device}} (now {{version}}) is enrolled, install it; otherwise move {{device}} to a Windows release Microsoft still services.",
@@ -308,7 +306,13 @@
     "noteTitle": "Note from the AI",
     "configCaution": "AI-generated: read every line before pasting; a wrong rule can cut access or erase settings. Save the current config first.",
     "checkAddresses": "Check these addresses: they are not addresses Vedette knows for this device or your firewalls:",
-    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long or had two commands on one line. Ask again for a new answer."
+    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long or had two commands on one line. Ask again for a new answer.",
+    "answer": {
+      "affected": "Am I affected?",
+      "fix": "How do I fix it?",
+      "workaround": "What if I cannot patch yet?",
+      "urgency": "How urgent is it?"
+    }
   },
   "noIp": "No IP address",
   "removedDevice": "A removed device",
@@ -913,5 +917,15 @@
     "reopenBody": "It goes back to the open findings with the status its urgency gives it.",
     "reopenNote": "Why? (optional)",
     "reopened": "Reopened {{cve}} on {{device}}."
+  },
+  "brief": {
+    "title": "About {{cve}}",
+    "epss": "Exploit likelihood {{score}} (EPSS)",
+    "device": "Your device: {{software}} {{version}}",
+    "todo": "What to do",
+    "fix": "Install the fixed release the vendor advisory names.",
+    "check": "Once {{device}} is fixed, Vedette sees the new version at its next check.",
+    "checkNow": "Check it now",
+    "more": "Affected versions, sources and score"
   }
 }

@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // Exploitation claims written as prose: Google's Chrome Releases blog, Android's monthly security bulletins, Rapid7's blog and
@@ -386,7 +388,7 @@ func postClaims(ctx context.Context, posts []post, forms []claimForm, unlinked b
 			if read.Unclassified == 0 {
 				read.UnclassifiedIn = p.Link
 				if unlinked {
-					read.UnclassifiedIn = "the post of " + day.Format("2 January 2006")
+					read.UnclassifiedIn = "the post of " + orgtime.CalendarDay(day)
 				}
 			}
 			read.Unclassified += unclassified

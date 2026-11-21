@@ -278,7 +278,7 @@ func TestRapid7_PullsClaimsKeepsTheFirstSightingAndRetracts(t *testing.T) {
 	st := e.feed(rapid7FeedID)
 	// Rapid7's claims are kept without a link to the post: the row says only the CVE, the source and the date (the detail tells the
 	// post apart by a digest, so a post that takes a claim back still removes it); the note names the post by its date
-	if st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 sentence about exploitation in no form Vedette knows (first in the post of 10 November 2026)") ||
+	if st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 sentence about exploitation in no form Vedette knows (first in the post of 10 Nov 2026)") ||
 		strings.Contains(deref(st.Error), "rapid7.com") {
 		t.Fatalf("%+v %q", st, deref(st.Error))
 	}

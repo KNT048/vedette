@@ -125,3 +125,64 @@ func TestScanProof_TheCheckConfirmsOneLine(t *testing.T) {
 		t.Fatalf("the check's finding: %+v", f)
 	}
 }
+
+// A distribution's package fix (same upstream, a new revision) credits a finding a safe check confirmed, whether or not a match pass
+// ran between the check and the fix: the package release is compared whenever the line has one.
+func TestScanProof_APackageFixAfterTheCheck(t *testing.T) {
+	t.Parallel()
+	for _, between := range []bool{false, true} {
+		e := newEnv(t)
+		sw := Software{ID: "s-1", Display: "App", Vendor: "Acme", Product: "App", Source: "agent", Version: "1.0", Packaged: true,
+			PkgVersion: "1.0-1ubuntu1", PkgSource: "app", SeenAt: t0}
+		a := Asset{ID: "a-1", Name: "host-1", Software: []Software{sw}}
+		e.inv.mu.Lock()
+		e.inv.match["a-1"] = a
+		e.inv.mu.Unlock()
+		e.feeds.vulns = []Vuln{{CVE: "CVE-2026-1001"}}
+		e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+		e.advance(time.Hour)
+		if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2026-1001", scanEv("t1")); err != nil {
+			t.Fatal(err)
+		}
+		if between {
+			e.advance(time.Hour)
+			e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(sw)}})
+		}
+		e.advance(time.Hour)
+		a.Software[0].PkgVersion, a.Software[0].SeenAt = "1.0-1ubuntu2", *e.clock
+		e.matchPass(t, a, MatchResult{NotAffected: []Match{{CVE: "CVE-2026-1001", SoftwareID: "s-1", pkgFixed: true}}})
+		f := e.only(t)
+		if f.State != StateHandled || f.Via != ViaVersionMoved || f.FromVersion != "1.0-1ubuntu1" || f.ToVersion != "1.0-1ubuntu2" {
+			t.Errorf("a match pass between: %v: %+v", between, f)
+		}
+	}
+}
+
+// A clear safe check right after the confirmation, with no match pass between, gives no credit while the device's agent still reads
+// the affected version.
+func TestScanProof_AClearCheckRightAfterTheConfirmation(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = []Vuln{qnapRanged}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", "agent"), e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", qnapRanged.CVE, scanEv("t1")); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	if err := e.svc.RescanClear(t.Context(), "a-1", qnapRanged.CVE); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.only(t); f.State != StateOpen {
+		t.Fatalf("credited against the agent's reading: %+v", f)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", "agent"), e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE kind IN ('handled', 'reopened')`); n != 0 {
+		t.Fatalf("%d handled or reopened events: a false credit and its reopen", n)
+	}
+}

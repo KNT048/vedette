@@ -30,8 +30,8 @@ readers until they read the view of the finding; nothing of it is stored.
   something changed on the device (`version_moved` with both versions, `software_removed`, `distro_fixed`, `scan_clear`), not
   relevant when only the data changed (`data_corrected`) or a person said the software is not installed (`not_installed`, under
   their name). A mitigation or an accepted risk gives way to patch credit. A safe check's proof is not undone by range data, only
-  by a newer reading of the device (a version move, the line gone); a clear safe check does not credit a flaw the device's own
-  reading still shows. A person who marks a finding the way Vedette closed it takes it over with their note; Vedette's patch credit
+  by a newer reading of the device (a version move, the line gone; on a line with a package release, the release is compared); a
+  clear safe check does not credit a flaw the device's own reading (agent, SNMP, a package release) still shows on that line now. A person who marks a finding the way Vedette closed it takes it over with their note; Vedette's patch credit
   stays, the note becomes an event. A safe check confirms the finding of the line the matcher reads the CVE on (`scanLine`), at the
   version that line reads; a finding on no line takes it. `TestScanProof_*`.
   An accepted risk reopens once its last day is over everywhere (`AcceptanceEnds`) while detected.
@@ -51,7 +51,8 @@ readers until they read the view of the finding; nothing of it is stored.
   merged device's questions, and a finding on no line beside a line finding of the same CVE folds into it; a delete removes
   findings, events and questions. When the inventory deletes software lines for good (removed lines past their retention), its
   write calls `LinesDeleted` with their ids first: findings that would meet on one (device, CVE, no line) key are folded into the
-  decided one (events, mitigation and response rows follow), then the foreign key leaves the rest on no line. Ignoring a device
+  decided one (events, mitigation and response rows follow), a finding the data still detects always staying (a decision on the
+  software that went becomes its history), then the foreign key leaves the rest on no line. Ignoring a device
   changes no finding: Home, To fix, the risk marker, the AI context and the reports leave its findings out.
   `TestDeviceMerged_*`, `TestContract_DeviceMergedKeepsTheBetterFinding`, `TestLinesDeleted_FoldsWhatWouldCollide`.
 - **Removed**: the note-prefix rules, the one-time backfill passes, the history-reading rules, `fnd_plan_done` ("Mark as done" is

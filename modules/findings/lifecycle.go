@@ -240,10 +240,18 @@ func (s *Service) ranks(ctx context.Context, tx *sql.Tx, fs []Finding) (map[stri
 }
 
 // foldGroup folds every finding of fs (one device, one CVE) into the one that ranks highest (first on a tie) and returns it.
-func (s *Service) foldGroup(ctx context.Context, tx *sql.Tx, fs []Finding) (Finding, error) {
+// detectedFirst puts every finding the data still detects above every one it does not, whatever a person decided on the latter.
+func (s *Service) foldGroup(ctx context.Context, tx *sql.Tx, fs []Finding, detectedFirst bool) (Finding, error) {
 	ranks, err := s.ranks(ctx, tx, fs)
 	if err != nil {
 		return Finding{}, err
+	}
+	if detectedFirst {
+		for _, f := range fs {
+			if f.Detected {
+				ranks[f.ID] += 10
+			}
+		}
 	}
 	kept := fs[0]
 	for _, f := range fs[1:] {
@@ -299,7 +307,7 @@ func (s *Service) settleNoLine(ctx context.Context, tx *sql.Tx, assetID string) 
 // absorbNoLine folds the finding on no line and the finding on a line of the same CVE into one on that line: the one that ranks
 // higher keeps its id (the line finding on a tie). It returns the finding that stays, as stored.
 func (s *Service) absorbNoLine(ctx context.Context, tx *sql.Tx, noLine, line Finding) (Finding, error) {
-	kept, err := s.foldGroup(ctx, tx, []Finding{line, noLine})
+	kept, err := s.foldGroup(ctx, tx, []Finding{line, noLine}, false)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -315,6 +323,7 @@ func (s *Service) absorbNoLine(ctx context.Context, tx *sql.Tx, noLine, line Fin
 // inventory's write: the foreign key then sets software_id NULL on the findings of those lines, so every group that would meet on one
 // (device, CVE, no line) key is folded first into the one that ranks highest (a person's decision, else a confirmed one), with its
 // events, mitigation and response rows (FindingFolded): two removed lines of one CVE, or a removed line beside a finding on no line.
+// A finding the data still detects always stays; the decisions on the others join it as history.
 func (s *Service) LinesDeleted(ctx context.Context, tx *sql.Tx, l lifecycle.LinesDelete) error {
 	if len(l.Lines) == 0 {
 		return nil
@@ -348,7 +357,8 @@ func (s *Service) LinesDeleted(ctx context.Context, tx *sql.Tx, l lifecycle.Line
 		if len(groups[k]) < 2 {
 			continue
 		}
-		if _, err := s.foldGroup(ctx, tx, groups[k]); err != nil {
+		// a finding the data still detects stays: a person's decision on software that went is history, never a cover for a live flaw
+		if _, err := s.foldGroup(ctx, tx, groups[k], true); err != nil {
 			return err
 		}
 		folded += len(groups[k]) - 1

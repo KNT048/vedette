@@ -210,7 +210,7 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		return ViaDataCorrected, "", "", ""
 	}
 	cur := l.reading.Version
-	if f.Basis == DetectPackage && l.reading.Pkg != "" {
+	if l.reading.Pkg != "" { // a line with a package release is matched on it (detectionOf, scanLine): whatever the basis
 		cur = l.reading.Pkg
 	}
 	if moved(f.MatchedVersion, cur) {

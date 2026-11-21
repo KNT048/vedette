@@ -77,3 +77,40 @@ func TestLinesDeleted_FoldsWhatWouldCollide(t *testing.T) {
 		})
 	}
 }
+
+// A person's decision on software that went never covers a live flaw: a removed line's finding marked false positive, beside a finding
+// on no line a safe check confirms now, folds into the confirmed one, which stays open with the decision as history.
+func TestLinesDeleted_ALiveFindingStays(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, f := range []Finding{
+			{ID: "f-n", AssetID: "a-1", CVE: "CVE-2026-1001", FirstSeen: t0, Basis: DetectScan, Verified: VerifiedScan},
+			{ID: "f-8", AssetID: "a-1", CVE: "CVE-2026-1001", SoftwareID: "s-8", FirstSeen: t0},
+		} {
+			if err := writeTestFinding(t.Context(), tx, f); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := e.svc.Handle(t.Context(), []string{"f-8"}, ResolutionFalsePositive, "old install", time.Time{}, "anna@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { // the line went: not detected any more
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET detected = 0 WHERE id = 'f-8'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.pruneLines(t, "s-8")
+	f := e.only(t)
+	if f.ID != "f-n" || f.State != StateOpen || f.Verified != VerifiedScan {
+		t.Fatalf("the live finding: %+v", f)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE finding_id = 'f-n' AND actor = 'anna@example.com'`); n != 1 {
+		t.Fatalf("the person's decision as history: %d events", n)
+	}
+}

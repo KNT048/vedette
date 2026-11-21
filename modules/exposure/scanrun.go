@@ -562,18 +562,18 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 	if err == nil && !deepDomain { // INV-30: no more template calls in this run
 		steps.close(StepNuclei)
 	}
-	if err == nil {
-		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of its web ports
-	}
-	if err == nil {
-		steps.close(StepZAP)
-	}
 	var deep []deepAddr
-	if err == nil && deepDomain { // Each address of the names at the domain's terms depth
+	if err == nil && deepDomain { // Each address of the names at the domain's terms depth: its ports are web candidates too
 		content, deep, err = s.deepDomain(ctx, st, content)
 		if err == nil {
 			steps.close(StepNuclei)
 		}
+	}
+	if err == nil {
+		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of the services that answered HTTP
+	}
+	if err == nil {
+		steps.close(StepZAP)
 	}
 	return content, deep, err
 }

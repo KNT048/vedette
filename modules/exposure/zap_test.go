@@ -218,8 +218,8 @@ func cleanReport(page string) []byte {
 
 func webServices() []ServiceRow {
 	ip := ipA
-	return []ServiceRow{{IP: ip, Port: 22, Name: "ssh"}, {IP: ip, Port: 80, Name: "http"}, {IP: ip, Port: 443, Name: "https"}, {IP: ip, Port: 8443, Name: "tcpwrapped"},
-		{IP: ip, Port: 8080, Name: "http-proxy"}, {IP: ip, Port: 18443, Name: "ssl/http"}, {IP: ipB, Port: 8000, Name: "http"}}
+	return []ServiceRow{{IP: ip, Port: 22, Name: "ssh"}, {IP: ip, Port: 80, Name: "http", Method: "probed"}, {IP: ip, Port: 443, Name: "https", Method: "probed"}, {IP: ip, Port: 8443, Name: "tcpwrapped"},
+		{IP: ip, Port: 8080, Name: "http-proxy"}, {IP: ip, Port: 18443, Name: "ssl/http", Method: "probed"}, {IP: ipB, Port: 8000, Name: "http", Method: "probed"}}
 }
 
 // INV-24: an IP target's pages are its own web ports that service identification read, one URL per port, TLS by name or port; ssh,
@@ -231,7 +231,7 @@ func TestContract_INV24_AskedOnlyForTheWebPortsOfTheTarget(t *testing.T) {
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: webServices(), Ports: 98}}
 	e.wire(w)
 	s := e.scanIP(Content{})
-	want := []string{"http://" + ipA + "/", "https://" + ipA + "/", "https://" + ipA + ":18443/"}
+	want := []string{"https://" + ipA + "/", "http://" + ipA + "/", "https://" + ipA + ":18443/"}
 	if !slices.Equal(w.asked, want) {
 		t.Fatalf("asked = %q", w.asked)
 	}
@@ -288,13 +288,13 @@ func TestContract_INV24_DomainNamesOnWebPortsOnly(t *testing.T) {
 	dom := e.committedDomain()
 	e.svc.SetRunner(&fakeRunner{content: Content{
 		Hosts: []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "evil.example.org", IP: ipA}, {Name: "notacme.example", IP: ipA}, {Name: "intra.acme.example", IP: "10.0.0.5"}, {Name: "mail.acme.example", IP: ipB}, {Name: "a.acme.example", IP: ipB}},
-		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "", "", "", nil}, {ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil}, {ipB, 443, "https", "", "", 0, false, "", nil, "", "", "", nil}},
+		Ports: []PortRow{{ipA, 80, "http", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipA, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {"10.0.0.5", 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "Welcome", "", "", nil}, {ipB, 443, "https", "", "", 0, false, "", nil, "Welcome", "", "", nil}},
 	}})
 	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"https://acme.example/", "http://acme.example/", "https://www.acme.example/", "http://www.acme.example/"}
+	want := []string{"https://acme.example/", "https://www.acme.example/", "http://acme.example/", "http://www.acme.example/"}
 	if !slices.Equal(w.asked, want) {
 		t.Fatalf("asked = %q", w.asked)
 	}
@@ -324,7 +324,7 @@ func TestContract_INV24_SeamWording(t *testing.T) {
 		if w != nil {
 			e.wire(w)
 		}
-		e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{{IP: ipA, Port: 443, Name: "https"}}, Ports: 98}}
+		e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{{IP: ipA, Port: 443, Name: "https", Method: "probed"}}, Ports: 98}}
 		return e.scanIP(Content{})
 	}
 	has := func(s ScanResult, sub string) bool {
@@ -408,7 +408,7 @@ func TestContract_INV24_AnUnavailablePageKeepsTheEarlierOnes(t *testing.T) {
 	e.wire(w)
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: webServices()}}
 	s := e.scanIP(Content{})
-	if len(w.asked) != 2 || len(s.WebFindings) != 1 || !slices.Contains(checkKinds(s), "web") || !strings.Contains(s.Checks[len(s.Checks)-1].Text, "of 1 page: http://"+ipA+"/") {
+	if len(w.asked) != 2 || len(s.WebFindings) != 1 || !slices.Contains(checkKinds(s), "web") || !strings.Contains(s.Checks[len(s.Checks)-1].Text, "of 1 page: https://"+ipA+"/") {
 		t.Fatalf("asked %q, findings %d, checks %+v", w.asked, len(s.WebFindings), s.Checks)
 	}
 	if n := notChecked(s); !slices.Contains(n, "Passive web scan (ZAP) did not run: busy") || !slices.ContainsFunc(n, func(x string) bool { return strings.Contains(x, "1 more web port not scanned") }) {

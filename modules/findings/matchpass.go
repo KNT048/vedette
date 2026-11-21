@@ -159,10 +159,10 @@ func (s *Service) pinnedCVEs(ctx context.Context, assetID string) ([]string, err
 	return out, rows.Err()
 }
 
-// PinnedCVEs is the CVEs an open finding, or one the data still detects, references, read from db: feeds' catalogue keeps them
-// whatever their age (feeds Deps.Pins), so nothing ages out from under a finding.
+// PinnedCVEs is the CVEs any finding references (open or handled), read from db: feeds' catalogue keeps them whatever their age
+// (feeds Deps.Pins), so nothing ages out from under a finding, its history or a report (selfcheck findings.cve_in_catalogue).
 func PinnedCVEs(ctx context.Context, db *store.DB) ([]string, error) {
-	rows, err := db.Reader().QueryContext(ctx, `SELECT DISTINCT cve FROM fnd_finding WHERE state = 'open' OR detected = 1 ORDER BY cve`)
+	rows, err := db.Reader().QueryContext(ctx, `SELECT DISTINCT cve FROM fnd_finding ORDER BY cve`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading the CVEs of the open findings: %w", err)
 	}

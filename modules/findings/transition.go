@@ -204,7 +204,8 @@ func (t *transition) detected(d Detection) error {
 		f.Verified = d.Verified
 	}
 	f.RangeOrigin = d.RangeOrigin
-	if !sameEvidence(f.Evidence, d.Evidence) {
+	daily := t.now.Sub(was.LastSeen) >= lastSeenStep
+	if daily || !sameEvidence(f.Evidence, d.Evidence) { // the times of the reading and of the check move with the daily step
 		f.Evidence = d.Evidence
 	}
 	if d.MatchedVersion != "" || d.Basis != DetectScan { // a safe check that saw no version keeps the version matched before
@@ -219,7 +220,7 @@ func (t *transition) detected(d Detection) error {
 		f.Fix = d.Fix
 	}
 	f.Detected = true
-	if t.now.Sub(f.LastSeen) >= lastSeenStep || !sameFinding(*f, was) && t.now.After(f.LastSeen) {
+	if daily || !sameFinding(*f, was) && t.now.After(f.LastSeen) {
 		f.LastSeen = t.now // a pass that changes nothing writes nothing: last seen moves once a day, or with a change
 	}
 	switch {

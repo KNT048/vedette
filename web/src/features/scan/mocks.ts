@@ -59,12 +59,10 @@ const config = collection<ScanConfig>('scan_config', () => ({
   window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
   // The sample excludes a spare address, not the box: the box is pick-only, so it needs no exclusion line.
   rate: 5, exclusions: ['192.168.10.240'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
-  schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }), () => ({
   // Cài sạch: cùng mặc định nhưng chưa loại trừ IP nào (IP hộp mẫu 192.168.10.250 không phải của khách). Chưa có phạm vi/đồng ý thì không quét được.
   window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
   rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
-  schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }))
 export const runs = collection<StoredRun[]>('scan_runs', seedRuns, () => [])
 const probes = collection<ProbeEntry[]>('scan_probes', seedProbes, () => [])
@@ -143,32 +141,7 @@ function inCidr(ip: string, cidr: string): boolean {
   const mask = Number(bits) === 0 ? 0 : (0xffffffff << (32 - Number(bits))) >>> 0
   return ((ipNum(ip) & mask) >>> 0) === ((ipNum(base) & mask) >>> 0)
 }
-const hm = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3))
 const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
-const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to) ? hm(at) >= hm(from) && hm(at) < hm(to) : hm(at) >= hm(from) || hm(at) < hm(to))
-
-/** ISO weekday: 1 = Monday … 7 = Sunday. */
-const isoDay = (d: Date) => d.getDay() || 7
-
-/** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
- *  belongs to the window of the day before: #164) and, weekly, on the chosen weekday (the slot's own day). The first
- *  scheduled run (first: none ran yet) takes the next window of any window day (modules/scan slotOK). */
-function slotOK(c: ScanConfig, d: Date, first = false): boolean {
-  const start = new Date(d)
-  if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
-  return c.window.days.includes(isoDay(start)) && (first || c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
-}
-
-export function nextRun(c: ScanConfig, now = new Date(), first = false): string | null {
-  if (!c.schedule.enabled) return null
-  for (let i = 0; i < 15; i++) {
-    const d = new Date(now)
-    d.setDate(d.getDate() + i)
-    d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && slotOK(c, d, first)) return d.toISOString()
-  }
-  return null
-}
 
 // ---- mục tiêu ----
 function targets(): ScanTarget[] {
@@ -195,14 +168,10 @@ function targets(): ScanTarget[] {
 
 /** Whether the scanner of the scan container answers (heartbeat, nuclei present). Tests and e2e flip it to see the 503. */
 export const scannerStore = collection<{ available: boolean }>('scan_scanner', () => ({ available: true }))
-/** Whether the organization time zone can be read. While it cannot, nothing automated starts and the schedule says why. Tests flip it. */
-export const zoneStore = collection<{ readable: boolean }>('scan_zone', () => ({ readable: true }))
 /** Until when the scanner still works on a run that Stop now already closed; a new scan is refused until then. Tests set it. */
 export const engineStore = collection<{ busyUntil: number }>('scan_engine', () => ({ busyUntil: 0 }))
 const engineBusy = () => Date.now() < engineStore.get().busyUntil
 const SCANNER_DOWN = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
-
-const ZONE_DOWN = 'The schedule is on, but the time zone of the organization cannot be read, so no scan starts on its own (rescans for new KEV entries wait too). Check the time zone under Settings, General.'
 
 const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
   unapproved: 'has not been approved in the inventory',
@@ -372,14 +341,6 @@ function validateConfig(c: ScanConfig): string | null {
   if (!Array.isArray(c.exclusions) || c.exclusions.length > 200) return 'The exclusion list can have at most 200 lines.'
   for (const [i, e] of c.exclusions.entries()) if (typeof e !== 'string' || (!IPV4_RE.test(e) && !CIDR_RE.test(e))) return `Line ${i + 1}: "${String(e).slice(0, 40)}" is not an IP or network range. For example 192.168.10.5 or 192.168.20.0/24.`
   if (!Number.isInteger(c.unresponsive_after) || c.unresponsive_after < 2 || c.unresponsive_after > 20) return 'The number of non-responses before auto-stop must be 2 to 20.'
-  const s = c.schedule
-  if (s.frequency !== 'daily' && s.frequency !== 'weekly') return 'The schedule must be daily or weekly.'
-  if (!HM_RE.test(s.at)) return 'The schedule time must look like HH:MM.'
-  if (!Number.isInteger(s.weekday) || s.weekday < 1 || s.weekday > 7) return 'The schedule day is not valid.'
-  if (s.enabled) {
-    if (!inTimeRange(s.at, w.from, w.to)) return `The schedule time ${s.at} is outside the ${w.from} to ${w.to} window. Pick a time inside the window or widen the window.`
-    if (s.frequency === 'weekly' && !w.days.includes(s.weekday)) return 'The weekly schedule day must be one of the scan window days.'
-  }
   return null
 }
 
@@ -388,9 +349,7 @@ function configResponse(): ScanConfigResponse {
   const c = config.get()
   const up = scannerStore.get().available
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
-  const zoneDown = !zoneStore.get().readable
-  const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
-  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched, version: safetyVersion() }
+  return { config: c, scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, version: safetyVersion() }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----
@@ -420,12 +379,11 @@ export const handlers = [
     const next: ScanConfig = {
       ...cur, ...b,
       window: { ...cur.window, ...(b.window ?? {}) },
-      schedule: { ...cur.schedule, ...(b.schedule ?? {}) },
     }
     const err = validateConfig(next)
     if (err) return fail(400, 'invalid_config', err)
     config.set(next)
-    audit('scan.config', 'scan', JSON.stringify({ rate: next.rate, window: next.window, exclusions: next.exclusions.length, auto_rescan: next.auto_rescan, schedule: next.schedule.enabled }))
+    audit('scan.config', 'scan', JSON.stringify({ rate: next.rate, window: next.window, exclusions: next.exclusions.length, auto_rescan: next.auto_rescan }))
     return HttpResponse.json(configResponse())
   }),
 

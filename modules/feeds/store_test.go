@@ -63,7 +63,7 @@ func addCustom(t testing.TB, db *store.DB, id, name string, kind Kind) {
 	}
 	write(t, db, func(tx *sql.Tx) error {
 		return insertCustom(t.Context(), tx, sourceRow{ID: id, Name: name, Kind: kind, Format: p.Format, URL: "https://feed.example.net/x", Enabled: true,
-			IntervalHours: 6, Auth: AuthNone, Parser: &p, CreatedAt: epoch0})
+			Auth: AuthNone, Parser: &p, CreatedAt: epoch0})
 	})
 }
 
@@ -81,16 +81,16 @@ func TestSeedBuiltinsMergesAndKeepsAdminChoices(t *testing.T) {
 	}
 	for i, b := range BuiltinSources() {
 		r := rows[i]
-		if r.ID != b.ID || !r.Builtin || r.Enabled == b.BYOK || r.IntervalHours != b.IntervalHours || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
+		if r.ID != b.ID || !r.Builtin || r.Enabled == b.BYOK || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
 			t.Errorf("row %d = %+v", i, r)
 		}
 	}
-	// The admin turns a feed off, changes its schedule and sets a mirror on another one.
+	// The admin turns a feed off and sets a mirror on another one.
 	write(t, db, func(tx *sql.Tx) error {
-		if err := updateSettings(t.Context(), tx, "ipsum", false, 12, "", false); err != nil {
+		if err := updateSettings(t.Context(), tx, "ipsum", false, "", false); err != nil {
 			return err
 		}
-		return updateSettings(t.Context(), tx, "et-open", true, 6, "https://mirror.example.net/et.txt", true)
+		return updateSettings(t.Context(), tx, "et-open", true, "https://mirror.example.net/et.txt", true)
 	})
 	// A new release moves the default address of both feeds.
 	write(t, db, func(tx *sql.Tx) error {
@@ -104,7 +104,7 @@ func TestSeedBuiltinsMergesAndKeepsAdminChoices(t *testing.T) {
 	et, _ := s.source(t.Context(), "et-open")
 	b, _ := BuiltinByID("ipsum")
 	e, _ := BuiltinByID("et-open")
-	if ipsum.Enabled || ipsum.IntervalHours != 12 || ipsum.URL != b.URL || *ipsum.DefaultURL != b.URL {
+	if ipsum.Enabled || ipsum.URL != b.URL || *ipsum.DefaultURL != b.URL {
 		t.Errorf("ipsum: %+v", ipsum)
 	}
 	if !et.Enabled || et.URL != "https://mirror.example.net/et.txt" || *et.DefaultURL != e.URL {

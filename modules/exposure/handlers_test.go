@@ -302,8 +302,8 @@ func TestHandlers_DetectNowAndSettings(t *testing.T) {
 		t.Fatalf("last_run = %v", run)
 	}
 
-	// settings: 1 minute to 24 hours, anything else is 400 bad_interval, and a refusal changes nothing
-	for _, n := range []string{"0", "-5", "1441", "100000"} {
+	// settings: 5 minutes to 24 hours, anything else is 400 bad_interval, and a refusal changes nothing
+	for _, n := range []string{"0", "-5", "4", "1441", "100000"} {
 		if code, b = e.call("PUT", "/exposure/box-ip/settings", "admin", `{"auto":true,"interval_min":`+n+`}`); code != 400 || errCode(b) != "bad_interval" {
 			t.Errorf("interval %s: %d %v", n, code, b)
 		}
@@ -311,7 +311,7 @@ func TestHandlers_DetectNowAndSettings(t *testing.T) {
 	if code, b = e.call("PUT", "/exposure/box-ip/settings", "admin", `{"auto":true}`); code != 400 {
 		t.Fatalf("missing interval: %d %v", code, b)
 	}
-	for _, n := range []int{1, 5, 1440} {
+	for _, n := range []int{5, 6, 1440} {
 		code, b = e.call("PUT", "/exposure/box-ip/settings", "admin", `{"auto":false,"interval_min":`+itoa(n)+`}`)
 		if code != 200 || b["auto"] != false || b["interval_min"] != float64(n) {
 			t.Fatalf("interval %d: %d %v", n, code, b)
@@ -341,9 +341,7 @@ func TestHandlers_AttemptLimitIs429(t *testing.T) {
 	// the automatic check is not an attempt of a person: it still runs when it is due
 	e.advance(61 * time.Minute)
 	e.prober.set(ipC)
-	if err := e.svc.RunAutoDetect(e.ctx()); err != nil {
-		t.Fatal(err)
-	}
+	e.runJob()
 	if got := e.ipValues(); len(got) != 2 || got[1] != ipC {
 		t.Fatalf("IPs after the automatic check = %v", got)
 	}

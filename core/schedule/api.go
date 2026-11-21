@@ -286,7 +286,11 @@ func (s *Service) RunNow(ctx context.Context, key, by string) (string, error) {
 		if s.cfg.Gate != nil && !s.cfg.Gate.Enabled(o.Module) {
 			return &SkipError{Reason: "Its module is off."}
 		}
-		id, skip, err := s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Manual, By: by, DueAt: s.now()})
+		rl := r.Rule
+		if !saved {
+			rl = o.Default
+		}
+		id, skip, _, err := s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Manual, By: by, DueAt: s.now(), Rule: rl})
 		if err != nil {
 			return err
 		}

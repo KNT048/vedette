@@ -60,20 +60,6 @@ func TestContract_INV2_URLRule(t *testing.T) {
 	}
 }
 
-func TestContract_INV5_Interval(t *testing.T) {
-	t.Parallel()
-	for _, h := range []int{1, 6, 24, 168} {
-		if err := CheckInterval(h); err != nil {
-			t.Errorf("CheckInterval(%d) = %v", h, err)
-		}
-	}
-	for _, h := range []int{-1, 0, 169, 1000} {
-		if err := CheckInterval(h); !errors.Is(err, ErrInvalidInterval) {
-			t.Errorf("CheckInterval(%d) = %v, want ErrInvalidInterval", h, err)
-		}
-	}
-}
-
 func TestContract_INV5_KindFormat(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

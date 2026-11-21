@@ -566,7 +566,7 @@ func TestRecentPull_WaitsOutNVDsRetryTime(t *testing.T) {
 	n.perWin = func(time.Time, bool) int { return 2 }
 	n.codes["2026-03-05T12:00:00.000Z/0"] = http.StatusServiceUnavailable
 	n.retry = "900" // NVD: come back in 15 minutes
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if live := e.svc.live(t.Context(), e.feed(recentFeedID)); live.Error == nil || !strings.Contains(*live.Error, "NVD was busy (HTTP 503). Vedette tries again in") {
@@ -575,15 +575,15 @@ func TestRecentPull_WaitsOutNVDsRetryTime(t *testing.T) {
 	n.mu.Lock()
 	n.codes, n.asked = map[string]int{}, nil
 	n.mu.Unlock()
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 0 {
 		t.Fatalf("asked NVD before its retry time: %v %v", n.requests(), err)
 	}
 	e.setNow(e.clock().Add(10 * time.Minute))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 0 {
 		t.Fatalf("asked NVD 10 minutes into its 15: %v %v", n.requests(), err)
 	}
 	e.setNow(e.clock().Add(6 * time.Minute))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) == 0 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) == 0 {
 		t.Fatalf("did not go on after the retry time: %v %v", n.requests(), err)
 	}
 	if live := e.svc.live(t.Context(), e.feed(recentFeedID)); live.Error != nil && strings.Contains(*live.Error, "busy") {
@@ -626,7 +626,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	first := e.clock()
 	n.reset()
 	e.setNow(first.Add(PullEvery))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 0 {
 		t.Fatalf("a done cursor and a good pull 5 minutes ago: asked %v, %v", n.requests(), err)
 	}
 	if f := e.svc.live(t.Context(), e.feed(recentFeedID)); f.Status != "ok" || f.Error == nil || strings.Contains(*f.Error, "Loading") {
@@ -655,14 +655,14 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	}
 
 	setCode(window(1)) // the refill stores its first window, then NVD refuses the second: paused, cursor in fill, no failure
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 2 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 2 {
 		t.Fatalf("the reset cursor is due at once: asked %v, %v", n.requests(), err)
 	}
 	if c, err := e.svc.st.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeFill || e.feed(recentFeedID).Failures != 0 {
 		t.Fatalf("cursor after the paused pull: %+v %v", c, err)
 	}
 	n.reset() // the next check goes on with the fill, though the last success is recent
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 3 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 3 {
 		t.Fatalf("the unfinished fill goes on: asked %v, %v", n.requests(), err)
 	}
 	if c, err := e.svc.st.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeDone {
@@ -672,7 +672,7 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	n.reset()
 	sqlDo(`DELETE FROM feeds_nvd_cursor`)
 	setCode(window(0)) // a refill whose first page fails: the back-off holds the next check
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 1 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 1 {
 		t.Fatalf("the reset cursor is due at once: asked %v, %v", n.requests(), err)
 	}
 	failed := e.clock()
@@ -683,19 +683,19 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 	}
 	n.reset()
 	e.setNow(failed.Add(BackoffBase - time.Minute))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 0 {
 		t.Fatalf("within the back-off: asked %v, %v", n.requests(), err)
 	}
 	n.reset()
 	e.setNow(failed.Add(BackoffBase))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 4 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 4 {
 		t.Fatalf("after the back-off the refill runs: asked %v, %v", n.requests(), err)
 	}
 
 	n.reset() // a done cursor for another address is owed
 	sqlDo(`UPDATE feeds_nvd_cursor SET url = 'https://old.example/nvd'`)
 	e.setNow(e.clock().Add(PullEvery))
-	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 4 {
+	if err := e.runPull(t.Context()); err != nil || len(n.requests()) != 4 {
 		t.Fatalf("another address: asked %v, %v", n.requests(), err)
 	}
 }

@@ -11,12 +11,13 @@ import (
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/scan"
 )
 
-// #164 review H1: the scan window, the schedule and next_run are read in the organization's time zone (core_org), not
+// The schedule of the vulnerability checks is read in the organization's time zone (core_org), not
 // in the process's (UTC in the container), as honeypot and sensor-active do. Otherwise a 02:00 run of a UTC+7 office
 // starts at 09:00 local time, on devices people are using.
 func TestScanReadsTheOrgTimeZone(t *testing.T) {
@@ -33,17 +34,13 @@ ON CONFLICT (id) DO UPDATE SET timezone = excluded.timezone`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := scanService(d)
-	days, from, to, freq, at, on := []int{1, 2, 3, 4, 5, 6, 7}, "22:00", "05:00", "daily", "02:00", true
-	if _, err := svc.SaveConfig(ctx, "admin@acme.example", scan.Patch{Days: days, From: &from, To: &to, SchedEnabled: &on, SchedFrequency: &freq, SchedAt: &at}); err != nil {
-		t.Fatal(err)
-	}
-	v, err := svc.Config(ctx)
+	scanService(d) // registers the vulnerability checks' schedule on the box's schedule service
+	v, err := d.Schedules.Save(ctx, scan.ScheduleKey, schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:00").InWindow()}, "admin@acme.example")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "2026-11-11T07:00:00.000Z"; v.NextRun == nil || *v.NextRun != want { // 02:00 in New York (UTC-5)
-		t.Fatalf("next_run %v, want %s: the schedule is not read in the organization's time zone", deref(v.NextRun), want)
+	if v.Zone != "America/New_York" { // the rule's time of day and the window are read there
+		t.Fatalf("the schedule is read in %q, want the organization's time zone", v.Zone)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/honeypot"
@@ -362,6 +363,9 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 		return s, nil
 	}
 	s.Next = v.NextWindow
+	if id == "nmap-discovery" { // the sweep follows its own schedule; the checks of devices and the SNMP reads follow the window
+		s.Next = nextStart(ctx, e.d, sensoractive.ScheduleKey)
+	}
 	switch {
 	case st.ScopeConfirmedAt == nil || len(st.LANRanges) == 0:
 		s.State, s.Reason = core.EngineNeedsSetup, "Confirm the network ranges Vedette may scan (the safety settings above)."
@@ -563,12 +567,25 @@ func (e scanningEngines) wazuh(ctx context.Context) (core.EngineStatus, error) {
 		s.State, s.Reason = core.EngineError, w.Error
 	default:
 		s.State = core.EngineReady
-		if !w.LastSync.IsZero() && w.IntervalMinutes > 0 {
-			next := w.LastSync.Add(time.Duration(w.IntervalMinutes) * time.Minute)
-			s.Next = &next
-		}
+		s.Next = nextStart(ctx, e.d, agentintake.WazuhScheduleKey)
 	}
 	return s, nil
+}
+
+// nextStart is when the schedule of key next starts, as the schedule editor shows it (the scan window applied); nil while it is
+// off or unknown.
+func nextStart(ctx context.Context, d deps, key string) *time.Time {
+	if d.Schedules == nil {
+		return nil
+	}
+	v, err := d.Schedules.Get(ctx, key)
+	if err != nil || !v.Enabled {
+		return nil
+	}
+	if len(v.Upcoming) > 0 {
+		return &v.Upcoming[0]
+	}
+	return v.NextDueAt
 }
 
 // externalRun is the newest external scan in which engine's step ran (exposure INV-30, #861) as a card's last run; nil when none did.
@@ -635,11 +652,7 @@ func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) 
 	if !s.Enabled {
 		return s, nil
 	}
-	if v.NextRun != nil {
-		if t, ok := parseTS(*v.NextRun); ok {
-			s.Next = &t
-		}
-	}
+	s.Next = nextStart(ctx, e.d, scan.ScheduleKey)
 	switch {
 	case v.Running != nil:
 		s.State = core.EngineRunning
@@ -649,8 +662,6 @@ func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) 
 		s.State, s.Reason = core.EngineUnavailable, *v.BlockReason
 	case v.BlockReason != nil:
 		s.State, s.Reason = core.EngineNeedsSetup, *v.BlockReason
-	case v.ScheduleBlocked != nil: // e.g. the shared window no longer holds the schedule time: nothing scheduled runs
-		s.State, s.Reason = core.EngineNeedsSetup, *v.ScheduleBlocked
 	default:
 		s.State = core.EngineReady
 	}

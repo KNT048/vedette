@@ -587,29 +587,20 @@ func attemptsInLastHour(ctx context.Context, q querier, now time.Time) ([]time.T
 
 func loadBoxIP(ctx context.Context, q querier) (BoxIP, error) {
 	var b BoxIP
-	var auto int
 	var at, msg sql.NullString
 	var ok sql.NullInt64
-	err := q.QueryRowContext(ctx, `SELECT auto, interval_min, last_run_at, last_run_ok, last_run_message FROM exp_setting WHERE id = 1`).Scan(&auto, &b.IntervalMin, &at, &ok, &msg)
+	err := q.QueryRowContext(ctx, `SELECT last_run_at, last_run_ok, last_run_message FROM exp_setting WHERE id = 1`).Scan(&at, &ok, &msg)
 	if err != nil {
 		return BoxIP{}, fmt.Errorf("auto-detect settings: %w", err)
 	}
-	b.Auto = auto == 1
+	// On or off and how often are the detection's schedule (core_schedule, exposure.public_ip).
+	if b.Auto, b.IntervalMin, _, err = autoSetting(ctx, q); err != nil {
+		return BoxIP{}, fmt.Errorf("auto-detect schedule: %w", err)
+	}
 	if at.Valid {
 		b.LastRun = &LastRun{At: at.String, OK: ok.Int64 == 1, Message: msg.String}
 	}
 	return b, nil
-}
-
-func saveSettings(ctx context.Context, tx *sql.Tx, auto bool, interval int) error {
-	a := 0
-	if auto {
-		a = 1
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET auto = ?, interval_min = ? WHERE id = 1`, a, interval); err != nil {
-		return fmt.Errorf("saving auto-detect settings: %w", err)
-	}
-	return nil
 }
 
 // saveRun records the last detection; deep marks a full check, which also moves last_deep_at (the light checks of a

@@ -47,6 +47,11 @@ func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, er
 		return nil, err
 	}
 	saServices[d.DB] = s
+	if d.Schedules != nil { // the LAN sweep is a core/schedule owner; the service is built once per database, so it registers once
+		if err := d.Schedules.Register(s.ScheduleOwner()); err != nil {
+			return nil, err
+		}
+	}
 	if d.Lifecycle != nil { // once per database, like the service: its rows move with a merged device and go with a deleted one
 		d.Lifecycle.Register(sensorActiveParticipant(s))
 	}

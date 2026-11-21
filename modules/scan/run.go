@@ -201,6 +201,8 @@ type runSpec struct {
 	first    Current             // the device the run begins with: shown as current from the start (POST-1)
 	onlyCVEs map[string][]string // nil: every CVE of the devices' findings; else device id -> the only CVEs it is probed for (the KEV rescan, INV-9; a backlog in one run keeps each event's pairs, #189 review L2)
 	end      time.Time           // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
+	// scheduleID is the core_schedule row that came due ("" for any other start).
+	scheduleID string
 	// identBusy is set (by identify) once discovery was busy during this run: the rest of the run does not wait for it again.
 	identBusy *bool
 	// inTx, when set, runs in the transaction that writes the run row: what the run is for (the schedule slot, the
@@ -251,6 +253,26 @@ func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
 	if s.engineBusy() {
 		return RunView{}, errRunning
 	}
+	var id string
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var err error
+		id, err = s.startTx(ctx, tx, sp)
+		return err
+	})
+	if err != nil {
+		if id != "" {
+			s.mu.Lock()
+			delete(s.pending, id)
+			s.mu.Unlock()
+		}
+		return RunView{}, err
+	}
+	return s.Run(ctx, id)
+}
+
+// startTx writes the run with its steps and audit rows inside tx and keeps what it was started with for the moment core/run
+// begins it, which is after the commit. The schedule of the checks starts its runs this way, inside its own transaction.
+func (s *Service) startTx(ctx context.Context, tx *sql.Tx, sp runSpec) (string, error) {
 	devs, _ := s.devicesByID(ctx) // for the names of the steps; a failed read names them by id
 	labels := make([]string, len(sp.ids))
 	steps := make([]run.StepPlan, len(sp.ids))
@@ -261,59 +283,46 @@ func (s *Service) start(ctx context.Context, sp runSpec) (RunView, error) {
 		}
 		steps[i] = run.StepPlan{Name: labels[i], Total: 1}
 	}
-	spec := run.Spec{Module: ModuleID, Kind: runKindName, Title: runTitle(sp, labels), Trigger: triggers[sp.trigger], RequestedBy: sp.user, Steps: steps}
+	spec := run.Spec{Module: ModuleID, Kind: runKindName, Title: runTitle(sp, labels), Trigger: triggers[sp.trigger], RequestedBy: sp.user, ScheduleID: sp.scheduleID, Steps: steps}
 	if sp.note != nil {
 		spec.TriggerNote = *sp.note
 	}
 	if len(sp.ids) == 1 {
 		spec.Subject = &run.Subject{Kind: "device", ID: sp.ids[0], Label: labels[0]}
 	}
-	var id string
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if busy, err := s.activeRun(ctx, tx); err != nil {
-			return err
-		} else if busy != "" {
-			return errRunning
-		}
-		var err error
-		if id, err = s.cfg.Runs.CreateTx(ctx, tx, spec); err != nil {
-			if store.IsUniqueViolation(err) {
-				return errRunning
-			}
-			return fmt.Errorf("scan: writing the run: %w", err)
-		}
-		// The start counts and hashes the whole list; each pick, the consent, is a row of its own.
-		sum := sha256.Sum256([]byte(strings.Join(sp.ids, ",")))
-		detail := fmt.Sprintf("%d targets, %d picked by hand, sha256 %s", len(sp.ids), len(sp.picked), hex.EncodeToString(sum[:8]))
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.start", Target: id, Detail: detail}); err != nil {
-			return err
-		}
-		for _, p := range sp.picked {
-			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.pick", Target: p, Detail: "run " + id}); err != nil {
-				return err
-			}
-		}
-		if sp.inTx != nil {
-			if err := sp.inTx(ctx, tx, id); err != nil {
-				return err
-			}
-		}
-		// Before the commit: the dispatcher cannot start the run until it, and then finds what it needs.
-		s.mu.Lock()
-		s.pending[id] = sp
-		s.mu.Unlock()
-		return nil
-	})
-	if err != nil {
-		if id != "" {
-			s.mu.Lock()
-			delete(s.pending, id)
-			s.mu.Unlock()
-		}
-		return RunView{}, err
+	if busy, err := s.activeRun(ctx, tx); err != nil {
+		return "", err
+	} else if busy != "" {
+		return "", errRunning
 	}
-	s.publish(ctx, EventRunStarted, RunEvent{RunID: id, Status: "running"})
-	return s.Run(ctx, id)
+	id, err := s.cfg.Runs.CreateTx(ctx, tx, spec)
+	if err != nil {
+		if store.IsUniqueViolation(err) {
+			return "", errRunning
+		}
+		return "", fmt.Errorf("scan: writing the run: %w", err)
+	}
+	// The start counts and hashes the whole list; each pick, the consent, is a row of its own.
+	sum := sha256.Sum256([]byte(strings.Join(sp.ids, ",")))
+	detail := fmt.Sprintf("%d targets, %d picked by hand, sha256 %s", len(sp.ids), len(sp.picked), hex.EncodeToString(sum[:8]))
+	if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.start", Target: id, Detail: detail}); err != nil {
+		return id, err
+	}
+	for _, p := range sp.picked {
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: sp.user, Action: "scan.pick", Target: p, Detail: "run " + id}); err != nil {
+			return id, err
+		}
+	}
+	if sp.inTx != nil {
+		if err := sp.inTx(ctx, tx, id); err != nil {
+			return id, err
+		}
+	}
+	// Before the commit: the dispatcher cannot start the run until it, and then finds what it needs.
+	s.mu.Lock()
+	s.pending[id] = sp
+	s.mu.Unlock()
+	return id, nil
 }
 
 // takePending hands the run the spec it was started with, once.
@@ -382,6 +391,7 @@ func (s *Service) runVulnCheck(ctx context.Context, x *run.Exec) (run.Result, er
 	s.live = &live{id: x.ID(), cur: sp.first}
 	s.mu.Unlock()
 	defer func() { s.mu.Lock(); s.live = nil; s.mu.Unlock() }()
+	s.publish(ctx, EventRunStarted, RunEvent{RunID: x.ID(), Status: "running"})
 	if !sp.end.IsZero() { // by the injected clock, so a test can put the end close
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, sp.end.Sub(s.now()))

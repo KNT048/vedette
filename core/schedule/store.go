@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -68,10 +70,20 @@ func Reference(lastDue *time.Time, updated time.Time, pausedUntil *time.Time) ti
 	return ref
 }
 
+// firstInWindow holds the owner names (Owner.FirstInWindow) whose schedule that never came due is due at once. It is a registry of the
+// process because next_due_at is also recomputed outside a Service (Recompute, when the organization's zone changes).
+var firstInWindow sync.Map
+
+func ownerName(key string) string { n, _, _ := strings.Cut(key, ":"); return n }
+
 // due is the next due time the row must have: nil while it is off or never comes due again.
 func (r row) due(org string) *time.Time {
 	if !r.Enabled {
 		return nil
+	}
+	if _, ok := firstInWindow.Load(ownerName(r.OwnerKey)); ok && r.LastDueAt == nil && r.Rule.Window == WindowGlobal {
+		t := Reference(nil, r.UpdatedAt, r.PausedUntil).Truncate(time.Millisecond) // never ran: due at once, the scan window holds it
+		return &t
 	}
 	t := Due(r.Rule, r.LastDueAt, r.UpdatedAt, r.PausedUntil, zoneOf(r.Rule.TZ, org))
 	if t.IsZero() {

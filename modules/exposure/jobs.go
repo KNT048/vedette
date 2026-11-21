@@ -8,8 +8,8 @@ import (
 )
 
 // JobTick is how often the auto-detect job wakes up to see whether a check is due. The shortest interval a customer
-// can choose is one minute, so it wakes every minute; the check itself runs every interval_min minutes, and a run
-// can start up to half a tick early. Most wake-ups do nothing.
+// can choose is five minutes, so it wakes every minute; when the check runs is the schedule's (exposure.public_ip). Most wake-ups
+// do nothing.
 const JobTick = time.Minute
 
 // Jobs returns the jobs of the module (core runs one only while the module is on). auto-detect wakes up every
@@ -36,20 +36,24 @@ const IPProofTick = time.Hour
 // GreenboneSyncTick is how often the greenbone-feed job wakes up to see whether the weekly update is due (or was put off by a scan).
 const GreenboneSyncTick = time.Hour
 
-// autoDue says whether the job should check now: auto-detect is on and the last check is older than the interval
-// (or there was none, which is the first start of the box).
-func autoDue(b BoxIP, now time.Time) bool {
+// autoDue says whether the job should check now: auto-detect is on and either no check has run yet (the first start of the box) or
+// the schedule (core_schedule, exposure.public_ip) came due after the last one.
+func (s *Service) autoDue(ctx context.Context, b BoxIP, now time.Time) (bool, error) {
 	if !b.Auto {
-		return false
+		return false, nil
 	}
 	if b.LastRun == nil {
-		return true
+		return true, nil
 	}
 	at, err := parseTS(b.LastRun.At)
 	if err != nil || at.After(now.Add(clockSlack)) { // written while the clock was ahead (L1): do not wait for it
-		return true
+		return true, nil
 	}
-	return !now.Before(at.Add(time.Duration(b.IntervalMin) * time.Minute).Add(-JobTick / 2))
+	_, _, lastDue, err := autoSetting(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return false, err
+	}
+	return lastDue != nil && lastDue.After(at), nil
 }
 
 // RunAutoDetect is the body of the auto-detect job (INV-11): the first check right after the box starts or the
@@ -62,8 +66,8 @@ func (s *Service) RunAutoDetect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !autoDue(b, s.clock()) {
-		return nil
+	if due, err := s.autoDue(ctx, b, s.clock()); err != nil || !due {
+		return err
 	}
 	deep, err := s.deepDue(ctx)
 	if err != nil {

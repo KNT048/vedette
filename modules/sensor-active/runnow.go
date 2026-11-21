@@ -450,27 +450,6 @@ func derefOr(p *string, def string) string {
 	return *p
 }
 
-// nextOpening is the first start of a window after t (in t's location), within the next eight days; nil when there is none.
-func (st Settings) nextOpening(t time.Time) *time.Time {
-	from, ok1 := minutes(st.From)
-	to, ok2 := minutes(st.To)
-	if !ok1 || !ok2 || from == to || len(st.Days) == 0 {
-		return nil
-	}
-	for ahead := range 8 {
-		d := t.AddDate(0, 0, ahead)
-		wd := int(d.Weekday())
-		if wd == 0 {
-			wd = 7
-		}
-		start := time.Date(d.Year(), d.Month(), d.Day(), from/60, from%60, 0, 0, t.Location())
-		if slices.Contains(st.Days, wd) && start.After(t) {
-			return &start
-		}
-	}
-	return nil
-}
-
 // JobRow is a run of the module for a list of past runs, with every probe it sent (read only): a sweep runs in batches, an SNMP
 // read records "ok: n of m answered", so what the run found is in its probes, never only in the row's target count.
 type JobRow struct {

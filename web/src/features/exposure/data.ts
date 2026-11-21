@@ -21,7 +21,7 @@ export interface StoredTarget { id: string; kind: TargetKind; /** a public IP a 
 export const VERIFY_DAYS = 30
 export const EXPIRING_DAYS = 5
 /** Auto-detect: check interval bounds and default, in minutes. */
-export const MIN_INTERVAL = 1
+export const MIN_INTERVAL = 5
 export const MAX_INTERVAL = 1440
 export const DEFAULT_INTERVAL = 60
 

@@ -241,7 +241,7 @@ func TestContract_INV8_DisabledFeedRefusedAndErrorsAreRecorded(t *testing.T) {
 	o.serve("/kev.json", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) })
 	e.setNow(e.clock().Add(30 * time.Hour)) // due again
 	failedAt := e.clock()
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	f := e.feed("cisa-kev")
@@ -258,24 +258,24 @@ func TestContract_INV8_DisabledFeedRefusedAndErrorsAreRecorded(t *testing.T) {
 	// back-off: 5 minutes, then 10
 	before := o.count("/kev.json")
 	e.setNow(failedAt.Add(4 * time.Minute))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if o.count("/kev.json") != before {
 		t.Error("retried before the back-off of 5 minutes")
 	}
 	e.setNow(failedAt.Add(5 * time.Minute))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if o.count("/kev.json") != before+1 || e.feed("cisa-kev").Failures != 2 {
 		t.Errorf("no retry after 5 minutes: %d hits, %d failures", o.count("/kev.json")-before, e.feed("cisa-kev").Failures)
 	}
 	e.setNow(failedAt.Add(5*time.Minute + 9*time.Minute))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if o.count("/kev.json") != before+1 {
 		t.Error("retried before the back-off of 10 minutes")
 	}
 	// the source comes back: success resets the state
 	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
 	e.setNow(failedAt.Add(5*time.Minute + 10*time.Minute))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	if f = e.feed("cisa-kev"); f.Status != "ok" || f.Failures != 0 {
 		t.Errorf("recovered: %+v", f)
 	}
@@ -286,10 +286,10 @@ func TestContract_INV9_DataIsNeverOlderThanIntervalPlusAnHour(t *testing.T) {
 	e, o := pullEnv(t)
 	e.only("cisa-kev")
 	e.mirror("cisa-kev", o.url("/kev.json"))
-	e.put("cisa-kev", `{"interval_hours":6}`)
+	e.every("cisa-kev", 6)
 	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
 	for i := 0; i <= 36*60/5; i++ { // 36 hours in the job's own 5 minute steps
-		if err := e.svc.RunPull(t.Context()); err != nil {
+		if err := e.runPull(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 		f := e.feed("cisa-kev")
@@ -316,7 +316,7 @@ func TestContract_INV1_JobContactsOnlyDeclaredEnabledSources(t *testing.T) {
 	if c, b, _ := e.do("POST", "/feeds/custom", "admin", body); c != 201 {
 		t.Fatalf("%d %v", c, b)
 	}
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	paths := map[string]bool{}
@@ -340,7 +340,7 @@ func TestNucleiTemplatesReachKEVAtOnce(t *testing.T) {
 	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
 	o.body("/cves.json", `"n1"`, testFile(t, "nuclei-cves.jsonl"))
 	// the job pulls KEV first, then nuclei; the CVEs already stored get their flag from the same tick
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	a, _, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001")
@@ -354,7 +354,7 @@ func TestNucleiTemplatesReachKEVAtOnce(t *testing.T) {
 	// nuclei drops one template: the flag goes and scan hears about it
 	o.body("/cves.json", `"n2"`, `{"ID":"CVE-2026-10003"}`+"\n")
 	e.setNow(e.clock().Add(25 * time.Hour))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	a, _, _ = e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001")
 	if a.HasTemplate || len(e.pub.named(EventVulnUpdated)) != 2 {
 		t.Errorf("after the change: %v %v", a.HasTemplate, e.pub.named(EventVulnUpdated))
@@ -373,7 +373,7 @@ func TestIOCFeedsPullMergeAndReportChanges(t *testing.T) {
 	e.mirror("abusech-feodo", o.url("/feodo.txt"))
 	o.body("/et.txt", `"e1"`, "185.220.101.47\n45.148.10.95\n10.0.0.1\n")
 	o.body("/feodo.txt", `"f1"`, "# feodo\n185.220.101.47\n")
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	ev := e.pub.named(EventIOCUpdated)
@@ -393,7 +393,7 @@ func TestIOCFeedsPullMergeAndReportChanges(t *testing.T) {
 	// et-open drops one address and adds another
 	o.body("/et.txt", `"e2"`, "185.220.101.47\n103.75.190.12\n")
 	e.setNow(e.clock().Add(7 * time.Hour))
-	_ = e.svc.RunPull(t.Context())
+	_ = e.runPull(t.Context())
 	ev = e.pub.named(EventIOCUpdated)
 	if len(ev) != 3 || ev[2] != (IOCUpdatedEvent{FeedID: "et-open", Added: 1, Removed: 1}) {
 		t.Errorf("events: %v", ev)
@@ -462,7 +462,7 @@ func TestCustomFeedPullsWithItsSecretAndTheEditorsRules(t *testing.T) {
 		t.Errorf("401: %v", f)
 	}
 	// a custom vulnerability feed replaces its rows on each pull and takes the date of the first sight
-	vbody := `{"name":"Partner CVEs","kind":"vulnerabilities","url":"` + o.url("/v.csv") + `","enabled":true,"interval_hours":24,
+	vbody := `{"name":"Partner CVEs","kind":"vulnerabilities","url":"` + o.url("/v.csv") + `","enabled":true,
 "auth":{"type":"none","header_name":null,"username":null},
 "parser":{"format":"csv","records_path":"","delimiter":",","has_header":true,"fields":{"cve":{"source":"cve","regex":"","trim":true,"lowercase":false,"date_format":"auto"},
 "vendor":{"source":"vendor","regex":"","trim":true,"lowercase":false,"date_format":"auto"}}}}`

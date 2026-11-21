@@ -600,8 +600,8 @@ func TestCVERecords_SignalledCVEsRecheckAndStamp(t *testing.T) {
 			return err
 		}
 		// a custom list's unread CVEs never count toward the throttle
-		if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_source (id, builtin, name, kind, format, url, interval_hours, parser, created_at)
-VALUES ('cf-own', 0, 'Own list', 'vulnerabilities', 'json', 'https://feeds.example.com/x.json', 24, '{}', '2026-11-05T00:00:00.000Z')`); err != nil {
+		if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_source (id, builtin, name, kind, format, url, parser, created_at)
+VALUES ('cf-own', 0, 'Own list', 'vulnerabilities', 'json', 'https://feeds.example.com/x.json', '{}', '2026-11-05T00:00:00.000Z')`); err != nil {
 			return err
 		}
 		for i := range 5 {

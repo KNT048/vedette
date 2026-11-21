@@ -125,14 +125,6 @@ func addressKey(raw string) (string, bool) {
 	return scheme + "://" + host + ":" + port + path + "?" + u.RawQuery, true
 }
 
-// CheckInterval is INV-5: 1..168 hours.
-func CheckInterval(hours int) error {
-	if hours < 1 || hours > 168 {
-		return fail(ErrInvalidInterval, "The schedule must be between 1 and 168 hours.")
-	}
-	return nil
-}
-
 // CheckKindFormat is INV-5: the format must fit the kind.
 func CheckKindFormat(k Kind, f Format) error {
 	if k != KindVulnerabilities && k != KindIOC {

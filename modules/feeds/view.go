@@ -108,12 +108,11 @@ func toFeedDTO(r sourceRow) feedDTO {
 
 // feedInput is the body of POST/PUT /feeds/custom (contract.ts FeedInput).
 type feedInput struct {
-	Name          string `json:"name"`
-	Kind          Kind   `json:"kind"`
-	URL           string `json:"url"`
-	Enabled       bool   `json:"enabled"`
-	IntervalHours int    `json:"interval_hours"`
-	Auth          struct {
+	Name    string `json:"name"`
+	Kind    Kind   `json:"kind"`
+	URL     string `json:"url"`
+	Enabled bool   `json:"enabled"`
+	Auth    struct {
 		Type       AuthType `json:"type"`
 		HeaderName *string  `json:"header_name"`
 		Username   *string  `json:"username"`
@@ -139,8 +138,6 @@ func apiError(err error) error {
 	switch {
 	case errors.Is(err, ErrInvalidURL):
 		return e(http.StatusBadRequest, "invalid_url", "Enter a full address such as https://example.com/feed.json.")
-	case errors.Is(err, ErrInvalidInterval):
-		return e(http.StatusBadRequest, "invalid_body", "Check the values and try again.")
 	case errors.Is(err, ErrInvalidFormat):
 		return e(http.StatusBadRequest, "invalid_format", "This format does not fit this kind of feed.")
 	case errors.Is(err, ErrInvalidName):

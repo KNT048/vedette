@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/orgtime"
 	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -49,7 +50,12 @@ type Config struct {
 	Outside *InternetDB // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
 	Safety  ScanSafety  // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
 	// Runs is the box's run manager (core/run): a scan is a run of kind RunKind in the lane RunLane. nil: scanning answers 501.
-	Runs     *corerun.Manager
+	Runs *corerun.Manager
+	// Schedules is the box's schedule service (core/schedule): each target's scan schedule is ScheduleKey(id). nil: no target is
+	// scanned by itself.
+	Schedules *schedule.Service
+	// Alert sends what a scan found new (a newly open port, a new issue) to the alert channels; nil sends nothing (the page shows it).
+	Alert    func(ctx context.Context, a Alert) error
 	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
 	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.
@@ -109,6 +115,9 @@ func NewService(cfg Config) (*Service, error) {
 	s := &Service{cfg: cfg, now: now, runner: cfg.Runner, execs: map[string]*scanExec{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background()}
 	if err := s.registerRuns(); err != nil {
 		return nil, fmt.Errorf("exposure: registering the scan runs: %w", err)
+	}
+	if err := s.registerSchedules(); err != nil {
+		return nil, fmt.Errorf("exposure: registering the scan schedules: %w", err)
 	}
 	return s, nil
 }
@@ -310,7 +319,6 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, l
 		v.OpenExposures = r.Counts.Ports
 	}
 	v.ScanState = s.scanState(live[t.ID], v)
-	v.Schedule = noSchedule()
 	return v
 }
 
@@ -570,6 +578,9 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindIP, Typed: true, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
+		if err := s.ensureSchedule(ctx, tx, id); err != nil {
+			return err
+		}
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "public IP, typed in; not scanned until proved")
 	})
 	if err != nil {
@@ -608,6 +619,9 @@ func (s *Service) addDomain(ctx context.Context, user, raw string, scope ScopeMo
 		}
 		id = store.NewID("xt")
 		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, ScopeMode: scope, CreatedAt: s.clock()}); err != nil {
+			return err
+		}
+		if err := s.ensureSchedule(ctx, tx, id); err != nil {
 			return err
 		}
 		if _, err := settleTree(ctx, tx, ""); err != nil { // under its nearest parent; the targets under it move under it
@@ -684,6 +698,9 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 			return err
 		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
+			return err
+		}
+		if err := s.dropSchedule(ctx, tx, id); err != nil {
 			return err
 		}
 		if err := s.uncover(ctx, tx, t); err != nil { // what its record proved needs a proof of its own now

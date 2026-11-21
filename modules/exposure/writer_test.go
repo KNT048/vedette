@@ -144,7 +144,8 @@ func (e *env) replay(target, startedAt string, c Content, gbAddrs ...GreenboneAd
 	if len(gb) > 0 || len(gbAddrs) > 0 {
 		o := gbOutcome{rows: sanitizeGreenbone(gb), state: GBRunDone, addrs: gbAddrs}
 		err = e.svc.write(e.ctx(), func(tx *sql.Tx, _ func(string, any)) error {
-			return e.svc.writeOpenVAS(e.ctx(), tx, t, runID, at, o, openVASCoverage(t, o, c.Ports))
+			_, err := e.svc.writeOpenVAS(e.ctx(), tx, t, runID, at, o, openVASCoverage(t, o, c.Ports))
+			return err
 		})
 		if err != nil {
 			e.t.Fatal(err)

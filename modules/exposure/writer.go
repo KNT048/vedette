@@ -50,7 +50,12 @@ type written struct {
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string
-	probed    map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
+	// openedAt and newAt are opened and newIssues with the target that holds each row once the tree settled: the target the alert and
+	// the event name.
+	openedAt []OpenedService
+	newAt    []NewIssue
+	first    bool              // the target had no rows before: the baseline
+	probed   map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
 }
 
 // issueIn is one issue a scan reported, before it is a row.
@@ -118,8 +123,15 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err != nil {
 		return written{}, err
 	}
-	out.opened, out.newIssues = stillNew(hl, out.opened, openedIDs, out.newIssues)
+	var keptIDs []string
+	out.opened, keptIDs, out.newIssues = stillNew(hl, out.opened, openedIDs, out.newIssues)
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
+	if out.openedAt, err = holders(ctx, tx, w.target.ID, out.opened, keptIDs); err != nil {
+		return written{}, err
+	}
+	if out.newAt, err = issueHolders(ctx, tx, out.newIssues); err != nil {
+		return written{}, err
+	}
 	if err := rowCounts(ctx, tx, w.target.ID, &out.counts); err != nil {
 		return written{}, err
 	}
@@ -149,11 +161,12 @@ func serviceIDs(ctx context.Context, tx *sql.Tx, target string, ports []PortRow)
 
 // stillNew keeps, of the services opened (ids: their rows) and the issues new in a write, those the settle did not fold into a row another
 // target held before: a port or an issue new here stays new (once) when it moves with its name to the target that scans it now.
-func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]PortRow, []string) {
+func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]PortRow, []string, []string) {
 	var ports []PortRow
+	var kept []string
 	for i, p := range opened {
 		if !hl.merged[ids[i]] {
-			ports = append(ports, p)
+			ports, kept = append(ports, p), append(kept, ids[i])
 		}
 	}
 	var out []string
@@ -162,15 +175,15 @@ func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]Po
 			out = append(out, id)
 		}
 	}
-	return ports, out
+	return ports, kept, out
 }
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the
 // addresses it scanned to the end, and their open ports): an OpenVAS issue it no longer reports is gone only there; nil (a step that
 // failed, was stopped or was cut short everywhere) only adds what it found.
-func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) error {
+func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) ([]NewIssue, error) {
 	if _, err := loadTarget(ctx, tx, t.ID); err != nil {
-		return err
+		return nil, err
 	}
 	issues := make([]issueIn, 0, len(o.rows))
 	for _, r := range o.rows {
@@ -178,11 +191,11 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	}
 	hosts, err := storedHostAddrs(ctx, tx, t)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fresh, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: covered != nil}, map[IssueEngine]coverFunc{EngineOpenVAS: covered})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var countErr error
 	err = updateSummary(ctx, tx, runID, func(sum *scanSummary) {
@@ -198,7 +211,10 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	if err == nil {
 		err = countErr
 	}
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return issueHolders(ctx, tx, fresh)
 }
 
 // ---- hosts and addresses ----

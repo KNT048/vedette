@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // exposureTestConfig is a seam for the end-to-end box (cmd/vedette/e2eexposure_test.go, WP-30, #263): a test binary sets it to swap the
@@ -62,6 +66,12 @@ func exposureService(d deps) *exposure.Service {
 		cfg.Publisher = d.Bus
 	}
 	cfg.Runs = d.Runs // a scan is a run of the box's run manager: queued in the database, one at a time in its lane
+	// Each target's scan schedule is a shared schedule (core/schedule, exposure.target:<id>): its ticker queues the scan as a run, inside
+	// the scan window unless the schedule says otherwise. What a scan finds new (a newly open port, a new issue) goes to the admins' alert
+	// channels through notify's system notice path, with a link to the target when the box knows its own address; newNotify is read at
+	// send time.
+	cfg.Schedules = d.Schedules
+	cfg.Alert = exposureAlert(d)
 	// S-EXP-2 (INV-19, INV-20): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services is
 	// the scan container's nmap -sV on the box's own verified public IP (sensor-active ScanExternal). The commitment sentence of
 	// NoticeVersion 2026-11-14 (K-4) already names service identification, so wiring it leaves NoticeVersion alone (a second bump
@@ -112,12 +122,16 @@ func exposureService(d deps) *exposure.Service {
 	return svc
 }
 
-// exposureAtStart starts OpenVAS again when an administrator had it enabled and the module is on: without it
-// the first scan after a restart or an update of the box finds it "still starting" and skips it. The module switch does the same
-// (exposure's ModuleSwitched).
+// exposureAtStart gives every target its scan schedule (before the schedules' ticker starts), and starts OpenVAS again when an
+// administrator had it enabled and the module is on: without it the first scan after a restart or an update of the box finds it "still
+// starting" and skips it. The module switch does the same (exposure's ModuleSwitched).
 func exposureAtStart(ctx context.Context, d deps) {
+	svc := exposureService(d)
+	// every target has its scan schedule before the schedules' ticker starts (targets stored before schedules were shared get the default)
+	if err := svc.EnsureSchedules(ctx); err != nil {
+		d.Log.ErrorContext(ctx, "exposure: the targets' scan schedules", "error", err)
+	}
 	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
-		svc := exposureService(d)
 		svc.GreenboneAtStart(ctx)
 	}
 }
@@ -137,5 +151,34 @@ func exposureTwoStep(a *auth.Service) exposure.TwoStep {
 			return "sso", nil
 		}
 		return u.TwofaMethod, nil
+	}
+}
+
+// exposureAlert sends what a scan found new on a target through notify (an incident-kind notice). Without the notify module there is no
+// channel to send to: the rows are on the target's page.
+func exposureAlert(d deps) func(ctx context.Context, a exposure.Alert) error {
+	return func(ctx context.Context, a exposure.Alert) error {
+		sev := notify.Medium
+		switch a.Severity {
+		case exposure.AlertCritical:
+			sev = notify.Critical
+		case exposure.AlertHigh:
+			sev = notify.High
+		}
+		clock := d.Clock
+		if clock == nil {
+			clock = time.Now
+		}
+		n := notify.Notice{ID: a.ID, Kind: notify.KindIncident, Severity: sev, Title: a.Title, What: a.Text, At: clock()}
+		if d.BaseURL != nil {
+			if base := strings.TrimRight(d.BaseURL(), "/"); base != "" {
+				n.Link = base + "/exposure/" + url.PathEscape(a.TargetID)
+			}
+		}
+		err := newNotify(&d).Publish(ctx, n)
+		if errors.Is(err, notify.ErrModuleOff) {
+			return nil
+		}
+		return err
 	}
 }

@@ -90,7 +90,7 @@ func (s *Service) ModeNow(ctx context.Context, actor, id string) (ScanMode, erro
 	if err != nil || reason != "" {
 		return ScanMode{}, err
 	}
-	return t.mode(), nil
+	return boxMode(actor, t.mode()), nil
 }
 
 // TermsNotice is the terms as the page shows them (contract.ts TermsNotice): the version, the text with the target in it (one

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"log/slog"
 	"slices"
 	"strings"
@@ -427,8 +428,23 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 			return UpsertResult{}, fmt.Errorf("findings: reading the products answered on Home: %w", err)
 		}
 	}
+	haveOf := func(fs []Finding) map[string]bool {
+		out := make(map[string]bool, len(fs))
+		for _, f := range fs {
+			out[f.CVE] = true
+		}
+		return out
+	}
+	// The match is computed before the write, against the findings the device has now, so the writer is held only for the writing;
+	// a finding created meanwhile (a safe check) makes the write compute it again.
+	before, err := findingsOf(ctx, s.cfg.DB.Reader(), a.ID)
+	if err != nil {
+		return UpsertResult{}, err
+	}
+	haveBefore := haveOf(before)
+	matched := MatchAsset(a, vulns, haveBefore, s.now())
 	var res UpsertResult
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
 		// A match read before a person ignored the device writes nothing; asked inside the write.
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, a.ID); err != nil {
@@ -440,11 +456,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 		if err != nil {
 			return err
 		}
-		have := map[string]bool{}
-		for _, f := range existing {
-			have[f.CVE] = true
+		have := haveOf(existing)
+		if !maps.Equal(have, haveBefore) {
+			matched = MatchAsset(a, vulns, have, now)
 		}
-		m := haveScope(a, vulns, MatchAsset(a, vulns, have, now), since, have, now)
+		m := haveScope(a, vulns, matched, since, have, now)
 		qm := m
 		if whole != nil {
 			qm = *whole

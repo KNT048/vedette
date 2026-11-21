@@ -353,7 +353,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 			current[c.String] = true
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?`, id)
+	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, id) // the declared decision is the software row's, not an observation a source made
 	if err != nil {
 		return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
 	}

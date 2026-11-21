@@ -68,6 +68,9 @@ var osProducts, modelProducts = func() (map[string]osProduct, map[string][]strin
 	return out, models
 }()
 
+// osKeys are the keys of osProducts, sorted: the products a declared line may be of.
+var osKeys = slices.Sorted(maps.Keys(osProducts))
+
 // appliance says whether a catalog kind is a box whose product is the device itself (not a computer that runs it).
 func appliance(kind string) bool {
 	switch devicetypes.ActsAs(kind) {
@@ -132,13 +135,17 @@ func (s *Service) declaredChoice(ctx context.Context, tx *sql.Tx, id string, det
 	if _, _, _, typed, err := manualOS(ctx, tx, id); err != nil || typed {
 		return nil, "", err // the person typed the OS
 	}
+	lines, err := declaredLines(ctx, tx, id, osKeys)
+	if err != nil || len(lines) == 0 {
+		return nil, "", err // no declared row: most devices stop here, without reading their software
+	}
 	devs := []Device{{Software: []Software{}}}
 	devs[0].ID, devs[0].OS = id, detected
 	if err := loadSoftware(ctx, tx, `(SELECT ?)`, map[string]int{id: 0}, devs, []any{id}); err != nil {
 		return nil, "", err
 	}
 	d := &devs[0]
-	cands := declaredCandidates(d.Software)
+	cands := slices.DeleteFunc(declaredCandidates(d.Software), func(c *Software) bool { return !slices.Contains(lines, c.ID) })
 	if len(cands) == 0 {
 		return nil, "", nil
 	}
@@ -232,31 +239,13 @@ func (s *Service) storeDeclared(ctx context.Context, tx *sql.Tx, id string, best
 	return nil
 }
 
-// ReconcileDeclaredOS stores the declared-OS decision of every device that has a declared row or a stored decision: the devices of a
-// box that ran before the decision was stored, and any device whose decision a change elsewhere left stale. It is the job
-// "declared-os-reconcile"; a device whose OS does not move writes nothing.
+// ReconcileDeclaredOS stores the declared-OS decision of the devices that have a declared row and no decision, and drops a decision
+// no declared row backs: the devices of a box that ran before the decision was stored. A box that is up to date selects nothing, so
+// the job "declared-os-reconcile" costs a query at start-up; a device it cannot store is logged and skipped.
 func (s *Service) ReconcileDeclaredOS(ctx context.Context) error {
-	keys := slices.Sorted(maps.Keys(osProducts))
-	args := make([]any, len(keys))
-	for i, k := range keys {
-		args[i] = k
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id FROM inv_asset a WHERE EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND w.state = 'present'
-		AND w.product_key IN (?`+strings.Repeat(", ?", len(keys)-1)+`)) OR EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`) ORDER BY a.id`, args...)
+	ids, err := devicesToDecide(ctx, s.db.Reader(), osKeys)
 	if err != nil {
-		return fmt.Errorf("inventory: read devices with a declared row: %w", err)
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("inventory: read devices with a declared row: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("inventory: read devices with a declared row: %w", err)
+		return err
 	}
 	for _, id := range ids {
 		err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
@@ -266,8 +255,8 @@ func (s *Service) ReconcileDeclaredOS(ctx context.Context) error {
 			}
 			return err
 		})
-		if err != nil {
-			return err
+		if err != nil { // one device never holds the others back
+			s.log.WarnContext(ctx, "inventory: the declared OS of a device could not be stored", "device", id, "error", err.Error())
 		}
 	}
 	return nil

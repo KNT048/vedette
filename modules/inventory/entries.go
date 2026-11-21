@@ -337,7 +337,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 
 // addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
 // already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it).
-func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup bool, err error) {
+func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
 	id, version := identify(it, sourceManual)
 	var lineID, state string
 	var guess bool
@@ -345,30 +345,30 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 		Scan(&lineID, &state, &guess)
 	switch {
 	case err == nil && state == statePresent && !guess:
-		return true, nil
+		return true, false, nil
 	case err != nil && !errors.Is(err, sql.ErrNoRows):
-		return false, fmt.Errorf("inventory: check software: %w", err)
+		return false, false, fmt.Errorf("inventory: check software: %w", err)
 	}
 	now := s.now()
 	r := Reading{Source: sourceManual, Display: it.Display, Version: version, Confidence: 1, SetBy: actor, FirstSeen: now, SeenAt: now}
 	lineID, err = s.lineOf(ctx, tx, assetID, id, r)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, lineID); err != nil {
-		return false, fmt.Errorf("inventory: store software: %w", err)
+		return false, false, fmt.Errorf("inventory: store software: %w", err)
 	}
 	if err := putReading(ctx, tx, lineID, r); err != nil {
-		return false, err
+		return false, false, err
 	}
 	if err := softwareEvent(ctx, tx, assetID, lineID, id.productKey, it.Display, now, "entry_set", "", version, sourceManual, actor); err != nil {
-		return false, err
+		return false, false, err
 	}
 	if _, err := s.settleLine(ctx, tx, lineID, now, map[[2]string][2]string{{sourceManual, ""}: {it.Vendor, it.Product}}); err != nil {
-		return false, err
+		return false, false, err
 	}
-	_, err = s.RecomputeAsset(ctx, tx, assetID) // a declared OS row is the device's OS in the same transaction
-	return false, err
+	moved, err = s.RecomputeAsset(ctx, tx, assetID) // a declared OS row is the device's OS in the same transaction
+	return false, moved, err
 }
 
 // RemoveSoftware takes back what a person said about a software line: the version they gave (the line is back to what its sources

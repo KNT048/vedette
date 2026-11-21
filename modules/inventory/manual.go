@@ -143,7 +143,7 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	if a.entry != nil {
 		sw := SoftwareItem{Display: a.entry.display, Vendor: a.entry.vendor, Product: a.entry.product, Version: a.version, KevKeys: a.entry.kev, Confidence: 1}
-		if _, err := s.addEntryTx(ctx, tx, "", id, sw); err != nil {
+		if _, _, err := s.addEntryTx(ctx, tx, "", id, sw); err != nil {
 			return "", err
 		}
 		after, err := deviceKeys(ctx, tx, id)
@@ -239,7 +239,7 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 			return err
 		}
 		sw := SoftwareItem{Display: a.entry.display, Vendor: a.entry.vendor, Product: a.entry.product, Version: a.version, KevKeys: a.entry.kev, Confidence: 1}
-		dup, err := s.addEntryTx(ctx, tx, actor, assetID, sw)
+		dup, moved, err := s.addEntryTx(ctx, tx, actor, assetID, sw)
 		if err != nil {
 			return err
 		}
@@ -251,6 +251,9 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 			return err
 		}
 		kevCVEs = a.entry.kevCount
+		if moved {
+			o.add(EventAssetUpdated, AssetEvent{AssetID: assetID})
+		}
 		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
 		o.after = append(o.after, s.matchEvents(assetID, before, after))
 		return s.auditTx(ctx, tx, actor, "inventory.add_software", deviceName(ctx, tx, assetID)+": "+a.entry.display, "")

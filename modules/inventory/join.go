@@ -213,6 +213,11 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	case fromIgnored && !intoIgnored:
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
 	}
+	// The kept device's stored declared-OS decision shares its key with a person's typed OS (device, field, source, value): it goes before
+	// the observations move, so a typed OS never folds into it; the recompute after the join decides it again.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND `+declaredObsSQL, into); err != nil {
+		return "", fmt.Errorf("inventory: drop the declared OS before a join: %w", err)
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, from)
 	if err != nil {
 		return "", fmt.Errorf("inventory: read observations: %w", err)

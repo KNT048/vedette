@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
@@ -210,9 +211,9 @@ func TestDeclaredIdentityKeepsOneNameAndIsSearchable(t *testing.T) {
 func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheWrite(t *testing.T) {
 	m := &matcher{keep: true, version: "7.2.13", fail: map[string]bool{}}
 	e := newEnv(t, withMatcher(m))
-	alone := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
-	ok := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.2"})
-	broken := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.3"})
+	alone := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "192.0.2.1"})
+	ok := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "192.0.2.2"})
+	broken := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "192.0.2.3"})
 	m.fail[broken] = true
 	m.asked = nil
 	for _, id := range []string{ok, broken} {
@@ -242,7 +243,7 @@ func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheWrite(
 func TestDeclaredOSIsStoredAndEveryReaderShowsIt(t *testing.T) {
 	m := &matcher{keep: true, version: "7.2.13"}
 	e := newEnv(t, withMatcher(m))
-	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "192.0.2.1"})
 	e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "Linux 4.15", Source: observe.SNMP, Confidence: 0.9})
 	const want = "FortiOS 7.2.13"
 	var stored, obsID string
@@ -303,7 +304,7 @@ func ptrTo(s string) *string { return &s }
 func TestReconcileDeclaredOSStoresWhatAnOlderBoxLacks(t *testing.T) {
 	m := &matcher{keep: true, version: "7.2.13"}
 	e := newEnv(t, withMatcher(m))
-	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "192.0.2.1"})
 	e.exec(`DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os'`, id)
 	e.exec(`UPDATE inv_asset SET os = NULL, os_obs_id = NULL WHERE id = ?`, id)
 	if err := e.svc.ReconcileDeclaredOS(e.ctx()); err != nil {
@@ -331,13 +332,91 @@ func TestNoReaderAppliesTheDeclaredOSAtReadTime(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, name := range []string{"applyDeclared(", "declaredCandidates(", "s.declared("} {
-			if strings.Contains(string(b), name) && f != "declared.go" {
+		for _, name := range []string{"applyDeclared(", "declaredCandidates(", "declaredChoice(", "storeDeclared(", "s.declared("} {
+			if strings.Contains(string(b), name) && f != "declared.go" && (f != "observe.go" || name != "storeDeclared(") { // recomputeColumns is the one writer
 				readers = append(readers, f+":"+name)
 			}
 		}
 	}
 	if len(readers) != 0 {
 		t.Errorf("readers that apply the declared OS at read time: %d %v, want 0", len(readers), readers)
+	}
+}
+
+// A network OS a person types is copied into a software line (the stated OS); clearing the OS removes the copy, and the device must
+// not keep the OS the person just cleared as if it were a declared row.
+func TestClearedTypedNetworkOSIsNotADeclaredRow(t *testing.T) {
+	m := &matcher{keep: true, version: "7.4.1"}
+	e := newEnv(t, withMatcher(m))
+	e.record(obsv(macA, observe.Hostname, "fw1", observe.Passive, 0.6))
+	id := e.idByMAC(macA)
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{OS: ptrTo("FortiOS 7.4.1")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, os := identityOf(t, e, id); os == nil || os.Value != "FortiOS 7.4.1" || os.SoftwareID != "" {
+		t.Fatalf("typed OS %+v, want the person's", os)
+	}
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{OS: ptrTo("")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, os := identityOf(t, e, id); os != nil {
+		t.Errorf("after the OS was cleared the device shows %+v, want not known", os)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'os'`, id); n != 0 {
+		t.Errorf("%d OS observations after the clear, want 0", n)
+	}
+}
+
+// A typed OS that SNMP outgrows lapses; the device then shows what SNMP reads, not the copy of the typed OS.
+func TestLapsedTypedNetworkOSIsNotADeclaredRow(t *testing.T) {
+	e := newEnv(t, func(c *inventory.Config) {
+		c.DeclaredOS = func(d inventory.MatchDevice, cands []string) (string, string, error) {
+			for _, s := range d.Software {
+				if len(cands) > 0 && s.ID == cands[0] {
+					return s.ID, s.Version, nil
+				}
+			}
+			return "", "", nil
+		}
+		c.OSVersion = func(v string) string { return v }
+	})
+	e.record(obsv(macA, observe.Hostname, "fw1", observe.Passive, 0.6))
+	id := e.idByMAC(macA)
+	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", id, inventory.Patch{OS: ptrTo("FortiOS 7.2.0")}); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "FortiOS 7.4.1", Source: observe.SNMP, Confidence: 0.9})
+	if _, _, os := identityOf(t, e, id); os == nil || os.Value != "FortiOS 7.4.1" || os.Source != "snmp" {
+		t.Errorf("after SNMP read a newer OS the device shows %+v, want SNMP's FortiOS 7.4.1", os)
+	}
+}
+
+// Merging a device whose OS a person typed into a declared device with the same OS text keeps the person's OS and who set it.
+func TestMergeKeepsAPersonsTypedOSAgainstADeclaredRow(t *testing.T) {
+	m := &matcher{keep: true, version: "7.4.1"}
+	e := newEnv(t, withMatcher(m))
+	into := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.4.1", IP: "10.0.0.9"})
+	e.record(obsv(macA, observe.Hostname, "fw1", observe.Passive, 0.6))
+	from := e.idByMAC(macA)
+	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", from, inventory.Patch{OS: ptrTo("FortiOS 7.4.1")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(e.ctx(), "op@acme.example", into, from); err != nil {
+		t.Fatal(err)
+	}
+	d, err := e.svc.Detail(e.ctx(), into)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Asset.OSCorrection == nil || d.Asset.OSCorrection.Value != "FortiOS 7.4.1" {
+		t.Fatalf("OS correction after the merge: %+v, want the person's FortiOS 7.4.1", d.Asset.OSCorrection)
+	}
+	if _, _, os := identityOf(t, e, into); os == nil || os.SoftwareID != "" {
+		t.Errorf("device OS %+v, want the person's, not a declared row's", os)
+	}
+	var by string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, into).Scan(&by); err != nil || by != "op@acme.example" {
+		t.Errorf("who set the OS: %q (err %v), want op@acme.example", by, err)
 	}
 }

@@ -695,7 +695,8 @@ ORDER BY substr(m.cve, 5, 4) DESC, length(m.cve) DESC, m.cve DESC LIMIT ?`, limi
 
 // publicSignalSources are the signal sources whose CVEs may be asked of NVD by id: public lists the box downloads whole. A source built
 // from what the box itself sees (an IDS alert naming a CVE) is never one of them.
-var publicSignalSources = []string{nucleiFeedID, metasploitFeedID, exploitDBFeedID, pocGitHubFeedID, msrcFeedID, ciscoFeedID, fortinetFeedID}
+var publicSignalSources = []string{nucleiFeedID, metasploitFeedID, exploitDBFeedID, pocGitHubFeedID, msrcFeedID, ciscoFeedID, fortinetFeedID,
+	chromeFeedID, androidFeedID, rapid7FeedID, gtiFeedID, appleClaimSource}
 
 const missingKEVSQL = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
 

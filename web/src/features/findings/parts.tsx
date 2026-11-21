@@ -49,13 +49,16 @@ export function SeverityLine({ counts, className }: { counts: SeverityCounts; cl
   return parts.length ? <span className={className ?? 'text-meta text-muted'}>{parts.join(' · ')}</span> : null
 }
 
-/** A device as the lists name it: its page, its address, "Not added yet", and its badge (a link to its findings with that status). */
-export function DeviceLine({ device, status, badge = true }: { device: DeviceRef; status?: DeviceStatus; badge?: boolean }) {
+/** A device as the lists name it: its page, its address, "Not added yet", and its badge (a link to its findings with that status).
+ * link false names the device without a link, where another row of the same list already links to its page. */
+export function DeviceLine({ device, status, badge = true, link = true }: { device: DeviceRef; status?: DeviceStatus; badge?: boolean; link?: boolean }) {
   const { t } = useTranslation('findings')
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <Link to={`/devices/${encodeURIComponent(device.id)}`} onClick={(e) => e.stopPropagation()}
-        className="font-semibold text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{device.name}</Link>
+      {link ? (
+        <Link to={`/devices/${encodeURIComponent(device.id)}`} onClick={(e) => e.stopPropagation()}
+          className="font-semibold text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{device.name}</Link>
+      ) : <span className="font-semibold [overflow-wrap:anywhere]">{device.name}</span>}
       <span className="text-meta text-muted">{device.ip ?? t('noIp')}</span>
       <NotAddedChip asset={{ approved: device.added, ignored: device.ignored }} />
       {badge && status ? <StatusBadge code={status.code} count={status.count} to={deviceStatusLink(device.id, status.code)} /> : null}

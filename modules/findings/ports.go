@@ -19,7 +19,38 @@ const (
 	// EventDeviceBackfill: the one summary of the open findings the first full match pass after the device-version rule arrived
 	// confirmed only because of that rule (they were already open; each was recorded in its history, none sent its own notice).
 	EventDeviceBackfill = "findings.device_version.backfilled"
+	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 (UrgencyRaisedEvent): one alert per rise. Published under
+	// the Backlog mark for old news (counted, never sent).
+	EventUrgencyRaised = "findings.finding.urgency_raised"
+	// EventFirstRun: the rises of one first-run window in one pass (a signal source's first load, or the box's own first discovery),
+	// told as one summary (FirstRunEvent); none of them sends an alert of its own (their urgency_raised go under the Backlog mark).
+	EventFirstRun = "findings.urgency.first_run"
 )
+
+// UrgencyRaisedEvent is the payload of findings.finding.urgency_raised. At (the rise's time, RFC 3339) makes each rise its own notice: a
+// finding that dropped and rose again is told again.
+type UrgencyRaisedEvent struct {
+	FindingID string   `json:"finding_id"`
+	AssetID   string   `json:"asset_id"`
+	CVE       string   `json:"cve"`
+	Severity  Severity `json:"severity"`
+	Basis     Basis    `json:"basis"`
+	From      int      `json:"from"`
+	To        int      `json:"to"`
+	At        string   `json:"at"`
+}
+
+// FirstRunEvent is the payload of findings.urgency.first_run: one first-run window's rises in one pass. Key names the window ("install",
+// or a source and the day of its first load); Layer is the most urgent of them; the lists hold up to MaxBackfillListed.
+type FirstRunEvent struct {
+	Key        string   `json:"key"`
+	At         string   `json:"at"` // the pass's time (RFC 3339): each pass's summary is its own notice; a later one says "N more"
+	Findings   int      `json:"findings"`
+	Devices    int      `json:"devices"`
+	Layer      int      `json:"layer"`
+	FindingIDs []string `json:"finding_ids"`
+	CVEList    []string `json:"cve_list"`
+}
 
 // DeviceBackfillEvent is the payload of findings.device_version.backfilled: how many findings, devices and CVEs, and up to
 // MaxBackfillListed of the findings and CVEs, worst first.

@@ -80,9 +80,11 @@ type SummaryItem struct {
 	Product    string     `json:"product"`
 	Software   string     `json:"software"` // n73: the device's software row the KEV entry is keyed to (matchedOn), "" when unknown
 	Ransomware bool       `json:"ransomware"`
-	Source     *string    `json:"source"`
+	Source     *string    `json:"source"` // the exploited list that names the CVE; null when it is on none
 	CVSS       *CVSS      `json:"cvss"`
 	FirstSeen  string     `json:"first_seen"`
+	// Urgency is the finding's layer, 1 under attack here .. 5 update recommended.
+	Urgency int `json:"urgency"`
 }
 
 // SummaryDevices is inventory's counts.
@@ -241,7 +243,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		return matchedOn(a, k, v)
 	}
 	for _, r := range top {
-		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: SeverityMedium, FirstSeen: store.FormatTS(r.firstSeen)}
+		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: SeverityMedium, FirstSeen: store.FormatTS(r.firstSeen), Urgency: r.urgency}
 		if a, ok := assets[r.assetID]; ok {
 			a = shownAsset(a)
 			it.Asset = &a
@@ -293,7 +295,8 @@ func productOf(k KevInfo) string {
 	return k.Vendor + " " + k.Product
 }
 
-// rankOpen returns the first SummaryTop open findings: confirmed before suspected, then those ransomware campaigns use, then the highest
+// rankOpen returns the first SummaryTop open findings: the most urgent layer first (under attack here before an update nobody attacks),
+// then confirmed before suspected, then those ransomware campaigns use, then the highest
 // CVSS (no score last), then the newest, then the id (a stable order between two reads).
 func rankOpen(open []summaryRow, kev map[string]KevInfo, scores map[string]CVSS) []summaryRow {
 	score := func(r summaryRow) float64 {
@@ -311,6 +314,7 @@ func rankOpen(open []summaryRow, kev map[string]KevInfo, scores map[string]CVSS)
 	sorted := slices.Clone(open)
 	slices.SortFunc(sorted, func(a, b summaryRow) int {
 		return cmp.Or(
+			cmp.Compare(a.urgency, b.urgency),
 			cmp.Compare(b2i(a.status == StatusConfirmed), b2i(b.status == StatusConfirmed)),
 			cmp.Compare(b2i(kev[a.cve].Ransomware), b2i(kev[b.cve].Ransomware)),
 			cmp.Compare(score(b), score(a)),
@@ -326,6 +330,7 @@ type summaryRow struct {
 	id, assetID, cve string
 	status           Status
 	firstSeen        time.Time
+	urgency          int
 }
 
 // summaryData reads the open findings and the trend: at the end of each of the last SummaryDays days of the organization's time zone
@@ -359,7 +364,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 			}
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, CASE WHEN verified = 'no' THEN 'suspected' ELSE 'confirmed' END, first_seen FROM fnd_finding WHERE state = 'open'`)
+	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, CASE WHEN verified = 'no' THEN 'suspected' ELSE 'confirmed' END, first_seen, urgency FROM fnd_finding WHERE state = 'open'`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 	}
@@ -367,7 +372,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 	for rows.Next() {
 		var r summaryRow
 		var fs string
-		if err := rows.Scan(&r.id, &r.assetID, &r.cve, &r.status, &fs); err != nil {
+		if err := rows.Scan(&r.id, &r.assetID, &r.cve, &r.status, &fs, &r.urgency); err != nil {
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 		}

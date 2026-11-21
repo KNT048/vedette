@@ -31,8 +31,10 @@ type Notice struct {
 	What       string   // what happened and how urgent
 	Action     string   // what to do first
 	Change     string   // vulnerability changed since it was first told ("now critical (was medium)"): added to its line of a digest
-	Link       string   // absolute URL of the finding or incident in Vedette
-	At         time.Time
+	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
+	Layer int
+	Link  string // absolute URL of the finding or incident in Vedette
+	At    time.Time
 
 	// IncidentKind (incidents) and DeviceIDs (parallel to Devices, when the ids are known) only feed the structured
 	// fields of the webhook payload (kind, devices[]); the text channels do not use them.
@@ -54,6 +56,9 @@ func (n Notice) Sendable() bool {
 	}
 	return false
 }
+
+// exploited says whether the notice is about a vulnerability that attackers use (Layer 1, 2, or not stated).
+func (n Notice) exploited() bool { return exploitedLayer(n.Layer) }
 
 // SplitSendable separates the notices that may be sent from the count of
 // vulnerability notices dropped for matching no device (HistoryResponse.suppressed).
@@ -259,6 +264,10 @@ func (b Batch) Message() (channel.Message, error) {
 		}
 	}
 	mixed := len(products) > 1
+	allExploited := true
+	for _, n := range b.Notices {
+		allExploited = allExploited && n.exploited()
+	}
 	listed := b.Listed()
 	for _, n := range listed {
 		line := strings.Join(dedupe(n.CVEs), ", ")
@@ -291,19 +300,31 @@ func (b Batch) Message() (channel.Message, error) {
 		if link == "" {
 			link = first.Link
 		}
+		title := fmt.Sprintf("%d exploited vulnerabilities match your devices", len(b.Notices))
+		what := fmt.Sprintf("%d vulnerabilities that attackers are using match devices in your network: %s.", len(b.Notices), strings.Join(names, ", "))
+		if !allExploited { // some are urgent for another reason (a public exploit, a critical flaw on an edge device)
+			title = fmt.Sprintf("%d vulnerabilities need patching on your devices", len(b.Notices))
+			what = fmt.Sprintf("%d vulnerabilities match devices in your network: %s.", len(b.Notices), strings.Join(names, ", "))
+		}
 		return channel.Message{
 			ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
-			Title:  fmt.Sprintf("%d exploited vulnerabilities match your devices", len(b.Notices)),
+			Title:  title,
 			Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
-			What:   fmt.Sprintf("%d vulnerabilities that attackers are using match devices in your network: %s.", len(b.Notices), strings.Join(names, ", ")),
+			What:   what,
 			Action: "Open the findings in Vedette and start with the critical ones.", Items: items, More: more, Link: link,
 		}, nil
 	}
+	title := fmt.Sprintf("%s: %d vulnerabilities are being exploited", first.Product, len(b.Notices))
+	what := fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product)
+	if !allExploited {
+		title = fmt.Sprintf("%s: %d vulnerabilities need patching", first.Product, len(b.Notices))
+		what = fmt.Sprintf("%d vulnerabilities in %s match your devices.", len(b.Notices), first.Product)
+	}
 	return channel.Message{
 		ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
-		Title:  fmt.Sprintf("%s: %d vulnerabilities are being exploited", first.Product, len(b.Notices)),
+		Title:  title,
 		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
-		What:   fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product),
+		What:   what,
 		Action: first.Action, Items: items, More: more, Link: first.Link,
 	}, nil
 }

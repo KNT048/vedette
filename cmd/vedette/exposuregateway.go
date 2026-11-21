@@ -64,7 +64,7 @@ func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, e
 		return out, err
 	}
 	for _, r := range recs {
-		if r.Status.Open() {
+		if r.Status.Open() && r.Row.Exploited() {
 			out.OpenExploited++
 		}
 	}
@@ -115,7 +115,7 @@ func (g exposureGateway) ApplianceDevices(ctx context.Context, qs []exposure.App
 			}
 			d := exposure.ApplianceDevice{DeviceID: id, Name: names[id]}
 			for _, r := range recs {
-				if r.Status.Open() {
+				if r.Status.Open() && r.Row.Exploited() {
 					d.OpenExploited++
 				}
 			}

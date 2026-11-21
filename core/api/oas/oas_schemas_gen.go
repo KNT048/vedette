@@ -82739,6 +82739,10 @@ type FindingsGetFindingsIDOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -82901,6 +82905,11 @@ func (s *FindingsGetFindingsIDOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsGetFindingsIDOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsGetFindingsIDOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -83059,6 +83068,11 @@ func (s *FindingsGetFindingsIDOK) SetStatus(val FindingsGetFindingsIDOKStatus) {
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsGetFindingsIDOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsGetFindingsIDOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsGetFindingsIDOKAi struct {
@@ -92942,6 +92956,10 @@ type FindingsGetFindingsOKItemsItem struct {
 	// reaches an older finding. Never guessed from the product.
 	SoftwareID string                               `json:"software_id"`
 	Status     FindingsGetFindingsOKItemsItemStatus `json:"status"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -93054,6 +93072,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetStatus() FindingsGetFindingsOKItemsI
 	return s.Status
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsGetFindingsOKItemsItem) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsGetFindingsOKItemsItem) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -93162,6 +93185,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetSoftwareID(val string) {
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsOKItemsItem) SetStatus(val FindingsGetFindingsOKItemsItemStatus) {
 	s.Status = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsGetFindingsOKItemsItem) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsGetFindingsOKItemsItemAsset struct {
@@ -99913,8 +99941,8 @@ type FindingsGetFindingsSummaryOK struct {
 	// Null when Notifications is off.
 	Incidents NilFindingsGetFindingsSummaryOKIncidents `json:"incidents"`
 	Open      FindingsGetFindingsSummaryOKOpen         `json:"open"`
-	// The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS
-	// (no score last), then the newest.
+	// The open findings to fix first: the most urgent layer, then confirmed before suspected, then
+	// ransomware, then the highest CVSS (no score last), then the newest.
 	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
 	// Open findings at the end of each of the last 30 days of the organization time zone, oldest first;
 	// the last is now.
@@ -100100,7 +100128,7 @@ type FindingsGetFindingsSummaryOKOpen struct {
 	Devices int `json:"devices"`
 	// Open findings whose CVE ransomware campaigns use.
 	Ransomware int `json:"ransomware"`
-	// Open findings (confirmed + suspected): a device runs software on an exploited list.
+	// Open findings (confirmed + suspected): a device runs software a known vulnerability affects.
 	Total int `json:"total"`
 }
 
@@ -100152,8 +100180,8 @@ type FindingsGetFindingsSummaryOKTopItem struct {
 	Cvss      NilFindingsGetFindingsSummaryOKTopItemCvss `json:"cvss"`
 	FirstSeen time.Time                                  `json:"first_seen"`
 	ID        string                                     `json:"id"`
-	// The product as the findings list names it (the KEV display name, else " "; empty when the CVE left
-	// the list).
+	// The product as the findings list names it (the KEV display name, else " "; empty when the CVE is on
+	// no exploited list).
 	Product string `json:"product"`
 	// The exploited list says ransomware campaigns use it.
 	Ransomware bool                                        `json:"ransomware"`
@@ -100161,10 +100189,12 @@ type FindingsGetFindingsSummaryOKTopItem struct {
 	// The device's software the exploited-list entry is keyed to, as the finding's page names it (e.g.
 	// "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context.
 	Software string `json:"software"`
-	// Which exploited list names it; null when the CVE left the list.
+	// Which exploited list names it; null when the CVE is on no list.
 	Source NilFindingsGetFindingsSummaryOKTopItemSource `json:"source"`
 	// Open findings only.
 	Status FindingsGetFindingsSummaryOKTopItemStatus `json:"status"`
+	// The finding's urgency layer, as FindingRow.urgency.
+	Urgency int `json:"urgency"`
 }
 
 // GetAsset returns the value of Asset.
@@ -100222,6 +100252,11 @@ func (s *FindingsGetFindingsSummaryOKTopItem) GetStatus() FindingsGetFindingsSum
 	return s.Status
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAsset sets the value of Asset.
 func (s *FindingsGetFindingsSummaryOKTopItem) SetAsset(val NilFindingsGetFindingsSummaryOKTopItemAsset) {
 	s.Asset = val
@@ -100275,6 +100310,11 @@ func (s *FindingsGetFindingsSummaryOKTopItem) SetSource(val NilFindingsGetFindin
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsSummaryOKTopItem) SetStatus(val FindingsGetFindingsSummaryOKTopItemStatus) {
 	s.Status = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsGetFindingsSummaryOKTopItemAsset struct {
@@ -103961,6 +104001,10 @@ type FindingsPostFindingsIDAiOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -104123,6 +104167,11 @@ func (s *FindingsPostFindingsIDAiOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsPostFindingsIDAiOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAiOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -104281,6 +104330,11 @@ func (s *FindingsPostFindingsIDAiOK) SetStatus(val FindingsPostFindingsIDAiOKSta
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsPostFindingsIDAiOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsPostFindingsIDAiOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsPostFindingsIDAiOKAi struct {
@@ -108436,6 +108490,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -108598,6 +108656,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsPostFindingsIDAppliedOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDAppliedOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -108756,6 +108819,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetStatus(val FindingsPostFindingsIDAp
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsPostFindingsIDAppliedOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsPostFindingsIDAppliedOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsPostFindingsIDAppliedOKAi struct {
@@ -112932,6 +113000,10 @@ type FindingsPostFindingsIDConfirmOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -113094,6 +113166,11 @@ func (s *FindingsPostFindingsIDConfirmOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsPostFindingsIDConfirmOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDConfirmOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -113252,6 +113329,11 @@ func (s *FindingsPostFindingsIDConfirmOK) SetStatus(val FindingsPostFindingsIDCo
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsPostFindingsIDConfirmOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsPostFindingsIDConfirmOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsPostFindingsIDConfirmOKAi struct {
@@ -119917,6 +119999,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -120079,6 +120165,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsPostFindingsIDStatusOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDStatusOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -120237,6 +120328,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetStatus(val FindingsPostFindingsIDSta
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsPostFindingsIDStatusOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsPostFindingsIDStatusOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsPostFindingsIDStatusOKAi struct {
@@ -124444,6 +124540,10 @@ type FindingsPostFindingsIDUnconfirmOK struct {
 	// the version, whether a vulnerability check exists for the CVE and whether the scan reaches the
 	// device); null for any other status.
 	SuspectedWhy NilString `json:"suspected_why"`
+	// Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this
+	// network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device
+	// attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited".
+	Urgency int `json:"urgency"`
 }
 
 // GetAcceptedUntil returns the value of AcceptedUntil.
@@ -124606,6 +124706,11 @@ func (s *FindingsPostFindingsIDUnconfirmOK) GetSuspectedWhy() NilString {
 	return s.SuspectedWhy
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsPostFindingsIDUnconfirmOK) GetUrgency() int {
+	return s.Urgency
+}
+
 // SetAcceptedUntil sets the value of AcceptedUntil.
 func (s *FindingsPostFindingsIDUnconfirmOK) SetAcceptedUntil(val NilDate) {
 	s.AcceptedUntil = val
@@ -124764,6 +124869,11 @@ func (s *FindingsPostFindingsIDUnconfirmOK) SetStatus(val FindingsPostFindingsID
 // SetSuspectedWhy sets the value of SuspectedWhy.
 func (s *FindingsPostFindingsIDUnconfirmOK) SetSuspectedWhy(val NilString) {
 	s.SuspectedWhy = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsPostFindingsIDUnconfirmOK) SetUrgency(val int) {
+	s.Urgency = val
 }
 
 type FindingsPostFindingsIDUnconfirmOKAi struct {

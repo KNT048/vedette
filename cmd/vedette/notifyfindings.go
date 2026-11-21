@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 )
@@ -38,32 +40,50 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		return notify.FindingInfo{}, false, err
 	}
 	var kev findings.KevInfo
+	var sources []string // the sources whose qualifying signals say the CVE is exploited, when it is on no list
 	if fs, err := feedsService(*n.d); err == nil {
 		got, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{rec.CVE})
 		if err != nil {
 			return notify.FindingInfo{}, false, err
 		}
 		kev = got[rec.CVE]
+		if rec.Row.Urgency == findings.UrgencyExploited && !kevListed(kev) {
+			sigs, err := fs.Store().Signals(ctx, []string{rec.CVE})
+			if err != nil {
+				return notify.FindingInfo{}, false, err
+			}
+			for _, g := range sigs[rec.CVE] {
+				name := g.Source
+				if b, ok := feeds.BuiltinByID(g.Source); ok {
+					name = b.Name // the feed's own name, never its id
+				}
+				if g.Kind == findings.SignalExploited && g.Qualifies && !slices.Contains(sources, name) {
+					sources = append(sources, name)
+				}
+			}
+		}
 	}
-	info := notify.FindingInfo{CVE: plainText(rec.CVE, 40), Severity: notify.Severity(rec.Severity)}
+	info := notify.FindingInfo{CVE: plainText(rec.CVE, 40), Severity: notify.Severity(rec.Severity), Layer: rec.Row.Urgency}
 	info.Product = plainText(kev.Display, noticeProductMax)
+	if info.Product == "" { // on no list: the product of the finding's own software line
+		info.Product = plainText(n.lineName(ctx, rec), noticeProductMax)
+	}
 	if info.Product == "" {
 		info.Product = "A product on your network"
 	}
-	info.Title = plainText(info.Product+" is being exploited ("+info.CVE+")", noticeTitleMax)
-	list := "CISA"
-	if kev.Source == findings.SourceVulnCheck {
-		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown
-	}
-	what := list + " lists " + info.CVE + " as exploited in real attacks."
-	if name := plainText(kev.Name, noticeNameMax); name != "" {
-		what = list + " lists " + info.CVE + " (" + name + ") as exploited in real attacks."
-	}
+	title, what, lead := layerTexts(rec.Row.Urgency, info, kev, sources)
+	info.Title = plainText(title, noticeTitleMax)
 	info.What = what + " A device in your inventory runs " + info.Product + "."
+	if rec.Row.Urgency < findings.UrgencyUpdate {
+		if line := urgencyReasons(ctx, n.d, rec.Row); line != "" {
+			info.What += " Why: " + line + "."
+		}
+	}
 	info.Action = plainText(kev.RequiredAction, noticeActionMax)
 	if info.Action == "" {
 		info.Action = "Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device."
 	}
+	info.Action = lead + info.Action
 	if n.d.Inventory == nil {
 		return info, true, nil // no device name: notify sends nothing for a finding that matched no device
 	}
@@ -89,6 +109,66 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		}
 	}
 	return info, true, nil
+}
+
+// lineName names the product a finding is on: the device's software line as the Devices page shows it, else the catalogue's name of the
+// finding's product; "" when neither is known.
+func (n notifyFindings) lineName(ctx context.Context, rec findings.Record) string {
+	if n.d.Inventory != nil && rec.SoftwareID != "" {
+		if lines, err := (findingsInventory{n.d.Inventory}).EffectiveSoftware(ctx, rec.AssetID); err == nil {
+			for _, l := range lines {
+				if l.ID == rec.SoftwareID && strings.TrimSpace(l.Display) != "" {
+					return l.Display
+				}
+			}
+		}
+	}
+	if p, ok := findings.ProductOf(rec.Row); ok {
+		return p.Display
+	}
+	return ""
+}
+
+// kevListed says the feeds returned an exploited list entry (a CVE on no list has none).
+func kevListed(k findings.KevInfo) bool { return k.Vendor != "" || k.Product != "" || k.Source != "" }
+
+// layerTexts words a notice for the finding's urgency layer: the title, the sentence about the CVE, and what leads the action. Only
+// the layers of attackers using the flaw say "exploited"; a public exploit and a critical flaw on an edge device are named for what
+// they are, and an update that nobody attacks is never worded as an attack.
+func layerTexts(layer int, info notify.FindingInfo, kev findings.KevInfo, sources []string) (title, what, lead string) {
+	switch layer {
+	case findings.UrgencyUnderAttack:
+		return info.Product + " is under attack on your network (" + info.CVE + ")",
+			"An intrusion alert on your network named " + info.CVE + ".", ""
+	case findings.UrgencyPublicExploit:
+		return "A public exploit exists for " + info.Product + " (" + info.CVE + ")",
+			"Working exploit code for " + info.CVE + " is public.", "Patch this week. "
+	case findings.UrgencyCriticalEdge:
+		return info.Product + " has a critical flaw on a device facing the network edge (" + info.CVE + ")",
+			info.CVE + " is a critical flaw that can be used over the network without signing in, on a kind of device attackers target first.", "Patch now. "
+	case findings.UrgencyUpdate:
+		return info.Product + " has a known vulnerability (" + info.CVE + ")",
+			info.CVE + " affects the version a device in your inventory runs. There is no sign of attacks yet.", ""
+	}
+	title = info.Product + " is being exploited (" + info.CVE + ")"
+	if !kevListed(kev) { // on no list: the sources of the signals that say so
+		for i := range sources {
+			sources[i] = plainText(sources[i], 60)
+		}
+		if len(sources) == 0 {
+			return title, info.CVE + " is reported as exploited in real attacks.", ""
+		}
+		return title, strings.Join(sources, ", ") + " report " + info.CVE + " as exploited in real attacks.", ""
+	}
+	list := "CISA"
+	if kev.Source == findings.SourceVulnCheck {
+		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown
+	}
+	what = list + " lists " + info.CVE + " as exploited in real attacks."
+	if name := plainText(kev.Name, noticeNameMax); name != "" {
+		what = list + " lists " + info.CVE + " (" + name + ") as exploited in real attacks."
+	}
+	return title, what, ""
 }
 
 // plainText makes feed text safe to show: control characters and line breaks become spaces, invisible format characters

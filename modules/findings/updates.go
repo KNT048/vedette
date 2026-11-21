@@ -65,6 +65,9 @@ type UpdateAction struct {
 	// CVEs are the CVEs the update clears, worst first; FindingIDs the open findings of them in the same order (exploited only).
 	CVEs       []string
 	FindingIDs []string
+	// Layers are the urgency layers of CVEs, in the same order. The CVEs of layer 1 and 2 are the ones attackers use; the others are
+	// urgent for another reason (a public exploit, a critical flaw on an edge device).
+	Layers []int
 	// Worst is the highest severity among them: the finding's (critical, high, medium, low) for exploited ones, NVD's CVSS
 	// severity in lower case for planned ones ("" when NVD scored none).
 	Worst string
@@ -86,7 +89,7 @@ type UpdateAction struct {
 // DeviceUpdates is the answer for one device.
 type DeviceUpdates struct {
 	AssetID string
-	Open    int // open (confirmed or suspected) findings of the device
+	Open    int // open (confirmed or suspected) findings of the device that are urgent (urgency 1 to 4: Exploited and NoUpdate hold them)
 	// Exploited: open findings one named update fixes, one action per update, worst first.
 	Exploited []UpdateAction
 	// NoUpdate: open findings no update is named for (a product-only match, NVD names no release that clears them, the CVE left
@@ -242,6 +245,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time, check
 			if m.ran {
 				g.Ransomware++
 			}
+			g.Layers = append(g.Layers, m.r.Row.Urgency)
 		}
 		g.Worst = string(ms[0].r.Severity)
 		g.Action = updateSentence(*g)

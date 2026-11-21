@@ -33,7 +33,7 @@ const planSchema = `{"type":"object","properties":{"steps":{"type":"array","item
 	`"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"array","items":{"type":"string"},"maxItems":3}},` +
 	`"required":["kind","title","detail","action_id","params","confidence","evidence"],"additionalProperties":false}}},"required":["steps"],"additionalProperties":false}`
 
-const planTask = `Write a short response plan for one finding: a device that the box matched to an exploited vulnerability. Use only the facts in the data blocks. ` +
+const planTask = `Write a short response plan for one finding: a device that the box matched to a known vulnerability; the finding line of the device block says why it matters now (call it exploited only when it says attackers use it). Use only the facts in the data blocks. ` +
 	`Give 2 to 5 steps, each with a kind: "contain" (limit exposure now), "check" (look for signs of compromise) or "patch" (fix it). ` +
 	`A "contain" step may propose ONE action from the list of actions below: put its id in "action_id" and the values of its parameters in "params" as name and value pairs, using only the parameter names listed for it. ` +
 	`Propose an action only when it clearly fits this device. For every other step set "action_id" to an empty string and "params" to an empty list. ` +
@@ -100,6 +100,9 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		cat.WriteString("(none: propose no action)\n")
 	}
 	dev := fmt.Sprintf("Device: %s, IP %s, kind %s\nFinding: %s\n", t.AssetName, t.AssetIP, t.AssetKind, t.CVE)
+	if t.Urgency != "" {
+		dev += "Urgency: " + aiUrgencyText(t.Urgency) + "\n"
+	}
 	reads := p.readsOf(ctx, conns)
 	var d response.PlanDraft
 	ready := p.svc.Ready(ai.JobResponsePlan)
@@ -191,7 +194,9 @@ func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
 	return "CVE: " + cve + "\n"
 }
 
-// responseCritical lists the open critical findings with their device and the exploited-list facts, for the plan job.
+// responseCritical lists the open critical findings that call for action now (urgency under attack to critical on an edge device:
+// findings.Announced) with their device and the CVE's facts, for the plan job. A critical finding with no sign of exploitation is an
+// update to plan, not a response.
 type responseCritical struct {
 	fnd *findings.Service
 	inv findings.Inventory
@@ -205,7 +210,7 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 	var open []findings.Record
 	var ids []string
 	for _, f := range recs {
-		if f.Severity == findings.SeverityCritical && f.Status.Open() {
+		if f.Severity == findings.SeverityCritical && f.Status.Open() && findings.Announced(f.Row) {
 			open = append(open, f)
 			ids = append(ids, f.AssetID)
 		}
@@ -227,7 +232,7 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
-		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind}
+		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind, Urgency: findings.LayerCode(f.Row.Urgency)}
 		if a.IP == "—" { // unknown address
 			t.AssetIP = ""
 		}

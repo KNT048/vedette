@@ -928,3 +928,28 @@ func TestOwnAddress_SiemSelfOnEveryPort(t *testing.T) {
 		}
 	}
 }
+
+// A finding that rises to exploited or under attack here (its CVE joined an exploited list) is forwarded once, as finding.urgency_raised;
+// a rise to a public exploit or a critical flaw on an edge device is not a finding record of its own.
+func TestSiemForwardsAFindingThatBecomesExploited(t *testing.T) {
+	e := newSiemEnv(t)
+	bus := events.NewBus(slog.New(slog.DiscardHandler))
+	e.svc.Subscribe(bus)
+	e.saveSiem(SiemInput{Enabled: true, Format: "syslog", Host: "192.168.10.50", Port: 514, Proto: "udp", Events: []string{"findings"}})
+	e.svc.siemRunning.Store(true)
+	row, err := e.svc.loadSiem(t.Context(), e.cfg.Reader(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.siemCache.Store(&row)
+	e.svc.siemQ.clear()
+	for _, to := range []int{3, 4, 2, 1} {
+		publish(t, bus, siemEventFindingUrgency, map[string]any{"finding_id": fmt.Sprintf("f-%d", to), "asset_id": "a-1", "cve": "CVE-2026-50003",
+			"basis": "version", "from": 5, "to": to, "at": "2026-11-21T10:00:00Z"})
+	}
+	r, _ := e.svc.siemQ.peek(100)
+	if len(r) != 2 || r[0].Name != "finding.urgency_raised" || r[0].Fields[0].Val != "f-2" || r[0].Severity != "high" ||
+		r[1].Fields[0].Val != "f-1" || r[1].Severity != "critical" {
+		t.Fatalf("records: %+v", r)
+	}
+}

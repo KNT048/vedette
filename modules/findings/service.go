@@ -48,6 +48,8 @@ type ServiceConfig struct {
 	// itself plans with (scan Pack.ForCVE), never the nuclei-templates feed flag, which is off on an offline box and lists
 	// templates the pack does not ship. The Feeds port's KevInfo.HasTemplate is the same answer. nil: Vuln.HasTemplate as given.
 	SafeCheck func(cve string) bool
+	// Urgency is what the urgency pass rates findings with (UrgencySources); a nil Facts: the pass does not run.
+	Urgency UrgencySources
 }
 
 // safeCheck is ServiceConfig.SafeCheck for v, else v's own flag.
@@ -152,7 +154,7 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	if isNew {
 		return g, evs, nil // the caller announces a new finding (CreatedEvent)
 	}
-	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !joinsList(f, g) { // joining a list: one notice, the caller's
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !raised(f, g) { // a rise: one notice, the caller's
 		emit(EventStatusChanged, e)
 	}
 	return g, evs, nil
@@ -411,7 +413,15 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	set := newMatchSet(vulns)
 	dev := set.forDevice(a)
 	a.winList = dev
-	return s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	res, err := s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	if err != nil {
+		return res, err
+	}
+	// The device's findings are rated at once: one this write created enters its layer as news (a new finding is recent).
+	if _, err := s.RateUrgency(ctx, assetID); err != nil {
+		return res, err
+	}
+	return res, nil
 }
 
 // UpsertFromMatch matches the device's software against vulns and writes the result through Transition (applyMatch): a detected
@@ -669,6 +679,9 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: urgency}
 		if !isNew {
 			d.RangeOrigin = f.RangeOrigin
+			if s.rates() {
+				d.Urgency = 0 // the urgency pass that follows rates and tells a rise
+			}
 		} else {
 			d.ProductKey = productKey
 		}
@@ -676,8 +689,11 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 		if err != nil {
 			return err
 		}
-		if isNew && Announced(g) || !isNew && joinsList(f, g) { // new, or its CVE joined an exploited list since it was made
+		switch {
+		case isNew && Announced(g):
 			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
+		case !isNew && raised(f, g): // its CVE joined an exploited list since it was made: one alert of the rise
+			emit(EventUrgencyRaised, raisedEvent(f, g, SeverityHigh))
 		}
 		id = g.ID
 		return nil
@@ -687,6 +703,9 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	}
 	if id == "" {
 		return Record{}, nil
+	}
+	if _, err := s.RateUrgency(ctx, assetID); err != nil { // the check is saved: its record is the answer; the hourly pass rates it
+		s.cfg.Log.WarnContext(ctx, "findings: rating urgency after a safe check failed", "device", assetID, "error", err)
 	}
 	return s.Get(ctx, id)
 }

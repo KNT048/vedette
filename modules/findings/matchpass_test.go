@@ -313,7 +313,7 @@ func TestMatchPass_StoredFixEqualsFixOf(t *testing.T) {
 }
 
 // A CVE that joins an exploited list after its finding was made (the usual case: most listed CVEs were published long before) makes
-// the finding exploited and announces it once, as a new exploited match, on the hourly pass and on an inventory change alike; To fix
+// the finding exploited and tells the rise once (findings.finding.urgency_raised), on the hourly pass and on an inventory change alike; To fix
 // then lists it as exploited. Leaving the list again announces nothing and keeps the urgency (the urgency pass owns the way down).
 func TestMatchPass_ACVEThatJoinsAListIsAnnouncedOnce(t *testing.T) {
 	t.Parallel()
@@ -349,14 +349,14 @@ func TestMatchPass_ACVEThatJoinsAListIsAnnouncedOnce(t *testing.T) {
 			if fs[0].Urgency != UrgencyExploited {
 				t.Errorf("urgency %d, want %d", fs[0].Urgency, UrgencyExploited)
 			}
-			created := 0
+			raisedN := 0
 			for _, ev := range e.pub.take() {
-				if c, ok := ev.Payload.(CreatedEvent); ok && c.FindingID == fs[0].ID && c.CVE == v.CVE {
-					created++
+				if c, ok := ev.Payload.(UrgencyRaisedEvent); ok && c.FindingID == fs[0].ID && c.CVE == v.CVE && c.From == UrgencyUpdate && c.To == UrgencyExploited {
+					raisedN++
 				}
 			}
-			if created != 1 {
-				t.Errorf("%d created events for the finding whose CVE was listed, want 1", created)
+			if raisedN != 1 {
+				t.Errorf("%d rises told for the finding whose CVE was listed, want 1", raisedN)
 			}
 			u, ok, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
 			if err != nil || !ok || len(u.Exploited) != 1 || u.Exploited[0].CVEs[0] != v.CVE {

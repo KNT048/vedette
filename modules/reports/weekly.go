@@ -170,7 +170,7 @@ func computeWeekly(in weeklyInput) WeeklyReport {
 		if !ok {
 			prod = clip(f.CVE, 40)
 		}
-		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen), Agent: f.Agent, DeviceApproved: !unapprovedDev[f.AssetID], noDevice: noDevice[f.AssetID]}
+		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen), Agent: f.Agent, DeviceApproved: !unapprovedDev[f.AssetID], noDevice: noDevice[f.AssetID], notExploited: !f.Exploited()}
 	}
 	order := func(rows []FindingRow) []FindingRow {
 		sort.SliceStable(rows, func(i, j int) bool {

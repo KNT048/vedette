@@ -87,6 +87,9 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				if v, known := byCVE[x.CVE]; known {
 					resolve(&d, a, lines, v)
 				}
+				if ok && s.rates() {
+					d.Urgency = 0 // the urgency pass that follows rates and tells an existing finding's rise (Tell), not the match
+				}
 				g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
 				if err != nil {
 					return res, fmt.Errorf("findings: %s on %s: %w", x.CVE, a.ID, err)
@@ -99,8 +102,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 					}
 				default:
 					res.Touched++
-					if joinsList(f, g) { // its CVE joined an exploited list: announced once, as a new exploited match
-						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					if raised(f, g) { // a more urgent layer (its CVE joined an exploited list): one alert of the rise
+						emit(EventUrgencyRaised, raisedEvent(f, g, x.Severity))
 					}
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
 						res.Reopened++
@@ -205,7 +208,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 // and the fix of the line (FixOf, the one resolver). A safe check's detection keeps its own origin; a detection on no line has no fix
 // to read (the fix the finding had stays).
 func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
-	d.Urgency = v.startUrgency()
+	d.Urgency = v.StartUrgency()
 	if d.Basis != DetectScan && d.Basis != DetectPackage {
 		d.RangeOrigin = v.rangeOrigin()
 	}
@@ -471,6 +474,13 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		res.Orphans++
 	}
+	// The layers at once: a CVE that joined a list in this pass is told now, by the one rule (Tell)
+	if _, err := s.RateUrgency(ctx, ""); err != nil {
+		if ctx.Err() != nil {
+			return res, ctx.Err()
+		}
+		failed = append(failed, fmt.Errorf("findings: reconcile: rating urgency: %w", err))
+	}
 	// One line per run, so a box's log shows the pass ran and what it changed (the job's own line is debug).
 	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created, "handled_by_vedette", res.Closed,
 		"reopened", res.Reopened, "devices_removed", res.Orphans, "risk_acceptances_expired", res.Expired)
@@ -602,12 +612,17 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery.
+// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery; urgency (UrgencyJob) when the module starts,
+// then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
 		return err
 	}}, {Module: "findings", Name: "plan", Every: PlanEvery, Run: func(ctx context.Context) error {
 		return svc.RefreshPlan(ctx)
+	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
+		r, err := svc.RateUrgency(ctx, "")
+		svc.cfg.Log.InfoContext(ctx, "findings: urgency pass done", "rated", r.Rated, "raised", r.Raised, "lowered", r.Lowered, "announced", r.Announced)
+		return err
 	}}}
 }

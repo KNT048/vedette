@@ -29,6 +29,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
+	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
@@ -881,6 +882,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		Applied:   mitigationApplied,        // a merge keeps the finding a person marked a mitigation item applied on
 		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
+	cfg.Urgency = urgencySources(d) // the urgency pass: feeds' signals, the devices' types and exposure, the intrusion alerts
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}
@@ -950,6 +952,7 @@ func subscribe(d deps) {
 			return fn(ctx, e.Data)
 		}
 	}
+	d.Bus.Subscribe(idsmodule.EventAlertDetected, urgencyOnAlerts(&d)) // an attack here is layer 1 at once
 	d.Bus.Subscribe(inventory.EventMatchChanged, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.MatchEvent)
 		if !ok {
@@ -1017,6 +1020,20 @@ func subscribe(d deps) {
 		}
 		if err := eventInto(data, &ev); err != nil {
 			return err
+		}
+		return d.Inventory.EarnReview(ctx, ev.AssetID)
+	}))
+	// so is a finding that becomes exploited or under attack here (its CVE joined an exploited list)
+	d.Bus.Subscribe(findings.EventUrgencyRaised, on("inventory", func(ctx context.Context, data any) error {
+		var ev struct {
+			AssetID string `json:"asset_id"`
+			To      int    `json:"to"`
+		}
+		if err := eventInto(data, &ev); err != nil {
+			return err
+		}
+		if ev.To < findings.UrgencyUnderAttack || ev.To > findings.UrgencyExploited {
+			return nil
 		}
 		return d.Inventory.EarnReview(ctx, ev.AssetID)
 	}))

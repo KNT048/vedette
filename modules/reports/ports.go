@@ -40,7 +40,13 @@ type Finding struct {
 	Source           string    // the exploited list of the CVE ("vulncheck-kev" names VulnCheck KEV among the report's sources); "" = CISA or unknown
 	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance; zero otherwise
 	Agent            bool      // the version compared is the one the device's own agent reports (findings evidence.agent)
+	// Urgency is the finding's layer: 1 under attack here, 2 exploited in the wild, 3 public exploit, 4 critical on an edge device,
+	// 5 update recommended. 0 = not stated, which reads as exploited.
+	Urgency int
 }
+
+// Exploited says whether attackers use the finding's CVE: under attack here or exploited in the wild (or no layer stated).
+func (f Finding) Exploited() bool { return f.Urgency <= 2 }
 
 // Findings lists every finding.
 type Findings interface {

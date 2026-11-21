@@ -27,7 +27,11 @@
     "product": "Product match only"
   },
   "headline": {
-    "confirmed": "{{device}} has a confirmed vulnerability ({{cve}}) that is being exploited in the wild",
+    "confirmed_1": "{{device}} has a confirmed vulnerability ({{cve}}) that is under attack on your network",
+    "confirmed_2": "{{device}} has a confirmed vulnerability ({{cve}}) that is being exploited in the wild",
+    "confirmed_3": "{{device}} has a confirmed vulnerability ({{cve}}) with a public exploit available",
+    "confirmed_4": "{{device}} has a confirmed critical vulnerability ({{cve}}) on a device that attackers target first",
+    "confirmed_5": "{{device}} has a confirmed vulnerability ({{cve}}): an update is recommended",
     "suspected": "{{device}} may be affected by {{cve}}: needs checking",
     "mitigated": "{{device}}: {{cve}} is mitigated, patching is still needed to remove it",
     "patched": "{{device}}: {{cve}} is patched",

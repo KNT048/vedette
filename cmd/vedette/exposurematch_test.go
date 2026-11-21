@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"maps"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -11,6 +14,7 @@ import (
 
 	zapdata "github.com/knt048/vedette/content/zap"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
@@ -316,5 +320,175 @@ func TestExposureMatcher_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 ||
 		!strings.Contains(got.RuledOut[0].Reason, "Vedette is waiting for NVD's data for CVE-2021-41773") {
 		t.Fatalf("recent CVE, product only: %+v %v", got, err)
+	}
+}
+
+// A service the exposure scan identifies (product and version on a public host) gets the CVEs and the fix a device running the same
+// software gets, from the same catalogue: the exploited CVE with its fixed release, nothing for the catalogue CVE on no exploited list.
+func TestExposureMatcher_SameCVEsAndFixAsADevice(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const exploited, other = "CVE-2026-71001", "CVE-2026-71002"
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		recent := time.Now().UTC().AddDate(0, -2, 0)
+		if err := seedKEVRow(ctx, tx, exploited, "Apache", "HTTP Server", "Apache HTTP Server flaw", time.Now().UTC(), false, false); err != nil {
+			return err
+		}
+		if err := seedNVD(ctx, tx, exploited, recent, 9.8); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, exploited, "cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*", "", "", "", "2.4.50"); err != nil {
+			return err
+		}
+		if err := seedNVD(ctx, tx, other, recent, 7.5); err != nil { // on no exploited list
+			return err
+		}
+		if err := seedRange(ctx, tx, other, "cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*", "", "", "", "2.4.55"); err != nil {
+			return err
+		}
+		return seedRecentDone(ctx, tx, time.Now().UTC())
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The device path: the same software on a LAN device, as an nmap scan reads it.
+	addr := netip.MustParseAddr("192.0.2.77")
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: addr}, Field: observe.Hostname, Value: "web-1", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	addrs, err := s.d.Inventory.AddressMap(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := addrs["192.0.2.77"]
+	item := inventory.SoftwareItem{Display: "Apache httpd 2.4.49", Vendor: "apache", Product: "http_server", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49",
+		KevKeys: []string{"apache|http server"}, Confidence: 0.9}
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{item}, "nmap"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Findings.OnMatchChanged(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	recs, err := s.d.Findings.List(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	device := map[string]findings.Fix{}
+	var all []string
+	for _, r := range recs {
+		all = append(all, r.CVE)
+		if findings.Announced(r.Row) {
+			device[r.CVE] = r.Row.Fix
+		}
+	}
+	slices.Sort(all)
+	if !slices.Equal(all, []string{exploited}) || len(device) != 1 || device[exploited].Kind != findings.FixUpdate || device[exploited].Version != "2.4.50" {
+		t.Fatalf("device findings %v, announced with their fix %+v", all, device)
+	}
+
+	// The exposure path: the same product and version on a public host.
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
+	set, err := feed.MatchSet(ctx, findings.NewMatchScope([]findings.Asset{{ID: "x", Software: []findings.Software{{ID: "x:1", CPE: "cpe:2.3:a:apache:http_server:2.4.49:*:*:*:*:*:*:*"}}}}, nil))
+	if err != nil || !slices.ContainsFunc(set, func(v findings.Vuln) bool { return v.CVE == other }) {
+		t.Fatalf("the catalogue's match set must hold the CVE on no exploited list for this to prove its silence: %v %v", set, err)
+	}
+	m := exposureMatcher{vulns: feed.Vulns, catalogue: feed.MatchSet, now: time.Now}
+	svc := exposure.ServiceRow{IP: "203.0.113.10", Port: 8080, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}
+	got, fixOf, err := m.match(ctx, []exposure.ServiceRow{svc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]findings.Fix{}
+	for _, v := range got.Vulns {
+		seen[v.CVE] = fixOf(svc, v.CVE)
+	}
+	if !maps.Equal(seen, device) {
+		t.Errorf("exposure: %+v, the device: %+v", seen, device)
+	}
+	if len(got.Gaps) != 0 || len(got.RuledOut) != 0 {
+		t.Errorf("the catalogue CVE is silent, not a gap or a ruled-out line: %+v %+v", got.Gaps, got.RuledOut)
+	}
+	// The port's list is the exploited list alone when the catalogue is not given: the CVEs are the same, the others never shown.
+	alone := exposureMatcher{vulns: feed.Vulns, now: time.Now}
+	if got2, _, err := alone.match(ctx, []exposure.ServiceRow{svc}); err != nil || len(got2.Vulns) != len(got.Vulns) {
+		t.Errorf("exploited list alone: %+v %v", got2.Vulns, err)
+	}
+	t.Logf("service 203.0.113.10:8080 Apache httpd 2.4.49: %d CVE shown (%v), the catalogue holds %d for the product", len(got.Vulns), seen, len(set))
+
+	// Each guard holds on its own. The reading: findings' matcher itself makes nothing of the CVE on no list from a scan's version
+	// (trustedReading), whatever Announced says.
+	scanned := findings.Asset{ID: "x", Software: []findings.Software{{ID: "x:1", CPE: "cpe:2.3:a:apache:http_server:2.4.49:*:*:*:*:*:*:*", Version: "2.4.49", Source: "scan"}}}
+	for _, m := range findings.MatchAsset(scanned, set, nil, time.Now()).New {
+		if m.CVE == other {
+			t.Errorf("a version read from the network matched a CVE on no list")
+		}
+	}
+	// The rule: a device that reports its version itself matches both CVEs, and announced says, for each, what findings says of the
+	// finding it made: so the CVE on no list is dropped by the rule alone once a reading is trusted.
+	agent := inventory.SoftwareItem{Display: "Apache httpd 2.4.49", Vendor: "apache", Product: "http_server", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49",
+		KevKeys: []string{"apache|http server"}, Confidence: 0.9}
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.0.2.78")}, Field: observe.Hostname, Value: "web-2", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	if addrs, err = s.d.Inventory.AddressMap(ctx); err != nil {
+		t.Fatal(err)
+	}
+	id2 := addrs["192.0.2.78"]
+	if err := s.d.Inventory.UpsertSoftware(ctx, id2, []inventory.SoftwareItem{agent}, "osquery"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Findings.OnMatchChanged(ctx, id2); err != nil {
+		t.Fatal(err)
+	}
+	recs2, err := s.d.Findings.List(ctx, id2)
+	if err != nil || len(recs2) != 2 {
+		t.Fatalf("the device that reports its version has %d findings (%v): want both CVEs", len(recs2), err)
+	}
+	for _, r := range recs2 {
+		i := slices.IndexFunc(set, func(v findings.Vuln) bool { return v.CVE == r.CVE })
+		if i < 0 || announced(set[i]) != findings.Announced(r.Row) {
+			t.Errorf("%s: announced %v, findings says %v", r.CVE, i >= 0 && announced(set[i]), findings.Announced(r.Row))
+		}
+	}
+}
+
+// Two reads of the same services under an unchanged match stamp read the catalogue once; a new stamp reads it again; another set of
+// products is another set.
+func TestExposureMatcher_CatalogueIsReadOncePerStamp(t *testing.T) {
+	t.Parallel()
+	vulns := exposureGolden(t)
+	reads, stamp := 0, "a"
+	m := exposureMatcher{
+		vulns:     func(context.Context) ([]findings.Vuln, error) { return vulns, nil },
+		catalogue: func(context.Context, findings.MatchScope) ([]findings.Vuln, error) { reads++; return vulns, nil },
+		stamp:     func(context.Context) (string, error) { return stamp, nil },
+		memo:      &catalogueMemo{},
+		now:       time.Now,
+	}
+	for range 2 {
+		if _, err := m.Match(t.Context(), exposureFixtureServices); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if reads != 1 {
+		t.Fatalf("catalogue read %d times by two Match calls under one stamp", reads)
+	}
+	// the same product at another version is the same set
+	other := []exposure.ServiceRow{{IP: "203.0.113.10", Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.50", CPE: "cpe:/a:apache:http_server:2.4.50"}}
+	if _, err := m.Match(t.Context(), other); err != nil || reads != 2 {
+		t.Fatalf("another product set: %d reads, %v", reads, err)
+	}
+	if _, err := m.Match(t.Context(), other); err != nil || reads != 2 {
+		t.Fatalf("a repeat: %d reads, %v", reads, err)
+	}
+	stamp = "b"
+	if _, err := m.Match(t.Context(), other); err != nil || reads != 3 {
+		t.Fatalf("a new stamp: %d reads, %v", reads, err)
 	}
 }

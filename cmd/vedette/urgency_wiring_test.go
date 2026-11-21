@@ -10,6 +10,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 )
 
@@ -57,7 +58,7 @@ func seedUrgencyCatalogue(t *testing.T, s *stack) {
 			{`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies, url) VALUES ('CVE-2019-0001', 'public_exploit', 'metasploit', ?1, ?2, ?3, 1, 'https://example.com/msf/1')`,
 				[]any{ts(now.AddDate(-5, 0, 0)), ts(now.AddDate(0, -1, 0)), ts(now)}},
 			{`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies, url) VALUES ('CVE-2026-50002', 'public_exploit', 'metasploit', ?1, ?1, ?1, 1, 'https://example.com/msf/2')`,
-				[]any{ts(now.Add(-2 * time.Hour))}},
+				[]any{ts(now.Add(-48 * time.Hour))}},
 		} {
 			if _, err := tx.ExecContext(ctx, q.sql, q.args...); err != nil {
 				return err
@@ -247,5 +248,56 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 	}
 	if len(sums) != 1 || len(alerts) != 0 || sums[0].Title != "Patch first: 2 urgent findings on 1 device" || len(sums[0].CVEs) != 2 || len(sums[0].Devices) != 1 {
 		t.Fatalf("summaries %+v, alerts %+v", sums, alerts)
+	}
+	// a second device added the first day: what it brings is told too, as "more", never dropped
+	if _, err := s.d.Inventory.AddDevice(t.Context(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.2"}); err != nil {
+		t.Fatal(err)
+	}
+	sums = sums[:0]
+	for _, n := range s.queuedNotices() {
+		if strings.HasPrefix(n.ID, "nt-first-run-install-") {
+			sums = append(sums, n)
+		}
+	}
+	if len(sums) != 2 || sums[1].Title != "2 more urgent findings on 1 device to patch first" {
+		t.Fatalf("after a second device: %+v", sums)
+	}
+}
+
+// A CVE that joins an exploited list makes its finding exploited: the response rules get exactly one finding event of the rise, inside the
+// box's first-run window (where the rise is a line of the summary, not an alert) and after it (an alert), as for a new exploited finding.
+func TestUrgencyWiring_AJoinIsOneResponseEvent(t *testing.T) {
+	t.Parallel()
+	for _, firstRun := range []bool{true, false} {
+		s := responseOn(t)
+		if !firstRun {
+			s.exec(`UPDATE notify_box SET first_run_at = ?`, store.FormatTS(time.Now().AddDate(0, 0, -3)))
+		}
+		seedUrgencyCatalogue(t, s)
+		id := s.addFortiGate()
+		fid := ""
+		fs, err := s.d.Findings.Findings(t.Context(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range fs {
+			if f.CVE == "CVE-2026-50003" {
+				fid = f.ID
+			}
+		}
+		before := s.count(`SELECT count(*) FROM resp_events WHERE finding_id = ?`, fid)
+		s.kevAdded("CVE-2026-50003", "Fortinet", "FortiOS", time.Now().AddDate(0, -2, 0)) // an old entry: in the first run, a summary line
+		if err := findingsJobs(*s.d)[0].Run(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		if err := findingsJobs(*s.d)[2].Run(t.Context()); err != nil { // the hourly pass after: nothing more
+			t.Fatal(err)
+		}
+		if got := layersOf(t, s, id)["CVE-2026-50003"]; got != findings.UrgencyExploited {
+			t.Fatalf("first run %v: urgency %d", firstRun, got)
+		}
+		if n := s.count(`SELECT count(*) FROM resp_events WHERE finding_id = ? AND trigger = 'finding' AND id LIKE 'finding:%:urgency-2-%'`, fid); n != 1 || before != 0 {
+			t.Fatalf("first run %v: %d response events of the rise (%d before), want 1", firstRun, n, before)
+		}
 	}
 }

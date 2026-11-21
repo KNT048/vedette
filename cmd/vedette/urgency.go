@@ -39,7 +39,14 @@ func urgencySources(d *deps) findings.UrgencySources {
 			}
 			return urgencyAttacks(ctx, q, since)
 		},
-		FirstRun: func(ctx context.Context) (time.Time, error) { return newNotify(d).FirstRunUntil(ctx) },
+		Loads: func(ctx context.Context) (findings.Loads, error) {
+			install, err := newNotify(d).FirstRunAt(ctx)
+			if err != nil {
+				return findings.Loads{}, err
+			}
+			catalogue, err := facts.CatalogueLoaded(ctx)
+			return findings.Loads{Install: install, Catalogue: catalogue}, err
+		},
 	}
 }
 
@@ -73,17 +80,23 @@ func (k *urgencyKick) run(ctx context.Context, pass func(context.Context) error)
 }
 
 // urgencyOnAlerts rates every finding again when the intrusion detection module stores alerts (ids.alert.detected): an attack on a CVE
-// a device is affected by is "under attack here" now, not at the next hourly pass. The pass runs on its own deadline, cut loose from the
-// bus's.
+// a device is affected by is "under attack here" now, not at the next hourly pass. The pass runs off the publisher's goroutine, on its
+// own deadline, so the ids module is never held by it; alerts that arrive while it runs make it run once more.
 func urgencyOnAlerts(d *deps) events.Handler {
 	k := &urgencyKick{}
 	return func(ctx context.Context, _ events.Event) error {
 		if d.Findings == nil || d.Reg != nil && (!d.Reg.Enabled("findings") || !d.Reg.Enabled(idsmodule.ModuleID)) {
 			return nil
 		}
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
-		defer cancel()
-		return k.run(ctx, func(ctx context.Context) error { _, err := d.Findings.RateUrgency(ctx, ""); return err })
+		base := context.WithoutCancel(ctx) // the pass outlives the publisher's call
+		go func() {
+			ctx, cancel := context.WithTimeout(base, time.Minute)
+			defer cancel()
+			if err := k.run(ctx, func(ctx context.Context) error { _, err := d.Findings.RateUrgency(ctx, ""); return err }); err != nil {
+				d.Log.WarnContext(ctx, "findings: rating urgency after intrusion alerts failed", "error", err)
+			}
+		}()
+		return nil
 	}
 }
 

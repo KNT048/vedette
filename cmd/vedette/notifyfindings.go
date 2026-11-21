@@ -65,6 +65,9 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	}
 	info := notify.FindingInfo{CVE: plainText(rec.CVE, 40), Severity: notify.Severity(rec.Severity), Layer: rec.Row.Urgency}
 	info.Product = plainText(kev.Display, noticeProductMax)
+	if info.Product == "" { // on no list: the product of the finding's own software line
+		info.Product = plainText(n.lineName(ctx, rec), noticeProductMax)
+	}
 	if info.Product == "" {
 		info.Product = "A product on your network"
 	}
@@ -106,6 +109,24 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		}
 	}
 	return info, true, nil
+}
+
+// lineName names the product a finding is on: the device's software line as the Devices page shows it, else the catalogue's name of the
+// finding's product; "" when neither is known.
+func (n notifyFindings) lineName(ctx context.Context, rec findings.Record) string {
+	if n.d.Inventory != nil && rec.SoftwareID != "" {
+		if lines, err := (findingsInventory{n.d.Inventory}).EffectiveSoftware(ctx, rec.AssetID); err == nil {
+			for _, l := range lines {
+				if l.ID == rec.SoftwareID && strings.TrimSpace(l.Display) != "" {
+					return l.Display
+				}
+			}
+		}
+	}
+	if p, ok := findings.ProductOf(rec.Row); ok {
+		return p.Display
+	}
+	return ""
 }
 
 // kevListed says the feeds returned an exploited list entry (a CVE on no list has none).

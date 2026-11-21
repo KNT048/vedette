@@ -1023,6 +1023,20 @@ func subscribe(d deps) {
 		}
 		return d.Inventory.EarnReview(ctx, ev.AssetID)
 	}))
+	// so is a finding that becomes exploited or under attack here (its CVE joined an exploited list)
+	d.Bus.Subscribe(findings.EventUrgencyRaised, on("inventory", func(ctx context.Context, data any) error {
+		var ev struct {
+			AssetID string `json:"asset_id"`
+			To      int    `json:"to"`
+		}
+		if err := eventInto(data, &ev); err != nil {
+			return err
+		}
+		if ev.To < findings.UrgencyUnderAttack || ev.To > findings.UrgencyExploited {
+			return nil
+		}
+		return d.Inventory.EarnReview(ctx, ev.AssetID)
+	}))
 	d.Bus.Subscribe(honeypot.EventHitCreated, on("inventory", func(ctx context.Context, data any) error {
 		var ev struct {
 			SrcAssetID string `json:"src_asset_id"`

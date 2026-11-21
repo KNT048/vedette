@@ -28,7 +28,8 @@ const (
 	EventFindingRaised        = "findings.finding.severity_raised"
 	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 {finding_id, cve, severity, from, to, at}: one notice per rise.
 	EventUrgencyRaised = "findings.finding.urgency_raised"
-	// EventFirstRun: the rises of a first-run window {key, findings, devices, layer, finding_ids, cve_list}: one summary notice a day.
+	// EventFirstRun: the rises of a first-run window in one pass {key, at, findings, devices, layer, finding_ids, cve_list}: one summary
+	// notice each, the later ones of a window saying "N more".
 	EventFirstRun = "findings.urgency.first_run"
 	// EventDeviceBackfill: one summary of the open findings the first match pass after the device-version rule arrived confirmed
 	// {findings, devices, cves, severity, finding_ids, cve_list}; each of them sent no notice of its own.
@@ -283,12 +284,13 @@ func (s *Service) urgencyRaised(ctx context.Context, data any) error {
 	})
 }
 
-// urgencyFirstRun turns findings.urgency.first_run into one notice: what a first load (of a signal source, or of the box itself) rated
-// urgent on the devices, instead of one alert per finding. One a day per window (the id carries the window and the day); the list in
-// the app holds every finding.
+// urgencyFirstRun turns findings.urgency.first_run into one notice: what a first load (of the box itself, a signal source or the
+// catalogue) rated urgent on the devices, instead of one alert per finding. Each pass's summary is its own notice (the id carries the
+// window and the pass's time); a later one of the same window says "N more", so nothing that load brought is dropped.
 func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	var e struct {
 		Key        string   `json:"key"`
+		At         string   `json:"at"`
 		Findings   int      `json:"findings"`
 		Devices    int      `json:"devices"`
 		Layer      int      `json:"layer"`
@@ -309,15 +311,32 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	if e.Layer >= 1 && e.Layer <= 2 {
 		sev = High
 	}
-	what := "Vedette has just loaded its sources of exploitation news for the first time"
-	if e.Key == "install" {
+	what := "Vedette has just loaded a source of exploitation news for the first time"
+	switch {
+	case e.Key == "install":
 		what = "This is Vedette's first look at your network and at its sources of exploitation news"
+	case strings.HasPrefix(e.Key, "catalogue-"):
+		what = "Vedette has just loaded its catalogue of vulnerabilities for the first time"
 	}
-	n := Notice{ID: "nt-first-run-" + clip(e.Key, 80) + "-" + s.now().UTC().Format("20060102"), Kind: KindVuln, Severity: sev, Layer: e.Layer,
-		Link: s.link("/findings?tab=open"), At: s.now(),
-		Title: fmt.Sprintf("Patch first: %s on %s", plural(e.Findings, "urgent finding", "urgent findings"), plural(e.Devices, "device", "devices")),
-		What: what + fmt.Sprintf(", so instead of one alert each, the %s it rated as exploited, with a public exploit or critical on an edge device are listed together here.",
-			plural(e.Findings, "finding", "findings")),
+	at, err := time.Parse(time.RFC3339Nano, e.At)
+	if err != nil {
+		at = s.now()
+	}
+	prefix := "nt-first-run-" + clip(e.Key, 80) + "-"
+	var earlier int // summaries of the same first load already queued or sent: this one tells only what came since
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM notify_notice WHERE substr(id, 1, ?) = ?`, len(prefix), prefix).Scan(&earlier); err != nil {
+		return fmt.Errorf("notify: read first-run summaries: %w", err)
+	}
+	title := fmt.Sprintf("Patch first: %s on %s", plural(e.Findings, "urgent finding", "urgent findings"), plural(e.Devices, "device", "devices"))
+	what += fmt.Sprintf(", so instead of one alert each, the %s it rated as exploited, with a public exploit or critical on an edge device are listed together here.",
+		plural(e.Findings, "finding", "findings"))
+	if earlier > 0 {
+		title = fmt.Sprintf("%s on %s to patch first", plural(e.Findings, "more urgent finding", "more urgent findings"), plural(e.Devices, "device", "devices"))
+		what = fmt.Sprintf("Vedette is still working through what its first load brought: since its last summary it rated %s on %s as exploited, with a public exploit or critical on an edge device.",
+			plural(e.Findings, "more finding", "more findings"), plural(e.Devices, "device", "devices"))
+	}
+	n := Notice{ID: prefix + at.UTC().Format("20060102T150405.000"), Kind: KindVuln, Severity: sev, Layer: e.Layer,
+		Link: s.link("/findings?tab=open"), At: s.now(), Title: title, What: what,
 		Action: "Open Findings, sorted by urgency, and patch the ones at the top first."}
 	seen := map[string]bool{}
 	for _, id := range e.FindingIDs {
@@ -871,9 +890,9 @@ func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 	return s.now().Sub(at) < firstDiscoveryWindow, nil
 }
 
-// FirstRunUntil is the end of the box's own first-run window (its first discovery, firstDiscoveryWindow after notify first ran here);
-// zero when not known. Findings folds the urgency rises of that window into one summary.
-func (s *Service) FirstRunUntil(ctx context.Context) (time.Time, error) {
+// FirstRunAt is when the box first ran (notify_box.first_run_at: its install); zero when not known. Findings folds the urgency rises
+// its first look brings into one summary.
+func (s *Service) FirstRunAt(ctx context.Context) (time.Time, error) {
 	var first string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_run_at FROM notify_box WHERE id = 1`).Scan(&first)
 	switch {
@@ -886,7 +905,7 @@ func (s *Service) FirstRunUntil(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, nil
 	}
-	return at.Add(firstDiscoveryWindow), nil
+	return at, nil
 }
 
 // discoveryIncident adds a device to the summary incident of the first discovery or of a sensor's learning: the first

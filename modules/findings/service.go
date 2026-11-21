@@ -679,6 +679,9 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: urgency}
 		if !isNew {
 			d.RangeOrigin = f.RangeOrigin
+			if s.rates() {
+				d.Urgency = 0 // the urgency pass that follows rates and tells a rise
+			}
 		} else {
 			d.ProductKey = productKey
 		}
@@ -700,6 +703,9 @@ func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev E
 	}
 	if id == "" {
 		return Record{}, nil
+	}
+	if _, err := s.RateUrgency(ctx, assetID); err != nil {
+		return Record{}, err
 	}
 	return s.Get(ctx, id)
 }

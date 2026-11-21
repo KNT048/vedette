@@ -59,12 +59,13 @@ func TestUrgency_TheRuleOfEachLayer(t *testing.T) {
 	}
 }
 
-// How a rise is told: an attack is news; the box's first-run window and a source's first load go into one summary; else a recent reason
-// or a recent finding is news, and anything older is old news.
+// How a rise is told (Tell, the one rule of both passes): an attack is news; what a first load brought, inside its window, is a line
+// of that load's summary; a reason first seen after its load is news, also inside the window; else a recent reason or a recent finding
+// is news, and anything older is old news.
 func TestUrgency_Tell(t *testing.T) {
 	t.Parallel()
 	recent, old := t0.Add(-24*time.Hour), t0.Add(-30*24*time.Hour)
-	oldFinding := Finding{FirstSeen: old}
+	oldFinding, newFinding := Finding{FirstSeen: old}, Finding{FirstSeen: t0}
 	reason := func(layer int, since time.Time) Reason {
 		return Reason{Layer: layer, Source: "metasploit", Since: since}
 	}
@@ -72,29 +73,37 @@ func TestUrgency_Tell(t *testing.T) {
 		return Reason{Layer: UrgencyPublicExploit, Source: "nuclei-templates", Since: at, FirstLoad: true, LoadedAt: at}
 	}
 	rating := func(layer int, rs ...Reason) Rating { return Rating{Layer: layer, Reasons: rs} }
+	installed := Loads{Install: t0.Add(-2 * time.Hour)}                     // the box was installed two hours ago (t0 is 10:00)
+	catalogue := Loads{Catalogue: t0.Add(-time.Hour)}                       // the catalogue first loaded an hour ago
+	pub3 := rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, old)) // a public exploit from before the install
 	for _, c := range []struct {
-		name    string
-		f       Finding
-		r       Rating
-		install time.Time
-		want    Telling
-		key     string
+		name  string
+		f     Finding
+		r     Rating
+		loads Loads
+		want  Telling
+		key   string
 	}{
-		{"recent reason", oldFinding, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, recent)), time.Time{}, TellNews, ""},
-		{"old reason, old finding", oldFinding, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, old)), time.Time{}, TellBacklog, ""},
-		{"old reason, new finding", Finding{FirstSeen: recent}, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, old)), time.Time{}, TellNews, ""},
-		{"the newest reason of the layer counts", oldFinding, rating(UrgencyExploited, reason(UrgencyExploited, old), reason(UrgencyExploited, recent)), time.Time{}, TellNews, ""},
-		{"a reason of a lower layer does not", oldFinding, rating(UrgencyExploited, reason(UrgencyExploited, old), reason(UrgencyPublicExploit, recent)), time.Time{}, TellBacklog, ""},
-		{"no date", oldFinding, rating(UrgencyCriticalEdge, Reason{Layer: UrgencyCriticalEdge, Source: "nas"}), time.Time{}, TellBacklog, ""},
-		{"an attack", oldFinding, rating(UrgencyUnderAttack, reason(UrgencyUnderAttack, old)), t0.Add(time.Hour), TellNews, ""},
-		{"the box's first run", Finding{FirstSeen: recent}, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, recent)), t0.Add(time.Hour), TellFirstRun, "install"},
-		{"after the box's first run", oldFinding, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, recent)), t0.Add(-time.Hour), TellNews, ""},
-		{"a source's first load", oldFinding, rating(UrgencyPublicExploit, loaded(t0.Add(-time.Hour))), time.Time{}, TellFirstRun, "nuclei-templates-20261109"},
-		{"a first load and a new claim", oldFinding, rating(UrgencyPublicExploit, loaded(t0.Add(-time.Hour)), reason(UrgencyPublicExploit, recent)), time.Time{}, TellNews, ""},
-		{"a first load long ago, a new finding", Finding{FirstSeen: t0}, rating(UrgencyPublicExploit, loaded(old)), time.Time{}, TellNews, ""},
-		{"a first load long ago, an old finding", oldFinding, rating(UrgencyPublicExploit, loaded(old)), time.Time{}, TellBacklog, ""},
+		{"recent reason", oldFinding, rating(UrgencyPublicExploit, reason(UrgencyPublicExploit, recent)), Loads{}, TellNews, ""},
+		{"old reason, old finding", oldFinding, pub3, Loads{}, TellBacklog, ""},
+		{"old reason, new finding", newFinding, pub3, Loads{}, TellNews, ""},
+		{"the newest reason of the layer counts", oldFinding, rating(UrgencyExploited, reason(UrgencyExploited, old), reason(UrgencyExploited, recent)), Loads{}, TellNews, ""},
+		{"a reason of a lower layer does not", oldFinding, rating(UrgencyExploited, reason(UrgencyExploited, old), reason(UrgencyPublicExploit, recent)), Loads{}, TellBacklog, ""},
+		{"no date", oldFinding, rating(UrgencyCriticalEdge, Reason{Layer: UrgencyCriticalEdge, Source: "nas"}), Loads{}, TellBacklog, ""},
+		{"an attack", oldFinding, rating(UrgencyUnderAttack, reason(UrgencyUnderAttack, old)), installed, TellNews, ""},
+		{"install: a reason from before it", newFinding, pub3, installed, TellFirstRun, "install"},
+		{"install: a reason dated after it", newFinding, rating(UrgencyExploited, reason(UrgencyExploited, t0.Add(-time.Hour))), installed, TellNews, ""},
+		{"install: a list entry of the install day", newFinding, rating(UrgencyExploited, reason(UrgencyExploited, t0.Truncate(24*time.Hour))), installed, TellNews, ""},
+		{"after the install window", newFinding, pub3, Loads{Install: t0.Add(-FirstRunWindow - time.Hour)}, TellNews, ""},
+		{"a source's first load", oldFinding, rating(UrgencyPublicExploit, loaded(t0.Add(-time.Hour))), Loads{}, TellFirstRun, "nuclei-templates-20261109"},
+		{"a first load and a newer claim", oldFinding, rating(UrgencyPublicExploit, loaded(t0.Add(-time.Hour)), reason(UrgencyPublicExploit, t0)), Loads{}, TellNews, ""},
+		{"a first load long ago, a new finding", newFinding, rating(UrgencyPublicExploit, loaded(old)), Loads{}, TellNews, ""},
+		{"a first load long ago, an old finding", oldFinding, rating(UrgencyPublicExploit, loaded(old)), Loads{}, TellBacklog, ""},
+		{"the catalogue's first load made it", newFinding, pub3, catalogue, TellFirstRun, "catalogue-20261109"},
+		{"the catalogue's first load, a reason after it", newFinding, rating(UrgencyExploited, reason(UrgencyExploited, t0)), catalogue, TellNews, ""},
+		{"the catalogue's first load, an older finding", Finding{FirstSeen: t0.Add(-10 * 24 * time.Hour)}, pub3, catalogue, TellBacklog, ""},
 	} {
-		if got, key := Tell(c.f, c.r, t0, c.install); got != c.want || key != c.key {
+		if got, key := Tell(c.f, c.r, t0, c.loads); got != c.want || key != c.key {
 			t.Errorf("%s: %v %q, want %v %q", c.name, got, key, c.want, c.key)
 		}
 	}
@@ -415,16 +424,16 @@ func TestRateUrgency_TheFirstRunIsOneSummary(t *testing.T) {
 		t.Fatalf("first load: %+v", r)
 	}
 	news, backlog, sums := e.pub.told()
-	if len(news)+len(backlog) != 0 || len(sums) != 1 || sums[0].Findings != 1 || sums[0].Devices != 1 || !slices.Equal(sums[0].FindingIDs, []string{f.ID}) ||
+	if len(news) != 0 || !slices.Equal(backlog, []string{f.ID}) || len(sums) != 1 || sums[0].Findings != 1 || sums[0].Devices != 1 || !slices.Equal(sums[0].FindingIDs, []string{f.ID}) ||
 		sums[0].Key != "nuclei-templates-"+now.Format("20060102") || sums[0].Layer != UrgencyPublicExploit {
 		t.Fatalf("first load: told %v %v, summaries %+v", news, backlog, sums)
 	}
 
 	e = newUrgencyEnv(t)
 	e.reconciled()
-	until := e.clock.Add(time.Hour)
-	e.svc.cfg.Urgency.FirstRun = func(context.Context) (time.Time, error) { return until, nil }
-	e.setSignals(offList, Signal{Kind: SignalExploited, Source: "rapid7-blog", FirstSeen: *e.clock, Qualifies: true})
+	install := e.clock.Add(-time.Hour)
+	e.svc.cfg.Urgency.Loads = func(context.Context) (Loads, error) { return Loads{Install: install}, nil }
+	e.setSignals(offList, Signal{Kind: SignalExploited, Source: "rapid7-blog", FirstSeen: install.AddDate(0, -2, 0), Qualifies: true})
 	e.rate()
 	if news, _, sums := e.pub.told(); len(news) != 0 || len(sums) != 1 || sums[0].Key != "install" {
 		t.Fatalf("the box's first run: told %v, summaries %+v", news, sums)
@@ -476,29 +485,94 @@ func TestRateUrgency_ANewMatchOnADeviceIsNews(t *testing.T) {
 	}
 }
 
-// A CVE that joins an exploited list while its finding is at layer 3 is a rise the match pass tells (3→2), once.
-func TestRateUrgency_AJoinFromLayerThreeIsTold(t *testing.T) {
+// A CVE that joins an exploited list while its finding is at layer 3 is one alert of the rise (3→2), told by the one rule whichever
+// pass sees the join first: the match pass (whose own urgency pass follows) or the hourly urgency pass; inside the box's first-run
+// window too (the listing is dated after the install).
+func TestRateUrgency_AJoinFromLayerThreeIsToldOnceInEitherOrder(t *testing.T) {
 	t.Parallel()
-	e := newUrgencyEnv(t)
-	f := e.reconciled()
-	e.setSignals(offList, Signal{Kind: SignalPublicExploit, Source: "metasploit", FirstSeen: *e.clock, Qualifies: true})
-	e.rate()
-	e.pub.take()
-	v := e.feeds.vulns[0]
-	v.Vendor, v.Product, v.DateAdded = "Fortinet", "FortiOS", *e.clock
-	e.feeds.vulns = []Vuln{v}
-	e.feeds.kev[offList] = KevInfo{Vendor: "Fortinet", Product: "FortiOS"}
-	e.advance(time.Hour)
-	if _, err := e.svc.Reconcile(t.Context()); err != nil {
-		t.Fatal(err)
+	for _, c := range []struct{ urgencyFirst, firstRun bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
+		urgencyFirst := c.urgencyFirst
+		e := newUrgencyEnv(t)
+		f := e.reconciled()
+		if c.firstRun { // the box was installed two hours ago: CISA listing the CVE today is news all the same
+			install := e.clock.Add(-2 * time.Hour)
+			e.svc.cfg.Urgency.Loads = func(context.Context) (Loads, error) { return Loads{Install: install}, nil }
+		}
+		msf := Signal{Kind: SignalPublicExploit, Source: "metasploit", FirstSeen: e.clock.Add(-48 * time.Hour), Qualifies: true}
+		e.setSignals(offList, msf)
+		e.rate()
+		e.pub.take()
+		e.advance(time.Hour)
+		v := e.feeds.vulns[0]
+		v.Vendor, v.Product, v.DateAdded = "Fortinet", "FortiOS", *e.clock
+		e.feeds.vulns = []Vuln{v}
+		e.feeds.kev[offList] = KevInfo{Vendor: "Fortinet", Product: "FortiOS"}
+		e.setSignals(offList, msf, Signal{Kind: SignalExploited, Source: "cisa-kev", FirstSeen: e.clock.Truncate(24 * time.Hour), Qualifies: true})
+		if urgencyFirst {
+			e.rate()
+		}
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		e.rate()
+		var rises []UrgencyRaisedEvent
+		for _, ev := range e.pub.take() {
+			if c, ok := ev.payload.(UrgencyRaisedEvent); ok {
+				if ev.backlog {
+					t.Errorf("urgency first %v: the join went under the Backlog mark", urgencyFirst)
+				}
+				rises = append(rises, c)
+			}
+		}
+		if len(rises) != 1 || rises[0].FindingID != f.ID || rises[0].From != UrgencyPublicExploit || rises[0].To != UrgencyExploited {
+			t.Fatalf("urgency first %v: rises %+v, want one 3→2", urgencyFirst, rises)
+		}
 	}
-	if news, _ := e.pub.announced(); !slices.Equal(news, []string{f.ID}) {
-		t.Fatalf("the join was told %v", news)
-	}
-	e.setSignals(offList, Signal{Kind: SignalExploited, Source: "cisa-kev", FirstSeen: *e.clock, Qualifies: true})
-	e.rate()
-	if news, backlog := e.pub.announced(); len(news)+len(backlog) != 0 {
-		t.Fatalf("the pass told the join again %v %v", news, backlog)
+}
+
+// A fresh box: what its first look brings (a reason from before the install) is one summary, but a reason first seen after the install is
+// news, also inside the window: a researcher's claim dated today, CISA listing the CVE on the first day (either pass first), a device
+// added the first day whose finding carries a claim dated after the install.
+func TestRateUrgency_TheFirstRunWindowKeepsTheNews(t *testing.T) {
+	t.Parallel()
+	before := func(e *urgencyEnv) time.Time { return e.clock.AddDate(0, -2, 0) }
+	for _, c := range []struct {
+		name   string
+		signal func(e *urgencyEnv) Signal
+		news   bool
+	}{
+		{"a claim from before the install", func(e *urgencyEnv) Signal {
+			return Signal{Kind: SignalPublicExploit, Source: "metasploit", FirstSeen: before(e), Qualifies: true}
+		}, false},
+		{"a researcher's claim dated today", func(e *urgencyEnv) Signal {
+			return Signal{Kind: SignalExploited, Source: "rapid7-blog", FirstSeen: e.clock.Add(-time.Hour), Qualifies: true}
+		}, true},
+		{"CISA lists it on the first day", func(e *urgencyEnv) Signal {
+			return Signal{Kind: SignalExploited, Source: "cisa-kev", FirstSeen: e.clock.Truncate(24 * time.Hour), Qualifies: true}
+		}, true},
+	} {
+		for _, onDevice := range []bool{false, true} { // the hourly pass, or a device added the first day (its own match write)
+			e := newUrgencyEnv(t)
+			install := e.clock.Add(-2 * time.Hour)
+			e.svc.cfg.Urgency.Loads = func(context.Context) (Loads, error) { return Loads{Install: install}, nil }
+			e.setSignals(offList, c.signal(e))
+			if onDevice {
+				if _, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := e.svc.Reconcile(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				e.rate()
+			}
+			news, backlog, sums := e.pub.told()
+			told := len(news) == 1 && len(backlog) == 0 && len(sums) == 0
+			folded := len(news) == 0 && len(backlog) == 1 && len(sums) == 1 && sums[0].Key == "install"
+			if c.news && !told || !c.news && !folded {
+				t.Errorf("%s (device write %v): news %v, backlog %v, summaries %+v", c.name, onDevice, news, backlog, sums)
+			}
+		}
 	}
 }
 

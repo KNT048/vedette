@@ -242,9 +242,11 @@
   `Urgency(cve, facts, target, attacks, now)` is the one rule of the five layers; the pass stores the layer through `Transition`
   (`urgency_changed`), raising and lowering. Ports (`ServiceConfig.Urgency`): feeds' `UrgencyReader` (signals of the feeds that are on,
   with the first-load mark; an exploited list's entry always counts, so a listed CVE never rates below the match pass's start layer),
-  ids' `ReadAttacked` while the ids module is on, notify's `FirstRunUntil`. `Devices` (Internet exposure) is not wired until the reasons
+  ids' `ReadAttacked` while the ids module is on, `Loads` (notify's `FirstRunAt`, feeds' `CatalogueLoaded`). `Devices` (Internet exposure) is not wired until the reasons
   are shown. Changing a port's meaning changes stored layers: run `vedette selfcheck` (`findings.urgency_recomputed`).
-- Alerts: every rise of an open finding into a more urgent layer of 1–4 is `findings.finding.urgency_raised` (match pass and urgency pass
-  alike; notify keys the notice by layer and time). `Tell` decides news / first-run summary (`findings.urgency.first_run`) / old news
-  under the Backlog mark. Readers of `findings.finding.created` no longer see a CVE joining a list: subscribe to `urgency_raised` too.
+- Alerts: every rise of an open finding into a more urgent layer of 1–4 is `findings.finding.urgency_raised`, emitted only by the urgency
+  pass (the match pass leaves an existing finding's layer to it, then runs it). `Tell` decides news / a line of a first-run summary
+  (`findings.urgency.first_run`) / old news; the latter two go out under the Backlog mark, which notify only counts. `created` means a new
+  finding only: a consumer that acts on a finding becoming exploited (response, the SIEM export, To review) listens to `urgency_raised`
+  with `to` ≤ 2 too.
 - **Readers of the urgency layer**: `Row.urgency` (the finding's layer, 1..5) and `SummaryItem.urgency` are in the API (`contract.ts` FindingRow, SummaryItem); the "Fix first" list ranks the most urgent layer first. To fix (`classify`, `DeviceUpdates`) lists layers 1 to 4 only (`Announced`); the risk marker (`RiskOf`) and the card's "exploited CVEs to fix" count the CVEs of layer 1 and 2 (`UpdateAction.Layers`, `DeviceUpdates.actionable`). Outside this module the notice texts, alert links, response `kev` flag, exposure counts, reports, MCP and AI context read the layer too; `TestReadersNeverCallAFindingAboveLayerTwoExploited` (cmd/vedette) counts any reader still treating a finding above layer 2 as exploited.

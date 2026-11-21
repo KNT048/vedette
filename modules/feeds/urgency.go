@@ -84,7 +84,7 @@ func (r *UrgencyReader) Facts(ctx context.Context, cves []string) (map[string]Ur
 func (r *UrgencyReader) sourceLoads(ctx context.Context) (map[string]sourceLoad, error) {
 	var stamp string
 	if err := r.q.QueryRowContext(ctx, `SELECT count(*) || '|' || ifnull(max(last_success), '') || '|' || ifnull(sum(enabled), 0) || '|' || ifnull(max(last_fetch), '')
-FROM feeds_source`).Scan(&stamp); err != nil {
+	|| '|' || ifnull(sum(rev), 0) FROM feeds_source`).Scan(&stamp); err != nil { // rev moves on every switch, so off-and-on of two feeds is seen
 		return nil, fmt.Errorf("feeds: urgency facts: %w", err)
 	}
 	r.mu.Lock()
@@ -249,4 +249,22 @@ func ReadSourceNames(ctx context.Context, q *sql.DB) (map[string]string, error) 
 		out[id] = name
 	}
 	return out, errors.Join(rows.Err(), rows.Close())
+}
+
+// CatalogueLoaded is when the catalogue's first load ended: the later of the first good pulls of the catalogue's two feeds (NVD's CVEs
+// of the last 12 months, the CVE records) that have one; zero before either has. A device's findings of old flaws appear then.
+func (r *UrgencyReader) CatalogueLoaded(ctx context.Context) (time.Time, error) {
+	var at sql.NullString
+	if err := r.q.QueryRowContext(ctx, `SELECT max(f) FROM (SELECT min(finished_at) AS f FROM feeds_fetch_log WHERE source_id IN (?, ?) AND status = 'ok'
+GROUP BY source_id)`, recentFeedID, cveOrgFeedID).Scan(&at); err != nil {
+		return time.Time{}, fmt.Errorf("feeds: catalogue load: %w", err)
+	}
+	if !at.Valid {
+		return time.Time{}, nil
+	}
+	t, err := parseTS(at.String)
+	if err != nil {
+		return time.Time{}, nil //nolint:nilerr // an unreadable time is no known load
+	}
+	return t, nil
 }

@@ -23,7 +23,7 @@ const (
 	// the Backlog mark for old news (counted, never sent).
 	EventUrgencyRaised = "findings.finding.urgency_raised"
 	// EventFirstRun: the rises of one first-run window in one pass (a signal source's first load, or the box's own first discovery),
-	// told as one summary (FirstRunEvent); none of them sends an alert of its own.
+	// told as one summary (FirstRunEvent); none of them sends an alert of its own (their urgency_raised go under the Backlog mark).
 	EventFirstRun = "findings.urgency.first_run"
 )
 
@@ -44,6 +44,7 @@ type UrgencyRaisedEvent struct {
 // or a source and the day of its first load); Layer is the most urgent of them; the lists hold up to MaxBackfillListed.
 type FirstRunEvent struct {
 	Key        string   `json:"key"`
+	At         string   `json:"at"` // the pass's time (RFC 3339): each pass's summary is its own notice; a later one says "N more"
 	Findings   int      `json:"findings"`
 	Devices    int      `json:"devices"`
 	Layer      int      `json:"layer"`

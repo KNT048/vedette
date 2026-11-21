@@ -19,8 +19,8 @@ var Curated []byte
 var KEVProducts []byte
 
 // Products is products/*.json, the product catalogue: per product the names each source gives it (package and program names,
-// the CPE nmap prints), its NVD CPE products, its exploited-list keys, version scheme, release trains and runtime family. Read
-// only by core/productid.
+// the CPE nmap prints, the names CVE records give it), its NVD CPE products, its exploited-list keys, version scheme (a
+// core/versionscheme name), release trains and runtime family. Read only by core/productid.
 //
 //go:embed products/*.json
 var Products embed.FS
@@ -37,7 +37,8 @@ var PlatformLimits []byte
 var NetworkOS []byte
 
 // ESXiBuilds is esxi-builds.json: the ESXi build number of each 8.0 and 7.0 release, as NVD names it (version and update), read by
-// sensor-active to give a host's own statement the right CPE.
+// core/versionscheme (the ESXi version scheme: a build's update train), which sensor-active asks to give a host's own statement
+// the right CPE.
 //
 //go:embed esxi-builds.json
 var ESXiBuilds []byte

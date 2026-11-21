@@ -1,13 +1,11 @@
 package sensoractive
 
 import (
-	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // What a device states about itself without a login (INV-25): the firmware version a device's web interface or API gives anyone. A
@@ -38,22 +36,6 @@ func iloVendor(gen string) string {
 	}
 	return "hp"
 }
-
-type esxiBuild struct {
-	Version string `json:"version"`
-	Update  string `json:"update"`
-	Name    string `json:"name"`
-}
-
-var esxiBuilds = func() map[string]esxiBuild {
-	var f struct {
-		Builds map[string]esxiBuild `json:"builds"`
-	}
-	if err := json.Unmarshal(catalogdata.ESXiBuilds, &f); err != nil {
-		panic(fmt.Sprintf("sensoractive: esxi-builds.json: %v", err)) // embedded data, checked by TestESXiBuildsData
-	}
-	return f.Builds
-}()
 
 // statedFirmware lists what the host stated on its ports to the self-statement scripts, each value checked against the shape it
 // must have (a page that says anything else gives nothing).
@@ -89,7 +71,8 @@ func iloFirmwareOf(s selfSays) (statedFirmware, bool) {
 }
 
 // esxiOf reads vmware-version's "Server version" ("VMware ESXi 8.0.3") and "Build" ("24022510"). vCenter answers the same call with
-// another name and is not an ESXi host: no row. A build in esxi-builds.json names the release as NVD does (8.0, update_3), so the
+// another name and is not an ESXi host: no row. A build in esxi-builds.json (read through core/versionscheme, the ESXi scheme's build
+// table) names the release as NVD does (8.0, update_3), so the
 // row is matched; a build that is not listed (or one that belongs to another version than the host states) is shown with the version
 // the host stated and no CPE, and never matched.
 func esxiOf(s selfSays) (statedFirmware, bool) {
@@ -103,7 +86,7 @@ func esxiOf(s selfSays) (statedFirmware, bool) {
 	}
 	stated := statedFirmware{os: "VMware ESXi " + ver + " (build " + build + ")", sw: observe.Software{Vendor: "vmware", Product: "esxi", Version: ver, Confidence: nmapCeiling, Guess: true}}
 	stated.sw.Display = stated.os
-	if b, known := esxiBuilds[build]; known && strings.HasPrefix(ver, b.Version) {
+	if b, known := versionscheme.ESXiBuild(build); known && strings.HasPrefix(ver, b.Version) {
 		rel := b.Name
 		stated.os = "VMware " + rel + " (build " + build + ")"
 		stated.sw = observe.Software{Display: stated.os, Vendor: "vmware", Product: "esxi", Version: b.Version, CPE: "cpe:2.3:o:vmware:esxi:" + b.Version + ":" + b.Update + ":*:*:*:*:*:*", Confidence: nmapCeiling}

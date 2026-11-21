@@ -281,9 +281,12 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 				skipped = append(skipped, ip)
 			default:
 				id := store.NewID("xt")
-				nt := Target{ID: id, Kind: KindIP, Value: ip, Method: methodBoxEgress, VerifiedAt: now, CreatedAt: now,
+				nt := Target{ID: id, Kind: KindIP, Origin: OriginBox, Value: ip, Method: methodBoxEgress, VerifiedAt: now, CreatedAt: now,
 					LastCheck: &Check{At: store.FormatTS(now), OK: true, Message: msg}}
 				if err := insertTarget(ctx, tx, nt); err != nil {
+					return err
+				}
+				if err := s.ensureSchedule(ctx, tx, id); err != nil {
 					return err
 				}
 				detail := "box_egress"

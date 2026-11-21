@@ -185,6 +185,11 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), Via: pr.via}, verifiedAt, setMethod); err != nil {
 			return err
 		}
+		if cur.Kind == KindDomain {
+			if err := settleMethod(ctx, tx, id, pr); err != nil {
+				return err
+			}
+		}
 		action := "exposure.verify_fail"
 		if ok {
 			action = "exposure.verify_ok"
@@ -242,6 +247,10 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 	if err != nil {
 		return err
 	}
+	byID := map[string]Target{}
+	for _, o := range all {
+		byID[o.ID] = o
+	}
 	for _, o := range all {
 		if o.Kind != KindDomain || o.ID == t.ID || !Covers(p.proven, o.Value) || !o.VerifiedAt.IsZero() && o.LastCheck != nil && o.LastCheck.OK {
 			continue
@@ -259,6 +268,11 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 			via = t.Value
 		}
 		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: true, Message: msg, Via: via}, verifiedAt, methodDNS); err != nil {
+			return err
+		}
+		// t's own record on its own name covers o under it in the tree: o keeps no method of its own
+		covered := p.own && p.proven == t.Value && slices.ContainsFunc(ancestors(o, byID), func(a Target) bool { return a.ID == t.ID })
+		if err := recordDomainMethod(ctx, tx, o.ID, covered); err != nil {
 			return err
 		}
 		if err := s.audit(ctx, tx, user, "exposure.verify_ok", o.Value, methodDNS+", covered by "+p.proven); err != nil {

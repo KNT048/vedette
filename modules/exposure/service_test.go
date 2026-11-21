@@ -22,7 +22,7 @@ func certAt(host string, d time.Duration) CertRow {
 func sampleContent() Content {
 	return Content{
 		Hosts:       []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "mail.acme.example", IP: ipB}},
-		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", "", "", nil}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil}},
+		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil, false}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", "", nil, false}},
 		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger", nil}},
 		Certs:       []CertRow{certAt("acme.example", 62*day), certAt("mail.acme.example", 9*day)},
 	}
@@ -77,7 +77,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.dns.lookups() != before+1 || run.calls != 1 || snap.Counts.Subdomains != 3 {
+	if e.dns.lookups() != before+2 || run.calls != 1 || snap.Counts.Subdomains != 3 { // checked when asked, and again right before it starts
 		t.Fatalf("lookups %d->%d, runner calls %d, counts %+v", before, e.dns.lookups(), run.calls, snap.Counts)
 	}
 
@@ -135,8 +135,8 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err != nil {
 		t.Fatal(err)
 	}
-	evs := e.pub.names() // POST-1: the snapshot is announced (response's new_port trigger listens)
-	if len(evs) == 0 || evs[len(evs)-1] != EventSnapshotCreated {
+	evs := e.pub.names() // POST-1: the rows are announced (response's new_port trigger listens)
+	if len(evs) == 0 || evs[len(evs)-1] != EventScanWritten {
 		t.Fatalf("events %v", evs)
 	}
 	// a failing runner is a failure of the box, and leaves no snapshot
@@ -145,8 +145,8 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err == nil || errors.As(err, new(*APIError)) {
 		t.Fatalf("runner error = %v", err)
 	}
-	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 {
-		t.Fatalf("%d snapshots", n)
+	if n := e.writtenScans(); n != 1 {
+		t.Fatalf("%d scans wrote rows", n)
 	}
 	// the runner's own refusals reach the person as they are, and leave no snapshot either: the module is off, the
 	// certificate-transparency search did not answer
@@ -154,11 +154,12 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	run.err = ErrScanOff
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 409, "module_off")
+	e.advance(ScanEvery)
 	run.err = fmt.Errorf("%w (crt.sh answered 502)", ErrCTDown)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 502, "unreachable")
-	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 || len(e.pub.names()) != len(evs) {
-		t.Fatalf("%d snapshots, events %v", n, e.pub.names())
+	if n := e.writtenScans(); n != 1 || len(e.pub.names()) != len(evs) {
+		t.Fatalf("%d scans wrote rows, events %v", n, e.pub.names())
 	}
 	// no runner at all (a build without the scan module): 501 after the gate
 	run.err = nil
@@ -167,8 +168,8 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	wantAPI(t, err, 501, "not_implemented")
 }
 
-// INV-12: one scan at a time on the box (409 busy), one scan of a target every ScanEvery (429 rate_limited; an attempt
-// the runner refused as module off does not count), and every attempt that ends without a snapshot is audited with its outcome.
+// INV-12: one scan at a time on the box (the next waits in the queue), one scan of a target at once (409 busy) and every ScanEvery
+// (429 rate_limited), and every attempt that ends without rows is audited with its outcome.
 func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -184,10 +185,11 @@ func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 		t.Fatalf("message: %v", err)
 	}
 	e.advance(ScanEvery)
-	run.err = ErrScanOff // does not count: nothing was asked
+	run.err = ErrScanOff
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 409, "module_off")
-	// a second scan while one runs is refused at once
+	// while one scan runs: the same target again is refused at once, another target waits in the queue
+	e.advance(ScanEvery)
 	run.err, run.hold, run.in = nil, make(chan struct{}), make(chan struct{})
 	done := make(chan error, 1)
 	other := e.detect(ipA)[0]
@@ -196,18 +198,25 @@ func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 	if _, err := e.commit(other.ID); err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", other.ID)
+	_, err = e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, "")
 	wantAPI(t, err, 409, "busy")
+	queued, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, other.ID, "")
+	if err != nil || queued.Status != RunQueued {
+		t.Fatalf("the other target's scan: %+v %v", queued, err)
+	}
 	close(run.hold)
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	// the audit trail has every attempt: the two snapshots, and the three that ended without one
+	e.waitScan(queued.ID)
+	if got, ok, err := e.svc.runOf(e.ctx(), queued.ID); err != nil || !ok || got.Status != RunDone {
+		t.Fatalf("the queued scan after the first ended: %+v %v %+v", got, err, got.Error)
+	}
 	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan' AND detail LIKE 'not done: %'`); n != 3 {
 		t.Fatalf("%d audited refusals, want 3 (rate_limited, module_off, busy)", n)
 	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan'`); n != 5 {
-		t.Fatalf("%d exposure.scan rows, want 5", n)
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan'`); n != 6 {
+		t.Fatalf("%d exposure.scan rows, want 6", n)
 	}
 }
 
@@ -215,11 +224,15 @@ func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 type blockingRunner struct {
 	fakeRunner
 	hold, in chan struct{}
+	told     chan struct{} // the in that was closed already: a scan that comes after it only waits for hold
 }
 
 func (r *blockingRunner) Scan(ctx context.Context, t ScanTarget) (Content, error) {
 	if r.in != nil {
-		close(r.in)
+		if r.told != r.in {
+			r.told = r.in
+			close(r.in)
+		}
 		<-r.hold
 	}
 	return r.fakeRunner.Scan(ctx, t)
@@ -545,8 +558,9 @@ func TestContract_INV7_Commitment(t *testing.T) {
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
-	if e.count(`SELECT count(*) FROM exp_snapshot`) != 0 || e.count(`SELECT count(*) FROM exp_target WHERE id = ?`, d.ID) != 0 {
-		t.Fatal("snapshots or target left after delete")
+	if e.count(`SELECT count(*) FROM exp_scan WHERE target_id = ?`, d.ID)+e.count(`SELECT count(*) FROM exp_host WHERE target_id = ?`, d.ID) != 0 ||
+		e.count(`SELECT count(*) FROM exp_target WHERE id = ?`, d.ID) != 0 {
+		t.Fatal("rows or target left after delete")
 	}
 	if got := len(e.audits()); got != audits+1 {
 		t.Fatalf("audit rows %d -> %d", audits, got)
@@ -554,82 +568,10 @@ func TestContract_INV7_Commitment(t *testing.T) {
 	wantAPI(t, e.svc.Delete(e.ctx(), "admin@acme.example", d.ID), 404, "not_found")
 }
 
-func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	run := &fakeRunner{content: sampleContent()}
-	e.svc.SetRunner(run)
-	d := e.committedDomain()
-	s1, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := Counts{Subdomains: 3, IPs: 2, Ports: 3, AdminPanels: 1, CertsExpiring: 1}
-	if s1.Date != "2026-11-09" || s1.Counts != want {
-		t.Fatalf("day 1 = %s %+v", s1.Date, s1.Counts)
-	}
-	if v := e.target(d.ID); v.Latest == nil || *v.Latest != want || str(v.LastScanAt) != store.FormatTS(t0) {
-		t.Fatalf("target after the scan = %+v", v)
-	}
-	// a second scan the same day replaces the first
-	e.advance(time.Hour)
-	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID); err != nil {
-		t.Fatal(err)
-	}
-	if metas, _ := e.svc.Snapshots(e.ctx(), d.ID); len(metas) != 1 {
-		t.Fatalf("%d snapshots for one day", len(metas))
-	}
-	// day 2: a new subdomain and port, the admin page is gone, mail's certificate was renewed
-	e.advance(day)
-	c2 := sampleContent()
-	c2.Hosts = append(c2.Hosts, HostRow{Name: "staging.acme.example", IP: ipB})
-	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jetty", "", 0, false, "", nil, "", "", "", nil})
-	c2.AdminPanels = nil
-	c2.Certs[1] = certAt("mail.acme.example", 100*day)
-	run.content = c2
-	s2, err := e.svc.Scan(e.ctx(), "operator@acme.example", d.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s2.Date != "2026-11-10" || s2.Counts.CertsExpiring != 0 {
-		t.Fatalf("day 2 = %s %+v", s2.Date, s2.Counts)
-	}
-	metas, err := e.svc.Snapshots(e.ctx(), d.ID)
-	if err != nil || len(metas) != 2 || metas[0].Date != "2026-11-10" || metas[1].Date != "2026-11-09" {
-		t.Fatalf("snapshots newest first: %+v %v", metas, err)
-	}
-	got, err := e.svc.SnapshotOf(e.ctx(), d.ID, "2026-11-09")
-	if err != nil || len(got.Hosts) != 3 || got.Counts != want {
-		t.Fatalf("day 1 again = %+v %v", got, err)
-	}
-	// the earlier day is always the from side
-	for _, order := range [][2]string{{"2026-11-09", "2026-11-10"}, {"2026-11-10", "2026-11-09"}} {
-		df, err := e.svc.Diff(e.ctx(), d.ID, order[0], order[1])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if df.From != "2026-11-09" || df.To != "2026-11-10" || len(df.Added) != 2 || len(df.Removed) != 1 || len(df.Changed) != 1 {
-			t.Fatalf("diff = %+v", df)
-		}
-		if df.Added[0].Key != "h:staging.acme.example" || df.Added[1].Key != "p:"+ipB+":8080" || df.Added[1].Detail != "HTTP, Jetty" ||
-			df.Removed[0].Kind != "admin" || df.Changed[0].Key != "c:mail.acme.example" || df.Changed[0].From == df.Changed[0].To {
-			t.Fatalf("diff items = %+v", df)
-		}
-	}
-	_, err = e.svc.Diff(e.ctx(), d.ID, "2026-11-10", "2026-11-10")
-	wantAPI(t, err, 400, "same_date")
-	_, err = e.svc.Diff(e.ctx(), d.ID, "2026-11-09", "2026-01-01")
-	wantAPI(t, err, 404, "not_found")
-	_, err = e.svc.SnapshotOf(e.ctx(), d.ID, "2026-01-01")
-	wantAPI(t, err, 404, "not_found")
-	_, err = e.svc.Snapshots(e.ctx(), "xt-nope")
-	wantAPI(t, err, 404, "not_found")
-}
-
 func TestContract_INV8_IPTargetCountsItsOwnAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil}}}})
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", "", "", nil, false}}}})
 	ip := e.detect(ipA)[0]
 	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
@@ -648,7 +590,7 @@ func TestContract_INV10_ScanContentIsLimited(t *testing.T) {
 	for i := range maxContentRows + 50 {
 		big.Hosts = append(big.Hosts, HostRow{Name: "h" + strings.Repeat("x", i%3), IP: ipA})
 	}
-	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", "", "", nil}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", "", "", nil}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", "", "", nil}}
+	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", "", "", nil, false}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", "", "", nil, false}}
 	big.AdminPanels = []AdminRow{{"https://x/", "p", ipA, 443, "<script>", nil}, {"https://y/", "p", ipA, 0, "danger", nil}}
 	big.Certs = []CertRow{{"a.example", "R11", "not a date"}, certAt("b.example", day)}
 	got := sanitize(big)

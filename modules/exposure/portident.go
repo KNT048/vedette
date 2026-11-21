@@ -221,6 +221,7 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 			row.CertNames = append(row.CertNames, n)
 		}
 	}
+	row.HTTP = p.HTTP
 	row.Title, row.Server, row.Location = field(p.Title, maxHint), field(p.Server, maxHint), field(p.Location, maxLocation)
 	return row
 }
@@ -311,54 +312,4 @@ func servicesRead(rows []ServiceRow) string {
 		read += fmt.Sprintf(", %d not identified", none)
 	}
 	return read
-}
-
-// servicesLineRE is a stored "Service identification" line that has counts: an IP target's, or one address's of a domain's deep
-// scan ("203.0.113.7 (www.example.com): " in front). Group 1 is the address of that prefix, group 2 the line up to the counts, group
-// 4 what follows them (the deep scan's script results).
-var servicesLineRE = regexp.MustCompile(`^(?:(\d{1,3}(?:\.\d{1,3}){3}) \([^)]*\): )?(Service identification \(nmap -sV\)(?: on \d+ TCP ports?)?: )(\d+ services? identified[^.]*)\.((?: nmap's scripts: .*)?)$`)
-
-// keptServices is the "ip:port" of each service row an earlier scan kept (its port has LastSeen, INV-22): this scan did not read it.
-func keptServices(snap Snapshot) map[string]bool {
-	ports := map[string]bool{}
-	for _, p := range snap.Ports {
-		if p.LastSeen != "" {
-			ports[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
-		}
-	}
-	kept := map[string]bool{}
-	for _, r := range snap.Services {
-		if k := fmt.Sprintf("%s:%d", ipKey(r.IP), r.Port); ports[k] {
-			kept[k] = true
-		}
-	}
-	return kept
-}
-
-// recountServices says the counts of each stored "Service identification" line again from the snapshot's stored rows, with today's
-// classification (servicesRead): a snapshot stored before a port named by its number alone was told apart said "6 services
-// identified" next to a comparison line that counts the same rows today, and the two must never disagree. Only the rows that
-// step read count: of the line's address, without the rows an earlier scan kept (their port has LastSeen, INV-22).
-func recountServices(snap *Snapshot) {
-	kept := keptServices(*snap)
-	for i, c := range snap.Checks {
-		if c.Kind != "services" {
-			continue
-		}
-		m := servicesLineRE.FindStringSubmatchIndex(c.Text)
-		if m == nil {
-			continue
-		}
-		ip := ""
-		if m[2] >= 0 {
-			ip = c.Text[m[2]:m[3]]
-		}
-		rows := []ServiceRow{}
-		for _, r := range snap.Services {
-			if (ip == "" || ipKey(r.IP) == ip) && !kept[fmt.Sprintf("%s:%d", ipKey(r.IP), r.Port)] {
-				rows = append(rows, r)
-			}
-		}
-		snap.Checks[i].Text = c.Text[:m[6]] + servicesRead(rows) + c.Text[m[7]:]
-	}
 }

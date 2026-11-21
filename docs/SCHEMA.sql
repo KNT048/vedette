@@ -1616,34 +1616,145 @@ END;
 -- module exposure
 
 CREATE TABLE exp_target (
-    id            TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    kind          TEXT NOT NULL CHECK (kind IN ('domain', 'ip')),
-    value         TEXT NOT NULL UNIQUE CHECK (length(value) BETWEEN 1 AND 253),
-    method        TEXT CHECK (method IS NULL OR (kind = 'domain' AND method = 'dns_txt') OR (kind = 'ip' AND method = 'box_egress')),
+    id           TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    parent_id    TEXT    REFERENCES exp_target (id) ON DELETE SET NULL,
+    kind         TEXT    NOT NULL CHECK (kind IN ('domain', 'ip')),
+    value        TEXT    NOT NULL UNIQUE CHECK (length(value) BETWEEN 1 AND 253),
+    -- person: typed in; box: a public IP the box found as its own egress address; discovered: a name found under a domain target
+    origin       TEXT    NOT NULL CHECK (origin IN ('person', 'box', 'discovered')),
+    -- domains: self scans only this name, all this name and every name found under it, selected this name and the chosen names
+    scope_mode   TEXT    CHECK ((kind = 'ip' AND scope_mode IS NULL) OR (kind = 'domain' AND scope_mode IS NOT NULL AND scope_mode IN ('self', 'all', 'selected'))),
+    enabled      INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    method       TEXT    CHECK (method IS NULL OR (kind = 'domain' AND method = 'dns_txt') OR (kind = 'ip' AND method = 'box_egress')),
     -- domain: the value in the TXT record vedette-verify=<token> (public in DNS); IP: ''
-    token         TEXT NOT NULL CHECK ((kind = 'domain' AND length(token) = 16) OR (kind = 'ip' AND token = '')),
-    verified_at   TEXT CHECK (verified_at IS NULL OR verified_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    token        TEXT    NOT NULL CHECK ((kind = 'domain' AND length(token) = 16) OR (kind = 'ip' AND token = '')),
+    verified_at  TEXT    CHECK (verified_at IS NULL OR verified_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     -- {at, ok, message}
-    last_check    TEXT CHECK (last_check IS NULL OR (json_valid(last_check) AND json_type(last_check) = 'object')),
-    commitment_by TEXT CHECK (commitment_by IS NULL OR length(commitment_by) BETWEEN 1 AND 320),
-    commitment_at TEXT CHECK (commitment_at IS NULL OR commitment_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    created_at    TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_scan_at  TEXT CHECK (last_scan_at IS NULL OR last_scan_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), commitment_version TEXT CHECK (commitment_version IS NULL OR (length(commitment_version) BETWEEN 1 AND 40 AND commitment_by IS NOT NULL)), commitment_sentence TEXT CHECK ((commitment_version IS NULL) = (commitment_sentence IS NULL) AND (commitment_sentence IS NULL OR length(commitment_sentence) BETWEEN 1 AND 1000)), commitment_user_id TEXT CHECK (commitment_user_id IS NULL OR (length(commitment_user_id) BETWEEN 1 AND 96 AND commitment_version IS NOT NULL)), commitment_method TEXT CHECK ((commitment_user_id IS NULL) = (commitment_method IS NULL) AND (commitment_method IS NULL OR commitment_method IN ('app', 'email', 'sso'))), terms_version TEXT, terms_by TEXT, terms_at TEXT, terms_text TEXT, terms_user_id TEXT, terms_method TEXT, terms_disruptive INTEGER NOT NULL DEFAULT 0 CHECK (terms_disruptive IN (0, 1)), typed INTEGER NOT NULL DEFAULT 0 CHECK (typed IN (0, 1) AND (typed = 0 OR kind = 'ip')), ip_token TEXT CHECK (ip_token IS NULL OR (typed = 1 AND length(ip_token) = 16)), proof_method TEXT CHECK (proof_method IS NULL OR (typed = 1 AND proof_method IN ('ip_file', 'ip_ptr'))), scan_every TEXT NOT NULL DEFAULT 'weekly' CHECK (scan_every IN ('off', 'daily', 'weekly', 'monthly')), sched_skip TEXT CHECK (sched_skip IS NULL OR length(sched_skip) BETWEEN 1 AND 1000), sched_skip_at TEXT CHECK ((sched_skip_at IS NULL) = (sched_skip IS NULL) AND (sched_skip_at IS NULL OR sched_skip_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')), sched_retry_at TEXT CHECK (sched_retry_at IS NULL OR (sched_skip IS NOT NULL AND sched_retry_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')),
-    CHECK ((commitment_by IS NULL) = (commitment_at IS NULL))
+    last_check   TEXT    CHECK (last_check IS NULL OR (json_valid(last_check) AND json_type(last_check) = 'object')),
+    -- an IP typed in by a person: the token its proof file carries, and how it was proved
+    ip_token     TEXT    CHECK (ip_token IS NULL OR (kind = 'ip' AND origin = 'person' AND length(ip_token) = 16)),
+    proof_method TEXT    CHECK (proof_method IS NULL OR (kind = 'ip' AND origin = 'person' AND proof_method IN ('ip_file', 'ip_ptr'))),
+    created_at   TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK (parent_id IS NULL OR (kind = 'domain' AND parent_id <> id))
 );
 
-CREATE TABLE exp_snapshot (
-    id           TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    target_id    TEXT NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
-    date         TEXT NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    scanned_at   TEXT NOT NULL CHECK (scanned_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    hosts        TEXT NOT NULL CHECK (json_valid(hosts) AND json_type(hosts) = 'array'),
-    ports        TEXT NOT NULL CHECK (json_valid(ports) AND json_type(ports) = 'array'),
-    admin_panels TEXT NOT NULL CHECK (json_valid(admin_panels) AND json_type(admin_panels) = 'array'),
-    certs        TEXT NOT NULL CHECK (json_valid(certs) AND json_type(certs) = 'array'),
-    counts       TEXT NOT NULL CHECK (json_valid(counts) AND json_type(counts) = 'object'), services TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(services) AND json_type(services) = 'array'), checks TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(checks) AND json_type(checks) = 'array'), not_checked TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(not_checked) AND json_type(not_checked) = 'array'), web_findings TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(web_findings) AND json_type(web_findings) = 'array'), greenbone TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(greenbone) AND json_type(greenbone) = 'array'), scripts TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(scripts) AND json_type(scripts) = 'array'), greenbone_run TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(greenbone_run) AND json_type(greenbone_run) = 'object'), started_at TEXT CHECK (started_at IS NULL OR started_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), finished_at TEXT CHECK (finished_at IS NULL OR finished_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    UNIQUE (target_id, date)
+CREATE INDEX exp_target_parent_idx ON exp_target (parent_id);
+
+CREATE TABLE exp_consent (
+    target_id  TEXT    NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    kind       TEXT    NOT NULL CHECK (kind IN ('commitment', 'terms')),
+    version    TEXT    NOT NULL CHECK (length(version) BETWEEN 1 AND 40),
+    text       TEXT    NOT NULL CHECK (length(text) BETWEEN 1 AND 10000),
+    by_name    TEXT    NOT NULL CHECK (length(by_name) BETWEEN 1 AND 320),
+    user_id    TEXT    CHECK (user_id IS NULL OR length(user_id) BETWEEN 1 AND 96),
+    method     TEXT    CHECK (method IS NULL OR method IN ('app', 'email', 'sso')),
+    disruptive INTEGER NOT NULL DEFAULT 0 CHECK (disruptive IN (0, 1) AND (disruptive = 0 OR kind = 'terms')),
+    at         TEXT    NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    PRIMARY KEY (target_id, kind)
+) WITHOUT ROWID;
+
+CREATE TABLE exp_host (
+    id              TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    target_id       TEXT    NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    name            TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 253),
+    -- ct | dns | mx | ns | wordlist | person (exposure.HostSource)
+    source          TEXT    NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    selected        INTEGER NOT NULL DEFAULT 0 CHECK (selected IN (0, 1)),
+    child_target_id TEXT    REFERENCES exp_target (id) ON DELETE SET NULL,
+    cname           TEXT    CHECK (cname IS NULL OR length(cname) BETWEEN 1 AND 253),
+    first_seen      TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen       TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    UNIQUE (target_id, name),
+    CHECK (first_seen <= last_seen)
 );
+
+CREATE INDEX exp_host_child_idx ON exp_host (child_target_id);
+
+CREATE TABLE exp_address (
+    id         INTEGER NOT NULL PRIMARY KEY,
+    host_id    TEXT    REFERENCES exp_host (id) ON DELETE CASCADE,
+    target_id  TEXT    NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    ip         TEXT    NOT NULL CHECK (length(ip) BETWEEN 2 AND 45),
+    family     TEXT    NOT NULL CHECK (family IN ('ipv4', 'ipv6')),
+    -- box: this box's own current IP; public: any other public address; private: never dialed
+    class      TEXT    NOT NULL CHECK (class IN ('box', 'public', 'private')),
+    first_seen TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen  TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK (first_seen <= last_seen)
+);
+
+CREATE UNIQUE INDEX exp_address_key ON exp_address (target_id, ifnull(host_id, ''), ip);
+
+CREATE INDEX exp_address_host_idx ON exp_address (host_id);
+
+CREATE TABLE exp_service (
+    id          TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    target_id   TEXT    NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    ip          TEXT    NOT NULL CHECK (length(ip) BETWEEN 2 AND 45),
+    port        INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
+    proto       TEXT    NOT NULL CHECK (proto IN ('tcp', 'udp')),
+    name        TEXT    NOT NULL DEFAULT '' CHECK (length(name) <= 100),
+    product     TEXT    NOT NULL DEFAULT '' CHECK (length(product) <= 500),
+    version     TEXT    NOT NULL DEFAULT '' CHECK (length(version) <= 500),
+    cpe         TEXT    NOT NULL DEFAULT '' CHECK (length(cpe) <= 500),
+    title       TEXT    NOT NULL DEFAULT '' CHECK (length(title) <= 500),
+    -- {names, issuer, expires_at}: the TLS certificate the service showed
+    cert        TEXT    CHECK (cert IS NULL OR (json_valid(cert) AND json_type(cert) = 'object')),
+    is_web      INTEGER NOT NULL DEFAULT 0 CHECK (is_web IN (0, 1)),
+    -- probed: a probe's answer named it; table: only the usual service of the port number; none: not identified
+    ident       TEXT    NOT NULL CHECK (ident IN ('probed', 'table', 'none')),
+    state       TEXT    NOT NULL CHECK (state IN ('open', 'closed')),
+    first_seen  TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen   TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_run_id TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), -- the run that last saw it; runs are pruned, so no key
+    UNIQUE (target_id, ip, port, proto),
+    CHECK (first_seen <= last_seen)
+);
+
+CREATE INDEX exp_service_state_idx ON exp_service (target_id, state);
+
+CREATE TABLE exp_issue (
+    id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    target_id      TEXT    NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    service_id     TEXT    REFERENCES exp_service (id) ON DELETE SET NULL,
+    -- surface | nuclei | zap | openvas | match (exposure.IssueEngine)
+    engine         TEXT    NOT NULL CHECK (length(engine) BETWEEN 1 AND 40 AND engine NOT GLOB '*[^a-z0-9_]*'),
+    key            TEXT    NOT NULL CHECK (length(key) BETWEEN 1 AND 600),
+    title          TEXT    NOT NULL CHECK (length(title) BETWEEN 1 AND 300),
+    severity       TEXT    NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),
+    cves           TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(cves) AND json_type(cves) = 'array'),
+    -- {description, solution, evidence}: for display only
+    detail         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(detail) AND json_type(detail) = 'object'),
+    state          TEXT    NOT NULL CHECK (state IN ('open', 'gone', 'handled')),
+    -- patched | mitigated | accepted | not_relevant | false_positive (the findings vocabulary)
+    resolution     TEXT    CHECK (resolution IS NULL OR (length(resolution) BETWEEN 1 AND 40 AND resolution NOT GLOB '*[^a-z0-9_]*')),
+    resolved_by    TEXT    CHECK (resolved_by IS NULL OR length(resolved_by) BETWEEN 1 AND 320),
+    resolved_at    TEXT    CHECK (resolved_at IS NULL OR resolved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    note           TEXT    CHECK (note IS NULL OR length(note) BETWEEN 1 AND 500),
+    accepted_until TEXT    CHECK (accepted_until IS NULL OR accepted_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_run_id    TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96),
+    CHECK ((state = 'handled') = (resolution IS NOT NULL)),
+    CHECK ((resolution IS NULL) = (resolved_by IS NULL) AND (resolution IS NULL) = (resolved_at IS NULL)),
+    CHECK (accepted_until IS NULL OR resolution = 'accepted'),
+    CHECK (first_seen <= last_seen)
+);
+
+CREATE UNIQUE INDEX exp_issue_key ON exp_issue (target_id, engine, key, ifnull(service_id, ''));
+
+CREATE INDEX exp_issue_state_idx ON exp_issue (target_id, state);
+
+CREATE INDEX exp_issue_service_idx ON exp_issue (service_id);
+
+CREATE TABLE exp_scan (
+    run_id    TEXT NOT NULL PRIMARY KEY REFERENCES core_run (id) ON DELETE CASCADE,
+    target_id TEXT NOT NULL REFERENCES exp_target (id) ON DELETE CASCADE,
+    mode      TEXT NOT NULL CHECK (mode IN ('surface', 'deep')),
+    summary   TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(summary) AND json_type(summary) = 'object')
+) WITHOUT ROWID;
+
+CREATE INDEX exp_scan_target_idx ON exp_scan (target_id);
 
 CREATE TABLE exp_attempt (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -1673,15 +1784,6 @@ CREATE TABLE exp_outside (
     checked_by TEXT NOT NULL CHECK (length(checked_by) BETWEEN 1 AND 320),
     found      INTEGER NOT NULL CHECK (found IN (0, 1)),
     answer     TEXT NOT NULL CHECK (json_valid(answer) AND json_type(answer) = 'object')
-);
-
-CREATE TABLE exp_engine_run (
-    engine  TEXT NOT NULL PRIMARY KEY CHECK (engine IN ('nuclei', 'zap', 'openvas')),
-    run_id  TEXT NOT NULL CHECK (length(run_id) BETWEEN 1 AND 96),
-    target  TEXT NOT NULL CHECK (length(target) BETWEEN 1 AND 253),
-    at      TEXT NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'partial', 'failed', 'stopped')),
-    text    TEXT NOT NULL CHECK (length(text) BETWEEN 1 AND 300)
 );
 
 CREATE INDEX exp_attempt_ts_idx ON exp_attempt (ts);

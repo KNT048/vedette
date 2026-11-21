@@ -12,19 +12,19 @@ import { useCan } from '@/lib/session'
 import { InfoTip } from '@/components/common/InfoTip'
 import { InfoLine } from './InfoLine'
 import { useCheckOutside, useOutside } from './api'
-import type { OutsideView, Target } from './types'
+import type { OutsideView, TargetNode } from './types'
 import { fmtDateTime } from '@/lib/format'
 
 /** S-EXP-1: "What the Internet sees". Our scan runs from inside the network (NAT loopback); Shodan sees the IP from outside.
  * Nothing is sent until an administrator clicks and then confirms what is sent; every check is a click (no job, no polling). */
-export function OutsidePanel({ target }: { target: Target }) {
+export function OutsidePanel({ node: target }: { node: TargetNode }) {
   const { t } = useTranslation('exposure')
   const admin = useCan('admin')
   const q = useOutside(target.id)
   const check = useCheckOutside()
   const [confirm, setConfirm] = useState(false)
   // Only a verified IP is sent: the box's own that it still goes out through, or a typed one whose proof is found now (the server checks again, INV-21).
-  const eligible = target.status === 'verified' && target.blocked_reason !== 'ip_not_current' && target.blocked_reason !== 'proof_missing'
+  const eligible = target.proof.state === 'proven'
   const reason = !admin ? t('common:needRole', { role: t('common:role.admin') }) : !eligible ? t('outside.notEligible') : undefined
   const v = q.data ?? null
   function send() {

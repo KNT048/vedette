@@ -1746,6 +1746,25 @@ func encodeExposureDeleteExposureTargetsIDTermsResponse(response *ExposureDelete
 	return nil
 }
 
+func encodeExposureDeleteExposureTreeIDResponse(response *ExposureDeleteExposureTreeIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
+func encodeExposureDeleteExposureTreeIDTermsResponse(response *ExposureDeleteExposureTreeIDTermsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeExposureGetExposureGreenboneResponse(response *ExposureGetExposureGreenboneOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1850,7 +1869,137 @@ func encodeExposureGetExposureTargetsIDSnapshotsDateResponse(response *ExposureG
 	return nil
 }
 
+func encodeExposureGetExposureTreeResponse(response *ExposureGetExposureTreeOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDResponse(response *ExposureGetExposureTreeIDOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDAddressesResponse(response *ExposureGetExposureTreeIDAddressesOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDHostsResponse(response *ExposureGetExposureTreeIDHostsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDIssuesResponse(response *ExposureGetExposureTreeIDIssuesOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDScansResponse(response *ExposureGetExposureTreeIDScansOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposureGetExposureTreeIDServicesResponse(response *ExposureGetExposureTreeIDServicesOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePatchExposureTreeIDResponse(response *ExposurePatchExposureTreeIDOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeExposurePostExposureBoxIPVerifyResponse(response *ExposurePostExposureBoxIPVerifyOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePostExposureIssuesHandleResponse(response *ExposurePostExposureIssuesHandleOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePostExposureIssuesReopenResponse(response *ExposurePostExposureIssuesReopenOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -1941,6 +2090,45 @@ func encodeExposurePostExposureTargetsIDVerifyResponse(response *ExposurePostExp
 	return nil
 }
 
+func encodeExposurePostExposureTreeResponse(response *ExposurePostExposureTreeCreated, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(201)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePostExposureTreeIDScanResponse(response *ExposurePostExposureTreeIDScanAccepted, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(202)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeExposurePostExposureTreeIDVerifyResponse(response *ExposurePostExposureTreeIDVerifyOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeExposurePutExposureBoxIPSettingsResponse(response *ExposurePutExposureBoxIPSettingsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1967,7 +2155,7 @@ func encodeExposurePutExposureGreenboneResponse(response *ExposurePutExposureGre
 	return nil
 }
 
-func encodeExposurePutExposureTargetsIDScheduleResponse(response *ExposurePutExposureTargetsIDScheduleOK, w http.ResponseWriter) error {
+func encodeExposurePutExposureTargetsIDTermsResponse(response *ExposurePutExposureTargetsIDTermsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -1980,7 +2168,7 @@ func encodeExposurePutExposureTargetsIDScheduleResponse(response *ExposurePutExp
 	return nil
 }
 
-func encodeExposurePutExposureTargetsIDTermsResponse(response *ExposurePutExposureTargetsIDTermsOK, w http.ResponseWriter) error {
+func encodeExposurePutExposureTreeIDTermsResponse(response *ExposurePutExposureTreeIDTermsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

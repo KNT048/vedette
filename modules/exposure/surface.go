@@ -39,9 +39,11 @@ const (
 	NotWordlistNoAnswer = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because the wildcard check got no answer from the DNS resolver."
 	// NotWordlistCut: some common names got no answer in the time the scan gives DNS lookups.
 	NotWordlistCut = "Common names (a list of about 150, such as vpn, mail and remote): not all tried, because some lookups got no answer from the DNS resolver in time."
-	notIPv6        = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
-	notResolved    = "Names whose address lookup got no answer this time (%s): shown as the last scan found them."
-	notByNameOnly  = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; accept this domain's testing terms (Ownership tab) for the deep scan of each address."
+	// NotWordlistChosen: the scope is the names chosen, so the common names are not tried for the others.
+	NotWordlistChosen = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because this target scans only the names you chose; a name only that list finds is not listed. Scan it once with the scope \"every name found\" to list them."
+	notIPv6           = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
+	notResolved       = "Names whose address lookup got no answer this time (%s): shown as the last scan found them."
+	notByNameOnly     = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; accept this domain's testing terms (Ownership tab) for the deep scan of each address."
 )
 
 // sanitizeHost limits one host row (INV-10): text bounded, a source and kinds from their lists, addresses that parse (the family is
@@ -82,35 +84,12 @@ func sanitizeHost(h HostRow, txt func(string) string) HostRow {
 	return out
 }
 
-// carryHosts keeps, in the newest scan, the previous row of each name whose address lookup got no clear answer this time (INV-27,
-// INV-22): one DNS failure must not read as the name gone (diff, counts, the Surface tab), nor as its addresses moved. The row is
-// marked LookupFailed; a name no earlier scan listed has nothing to carry. One "Not checked" line says how many.
-func carryHosts(c Content, prev Snapshot, hasPrev bool) Content {
-	if len(c.Unresolved) == 0 {
-		return c
+// unresolvedLine says, in "Not checked", how many names got no clear answer to their address lookup this time (INV-27): their rows
+// keep what the scans before saw, and their addresses are not taken as checked.
+func unresolvedLine(c Content) Content {
+	if len(c.Unresolved) > 0 {
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "lookup", Text: fmt.Sprintf(notResolved, plural(len(c.Unresolved), "name"))})
 	}
-	have := map[string]bool{}
-	for _, h := range c.Hosts {
-		have[h.Name] = true
-	}
-	failed := map[string]bool{}
-	for _, n := range c.Unresolved {
-		failed[n] = true
-	}
-	if hasPrev {
-		for _, h := range prev.Hosts {
-			if failed[h.Name] && !have[h.Name] && len(c.Hosts) < maxContentRows {
-				h.LookupFailed = true
-				h.IPs = slices.Clone(h.IPs)
-				for i := range h.IPs { // What the last run's deep scan did is not this run's; when it last ran stays
-					h.IPs[i].Deep, h.IPs[i].NextInLine = "", 0
-				}
-				have[h.Name] = true
-				c.Hosts = append(c.Hosts, h)
-			}
-		}
-	}
-	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "lookup", Text: fmt.Sprintf(notResolved, plural(len(c.Unresolved), "name"))})
 	return c
 }
 

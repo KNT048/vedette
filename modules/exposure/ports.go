@@ -10,15 +10,23 @@ import (
 
 // Event names published by this module (CONTRACT, Events).
 const (
-	EventSnapshotCreated = "exposure.snapshot.created"
-	EventTargetVerified  = "exposure.target.verified"
+	EventScanWritten    = "exposure.scan.written"
+	EventTargetVerified = "exposure.target.verified"
 )
 
-// SnapshotCreatedEvent is the payload of exposure.snapshot.created.
-type SnapshotCreatedEvent struct {
-	TargetID string `json:"target_id"`
-	Date     string `json:"date"`
-	Counts   Counts `json:"counts"`
+// ScanWrittenEvent is the payload of exposure.scan.written: a scan wrote its rows. Opened are the services that are open now and
+// were not before this scan (new, or open again after a scan had closed them); First says the target had no rows before, so
+// everything it found is new and nothing is a change (the baseline).
+type ScanWrittenEvent struct {
+	TargetID string     `json:"target_id"`
+	RunID    string     `json:"run_id"`
+	At       string     `json:"at"` // when the rows were written (RFC 3339 UTC, milliseconds)
+	First    bool       `json:"first"`
+	Counts   ScanCounts `json:"counts"`
+	// Opened and NewIssues name the target that holds each row once the tree settled: a port this scan found on a name its child target
+	// took over while it ran is the child's.
+	Opened    []OpenedService `json:"opened"`
+	NewIssues []NewIssue      `json:"new_issues"` // the issues that are open now and were not before this scan
 }
 
 // TargetVerifiedEvent is the payload of exposure.target.verified: a domain proved, an IP found for the
@@ -68,6 +76,10 @@ type ScanTarget struct {
 	// Proof is, on a domain's scan, the domain target whose record proved it at the gate (the target itself, or a parent of the box
 	// that covers it) with that target's stored token: the host's re-check of a web page asks that domain's record (ZAP).
 	Proof *ProofOwner
+	// Names is, on a domain's scan, which names under it this scan reaches (its scope, without the names its enabled children scan
+	// themselves), read when the scan starts. The runner lists the other names it finds without probing them (Content.Listed); nil on an
+	// IP target.
+	Names *NamePlan
 }
 
 // ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt is set when the

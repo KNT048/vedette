@@ -43,55 +43,59 @@ func ctURL(domain string) string {
 }
 
 // searchCT asks crt.sh for the names under domain, once more when the first answer fails (the service is often busy), and
-// returns them: the domain first, then the others sorted. Names are untrusted: parseCT keeps only valid names under the domain.
-func (s *Scanner) searchCT(ctx context.Context, domain string) ([]string, error) {
+// returns them: the domain first, then the others sorted. Names are untrusted: parseCTScope keeps only valid names under the domain.
+// scans picks the names the scan probes (nil: every name): only those count against maxNames; the others are returned apart
+// (skipped, sorted, at most maxNames of them).
+func (s *Scanner) searchCT(ctx context.Context, domain string, scans func(string) bool) (names, skipped []string, err error) {
 	var last error
 	for range 2 {
-		names, err := s.askCT(ctx, domain)
+		names, skipped, err := s.askCT(ctx, domain, scans)
 		if err == nil || errors.Is(err, ErrTooManyNames) {
-			return names, err
+			return names, skipped, err
 		}
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("%w: %w", ErrCT, ctx.Err())
+			return nil, nil, fmt.Errorf("%w: %w", ErrCT, ctx.Err())
 		}
 		last = err
 	}
-	return nil, fmt.Errorf("%w: %w", ErrCT, last)
+	return nil, nil, fmt.Errorf("%w: %w", ErrCT, last)
 }
 
-func (s *Scanner) askCT(ctx context.Context, domain string) ([]string, error) {
+func (s *Scanner) askCT(ctx context.Context, domain string, scans func(string) bool) ([]string, []string, error) {
 	ctx, cancel := context.WithTimeout(ctx, ctTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ctURL(domain), nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	resp, err := s.ct.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK { // a redirect is not followed (the client's CheckRedirect): it lands here
-		return nil, fmt.Errorf("crt.sh answered %d", resp.StatusCode)
+		return nil, nil, fmt.Errorf("crt.sh answered %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxCTBody+1))
 	if err != nil {
-		return nil, fmt.Errorf("reading crt.sh: %w", err)
+		return nil, nil, fmt.Errorf("reading crt.sh: %w", err)
 	}
-	return parseCT(body, domain, maxCTBody)
+	return parseCTScope(body, domain, maxCTBody, scans)
 }
 
-// parseCT reads crt.sh's JSON (an array of certificates; name_value holds the names of one, one a line), at most limit bytes and
+// parseCTScope reads crt.sh's JSON (an array of certificates; name_value holds the names of one, one a line), at most limit bytes and
 // maxCTEntry bytes a certificate, and returns every distinct valid name under domain: the domain first, the others sorted.
 // Wildcards, e-mail addresses, other domains and anything that is not a host name are dropped. A body that is not that JSON,
 // or an entry over maxCTEntry, is an error (fail closed); over limit, or over maxNames names, is ErrTooManyNames: nothing is
-// cut, so the same logs give the same names every day.
-func parseCT(body []byte, domain string, limit int) ([]string, error) {
+// cut, so the same logs give the same names every day. Only the names scans accepts (nil: all) count against maxNames and are returned
+// first; the others are returned apart, sorted, at most maxNames of them (a listing, not a scan: one past the bound is left out).
+func parseCTScope(body []byte, domain string, limit int, scans func(string) bool) ([]string, []string, error) {
 	if len(body) > limit {
-		return nil, ErrTooManyNames
+		return nil, nil, ErrTooManyNames
 	}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	seen := map[string]bool{domain: true}
+	other := map[string]bool{}
 	add := func(raw json.RawMessage) error {
 		if len(raw) == 0 {
 			return nil
@@ -105,8 +109,12 @@ func parseCT(body []byte, domain string, limit int) ([]string, error) {
 		}
 		for n := range strings.SplitSeq(v, "\n") {
 			n = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(n)), ".")
-			if len(n) <= 253 && nameRE.MatchString(n) && strings.HasSuffix(n, "."+domain) {
+			switch {
+			case len(n) > 253 || !nameRE.MatchString(n) || !strings.HasSuffix(n, "."+domain):
+			case scans == nil || scans(n):
 				seen[n] = true
+			case len(other) < maxNames:
+				other[n] = true
 			}
 		}
 		if len(seen) > maxNames {
@@ -115,7 +123,7 @@ func parseCT(body []byte, domain string, limit int) ([]string, error) {
 		return nil
 	}
 	if t, err := dec.Token(); err != nil || t != json.Delim('[') {
-		return nil, errors.New("the answer is not a JSON array")
+		return nil, nil, errors.New("the answer is not a JSON array")
 	}
 	for dec.More() {
 		var e struct {
@@ -123,21 +131,21 @@ func parseCT(body []byte, domain string, limit int) ([]string, error) {
 			CommonName json.RawMessage `json:"common_name"`
 		}
 		if err := dec.Decode(&e); err != nil {
-			return nil, fmt.Errorf("reading the answer: %w", err)
+			return nil, nil, fmt.Errorf("reading the answer: %w", err)
 		}
 		for _, raw := range []json.RawMessage{e.CommonName, e.NameValue} {
 			if string(raw) == "null" {
 				continue
 			}
 			if err := add(raw); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
 	if t, err := dec.Token(); err != nil || t != json.Delim(']') {
-		return nil, errors.New("the answer is not a whole JSON array")
+		return nil, nil, errors.New("the answer is not a whole JSON array")
 	}
 	delete(seen, domain)
 	names := slices.Sorted(maps.Keys(seen))
-	return append([]string{domain}, names...), nil
+	return append([]string{domain}, names...), slices.Sorted(maps.Keys(other)), nil
 }

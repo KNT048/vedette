@@ -74,9 +74,7 @@ func windowRuleClaims(d csafDoc) []string {
 		for _, n := range v.Notes {
 			texts = append(texts, n.Text)
 		}
-		for _, r := range v.References {
-			texts = append(texts, r)
-		}
+		texts = append(texts, v.References...)
 	}
 	var out []string
 	for _, text := range texts {

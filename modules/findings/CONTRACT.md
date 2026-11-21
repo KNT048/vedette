@@ -68,6 +68,14 @@ readers until they read the view of the finding; nothing of it is stored.
   counts the findings whose readers name another fixed version (the finding page agrees with the stored fix; the list row's grouped
   release does not yet). Selfcheck `findings.cve_in_catalogue`, `findings.catalogue_retention`, `findings.range_precedence` (run on a
   whole database: they read feeds' tables).
+- **M-9 One urgency.** `Urgency(cve, facts, target, attacks, now)` is the only rule of a finding's layer: 1 an intrusion alert in the
+  last 14 days named the CVE at the device or anywhere while it is affected; 2 a qualifying exploited signal (an exploited list's entry
+  is one); 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network vector, no privileges, SSVC automatable not "no", on an edge product
+  class (`EdgeClass`) or device type (`EdgeDevice`); 5 the rest. The pass (`RateUrgency`, job `urgency`, and a device's own match write)
+  stores it raising and lowering (`urgency_changed`); a lowering is never told, a handled finding is never told, an open one entering
+  layers 1–4 is announced once (news: `Rating.News` or created by the same device write; else under the Backlog mark). Readers name a
+  finding by its stored layer (`LayerCode`, `Finding.Exploited`): a finding above layer 2 is never called exploited. Selfcheck
+  `findings.urgency_recomputed`. `TestUrgency_*`, `TestRateUrgency_*`, cmd/vedette `TestUrgencyWiring_*`, `TestReadersNeverCallAFindingAboveLayerTwoExploited`.
 - **M-9 Vendor rows and distribution fixes.** A vendor that states its versions in its own notation is read through the product's
   version scheme (`core/versionscheme`, declared in the product catalogue: ESXi, NetScaler, Linux kernel, Java, Junos): when its rows
   (`Vuln.Schemed`) reach the line's release line and the scheme places the line's version (an ESXi host's build from its own

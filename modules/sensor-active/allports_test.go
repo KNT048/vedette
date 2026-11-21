@@ -214,7 +214,8 @@ func TestAllPortsAddsPortsKeepsSoftwareAndTheNextWeekReplacesTheCarry(t *testing
 	if got := e.webPorts(); !slices.Equal(got, []int{22, 80, 8080, 40000}) {
 		t.Fatalf("a normal scan after the weekly one: %v", got)
 	}
-	// a week later the weekly run no longer sees 40000 (device.xml): the carry is replaced, the next normal scan drops the port
+	// a week later the weekly run no longer sees 40000 (it looked at every port): the port is removed by that run itself
+	e.nm = writeFakeNmap(t, fakeOpts{always: absFixture(t, "allports_gone.xml")})
 	e.setBase(e.baseTime().Add(7*24*time.Hour + time.Minute))
 	e.build()
 	if err := e.svc.Tick(e.ctx()); err != nil {
@@ -274,9 +275,9 @@ func TestAllPortsVersionChangeReachesSoftwareAndServices(t *testing.T) {
 	}
 }
 
-// With no later weekly run, a port the weekly run found is carried by the normal scans for 14 days after that
-// run, not for ever.
-func TestAllPortsCarryEndsAfter14Days(t *testing.T) {
+// A normal scan replaces only the ports it looked at: a port the weekly run found outside them stays, and the scan asks the
+// inventory to drop it once the weekly run has not seen it for 14 days.
+func TestNormalScanKeepsThePortsOfTheWeeklyRunFor14Days(t *testing.T) {
 	t.Parallel()
 	e := allPortsEnv(t)
 	if err := e.svc.Tick(e.ctx()); err != nil {
@@ -289,14 +290,13 @@ func TestAllPortsCarryEndsAfter14Days(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := e.webPorts(); !slices.Contains(got, 40000) {
-		t.Fatalf("13 days after the weekly run: %v", got)
+		t.Fatalf("a normal scan removed a port it did not look at: %v", got)
 	}
-	e.setBase(e.baseTime().Add(2 * 24 * time.Hour))
-	if err := e.svc.ScanDevice(e.ctx(), "a-web", "again"); err != nil {
-		t.Fatal(err)
-	}
-	if got := e.webPorts(); slices.Contains(got, 40000) {
-		t.Fatalf("15 days after the weekly run the port is still carried: %v", got)
+	e.sink.mu.Lock()
+	defer e.sink.mu.Unlock()
+	last := e.sink.scopes[len(e.sink.scopes)-1]
+	if last.KeepFor != 14*24*time.Hour || last.NoVersions || len(last.Ports) == 0 || slices.ContainsFunc(last.Ports, func(r observe.PortRange) bool { return 40000 >= r.From && 40000 <= r.To }) {
+		t.Fatalf("the normal scan's scope: %+v", last)
 	}
 }
 
@@ -602,7 +602,7 @@ func TestAllPortsStoppedDuringTheFollowUpRecordsNothing(t *testing.T) {
 	if err := <-tick; err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(e.webPorts(), 40000) || e.count(`SELECT count(*) FROM sa_all_ports WHERE asset_id = 'a-web' AND (last_at IS NOT NULL OR extra_at IS NOT NULL)`) != 0 {
+	if slices.Contains(e.webPorts(), 40000) || e.count(`SELECT count(*) FROM sa_all_ports WHERE asset_id = 'a-web' AND last_at IS NOT NULL`) != 0 || e.count(`SELECT count(*) FROM sa_port_read WHERE port = 40000`) != 0 {
 		t.Fatalf("the stopped weekly run was recorded: ports %v", e.webPorts())
 	}
 }
@@ -667,5 +667,56 @@ func TestAllPortsCleanupKeepsADeviceWithoutAnAddress(t *testing.T) {
 	}
 	if got := e.str(`SELECT group_concat(asset_id, ',') FROM sa_all_ports`); got != "a-web" {
 		t.Fatalf("rows %q, want only a-web's", got)
+	}
+}
+
+// jsonCopies counts the JSON cells the module's own tables hold for a device: a column whose CHECK says json_valid and whose value
+// is not an empty list or object. What the scans found about a device belongs to the inventory, so after a normal scan and a weekly
+// run of every port there are none (before the inventory had a scoped replace of services, the weekly state kept its own copies).
+func (e *env) jsonCopies() int {
+	e.t.Helper()
+	rows, err := e.db.Reader().QueryContext(e.ctx(), `SELECT m.name, c.name FROM sqlite_master m, pragma_table_info(m.name) c
+		WHERE m.type = 'table' AND m.name LIKE 'sa\_%' ESCAPE '\' AND instr(m.sql, 'json_valid(' || c.name || ')') > 0`)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	var cols [][2]string
+	for rows.Next() {
+		var c [2]string
+		if err := rows.Scan(&c[0], &c[1]); err != nil {
+			e.t.Fatal(err)
+		}
+		cols = append(cols, c)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		e.t.Fatal(err)
+	}
+	n := 0
+	for _, c := range cols {
+		n += e.count(fmt.Sprintf(`SELECT count(*) FROM %s WHERE %s IS NOT NULL AND %s NOT IN ('[]', '{}')`, c[0], c[1], c[1]))
+	}
+	return n
+}
+
+func TestNoPerDeviceJSONCopiesAfterAScan(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	weekly := e.nm
+	e.nm = writeFakeNmap(t, fakeOpts{})
+	e.build()
+	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
+		t.Fatal(err)
+	}
+	e.nm = weekly
+	e.build()
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.webPorts(); !slices.Contains(got, 40000) {
+		t.Fatalf("the weekly run found nothing: %v", got)
+	}
+	t.Logf("per-device JSON copies after a normal scan and a weekly run: %d", e.jsonCopies())
+	if n := e.jsonCopies(); n != 0 {
+		t.Fatalf("%d per-device JSON copies in the module's tables", n)
 	}
 }

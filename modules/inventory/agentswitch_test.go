@@ -32,7 +32,7 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	nginx := observe.Software{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.24.0", Confidence: 1, Packaged: true}
 	send(observe.Osquery, ssh("9.6p1", ""), nginx)
 	send(observe.Nmap, ssh("9.6p1", "tcp/22"))
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 1}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
 	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Ubuntu 24.04", Source: observe.Agent, Confidence: 1},
@@ -84,7 +84,7 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	// refused: a new list, open ports and observations of the agents do not reach the device
 	send(observe.Osquery, ssh("9.9p1", ""), nginx)
 	send(observe.Wazuh, nginx)
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, []observe.Service{{Port: 443, Proto: "tcp", Confidence: 1}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, []observe.Service{{Port: 443, Proto: "tcp", Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
 	e.record(observe.Observation{AssetHint: hint, Field: observe.Hostname, Value: "agent-name", Source: observe.Agent, Confidence: 1})

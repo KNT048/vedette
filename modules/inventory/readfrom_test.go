@@ -68,7 +68,7 @@ func TestContract_ADeviceHintIsRefusedOutsideRecord(t *testing.T) {
 	for name, err := range map[string]error{
 		"ReplaceSoftware": e.svc.ReplaceSoftware(e.ctx(), h, observe.SNMP, nil, sw),
 		"AddServices":     e.svc.AddServices(e.ctx(), h, observe.SNMP, svc),
-		"ReplaceServices": e.svc.ReplaceServices(e.ctx(), h, observe.Nmap, svc),
+		"ReplaceServices": e.svc.ReplaceServices(e.ctx(), h, observe.Nmap, observe.ServiceScope{}, svc),
 		"ApproveEnrolled": func() error { _, err := e.svc.ApproveEnrolled(e.ctx(), h, "", "test", false); return err }(),
 	} {
 		if err == nil {

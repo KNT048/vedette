@@ -214,6 +214,11 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 		return
 	}
 	d.Fix = FixOf(a, l.sw, v)
+	if d.Basis != DetectScan && d.Basis != DetectPackage {
+		if r, ok := schemeJudge(a, l.sw, newSWInfo(l.sw, a.OS), v); ok && r.origin != "" { // the vendor's rows decided it
+			d.RangeOrigin = r.origin
+		}
+	}
 	if d.ProductKey == "" {
 		d.ProductKey = "unknown"
 	}

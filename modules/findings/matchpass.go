@@ -24,6 +24,9 @@ type MatchScope struct {
 	records map[string]bool // the lines' names as a CVE record writes them (recordIdentity)
 	// Pinned are the CVEs of the findings the devices have (any state).
 	Pinned []string
+	// Packages are the devices' distribution packages as the distributions' security data names them (DevicePackages): a CVE a
+	// distribution fixed in one of them is compared even before NVD names the upstream product.
+	Packages []DistroPackage
 }
 
 // DistroPackage is a source package of one release as the distributions' security data names it.
@@ -32,7 +35,16 @@ type DistroPackage struct{ Distro, Release, Package string }
 // NewMatchScope collects the products of every software line of assets, the network OS they state included.
 func NewMatchScope(assets []Asset, pinned []string) MatchScope {
 	sc := MatchScope{keys: map[string]bool{}, records: map[string]bool{}, Pinned: pinned}
+	seenPkg := map[DistroPackage]bool{}
 	for _, a := range assets {
+		if d, rel, pkgs := DevicePackages(a); d != "" {
+			for _, p := range pkgs {
+				if k := (DistroPackage{Distro: d, Release: rel, Package: p}); !seenPkg[k] {
+					seenPkg[k] = true
+					sc.Packages = append(sc.Packages, k)
+				}
+			}
+		}
 		for _, s := range deviceSoftware(a) {
 			in := newSWInfo(s, a.OS)
 			if _, win := winDevice(in); win {
@@ -81,8 +93,10 @@ func (sc MatchScope) Keep(vendor, product string, record bool) bool {
 	return false
 }
 
-// Empty says the devices run nothing a range could name.
-func (sc MatchScope) Empty() bool { return len(sc.keys) == 0 && len(sc.prefix) == 0 && !sc.windows }
+// Empty says the devices run nothing a range or a distribution's data could name.
+func (sc MatchScope) Empty() bool {
+	return len(sc.keys) == 0 && len(sc.prefix) == 0 && !sc.windows && len(sc.Packages) == 0
+}
 
 // matchSet is the list one pass compares with, indexed so that each device is compared only with the entries that can concern it:
 // every exploited-list entry (CISA's key reaches a row by its name) and the catalogue CVEs whose ranges name a vendor of one of its
@@ -96,15 +110,13 @@ type matchSet struct {
 func newMatchSet(vulns []Vuln) *matchSet {
 	m := &matchSet{vulns: vulns, byVendor: map[string][]int{}}
 	for i, v := range vulns {
-		if v.Vendor != "" || v.Product != "" || len(v.Affected) == 0 {
+		if v.Vendor != "" || v.Product != "" || len(entryVendors(v)) == 0 {
 			m.listed = append(m.listed, i)
 			continue
 		}
-		for _, af := range v.Affected {
-			if vn := cpeVendor(af); vn != "" {
-				if l := m.byVendor[vn]; len(l) == 0 || l[len(l)-1] != i {
-					m.byVendor[vn] = append(l, i)
-				}
+		for _, vn := range entryVendors(v) {
+			if l := m.byVendor[vn]; len(l) == 0 || l[len(l)-1] != i {
+				m.byVendor[vn] = append(l, i)
 			}
 		}
 	}

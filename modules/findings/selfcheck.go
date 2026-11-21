@@ -54,10 +54,12 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
 			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
 	},
-	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for
+	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for, unless the
+		// record's rows are a vendor's own notation, which a version scheme reads before NVD's generic rows (vendorscheme.go)
 		Name: "findings.range_precedence",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
-			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`,
+			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')
+			AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = f.range_origin AND r.version_type LIKE 'vendor:%')`,
 	},
 }
 

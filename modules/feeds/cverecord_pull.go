@@ -65,7 +65,22 @@ const (
 	recordReadReserve = 4 * time.Minute
 	// selectorRecord is the CVE records' row of feeds_nvd_cursor (where the paged pulls stand).
 	selectorRecord = "cve_record"
+	// recordReader is the revision of the reader that turns a record into ranges (recordRanges), stamped on the cursor's address
+	// (recordCursorURL). Records are not stored whole, so a box whose records an older reader read reads the whole list again, once,
+	// when this changes: "ranges-2" keeps the versions a vendor writes in its own notation (statedRows).
+	recordReader = "ranges-2"
+	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
+	recordRereadMark = "-reread"
 )
+
+// recordCursorURL is the cursor's address for a feed address: the feed's, stamped with the reader's revision.
+func recordCursorURL(feedURL string) string { return feedURL + "#" + recordReader }
+
+// recordCursorFeed is the feed address of a cursor's address (without the reader's stamp).
+func recordCursorFeed(cursorURL string) string {
+	u, _, _ := strings.Cut(cursorURL, "#")
+	return u
+}
 
 // recordPause is the wait between two records asked for by ID (a second, as the repository's raw files are a shared service);
 // recordLeftPause between the change log's leftovers; recordRetryWaits the waits before the second and third try of a record the
@@ -381,11 +396,13 @@ func (s *Store) recordsOwed(ctx context.Context, feedURL string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return cur == nil || cur.Mode == modeFill || cur.URL != feedURL, nil
+	return cur == nil || cur.Mode == modeFill || cur.URL != recordCursorURL(feedURL), nil
 }
 
-// recordsBulk loads the whole list when the box has none, its data is older than the change log reaches, its address changed, or many
-// listed CVEs have no record; otherwise it reads the changes, at most every recordDeltaEvery.
+// recordsBulk loads the whole list when the box has none, its data is older than the change log reaches, its address changed, an older
+// reader read the stored records (recordReader), or many listed CVEs have no record; otherwise it reads the changes, at most every
+// recordDeltaEvery. The read after a reader change replaces every stored record and goes back to the archive's midnight, so the
+// changes since are read again through the change log; it is resumable like any read of the whole list.
 func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time) error {
 	cur, err := s.st.nvdCursor(ctx, selectorRecord)
 	if err != nil {
@@ -400,24 +417,28 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 		return err
 	}
 	switch {
-	case cur == nil || cur.URL != run.src.URL || now.Sub(cur.Until) > recordArchiveKeep:
+	case cur == nil || recordCursorFeed(cur.URL) != run.src.URL || now.Sub(cur.Until) > recordArchiveKeep:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
-		return s.recordsWhole(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: day}, now)
+		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: day}, now)
 	case cur.Mode == modeFill:
 		c := *cur
 		if now.Sub(c.From) > recordArchiveKeep { // that day's archive is gone: a newer one
 			day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
-			c = recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: day}
+			c = recentCursor{URL: c.URL, Mode: modeFill, From: day, To: day, Until: day}
 		}
 		return s.recordsWhole(ctx, run, c, now)
+	case cur.URL != recordCursorURL(run.src.URL): // an older reader read the stored records
+		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+		run.notes = append(run.notes, "Vedette reads CVE records in a newer way: reading the whole list again.")
+		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL) + recordRereadMark, Mode: modeFill, From: day, To: day, Until: day}, now)
 	case waiting > 0 && now.Sub(cur.From) >= recordRescanAgain:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		run.notes = append(run.notes, fmt.Sprintf("%s changed records wait for a read of the whole list: reading it again.", grouped(waiting)))
-		return s.recordsWhole(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
+		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 	case unread >= recordRescanUnread && now.Sub(cur.From) >= recordRescanAgain:
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		run.notes = append(run.notes, fmt.Sprintf("%s listed CVEs had no record: reading the whole list again.", grouped(unread)))
-		return s.recordsWhole(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
+		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 	case now.Sub(cur.To) >= recordDeltaEvery:
 		return s.recordsChanges(ctx, run, *cur, now)
 	}
@@ -474,7 +495,7 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 		return errRecordsLater
 	}
 	midnight := cur.From.UTC().Truncate(24 * time.Hour)
-	if err := s.readArchive(ctx, run, path, midnight, now); err != nil {
+	if err := s.readArchive(ctx, run, path, midnight, now, strings.HasSuffix(cur.URL, recordRereadMark)); err != nil {
 		if errors.Is(err, errArchive) { // a damaged file: download it again
 			_ = os.Remove(path)
 			cur.NextIndex, cur.Total = 0, 0
@@ -490,7 +511,7 @@ func (s *Service) recordsWhole(ctx context.Context, run *recordRun, cur recentCu
 	if err := s.stampNotInList(ctx, run, now); err != nil {
 		return err
 	}
-	return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeDone, From: midnight, To: time.Time{}, Until: until})
+	return s.saveRecordCursor(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeDone, From: midnight, To: time.Time{}, Until: until})
 }
 
 // stampNotInList stamps the kept CVEs a complete read of the whole list did not hold (an id the CVE Program never published, or one a
@@ -661,7 +682,7 @@ func (s *Service) throttledCopy(ctx context.Context, w io.Writer, r io.Reader) (
 
 // readArchive reads the daily archive at path and stores the records the catalogue keeps, recordBatch a transaction. A record of a CVE
 // the catalogue does not hold is read only to learn whether it was published inside the window.
-func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, midnight, now time.Time) error {
+func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, midnight, now time.Time, all bool) error {
 	f, err := os.Open(path) //nolint:gosec // path is the module's own work file (recordWorkDir and a day's name)
 	if err != nil {
 		return diskError(err)
@@ -679,10 +700,13 @@ func (s *Service) readArchive(ctx context.Context, run *recordRun, path string, 
 	if err != nil {
 		return err
 	}
-	// a record read after the archive's midnight (by ID, or from a later day's changes) is newer than the archive's: it stays
-	newer, err := stringSet(ctx, s.DB.Reader(), `SELECT cve FROM feeds_cve WHERE record_at > ?`, store.FormatTS(midnight))
-	if err != nil {
-		return err
+	// a record read after the archive's midnight (by ID, or from a later day's changes) is newer than the archive's: it stays, unless
+	// the read replaces every record (all: an older reader read them; the changes since midnight are read again after it)
+	newer := map[string]bool{}
+	if !all {
+		if newer, err = stringSet(ctx, s.DB.Reader(), `SELECT cve FROM feeds_cve WHERE record_at > ?`, store.FormatTS(midnight)); err != nil {
+			return err
+		}
 	}
 	var batch []CVERecord
 	flush := func() error {
@@ -844,7 +868,7 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 	if cur.Until.Before(oldest) { // the log does not reach back to the data: load the whole list again
 		run.notes = append(run.notes, "The CVE Program's change log no longer reaches back to this box's data: loading the whole list again.")
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
-		return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until})
+		return s.saveRecordCursor(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until})
 	}
 	pinned, err := s.pinned(ctx)
 	if err != nil {
@@ -933,7 +957,7 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 	if gone && closedLeft > recordLeftPerPull { // whole days are missing: the whole list, not thousands of single requests
 		run.notes = append(run.notes, "The CVE Program's files of changed records no longer reach back to this box's data: loading the whole list again.")
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
-		return s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeFill, From: day, To: day, Until: cur.Until})
+		return s.saveRecordCursor(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until})
 	}
 	if len(waits) > 0 {
 		if err := s.markRecordsWaiting(ctx, run, waits); err != nil {
@@ -972,7 +996,7 @@ func (s *Service) recordsChanges(ctx context.Context, run *recordRun, cur recent
 		}
 		until, i = pending[i].fetch, j
 	}
-	if serr := s.saveRecordCursor(ctx, run, recentCursor{URL: run.src.URL, Mode: modeDone, From: cur.From, To: cur.To, Until: until}); serr != nil {
+	if serr := s.saveRecordCursor(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeDone, From: cur.From, To: cur.To, Until: until}); serr != nil {
 		return serr
 	}
 	return gerr

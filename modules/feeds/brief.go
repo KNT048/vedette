@@ -12,6 +12,7 @@ import (
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Brief is everything the box knows about one CVE, in one read model: the CVE page, the summary card of a finding, the AI context,
@@ -37,8 +38,12 @@ type Brief struct {
 	Ranges []BriefRange
 	// RangesFrom is the origin of the rows that count (OriginNVD, OriginCNA, OriginADP; "" when none); RangesComplete says, for the
 	// CVE record's rows, whether every product's list says what an unlisted version is.
-	RangesFrom           string
-	RangesComplete       bool
+	RangesFrom     string
+	RangesComplete bool
+	// Fixes is the fixed release of each release train the ranges state, as the product's version scheme reads them (RangeScheme):
+	// VMware's 8.0 U3d (build 24585383) for train 8.0 U3. One per product and train, the vendor's (CNA, ADP) before NVD's; none for a
+	// product without a scheme. A row a scheme does not read keeps its fixed release in Ranges.
+	Fixes                []BriefFix
 	References           []Reference // grouped: ordered by Group (refGroups), then by address
 	Solution, Workaround string      // the CNA's text; "" when the record has none
 	SSVC                 SSVC
@@ -74,11 +79,14 @@ type BriefSignal struct {
 }
 
 // BriefRange is one affected-versions row read for people: Versions says which versions in words ("from 2.0 before 2.4.58",
-// "7.0 update_1", "every version").
+// "7.0 update_1", "every version"; a row its product's version scheme reads in the scheme's words: "from 8.0 before 8.0 U3d (build
+// 24585383)"). Train is the release train the row's end belongs to ("8.0 U3") and FixedRelease its fixed release ("8.0 U3d (build
+// 24585383)"), as the scheme reads them; "" when no scheme reads the row.
 type BriefRange struct {
 	Range
-	Counts   bool
-	Versions string
+	Counts              bool
+	Versions            string
+	Train, FixedRelease string
 }
 
 // Reference is one reference of the CVE: its address, its tags in the CVE record's words, who gave it (nvd, cna, adp) and the one
@@ -204,6 +212,7 @@ ssvc_exploitation, ssvc_automatable, ssvc_impact FROM feeds_cve WHERE cve = ?`, 
 		return Brief{}, false, err
 	}
 	b.Ranges, b.RangesFrom, b.RangesComplete = briefRanges(rows)
+	b.Fixes = briefFixes(b.Ranges)
 	b.Products = rangeProducts(b.Ranges)
 	if len(b.Lists) > 0 {
 		b.Display = b.Lists[0].Display
@@ -280,7 +289,8 @@ func sourceNames(ctx context.Context, q queryer) (map[string]string, error) {
 	return out, rows.Err()
 }
 
-// briefRanges marks the rows that count (rangeOrigin) and words each row's versions. The rows that count come first.
+// briefRanges marks the rows that count (rangeOrigin) and words each row's versions, in its product's version scheme when one reads
+// it. The rows that count come first.
 func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 	counting := rangeOrigin(slices.Clone(rows))
 	if len(counting) > 0 {
@@ -289,12 +299,14 @@ func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 	complete = from != "" && from != OriginNVD
 	out = make([]BriefRange, 0, len(rows))
 	for _, r := range rows {
-		counts := from != OriginNVD || r.Origin == OriginNVD // rangeOrigin: NVD's rows when there are any, else every row
+		// rangeOrigin: NVD's rows when there are any, else every row the generic comparison reads
+		counts := r.Generic() && (from != OriginNVD || r.Origin == OriginNVD)
 		if counts && r.Origin != OriginNVD && r.DefaultStatus != DefaultAffected && r.DefaultStatus != DefaultUnaffected {
 			complete = false
 		}
 		out = append(out, BriefRange{Range: r, Counts: counts, Versions: rangeVersions(r)})
 	}
+	schemeWords(out)
 	slices.SortStableFunc(out, func(a, b BriefRange) int {
 		if a.Counts == b.Counts {
 			return 0
@@ -305,6 +317,86 @@ func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 		return 1
 	})
 	return out, from, complete
+}
+
+// schemeWords words the rows their product's version scheme reads (RangeScheme): their versions in the scheme's words, their train and
+// fixed release. A train two of a product's rows end in at different releases (versionscheme.Conflicts: NetScaler's FIPS build
+// written without the word) is named for none of them: those rows keep their words as written.
+func schemeWords(rows []BriefRange) {
+	type read struct {
+		i     int
+		sp    versionscheme.Span
+		fixed *versionscheme.Version
+	}
+	byProduct := map[[3]string][]read{}
+	var order [][3]string
+	for i, r := range rows {
+		if _, sp, fixed, ok := RangeScheme(r.Range); ok {
+			k := [3]string{r.Part, r.Vendor, r.Product}
+			if _, seen := byProduct[k]; !seen {
+				order = append(order, k)
+			}
+			byProduct[k] = append(byProduct[k], read{i, sp, fixed})
+		}
+	}
+	for _, k := range order {
+		reads := byProduct[k]
+		spans := make([]versionscheme.Span, len(reads))
+		for j, rd := range reads {
+			spans[j] = rd.sp
+		}
+		conflicts := versionscheme.Conflicts(spans)
+		for _, rd := range reads {
+			if rd.sp.End != nil && conflicts[rd.sp.End.Train] {
+				continue
+			}
+			br := &rows[rd.i]
+			br.Versions = schemeVersions(rd.sp, br.Versions)
+			if rd.sp.End != nil {
+				br.Train = rd.sp.End.Train
+			}
+			if rd.fixed != nil {
+				br.Train, br.FixedRelease = rd.fixed.Train, rd.fixed.Display
+			}
+		}
+	}
+}
+
+// schemeVersions words a range its product's scheme reads: its bounds in the scheme's words ("from 8.0 before 8.0 U3d (build
+// 24585383)"); words when it has no bound.
+func schemeVersions(sp versionscheme.Span, words string) string {
+	var parts []string
+	if sp.Start != nil {
+		parts = append(parts, "from "+sp.Start.Display)
+	}
+	if sp.End != nil {
+		w := "before "
+		if sp.EndIncl {
+			w = "up to "
+		}
+		parts = append(parts, w+sp.End.Display)
+	}
+	if len(parts) == 0 {
+		return words
+	}
+	return strings.Join(parts, " ")
+}
+
+// briefFixes is the fixed release of each product and train the rows state (BriefRange.FixedRelease), the vendor's first.
+func briefFixes(rows []BriefRange) []BriefFix {
+	out := []BriefFix{}
+	for _, nvd := range []bool{false, true} {
+		for _, r := range rows {
+			if r.FixedRelease == "" || (r.Origin == OriginNVD) != nvd {
+				continue
+			}
+			f := BriefFix{Vendor: r.Vendor, Product: r.Product, Origin: r.Origin, Train: r.Train, Release: r.FixedRelease}
+			if !slices.ContainsFunc(out, func(g BriefFix) bool { return g.Vendor == f.Vendor && g.Product == f.Product && g.Train == f.Train }) {
+				out = append(out, f)
+			}
+		}
+	}
+	return out
 }
 
 // rangeProducts is the distinct "vendor product" of the rows that count.
@@ -464,6 +556,7 @@ type briefDTO struct {
 	Lists          []listDTO       `json:"lists"`
 	Signals        []signalDTO     `json:"signals"`
 	Ranges         []rangeDTO      `json:"ranges"`
+	Fixes          []fixDTO        `json:"fixes"`
 	RangesFrom     *string         `json:"ranges_from"`
 	RangesComplete bool            `json:"ranges_complete"`
 	References     []referenceDTO  `json:"references"`
@@ -556,6 +649,16 @@ type rangeDTO struct {
 	DefaultStatus string   `json:"default_status"`
 	Platforms     []string `json:"platforms"`
 	Versions      string   `json:"versions"`
+	Train         string   `json:"train"`
+	FixedRelease  string   `json:"fixed_release"`
+}
+
+type fixDTO struct {
+	Vendor  string `json:"vendor"`
+	Product string `json:"product"`
+	Origin  string `json:"origin"`
+	Train   string `json:"train"`
+	Release string `json:"release"`
 }
 
 type referenceDTO struct {
@@ -629,7 +732,7 @@ func flatDetail(raw json.RawMessage) map[string]any {
 func toBriefDTO(b Brief) briefDTO {
 	out := briefDTO{CVE: b.CVE, Title: orNull(b.Title), Description: b.Description, Display: orNull(b.Display), Products: b.Products,
 		Published: dayOf(b.Published), Modified: dayOf(b.Modified), NVDStatus: orNull(b.NVDStatus), NVDCheckedAt: b.NVDAt, RecordReadAt: b.RecordAt,
-		CWE: []weaknessDTO{}, Scores: []scoreDTO{}, Lists: []listDTO{}, Signals: []signalDTO{}, Ranges: []rangeDTO{}, RangesFrom: orNull(b.RangesFrom),
+		CWE: []weaknessDTO{}, Scores: []scoreDTO{}, Lists: []listDTO{}, Signals: []signalDTO{}, Ranges: []rangeDTO{}, Fixes: []fixDTO{}, RangesFrom: orNull(b.RangesFrom),
 		RangesComplete: b.RangesComplete, References: []referenceDTO{}, Solution: orNull(b.Solution), Workaround: orNull(b.Workaround),
 		SSVC:   ssvcDTO{Exploitation: orNull(b.SSVC.Exploitation), Automatable: orNull(b.SSVC.Automatable), TechnicalImpact: orNull(b.SSVC.Impact)},
 		NVDURL: b.NVDURL, RecordURL: b.RecordURL}
@@ -666,7 +769,10 @@ func toBriefDTO(b Brief) briefDTO {
 		}
 		out.Ranges = append(out.Ranges, rangeDTO{Origin: r.Origin, Counts: r.Counts, Part: r.Part, Vendor: r.Vendor, Product: r.Product, CPE: r.CPE,
 			StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl, Fixed: r.Fixed, VersionType: r.VersionType,
-			DefaultStatus: r.DefaultStatus, Platforms: plats, Versions: r.Versions})
+			DefaultStatus: r.DefaultStatus, Platforms: plats, Versions: r.Versions, Train: r.Train, FixedRelease: r.FixedRelease})
+	}
+	for _, f := range b.Fixes {
+		out.Fixes = append(out.Fixes, fixDTO(f))
 	}
 	for _, r := range b.References {
 		out.References = append(out.References, referenceDTO(r))

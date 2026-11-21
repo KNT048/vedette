@@ -1,14 +1,13 @@
 package sensoractive
 
 import (
-	"encoding/json"
 	"net/netip"
 	"slices"
 	"strings"
 	"testing"
 
-	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/versionscheme"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
@@ -109,22 +108,18 @@ func TestGentleShapeRunsNoFirmwareScript(t *testing.T) {
 	}
 }
 
-// The ESXi build table: every row names a release by version and an update NVD writes, and the build of the customer's host is in it.
+// The ESXi build table (core/versionscheme): every row names a release by version and an update NVD writes, and the build of the
+// customer's host is in it.
 func TestESXiBuildsData(t *testing.T) {
 	t.Parallel()
-	var f struct {
-		Builds map[string]esxiBuild `json:"builds"`
-	}
-	if err := json.Unmarshal(catalogdata.ESXiBuilds, &f); err != nil {
-		t.Fatal(err)
-	}
-	for b, r := range f.Builds {
+	builds := versionscheme.ESXiBuilds()
+	for b, r := range builds {
 		if !esxiBuildRE.MatchString(b) || (r.Version != "8.0" && r.Version != "7.0") || r.Update == "" || !strings.HasPrefix(r.Name, "ESXi "+r.Version) {
 			t.Errorf("build %s: %+v", b, r)
 		}
 	}
-	if f.Builds["24022510"] != (esxiBuild{Version: "8.0", Update: "update_3", Name: "ESXi 8.0 Update 3"}) {
-		t.Errorf("8.0 U3: %+v", f.Builds["24022510"])
+	if builds["24022510"] != (versionscheme.ESXiRelease{Version: "8.0", Update: "update_3", Name: "ESXi 8.0 Update 3"}) {
+		t.Errorf("8.0 U3: %+v", builds["24022510"])
 	}
 }
 
@@ -138,13 +133,13 @@ func TestESXiBuildsCoverTheKB(t *testing.T) {
 		}
 		i := strings.LastIndexByte(l, ' ')
 		name, build := l[:i], l[i+1:]
-		if b, ok := esxiBuilds[build]; !ok || b.Name != name {
+		if b, ok := versionscheme.ESXiBuild(build); !ok || b.Name != name {
 			t.Errorf("build %s (%s): %+v", build, name, b)
 		}
 	}
 	for b, name := range map[string]string{"18644231": "ESXi 7.0 Update 3", "18825058": "ESXi 7.0 Update 3a", "18905247": "ESXi 7.0 Update 3b"} {
-		if esxiBuilds[b].Name != name {
-			t.Errorf("build %s: %+v", b, esxiBuilds[b])
+		if r, _ := versionscheme.ESXiBuild(b); r.Name != name {
+			t.Errorf("build %s: %+v", b, r)
 		}
 	}
 }

@@ -316,7 +316,7 @@ type Device struct {
 	Summary       *Summary    `json:"summary"`
 	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, SourceWords); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
-	// observedHW is the maker and model the observations give, before a declared OS row fills them (applyDeclared): the naming rule
+	// observedHW is the maker and model the observations give, before a declared OS row fills them (fillDeclaredHardware): the naming rule
 	// reads these, as Names does, so a device is named alike on every page. nil on a Device not read by loadDevices.
 	observedHW *[2]string
 }

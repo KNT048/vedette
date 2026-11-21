@@ -128,7 +128,7 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 			cur++
 		}
 	}
-	if cur != 3 { // vendor, hostname, kind
+	if cur != 4 { // vendor, hostname, kind, and the OS the declared row decided
 		t.Fatalf("%d current observations", cur)
 	}
 	a.want("GET", "/inventory/devices/a-nope", "viewer", "", 404, "not_found")

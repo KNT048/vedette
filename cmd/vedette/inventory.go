@@ -128,7 +128,8 @@ func inventoryJobs(d deps) []jobs.Job {
 		}
 		// The box's open ports with its packages (INV-3): one failing does not hold the other back.
 		return errors.Join(svc.RefreshBoxPackages(ctx), svc.RefreshBoxServices(ctx))
-	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job
+	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware},
+		{Module: "inventory", Name: "declared-os-reconcile", Every: 24 * time.Hour, Run: svc.ReconcileDeclaredOS}} // normal jobs
 }
 
 // boxPackages is inventory's BoxPackages (S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an

@@ -114,7 +114,7 @@ const statedPassiveOS = 0.5
 func facts(ctx context.Context, tx *sql.Tx, id string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
 		AND (field IN ('kind', 'hostname') OR (field IN ('model', 'os') AND source NOT IN ('nmap', 'scan')
-		AND NOT (field = 'os' AND source = 'passive' AND confidence < ?)))`, id, statedPassiveOS)
+		AND NOT (field = 'os' AND source = 'passive' AND confidence < ?))) AND NOT `+declaredObsSQL, id, statedPassiveOS)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read observations: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	case fromIgnored && !intoIgnored:
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ?`, from)
+	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, from)
 	if err != nil {
 		return "", fmt.Errorf("inventory: read observations: %w", err)
 	}

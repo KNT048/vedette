@@ -1,7 +1,12 @@
 package inventory_test
 
 import (
+	"database/sql"
 	"errors"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -199,20 +204,24 @@ func TestDeclaredIdentityKeepsOneNameAndIsSearchable(t *testing.T) {
 	}
 }
 
-// The matcher is asked only when a source it may prefer reads the device (SNMP, a passive frame, the agent); a device with nothing
-// that outranks its declared row takes it at once. A device whose matcher read fails keeps what its sources read, and the list still
-// loads.
-func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheList(t *testing.T) {
+// The matcher is asked, when a source writes, only when a source it may prefer reads the device (SNMP, a passive frame, the agent);
+// a device with nothing that outranks its declared row takes it at once. A device whose matcher fails keeps what its sources read,
+// and the write still goes through. Reading the list asks nobody: the decision is stored.
+func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheWrite(t *testing.T) {
 	m := &matcher{keep: true, version: "7.2.13", fail: map[string]bool{}}
 	e := newEnv(t, withMatcher(m))
 	alone := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
 	ok := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.2"})
 	broken := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.3"})
+	m.fail[broken] = true
+	m.asked = nil
 	for _, id := range []string{ok, broken} {
 		e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "FortiOS 7.2.12", Source: observe.SNMP, Confidence: 0.9})
 	}
-	m.fail[broken] = true
-	m.asked = nil
+	if len(m.asked) != 2 {
+		t.Errorf("the matcher was asked %d times while SNMP wrote, want 2 (only the devices SNMP reads)", len(m.asked))
+	}
+	asked := len(m.asked)
 	l, err := e.svc.Devices(e.ctx())
 	if err != nil {
 		t.Fatalf("the list failed: %v", err)
@@ -223,7 +232,112 @@ func TestDeclaredOSAsksTheMatcherOnlyWhenASourceMayOutrankAndNeverFailsTheList(t
 			t.Errorf("device %s OS %+v, want %q", d.ID, d.OS, w)
 		}
 	}
-	if len(m.asked) != 2 {
-		t.Errorf("the matcher was asked %d times, want 2 (only the devices SNMP reads)", len(m.asked))
+	if len(m.asked) != asked {
+		t.Errorf("reading the list asked the matcher %d more times, want 0", len(m.asked)-asked)
+	}
+}
+
+// The declared OS is one stored decision: a device whose declared row differs from what a scan guesses shows the declared OS on the
+// device page, in the list, in the matcher's input and in the export alike, and inv_asset holds it.
+func TestDeclaredOSIsStoredAndEveryReaderShowsIt(t *testing.T) {
+	m := &matcher{keep: true, version: "7.2.13"}
+	e := newEnv(t, withMatcher(m))
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
+	e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "Linux 4.15", Source: observe.SNMP, Confidence: 0.9})
+	const want = "FortiOS 7.2.13"
+	var stored, obsID string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT os, os_obs_id FROM inv_asset WHERE id = ?`, id).Scan(&stored, &obsID); err != nil {
+		t.Fatal(err)
+	}
+	if stored != want || obsID == "" {
+		t.Fatalf("inv_asset holds os %q (obs %q), want %q and an observation", stored, obsID, want)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE id = ? AND asset_id = ?`, obsID, id); n != 1 {
+		t.Errorf("os_obs_id names %d observations of the device, want 1", n)
+	}
+	if _, _, os := identityOf(t, e, id); os == nil || os.Value != want || os.SoftwareID == "" {
+		t.Errorf("device page OS %+v, want %q from the declared row", os, want)
+	}
+	l, err := e.svc.Devices(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range l.Items {
+		if d.ID == id && (d.OS == nil || d.OS.Value != want) {
+			t.Errorf("list OS %+v, want %q", d.OS, want)
+		}
+	}
+	md, ok, err := e.svc.MatchInput(e.ctx(), id)
+	if err != nil || !ok || md.OS != want {
+		t.Errorf("matcher input OS %q (ok %v, err %v), want %q", md.OS, ok, err, want)
+	}
+	r, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := io.ReadAll(r)
+	if !strings.Contains(string(out), want) || strings.Contains(string(out), "Linux 4.15") {
+		t.Errorf("export does not show %q alone:\n%s", want, out)
+	}
+	if got := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, id); got != 1 {
+		t.Errorf("%d stored OS decisions, want 1", got)
+	}
+	// Removing the row hands the OS back to the sources in the same transaction; a person's own OS beats the row.
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{OS: ptrTo("Alpine Linux 3.23")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, os := identityOf(t, e, id); os == nil || os.Value != "Alpine Linux 3.23" || os.SoftwareID != "" {
+		t.Errorf("after a person set the OS, device page OS %+v, want theirs", os)
+	}
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", id, inventory.Patch{OS: ptrTo("")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, os := identityOf(t, e, id); os == nil || os.Value != want {
+		t.Errorf("after the person's OS was cleared, device page OS %+v, want the declared %q back", os, want)
+	}
+}
+
+func ptrTo(s string) *string { return &s }
+
+// The first run after an upgrade stores the decision of a device that was declared before it was stored.
+func TestReconcileDeclaredOSStoresWhatAnOlderBoxLacks(t *testing.T) {
+	m := &matcher{keep: true, version: "7.2.13"}
+	e := newEnv(t, withMatcher(m))
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"})
+	e.exec(`DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os'`, id)
+	e.exec(`UPDATE inv_asset SET os = NULL, os_obs_id = NULL WHERE id = ?`, id)
+	if err := e.svc.ReconcileDeclaredOS(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	var stored sql.NullString
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT os FROM inv_asset WHERE id = ?`, id).Scan(&stored); err != nil || stored.String != "FortiOS 7.2.13" {
+		t.Errorf("after the reconcile os is %q (err %v), want FortiOS 7.2.13", stored.String, err)
+	}
+}
+
+// Count test: the readers that decide the declared OS at read time. No file of the module outside the write path may name the
+// function that did (before the stored decision: 1, reads.go; after: 0).
+func TestNoReaderAppliesTheDeclaredOSAtReadTime(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var readers []string
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		b, err := fs.ReadFile(os.DirFS("."), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"applyDeclared(", "declaredCandidates(", "s.declared("} {
+			if strings.Contains(string(b), name) && f != "declared.go" {
+				readers = append(readers, f+":"+name)
+			}
+		}
+	}
+	if len(readers) != 0 {
+		t.Errorf("readers that apply the declared OS at read time: %d %v, want 0", len(readers), readers)
 	}
 }

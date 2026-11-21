@@ -197,6 +197,13 @@ func (s *Service) settled(ctx context.Context, tx *sql.Tx, o *outbox, assetID st
 			return err
 		}
 	}
+	moved, err := s.RecomputeAsset(ctx, tx, assetID) // a declared OS row may now be (or no longer be) the device's OS
+	if err != nil {
+		return err
+	}
+	if moved {
+		o.add(EventAssetUpdated, AssetEvent{AssetID: assetID})
+	}
 	after, err := deviceKeys(ctx, tx, assetID)
 	if err != nil {
 		return err
@@ -357,7 +364,10 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 	if err := softwareEvent(ctx, tx, assetID, lineID, id.productKey, it.Display, now, "entry_set", "", version, sourceManual, actor); err != nil {
 		return false, err
 	}
-	_, err = s.settleLine(ctx, tx, lineID, now, map[[2]string][2]string{{sourceManual, ""}: {it.Vendor, it.Product}})
+	if _, err := s.settleLine(ctx, tx, lineID, now, map[[2]string][2]string{{sourceManual, ""}: {it.Vendor, it.Product}}); err != nil {
+		return false, err
+	}
+	_, err = s.RecomputeAsset(ctx, tx, assetID) // a declared OS row is the device's OS in the same transaction
 	return false, err
 }
 

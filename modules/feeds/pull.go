@@ -323,6 +323,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildCisco(ctx, src, p)
 	case DecoderFortinet:
 		return s.buildFortinet(ctx, src, p)
+	case DecoderChrome, DecoderAndroid, DecoderRapid7, DecoderGTI:
+		return s.buildTextClaims(ctx, src, p, dec)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {

@@ -120,6 +120,7 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
 	defer func() { _ = insRef.Close() }()
+	added := map[string]bool{} // CVEs whose description gains Apple's claim in this write (appleNoteAdded)
 	for i, r := range recs {
 		if i%ctxEvery == 0 {
 			if err := ctx.Err(); err != nil {
@@ -173,6 +174,9 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return out, err
 		}
+		if err := appleNoteAdded(ctx, tx, r.CVE, r.Description, added); err != nil {
+			return out, err
+		}
 		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, string(cwe), stamp); err != nil {
 			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 		}
@@ -211,6 +215,9 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 			}
 		}
+	}
+	if err := applyAppleClaims(ctx, tx, now, added); err != nil { // the descriptions written may carry Apple's word on exploitation
+		return out, err
 	}
 	return out, nil
 }

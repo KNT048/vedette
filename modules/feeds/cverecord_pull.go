@@ -146,6 +146,7 @@ type recordRun struct {
 	bytes      int64
 	kevChanged []string
 	kevFirst   bool
+	catalogue  bool // the matched rows of a CVE on no exploited list changed
 	tl         *tally
 	notes      []string
 }
@@ -189,7 +190,7 @@ func (s *Service) buildCVERecords(ctx context.Context, src sourceRow, p pullPlan
 	p.out = outcome{OK: true, Bytes: int(min(run.bytes, int64(^uint(0)>>1))), Records: total}
 	p.out.Accepted, p.out.Rejected, p.out.Reasons = run.byID+run.fromBulk, st.Rejected, st.Reasons
 	p.out.Note = run.note(failed)
-	p.kevRanges, p.kevRangesFirst = run.kevChanged, run.kevFirst && len(run.kevChanged) > 0
+	p.kevRanges, p.kevRangesFirst, p.catalogueRanges = run.kevChanged, run.kevFirst && len(run.kevChanged) > 0, run.catalogue
 	return p, nil
 }
 
@@ -380,6 +381,7 @@ func (s *Service) storeRecords(ctx context.Context, run *recordRun, recs []CVERe
 		run.stored += w.Stored
 		run.kevFirst = run.kevFirst && (len(w.KEVChanged) == 0 || w.KEVFirst)
 		run.kevChanged = append(run.kevChanged, w.KEVChanged...)
+		run.catalogue = run.catalogue || w.Catalogue
 		return nil
 	})
 	if err == nil && stale {

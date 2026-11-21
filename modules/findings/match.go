@@ -81,6 +81,9 @@ type Software struct {
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
 	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
 	SeenAt time.Time
+	// Guess: a sensor only guessed the row (inventory's os_guess reading: an OS fingerprint, an ESXi build the build table does not
+	// list); it is never matched until a person gives the software with its version.
+	Guess bool
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -944,6 +947,8 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 	var m Match
 	var out outcome
 	switch {
+	case s.Guess: // a sensor's guess is never matched (observe.Software.Guess)
+		return Match{}, outNone
 	case keyedTo(s, v):
 		m, out = judge(a, s, in, v, keyIDs(v), now)
 	case named && (v.listed() || offListReading(s, in, v)):

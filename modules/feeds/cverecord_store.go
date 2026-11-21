@@ -64,6 +64,7 @@ type recordWrite struct {
 	Stored     int      // records written
 	KEVChanged []string // exploited-list CVEs whose record ranges changed (findings matches them again)
 	KEVFirst   bool     // every one of them was read for the first time
+	Catalogue  bool     // the rows a matcher reads of a CVE on no exploited list changed: findings' match pass reads them again
 }
 
 // recordStmts are the prepared statements of one writeRecords call.
@@ -172,6 +173,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 			if kev[r.CVE] && !hasNVD && matched { // only rows the matcher reads are news for findings
 				out.KEVChanged, out.KEVFirst = append(out.KEVChanged, r.CVE), out.KEVFirst && !seen
 			}
+			out.Catalogue = out.Catalogue || !kev[r.CVE] && matched
 		}
 		// a rejected record drops every reference; otherwise NVD's tagged references, once there, stand (nvdRefs)
 		if _, err := st.delRefs.ExecContext(ctx, r.CVE, r.State == RecordRejected); err != nil {

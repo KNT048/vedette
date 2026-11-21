@@ -309,7 +309,7 @@ func declaredOS(d inventory.MatchDevice, candidates []string) (id, version strin
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
 		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
-		Key: s.Key, MarkedBy: s.MarkedBy}
+		Key: s.Key, MarkedBy: s.MarkedBy, Guess: s.Guess}
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
@@ -1048,11 +1048,38 @@ func subscribe(d deps) {
 	}
 	// New NVD affected versions decide findings again for every device; the first fill is backlog.
 	// One event per device; after a later update only the devices of the changed CVEs.
-	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
+	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", rangesUpdated(&d)))
+	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		ctx = notify.WithBaseline(ctx)
+		_, err := d.Inventory.RematchAll(ctx)
+		return err
+	}))
+	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+}
+
+// rangesUpdated is the subscriber of feeds.ranges.updated: new affected versions decide findings again. The first fill rematches every
+// device as backlog; a later update rematches the devices of the changed exploited-list CVEs. A change of a catalogue CVE's ranges
+// (RangesUpdatedEvent.Catalogue, or a CVE no list holds) runs findings' match pass now instead of at its next hour: it is the one
+// reader of those CVEs.
+func rangesUpdated(d *deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
 		ev, _ := data.(feeds.RangesUpdatedEvent)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
-		st, ok := feedsKEV{&d}.store()
+		wake := func() {
+			if d.Wake != nil {
+				d.Wake("findings", "reconcile")
+			}
+		}
+		if len(ev.CVEs) == 0 {
+			if ev.Catalogue {
+				wake()
+			}
+			return nil
+		}
+		st, ok := feedsKEV{d}.store()
 		if ev.First || !ok {
 			if ev.First {
 				ctx = notify.WithBaseline(ctx)
@@ -1070,24 +1097,16 @@ func subscribe(d deps) {
 			refs[i] = inventory.KevRef{CVE: r.CVE, Vendor: r.Vendor, Product: r.Product}
 			listed[r.CVE] = true
 		}
-		if catalogueChanged(ev.CVEs, listed) && d.Wake != nil {
-			d.Wake("findings", "reconcile") // the match pass reads the catalogue CVEs now, not at its next hour
+		if ev.Catalogue || catalogueChanged(ev.CVEs, listed) {
+			wake()
 		}
 		_, err = d.Inventory.RematchMany(ctx, refs)
 		return err
-	}))
-	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
-		defer cancel()
-		ctx = notify.WithBaseline(ctx)
-		_, err := d.Inventory.RematchAll(ctx)
-		return err
-	}))
-	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+	}
 }
 
 // catalogueChanged says a ranges update names a CVE that is on no exploited list (listed): only findings' match pass compares those
-// with the devices, so it runs at once instead of at its next hour.
+// with the devices.
 func catalogueChanged(cves []string, listed map[string]bool) bool {
 	return slices.ContainsFunc(cves, func(c string) bool { return !listed[c] })
 }

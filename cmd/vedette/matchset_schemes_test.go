@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/selfcheck"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/findings/findingstest"
 )
 
 // seedVendorRow writes one CVE record range of cve as the reader keeps a vendor's own notation (origin cna, no CPE, the product's
@@ -143,12 +147,80 @@ func TestMatchSet_SchemeRowsAndDistributionOnlyCVEs(t *testing.T) {
 	}
 }
 
-func TestCatalogueChanged(t *testing.T) {
+// A ranges update that changed a catalogue CVE (Catalogue, as the NVD and CVE record pulls send it: feeds
+// TestNVDPull_CatalogueChangeIsNews) runs findings' match pass now; one that changed only listed CVEs rematches their devices and
+// leaves the pass to its hour.
+func TestRangesUpdated_CatalogueChangeWakesTheMatchPass(t *testing.T) {
 	t.Parallel()
-	if catalogueChanged([]string{"CVE-1"}, map[string]bool{"CVE-1": true}) {
-		t.Error("a listed CVE only: the per-device rematch covers it")
+	var woke []string
+	s := newStackWith(t, func(d *deps) { d.Wake = func(module, job string) { woke = append(woke, module+"/"+job) } })
+	ctx := t.Context()
+	s.kevAdded("CVE-2026-7201", "OpenBSD", "OpenSSH", time.Now().AddDate(0, -1, 0))
+	on := rangesUpdated(s.d)
+	if err := on(ctx, feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-7201"}}); err != nil || len(woke) != 0 {
+		t.Fatalf("a listed CVE only: woke %v %v", woke, err)
 	}
-	if !catalogueChanged([]string{"CVE-1", "CVE-2"}, map[string]bool{"CVE-1": true}) {
-		t.Error("a catalogue CVE changed: the match pass must run")
+	if err := on(ctx, feeds.RangesUpdatedEvent{Catalogue: true}); err != nil || len(woke) != 1 || woke[0] != "findings/reconcile" {
+		t.Fatalf("a catalogue change: woke %v %v", woke, err)
+	}
+	if err := on(ctx, feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-7201", "CVE-2026-7202"}}); err != nil || len(woke) != 2 {
+		t.Fatalf("a CVE no list holds: woke %v %v", woke, err)
+	}
+}
+
+// The findings self-checks that read other modules' tables, on rows written as a box holds them: range precedence exempts a
+// finding of a product with a version scheme (its vendor's rows decide before NVD's), never one of another product; a detected
+// finding's version must be one its software line runs.
+func TestSelfcheck_RangePrecedenceAndMatchedVersion(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	findingstest.ParentRows(t, db)
+	const ts = "2026-11-01T00:00:00.000Z"
+	err = db.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, "CVE-2025-5777", time.Now().AddDate(0, -3, 0), 0); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, "CVE-2025-5777", "cpe:2.3:a:citrix:netscaler_gateway:*:*:*:*:*:*:*:*", "14.1", "", "", "14.1-43.56"); err != nil {
+			return err
+		}
+		ins := `INSERT INTO fnd_finding (id, asset_id, cve, software_id, detected, basis, verified, range_origin, matched_version, fix_kind, fix_key, state,
+			urgency, urgency_at, first_seen, last_seen, updated_at) VALUES (?, 'a1', 'CVE-2025-5777', ?, 1, 'device_version', 'no', 'cna', nullif(?, ''), 'update', ?, 'open', 2, ?, ?, ?, ?)`
+		for _, r := range [][4]string{
+			{"f-ns", "s-ns", "", "citrix|netscaler|update|14.1-43.56"}, // decided by Citrix's rows: the scheme product
+			{"f-other", "s-other", "2.0", "acme|box|update|2.1"},       // a record row beat NVD's: a precedence break
+		} {
+			if _, err := tx.ExecContext(ctx, ins, r[0], r[1], r[2], r[3], ts, ts, ts, ts); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := func(name string) int {
+		t.Helper()
+		for _, inv := range selfcheck.Registered() {
+			if inv.Name == name {
+				var n int
+				if err := db.Reader().QueryRowContext(ctx, inv.Query).Scan(&n); err != nil {
+					t.Fatal(err)
+				}
+				return n
+			}
+		}
+		t.Fatalf("no invariant %s", name)
+		return 0
+	}
+	if n := count("findings.range_precedence"); n != 1 {
+		t.Errorf("range_precedence %d, want 1 (the finding of a product without a scheme)", n)
+	}
+	if n := count("findings.matched_version_on_line"); n != 1 {
+		t.Errorf("matched_version_on_line %d, want 1 (the test line runs no version, so 2.0 is none it runs)", n)
 	}
 }

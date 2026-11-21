@@ -31,13 +31,11 @@ type schemeRead struct {
 // buildRE reads the build a device states beside its version ("VMware ESXi 8.0 Update 3 (build 24022510)").
 var buildRE = regexp.MustCompile(`\(build ([0-9]{5,9})\)`)
 
-// statedBuild is the build of the line: the one its own reading states (the device's statement keeps it in the line's name), else the
-// one the device's OS line states; "" when none.
-func statedBuild(a Asset, s Software) string {
+// statedBuild is the build the line's own reading states ("VMware ESXi 8.0 Update 3 (build 24022510)": the device's statement keeps it
+// in the line's name), "" when none. Only the line is read, never the device's OS line, so every reader of a row (the matcher, the fix,
+// Reachability, which has no device) places it the same way.
+func statedBuild(s Software) string {
 	if m := buildRE.FindStringSubmatch(s.Display); m != nil {
-		return m[1]
-	}
-	if m := buildRE.FindStringSubmatch(a.OS); m != nil {
 		return m[1]
 	}
 	return ""
@@ -61,7 +59,7 @@ func schemedSpans(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme
 	var scheme *versionscheme.Scheme
 	origin := ""
 	for _, r := range v.Schemed {
-		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme {
+		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme || fipsWithoutTheWord(r) {
 			continue
 		}
 		spans, scheme = append(spans, r.Span), r.Scheme
@@ -142,15 +140,38 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 	if scheme == nil {
 		return schemeRead{}, false
 	}
-	installed, ok := scheme.Installed(in.ver, statedBuild(a, s))
+	installed, ok := scheme.Installed(in.ver, statedBuild(s))
 	if !ok || !namesLine(spans, installed) {
 		return schemeRead{}, false
 	}
 	verdict := versionscheme.Judge(installed, spans)
-	if verdict.State == versionscheme.NotComparable {
+	switch {
+	case verdict.State == versionscheme.NotComparable:
+		return schemeRead{}, false
+	case verdict.State == versionscheme.NotAffected && !endsInTrain(spans, installed):
+		// the vendor's rows are silent on the device's own train (VMware's U3 row missing while NVD lists 8.0 update_3): "not affected"
+		// by release order is no proof, and on a disagreement the affected side wins, so NVD's ranges decide
 		return schemeRead{}, false
 	}
 	return schemeRead{installed: installed, verdict: verdict, origin: origin, vendor: p.Vendor, product: cmpOr(p.Display, s.Display)}, true
+}
+
+// fipsWithoutTheWord says a NetScaler row ends at a plain 13.1 build of the 37 series ("13.1 lessThan 13.1-37.235"): Citrix's FIPS and
+// NDcPP builds of 13.1 are that series (13.1-37.235 FIPS), while the plain line left it in 2022, so a recent row written so is the
+// FIPS build without its word. Neither line can be told from it: the row is left out (versionscheme.Conflicts covers the case where a
+// plain row of the same CVE ends elsewhere in 13.1), so it names no fix and decides nothing; NVD's ranges decide.
+func fipsWithoutTheWord(r SchemedRange) bool {
+	e := r.Span.End
+	return r.Scheme.Name == versionscheme.NetScaler.Name && e != nil && e.Variant == "" && len(e.Line) == 2 && e.Line[0] == 13 && e.Line[1] == 1 &&
+		len(e.Build) > 0 && e.Build[0] == 37
+}
+
+// endsInTrain says a span ends in v's own release train: the vendor states the fixed release of that very train, so a release past it
+// is not affected by the vendor's word.
+func endsInTrain(spans []versionscheme.Span, v versionscheme.Version) bool {
+	return slices.ContainsFunc(spans, func(sp versionscheme.Span) bool {
+		return sp.End != nil && !sp.End.LineStart && sp.End.Variant == v.Variant && sp.End.Train == v.Train
+	})
 }
 
 // namesLine says a span starts or ends in the release line of v (same numbers, same variant), or has no start and ends in a later
@@ -227,7 +248,7 @@ func releaseName(v versionscheme.Version) string {
 // selfStated says the row is a device's own statement of its firmware through its management interface (an ESXi host's API, an
 // iLO's page): the device's word with its exact build, not a version guessed from a banner (core/observe.SelfStatedBasis).
 func selfStated(s Software) bool {
-	return s.Source == "nmap" && observe.SelfStatedBasis(strings.TrimSpace(s.Display)) != ""
+	return s.Source == "nmap" && !s.Guess && observe.SelfStatedBasis(strings.TrimSpace(s.Display)) != ""
 }
 
 // schemeAffectedNote is the evidence of a finding the vendor's rows decide: the release the device runs and the vendor's fixed release
@@ -245,6 +266,10 @@ func schemeAffectedNote(a Asset, s Software, in swInfo, v Vuln, within VersionRa
 	}
 	if within.EndExcl == "" {
 		return fmt.Sprintf("%s. %s lists this release as affected by %s and states no fixed release for it yet; no scan has confirmed it yet, so this is only suspected.", runs, who, v.CVE)
+	}
+	if f := r.verdict.Fix; f != nil && f.Train != r.installed.Train { // the nearest fix is in a later train: this train has none
+		return fmt.Sprintf("%s. %s lists no fixed release of %s for this device's release train (%s); the nearest fixed release is %s, in release train %s, so this device has the flaw until it moves to that release or a later one.",
+			runs, who, v.CVE, clean(r.installed.Train), clean(within.EndExcl), clean(f.Train))
 	}
 	return fmt.Sprintf("%s. %s fixed %s in %s for this release train, so this device has the flaw until it installs that release or a later one.", runs, who, v.CVE, clean(within.EndExcl))
 }

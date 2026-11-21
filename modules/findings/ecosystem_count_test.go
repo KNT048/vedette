@@ -13,7 +13,7 @@ import (
 // only the vendor's notation (read in the product's version scheme) or the distribution's fixed package can decide, with what a
 // person checking the vendor's advisory would expect. The count is the cases the matcher gets right, per ecosystem; a wrong case is
 // logged. It reruns like any test. Measured: before the match pass read vendor rows, Oracle's trains and distribution-only CVEs, 16 of
-// 30 right (ESXi 5/9, NetScaler 2/4, Junos 1/3, kernel 2/3, running kernel 1/3, distribution 1/2, Java 4/6); after, 30 of 30.
+// 31 right (ESXi 6/10, NetScaler 2/4, Junos 1/3, kernel 2/3, running kernel 1/3, distribution 1/2, Java 4/6); after, 31 of 31.
 
 // ecoCase is one device and one CVE: want says the device is affected; fix is the fix the finding must name ("" when not affected or
 // when any fix will do).
@@ -54,10 +54,18 @@ func esxiStated(name, version, update, build string) Asset {
 		Version: version, CPE: "cpe:2.3:o:vmware:esxi:" + version + ":" + update + ":*:*:*:*:*:*", Source: "nmap", KevKeys: []string{"vmware|esxi"}}}}
 }
 
+// esxiGuess is the row the active sensor writes for a build esxi-builds.json does not list: the host's version, no CPE, marked a guess.
+func esxiGuess(version, build string) Asset {
+	d := "VMware ESXi " + version + " (build " + build + ")"
+	return Asset{ID: "guess-" + build, Name: "esx-new", OS: d, Software: []Software{{ID: "s-guess", Display: d, Vendor: "vmware", Product: "esxi",
+		Version: version, Source: "nmap", Guess: true}}}
+}
+
 func ecosystemCases(t *testing.T) []ecoCase {
 	t.Helper()
 	esxiKey := productid.Key("VMware", "ESXi")
 	listed := esxi22225(t) // NVD lists 8.0 update_2 and update_3 exactly; VMware states U3d, U2d, 7.0 U3s
+	noU3 := esxiWithoutU3d(t)
 	// VMSA-2025-0013: an ESXi CVE on no list, before NVD analyses it: only VMware's rows.
 	offList := Vuln{CVE: "CVE-2025-41236", NVDAnswered: true, Origin: RangeCNA,
 		Schemed: schemedRows(t, "vmware-esxi", esxiKey, [3]string{"8.0", "ESXi80U3f-24784735", ""},
@@ -68,6 +76,10 @@ func ecosystemCases(t *testing.T) []ecoCase {
 		NVDAnswered: true, RangesFrom: RangesCVEOrg, Origin: RangeCNA,
 		Schemed: schemedRows(t, "citrix-netscaler", nsKey, [3]string{"14.1", "14.1-43.56", ""}, [3]string{"13.1", "13.1-58.32", ""},
 			[3]string{"13.1 FIPS", "13.1-37.235 FIPS", ""})}
+	// The same CVE as a record that writes the FIPS build without its word, and no plain 13.1 row.
+	nsFIPSUnsaid := ns
+	nsFIPSUnsaid.CVE = "CVE-2025-6543"
+	nsFIPSUnsaid.Schemed = schemedRows(t, "citrix-netscaler", nsKey, [3]string{"14.1", "14.1-47.46", ""}, [3]string{"13.1", "13.1-37.236", ""})
 	nsRow := func(version string) Asset {
 		return Asset{ID: "ns-" + version, Name: "adc", Software: []Software{{ID: "s-ns", Display: "Citrix NetScaler", Vendor: "Citrix", Product: "NetScaler",
 			Version: version, Source: "snmp", KevKeys: []string{"citrix|netscaler adc and gateway"}}}}
@@ -130,6 +142,9 @@ func ecosystemCases(t *testing.T) []ecoCase {
 		{"vmware-esxi", esxiStated("u3", "8.0", "update_3", "24022510"), listed, true, "8.0 U3d (build 24585383)"},
 		{"vmware-esxi", esxiStated("u3b", "8.0", "update_3b", "24280767"), listed, true, "8.0 U3d (build 24585383)"},
 		{"vmware-esxi", esxiStated("u3d", "8.0", "update_3d", "24585383"), listed, false, ""},
+		{"vmware-esxi", esxiStated("u3-no-row", "8.0", "update_3", "24022510"), noU3, true, ""}, // VMware silent on U3, NVD lists it
+		{"vmware-esxi", esxiGuess("8.0.3", "24100000"), listed, false, ""},                      // a build the table does not list: a guess, never matched
+		{"vmware-esxi", esxiGuess("8.0.3", "24100000"), offList, false, ""},
 		{"vmware-esxi", esxiStated("7u3q", "7.0", "update_3q", "23794027"), listed, true, "7.0 U3s (build 24585291)"},
 		{"vmware-esxi", esxiStated("7u3s", "7.0", "update_3s", "24585291"), listed, false, ""},
 		{"vmware-esxi", esxiStated("off-u3d", "8.0", "update_3d", "24585383"), offList, true, "8.0 U3f (build 24784735)"},
@@ -138,6 +153,7 @@ func ecosystemCases(t *testing.T) []ecoCase {
 		{"citrix-netscaler", nsRow("14.1-12.30"), ns, true, "14.1-43.56"},
 		{"citrix-netscaler", nsRow("14.1-43.56"), ns, false, ""},
 		{"citrix-netscaler", nsRow("13.1-37.235 FIPS"), ns, false, ""},
+		{"citrix-netscaler", nsRow("13.1-37.38"), nsFIPSUnsaid, false, ""}, // the row's 37.x build is FIPS's: never the fix of a plain 13.1 host
 		{"linux-kernel", kRow("appliance-old", "6.1.140", "Linux", false), kernel, true, "6.1.149"},
 		{"linux-kernel", kRow("appliance-new", "6.6.110", "Linux", false), kernel, false, ""},
 		{"linux-kernel", kRow("ubuntu-kernel", "6.8.0", "Ubuntu 26.04.1 LTS", true), kernel, false, ""}, // a distribution's kernel: never read upstream
@@ -200,5 +216,47 @@ func TestCount_VendorRowsAndDistributionFixes(t *testing.T) {
 	t.Logf("all ecosystems: right %d of %d", sum, all)
 	if sum != all {
 		t.Errorf("%d of %d cases wrong", all-sum, all)
+	}
+}
+
+// esxiWithoutU3d is CVE-2025-22225 with VMware's U3d row left out: VMware states fixes for 8.0 U2 and 7.0 U3 only, NVD lists
+// 8.0 update_3 as affected.
+func esxiWithoutU3d(t testing.TB) Vuln {
+	t.Helper()
+	v := esxi22225(t)
+	v.Schemed = slices.DeleteFunc(slices.Clone(v.Schemed), func(r SchemedRange) bool { return r.Span.End != nil && r.Span.End.Train == "8.0 U3" })
+	return v
+}
+
+// On a disagreement the affected side wins: the vendor's rows silent on the host's own train (8.0 U3) never close what NVD lists as
+// affected, so an open finding of an exploited CVE stays open; a vendor's "not affected" counts only for a release past the fixed
+// release of its own train.
+func TestVendorRows_SilentOnTheTrainNeverCloseWhatNVDLists(t *testing.T) {
+	t.Parallel()
+	v := esxiWithoutU3d(t)
+	if len(v.Schemed) != 2 {
+		t.Fatalf("rows %d, want U2d and 7.0 U3s", len(v.Schemed))
+	}
+	host := esxiStated("u3", "8.0", "update_3", "24022510")
+	res := MatchAsset(host, []Vuln{v}, map[string]bool{v.CVE: true}, t0)
+	if len(res.Existing) != 1 || len(res.NotAffected) != 0 {
+		t.Fatalf("existing %+v, not affected %+v: the finding must stay", res.Existing, res.NotAffected)
+	}
+	if res := MatchAsset(esxiStated("u2d", "8.0", "update_2d", "24585300"), []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.NotAffected) != 1 {
+		t.Fatalf("U2d, past its own train's fix: %+v", res)
+	}
+}
+
+// A device whose train has no fixed release of its own is told the nearest fix is in a later train, never "for this release train".
+func TestVendorRows_FixInALaterTrainIsSaidSo(t *testing.T) {
+	t.Parallel()
+	v := esxi22225(t)
+	host := esxiStated("u1", "8.0", "update_1", "21495797")
+	res := MatchAsset(host, []Vuln{v}, nil, t0)
+	if len(res.New) != 1 {
+		t.Fatalf("8.0 U1: %+v", res)
+	}
+	if s := res.New[0].Evidence.Summary; strings.Contains(s, "for this release train") || !strings.Contains(s, "in release train 8.0 U2") {
+		t.Errorf("evidence %q", s)
 	}
 }

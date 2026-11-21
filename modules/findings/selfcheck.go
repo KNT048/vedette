@@ -2,7 +2,10 @@ package findings
 
 import (
 	"slices"
+	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/productid"
 
 	"github.com/knt048/vedette/core/selfcheck"
 )
@@ -63,13 +66,29 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
 			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
 	},
-	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for, unless the
-		// record's rows are a vendor's own notation, which a version scheme reads before NVD's generic rows (vendorscheme.go)
+	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for, unless its
+		// product has a version scheme: the vendor's own rows decide its trains before NVD's generic rows (vendorscheme.go), and the
+		// generic comparison never reads a scheme product's record rows (feeds recordSkipped)
 		Name: "findings.range_precedence",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
 			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')
-			AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = f.range_origin AND r.version_type LIKE 'vendor:%')`,
+			AND NOT (` + schemeProductSQL("f.fix_key") + `)`,
 	},
+}
+
+// schemeProductSQL is the SQL condition that a fix_key (column col: "<product key>|<kind>|<version>") names a product the catalogue
+// declares a version scheme for.
+func schemeProductSQL(col string) string {
+	var conds []string
+	for _, p := range productid.Products() {
+		if p.Scheme != "" {
+			conds = append(conds, "substr("+col+", 1, "+strconv.Itoa(len(p.Key)+1)+") = '"+strings.ReplaceAll(p.Key, "'", "''")+"|'")
+		}
+	}
+	if len(conds) == 0 {
+		return "0"
+	}
+	return strings.Join(conds, " OR ")
 }
 
 func init() {

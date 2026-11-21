@@ -71,13 +71,18 @@ readers until they read the view of the finding; nothing of it is stored.
 - **M-9 Vendor rows and distribution fixes.** A vendor that states its versions in its own notation is read through the product's
   version scheme (`core/versionscheme`, declared in the product catalogue: ESXi, NetScaler, Linux kernel, Java, Junos): when its rows
   (`Vuln.Schemed`) reach the line's release line and the scheme places the line's version (an ESXi host's build from its own
-  statement), the vendor's verdict decides before NVD's generic ranges, and `FixOf` names the vendor's fixed release of the line's
-  train from the same reading (`schemeJudge`); the finding's `range_origin` is the vendor rows' origin. A distribution's package and a
-  kernel a distribution built are never read by a vendor scheme. Oracle's exact Java SE versions are the newest affected release of
+  statement in the line's own name), the vendor's verdict decides before NVD's generic ranges, and `FixOf` names the vendor's fixed
+  release of the line's train from the same reading (`schemeJudge`); the finding's `range_origin` is the vendor rows' origin. The
+  vendor's "not affected" counts only past the fixed release of the device's own train (a row ends in it, `endsInTrain`); rows silent
+  on that train leave the decision to NVD, so on a disagreement the affected side wins. A NetScaler row ending at a plain 13.1-37.x
+  build is FIPS's without its word and is left out (`fipsWithoutTheWord`). A distribution's package, a kernel a distribution built
+  and a sensor's guess (`Software.Guess`: an ESXi build the build table does not list) are never read by a vendor scheme; a guess is
+  never matched at all. A device's own statement through its management interface (ESXi's API, an iLO's page) is a trusted reading. Oracle's exact Java SE versions are the newest affected release of
   each train (`oracleTrains`). A CVE a distribution fixed in a package the devices run is compared with the package before NVD names
   the product (`MatchScope.Packages`, `distroCandidates`); a CVE only the vendor's rows describe reaches the set too. A ranges update
   that names a catalogue CVE runs the pass at once. `TestCount_VendorRowsAndDistributionFixes`. Selfcheck
-  `findings.matched_version_on_line`: a detected finding's version is one its line runs.
+  `findings.matched_version_on_line`: a detected finding's version is one its line runs; `findings.range_precedence` exempts the
+  findings of a product with a version scheme (by `fix_key`'s product).
 - **Removed**: the note-prefix rules, the one-time backfill passes, the history-reading rules, `fnd_plan_done` ("Mark as done" is
   patched on the findings), `fnd_finding_history`, `fnd_version_needed`, `fnd_unchecked`, `fnd_unchecked_seen`, `fnd_not_installed`,
   the closing of findings when a device is ignored.

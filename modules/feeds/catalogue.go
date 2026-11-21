@@ -61,6 +61,7 @@ func (r retention) keeps(rec NVDRecord) bool {
 type nvdWrite struct {
 	Stored     int      // records written
 	KEVChanged []string // CVEs of the exploited lists whose NVD ranges changed (findings matches them again)
+	Catalogue  bool     // the NVD ranges of a CVE on no exploited list changed: findings' match pass reads them again
 }
 
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
@@ -147,6 +148,13 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 			if t, perr := parseTS(mod); err == nil && perr == nil && r.LastModified.Before(t) {
 				continue // the catalogue holds a newer record of this CVE
 			}
+		}
+		if !kev[r.CVE] && !out.Catalogue { // a catalogue CVE's ranges: one change is enough to say so
+			same, err := sameNVDRanges(ctx, tx, r)
+			if err != nil {
+				return out, err
+			}
+			out.Catalogue = !same
 		}
 		if kev[r.CVE] {
 			same, err := sameNVDRanges(ctx, tx, r)

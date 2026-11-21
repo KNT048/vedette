@@ -332,8 +332,7 @@ type summaryRow struct {
 // summaryData reads the open findings and the trend: at the end of each of the last SummaryDays days of the organization's time zone
 // (ServiceConfig.Zone, the days Home's chart names; the last is now), how many
 // findings had been first seen and were not closed yet. Two reads: the open rows (status index), and the first_seen/resolved_at of the
-// rows closed inside the window, one range per closed status on fnd_finding_status_resolved_idx (the statuses are listed so the index
-// serves it; rows closed before the window count on no day). The last point is the open count. A finding reopened after a close
+// rows handled inside the window (fnd_finding_resolved_ix; rows handled before the window count on no day). The last point is the open count. A finding reopened after a close
 // counts as open since its first sighting (fnd_finding keeps one resolved_at): the line is a trend, the tile's number is exact.
 func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow, []int, error) {
 	db := s.cfg.DB.Reader()
@@ -357,7 +356,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 			}
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, status, severity, first_seen FROM fnd_finding WHERE status IN ('confirmed', 'suspected')`)
+	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, CASE WHEN verified = 'no' THEN 'suspected' ELSE 'confirmed' END, 'high', first_seen FROM fnd_finding WHERE state = 'open'`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 	}
@@ -380,7 +379,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 		return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 	}
 	rows, err = db.QueryContext(ctx, `SELECT first_seen, resolved_at FROM fnd_finding
-		WHERE status IN ('mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted') AND resolved_at >= ? AND first_seen <= ?`,
+		WHERE state = 'handled' AND resolved_at >= ? AND first_seen <= ?`,
 		store.FormatTS(start), store.FormatTS(now))
 	if err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)

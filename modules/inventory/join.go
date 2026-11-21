@@ -270,6 +270,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	if err := s.lifecycle.DeviceMerged(ctx, tx, m); err != nil {
 		return "", err
 	}
+	if err := dropFoldedLines(ctx, tx, software); err != nil {
+		return "", err
+	}
 	if o != nil {
 		o.after = append(o.after, func(ctx context.Context) []Event { s.lifecycle.MergeCommitted(ctx, m); return nil })
 	}
@@ -819,8 +822,8 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 // foldSoftware folds each software line device from holds that device into holds too (the same product and train) into into's line,
 // before from's lines move: every reading of from's line moves to into's line, and of two readings of the same source and instance
 // the newer one stays (a person's entry included). into's line is settled again. It returns the id of every line it removed mapped
-// to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it. Nothing else is
-// removed: the lines left on from move with their ids.
+// to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it; the folded lines are
+// deleted after the participants ran (dropFoldedLines). Nothing else is removed: the lines left on from move with their ids.
 func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, '')
 		FROM inv_software f JOIN inv_software i ON i.asset_id = ?2 AND i.product_key = f.product_key AND i.line = f.line WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
@@ -858,7 +861,8 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 
 			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
 				last_seen = max(last_seen, (SELECT last_seen FROM inv_software WHERE id = ?2)) WHERE id = ?1`,
-			`DELETE FROM inv_software WHERE id = ?2`,
+			// the folded line itself goes after the lifecycle participants ran (dropFoldedLines): rows of other modules that point at it
+			// follow it to the kept line first (lifecycle.Merge.Software)
 			`UPDATE inv_software_event SET software_id = ?1 WHERE software_id = ?2`, // the folded line's history is the kept line's
 		} {
 			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
@@ -882,6 +886,17 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 		out[f.gone] = f.kept
 	}
 	return out, nil
+}
+
+// dropFoldedLines deletes the lines foldSoftware folded into another (gone to kept), once the lifecycle participants moved what they
+// keep about them, before from's other lines move to into.
+func dropFoldedLines(ctx context.Context, tx *sql.Tx, folded map[string]string) error {
+	for gone := range folded {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE id = ?`, gone); err != nil {
+			return fmt.Errorf("inventory: fold software: %w", err)
+		}
+	}
+	return nil
 }
 
 // foldServices folds each open port device from holds that device into holds too (same port, protocol and source) into into's row

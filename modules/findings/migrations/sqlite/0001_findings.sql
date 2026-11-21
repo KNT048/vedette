@@ -2,26 +2,123 @@
 -- The whole schema of the findings module. It is edited in place until the first public release; docs/SCHEMA.sql
 -- shows the schema of every module together. Forward-only: there is no Down section.
 
--- A software whose product is on the exploited list but whose version is missing or unreadable gets ONE row here
--- ("add the version to check N exploited CVEs") instead of one finding per CVE. Rewritten for the device on every match
--- of it (UpsertFromMatch), removed with the device (OnAssetDeleted, reconcile). Not a finding: no status, no history.
--- asset_id and software_id have no foreign key (inventory owns them, rules/modules.md). Forward-only (DATA_MODEL 6, rule 1).
-CREATE TABLE fnd_version_needed (
-    asset_id    TEXT    NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    software_id TEXT    NOT NULL CHECK (length(software_id) BETWEEN 1 AND 96),
-    software    TEXT    NOT NULL CHECK (length(software) <= 200),
-    version     TEXT    NOT NULL CHECK (length(version) <= 200),
-    cves        INTEGER NOT NULL CHECK (cves > 0),
-    updated_at  TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    PRIMARY KEY (asset_id, software_id)
+-- One row per (device, CVE, software line) that was affected at some time. Three separate facts, each with one writer:
+--   A. detection (detected .. evidence): only the match pass and the safe checks write it;
+--   B. handling (state .. to_version): a person, or Vedette when the data no longer detects the flaw;
+--   C. urgency (urgency, urgency_at): only the urgency pass writes it.
+-- Every change of B goes through findings.Transition, which also appends the fnd_finding_event rows. A pair that was checked and
+-- found not affected has no row; a pair Vedette cannot decide without a person is a fnd_question, not a finding.
+CREATE TABLE fnd_finding (
+    id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    asset_id       TEXT    NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
+    cve            TEXT    NOT NULL
+        CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*'
+               AND substr(cve, 5) NOT GLOB '*[^0-9-]*'
+               AND cve NOT GLOB 'CVE-[0-9][0-9][0-9][0-9]-*-*'),
+    -- The software line the CVE is on; NULL only for a safe-check hit on a device with no line for that product.
+    software_id    TEXT    REFERENCES inv_software (id) ON DELETE SET NULL,
+    -- A. detection
+    detected       INTEGER NOT NULL CHECK (detected IN (0, 1)),
+    basis          TEXT    NOT NULL CHECK (length(basis) BETWEEN 1 AND 40 AND basis NOT GLOB '*[^a-z0-9_]*'),
+    verified       TEXT    NOT NULL CHECK (verified IN ('no', 'device', 'scan', 'person')),
+    range_origin   TEXT    NOT NULL CHECK (length(range_origin) BETWEEN 1 AND 40 AND range_origin NOT GLOB '*[^a-z0-9_]*'),
+    matched_version TEXT   CHECK (matched_version IS NULL OR length(matched_version) BETWEEN 1 AND 200),
+    fix_kind       TEXT    NOT NULL CHECK (length(fix_kind) BETWEEN 1 AND 40 AND fix_kind NOT GLOB '*[^a-z0-9_]*'),
+    fix_version    TEXT    CHECK (fix_version IS NULL OR length(fix_version) BETWEEN 1 AND 200),
+    fix_ref        TEXT    CHECK (fix_ref IS NULL OR length(fix_ref) BETWEEN 1 AND 200),
+    fix_key        TEXT    NOT NULL CHECK (length(fix_key) BETWEEN 1 AND 400),
+    evidence       TEXT    CHECK (evidence IS NULL OR (json_valid(evidence) AND json_type(evidence) = 'object')),
+    -- B. handling
+    state          TEXT    NOT NULL CHECK (state IN ('open', 'handled')),
+    resolution     TEXT    CHECK (resolution IS NULL OR resolution IN ('patched', 'mitigated', 'accepted', 'false_positive', 'not_relevant')),
+    via            TEXT    CHECK (via IS NULL OR (length(via) BETWEEN 1 AND 40 AND via NOT GLOB '*[^a-z0-9_]*')),
+    resolved_by    TEXT    CHECK (resolved_by IS NULL OR length(resolved_by) BETWEEN 1 AND 320),
+    resolved_at    TEXT    CHECK (resolved_at IS NULL OR resolved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    note           TEXT    CHECK (note IS NULL OR length(note) <= 600),
+    -- The last day of a risk acceptance (UTC); the finding reopens by itself once that day is over everywhere.
+    accepted_until TEXT    CHECK (accepted_until IS NULL OR accepted_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    -- via version_moved: the version that was affected and the version installed now ("6.24 -> 7.23").
+    from_version   TEXT    CHECK (from_version IS NULL OR length(from_version) BETWEEN 1 AND 200),
+    to_version     TEXT    CHECK (to_version IS NULL OR length(to_version) BETWEEN 1 AND 200),
+    -- C. urgency: 1 under attack here, 2 exploited, 3 public exploit, 4 critical on an edge device, 5 update recommended
+    urgency        INTEGER NOT NULL CHECK (urgency BETWEEN 1 AND 5),
+    urgency_at     TEXT    NOT NULL CHECK (urgency_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((state = 'open') = (resolution IS NULL)),
+    CHECK ((state = 'open') = (via IS NULL)),
+    CHECK ((state = 'open') = (resolved_by IS NULL)),
+    CHECK ((state = 'open') = (resolved_at IS NULL)),
+    CHECK ((resolution IS 'accepted') = (accepted_until IS NOT NULL)),
+    CHECK ((via IS 'version_moved') = (from_version IS NOT NULL AND to_version IS NOT NULL AND from_version <> to_version)),
+    CHECK (via IS 'version_moved' OR (from_version IS NULL AND to_version IS NULL))
 );
+
+CREATE UNIQUE INDEX fnd_finding_line_uq ON fnd_finding (asset_id, cve, ifnull(software_id, ''));
+
+CREATE INDEX fnd_finding_state_urgency_ix ON fnd_finding (state, urgency);
+
+CREATE INDEX fnd_finding_asset_state_ix ON fnd_finding (asset_id, state);
+
+CREATE INDEX fnd_finding_cve_ix ON fnd_finding (cve);
+
+CREATE INDEX fnd_finding_software_ix ON fnd_finding (software_id);
+
+CREATE INDEX fnd_finding_fix_ix ON fnd_finding (fix_key, state);
+
+-- Home's trend and the Handled list read the findings handled inside a period.
+CREATE INDEX fnd_finding_resolved_ix ON fnd_finding (state, resolved_at);
+
+-- The history of a finding, append-only: what happened, when, by whom ("system" for Vedette). detail holds the structured facts
+-- of the change (resolution, via, versions, layer, why it reopened, the note) for display; no logic reads it.
+CREATE TABLE fnd_finding_event (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    finding_id TEXT    NOT NULL REFERENCES fnd_finding (id) ON DELETE CASCADE,
+    ts         TEXT    NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    actor      TEXT    NOT NULL CHECK (length(actor) BETWEEN 1 AND 320),
+    kind       TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    detail     TEXT    CHECK (detail IS NULL OR (json_valid(detail) AND json_type(detail) = 'object'))
+);
+
+CREATE INDEX fnd_finding_event_finding_ix ON fnd_finding_event (finding_id, id);
+
+CREATE INDEX fnd_finding_event_ts_ix ON fnd_finding_event (ts, kind);
+
+-- +goose StatementBegin
+CREATE TRIGGER fnd_finding_event_no_update BEFORE UPDATE ON fnd_finding_event
+BEGIN
+    SELECT RAISE(ABORT, 'fnd_finding_event is append-only');
+END;
+-- +goose StatementEnd
+
+-- What Vedette cannot decide without a person: a software line with no version it can read, a CVE limited to platforms nothing
+-- says the device is on, a distribution's package release it does not know, a version it cannot compare, a CVE with no affected
+-- versions. Not a finding. The match pass rewrites a device's questions; an answer stays on its row while the question holds.
+CREATE TABLE fnd_question (
+    id          TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    asset_id    TEXT    NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
+    software_id TEXT    REFERENCES inv_software (id) ON DELETE CASCADE,
+    cve         TEXT    CHECK (cve IS NULL OR (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32)),
+    kind        TEXT    NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind NOT GLOB '*[^a-z0-9_]*'),
+    detail      TEXT    CHECK (detail IS NULL OR (json_valid(detail) AND json_type(detail) = 'object')),
+    cves        INTEGER NOT NULL CHECK (cves >= 1),
+    asked_at    TEXT    NOT NULL CHECK (asked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    answer      TEXT    CHECK (answer IS NULL OR length(answer) BETWEEN 1 AND 200),
+    answered_by TEXT    CHECK (answered_by IS NULL OR length(answered_by) BETWEEN 1 AND 320),
+    answered_at TEXT    CHECK (answered_at IS NULL OR answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((answer IS NULL) = (answered_by IS NULL) AND (answer IS NULL) = (answered_at IS NULL))
+);
+
+CREATE UNIQUE INDEX fnd_question_uq ON fnd_question (asset_id, ifnull(software_id, ''), ifnull(cve, ''), kind);
+
+CREATE INDEX fnd_question_software_ix ON fnd_question (software_id);
 
 -- #910 phase 1 (audit): one row per run of the KEV reachability audit, run after a refresh of the exploited list or of NVD's
 -- affected versions (cmd/vedette job reach-audit, findings.Reachability): the feed stamp it read, the count of entries per class
 -- (1 no NVD data, 2 no NVD versions, 3v keyed with a version, 3k keyed without one, 4 reached through NVD's list, 5 nothing), the
 -- CVEs of each class no version comparison can reach (1, 2, 3k, 5) and those not in that class in the previous run (added). A run
 -- whose classes equal the previous one's is not stored, whatever the stamp: each row is a change; the newest 30 are kept. Public feed data only, no device data.
--- Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE fnd_reach_run (
     id          INTEGER PRIMARY KEY,
     ran_at      TEXT    NOT NULL CHECK (ran_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -31,136 +128,3 @@ CREATE TABLE fnd_reach_run (
     unreachable TEXT    NOT NULL CHECK (json_valid(unreachable) AND json_type(unreachable) = 'object'),
     added       TEXT    NOT NULL CHECK (json_valid(added) AND json_type(added) = 'object')
 );
-
--- The (device, CVE) pairs the "could not be checked" list has ever held for a device, or that had a
--- finding: a pair new here is announced once (findings.unchecked.added, one event per device and match write, notify sends one
--- notice listing the CVEs), never again. Seeded with every pair the box already listed or had a finding for, so the upgrade itself
--- (old product findings closing into the list) announces nothing. Removed with the device; moved on a merge. No foreign keys
--- (inventory owns the ids, rules/modules.md). Forward-only (DATA_MODEL 6, rule 1).
-CREATE TABLE fnd_unchecked_seen (
-    asset_id   TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    cve        TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    first_seen TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    PRIMARY KEY (asset_id, cve)
-) WITHOUT ROWID;
-
-CREATE TABLE "fnd_unchecked" (
-    asset_id    TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    software_id TEXT NOT NULL CHECK (length(software_id) BETWEEN 1 AND 128),
-    software    TEXT NOT NULL CHECK (length(software) <= 200),
-    version     TEXT NOT NULL CHECK (length(version) <= 200),
-    source      TEXT NOT NULL CHECK (length(source) <= 32),
-    reason      TEXT NOT NULL CHECK (reason IN ('no_nvd_data', 'no_nvd_versions', 'not_named', 'not_comparable', 'platform_unknown', 'package_unknown')),
-    cve         TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
-    updated_at  TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    nvd_pending INTEGER NOT NULL DEFAULT 0 CHECK (nvd_pending IN (0, 1)),
-    answer      TEXT NOT NULL DEFAULT '' CHECK (length(answer) <= 200), -- package_unknown: the release a person gave that is not one
-    PRIMARY KEY (asset_id, software_id, cve)
-);
-
--- INV-6c: the mark a finding was closed for when a person said its software is not installed: the identity of the reported row the
--- mark covers (inventory's row key: source, vendor, product and version). A later match that brings that very row back is the person
--- clearing the mark (no notice); any other row is a new reading (a notice). Removed with the finding. Forward-only (DATA_MODEL 6, rule 1).
-CREATE TABLE fnd_not_installed (
-    finding_id TEXT NOT NULL PRIMARY KEY REFERENCES fnd_finding (id) ON DELETE CASCADE,
-    mark       TEXT NOT NULL CHECK (length(mark) BETWEEN 4 AND 520)
-) WITHOUT ROWID;
-
-CREATE TABLE "fnd_finding_history" (
-    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    finding_id TEXT NOT NULL REFERENCES fnd_finding (id) ON DELETE CASCADE,
-    ts         TEXT NOT NULL CHECK (ts GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    user       TEXT NOT NULL CHECK (length(user) BETWEEN 1 AND 320),
-    action     TEXT NOT NULL CHECK (action IN ('created', 'confirmed', 'rescanned', 'rescan_clear', 'no_longer_matches', 'matches_again', 'reopened', 'patched', 'mitigated', 'false_positive', 'not_relevant', 'risk_accepted', 'confirm_undone')),
-    note       TEXT CHECK (note IS NULL OR length(note) <= 600)
-);
-
--- One time, after a version the device itself reports started to confirm a finding (migration 0014): open findings that become
--- confirmed only because of that rule must not send one notice each. While fnd_device_backfill_pending has its row, the matcher
--- records each such finding in fnd_device_backfill (and its history) instead of publishing a status change; the next full match pass
--- (Reconcile) sends one summary and empties both tables. A box installed with this migration has no such finding: its first pass
--- only removes the marker. Forward-only (DATA_MODEL 6, rule 1).
-CREATE TABLE fnd_device_backfill_pending (
-    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
-);
-
-CREATE TABLE fnd_device_backfill (
-    finding_id TEXT NOT NULL PRIMARY KEY REFERENCES fnd_finding (id) ON DELETE CASCADE
-) WITHOUT ROWID;
-
-CREATE TABLE "fnd_finding" (
-    id                TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
-    asset_id          TEXT    NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    cve               TEXT    NOT NULL
-        CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*'
-               AND substr(cve, 5) NOT GLOB '*[^0-9-]*'
-               AND cve NOT GLOB 'CVE-[0-9][0-9][0-9][0-9]-*-*'),
-    status            TEXT    NOT NULL CHECK (status IN ('confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted')),
-    severity          TEXT    NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info')),
-    confidence        REAL    NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
-    basis             TEXT    NOT NULL CHECK (basis IN ('scan', 'version', 'product', 'person')),
-    evidence          TEXT    CHECK (evidence IS NULL OR (json_valid(evidence) AND json_type(evidence) = 'object')),
-    first_seen        TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_seen         TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    resolved_by       TEXT    CHECK (resolved_by IS NULL OR length(resolved_by) BETWEEN 1 AND 320),
-    resolved_at       TEXT    CHECK (resolved_at IS NULL OR resolved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    resolution_note   TEXT    CHECK (resolution_note IS NULL OR length(resolution_note) <= 500),
-    resolution_reason TEXT    CHECK (resolution_reason IS NULL OR resolution_reason IN ('not_affected_version', 'fixed_by_update')),
-    -- The last day of a risk acceptance (UTC); set exactly while the status is risk_accepted.
-    accepted_until    TEXT    CHECK (accepted_until IS NULL OR accepted_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    software_id       TEXT    CHECK (software_id IS NULL OR length(software_id) BETWEEN 1 AND 200),
-    proved_version    TEXT    CHECK (proved_version IS NULL OR length(proved_version) BETWEEN 1 AND 200),
-    -- confirmed: a scan or a person, or a version the device itself stated (its SNMP answer or its own agent) inside an affected
-    -- range with an end: basis version and the evidence's source says so.
-    CHECK (status <> 'confirmed' OR (evidence IS NOT NULL AND (basis IN ('scan', 'person')
-        OR (basis = 'version' AND coalesce(json_extract(evidence, '$.source'), '') IN ('snmp', 'agent'))))),
-    CHECK ((status = 'risk_accepted') = (accepted_until IS NOT NULL)),
-    CHECK (coalesce(resolution_reason, '') <> 'fixed_by_update' OR status = 'patched'),
-    UNIQUE (asset_id, cve)
-);
-
--- One time, after Vedette started to close a finding whose device moved to a version outside the affected range as patched (migration
--- 0016): findings it closed before as not affected after such a move become patched in the next full match pass (reclassifyPatched),
--- with no notice. The pass drops this marker. A box installed with this migration has no such finding: the first pass only drops it.
--- Forward-only (DATA_MODEL 6, rule 1).
-CREATE TABLE fnd_patched_backfill_pending (
-    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
-);
-
--- A recommended update ("Updates to plan" item) a person marked as done: hidden from the plan until the device reports another
--- version of that software, or a CVE that was not in the item joins it (findings INV-20). One row per item key (PlanItem.group).
-CREATE TABLE fnd_plan_done (
-    item_key  TEXT NOT NULL PRIMARY KEY CHECK (length(item_key) BETWEEN 1 AND 400),
-    asset_id  TEXT NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    version   TEXT NOT NULL CHECK (length(version) <= 200),
-    cves      TEXT NOT NULL CHECK (json_valid(cves) AND json_type(cves) = 'array'),
-    note      TEXT CHECK (note IS NULL OR length(note) <= 500),
-    done_by   TEXT NOT NULL CHECK (length(done_by) BETWEEN 1 AND 320),
-    done_at   TEXT NOT NULL CHECK (done_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-) WITHOUT ROWID;
-
-CREATE INDEX fnd_finding_history_finding_idx ON fnd_finding_history (finding_id, ts);
-
-CREATE INDEX fnd_finding_status_idx ON fnd_finding (status);
-
-CREATE INDEX fnd_finding_cve_idx ON fnd_finding (cve);
-
-CREATE INDEX fnd_finding_asset_status_idx ON fnd_finding (asset_id, status);
-
--- #825 (INV-23): Home's 30-day trend reads the findings closed inside the window. With the status index alone SQLite visits every
--- closed finding ever and filters resolved_at row by row; (status, resolved_at) makes it a range per closed status. Only an index:
--- no row changes. Forward-only (DATA_MODEL 6, rule 1).
-CREATE INDEX fnd_finding_status_resolved_idx ON fnd_finding (status, resolved_at);
-
-CREATE INDEX fnd_plan_done_asset_idx ON fnd_plan_done (asset_id);
-
-INSERT INTO fnd_device_backfill_pending (id) VALUES (1);
-
-INSERT INTO fnd_patched_backfill_pending (id) VALUES (1);
-
--- +goose StatementBegin
-CREATE TRIGGER fnd_finding_history_no_update BEFORE UPDATE ON fnd_finding_history
-BEGIN
-    SELECT RAISE(ABORT, 'fnd_finding_history is append-only');
-END;
--- +goose StatementEnd

@@ -76,6 +76,7 @@ type Software struct {
 	// mark is that very row (INV-6c). MarkedAt is, on a row of Asset.NotInstalled, when the person said it is not installed.
 	Key      string
 	MarkedAt time.Time
+	MarkedBy string // on a row of Asset.NotInstalled: who said it is not installed ("" when unknown)
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
 	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
 	SeenAt time.Time
@@ -310,6 +311,33 @@ type Match struct {
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).
 	bounded bool
+	// Lines are the matches of the same entry on the device's other software lines (another ID than SoftwareID) that stand on their
+	// own (version evidence, or a CVE a safe check reads), the best match of each line: a CVE on Java 8 and Java 21 is two findings.
+	Lines []Match
+}
+
+// otherLines is Match.Lines of best: of the other matches of the entry, the best one of each other software line that would stand
+// as a finding by itself (the age and name-only rules of best applied to it).
+func otherLines(best Match, matched []Match, v Vuln, now time.Time) []Match {
+	var out []Match
+	at := map[string]int{}
+	for _, m := range matched {
+		if m.SoftwareID == "" || m.SoftwareID == best.SoftwareID {
+			continue
+		}
+		if aged(v, now) && !confirmedMatch(m) && !v.HasTemplate || !versionBacked(m) && !v.HasTemplate {
+			continue
+		}
+		if i, ok := at[m.SoftwareID]; ok {
+			if betterMatch(m, out[i]) {
+				out[i] = m
+			}
+			continue
+		}
+		at[m.SoftwareID] = len(out)
+		out = append(out, m)
+	}
+	return out
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -565,6 +593,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		var unnamed []string      // their names, for the retired-entry sentence
 		var unchecked []Unchecked // #910: rows of the product that could not be checked
 		needs, bestRow := false, -1
+		var matched []Match // every row the entry matches: each software line is its own finding (Match.Lines)
 		for i, s := range sws {
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
 			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
@@ -604,6 +633,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
+				matched = append(matched, m)
 				// on a tie, a match with version evidence wins (versionBacked): whether the CVE is a
 				// finding never depends on the order of the rows; between two without it, the agent's row wins, so its note and
 				// agent_row do not depend on the order either (#909)
@@ -705,10 +735,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		decided[v.CVE] = true
+		b := *best
+		b.Lines = otherLines(b, matched, v, now)
 		if have[v.CVE] {
-			res.Existing = append(res.Existing, *best)
+			res.Existing = append(res.Existing, b)
 		} else {
-			res.New = append(res.New, *best)
+			res.New = append(res.New, b)
 		}
 	}
 	if os, orderable, ok := deviceOS(a); ok && !orderable {

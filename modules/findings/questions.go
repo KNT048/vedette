@@ -3,7 +3,6 @@ package findings
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"fmt"
 	"net/url"
 	"slices"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/productid"
-	"github.com/knt048/vedette/core/store"
 )
 
 // UncheckedReason says why an exploited CVE of software the device has could not be checked (#910 phase 1, contract.ts
@@ -189,105 +187,64 @@ func uncheckedOf(s Software, v Vuln, r UncheckedReason) Unchecked {
 		NVDPending: r == UncheckedNoNVDData && !v.NVDAnswered}
 }
 
-// replaceUnchecked rewrites the unchecked rows of one device from a match run, in the run's transaction (like version-needed).
-func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []Unchecked, now time.Time) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_unchecked WHERE asset_id = ?`, assetID); err != nil {
-		return fmt.Errorf("findings: clearing unchecked rows: %w", err)
-	}
-	seen := map[[2]string]bool{}
-	for _, u := range items {
-		k := [2]string{u.SoftwareID, u.CVE}
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at, nvd_pending, answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now), u.NVDPending, u.Answer); err != nil {
-			return fmt.Errorf("findings: storing an unchecked row: %w", err)
-		}
-	}
-	return nil
-}
-
-// announceUnchecked records, in the match's transaction, the (device, CVE) pairs of items whose CVE is in vulns (this write's part
-// of the list: Reconcile's backlog and recent writes each announce their own) and returns those new to the device: never listed
-// before (fnd_unchecked_seen) and with no finding of any status (a finding was announced as one, and an old product finding closing
-// into the list at the upgrade is not news). Each CVE once, in item order.
-func announceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []Unchecked, vulns []Vuln, now time.Time) ([]UncheckedAddedCVE, error) {
-	if len(items) == 0 {
-		return nil, nil
-	}
-	in := make(map[string]bool, len(vulns))
-	for _, v := range vulns {
-		in[v.CVE] = true
-	}
-	var out []UncheckedAddedCVE
-	done := map[string]bool{}
-	for _, u := range items {
-		if !in[u.CVE] || done[u.CVE] {
-			continue
-		}
-		done[u.CVE] = true
-		res, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked_seen (asset_id, cve, first_seen) VALUES (?, ?, ?) ON CONFLICT (asset_id, cve) DO NOTHING`,
-			assetID, u.CVE, store.FormatTS(now))
-		if err != nil {
-			return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
-		}
-		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			if err != nil {
-				return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
-			}
-			continue
-		}
-		var has bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM fnd_finding WHERE asset_id = ? AND cve = ?)`, assetID, u.CVE).Scan(&has); err != nil {
-			return nil, fmt.Errorf("findings: recording an unchecked CVE: %w", err)
-		}
-		if !has {
-			out = append(out, UncheckedAddedCVE{CVE: u.CVE, SoftwareID: u.SoftwareID, Software: u.Software, Version: u.Version, Reason: u.Reason, NVDPending: u.NVDPending})
-		}
-	}
-	return out, nil
-}
-
-// uncheckedLive is the stored unchecked rows of CVEs the device has no finding for (any status but one): the list and Home count the
-// same rows (rule 1 of #910: one place per device and CVE; a finding a person or an earlier match left wins).
-// A finding Vedette closed by itself (not_relevant with the reason not_affected_version: the name-only rule, the age rule) does not
-// hide the row: the CVE was not checked, and the list is where the customer now finds it. A proof that closed one gives no row.
-const uncheckedLive = ` FROM fnd_unchecked u WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.asset_id = u.asset_id AND f.cve = u.cve
-	AND NOT (f.status = 'not_relevant' AND f.resolution_reason IS NOT NULL AND f.resolution_reason = 'not_affected_version'))`
-
 // UncheckedRow is one stored unchecked (device, software, CVE).
 type UncheckedRow struct {
 	AssetID string
 	Unchecked
 }
 
-// ListUnchecked returns the unchecked rows of one device, or of every device when assetID is empty, without those the device
-// has a finding for.
+// ListUnchecked returns the CVEs of one device, or of every device when assetID is empty, that Vedette could not check (its questions
+// about one CVE), without those the device has a finding for.
 func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]UncheckedRow, error) {
-	q := `SELECT u.asset_id, u.software_id, u.software, u.version, u.source, u.reason, u.cve, u.nvd_pending, u.answer` + uncheckedLive
-	var args []any
-	if assetID != "" {
-		q += ` AND u.asset_id = ?`
-		args = append(args, assetID)
-	}
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, q, args...)
+	q := s.cfg.DB.Reader()
+	qs, err := questionsOf(ctx, q, assetID)
 	if err != nil {
-		return nil, fmt.Errorf("findings: reading unchecked rows: %w", err)
+		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	fs, err := findingsOf(ctx, q, assetID)
+	if err != nil {
+		return nil, err
+	}
+	has := map[string]bool{}
+	for _, f := range fs {
+		has[f.AssetID+"\x1f"+f.CVE] = true
+	}
 	out := []UncheckedRow{}
-	for rows.Next() {
-		var r UncheckedRow
-		var reason string
-		if err := rows.Scan(&r.AssetID, &r.SoftwareID, &r.Software, &r.Version, &r.Source, &reason, &r.CVE, &r.NVDPending, &r.Answer); err != nil {
-			return nil, fmt.Errorf("findings: reading unchecked rows: %w", err)
+	for _, x := range qs {
+		if x.CVE == "" || has[x.AssetID+"\x1f"+x.CVE] {
+			continue
 		}
-		r.Reason = UncheckedReason(reason)
-		out = append(out, r)
+		sw := x.SoftwareID
+		if sw == "" {
+			sw = osSoftwareID(x.AssetID)
+		}
+		out = append(out, UncheckedRow{AssetID: x.AssetID, Unchecked: Unchecked{CVE: x.CVE, SoftwareID: sw, Software: x.Detail.Software,
+			Version: x.Detail.Version, Source: x.Detail.Source, Reason: UncheckedReason(x.Detail.Reason), Answer: x.Detail.Choice, NVDPending: x.Detail.NVDPending}})
 	}
-	return out, rows.Err()
+	return out, nil
+}
+
+// NeedVersionRow is a software line without a version Vedette can read, with how many exploited CVEs wait on it.
+type NeedVersionRow struct {
+	AssetID, SoftwareID, Software, Version string
+	CVEs                                   int
+	UpdatedAt                              time.Time
+}
+
+// ListVersionNeeded returns the software lines of one device, or of every device when assetID is empty, that need a version.
+func (s *Service) ListVersionNeeded(ctx context.Context, assetID string) ([]NeedVersionRow, error) {
+	qs, err := questionsOf(ctx, s.cfg.DB.Reader(), assetID)
+	if err != nil {
+		return nil, err
+	}
+	var out []NeedVersionRow
+	for _, x := range qs {
+		if x.Kind != QuestionVersionNeeded {
+			continue
+		}
+		out = append(out, NeedVersionRow{AssetID: x.AssetID, SoftwareID: x.SoftwareID, Software: x.Detail.Software, Version: x.Detail.Version, CVEs: x.Cves, UpdatedAt: x.AskedAt})
+	}
+	return out, nil
 }
 
 // unchecked is GET /findings `unchecked` of one device, or of every device when assetID is empty (UncheckedItems).

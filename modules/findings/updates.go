@@ -304,7 +304,7 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 	ran, compared = s.plan.ran, d.compared
 	items := slices.Clone(d.items)
 	s.plan.mu.RUnlock()
-	kept := s.notDone(listedPlanItems(items, s.now())) // an item a person marked done leaves To fix and the risk marker
+	kept := listedPlanItems(items, s.now())
 	sortPlanItems(kept)
 	for _, it := range kept {
 		u := planAction(it)

@@ -118,8 +118,9 @@ type MatchSoftware struct {
 	// Key is the line's id on its effective reading and on a line of MatchDevice.NotInstalled; on another reading, the line's id,
 	// source and instance joined by char(31).
 	Key string
-	// MarkedAt is, on a line of MatchDevice.NotInstalled, when the person said it is not installed (RFC 3339); "" otherwise.
-	MarkedAt string
+	// MarkedAt is, on a line of MatchDevice.NotInstalled, when the person said it is not installed (RFC 3339); "" otherwise. MarkedBy
+	// is who said it ("" when unknown).
+	MarkedAt, MarkedBy string
 	// SeenAt is when the reading's source last read it (RFC 3339): for an agent's reading, the time of the list the version comes from.
 	SeenAt string
 	// ShadowedBy is "" on every row MatchInput returns. Kept for the findings port.
@@ -255,7 +256,7 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 				base = *det
 			}
 			sw := row(base)
-			sw.MarkedAt = l.markedAt
+			sw.MarkedAt, sw.MarkedBy = l.markedAt, l.markedBy
 			sw.Correction = correctionNote(entry, det, base.Display, l.markedBy, l.markedAt, true, loc)
 			notInstalled = append(notInstalled, sw)
 			continue

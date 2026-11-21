@@ -307,7 +307,7 @@ func declaredOS(d inventory.MatchDevice, candidates []string) (id, version strin
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
 		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
-		Key: s.Key}
+		Key: s.Key, MarkedBy: s.MarkedBy}
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
@@ -772,17 +772,8 @@ func subscribe(d deps) {
 			return nil
 		}))
 	}
-	// An ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
-	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
-	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.
-	d.Bus.Subscribe(inventory.EventAssetIgnored, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetIgnored(ctx, ev.AssetID, ev.Actor)
-		return err
-	}))
+	// An ignored device's findings stay as they are: ignoring is an attribute of the device, and every list leaves its findings out
+	// (while it is ignored nothing new is made: MatchInput says it is not there, AssetIDs leaves it out).
 	// A finding on a device, or a honeypot hit from it, is a reason to look at a private-address device that was held out of To review:
 	// it joins To review with its one new-device notice (inventory INV-49).
 	d.Bus.Subscribe(findings.EventCreated, on("inventory", func(ctx context.Context, data any) error {
@@ -805,14 +796,6 @@ func subscribe(d deps) {
 			return nil
 		}
 		return d.Inventory.EarnReview(ctx, ev.SrcAssetID)
-	}))
-	d.Bus.Subscribe(inventory.EventAssetUnignored, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetUnignored(ctx, ev.AssetID, ev.Actor)
-		return err
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("inventory", func(ctx context.Context, data any) error {
 		ev, ok := data.(feeds.NewKEVEvent)

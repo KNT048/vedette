@@ -93,7 +93,7 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 		plans := maps.Clone(s.plan.devices)
 		s.plan.mu.RUnlock()
 		for id, d := range plans {
-			if len(s.notDone(d.items)) > 0 && (assetID == "" || id == assetID) {
+			if len(d.items) > 0 && (assetID == "" || id == assetID) {
 				seen[id] = true
 			}
 		}

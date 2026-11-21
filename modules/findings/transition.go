@@ -212,7 +212,7 @@ func (t *transition) detected(d Detection) error {
 	}
 	f.Detected = true
 	switch {
-	case !was.Confirmed() && f.Confirmed():
+	case f.Verified.rank() > was.Verified.rank(): // confirmed, or confirmed by a stronger proof
 		t.emit(SystemUser, EvConfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
 	case was.Confirmed() && !f.Confirmed():
 		t.emit(SystemUser, EvUnconfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
@@ -245,11 +245,11 @@ func (t *transition) gone(tr Trigger) error {
 	if f.State == "" || !f.Detected { // no row, or already not detected: only the edge changes anything
 		return nil
 	}
-	if f.Verified == VerifiedScan && (via == ViaDataCorrected || via == ViaDistroFixed) {
-		return nil // range data does not undo what a safe check proved
-	}
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
+	}
+	if f.Verified == VerifiedScan && (via == ViaDataCorrected || via == ViaDistroFixed) {
+		return nil // range data does not undo what a safe check proved
 	}
 	if via != ViaVersionMoved {
 		from, to = "", ""

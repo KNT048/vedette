@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/selfcheck"
 )
@@ -21,11 +22,21 @@ func NextDueMismatches(ctx context.Context, db *sql.DB) (int64, error) {
 	}
 	var n int64
 	for _, r := range rows {
-		if !sameTime(r.due(org), r.NextDueAt) {
+		if !sameTime(r.due(org), r.NextDueAt) && !firstRunDue(r) {
 			n++
 		}
 	}
 	return n, nil
+}
+
+// firstRunDue says the stored next due time is a first-run time: the schedule never came due and is due at its reference (Owner.
+// FirstInWindow, known only to the running box; the self-check has no owners), so the scan window holds it until it opens.
+func firstRunDue(r row) bool {
+	if !r.Enabled || r.LastDueAt != nil || r.NextDueAt == nil {
+		return false
+	}
+	ref := Reference(nil, r.UpdatedAt, r.PausedUntil).Truncate(time.Millisecond)
+	return r.NextDueAt.Equal(ref)
 }
 
 // The rules of the schedules table are part of the box's self-check.

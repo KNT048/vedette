@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # The nuclei go.mod is a patched copy of upstream's module file without its source tree. Dependabot cannot resolve it and
+  # opens pull requests that empty go.mod and go.sum instead of bumping one module. Its modules are bumped by hand and
+  # checked by building the scan-base image (scripts/release checks the binary against this go.mod).
+  - package-ecosystem: gomod
+    directory: /deploy/containers/scan-base/nuclei
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"

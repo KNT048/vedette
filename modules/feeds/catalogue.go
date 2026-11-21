@@ -64,8 +64,9 @@ type nvdWrite struct {
 
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
 // description), its scores and its NVD ranges replace what the catalogue had (the CVE record's own rows stay; reads prefer NVD's when
-// there are any). A record NVD rejected keeps only its status, so the retention rule drops it unless a list, a signal or a finding
-// holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its pages over several checks
+// there are any). NVD's weaknesses replace the CVE's when NVD lists any (they carry the CNA's and CISA's too); NVD's references replace
+// the CVE's, for a CVE whose references are kept (ret.keep), once NVD has tagged them (nvdRefs). A record NVD rejected keeps only its
+// status, so the retention rule drops it unless a list, a signal or a finding holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its pages over several checks
 // never puts back what a later pull already replaced.
 func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret retention, now time.Time) (nvdWrite, error) {
 	var out nvdWrite
@@ -79,9 +80,9 @@ func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret rete
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
 	defer func() { _ = storedMod.Close() }()
-	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+	upCVE, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, description, cwe, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(cve) DO UPDATE SET published = coalesce(excluded.published, published), modified = coalesce(excluded.modified, modified), nvd_status = excluded.nvd_status, nvd_at = excluded.nvd_at,
-description = excluded.description, updated_at = excluded.updated_at`)
+description = excluded.description, cwe = CASE WHEN excluded.cwe = '[]' THEN cwe ELSE excluded.cwe END, updated_at = excluded.updated_at`)
 	if err != nil {
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
@@ -107,6 +108,16 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		return out, fmt.Errorf("feeds: catalogue: %w", err)
 	}
 	defer func() { _ = insRange.Close() }()
+	delRef, err := tx.PrepareContext(ctx, `DELETE FROM feeds_cve_ref WHERE cve = ?`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = delRef.Close() }()
+	insRef, err := tx.PrepareContext(ctx, `INSERT INTO feeds_cve_ref (cve, url, tags, source) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return out, fmt.Errorf("feeds: catalogue: %w", err)
+	}
+	defer func() { _ = insRef.Close() }()
 	for i, r := range recs {
 		if i%ctxEvery == 0 {
 			if err := ctx.Err(); err != nil {
@@ -149,7 +160,11 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 				out.KEVChanged = append(out.KEVChanged, r.CVE)
 			}
 		}
-		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, stamp); err != nil {
+		cwe, err := json.Marshal(append([]string{}, r.CWE...))
+		if err != nil {
+			return out, err
+		}
+		if _, err := upCVE.ExecContext(ctx, r.CVE, tsOrNull(r.Published), tsOrNull(r.LastModified), r.Status, stamp, r.Description, string(cwe), stamp); err != nil {
 			return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 		}
 		if _, err := delMetric.ExecContext(ctx, r.CVE); err != nil {
@@ -165,6 +180,11 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		for _, m := range r.Metrics {
 			if _, err := insMetric.ExecContext(ctx, r.CVE, m.Source, m.Version, m.Score, m.Vector); err != nil {
 				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+			}
+		}
+		if (ret.all || ret.keep[r.CVE]) && r.Tagged() {
+			if err := nvdRefs(ctx, delRef, insRef, r); err != nil {
+				return out, err
 			}
 		}
 		for j, a := range r.Affected {
@@ -184,6 +204,26 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		}
 	}
 	return out, nil
+}
+
+// nvdRefs replaces the references of r's CVE by NVD's, which NVD has tagged: one vocabulary of tags (nvdTag), source "nvd". NVD
+// lists the CNA's and the ADPs' references too, with an analyst's tags; while NVD has tagged none, the CVE record's stand
+// (writeRecords), and once NVD has, the record's never replace them. One rule, so the stored references do not depend on which pull
+// came first.
+func nvdRefs(ctx context.Context, del, ins *sql.Stmt, r NVDRecord) error {
+	if _, err := del.ExecContext(ctx, r.CVE); err != nil {
+		return fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+	}
+	for _, ref := range r.Refs {
+		tags, err := json.Marshal(ref.Tags)
+		if err != nil {
+			return err
+		}
+		if _, err := ins.ExecContext(ctx, r.CVE, ref.URL, string(tags), RefsNVD); err != nil {
+			return fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
+		}
+	}
+	return nil
 }
 
 // tsOrNull is t as stored, NULL for the zero time (a record always has both dates; a test's record may not).

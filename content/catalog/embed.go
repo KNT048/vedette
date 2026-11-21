@@ -47,3 +47,8 @@ var ESXiBuilds []byte
 //
 //go:embed exploit-authors.json
 var ExploitAuthors []byte
+
+// CWENames is cwe-names.json: the name of every weakness and grouping of MITRE's CWE List, read by feeds to name a CVE's weaknesses.
+//
+//go:embed cwe-names.json
+var CWENames []byte

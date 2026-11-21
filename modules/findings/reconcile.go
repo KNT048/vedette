@@ -40,13 +40,19 @@ func storedLine(id string) string {
 //   - every finding of the device that was detected until now, whose CVE is in vulns and that this match no longer detects, goes
 //     away the way the data says (goneVia): a scan's proof is left to the scans unless its software line is gone;
 //   - the device's questions become those of qm (the match of the whole list).
-func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
+func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
 	var res UpsertResult
 	byKey := make(map[string]Finding, len(existing))
 	for _, f := range existing {
 		byKey[lineKey(f.CVE, f.SoftwareID)] = f
 	}
 	lines := deviceLines(a)
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		if _, ok := byCVE[v.CVE]; !ok { // the first, as the matcher reads it
+			byCVE[v.CVE] = v
+		}
+	}
 	seen := map[string]bool{}
 	for _, list := range [][]Match{m.New, m.Existing} {
 		for _, best := range list {
@@ -77,26 +83,31 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 				if !ok {
 					f = Finding{ID: store.NewID("f"), AssetID: a.ID, CVE: x.CVE}
 				}
-				g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: detectionOf(x, lines)}, emit)
+				d := detectionOf(x, lines)
+				if v, known := byCVE[x.CVE]; known {
+					resolve(&d, a, lines, v)
+				}
+				g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
 				if err != nil {
 					return res, fmt.Errorf("findings: %s on %s: %w", x.CVE, a.ID, err)
 				}
 				switch {
 				case !ok:
 					res.Created = append(res.Created, g.ID)
-					emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					if Announced(g) {
+						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					}
 				default:
 					res.Touched++
+					if joinsList(f, g) { // its CVE joined an exploited list: announced once, as a new exploited match
+						emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: x.Severity, Basis: x.Basis})
+					}
 					if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
 						res.Reopened++
 					}
 				}
 			}
 		}
-	}
-	judged := make(map[string]bool, len(vulns))
-	for _, v := range vulns {
-		judged[v.CVE] = true
 	}
 	proofs := map[string]Match{}
 	for _, p := range m.NotAffected {
@@ -124,7 +135,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		return res, err
 	}
 	res.Questions = n
-	if cves := announced(added, existing, seen); len(cves) > 0 {
+	if cves := announced(added, existing, seen, byCVE); len(cves) > 0 {
 		emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: cves})
 	}
 	return res, nil
@@ -155,7 +166,7 @@ func deviceLines(a Asset) map[string]line {
 // detectionOf is the detection of one match.
 func detectionOf(x Match, lines map[string]line) Detection {
 	ev := x.Evidence
-	d := Detection{SoftwareID: storedLine(x.SoftwareID), Evidence: &ev, Urgency: 2, RangeOrigin: RangeNVD}
+	d := Detection{SoftwareID: storedLine(x.SoftwareID), Evidence: &ev, Urgency: UrgencyUpdate, RangeOrigin: RangeNVD}
 	l, ok := lines[d.SoftwareID]
 	if ok {
 		d.ProductKey = productKey(l.sw)
@@ -188,6 +199,24 @@ func detectionOf(x Match, lines map[string]line) Detection {
 		}
 	}
 	return d
+}
+
+// resolve completes a version detection with what the match pass decides from the CVE's data: the origin of the ranges it compared
+// and the fix of the line (FixOf, the one resolver). A safe check's detection keeps its own origin; a detection on no line has no fix
+// to read (the fix the finding had stays).
+func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
+	d.Urgency = v.startUrgency()
+	if d.Basis != DetectScan && d.Basis != DetectPackage {
+		d.RangeOrigin = v.rangeOrigin()
+	}
+	l, ok := lines[d.SoftwareID]
+	if !ok {
+		return
+	}
+	d.Fix = FixOf(a, l.sw, v)
+	if d.ProductKey == "" {
+		d.ProductKey = "unknown"
+	}
 }
 
 // goneVia says how a finding the match no longer detects went away, from what the device reads now:
@@ -279,8 +308,9 @@ func questionsOfMatch(m MatchResult) []Question {
 	return out
 }
 
-// announced is the CVEs of the questions a write added that the device has no finding for (announced once, as a new question).
-func announced(added []Question, existing []Finding, detected map[string]bool) []UncheckedAddedCVE {
+// announced is the CVEs of the questions a write added that the device has no finding for (announced once, as a new question), of
+// the entries on an exploited list.
+func announced(added []Question, existing []Finding, detected map[string]bool, vulns map[string]Vuln) []UncheckedAddedCVE {
 	has := map[string]bool{}
 	for _, f := range existing {
 		has[f.CVE] = true
@@ -292,7 +322,7 @@ func announced(added []Question, existing []Finding, detected map[string]bool) [
 	var out []UncheckedAddedCVE
 	listed := map[string]bool{}
 	for _, q := range added {
-		if q.CVE == "" || has[q.CVE] || listed[q.CVE] {
+		if q.CVE == "" || has[q.CVE] || listed[q.CVE] || !vulns[q.CVE].listed() { // a CVE on no list is never announced
 			continue
 		}
 		listed[q.CVE] = true
@@ -353,11 +383,6 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		s.cfg.Log.WarnContext(ctx, "findings reconcile could not read the ignored devices; it matches the watched devices", "error", err)
 		failed = append(failed, fmt.Errorf("findings: reconcile: listing ignored devices: %w", err))
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
-	if err != nil {
-		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: reading the exploited list: %w", err))...)
-	}
-	backlog, recent := s.splitByNews(vulns)
 	skip := func(id string, err error) error { // a device that failed is logged and skipped; a cancelled run stops
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -370,11 +395,9 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	for _, id := range ignored { // an ignored device is not gone: its findings stay as they are
 		live[id] = true
 	}
+	assets := make([]Asset, 0, len(ids))
 	for _, id := range ids {
 		live[id] = true
-		if len(vulns) == 0 {
-			continue // no exploited list loaded yet: nothing can match
-		}
 		if err := ctx.Err(); err != nil {
 			return res, err
 		}
@@ -385,12 +408,29 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 			}
 			continue
 		}
-		if !ok {
-			continue // deleted (or ignored) since the list was read
+		if ok { // else deleted (or ignored) since the list was read
+			assets = append(assets, a)
 		}
-		up, err := s.upsertSplit(ctx, a, backlog, recent)
+	}
+	pinned, err := s.pinnedCVEs(ctx, "")
+	if err != nil {
+		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: %w", err))...)
+	}
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope(assets, pinned))
+	if err != nil {
+		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: reading the catalogue: %w", err))...)
+	}
+	set := newMatchSet(vulns)
+	for _, a := range assets {
+		if len(vulns) == 0 {
+			break // no catalogue loaded yet: nothing can match
+		}
+		if err := ctx.Err(); err != nil {
+			return res, err
+		}
+		up, err := s.upsertSplit(ctx, a, set)
 		if err != nil {
-			if err := skip(id, err); err != nil {
+			if err := skip(a.ID, err); err != nil {
 				return res, err
 			}
 			continue
@@ -468,7 +508,8 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	return n, err
 }
 
-// splitByNews separates the entries whose findings are announced (added to KEV within RecentKEV) from the backlog.
+// splitByNews separates the entries whose findings are announced (added to an exploited list within RecentKEV) from the backlog: an
+// older entry, and a catalogue CVE on no list, whose findings are written silently (the urgency pass says what is urgent).
 // Without a Backlog hook everything is "recent": nothing can be marked, so nothing is held back.
 func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 	if s.cfg.Backlog == nil {
@@ -485,19 +526,32 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 	return backlog, recent
 }
 
-// upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. Both writes store the
-// questions of the whole list (each write replaces them).
-func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
+// cveSet is the CVEs of vulns.
+func cveSet(vulns []Vuln) map[string]bool {
+	out := make(map[string]bool, len(vulns))
+	for _, v := range vulns {
+		out[v.CVE] = true
+	}
+	return out
+}
+
+// upsertSplit matches one device against the entries of set that can concern it, in two writes, the backlog under the Backlog mark.
+// Each write judges every finding of the device whose CVE is in its part of the whole set (a CVE the device no longer runs a product
+// of is gone), and both store the questions of the whole match (each write replaces them).
+func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (UpsertResult, error) {
 	var sum UpsertResult
-	a.winList = slices.Concat(backlog, recent)      // A Windows build's month is read from the whole list in both writes
-	whole := MatchAsset(a, a.winList, nil, s.now()) // its questions: which findings exist does not change them
-	add := func(wctx context.Context, vulns []Vuln) error {
-		if len(vulns) == 0 {
+	dev := set.forDevice(a)
+	a.winList = dev                           // A Windows build's month is read from the device's whole list in both writes
+	whole := MatchAsset(a, dev, nil, s.now()) // its questions: which findings exist does not change them
+	allBacklog, allRecent := s.splitByNews(set.vulns)
+	backlog, recent := s.splitByNews(dev)
+	add := func(wctx context.Context, vulns []Vuln, judged map[string]bool) error {
+		if len(judged) == 0 {
 			return nil
 		}
 		wctx, cancel := context.WithTimeout(wctx, eventWriteTimeout)
 		defer cancel()
-		r, err := s.upsert(wctx, a, vulns, &whole)
+		r, err := s.upsert(wctx, a, vulns, judged, &whole, true)
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Touched += r.Touched
 		sum.Closed += r.Closed
@@ -505,12 +559,12 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vu
 		sum.Questions = r.Questions
 		return err
 	}
-	if len(backlog) > 0 {
-		if err := add(s.cfg.Backlog(ctx), backlog); err != nil {
+	if len(allBacklog) > 0 {
+		if err := add(s.cfg.Backlog(ctx), backlog, cveSet(allBacklog)); err != nil {
 			return sum, err
 		}
 	}
-	return sum, add(ctx, recent)
+	return sum, add(ctx, recent, cveSet(allRecent))
 }
 
 func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {

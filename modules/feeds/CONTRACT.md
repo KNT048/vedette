@@ -115,3 +115,7 @@ S-FEED-1…5. Feed BYOK cấm thương mại; danh mục KEV; hộp tự kéo; f
 - Thiết kế ban đầu nói nút Thử "kéo mẫu"; `contract.ts` chỉ dùng mẫu của người gọi/mẫu dựng sẵn (INV-7).
 - Feed BYOK (VulnCheck, AbuseIPDB…) chưa có trong GUI (`DEFS`) và `contract.ts`.
 - `MODULES.md` chưa liệt kê S-FEED-4/5.
+
+- Match readers for findings: `RangeProducts` (every product a range names), `RangesOf(cves)` (precedence applied), `Range.MatchRow`
+  (a record row without a CPE as `cpe:2.3:*:<vendor>:<product>`; none for a vendor findings compares itself), `DistroFixesFor(cves)`
+  (any CVE, not only an exploited one). `MatchStamp` also keys on the public-exploit and vendor-claim feeds.

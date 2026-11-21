@@ -55,6 +55,19 @@ readers until they read the view of the finding; nothing of it is stored.
   software that went becomes its history), then the foreign key leaves the rest on no line. Ignoring a device
   changes no finding: Home, To fix, the risk marker, the AI context and the reports leave its findings out.
   `TestDeviceMerged_*`, `TestContract_DeviceMergedKeepsTheBetterFinding`, `TestLinesDeleted_FoldsWhatWouldCollide`.
+- **M-7 One match pass.** Reconcile reads every device, asks feeds once for the match set (`Feeds.MatchSet`: every exploited-list
+  entry and every catalogue CVE whose ranges name a product the devices run, `MatchScope`, or that a finding holds, `MatchScope.Pinned`;
+  NVD's ranges when NVD has any, else the CVE record's, `Vuln.Origin`) and compares each device with the entries that can concern it
+  (`matchSet.forDevice`). A CVE that matches with version evidence is a finding whatever its urgency; a catalogue CVE on no list is
+  matched only through the rows its NVD list names, and only on a bounded range. Every finding whose CVE is in the set and that the
+  pass no longer detects goes away the way the data says, also when no device runs the product any more. A pass that changes nothing
+  writes nothing (`last_seen` moves once a day, `lastSeenStep`). Feeds keeps the CVEs of open or detected findings (`PinnedCVEs`,
+  feeds `Deps.Pins`). `TestMatchPass_*`.
+- **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding (update, distro_update, os_update with
+  its KB, feature_update, none_yet, unknown); the match write stores it with `fix_key` and `range_origin`. `TestFixCount_FindingsWithTwoFixedVersions`
+  counts the findings whose readers name another fixed version (the finding page agrees with the stored fix; the list row's grouped
+  release does not yet). Selfcheck `findings.cve_in_catalogue`, `findings.catalogue_retention`, `findings.range_precedence` (run on a
+  whole database: they read feeds' tables).
 - **Removed**: the note-prefix rules, the one-time backfill passes, the history-reading rules, `fnd_plan_done` ("Mark as done" is
   patched on the findings), `fnd_finding_history`, `fnd_version_needed`, `fnd_unchecked`, `fnd_unchecked_seen`, `fnd_not_installed`,
   the closing of findings when a device is ignored.

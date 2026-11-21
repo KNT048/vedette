@@ -100,6 +100,8 @@ type fakeFeeds struct {
 	covered map[string]bool
 	loading map[string]bool // TierDistro's Loading: the distributions the plan still waits for
 	stamp   string
+	// onMatchSet runs when a pass reads the match set: a test can change the world while the catalogue is read.
+	onMatchSet func()
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -123,6 +125,13 @@ func (f *fakeFeeds) CVSS(_ context.Context, cves []string) (map[string]CVSS, err
 }
 
 func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
+
+func (f *fakeFeeds) MatchSet(context.Context, MatchScope) ([]Vuln, error) {
+	if f.onMatchSet != nil {
+		f.onMatchSet()
+	}
+	return f.vulns, nil
+}
 
 func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
 

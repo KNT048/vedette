@@ -1,11 +1,9 @@
 package findings
 
 import (
-	"regexp"
 	"slices"
 	"strconv"
 
-	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/versionscheme"
 	"github.com/knt048/vedette/core/winrel"
 )
@@ -104,45 +102,13 @@ func noEnd(in swInfo, v Vuln, key []identity) bool {
 	return true
 }
 
-// esxiBuildRE reads the build an ESXi host states in its OS line ("VMware ESXi 8.0.3 (build 24022510)").
-var esxiBuildRE = regexp.MustCompile(`\(build ([0-9]{5,9})\)`)
-
-// schemeFix is FixOf from the ranges a vendor states in its notation for the line's product: the fixed release of the device's train
-// (versionscheme.Judge). ok is false when none names the product, the device's version does not place it in a train, or the vendor
-// states no fix for it.
+// schemeFix is FixOf from the ranges a vendor states in its notation for the line's product: the fixed release of the device's train,
+// as the matcher reads them (schemeJudge). ok is false when none names the product, the device's version does not place it in a train
+// of a line the rows name, or the vendor states no fix for it.
 func schemeFix(a Asset, s Software, v Vuln) (Fix, bool) {
-	if len(v.Schemed) == 0 {
+	r, ok := schemeJudge(a, s, newSWInfo(s, a.OS), v)
+	if !ok || r.verdict.State != versionscheme.Affected || r.verdict.Fix == nil {
 		return Fix{}, false
 	}
-	p, ok := productid.ResolveStored(s.Vendor, s.Product, s.Display, s.CPE)
-	if !ok {
-		return Fix{}, false
-	}
-	var spans []versionscheme.Span
-	var scheme *versionscheme.Scheme
-	for _, r := range v.Schemed {
-		if r.Product == p.Key && r.Scheme != nil {
-			spans, scheme = append(spans, r.Span), r.Scheme
-		}
-	}
-	if scheme == nil {
-		return Fix{}, false
-	}
-	build := ""
-	if m := esxiBuildRE.FindStringSubmatch(a.OS); m != nil { // the host states its build in its OS line, beside the version
-		build = m[1]
-	}
-	installed, ok := scheme.Installed(s.Version, build)
-	if !ok {
-		return Fix{}, false
-	}
-	verdict := versionscheme.Judge(installed, spans)
-	if verdict.State != versionscheme.Affected || verdict.Fix == nil {
-		return Fix{}, false
-	}
-	release := verdict.Fix.Display
-	if release == "" {
-		release = verdict.Fix.Label
-	}
-	return Fix{Kind: FixUpdate, Version: release}, true
+	return Fix{Kind: FixUpdate, Version: releaseName(*r.verdict.Fix)}, true
 }

@@ -58,9 +58,9 @@ func TestMatchReaders(t *testing.T) {
 	if !slices.Equal(origins, []string{"CVE-2026-0201/nvd", "CVE-2026-0202/cna"}) { // NVD's win; the vendor's notation is never generic
 		t.Errorf("RangesOf %v", origins)
 	}
-	vendor, err := s.VendorRangesOf(t.Context(), []string{"CVE-2026-0201", "CVE-2026-0203"})
+	vendor, err := s.SchemeRangesOf(t.Context(), []string{"CVE-2026-0201", "CVE-2026-0203"})
 	if err != nil || len(vendor) != 1 || vendor[0].CVE != "CVE-2026-0203" {
-		t.Fatalf("VendorRangesOf %+v %v", vendor, err)
+		t.Fatalf("SchemeRangesOf %+v %v", vendor, err)
 	}
 	if _, sp, fixed, ok := RangeScheme(vendor[0]); !ok || sp.End == nil || fixed == nil {
 		t.Errorf("the ESXi row does not read in its scheme")

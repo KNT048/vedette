@@ -17,7 +17,7 @@ import (
 //
 // Before: the reader dropped every such product (no row, "skipped"). After: its rows are kept as the vendor states them, display-only
 // for the generic comparison; a product whose catalogue entry declares a version scheme that reads every one of its rows is read per
-// release train. The vendors of recordSkipVendors (Juniper, Microsoft, Citrix) keep their generic rows, which the exploited-list view
+// release train. The vendors of recordSkipVendors (Juniper, Microsoft; Citrix until NetScaler got its scheme) keep their generic rows, which the exploited-list view
 // leaves out: counted apart.
 
 // notationReason is why the generic comparison refuses one affected entry (the first rule it breaks), "" when it reads it.

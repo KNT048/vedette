@@ -420,6 +420,33 @@ AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.releas
 	return out, nil
 }
 
+// DistroCVEs returns the CVEs the enabled distribution feeds say something about (fixed or not affected) for these packages: a CVE a
+// distribution has fixed in a package reaches the match pass before NVD names the upstream product. Sorted.
+func (s *Store) DistroCVEs(ctx context.Context, pkgs []DistroPackage) ([]string, error) {
+	cves := map[string]bool{}
+	for chunk := range slices.Chunk(pkgs, 400) {
+		triples := make([][3]string, len(chunk))
+		for i, p := range chunk {
+			triples[i] = [3]string{p.Distro, p.Release, p.Package}
+		}
+		part, err := json.Marshal(triples)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: distribution CVEs: %w", err)
+		}
+		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT d.cve FROM json_each(?) j
+JOIN feeds_distro_fix d ON d.distro = json_extract(j.value, '$[0]') AND d.package = json_extract(j.value, '$[2]')
+  AND (json_extract(j.value, '$[1]') = '' OR d.release = json_extract(j.value, '$[1]'))
+JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected')`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for c := range got {
+			cves[c] = true
+		}
+	}
+	return slices.Sorted(mapsKeys(cves)), nil
+}
+
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro

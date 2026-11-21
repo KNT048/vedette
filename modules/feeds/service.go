@@ -48,6 +48,9 @@ const (
 type RangesUpdatedEvent struct {
 	CVEs  []string `json:"cves"`
 	First bool     `json:"first"`
+	// Catalogue: the pull also changed the ranges of a CVE on no exploited list (NVD's or a CVE record's): CVEs names none of them,
+	// and findings' match pass, the one reader of those CVEs, runs again. CVEs may be empty then.
+	Catalogue bool `json:"catalogue,omitempty"`
 }
 
 // SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list

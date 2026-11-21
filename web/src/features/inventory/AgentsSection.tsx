@@ -269,6 +269,8 @@ function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChang
 }
 
 const INTERVALS = [5, 15, 60, 360, 1440]
+/** The words for an interval: a preset's, or the minutes themselves when the schedule editor saved another one. */
+const everyWords = (t: (k: string, o?: Record<string, unknown>) => string, m: number) => (INTERVALS.includes(m) ? t(`agents.wazuh.intervalOption.${m}`) : t('agents.wazuh.intervalOption.other', { count: m }))
 
 function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenChange: (o: boolean) => void; current: WazuhConnection | null }) {
   const { t } = useTranslation('inventory')
@@ -315,7 +317,8 @@ export function WazuhForm({ current, onSaved }: { current: WazuhConnection | nul
               <Input id="wazuh-pass" type="password" value={password} autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} aria-describedby="wazuh-pass-hint" />
             </Field>
             <Field label={t('agents.wazuh.interval')} htmlFor="wazuh-interval" className="max-w-xs">
-              <Select id="wazuh-interval" value={interval} onChange={(e) => setInterval(Number(e.target.value))}>{INTERVALS.map((m) => <option key={m} value={m}>{t(`agents.wazuh.intervalOption.${m}`)}</option>)}</Select>
+              <Select id="wazuh-interval" value={interval} onChange={(e) => setInterval(Number(e.target.value))}>{(INTERVALS.includes(interval) ? INTERVALS : [...INTERVALS, interval].sort((a, b) => a - b)).map((m) => <option key={m} value={m}>{everyWords(t, m)}</option>)}</Select>
+              <p className="text-meta text-muted">{t('agents.wazuh.limit')}</p>
             </Field>
             {ok ? <p role="status" className="rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">{ok}</p> : null}
             {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
@@ -343,7 +346,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
             <dt className="text-meta text-muted">{t('agents.wazuh.url')}</dt><dd className="[overflow-wrap:anywhere]">{w.url}</dd>
             <dt className="text-meta text-muted">{t('agents.wazuh.username')}</dt><dd>{w.username}, {t('agents.tokenMask', { last4: w.password_last4 })}</dd>
-            <dt className="text-meta text-muted">{t('agents.wazuh.interval')}</dt><dd>{t(`agents.wazuh.intervalOption.${w.interval_minutes}`)}</dd>
+            <dt className="text-meta text-muted">{t('agents.wazuh.interval')}</dt><dd>{everyWords(t, w.interval_minutes)}<span className="block text-meta text-muted">{t('agents.wazuh.limit')}</span></dd>
             <dt className="text-meta text-muted">{t('agents.wazuh.statusLabel')}</dt>
             <dd className="flex flex-wrap items-center gap-2"><Chip tone={w.status === 'connected' ? 'ok' : w.status === 'error' ? 'danger' : 'off'}>{t(`agents.wazuh.status.${w.status}`)}</Chip>
               <span className="text-meta text-muted">{w.last_sync ? `${t('agents.wazuh.lastSync', { when: fmtRelative(w.last_sync) })}. ${t('agents.wazuh.summary', { agents: w.agents, packages: w.packages })}` : t('agents.wazuh.noSync')}</span></dd>

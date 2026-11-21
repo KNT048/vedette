@@ -196,7 +196,7 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 	e.svc.Inventory = inv
 	const note = "Not updated: no Alpine Linux device now. Vedette fetches it on the next check after a device's agent or SNMP answer, or a person, says it runs Alpine Linux."
 	for range 2 { // never filled, no Alpine device: nothing is fetched or recorded, and the next tick asks again
-		if err := e.svc.RunPull(t.Context()); err != nil {
+		if err := e.runPull(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 		e.setNow(e.clock().Add(10 * time.Minute))
@@ -252,7 +252,7 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 		t.Fatalf("findings reads %v", fixes) // only the CISA list's CVEs: CVE-2026-31431 and CVE-2021-3156 are not on this box's list
 	}
 	e.setNow(e.clock().Add(25 * time.Hour)) // due again, unchanged: 304, rows kept
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if o.count("/Alpine/all.zip") != 3 || rowsOf(t, e.db, "feeds_distro_fix") != 9 || e.feed(alpineOSVFeedID).Status != "ok" {

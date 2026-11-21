@@ -43,7 +43,7 @@ CREATE TABLE intake_osquery_nodes (
 -- The one Wazuh connection (id = 1). The password of the read-only API user is in core_secret (purpose intake_wazuh.password); password_last4 is what the API shows ("" for a password shorter than 8 characters, core/secrets keeps none).
 -- tls_pin is the trust decision of the last Save: 'system' (a public authority vouched for the certificate, and must keep doing so) or
 -- the hex SHA-256 of the leaf's public key (trust on first use). generation grows at every Save, so a pull that started before a Save
--- does not write its result over the new connection. next_pull is when the pull job may run next (Save sets it to now).
+-- does not write its result over the new connection. next_pull is when the pull job may run next: Save and the schedule (core_schedule, agent-intake.wazuh) set it to now, a pass that goes on sets it a minute on, NULL waits for the schedule; the far future means the saved password cannot be opened. How often the schedule pulls is that row's rule.
 -- agents and packages are the counts of the last pull that finished; error is its plain-words reason when status = 'error'. A pass that
 -- does not fit in one pull's 10 minutes goes on at the next tick after the agent resume_after, adding to pass_packages.
 CREATE TABLE intake_wazuh (
@@ -52,13 +52,12 @@ CREATE TABLE intake_wazuh (
     username           TEXT    NOT NULL CHECK (length(username) BETWEEN 1 AND 64),
     secret_id          TEXT    NOT NULL REFERENCES core_secret (id),
     password_last4     TEXT    NOT NULL CHECK (length(password_last4) IN (0, 4)),
-    interval_minutes   INTEGER NOT NULL CHECK (interval_minutes IN (5, 15, 60, 360, 1440)),
     tls_pin            TEXT    NOT NULL CHECK (tls_pin = 'system' OR (length(tls_pin) = 64 AND tls_pin NOT GLOB '*[^0-9a-f]*')),
     tls_pin_first_seen TEXT    NOT NULL,
     generation         INTEGER NOT NULL DEFAULT 1,
     status             TEXT    NOT NULL DEFAULT 'never' CHECK (status IN ('never', 'connected', 'error')),
     last_sync          TEXT,
-    next_pull          TEXT    NOT NULL,
+    next_pull          TEXT,
     agents             INTEGER NOT NULL DEFAULT 0 CHECK (agents >= 0),
     packages           INTEGER NOT NULL DEFAULT 0 CHECK (packages >= 0),
     error              TEXT    CHECK (error IS NULL OR length(error) <= 500),

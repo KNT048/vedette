@@ -142476,10 +142476,6 @@ func (s *FeedsPostFeedsCustomReq) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Enabled)
 	}
 	{
-		e.FieldStart("interval_hours")
-		e.Int(s.IntervalHours)
-	}
-	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -142497,14 +142493,13 @@ func (s *FeedsPostFeedsCustomReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPostFeedsCustomReq = [7]string{
+var jsonFieldsNameOfFeedsPostFeedsCustomReq = [6]string{
 	0: "auth",
 	1: "enabled",
-	2: "interval_hours",
-	3: "kind",
-	4: "name",
-	5: "parser",
-	6: "url",
+	2: "kind",
+	3: "name",
+	4: "parser",
+	5: "url",
 }
 
 // Decode decodes FeedsPostFeedsCustomReq from json.
@@ -142538,20 +142533,8 @@ func (s *FeedsPostFeedsCustomReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
-		case "interval_hours":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int()
-				s.IntervalHours = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"interval_hours\"")
-			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -142561,7 +142544,7 @@ func (s *FeedsPostFeedsCustomReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -142573,7 +142556,7 @@ func (s *FeedsPostFeedsCustomReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -142583,7 +142566,7 @@ func (s *FeedsPostFeedsCustomReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -142604,7 +142587,7 @@ func (s *FeedsPostFeedsCustomReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -147313,10 +147296,6 @@ func (s *FeedsPutFeedsCustomIDReq) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Enabled)
 	}
 	{
-		e.FieldStart("interval_hours")
-		e.Int(s.IntervalHours)
-	}
-	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -147334,14 +147313,13 @@ func (s *FeedsPutFeedsCustomIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsCustomIDReq = [7]string{
+var jsonFieldsNameOfFeedsPutFeedsCustomIDReq = [6]string{
 	0: "auth",
 	1: "enabled",
-	2: "interval_hours",
-	3: "kind",
-	4: "name",
-	5: "parser",
-	6: "url",
+	2: "kind",
+	3: "name",
+	4: "parser",
+	5: "url",
 }
 
 // Decode decodes FeedsPutFeedsCustomIDReq from json.
@@ -147375,20 +147353,8 @@ func (s *FeedsPutFeedsCustomIDReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
-		case "interval_hours":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int()
-				s.IntervalHours = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"interval_hours\"")
-			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -147398,7 +147364,7 @@ func (s *FeedsPutFeedsCustomIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -147410,7 +147376,7 @@ func (s *FeedsPutFeedsCustomIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "parser":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Parser.Decode(d); err != nil {
 					return err
@@ -147420,7 +147386,7 @@ func (s *FeedsPutFeedsCustomIDReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parser\"")
 			}
 		case "url":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -147441,7 +147407,7 @@ func (s *FeedsPutFeedsCustomIDReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -149325,12 +149291,6 @@ func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.IntervalHours.Set {
-			e.FieldStart("interval_hours")
-			s.IntervalHours.Encode(e)
-		}
-	}
-	{
 		if s.URL.Set {
 			e.FieldStart("url")
 			s.URL.Encode(e)
@@ -149338,11 +149298,10 @@ func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [4]string{
+var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [3]string{
 	0: "api_key",
 	1: "enabled",
-	2: "interval_hours",
-	3: "url",
+	2: "url",
 }
 
 // Decode decodes FeedsPutFeedsSourcesIDReq from json.
@@ -149372,16 +149331,6 @@ func (s *FeedsPutFeedsSourcesIDReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "interval_hours":
-			if err := func() error {
-				s.IntervalHours.Reset()
-				if err := s.IntervalHours.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"interval_hours\"")
 			}
 		case "url":
 			if err := func() error {
@@ -295539,72 +295488,6 @@ func (s *OptResponsePutResponseCatalogIDReqVerify) UnmarshalJSON(data []byte) er
 	return s.Decode(d)
 }
 
-// Encode encodes ScanPutScansConfigReqSchedule as json.
-func (o OptScanPutScansConfigReqSchedule) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes ScanPutScansConfigReqSchedule from json.
-func (o *OptScanPutScansConfigReqSchedule) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptScanPutScansConfigReqSchedule to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptScanPutScansConfigReqSchedule) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptScanPutScansConfigReqSchedule) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ScanPutScansConfigReqScheduleFrequency as json.
-func (o OptScanPutScansConfigReqScheduleFrequency) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes ScanPutScansConfigReqScheduleFrequency from json.
-func (o *OptScanPutScansConfigReqScheduleFrequency) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptScanPutScansConfigReqScheduleFrequency to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptScanPutScansConfigReqScheduleFrequency) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptScanPutScansConfigReqScheduleFrequency) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes ScanPutScansConfigReqWindow as json.
 func (o OptScanPutScansConfigReqWindow) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -400669,14 +400552,6 @@ func (s *ScanGetScansConfigOK) encodeFields(e *jx.Encoder) {
 		e.Bool(false)
 	}
 	{
-		e.FieldStart("next_run")
-		s.NextRun.Encode(e, json.EncodeDateTime)
-	}
-	{
-		e.FieldStart("schedule_blocked_reason")
-		s.ScheduleBlockedReason.Encode(e)
-	}
-	{
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
@@ -400686,15 +400561,13 @@ func (s *ScanGetScansConfigOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansConfigOK = [8]string{
+var jsonFieldsNameOfScanGetScansConfigOK = [6]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
 	3: "dangerous_checks",
-	4: "next_run",
-	5: "schedule_blocked_reason",
-	6: "scope",
-	7: "version",
+	4: "scope",
+	5: "version",
 }
 
 // Decode decodes ScanGetScansConfigOK from json.
@@ -400750,28 +400623,8 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"dangerous_checks\"")
 			}
-		case "next_run":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				if err := s.NextRun.Decode(d, json.DecodeDateTime); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"next_run\"")
-			}
-		case "schedule_blocked_reason":
-			requiredBitSet[0] |= 1 << 5
-			if err := func() error {
-				if err := s.ScheduleBlockedReason.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"schedule_blocked_reason\"")
-			}
 		case "scope":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -400781,7 +400634,7 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -400802,7 +400655,7 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b11111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -400874,10 +400727,6 @@ func (s *ScanGetScansConfigOKConfig) encodeFields(e *jx.Encoder) {
 		e.Int(s.Rate)
 	}
 	{
-		e.FieldStart("schedule")
-		s.Schedule.Encode(e)
-	}
-	{
 		e.FieldStart("stop_on_unresponsive")
 		e.Bool(s.StopOnUnresponsive)
 	}
@@ -400891,14 +400740,13 @@ func (s *ScanGetScansConfigOKConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansConfigOKConfig = [7]string{
+var jsonFieldsNameOfScanGetScansConfigOKConfig = [6]string{
 	0: "auto_rescan",
 	1: "exclusions",
 	2: "rate",
-	3: "schedule",
-	4: "stop_on_unresponsive",
-	5: "unresponsive_after",
-	6: "window",
+	3: "stop_on_unresponsive",
+	4: "unresponsive_after",
+	5: "window",
 }
 
 // Decode decodes ScanGetScansConfigOKConfig from json.
@@ -400954,18 +400802,8 @@ func (s *ScanGetScansConfigOKConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rate\"")
 			}
-		case "schedule":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Schedule.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"schedule\"")
-			}
 		case "stop_on_unresponsive":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.StopOnUnresponsive = bool(v)
@@ -400977,7 +400815,7 @@ func (s *ScanGetScansConfigOKConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stop_on_unresponsive\"")
 			}
 		case "unresponsive_after":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.UnresponsiveAfter = int(v)
@@ -400989,7 +400827,7 @@ func (s *ScanGetScansConfigOKConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unresponsive_after\"")
 			}
 		case "window":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -401008,7 +400846,7 @@ func (s *ScanGetScansConfigOKConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -401050,191 +400888,6 @@ func (s *ScanGetScansConfigOKConfig) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanGetScansConfigOKConfig) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *ScanGetScansConfigOKConfigSchedule) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *ScanGetScansConfigOKConfigSchedule) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("at")
-		e.Str(s.At)
-	}
-	{
-		e.FieldStart("enabled")
-		e.Bool(s.Enabled)
-	}
-	{
-		e.FieldStart("frequency")
-		s.Frequency.Encode(e)
-	}
-	{
-		e.FieldStart("weekday")
-		e.Int(s.Weekday)
-	}
-}
-
-var jsonFieldsNameOfScanGetScansConfigOKConfigSchedule = [4]string{
-	0: "at",
-	1: "enabled",
-	2: "frequency",
-	3: "weekday",
-}
-
-// Decode decodes ScanGetScansConfigOKConfigSchedule from json.
-func (s *ScanGetScansConfigOKConfigSchedule) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanGetScansConfigOKConfigSchedule to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "at":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.At = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
-			}
-		case "enabled":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Bool()
-				s.Enabled = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "frequency":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				if err := s.Frequency.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"frequency\"")
-			}
-		case "weekday":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Int()
-				s.Weekday = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"weekday\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode ScanGetScansConfigOKConfigSchedule")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00001111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfScanGetScansConfigOKConfigSchedule) {
-					name = jsonFieldsNameOfScanGetScansConfigOKConfigSchedule[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ScanGetScansConfigOKConfigSchedule) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanGetScansConfigOKConfigSchedule) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ScanGetScansConfigOKConfigScheduleFrequency as json.
-func (s ScanGetScansConfigOKConfigScheduleFrequency) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ScanGetScansConfigOKConfigScheduleFrequency from json.
-func (s *ScanGetScansConfigOKConfigScheduleFrequency) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanGetScansConfigOKConfigScheduleFrequency to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ScanGetScansConfigOKConfigScheduleFrequency(v) {
-	case ScanGetScansConfigOKConfigScheduleFrequencyDaily:
-		*s = ScanGetScansConfigOKConfigScheduleFrequencyDaily
-	case ScanGetScansConfigOKConfigScheduleFrequencyWeekly:
-		*s = ScanGetScansConfigOKConfigScheduleFrequencyWeekly
-	default:
-		*s = ScanGetScansConfigOKConfigScheduleFrequency(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ScanGetScansConfigOKConfigScheduleFrequency) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanGetScansConfigOKConfigScheduleFrequency) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -408920,14 +408573,6 @@ func (s *ScanPutScansConfigOK) encodeFields(e *jx.Encoder) {
 		e.Bool(false)
 	}
 	{
-		e.FieldStart("next_run")
-		s.NextRun.Encode(e, json.EncodeDateTime)
-	}
-	{
-		e.FieldStart("schedule_blocked_reason")
-		s.ScheduleBlockedReason.Encode(e)
-	}
-	{
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
@@ -408937,15 +408582,13 @@ func (s *ScanPutScansConfigOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigOK = [8]string{
+var jsonFieldsNameOfScanPutScansConfigOK = [6]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
 	3: "dangerous_checks",
-	4: "next_run",
-	5: "schedule_blocked_reason",
-	6: "scope",
-	7: "version",
+	4: "scope",
+	5: "version",
 }
 
 // Decode decodes ScanPutScansConfigOK from json.
@@ -409001,28 +408644,8 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"dangerous_checks\"")
 			}
-		case "next_run":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				if err := s.NextRun.Decode(d, json.DecodeDateTime); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"next_run\"")
-			}
-		case "schedule_blocked_reason":
-			requiredBitSet[0] |= 1 << 5
-			if err := func() error {
-				if err := s.ScheduleBlockedReason.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"schedule_blocked_reason\"")
-			}
 		case "scope":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Scope.Decode(d); err != nil {
 					return err
@@ -409032,7 +408655,7 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -409053,7 +408676,7 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b11111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -409125,10 +408748,6 @@ func (s *ScanPutScansConfigOKConfig) encodeFields(e *jx.Encoder) {
 		e.Int(s.Rate)
 	}
 	{
-		e.FieldStart("schedule")
-		s.Schedule.Encode(e)
-	}
-	{
 		e.FieldStart("stop_on_unresponsive")
 		e.Bool(s.StopOnUnresponsive)
 	}
@@ -409142,14 +408761,13 @@ func (s *ScanPutScansConfigOKConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigOKConfig = [7]string{
+var jsonFieldsNameOfScanPutScansConfigOKConfig = [6]string{
 	0: "auto_rescan",
 	1: "exclusions",
 	2: "rate",
-	3: "schedule",
-	4: "stop_on_unresponsive",
-	5: "unresponsive_after",
-	6: "window",
+	3: "stop_on_unresponsive",
+	4: "unresponsive_after",
+	5: "window",
 }
 
 // Decode decodes ScanPutScansConfigOKConfig from json.
@@ -409205,18 +408823,8 @@ func (s *ScanPutScansConfigOKConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rate\"")
 			}
-		case "schedule":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Schedule.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"schedule\"")
-			}
 		case "stop_on_unresponsive":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.StopOnUnresponsive = bool(v)
@@ -409228,7 +408836,7 @@ func (s *ScanPutScansConfigOKConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stop_on_unresponsive\"")
 			}
 		case "unresponsive_after":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.UnresponsiveAfter = int(v)
@@ -409240,7 +408848,7 @@ func (s *ScanPutScansConfigOKConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"unresponsive_after\"")
 			}
 		case "window":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -409259,7 +408867,7 @@ func (s *ScanPutScansConfigOKConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -409301,191 +408909,6 @@ func (s *ScanPutScansConfigOKConfig) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanPutScansConfigOKConfig) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *ScanPutScansConfigOKConfigSchedule) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *ScanPutScansConfigOKConfigSchedule) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("at")
-		e.Str(s.At)
-	}
-	{
-		e.FieldStart("enabled")
-		e.Bool(s.Enabled)
-	}
-	{
-		e.FieldStart("frequency")
-		s.Frequency.Encode(e)
-	}
-	{
-		e.FieldStart("weekday")
-		e.Int(s.Weekday)
-	}
-}
-
-var jsonFieldsNameOfScanPutScansConfigOKConfigSchedule = [4]string{
-	0: "at",
-	1: "enabled",
-	2: "frequency",
-	3: "weekday",
-}
-
-// Decode decodes ScanPutScansConfigOKConfigSchedule from json.
-func (s *ScanPutScansConfigOKConfigSchedule) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanPutScansConfigOKConfigSchedule to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "at":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.At = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
-			}
-		case "enabled":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Bool()
-				s.Enabled = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "frequency":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				if err := s.Frequency.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"frequency\"")
-			}
-		case "weekday":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Int()
-				s.Weekday = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"weekday\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode ScanPutScansConfigOKConfigSchedule")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00001111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfScanPutScansConfigOKConfigSchedule) {
-					name = jsonFieldsNameOfScanPutScansConfigOKConfigSchedule[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ScanPutScansConfigOKConfigSchedule) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanPutScansConfigOKConfigSchedule) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ScanPutScansConfigOKConfigScheduleFrequency as json.
-func (s ScanPutScansConfigOKConfigScheduleFrequency) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ScanPutScansConfigOKConfigScheduleFrequency from json.
-func (s *ScanPutScansConfigOKConfigScheduleFrequency) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanPutScansConfigOKConfigScheduleFrequency to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ScanPutScansConfigOKConfigScheduleFrequency(v) {
-	case ScanPutScansConfigOKConfigScheduleFrequencyDaily:
-		*s = ScanPutScansConfigOKConfigScheduleFrequencyDaily
-	case ScanPutScansConfigOKConfigScheduleFrequencyWeekly:
-		*s = ScanPutScansConfigOKConfigScheduleFrequencyWeekly
-	default:
-		*s = ScanPutScansConfigOKConfigScheduleFrequency(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ScanPutScansConfigOKConfigScheduleFrequency) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanPutScansConfigOKConfigScheduleFrequency) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -409904,12 +409327,6 @@ func (s *ScanPutScansConfigReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.Schedule.Set {
-			e.FieldStart("schedule")
-			s.Schedule.Encode(e)
-		}
-	}
-	{
 		if s.StopOnUnresponsive.Set {
 			e.FieldStart("stop_on_unresponsive")
 			s.StopOnUnresponsive.Encode(e)
@@ -409935,16 +409352,15 @@ func (s *ScanPutScansConfigReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigReq = [9]string{
+var jsonFieldsNameOfScanPutScansConfigReq = [8]string{
 	0: "auto_rescan",
 	1: "dangerous_checks",
 	2: "exclusions",
 	3: "rate",
-	4: "schedule",
-	5: "stop_on_unresponsive",
-	6: "unresponsive_after",
-	7: "version",
-	8: "window",
+	4: "stop_on_unresponsive",
+	5: "unresponsive_after",
+	6: "version",
+	7: "window",
 }
 
 // Decode decodes ScanPutScansConfigReq from json.
@@ -410003,16 +409419,6 @@ func (s *ScanPutScansConfigReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"rate\"")
-			}
-		case "schedule":
-			if err := func() error {
-				s.Schedule.Reset()
-				if err := s.Schedule.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"schedule\"")
 			}
 		case "stop_on_unresponsive":
 			if err := func() error {
@@ -410074,160 +409480,6 @@ func (s *ScanPutScansConfigReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanPutScansConfigReq) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *ScanPutScansConfigReqSchedule) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *ScanPutScansConfigReqSchedule) encodeFields(e *jx.Encoder) {
-	{
-		if s.At.Set {
-			e.FieldStart("at")
-			s.At.Encode(e)
-		}
-	}
-	{
-		if s.Enabled.Set {
-			e.FieldStart("enabled")
-			s.Enabled.Encode(e)
-		}
-	}
-	{
-		if s.Frequency.Set {
-			e.FieldStart("frequency")
-			s.Frequency.Encode(e)
-		}
-	}
-	{
-		if s.Weekday.Set {
-			e.FieldStart("weekday")
-			s.Weekday.Encode(e)
-		}
-	}
-}
-
-var jsonFieldsNameOfScanPutScansConfigReqSchedule = [4]string{
-	0: "at",
-	1: "enabled",
-	2: "frequency",
-	3: "weekday",
-}
-
-// Decode decodes ScanPutScansConfigReqSchedule from json.
-func (s *ScanPutScansConfigReqSchedule) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanPutScansConfigReqSchedule to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "at":
-			if err := func() error {
-				s.At.Reset()
-				if err := s.At.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"at\"")
-			}
-		case "enabled":
-			if err := func() error {
-				s.Enabled.Reset()
-				if err := s.Enabled.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "frequency":
-			if err := func() error {
-				s.Frequency.Reset()
-				if err := s.Frequency.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"frequency\"")
-			}
-		case "weekday":
-			if err := func() error {
-				s.Weekday.Reset()
-				if err := s.Weekday.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"weekday\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode ScanPutScansConfigReqSchedule")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ScanPutScansConfigReqSchedule) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanPutScansConfigReqSchedule) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ScanPutScansConfigReqScheduleFrequency as json.
-func (s ScanPutScansConfigReqScheduleFrequency) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ScanPutScansConfigReqScheduleFrequency from json.
-func (s *ScanPutScansConfigReqScheduleFrequency) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ScanPutScansConfigReqScheduleFrequency to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ScanPutScansConfigReqScheduleFrequency(v) {
-	case ScanPutScansConfigReqScheduleFrequencyDaily:
-		*s = ScanPutScansConfigReqScheduleFrequencyDaily
-	case ScanPutScansConfigReqScheduleFrequencyWeekly:
-		*s = ScanPutScansConfigReqScheduleFrequencyWeekly
-	default:
-		*s = ScanPutScansConfigReqScheduleFrequency(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ScanPutScansConfigReqScheduleFrequency) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ScanPutScansConfigReqScheduleFrequency) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

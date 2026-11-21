@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
-	"time"
 )
 
 // Window is when scheduled scans may run (INV-5). Days are ISO weekdays, 1 = Monday ... 7 = Sunday.
@@ -15,14 +14,6 @@ type Window struct {
 	Days []int  `json:"days"`
 	From string `json:"from"`
 	To   string `json:"to"`
-}
-
-// Schedule is the periodic scan (S-SCAN-4).
-type Schedule struct {
-	Enabled   bool   `json:"enabled"`
-	Frequency string `json:"frequency"` // daily | weekly
-	Weekday   int    `json:"weekday"`
-	At        string `json:"at"`
 }
 
 // Settings is the scan configuration (contract.ts ScanConfig).
@@ -33,7 +24,6 @@ type Settings struct {
 	StopOnUnresponsive bool     `json:"stop_on_unresponsive"`
 	UnresponsiveAfter  int      `json:"unresponsive_after"`
 	AutoRescan         bool     `json:"auto_rescan"`
-	Schedule           Schedule `json:"schedule"`
 	// Version is the shared block's version read with the window, rate and exclusions above, in the same read (Checks; review #860
 	// r2 L3); "" without SharedChecks. Not part of the stored row or of contract.ts ScanConfig.
 	Version string `json:"-"`
@@ -48,21 +38,16 @@ type Patch struct {
 	StopOnUnresponsive *bool
 	UnresponsiveAfter  *int
 	AutoRescan         *bool
-	SchedEnabled       *bool
-	SchedFrequency     *string
-	SchedWeekday       *int
-	SchedAt            *string
 	DangerousChecks    *bool
 	Version            string // the shared block's version the page read (ConfigView.Version); "" = none, no check
 }
 
 // Limits of INV-5.
 const (
-	MaxRate          = 20
-	MaxExclusions    = 200
-	MinUnresponsive  = 2
-	MaxUnresponsive  = 20
-	nextRunSearchDay = 15 // the mock looks this many days ahead for the next scheduled run
+	MaxRate         = 20
+	MaxExclusions   = 200
+	MinUnresponsive = 2
+	MaxUnresponsive = 20
 )
 
 var hhmmRE = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
@@ -84,10 +69,6 @@ func (p Patch) apply(cur Settings) Settings {
 	set(&next.StopOnUnresponsive, p.StopOnUnresponsive)
 	set(&next.UnresponsiveAfter, p.UnresponsiveAfter)
 	set(&next.AutoRescan, p.AutoRescan)
-	set(&next.Schedule.Enabled, p.SchedEnabled)
-	set(&next.Schedule.Frequency, p.SchedFrequency)
-	set(&next.Schedule.Weekday, p.SchedWeekday)
-	set(&next.Schedule.At, p.SchedAt)
 	return next
 }
 
@@ -125,24 +106,6 @@ func (c Settings) validate(had int) error {
 	if c.UnresponsiveAfter < MinUnresponsive || c.UnresponsiveAfter > MaxUnresponsive {
 		return invalidConfig("The number of non-responses before auto-stop must be 2 to 20.")
 	}
-	s := c.Schedule
-	if s.Frequency != "daily" && s.Frequency != "weekly" {
-		return invalidConfig("The schedule must be daily or weekly.")
-	}
-	if !hhmmRE.MatchString(s.At) {
-		return invalidConfig("The schedule time must look like HH:MM.")
-	}
-	if s.Weekday < 1 || s.Weekday > 7 {
-		return invalidConfig("The schedule day is not valid.")
-	}
-	if s.Enabled {
-		if !inTimeRange(s.At, w.From, w.To) {
-			return invalidConfig("The schedule time %s is outside the %s to %s window. Pick a time inside the window or widen the window.", s.At, w.From, w.To)
-		}
-		if s.Frequency == "weekly" && !slices.Contains(w.Days, s.Weekday) {
-			return invalidConfig("The weekly schedule day must be one of the scan window days.")
-		}
-	}
 	return nil
 }
 
@@ -165,80 +128,6 @@ func clip(s string, n int) string {
 	return s
 }
 
-func minutes(hhmm string) int {
-	return int(hhmm[0]-'0')*600 + int(hhmm[1]-'0')*60 + int(hhmm[3]-'0')*10 + int(hhmm[4]-'0')
-}
-
-// inTimeRange says whether at falls in [from, to), a range that may cross midnight.
-func inTimeRange(at, from, to string) bool {
-	a, f, t := minutes(at), minutes(from), minutes(to)
-	if f < t {
-		return a >= f && a < t
-	}
-	return a >= f || a < t
-}
-
-func isoDay(t time.Time) int {
-	if d := int(t.Weekday()); d != 0 {
-		return d
-	}
-	return 7
-}
-
-// NextRun is the next scheduled run after now in loc, or nil when the schedule is off (POST-3; the mock's nextRun):
-// the first slot within two weeks that slotOK accepts. first is true while no scheduled run has ever started (firstPending):
-// the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule.
-func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.Time {
-	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
-		return nil
-	}
-	at := minutes(c.Schedule.At)
-	local := now.In(loc)
-	for i := range nextRunSearchDay {
-		d := time.Date(local.Year(), local.Month(), local.Day()+i, at/60, at%60, 0, 0, loc)
-		if d.After(now) && c.slotOK(d, first) {
-			return &d
-		}
-	}
-	return nil
-}
-
-// slotOK says whether the schedule runs at slot (a day at the schedule time): the window the slot falls in starts on
-// a window day, and a weekly schedule runs on its weekday (the slot's own calendar day). A window that crosses
-// midnight counts by its start day (the GUI's words), so a slot after midnight belongs to the window of the day
-// before: Monday 02:00 is in Sunday's 22:00 to 05:00 window (#164 review M1). The first scheduled run of a box (first) runs in
-// the next window of any window day, so a new box with the weekly default does not wait up to a week for it; the
-// weekday counts from the second run on.
-func (c Settings) slotOK(slot time.Time, first bool) bool {
-	// The window is shared with discovery since #850 and saved on its own (PUT /scanning/safety): a schedule time it no longer holds
-	// is no slot, so nothing scheduled runs outside the window (INV-5).
-	if !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
-		return false
-	}
-	if _, ok := c.slotWindowEnd(slot); !ok {
-		return false
-	}
-	return first || c.Schedule.Frequency == "daily" || isoDay(slot) == c.Schedule.Weekday
-}
-
-// slotWindowEnd is when the window of slot closes; ok is false when that window does not start on a window day. The
-// schedule time is inside the window (INV-5), so the slot is never before its window starts.
-func (c Settings) slotWindowEnd(slot time.Time) (time.Time, bool) {
-	from, to := minutes(c.Window.From), minutes(c.Window.To)
-	start := slot
-	if from > to && minutes(c.Schedule.At) < to { // after midnight: the window began the day before
-		start = slot.AddDate(0, 0, -1)
-	}
-	if !slices.Contains(c.Window.Days, isoDay(start)) {
-		return time.Time{}, false
-	}
-	end := time.Date(start.Year(), start.Month(), start.Day(), to/60, to%60, 0, 0, slot.Location())
-	if from > to {
-		end = end.AddDate(0, 0, 1)
-	}
-	return end, true
-}
-
 // ---- storage ----
 
 // Checks is the part of the settings every LAN engine shares (INV-16): the window, the check rate and the exclusions.
@@ -251,7 +140,7 @@ type Checks struct {
 	Version string
 }
 
-// settings is scan_setting (the module's own: unresponsive limit, auto rescan, schedule) with the shared window, check rate and
+// settings is scan_setting (the module's own: unresponsive limit, auto rescan) with the shared window, check rate and
 // exclusions of the inventory, their one home (INV-16).
 func (s *Service) settings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -278,8 +167,8 @@ func loadSettings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }) (Settings, error) {
 	var c Settings
-	err := q.QueryRowContext(ctx, `SELECT stop_on_unresponsive, unresponsive_after, auto_rescan, sched_enabled, sched_frequency, sched_weekday, sched_at
-FROM scan_setting WHERE id = 1`).Scan(&c.StopOnUnresponsive, &c.UnresponsiveAfter, &c.AutoRescan, &c.Schedule.Enabled, &c.Schedule.Frequency, &c.Schedule.Weekday, &c.Schedule.At)
+	err := q.QueryRowContext(ctx, `SELECT stop_on_unresponsive, unresponsive_after, auto_rescan
+FROM scan_setting WHERE id = 1`).Scan(&c.StopOnUnresponsive, &c.UnresponsiveAfter, &c.AutoRescan)
 	if err != nil {
 		return Settings{}, fmt.Errorf("scan: reading the settings: %w", err)
 	}
@@ -287,9 +176,9 @@ FROM scan_setting WHERE id = 1`).Scan(&c.StopOnUnresponsive, &c.UnresponsiveAfte
 }
 
 func saveSettings(ctx context.Context, tx *sql.Tx, c Settings, user, at string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET stop_on_unresponsive = ?, unresponsive_after = ?, auto_rescan = ?, sched_enabled = ?,
-sched_frequency = ?, sched_weekday = ?, sched_at = ?, updated_at = ?, updated_by = ? WHERE id = 1`,
-		c.StopOnUnresponsive, c.UnresponsiveAfter, c.AutoRescan, c.Schedule.Enabled, c.Schedule.Frequency, c.Schedule.Weekday, c.Schedule.At, at, user)
+	_, err := tx.ExecContext(ctx, `UPDATE scan_setting SET stop_on_unresponsive = ?, unresponsive_after = ?, auto_rescan = ?,
+updated_at = ?, updated_by = ? WHERE id = 1`,
+		c.StopOnUnresponsive, c.UnresponsiveAfter, c.AutoRescan, at, user)
 	if err != nil {
 		return fmt.Errorf("scan: saving the settings: %w", err)
 	}

@@ -54,18 +54,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		if err != nil {
 			return err
 		}
-		enabled, hours, url := cur.Enabled, cur.IntervalHours, cur.URL
+		enabled, url := cur.Enabled, cur.URL
 		var parts []string
 		if v, ok := req.Enabled.Get(); ok {
 			enabled = v
 			parts = append(parts, map[bool]string{true: "enabled", false: "disabled"}[v])
-		}
-		if v, ok := req.IntervalHours.Get(); ok {
-			if err := CheckInterval(v); err != nil {
-				return apiError(err)
-			}
-			hours = v
-			parts = append(parts, fmt.Sprintf("every %d h", v))
 		}
 		if v, ok := req.URL.Get(); ok {
 			v = strings.TrimSpace(v)
@@ -112,7 +105,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 				return apierr.New(http.StatusBadRequest, "invalid_auth", "Add your VulnCheck API key to turn this feed on.")
 			}
 		}
-		if err := updateSettings(ctx, tx, cur.ID, enabled, hours, url, url != cur.URL); err != nil {
+		if err := updateSettings(ctx, tx, cur.ID, enabled, url, url != cur.URL); err != nil {
 			return err
 		}
 		if cur.ID == epssAllFeedID && (url != cur.URL || enabled && !cur.Enabled) { // review r2 #4: a new start takes the next file as it is
@@ -220,9 +213,6 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 	if err := CheckDest(in.URL, own); err != nil {
 		return apiError(err)
 	}
-	if err := CheckInterval(in.IntervalHours); err != nil {
-		return apiError(err)
-	}
 	if err := CheckKindFormat(in.Kind, in.Parser.Format); err != nil {
 		return apiError(err)
 	}
@@ -272,7 +262,7 @@ func (s *Service) boxAddrs() ownAddrs {
 
 // customRow builds the stored row of a custom feed body (the GUI mock's toCustom). The secret columns are set by saveSecret.
 func customRow(id string, in feedInput, created time.Time) sourceRow {
-	r := sourceRow{ID: id, Name: in.Name, Kind: in.Kind, Format: in.Parser.Format, URL: in.URL, Enabled: in.Enabled, IntervalHours: in.IntervalHours,
+	r := sourceRow{ID: id, Name: in.Name, Kind: in.Kind, Format: in.Parser.Format, URL: in.URL, Enabled: in.Enabled, IntervalHours: DefaultCustomHours,
 		Auth: in.Auth.Type, Parser: &in.Parser, CreatedAt: created, Status: "never"}
 	switch in.Auth.Type {
 	case AuthHeader:
@@ -330,6 +320,9 @@ func (h *FeedHandlers) FeedsPostFeedsCustom(ctx context.Context, req *oas.FeedsP
 			return err
 		}
 		if err := insertCustom(ctx, tx, row); err != nil {
+			return err
+		}
+		if err := h.s.ensureSchedule(ctx, tx, row.ID, DefaultCustomHours, p.Email); err != nil { // pulls on its default schedule until someone changes it
 			return err
 		}
 		return h.s.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "feeds.add_custom", Target: row.Name, Detail: fmt.Sprintf("%s, %s", row.Kind, row.Format)})

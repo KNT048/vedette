@@ -157,9 +157,18 @@ func sweepTitle(ranges []string) string {
 // newSweep queues a pass over the confirmed ranges now (Spec.Trigger and the rest from base), its steps planned from the
 // inventory's addresses. inTx runs in the same transaction (the audit row of a person's start).
 func (s *Service) newSweep(ctx context.Context, st Settings, base run.Spec, inTx func(tx *sql.Tx, id string) error) (string, error) {
-	addrs, err := s.inv.Addresses(ctx)
+	spec, err := s.sweepSpec(ctx, st, base)
 	if err != nil {
 		return "", err
+	}
+	return s.submit(ctx, spec, nil, inTx)
+}
+
+// sweepSpec is the run of one pass of the ranges: a step per block of the plan, in order.
+func (s *Service) sweepSpec(ctx context.Context, st Settings, base run.Spec) (run.Spec, error) {
+	addrs, err := s.inv.Addresses(ctx)
+	if err != nil {
+		return run.Spec{}, err
 	}
 	known := make([]netip.Addr, 0, len(addrs))
 	for a := range addrs {
@@ -171,7 +180,7 @@ func (s *Service) newSweep(ctx context.Context, st Settings, base run.Spec, inTx
 	for _, p := range plan {
 		base.Steps = append(base.Steps, run.StepPlan{Name: p.block.String(), Total: stepSize(p)})
 	}
-	return s.submit(ctx, base, nil, inTx)
+	return base, nil
 }
 
 // runSweep is the work of a lan_sweep run: every step not done, from its cursor, in batches of MaxBatch addresses that the settings

@@ -239,6 +239,9 @@ func (r *wzRig) save() {
 
 func (r *wzRig) pull() {
 	r.t.Helper()
+	if _, err := r.sched.Tick(r.t.Context()); err != nil { // the schedule that came due by the test clock asks for the pull
+		r.t.Fatalf("schedule: %v", err)
+	}
 	if err := r.svc.WazuhPull(r.t.Context()); err != nil {
 		r.t.Fatalf("pull: %v", err)
 	}
@@ -323,7 +326,7 @@ func TestWazuh_FormChecks(t *testing.T) {
 		{"the box", func(f map[string]any) { f["url"] = "https://" + boxAddr + ":55000" }, "bad_url"},
 		{"user", func(f map[string]any) { f["username"] = "bad user" }, "bad_username"},
 		{"no password", func(f map[string]any) { delete(f, "password") }, "password_required"},
-		{"interval", func(f map[string]any) { f["interval_minutes"] = 7 }, "bad_interval"},
+		{"interval", func(f map[string]any) { f["interval_minutes"] = 4 }, "bad_interval"},
 	} {
 		f := r.form(wzPassword)
 		c.mod(f)
@@ -419,12 +422,12 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	r.clock.Advance(time.Minute)
 	r.pull()
 	n := len(r.srv.Requests())
-	r.clock.Advance(59 * time.Minute)
+	r.clock.Advance(58 * time.Minute) // 59 minutes after the connection was saved: its schedule is every 60
 	r.pull()
 	if len(r.srv.Requests()) != n {
 		t.Fatal("pulled before the interval")
 	}
-	r.clock.Advance(2 * time.Minute)
+	r.clock.Advance(3 * time.Minute)
 	r.pull()
 	if len(r.srv.Requests()) == n {
 		t.Fatal("did not pull after the interval")

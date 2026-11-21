@@ -132,12 +132,12 @@ func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
 		t.Fatalf("feeds page: %s %q", c, b)
 	}
 	// the job does not go on before the pause is over, then goes on from record 100
-	if err := e.svc.RunPull(t.Context()); err != nil || n.count(100) != 4 {
+	if err := e.runPull(t.Context()); err != nil || n.count(100) != 4 {
 		t.Fatalf("the job went on before the pause ended: %v %d", err, n.count(100))
 	}
 	n.set(100, 200)
 	e.setNow(e.clock().Add(6 * time.Minute))
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if n.count(0) != 1 || n.count(100) != 5 || n.count(200) != 1 {
@@ -224,7 +224,7 @@ func TestNVDPull_OnePullAtATime(t *testing.T) {
 	if c != 200 || at(b, "status") != "never" || at(b, "error") != "Loading version ranges from NVD: page 1." {
 		t.Fatalf("Fetch now during a pull: %d %v", c, b)
 	}
-	if err := e.svc.RunPull(t.Context()); err != nil {
+	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	second := make(chan error, 1)

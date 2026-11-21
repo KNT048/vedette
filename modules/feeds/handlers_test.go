@@ -22,6 +22,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -130,6 +131,8 @@ type env struct {
 	pub  *fakePub
 	mu   sync.Mutex
 	now  time.Time
+	// sched is the box's schedule ticker on the test clock: runPull lets it come due before the job looks.
+	sched *schedule.Service
 
 	waits []time.Duration // the waits of the NVD pull, which never wait for real here (Service.wait)
 }
@@ -139,6 +142,23 @@ func (e *env) waited() []time.Duration {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return slices.Clone(e.waits)
+}
+
+// runPull is one tick of the pull job after the schedules that came due by the test clock have fired.
+func (e *env) runPull(ctx context.Context) error {
+	if _, err := e.sched.Tick(ctx); err != nil {
+		return err
+	}
+	return e.svc.RunPull(ctx)
+}
+
+// every sets how often a source pulls, as the schedule editor does.
+func (e *env) every(id string, hours int) {
+	e.t.Helper()
+	_, err := e.sched.Save(e.t.Context(), "feeds.source:"+id, schedule.Setting{Enabled: true, Rule: schedule.Every(hours * 60)}, "admin@acme.example")
+	if err != nil {
+		e.t.Fatal(err)
+	}
 }
 
 func (e *env) clock() time.Time {
@@ -171,7 +191,10 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 	}
 	e := &env{t: t, db: db, gate: servertest.NewGate(), inv: &fakeInv{matches: map[string][]MatchedAsset{}}, pub: &fakePub{}, now: time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)}
 	log := slog.New(slog.DiscardHandler)
-	e.svc, err = NewService(Deps{DB: db, Secrets: sec, Audit: audit.New(e.clock), Modules: e.gate, Log: log, Inventory: e.inv, Events: e.pub, Clock: e.clock,
+	if e.sched, err = schedule.New(schedule.Config{DB: db, Clock: e.clock}); err != nil {
+		t.Fatal(err)
+	}
+	e.svc, err = NewService(Deps{DB: db, Schedules: e.sched, Secrets: sec, Audit: audit.New(e.clock), Modules: e.gate, Log: log, Inventory: e.inv, Events: e.pub, Clock: e.clock,
 		Fetcher: f})
 	if err != nil {
 		t.Fatal(err)
@@ -184,6 +207,9 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 			e.mu.Unlock()
 		}
 		return ctx.Err()
+	}
+	if err := e.sched.Register(e.svc.ScheduleOwner()); err != nil {
+		t.Fatal(err)
 	}
 	if err := e.svc.Seed(t.Context()); err != nil {
 		t.Fatal(err)
@@ -622,7 +648,8 @@ func (e *env) put(id, body string) (int, map[string]any) {
 func TestContract_INV4_BuiltinFeedsCanBeTunedButNotDeleted(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	c, b := e.put("ipsum", `{"enabled":false,"interval_hours":12,"url":"https://mirror.example.net/ipsum.txt"}`)
+	e.every("ipsum", 12)
+	c, b := e.put("ipsum", `{"enabled":false,"url":"https://mirror.example.net/ipsum.txt"}`)
 	if c != 200 || at(b, "enabled") != false || at(b, "interval_hours") != 12.0 || at(b, "url") != "https://mirror.example.net/ipsum.txt" || at(b, "default_url") == "https://mirror.example.net/ipsum.txt" {
 		t.Fatalf("%d %v", c, b)
 	}
@@ -641,8 +668,9 @@ func TestContract_INV4_BuiltinFeedsCanBeTunedButNotDeleted(t *testing.T) {
 	if c, b = e.put("nope", `{"enabled":true}`); c != 404 || code(b) != "not_found" {
 		t.Errorf("unknown: %d %v", c, b)
 	}
-	if c, _ = e.put("ipsum", `{"interval_hours":0}`); c != 400 {
-		t.Errorf("interval: %d", c)
+	// how often a source pulls is its schedule: never more often than hourly, and the answer says why
+	if _, err := e.sched.Save(t.Context(), "feeds.source:ipsum", schedule.Setting{Enabled: true, Rule: schedule.Every(10)}, "admin@acme.example"); err == nil || !strings.Contains(err.Error(), "not to poll more often") {
+		t.Errorf("a 10 minute interval: %v", err)
 	}
 	if c, b, _ = e.do("DELETE", "/feeds/custom/ipsum", "admin", ""); c != 404 || code(b) != "not_found" {
 		t.Errorf("delete built-in: %d %v", c, b)
@@ -651,12 +679,12 @@ func TestContract_INV4_BuiltinFeedsCanBeTunedButNotDeleted(t *testing.T) {
 		t.Errorf("%d feeds", n)
 	}
 	var detail string
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'feeds.update' ORDER BY seq LIMIT 1`).Scan(&detail); err != nil || detail != "disabled, every 12 h, address changed" {
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'feeds.update' ORDER BY seq LIMIT 1`).Scan(&detail); err != nil || detail != "disabled, address changed" {
 		t.Errorf("audit: %q %v", detail, err)
 	}
 }
 
-const customBody = `{"name":"Partner C2 list","kind":"ioc","url":"https://threat-share.example.net/c2.csv","enabled":true,"interval_hours":6,
+const customBody = `{"name":"Partner C2 list","kind":"ioc","url":"https://threat-share.example.net/c2.csv","enabled":true,
 "auth":{"type":"bearer","header_name":null,"username":null,"secret":"s3cretTOKEN-x7Qk"},
 "parser":{"format":"csv","records_path":"","delimiter":",","has_header":true,"fields":{"indicator":{"source":"dst_ip","regex":"","trim":true,"lowercase":false,"date_format":"auto"}}}}`
 

@@ -39,6 +39,9 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
+	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
+		fd.Schedules = d.Schedules
+	}
 	// The alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date
 	// again" go to the admins' alert channels through notify's system notice path, as the AI budget and activity-log alerts do
 	// (cmd/vedette/ai.go): an incident-kind notice. The alert is critical (#946 r1: a channel set to critical only carries exactly the
@@ -58,6 +61,11 @@ func feedsService(d deps) (*feeds.Service, error) {
 	s, err := feeds.NewService(fd)
 	if err != nil {
 		return nil, err
+	}
+	if d.Schedules != nil { // the sources' schedules are core/schedule owners; the service is built once per database, so it registers once
+		if err := d.Schedules.Register(s.ScheduleOwner()); err != nil {
+			return nil, err
+		}
 	}
 	feedsServices[d.DB] = s
 	return s, nil

@@ -141,7 +141,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
 function toCustom(i: ReturnType<typeof FeedInputSchema.parse>, prev: Feed | null): Feed {
   const last4 = i.auth.type === 'none' ? null : i.auth.secret !== undefined ? i.auth.secret.slice(-4) : prev?.auth.secret_last4 ?? null
   return {
-    id: prev?.id ?? newId('cf'), builtin: false, name: i.name.trim(), kind: i.kind, format: i.parser.format, url: i.url.trim(), default_url: null, enabled: i.enabled, interval_hours: i.interval_hours,
+    id: prev?.id ?? newId('cf'), builtin: false, name: i.name.trim(), kind: i.kind, format: i.parser.format, url: i.url.trim(), default_url: null, enabled: i.enabled, interval_hours: prev?.interval_hours ?? 6,
     auth: { type: i.auth.type, header_name: i.auth.type === 'header' ? i.auth.header_name : null, username: i.auth.type === 'basic' ? (i.auth.username ?? '').trim() : null, secret_last4: last4 },
     parser: i.parser, last_fetch: prev?.last_fetch ?? null, records: prev?.records ?? null, status: prev?.status ?? 'never', error: prev?.error ?? null, license: null, answered_by: null,
   }
@@ -176,12 +176,12 @@ export const sourceHandlers = [
     if (def && key !== undefined) { // saving a key turns the feed on; removing it turns the feed off and drops what it loaded
       config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, key_last4: key ? key.slice(-4) : null, enabled: p.data.enabled ?? !!key, ...(!key && { last_fetch: null, records: null, status: 'never' as const, error: null }) } } }))
     }
-    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
-    else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } : f) }))
+    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(url !== undefined && { url }) } } }))
+    else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(url !== undefined && { url }) } : f) }))
     // The two tier feeds of Updates to plan: on starts their first load, off empties them, as the box's tier state does.
     const tier = id === 'epss-all' ? 'epss' : id === 'nvd-recent' ? 'recent' : null
     if (tier && p.data.enabled !== undefined) tierState.update((st) => ({ ...st, [tier]: p.data.enabled ? (st[tier] === 'off' ? 'loading' : st[tier]) : 'off' }))
-    audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
+    audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), url !== undefined && 'address changed'].filter(Boolean).join(', '))
     return HttpResponse.json(allFeeds(config.get()).find((f) => f.id === id))
   }),
 

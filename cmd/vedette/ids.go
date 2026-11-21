@@ -119,8 +119,8 @@ func (a idsInventory) Names(ctx context.Context, idList []string) (map[string]st
 
 // idsFindings gives the attacked devices' findings for the CVEs an alert names, with the status vocabulary of the findings contract.
 // The findings module on this branch keeps its older statuses, so they are mapped here: an open finding whose CVE an alert named in
-// the last 14 days (ids.AttackWindow) is under_attack (layer 1), another open one is exploited (the findings of this model are all on
-// the exploited list); a handled one keeps its handling. The attacked CVEs are read once per call, whatever the number of devices.
+// the last 14 days (ids.AttackWindow) is under_attack (layer 1), another open one has the status of its stored urgency layer
+// (findings.LayerCode: exploited, public_exploit, critical_edge, update_recommended); a handled one keeps its handling. The attacked CVEs are read once per call, whatever the number of devices.
 // The findings rebuild replaces this with findings.View and its one status.
 type idsFindings struct{ d *deps }
 
@@ -151,7 +151,7 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 						return nil, err
 					}
 				}
-				f.Status = "exploited"
+				f.Status = findings.LayerCode(r.Row.Urgency)
 				if attacked[r.CVE] {
 					f.Status = "under_attack"
 				}

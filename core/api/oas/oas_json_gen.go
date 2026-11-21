@@ -154953,9 +154953,13 @@ func (s *FindingsGetFindingsIDOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOK = [32]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -154988,6 +154992,7 @@ var jsonFieldsNameOfFindingsGetFindingsIDOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsGetFindingsIDOK from json.
@@ -154995,7 +155000,7 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsIDOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -155349,6 +155354,18 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -155358,11 +155375,12 @@ func (s *FindingsGetFindingsIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -169791,9 +169809,13 @@ func (s *FindingsGetFindingsOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [22]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [23]string{
 	0:  "accepted_until",
 	1:  "asset",
 	2:  "asset_id",
@@ -169816,6 +169838,7 @@ var jsonFieldsNameOfFindingsGetFindingsOKItemsItem = [22]string{
 	19: "severity",
 	20: "software_id",
 	21: "status",
+	22: "urgency",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItem from json.
@@ -170069,6 +170092,18 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "urgency":
+			requiredBitSet[2] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -170081,7 +170116,7 @@ func (s *FindingsGetFindingsOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111101,
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -179191,9 +179226,13 @@ func (s *FindingsGetFindingsSummaryOKTopItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItem = [11]string{
+var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItem = [12]string{
 	0:  "asset",
 	1:  "cve",
 	2:  "cvss",
@@ -179205,6 +179244,7 @@ var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItem = [11]string{
 	8:  "software",
 	9:  "source",
 	10: "status",
+	11: "urgency",
 }
 
 // Decode decodes FindingsGetFindingsSummaryOKTopItem from json.
@@ -179338,6 +179378,18 @@ func (s *FindingsGetFindingsSummaryOKTopItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "urgency":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -179349,7 +179401,7 @@ func (s *FindingsGetFindingsSummaryOKTopItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -183852,9 +183904,13 @@ func (s *FindingsPostFindingsIDAiOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [32]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -183887,6 +183943,7 @@ var jsonFieldsNameOfFindingsPostFindingsIDAiOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOK from json.
@@ -183894,7 +183951,7 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDAiOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -184248,6 +184305,18 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -184257,11 +184326,12 @@ func (s *FindingsPostFindingsIDAiOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -192552,9 +192622,13 @@ func (s *FindingsPostFindingsIDAppliedOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [32]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -192587,6 +192661,7 @@ var jsonFieldsNameOfFindingsPostFindingsIDAppliedOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOK from json.
@@ -192594,7 +192669,7 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDAppliedOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -192948,6 +193023,18 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -192957,11 +193044,12 @@ func (s *FindingsPostFindingsIDAppliedOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -201258,9 +201346,13 @@ func (s *FindingsPostFindingsIDConfirmOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDConfirmOK = [32]string{
+var jsonFieldsNameOfFindingsPostFindingsIDConfirmOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -201293,6 +201385,7 @@ var jsonFieldsNameOfFindingsPostFindingsIDConfirmOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsPostFindingsIDConfirmOK from json.
@@ -201300,7 +201393,7 @@ func (s *FindingsPostFindingsIDConfirmOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDConfirmOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -201654,6 +201747,18 @@ func (s *FindingsPostFindingsIDConfirmOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -201663,11 +201768,12 @@ func (s *FindingsPostFindingsIDConfirmOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -213062,9 +213168,13 @@ func (s *FindingsPostFindingsIDStatusOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [32]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -213097,6 +213207,7 @@ var jsonFieldsNameOfFindingsPostFindingsIDStatusOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOK from json.
@@ -213104,7 +213215,7 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDStatusOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -213458,6 +213569,18 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -213467,11 +213590,12 @@ func (s *FindingsPostFindingsIDStatusOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -221804,9 +221928,13 @@ func (s *FindingsPostFindingsIDUnconfirmOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("suspected_why")
 		s.SuspectedWhy.Encode(e)
 	}
+	{
+		e.FieldStart("urgency")
+		e.Int(s.Urgency)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnconfirmOK = [32]string{
+var jsonFieldsNameOfFindingsPostFindingsIDUnconfirmOK = [33]string{
 	0:  "accepted_until",
 	1:  "ai",
 	2:  "ai_available",
@@ -221839,6 +221967,7 @@ var jsonFieldsNameOfFindingsPostFindingsIDUnconfirmOK = [32]string{
 	29: "software_id",
 	30: "status",
 	31: "suspected_why",
+	32: "urgency",
 }
 
 // Decode decodes FindingsPostFindingsIDUnconfirmOK from json.
@@ -221846,7 +221975,7 @@ func (s *FindingsPostFindingsIDUnconfirmOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDUnconfirmOK to nil")
 	}
-	var requiredBitSet [4]uint8
+	var requiredBitSet [5]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -222200,6 +222329,18 @@ func (s *FindingsPostFindingsIDUnconfirmOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"suspected_why\"")
 			}
+		case "urgency":
+			requiredBitSet[4] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgency = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgency\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -222209,11 +222350,12 @@ func (s *FindingsPostFindingsIDUnconfirmOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [4]uint8{
+	for i, mask := range [5]uint8{
 		0b11111111,
 		0b11011111,
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

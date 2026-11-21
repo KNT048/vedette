@@ -77,11 +77,13 @@ const (
 	findingRowSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
+		`"urgency":{"type":"string","enum":["under_attack","exploited","public_exploit","critical_edge","update_recommended"],"description":"Why it matters now: under_attack (an intrusion alert on this network named the CVE), exploited (attackers use it), public_exploit (working exploit code is public), critical_edge (a critical flaw on a device attackers target first) or update_recommended (no sign of exploitation)."},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."}}}`
 	findingSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at","evidence","history"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
+		`"urgency":{"type":"string","enum":["under_attack","exploited","public_exploit","critical_edge","update_recommended"],"description":"Why it matters now: under_attack (an intrusion alert on this network named the CVE), exploited (attackers use it), public_exploit (working exploit code is public), critical_edge (a critical flaw on a device attackers target first) or update_recommended (no sign of exploitation)."},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."},` +
 		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["template","checked_at"],"properties":{"template":{"type":"string","description":"The scan check that confirmed it."},"checked_at":{"type":"string","format":"date-time"}}},` +
@@ -119,7 +121,7 @@ var Tools = []Tool{
 	},
 	{
 		Name: "list_findings", Title: "List findings", Scope: ScopeFindings,
-		Description: "List exploited vulnerabilities matched to devices (findings), newest first. status: open (confirmed or suspected, the default), all, or one status. Filter by asset_id or cve. Paged with offset and limit.",
+		Description: "List vulnerabilities matched to devices (findings), newest first. urgency says why each matters now: under_attack, exploited, public_exploit, critical_edge or update_recommended; only the first two are being exploited. status: open (confirmed or suspected, the default), all, or one status. Filter by asset_id or cve. Paged with offset and limit.",
 		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"status":{"type":"string","enum":["open","all","confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"],"default":"open"},"asset_id":{"type":"string","maxLength":96},"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$"},` + pageProps + `}}`),
 		Output:      page(findingRowSchema),
 		run:         listFindings,
@@ -370,6 +372,7 @@ type findingRow struct {
 	LastSeen      string  `json:"last_seen"`
 	ResolvedAt    *string `json:"resolved_at"`
 	AcceptedUntil string  `json:"accepted_until,omitempty"`
+	Urgency       string  `json:"urgency,omitempty"`
 }
 
 func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
@@ -414,7 +417,7 @@ func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
 		case hasCVE && !strings.EqualFold(f.CVE, cve):
 			continue
 		}
-		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt, f.AcceptedUntil})
+		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt, f.AcceptedUntil, f.Urgency})
 	}
 	p := paginate(rows, offset, limit)
 	return p, len(p.Items), nil

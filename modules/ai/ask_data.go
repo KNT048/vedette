@@ -37,16 +37,20 @@ type AssetRow struct {
 	IsBox bool
 }
 
-// FindingRow is a finding (a device matched to an exploited vulnerability).
+// FindingRow is a finding (a device matched to a known vulnerability).
 type FindingRow struct {
-	ID         string
-	AssetID    string
-	Asset      string // name of the device
-	AssetIP    string
-	CVE        string
-	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant, risk_accepted
-	Severity   string
-	Basis      string // version, product, scan, person
+	ID       string
+	AssetID  string
+	Asset    string // name of the device
+	AssetIP  string
+	CVE      string
+	Status   string // confirmed, suspected, mitigated, patched, false_positive, not_relevant, risk_accepted
+	Severity string
+	Basis    string // version, product, scan, person
+	// Urgency is why the finding matters now: under_attack (an intrusion alert on this network named the CVE), exploited (attackers
+	// use it), public_exploit (working exploit code is public), critical_edge (a critical flaw on a device attackers target first) or
+	// update_recommended (no sign of exploitation). Only the first two are being exploited.
+	Urgency    string
 	Confidence float64
 	Evidence   string // the summary of the scan that confirmed it; "" = none
 	FirstSeen  string
@@ -105,9 +109,9 @@ type UpdateRow struct {
 
 // DeviceUpdates is what to install on one device to clear its CVEs (findings.DeviceUpdates).
 type DeviceUpdates struct {
-	Open      int         // open exploited findings of the device
-	Exploited []UpdateRow // open exploited findings a named update fixes, one row per update
-	NoUpdate  []UpdateRow // open exploited findings no update is named for, one row per software
+	Open      int         // open urgent findings of the device (urgency under_attack to critical_edge)
+	Exploited []UpdateRow // open urgent findings a named update fixes, one row per update
+	NoUpdate  []UpdateRow // open urgent findings no update is named for, one row per software
 	Planned   []UpdateRow // recommended updates: CVEs on no exploited list ("Recommended updates")
 	PlanRan   bool        // false: the recommended updates are not compared yet
 	// PlanCompared: the last comparison included this device; false: it has no version the comparison trusts (or is newer than

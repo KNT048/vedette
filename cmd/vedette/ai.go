@@ -409,6 +409,7 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFire
 		fmt.Fprintf(&d, "Evidence (installed version and affected range): %s\n", aiVal(e.Summary, 600))
 	}
 	fmt.Fprintf(&d, "%s\n", aiFixedIn(req.FixedIn, links > 0))
+	fmt.Fprintf(&d, "Urgency: %s\n", aiUrgencyText(findings.LayerCode(row.Urgency)))
 	fmt.Fprintf(&d, "Finding status: %s, severity %s, matched by %s, confidence %.2f\nA confirmed recommendation pack exists: %t\n", row.Status, row.Severity, row.Basis, row.Confidence, req.HasPack)
 	blocks := []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + row.CVE, Text: feed.String()}, {Kind: "inventory", Source: "the device of the finding", Text: d.String()}}
 	if req.Skill != mitigation.SkillConfig {
@@ -988,8 +989,24 @@ func (a aiAsk) names(ctx context.Context) (map[string]inventory.Device, error) {
 	return m, nil
 }
 
+// aiUrgencyText says in plain words why a finding matters now, from its urgency status code: the model calls a flaw exploited only
+// when attackers use it.
+func aiUrgencyText(code string) string {
+	switch code {
+	case findings.CodeUnderAttack:
+		return "under attack: an intrusion alert on this network named this CVE (attackers are using it)"
+	case findings.CodeExploited:
+		return "exploited in the wild: attackers use this flaw"
+	case findings.CodePublicExploit:
+		return "a public exploit is available; no report that attackers use it against this network"
+	case findings.CodeCriticalEdge:
+		return "critical flaw on a device attackers target first; no report that it is exploited"
+	}
+	return "update recommended: no sign that this flaw is exploited"
+}
+
 func aiFindingRow(r findings.Record, devs map[string]inventory.Device) ai.FindingRow {
-	f := ai.FindingRow{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Basis: string(r.Basis), Confidence: r.ShownConfidence(),
+	f := ai.FindingRow{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Basis: string(r.Basis), Confidence: r.ShownConfidence(), Urgency: findings.LayerCode(r.Row.Urgency),
 		FirstSeen: r.FirstSeen.UTC().Format(time.RFC3339), LastSeen: r.LastSeen.UTC().Format(time.RFC3339)}
 	if !r.AcceptedUntil.IsZero() {
 		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)

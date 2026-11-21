@@ -134,11 +134,16 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		if len(keys) == 0 {
 			keys = []string{"notice:" + n.ID} // a notice that names no CVE still counts once
 		}
+		if n.Kind == KindVuln && !n.exploited() {
+			return nil // notify_kev counts exploited vulnerabilities only
+		}
 		return markKEV(ctx, tx, keys, now, false)
 	}
 	if n.Kind == KindVuln {
-		if err := markKEV(ctx, tx, n.CVEs, now, true); err != nil {
-			return err
+		if n.exploited() {
+			if err := markKEV(ctx, tx, n.CVEs, now, true); err != nil {
+				return err
+			}
 		}
 		cves, err := json.Marshal(n.CVEs)
 		if err != nil {

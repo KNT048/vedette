@@ -173,6 +173,7 @@
     "passive": "Passive",
     "scan": "Confirmation scan",
     "kev": "CISA KEV",
+    "catalogue": "NVD vulnerability data",
     "vulncheck-kev": "VulnCheck KEV",
     "epss": "FIRST EPSS",
     "nuclei": "nuclei-templates",

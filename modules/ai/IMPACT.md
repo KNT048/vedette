@@ -149,3 +149,5 @@
 - **PRIVACY.md dòng 3 + Settings → Privacy (`core.json` `privacy.rows.3`)**: đổi nội dung gửi đi → cập nhật cả hai cùng commit.
 - **`provider.New` (Gemini)**: cắt đuôi `/v1beta` của base; đổi → hồ sơ Gemini cũ gọi sai đường dẫn.
 - **audit**: nhãn `ai.models` trong `core.json`.
+
+- `FindingRow.Urgency` (status code of findings' layer) is in the finding tools' rows (`list_findings` leaves it out for `exploited`, the common case, to keep the question inside its token budget) and in the explain/config/plan data blocks as an "Urgency:" line (`aiUrgencyText`, `cmd/vedette/ai.go`); the task texts say "known vulnerability" and call it exploited only when that line does. The response plan job (`responseCritical`) takes the critical findings of layer 1 to 4 only.

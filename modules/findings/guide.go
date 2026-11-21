@@ -222,13 +222,16 @@ func orEmpty[T any](s []T) []T {
 
 // Row is a finding as the list shows it (FindingRow): the stored finding, the device and the KEV entry.
 type Row struct {
-	ID             string       `json:"id"`
-	AssetID        string       `json:"asset_id"`
-	CVE            string       `json:"cve"`
-	Status         Status       `json:"status"`
-	Severity       Severity     `json:"severity"`
-	Confidence     float64      `json:"confidence"`
-	Basis          Basis        `json:"basis"`
+	ID         string   `json:"id"`
+	AssetID    string   `json:"asset_id"`
+	CVE        string   `json:"cve"`
+	Status     Status   `json:"status"`
+	Severity   Severity `json:"severity"`
+	Confidence float64  `json:"confidence"`
+	Basis      Basis    `json:"basis"`
+	// Urgency is the finding's layer: 1 under attack here, 2 exploited in the wild, 3 public exploit available, 4 critical on an edge
+	// device, 5 update recommended (no sign of exploitation).
+	Urgency        int          `json:"urgency"`
 	Evidence       *evidenceDoc `json:"evidence"`
 	FirstSeen      time.Time    `json:"first_seen"`
 	LastSeen       time.Time    `json:"last_seen"`
@@ -329,7 +332,7 @@ type Detail struct {
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
-		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis,
+		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis, Urgency: r.Row.Urgency,
 		Evidence: apiEvidence(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
 		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}

@@ -260,4 +260,6 @@ func LayerCode(layer int) string {
 
 // Exploited says whether the finding's CVE is exploited: under attack here, or exploited in the wild (urgency 1 or 2). Every reader
 // that calls a finding exploited, counts exploited findings or names an exploited list asks this, never "is it a finding".
-func (f Finding) Exploited() bool { return f.Urgency >= UrgencyUnderAttack && f.Urgency <= UrgencyExploited }
+func (f Finding) Exploited() bool {
+	return f.Urgency >= UrgencyUnderAttack && f.Urgency <= UrgencyExploited
+}

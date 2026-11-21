@@ -160,7 +160,8 @@ function row(f: Finding): FindingRow {
   // as findings.ShownConfidence: a finding its evidence confirms is never shown below a scan's confirmation (0.95), in any status
   const confirmedBy = f.basis === 'scan' || f.basis === 'person' || (f.basis === 'version' && f.status === 'confirmed')
   const confidence = confirmedBy ? Math.max(f.confidence, 0.95) : f.confidence
-  return { ...f, status, confidence, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
+  const urgency = kevInfo(f.cve) ? 2 : 5 // a CVE on an exploited list is layer 2; any other catalogue CVE is an update to recommend
+  return { ...f, status, confidence, urgency, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
     fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 
@@ -405,10 +406,10 @@ function askAnswers(f: Finding, k: KevInfo | null, dev: string): AiAnswer[] {
 export function summary(): HomeSummary {
   const rows = findingsStore.get().map(row)
   const open = rows.filter((r) => r.status === 'confirmed' || r.status === 'suspected')
-  const rank = (r: FindingRow) => [r.status === 'confirmed' ? 0 : 1, r.kev?.ransomware ? 0 : 1, -(r.cvss?.score ?? -1)] as const
+  const rank = (r: FindingRow) => [r.urgency, r.status === 'confirmed' ? 0 : 1, r.kev?.ransomware ? 0 : 1, -(r.cvss?.score ?? -1)] as const
   const top = [...open].sort((a, b) => {
     const x = rank(a), y = rank(b)
-    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || b.first_seen.localeCompare(a.first_seen)
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || x[3] - y[3] || b.first_seen.localeCompare(a.first_seen)
   }).slice(0, SUMMARY_TOP)
   const now = Date.now()
   const today = new Date(now); today.setUTCHours(24, 0, 0, 0)
@@ -419,7 +420,7 @@ export function summary(): HomeSummary {
   const assets = assetsStore.get()
   return {
     open: { total: open.length, confirmed: open.filter((r) => r.status === 'confirmed').length, devices: new Set(open.map((r) => r.asset_id)).size, ransomware: open.filter((r) => r.kev?.ransomware).length },
-    top: top.map((r) => ({ id: r.id, cve: r.cve, status: r.status === 'confirmed' ? 'confirmed' as const : 'suspected' as const, severity: r.severity, asset: r.asset, product: r.kev ? (r.kev.display || `${r.kev.vendor} ${r.kev.product}`) : '', software: r.fix?.software ?? '', ransomware: !!r.kev?.ransomware, source: r.kev ? (r.kev.source ?? 'cisa-kev') : null, cvss: r.cvss, first_seen: r.first_seen })),
+    top: top.map((r) => ({ id: r.id, cve: r.cve, status: r.status === 'confirmed' ? 'confirmed' as const : 'suspected' as const, severity: r.severity, urgency: r.urgency, asset: r.asset, product: r.kev ? (r.kev.display || `${r.kev.vendor} ${r.kev.product}`) : '', software: r.fix?.software ?? '', ransomware: !!r.kev?.ransomware, source: r.kev ? (r.kev.source ?? 'cisa-kev') : null, cvss: r.cvss, first_seen: r.first_seen })),
     trend,
     devices: { total: assets.length, pending: assets.filter((a) => !a.approved).length },
     alerts: isOn('notify') ? { ...sentSince(new Date(now - 7 * 864e5).toISOString()), days: 7 } : null,

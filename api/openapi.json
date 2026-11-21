@@ -36781,6 +36781,12 @@
                               "additionalProperties": false
                             }
                           },
+                          "urgency": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 5,
+                            "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                          },
                           "asset": {
                             "anyOf": [
                               {
@@ -37167,6 +37173,7 @@
                           "resolution_note",
                           "accepted_until",
                           "history",
+                          "urgency",
                           "asset",
                           "kev",
                           "cvss",
@@ -37905,6 +37912,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -39375,6 +39388,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -39640,6 +39654,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -41110,6 +41130,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -41377,6 +41398,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -42847,6 +42874,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -43108,6 +43136,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -44578,6 +44612,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -45716,6 +45751,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -47186,6 +47227,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -47427,6 +47469,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "urgency": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "description": "Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are \"exploited\""
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -48897,6 +48945,7 @@
                     "resolution_note",
                     "accepted_until",
                     "history",
+                    "urgency",
                     "asset",
                     "kev",
                     "cvss",
@@ -54709,7 +54758,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Open findings (confirmed + suspected): a device runs software on an exploited list"
+                          "description": "Open findings (confirmed + suspected): a device runs software a known vulnerability affects"
                         },
                         "confirmed": {
                           "type": "integer",
@@ -54767,6 +54816,12 @@
                               "low",
                               "info"
                             ]
+                          },
+                          "urgency": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 5,
+                            "description": "The finding's urgency layer, as FindingRow.urgency"
                           },
                           "asset": {
                             "anyOf": [
@@ -54916,7 +54971,7 @@
                           },
                           "product": {
                             "type": "string",
-                            "description": "The product as the findings list names it (the KEV display name, else \"<vendor> <product>\"; empty when the CVE left the list)"
+                            "description": "The product as the findings list names it (the KEV display name, else \"<vendor> <product>\"; empty when the CVE is on no exploited list)"
                           },
                           "software": {
                             "type": "string",
@@ -54939,7 +54994,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Which exploited list names it; null when the CVE left the list"
+                            "description": "Which exploited list names it; null when the CVE is on no list"
                           },
                           "cvss": {
                             "anyOf": [
@@ -55003,6 +55058,7 @@
                           "cve",
                           "status",
                           "severity",
+                          "urgency",
                           "asset",
                           "product",
                           "software",
@@ -55013,7 +55069,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest"
+                      "description": "The open findings to fix first: the most urgent layer, then confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest"
                     },
                     "trend": {
                       "minItems": 30,

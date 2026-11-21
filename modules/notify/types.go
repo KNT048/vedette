@@ -311,7 +311,14 @@ type FindingInfo struct {
 	What     string
 	Action   string
 	Devices  []string // names of the devices the finding matched; empty = it matched none
+	// Layer is the urgency layer of the finding (1 under attack here .. 5 update recommended); 0 when the directory does not say, which
+	// reads as exploited (every finding was once one that attackers use).
+	Layer int
 }
+
+// exploitedLayer says whether an urgency layer means attackers use the flaw: under attack here (1), exploited in the wild (2), or not
+// stated (0).
+func exploitedLayer(layer int) bool { return layer <= 2 }
 
 // FindingDirectory looks a finding up by id. Without one, finding events cannot become notices.
 type FindingDirectory interface {

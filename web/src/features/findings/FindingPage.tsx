@@ -53,7 +53,7 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
               { label: t('evidence.basis'), value: t(basisLabel(f)) },
               { label: t('evidence.confidence'), value: fmtPercent(f.confidence, 0) },
               { label: t('evidence.template'), value: ev.template ?? <span className="text-muted">{f.kev?.has_template ? t('evidence.noTemplateRun') : t('evidence.noTemplate')}</span> },
-              { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : 'kev'} confidence={f.confidence} at={ev.checked_at} /> },
+              { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : f.kev ? 'kev' : 'catalogue'} confidence={f.confidence} at={ev.checked_at} /> },
             ]} />
             {ev.request ? <CodeBlock code={ev.request} label={t('evidence.request')} /> : null}
             {ev.response ? <CodeBlock code={ev.response} label={t('evidence.response')} /> : null}
@@ -185,7 +185,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <PageHeader
         breadcrumbs={crumbs}
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

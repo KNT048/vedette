@@ -72,6 +72,7 @@ export const Cvss = z.object({
   vector: z.string().min(1).max(200).describe('NVD\'s vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown'),
 }).describe('#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it')
 export const FindingRow = Finding.extend({
+  urgency: z.number().int().min(1).max(5).describe('Why the finding matters now, most urgent first: 1 under attack here (an intrusion alert on this network named it), 2 exploited in the wild, 3 public exploit available, 4 critical on a device attackers target first, 5 update recommended (no sign of exploitation). Only 1 and 2 are "exploited"'),
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
   cvss: Cvss.nullable().describe('null = no CVSS score known: the pages say "No score", never 0'),
   resolution_reason: z.string().nullable().describe('not_affected_version when Vedette closed the finding by itself (a matcher proof, or one of its rules that compares no version); null for a person\'s own action and for open findings. A string, not an enum: a new reason must not break the list'),
@@ -271,22 +272,23 @@ export const SUMMARY_TOP = 5
 export const SUMMARY_DAYS = 30
 export const SummaryItem = z.object({
   id: z.string(), cve: z.string(), status: z.enum(['confirmed', 'suspected']).describe('Open findings only'), severity: Severity,
+  urgency: z.number().int().min(1).max(5).describe('The finding\'s urgency layer, as FindingRow.urgency'),
   asset: FindingAsset.nullable().describe('null when the device was removed'),
-  product: z.string().describe('The product as the findings list names it (the KEV display name, else "<vendor> <product>"; empty when the CVE left the list)'),
+  product: z.string().describe('The product as the findings list names it (the KEV display name, else "<vendor> <product>"; empty when the CVE is on no exploited list)'),
   software: z.string().describe('The device\'s software the exploited-list entry is keyed to, as the finding\'s page names it (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context'),
   ransomware: z.boolean().describe('The exploited list says ransomware campaigns use it'),
-  source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it; null when the CVE left the list'),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it; null when the CVE is on no list'),
   cvss: Cvss.nullable().describe('null = no score known: "No score", never 0'),
   first_seen: iso,
 })
 export const HomeSummary = z.object({
   open: z.object({
-    total: z.number().int().describe('Open findings (confirmed + suspected): a device runs software on an exploited list'),
+    total: z.number().int().describe('Open findings (confirmed + suspected): a device runs software a known vulnerability affects'),
     confirmed: z.number().int().describe('Of them, confirmed: by a scan, a person or the version the device itself reports'),
     devices: z.number().int().describe('Devices with at least one open finding'),
     ransomware: z.number().int().describe('Open findings whose CVE ransomware campaigns use'),
   }),
-  top: z.array(SummaryItem).max(SUMMARY_TOP).describe('The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest'),
+  top: z.array(SummaryItem).max(SUMMARY_TOP).describe('The open findings to fix first: the most urgent layer, then confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest'),
   trend: z.array(z.number().int()).length(SUMMARY_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
   devices: z.object({ total: z.number().int().describe('Devices on the Devices page'), pending: z.number().int().describe('Devices waiting for review') }),
   alerts: z.object({ sent: z.number().int(), failed: z.number().int(), days: z.number().int() }).nullable().describe('Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last `days` days; a failure resent later with success to the same channel is not counted as failed; null when Notifications is off'),

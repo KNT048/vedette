@@ -33,3 +33,5 @@
 - Trang Reports và lịch gửi biến mất; người nhận không còn nhận báo cáo tuần (không báo lỗi phía họ).
 - Không module nào phụ thuộc vào `reports`. `rep_*` giữ nguyên.
 - **Loại thiết bị**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). PDPL so loại hành xử như (`ActsAs`): VPN gateway là firewall, máy ảo là hệ thống chính (server); đếm theo loại giữ id loại.
+
+- `Finding.Urgency` (findings' layer, 0 = not stated, reads as exploited): an action sentence says "exploited vulnerabilit(y/ies)" only while every finding of its line is layer 1 or 2, else "vulnerabilit(y/ies)"; the PDPL facts say "Open vulnerability findings". Adapter: `cmd/vedette/reports.go`.

@@ -297,8 +297,8 @@ func deviceInfo(d inventory.Device) response.DeviceInfo {
 	return out
 }
 
-// Finding answers the fields a trigger needs. Every finding the box holds comes from the exploited-vulnerability list
-// (findings matches the CISA KEV list only), so kev is true; the firewall virtual IP of the trigger is not known without a
+// Finding answers the fields a trigger needs. kev is the trigger's "exploited in the wild" flag: true when attackers use the flaw
+// (under attack here, or exploited in the wild), false for a finding at a lower urgency layer; the firewall virtual IP of the trigger is not known without a
 // firewall read (part 13b) and stays empty.
 func (r responseDirectory) Finding(ctx context.Context, id string) (response.FindingInfo, bool, error) {
 	rec, err := r.fnd.Get(ctx, id)
@@ -308,7 +308,7 @@ func (r responseDirectory) Finding(ctx context.Context, id string) (response.Fin
 	if err != nil {
 		return response.FindingInfo{}, false, err
 	}
-	return response.FindingInfo{ID: rec.ID, AssetID: rec.AssetID, CVE: rec.CVE, Severity: string(rec.Severity), Status: string(rec.Status), KEV: true}, true, nil
+	return response.FindingInfo{ID: rec.ID, AssetID: rec.AssetID, CVE: rec.CVE, Severity: string(rec.Severity), Status: string(rec.Status), KEV: rec.Row.Exploited()}, true, nil
 }
 
 // ---- core/conn/write -> response.Executor ----

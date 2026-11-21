@@ -23,3 +23,5 @@
 
 ## Disabling this module
 - Cổng đóng; agent/SIEM ngoài mất truy cập. Không module nào của Vedette phụ thuộc. Token và cấu hình giữ nguyên. Settings → Privacy luồng 13 thành `off`.
+
+- `list_findings` rows and `get_finding` carry `urgency` (under_attack, exploited, public_exploit, critical_edge, update_recommended), filled by `cmd/vedette/mcpserver.go` from findings' layer; the description no longer calls every finding exploited. Đổi tên mã = đổi schema `findingRowSchema`/`findingSchema`.

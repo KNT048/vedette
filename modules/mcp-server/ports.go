@@ -85,9 +85,12 @@ type Finding struct {
 	LastSeen   string  `json:"last_seen"`
 	ResolvedAt *string `json:"resolved_at"`
 	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted.
-	AcceptedUntil string        `json:"accepted_until,omitempty"`
-	Evidence      *Evidence     `json:"evidence"`
-	History       []HistoryStep `json:"history"`
+	AcceptedUntil string `json:"accepted_until,omitempty"`
+	// Urgency is the status code of the finding's urgency layer: under_attack, exploited, public_exploit, critical_edge or
+	// update_recommended.
+	Urgency  string        `json:"urgency,omitempty"`
+	Evidence *Evidence     `json:"evidence"`
+	History  []HistoryStep `json:"history"`
 }
 
 // Evidence names the scan check that confirmed a finding. Its summary is not included: it names the device, its address and

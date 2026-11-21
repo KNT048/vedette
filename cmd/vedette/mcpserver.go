@@ -165,7 +165,7 @@ const mcpTS = "2006-01-02T15:04:05.000Z"
 
 func mcpFinding(r findings.Record) mcpserver.Finding {
 	f := mcpserver.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Confidence: r.ShownConfidence(),
-		Basis: string(r.Basis), FirstSeen: r.FirstSeen.UTC().Format(mcpTS), LastSeen: r.LastSeen.UTC().Format(mcpTS), History: []mcpserver.HistoryStep{}}
+		Basis: string(r.Basis), Urgency: findings.LayerCode(r.Row.Urgency), FirstSeen: r.FirstSeen.UTC().Format(mcpTS), LastSeen: r.LastSeen.UTC().Format(mcpTS), History: []mcpserver.HistoryStep{}}
 	if !r.ResolvedAt.IsZero() {
 		at := r.ResolvedAt.UTC().Format(mcpTS)
 		f.ResolvedAt = &at

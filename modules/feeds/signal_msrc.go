@@ -20,7 +20,7 @@ const msrcCVEURL = "https://msrc.microsoft.com/update-guide/vulnerability/"
 // Bounds of the Security Update Guide list: bytes of one page (the whole list is about 1 MB in November 2026), pages followed
 // (@odata.nextLink), CVEs of the whole list (198), revisions of one CVE and the length of a revision's text read.
 const (
-	msrcMaxBytes     = 8 << 20
+	msrcMaxBytes     = 4 << 20
 	msrcMaxPages     = 20
 	msrcMaxCVEs      = 20_000
 	msrcMaxRevisions = 500
@@ -158,7 +158,7 @@ func msrcClaim(v msrcVuln) (vendorClaim, bool) {
 	if date.IsZero() {
 		date = release
 	}
-	return vendorClaim{CVE: cve, Date: date.UTC()}, true
+	return vendorClaim{CVE: cve, Date: date.UTC(), Flag: true}, true
 }
 
 // buildMSRC reads Microsoft's list of exploited CVEs, page after page as the list links them (only pages of the same address), and

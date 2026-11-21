@@ -2,7 +2,7 @@ package feeds
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"strings"
 	"testing"
 )
@@ -33,13 +33,21 @@ func FuzzParseCSAF(f *testing.F) {
 	f.Add([]byte(ciscoDoc("cisco-sa-a", "2026-01-01T00:00:00Z", "The PSIRT is aware of attempted exploitation of CVE-2026-0001. Not CVE-2026-0002.", []string{`{"date":"2026-01-02T00:00:00Z","summary":"exploited CVE-2026-0001"}`}, "CVE-2026-0001", "CVE-2026-0002")))
 	f.Add([]byte(fortiDoc("FG-IR-26-1", "2026-01-01T00:00:00", [2]string{"CVE-2026-0001", "<p>This is being exploited in the wild.</p>"})))
 	f.Add([]byte(`{"document":{"tracking":{"id":"x","initial_release_date":"2026-01-01"}},"vulnerabilities":[{"cve":"cve-1-1","threats":[{"category":"exploit_status","details":"Exploited:Yes"}]}]}`))
+	for _, doc := range slowShapes(1) { // the shapes that once cost minutes: many CVEs claimed again and again, revisions naming many CVEs
+		f.Add([]byte(doc))
+	}
 	f.Fuzz(func(t *testing.T, data []byte) {
 		d, err := parseCSAF(bytes.NewReader(data))
 		if err != nil {
 			return
 		}
-		checkClaims(t, ciscoClaims(d))
-		checkClaims(t, fortinetClaims(d))
+		for _, claims := range []func(context.Context, csafDoc, *claimWork) ([]vendorClaim, int, error){ciscoClaims, fortinetClaims} {
+			cs, _, err := claims(t.Context(), d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkClaims(t, cs)
+		}
 	})
 }
 
@@ -66,16 +74,19 @@ func FuzzParseAdvisoryFeeds(f *testing.F) {
 	})
 }
 
-func FuzzExploitationClaims(f *testing.F) {
-	f.Add("The PSIRT is aware of attempted exploitation of CVE-2026-0001, but not aware of malicious use of CVE-2026-0002.", "CVE-2026-0001")
+func FuzzClaimForms(f *testing.F) {
+	f.Add("The Cisco PSIRT is aware of attempted exploitation of CVE-2026-0001, but not aware of malicious use of CVE-2026-0002.", "CVE-2026-0001")
 	f.Add("<p>Fortinet has observed this to be exploited in the wild&nbsp;.</p>", "CVE-2026-0003")
+	f.Add(strings.Repeat("These vulnerabilities are exploited in the wild. ", 500), "CVE-2026-0004")
 	f.Fuzz(func(t *testing.T, text, scope string) {
-		got := claimedCVEs(text, []string{scope})
-		if len(got) > 1 || (len(got) == 1 && got[0] != scope) {
-			t.Fatalf("%q claims %v outside its scope", text, got)
-		}
-		if b, err := json.Marshal(exploitationClaims(text)); err != nil || len(b) < 2 {
-			t.Fatal(err)
+		for _, forms := range [][]claimForm{ciscoForms, fortinetForms} {
+			r := newClaimReader(forms, csafMaxClaimText, nil)
+			if err := r.read(t.Context(), text, []string{scope}, map[string]bool{scope: true}); err != nil {
+				t.Fatal(err)
+			}
+			if len(r.order) > 1 || (len(r.order) == 1 && r.order[0] != scope) {
+				t.Fatalf("%q claims %v outside its scope", text, r.order)
+			}
 		}
 	})
 }

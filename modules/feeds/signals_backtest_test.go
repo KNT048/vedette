@@ -3,6 +3,7 @@ package feeds
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"maps"
 	"path/filepath"
 	"regexp"
@@ -26,10 +27,13 @@ func vendorFixture(t *testing.T, name string) []byte {
 
 // csafFixtureClaims reads every document of a JSON-lines fixture through parseCSAF and the vendor's claim rule: the earliest date per
 // CVE, as applyVendorClaims stores them on a first pull.
-func csafFixtureClaims(t *testing.T, name string, claims func(csafDoc) []vendorClaim) (map[string]time.Time, []csafDoc) {
+func csafFixtureClaims(t *testing.T, name string, claims func(context.Context, csafDoc, *claimWork) ([]vendorClaim, int, error)) (map[string]time.Time, []csafDoc, vendorOrigin) {
 	t.Helper()
 	out := map[string]time.Time{}
-	var docs []csafDoc
+	var (
+		docs   []csafDoc
+		origin vendorOrigin
+	)
 	sc := bufio.NewScanner(bytes.NewReader(vendorFixture(t, name)))
 	sc.Buffer(nil, 1<<20)
 	for sc.Scan() {
@@ -38,7 +42,17 @@ func csafFixtureClaims(t *testing.T, name string, claims func(csafDoc) []vendorC
 			t.Fatalf("%s: %v", name, err)
 		}
 		docs = append(docs, d)
-		for _, c := range claims(d) {
+		cs, unclassified, err := claims(t.Context(), d, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		origin.unclassified += unclassified
+		for _, c := range cs {
+			if c.Flag {
+				origin.flag++
+			} else {
+				origin.form++
+			}
 			if was, ok := out[c.CVE]; !ok || c.Date.Before(was) {
 				out[c.CVE] = c.Date
 			}
@@ -47,8 +61,12 @@ func csafFixtureClaims(t *testing.T, name string, claims func(csafDoc) []vendorC
 	if err := sc.Err(); err != nil {
 		t.Fatal(err)
 	}
-	return out, docs
+	return out, docs, origin
 }
+
+// vendorOrigin is where a source's claims come from: structured fields or sentence forms, and the sentences about exploitation in
+// no known form.
+type vendorOrigin struct{ flag, form, unclassified int }
 
 // The first measurement's phrase and negation lists, kept for the "before" of the count.
 var (
@@ -150,9 +168,13 @@ func TestVendorClaims_CountsOfTheFrozenFixtures(t *testing.T) {
 	before := map[string]map[string]bool{}
 	for _, src := range []struct {
 		id, file string
-		claims   func(csafDoc) []vendorClaim
+		claims   func(context.Context, csafDoc, *claimWork) ([]vendorClaim, int, error)
 	}{{ciscoFeedID, "cisco-csaf.jsonl.gz", ciscoClaims}, {fortinetFeedID, "fortinet-csaf.jsonl.gz", fortinetClaims}} {
-		claims, docs := csafFixtureClaims(t, src.file, src.claims)
+		claims, docs, origin := csafFixtureClaims(t, src.file, src.claims)
+		t.Logf("%s: %d claims from structured fields, %d from the vendor's sentence forms, %d sentences in no known form", src.id, origin.flag, origin.form, origin.unclassified)
+		if want := map[string]vendorOrigin{ciscoFeedID: {0, 24, 1}, fortinetFeedID: {0, 7, 0}}[src.id]; origin != want {
+			t.Errorf("%s: origin %+v, want %+v", src.id, origin, want)
+		}
 		c := countIn(claims)
 		before[src.id] = map[string]bool{}
 		for _, d := range docs {

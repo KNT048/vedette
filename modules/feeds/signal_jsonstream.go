@@ -11,13 +11,27 @@ import (
 // checked. A value of another type than the one asked for is skipped and read as empty (the caller's own checks then refuse what it
 // needs); a string is cut to the length asked for.
 type jsonStream struct {
-	dec *json.Decoder
-	who string // names the document in errors ("The advisory document")
+	dec   *json.Decoder
+	who   string // names the document in errors ("The advisory document")
+	depth *int   // objects and arrays open now
 }
 
+// jsonMaxDepth bounds the nesting of a document (CSAF needs fewer than 15 levels): the decoder keeps a stack entry per open level.
+const jsonMaxDepth = 64
+
 func newJSONStream(r io.Reader, who string) jsonStream {
-	return jsonStream{dec: json.NewDecoder(r), who: who}
+	return jsonStream{dec: json.NewDecoder(r), who: who, depth: new(int)}
 }
+
+// open counts a level opened; close, one closed.
+func (j jsonStream) open() error {
+	if *j.depth++; *j.depth > jsonMaxDepth {
+		return fail(ErrBadSample, "%s is nested more than %d levels deep.", j.who, jsonMaxDepth)
+	}
+	return nil
+}
+
+func (j jsonStream) close() { *j.depth-- }
 
 func (j jsonStream) fail(err error) error {
 	return readFail(err, "%s could not be read: %v.", j.who, err)
@@ -33,6 +47,10 @@ func (j jsonStream) object(fn func(key string) error) (ok bool, err error) {
 	if tok != json.Delim('{') {
 		return false, j.skipRest(tok)
 	}
+	if err := j.open(); err != nil {
+		return false, err
+	}
+	defer j.close()
 	for j.dec.More() {
 		k, err := j.dec.Token()
 		if err != nil {
@@ -65,6 +83,10 @@ func (j jsonStream) arrayOK(limit int, count *int, what string, fn func() error)
 	if tok != json.Delim('[') {
 		return false, j.skipRest(tok)
 	}
+	if err := j.open(); err != nil {
+		return false, err
+	}
+	defer j.close()
 	n := 0
 	if count == nil {
 		count = &n
@@ -108,12 +130,17 @@ func (j jsonStream) skip() error {
 	return j.skipRest(tok)
 }
 
-// skipRest reads the rest of a value whose first token was tok.
+// skipRest reads the rest of a value whose first token was tok, within the nesting bound.
 func (j jsonStream) skipRest(tok json.Token) error {
 	if tok != json.Delim('{') && tok != json.Delim('[') {
 		return nil
 	}
+	base := *j.depth
+	defer func() { *j.depth = base }()
 	for depth := 1; depth > 0; {
+		if *j.depth = base + depth; *j.depth > jsonMaxDepth {
+			return fail(ErrBadSample, "%s is nested more than %d levels deep.", j.who, jsonMaxDepth)
+		}
 		t, err := j.dec.Token()
 		if err != nil {
 			return j.fail(err)

@@ -44,7 +44,7 @@ const (
 	csafListMaxBytes  = 8 << 20
 	csafMaxDocs       = 2_000
 	csafMaxListRows   = 5_000
-	csafMaxVulns      = 5_000
+	csafMaxVulns      = 500 // Cisco's largest is in the tens; Fortinet repeats each vulnerability once per product
 	csafMaxNotes      = 2_000
 	csafMaxClaimText  = 1 << 20
 	csafMaxRevSummary = maxClaimSentence
@@ -58,7 +58,8 @@ var (
 	// status.", "Updated with information about becoming aware of exploitation.") states it, unless it speaks of proof-of-concept
 	// code or a public announcement.
 	csafRevExploitRE = regexp.MustCompile(`(?i)\bexploitation\b|\bexploited\b|in the wild|malicious use`)
-	csafRevPoCRE     = regexp.MustCompile(`(?i)proof[- ]of[- ]concept|\bpoc\b|exploit code|public(?:ly)? (?:announce|disclos|availab)|announcement`)
+	csafRevNegRE     = regexp.MustCompile(`(?i)\b(?:not|no|never|nor)\b|n't\b`)
+	csafRevPoCRE     = regexp.MustCompile(`(?i)proof[- ]of[- ]concept|\bpoc\b|exploit code|public(?:ly)? (?:disclos|availab)`)
 	// csafExploitedFlagRE: the CSAF threat of category exploit_status as some vendors fill it ("Exploited:Yes").
 	csafExploitedFlagRE = regexp.MustCompile(`(?i)\bexploited\s*:\s*yes\b`)
 )
@@ -80,10 +81,10 @@ type csafVuln struct {
 
 // csafDoc is the part of a CSAF 2.0 document the claim rules read.
 type csafDoc struct {
-	ID, InitialRelease string
-	Revisions          []csafRevision
-	Notes              []csafNote
-	Vulnerabilities    []csafVuln
+	ID, InitialRelease, CurrentRelease string
+	Revisions                          []csafRevision
+	Notes                              []csafNote
+	Vulnerabilities                    []csafVuln
 }
 
 // parseCSAF reads one CSAF document as a stream (jsonStream: every bound holds while reading): one JSON object and nothing after it,
@@ -125,6 +126,8 @@ func parseCSAF(r io.Reader) (csafDoc, error) {
 			d.ID, err = j.str(200)
 		case "initial_release_date":
 			d.InitialRelease, err = j.str(64)
+		case "current_release_date":
+			d.CurrentRelease, err = j.str(64)
 		case "revision_history":
 			err = j.array(csafMaxNotes, &parts, "revisions", func() error {
 				var rv csafRevision
@@ -233,47 +236,35 @@ func (d csafDoc) cves() []string {
 	return out
 }
 
-// claimRevision is a revision whose summary states exploitation, by the rule of the advisory text ("Updated to indicate active
-// exploitation attempts in the wild", "Added information about active exploitation of CVE-2026-20133") or in a vendor's short form
-// ("Updated exploitation status."): its date and the CVEs it names (none: all of them). A revision that speaks of proof-of-concept
-// code or a public announcement, or says exploitation is not known, is not one.
-type claimRevision struct {
-	date  time.Time
-	named []string
-}
-
-// claimDates is the date the document gives the claim on each CVE of cves: the first revision that states exploitation and names
-// the CVE or none, else the first release. Each revision is read once.
-func (d csafDoc) claimDates(cves []string) map[string]time.Time {
+// claimDates is the date the document gives the claim on each CVE of cves: the first revision whose summary speaks of exploitation
+// ("Updated to indicate active exploitation attempts in the wild", "Updated exploitation status.", "Added information about active
+// exploitation of CVE-2026-20133") and names the CVE or none, else the first release. A summary that speaks of proof-of-concept code
+// or a public announcement, or with a negation, does not date a claim. One pass over the revisions: the earliest date of each CVE
+// named, and the earliest of the revisions that name none.
+func (d csafDoc) claimDates(cves []string, work *claimWork) map[string]time.Time {
 	first, _ := csafTime(d.InitialRelease)
-	var revs []claimRevision
+	var anyRev time.Time
+	byCVE := map[string]time.Time{}
 	for _, r := range d.Revisions {
+		work.step(1)
 		t, ok := csafTime(r.Date)
-		if !ok || t.Before(first) {
+		if !ok || t.Before(first) || !csafRevExploitRE.MatchString(r.Summary) || csafRevNegRE.MatchString(r.Summary) || csafRevPoCRE.MatchString(r.Summary) {
 			continue
 		}
-		var named []string
-		if claims := exploitationClaims(r.Summary); len(claims) > 0 {
-			for _, c := range claims {
-				named = append(named, c.CVEs...)
-			}
-		} else if !csafRevExploitRE.MatchString(r.Summary) || claimNegationRE.MatchString(r.Summary) || csafRevPoCRE.MatchString(r.Summary) {
-			continue
-		} else {
-			for _, id := range claimCVERE.FindAllString(r.Summary, -1) {
-				named = append(named, strings.ToUpper(id))
-			}
+		named := claimCVERE.FindAllString(r.Summary, -1)
+		work.step(len(named))
+		if len(named) == 0 {
+			anyRev = earliest(anyRev, t)
 		}
-		revs = append(revs, claimRevision{t, named})
+		for _, id := range named {
+			id = strings.ToUpper(id)
+			byCVE[id] = earliest(byCVE[id], t)
+		}
 	}
 	out := make(map[string]time.Time, len(cves))
 	for _, c := range cves {
-		date := time.Time{}
-		for _, r := range revs {
-			if (len(r.named) == 0 || slices.Contains(r.named, c)) && (date.IsZero() || r.date.Before(date)) {
-				date = r.date
-			}
-		}
+		work.step(1)
+		date := earliest(anyRev, byCVE[c])
 		if date.IsZero() {
 			date = first
 		}
@@ -282,77 +273,81 @@ func (d csafDoc) claimDates(cves []string) map[string]time.Time {
 	return out
 }
 
-// csafClaims is the CVEs a document claims are exploited, with their dates. section picks the document notes read (scope: every CVE
-// of the document); perVuln also reads each vulnerability's own notes, threats and reference summaries (scope: its CVE). A threat of
-// category exploit_status that says "Exploited: Yes" is always a claim on its vulnerability. The text read is bounded
-// (csafMaxClaimText), so the work is too, whatever the document's shape.
-func csafClaims(d csafDoc, section func(csafNote) bool, perVuln bool) []vendorClaim {
+// csafSection picks the document notes a vendor states exploitation in.
+type csafSection func(csafNote) bool
+
+// csafClaims is the CVEs a document claims are exploited, with their dates, and the count of its sentences about exploitation in no
+// known form. Structured first: when any vulnerability has a CSAF threat of category exploit_status, those threats decide
+// ("Exploited: Yes") and no text is read. Otherwise the vendor's forms are read in the document notes section picks (scope: every
+// CVE of the document) and, with perVuln, in each vulnerability's own notes, threats and reference summaries (scope: its CVE). The
+// text read is bounded (csafMaxClaimText) and the work grows with the document's size only (claimWork).
+func csafClaims(ctx context.Context, d csafDoc, forms []claimForm, section csafSection, perVuln bool, work *claimWork) ([]vendorClaim, int, error) {
 	all := d.cves()
-	var claimed []string
-	seen := map[string]bool{}
-	add := func(cs []string) {
-		for _, c := range cs {
-			if !seen[c] {
-				seen[c] = true
-				claimed = append(claimed, c)
-			}
-		}
-	}
-	budget := csafMaxClaimText
-	read := func(text string, scope []string) {
-		if budget -= min(len(text), maxClaimText); budget >= 0 {
-			add(claimedCVEs(text, scope))
-		}
-	}
-	for _, n := range d.Notes {
-		if section(n) {
-			read(n.Text, all)
-		}
-	}
-	inDoc := map[string]bool{}
+	inDoc := make(map[string]bool, len(all))
 	for _, c := range all {
 		inDoc[c] = true
 	}
+	r := newClaimReader(forms, csafMaxClaimText, work)
+	r.total = len(all)
+	structured := false
 	for _, v := range d.Vulnerabilities {
 		c := strings.ToUpper(strings.TrimSpace(v.CVE))
-		if !inDoc[c] {
-			continue
-		}
-		scope := []string{c}
 		for _, t := range v.Threats {
-			if strings.EqualFold(t.Category, "exploit_status") && csafExploitedFlagRE.MatchString(t.Text) {
-				add(scope)
+			work.step(1)
+			if !strings.EqualFold(t.Category, "exploit_status") {
+				continue
+			}
+			structured = true
+			if inDoc[c] && csafExploitedFlagRE.MatchString(t.Text) {
+				r.claim(c)
 			}
 		}
-		if !perVuln {
-			continue
+	}
+	if !structured {
+		for _, n := range d.Notes {
+			if section(n) {
+				if err := r.read(ctx, n.Text, all, inDoc); err != nil {
+					return nil, 0, err
+				}
+			}
 		}
-		for _, n := range v.Notes {
-			read(n.Text, scope)
-		}
-		for _, t := range v.Threats {
-			read(t.Text, scope)
-		}
-		for _, r := range v.References {
-			read(r, scope)
+		for _, v := range d.Vulnerabilities {
+			c := strings.ToUpper(strings.TrimSpace(v.CVE))
+			if !perVuln || !inDoc[c] || len(r.order) == len(all) {
+				continue // every CVE of the document is claimed already: nothing to add
+			}
+			scope, scopeSet := []string{c}, map[string]bool{c: true}
+			texts := make([]string, 0, len(v.Notes)+len(v.Threats)+len(v.References))
+			for _, n := range v.Notes {
+				texts = append(texts, n.Text)
+			}
+			for _, t := range v.Threats {
+				texts = append(texts, t.Text)
+			}
+			texts = append(texts, v.References...)
+			for _, t := range texts {
+				if err := r.read(ctx, t, scope, scopeSet); err != nil {
+					return nil, 0, err
+				}
+			}
 		}
 	}
-	dates := d.claimDates(claimed)
-	out := make([]vendorClaim, 0, len(claimed))
-	for _, c := range claimed {
-		out = append(out, vendorClaim{CVE: c, Date: dates[c]})
+	dates := d.claimDates(r.order, work)
+	out := make([]vendorClaim, 0, len(r.order))
+	for _, c := range r.order {
+		out = append(out, vendorClaim{CVE: c, Date: dates[c], Flag: structured})
 	}
-	return out
+	return out, r.unclassified, nil
 }
 
 // ciscoClaims: Cisco states exploitation in the advisory's "Exploitation and Public Announcements" section only.
-func ciscoClaims(d csafDoc) []vendorClaim {
-	return csafClaims(d, func(n csafNote) bool { return strings.Contains(strings.ToLower(n.Title), "exploitation") }, false)
+func ciscoClaims(ctx context.Context, d csafDoc, work *claimWork) ([]vendorClaim, int, error) {
+	return csafClaims(ctx, d, ciscoForms, func(n csafNote) bool { return strings.Contains(strings.ToLower(n.Title), "exploitation") }, false, work)
 }
 
 // fortinetClaims: Fortinet states it in each vulnerability's description (and a document note when there is one).
-func fortinetClaims(d csafDoc) []vendorClaim {
-	return csafClaims(d, func(n csafNote) bool { return n.Category != "legal_disclaimer" }, true)
+func fortinetClaims(ctx context.Context, d csafDoc, work *claimWork) ([]vendorClaim, int, error) {
+	return csafClaims(ctx, d, fortinetForms, func(n csafNote) bool { return n.Category != "legal_disclaimer" }, true, work)
 }
 
 // csafRef is one advisory a feed names: its id, the path of its CSAF document on the feed's host and its last change as the feed
@@ -533,7 +528,9 @@ func (s *Service) keepAdvisories(id string, m *advisoryMemory) {
 // changed since the copy the box read (mem), reads its claims and updates mem. A document the vendor took down (404, 410), one too
 // large or one that cannot be read is skipped and counted; any other failure fails the pull, so nothing is written from half a list.
 // The claims of every advisory the box knows are given to applyVendorClaims (Claimed), so a CVE stays while any of them claims it.
-func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csafRef, mem *advisoryMemory, advisoryURL string, claims func(csafDoc) []vendorClaim) (vendorRead, int, error) {
+func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csafRef, mem *advisoryMemory, advisoryURL string,
+	claims func(context.Context, csafDoc, *claimWork) ([]vendorClaim, int, error),
+) (vendorRead, int, error) {
 	var (
 		read vendorRead
 		size int
@@ -563,13 +560,19 @@ func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csaf
 			parseOK bool
 		)
 		req.Stream = func(r io.Reader) error {
-			c := &countReader{r: r}
+			c := &countReader{r: &transportReader{r: r}}
 			var err error
 			doc, err = parseCSAF(c)
 			size += c.n
-			if err == nil || errors.Is(err, ErrTooLarge) {
-				parseOK = err == nil
+			var te transportErr
+			switch {
+			case err == nil:
+				parseOK = true
+				return nil
+			case errors.Is(err, ErrTooLarge):
 				return err
+			case errors.As(err, &te):
+				return te.err // the connection failed, not the document: the pull fails and the document is asked again
 			}
 			return nil // a bad document is counted below, not a failed pull
 		}
@@ -593,15 +596,26 @@ func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csaf
 			tl.reject(i+1, "%s: the document is another advisory's", ref.ID)
 			continue
 		}
-		if err := ctx.Err(); err != nil {
+		cs, unclassified, err := claims(ctx, doc, nil)
+		if err != nil {
 			return read, 0, err
 		}
 		tl.Accepted++
+		if unclassified > 0 { // new wording is noticed on the feed's log, never read as a claim
+			tl.reject(i+1, "%s: a sentence about exploitation in no known form", ref.ID)
+		}
 		link := advisoryURL + ref.ID
 		detail, _ := json.Marshal(map[string]string{"advisory": ref.ID})
-		cs := claims(doc)
 		read.Docs = append(read.Docs, claimDoc{URL: link, Detail: string(detail), Claims: cs})
-		mem.marks[ref.ID] = advisoryMark{changed: ref.Changed, etag: resp.ETag, lastModified: resp.LastModified}
+		// Cisco: the copy is marked read only when the document is not older than the change the feed announced (the feed can show a
+		// change before the document is updated); FortiGuard: the document's own validators.
+		changed := ref.Changed
+		if ft, err := time.Parse(ciscoFeedTimeLayout, ref.Changed); err == nil {
+			if dt, ok := csafTime(doc.CurrentRelease); !ok || dt.Truncate(time.Second).Before(ft.Truncate(time.Second)) {
+				changed = ""
+			}
+		}
+		mem.marks[ref.ID] = advisoryMark{changed: changed, etag: resp.ETag, lastModified: resp.LastModified}
 		delete(mem.claims, link)
 		for _, c := range cs {
 			mem.claims[link] = append(mem.claims[link], c.CVE)
@@ -616,6 +630,22 @@ func (s *Service) readAdvisories(ctx context.Context, base *url.URL, refs []csaf
 	}
 	read.Stats = tl.stats()
 	return read, size, nil
+}
+
+// transportReader marks the errors of the connection itself, so a document cut by the network is told from a bad document.
+type transportReader struct{ r io.Reader }
+
+type transportErr struct{ err error }
+
+func (e transportErr) Error() string { return e.err.Error() }
+func (e transportErr) Unwrap() error { return e.err }
+
+func (t *transportReader) Read(p []byte) (int, error) {
+	n, err := t.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, ErrTooLarge) {
+		err = transportErr{err}
+	}
+	return n, err
 }
 
 // prevGood is the box's last good pull of a feed, zero for a first pull (and after the feed was turned off and on, or given another

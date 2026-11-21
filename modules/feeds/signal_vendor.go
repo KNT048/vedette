@@ -66,6 +66,7 @@ type claimDoc struct {
 type vendorClaim struct {
 	CVE  string
 	Date time.Time
+	Flag bool // read from a structured field (Microsoft's Exploited flag, a CSAF exploit_status threat), not from a sentence form
 }
 
 // vendorRead is what one pull of a vendor feed read.
@@ -116,11 +117,11 @@ func applyVendorClaims(ctx context.Context, tx *sql.Tx, now, prevGood time.Time,
 		url, detail string
 	}
 	wanted, order := map[string]*want{}, []string{}
-	claimedBy := map[string][]string{} // document link → the CVEs it claims now
+	claimedBy := map[string]map[string]bool{} // document link → the CVEs it claims now
 	for _, d := range r.Docs {
-		claimedBy[d.URL] = []string{}
+		claimedBy[d.URL] = map[string]bool{}
 		for _, c := range d.Claims {
-			claimedBy[d.URL] = append(claimedBy[d.URL], c.CVE)
+			claimedBy[d.URL][c.CVE] = true
 			w := wanted[c.CVE]
 			if w == nil {
 				wanted[c.CVE] = &want{c.Date, d.URL, d.Detail}
@@ -138,8 +139,18 @@ func applyVendorClaims(ctx context.Context, tx *sql.Tx, now, prevGood time.Time,
 			}
 		}
 		w := wanted[cve]
-		if _, had := held[cve]; had {
-			if _, err := tx.ExecContext(ctx, `UPDATE feeds_signal SET last_seen = ? WHERE cve = ? AND kind = ? AND source = ?`, stamp, cve, SignalExploited, source); err != nil {
+		if h, had := held[cve]; had {
+			url, detail := h.url, any(nil)
+			if claims, read := claimedBy[h.url]; read && !claims[cve] { // its link no longer claims it: the claiming document's link
+				url, detail = w.url, w.detail
+			}
+			if detail == nil {
+				_, err = tx.ExecContext(ctx, `UPDATE feeds_signal SET last_seen = ? WHERE cve = ? AND kind = ? AND source = ?`, stamp, cve, SignalExploited, source)
+			} else {
+				_, err = tx.ExecContext(ctx, `UPDATE feeds_signal SET last_seen = ?, url = ?, detail = ? WHERE cve = ? AND kind = ? AND source = ?`,
+					stamp, url, detail, cve, SignalExploited, source)
+			}
+			if err != nil {
 				return 0, fmt.Errorf("feeds: store claim: %w", err)
 			}
 			continue

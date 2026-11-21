@@ -1,72 +1,146 @@
 package feeds
 
 import (
+	"context"
 	"html"
 	"regexp"
-	"slices"
 	"strings"
 )
 
-// Exploitation claims in a vendor's own words. A clause claims exploitation when it holds one of a closed list of positive phrases,
-// each tied to exploitation actually seen ("exploited in the wild", "active exploitation", "attempted exploitation", "aware of
-// malicious use" …; never "could be exploited by", "exploit code is available" or "from being exploited"), and nothing in the clause
-// up to the phrase's end takes it back: a negation ("not", "n't", "never", "no", "nor", "without" …), a condition ("if", "whether",
-// "unless"), a possibility ("could be", "can allow" …) or a purpose ("to stop", "prevent"); nor does an answer right after it
-// ("Exploited in the wild: No"). Sentences end at a line break or at a full stop, question or exclamation mark followed by a space;
-// clauses at ";", "but", "however", "while", "whereas", "although", "except" and at "and" followed by a new subject or verb ("…of
-// CVE-A and is not aware of … CVE-B"). The claim belongs to the CVE ids named in that clause; a clause that names none speaks of the
-// vulnerability its section is about ("this vulnerability", "these vulnerabilities"), and the caller decides which CVEs that is
-// (claimedCVEs). The rule was measured on a year of vendor advisories: a window of characters around the phrase instead of the
-// clause picked up the CVE of the next entry or of a sentence saying the opposite.
+// Exploitation claims in a vendor's own words, read by templates, never guessed. Where a document has a structured field (a CSAF
+// exploit_status threat, Microsoft's Exploited flag) that field decides. Otherwise each source has a closed list of the sentence
+// forms its vendor writes (claimForm), taken from its real documents: a sentence about exploitation that matches a claiming form is
+// a claim; one that matches a known form that claims nothing (a denial, proof-of-concept code, a precondition) is not; any other
+// sentence that mentions exploitation is "unclassified": not a claim, and counted on the feed's log so new wording is noticed and
+// added as a form, never interpreted. A question is never a claim.
+//
+// Sentences end at a line break or at a full stop, question or exclamation mark followed by a space. Each is put in canonical form
+// before the forms are tried: lower case, spaces collapsed, link targets dropped (["https://…"]), each CVE id or list of CVE ids as
+// {cve}, a leading "In March 2026," or "On November 5, 2025," as {when}, the final full stop dropped. A claiming form names its
+// subject: the CVE ids written in the sentence, else every vulnerability of the section ("these vulnerabilities") or its only one
+// ("this vulnerability": a section of several CVEs makes that sentence unclassified).
 
-// maxClaimText bounds the text one string contributes (bytes): advisory sections are a few kilobytes; the rest of a longer string is
-// not read. maxClaimSentence bounds a sentence the phrases are looked for in (vendors' longest are a few hundred bytes): a longer
-// "sentence" is not prose and is skipped, which bounds the work of the patterns on hostile text to the length of the text.
+// maxClaimText bounds the text one string contributes (bytes); maxClaimSentence bounds a sentence (vendors' longest are a few
+// hundred bytes): a longer one is not a vendor's sentence and is unclassified.
 const (
 	maxClaimText     = 64 << 10
 	maxClaimSentence = 2 << 10
 )
 
-var (
-	// exploitPhraseRE: the phrases vendors use for exploitation seen in the wild, and only those.
-	exploitPhraseRE = regexp.MustCompile(`(?i)(exploited in the wild|exploitation in the wild|in[- ]the[- ]wild exploitation|` +
-		`exploits? for [^.]{0,80}? exists? in the wild|actively (?:being )?exploited|actively exploiting|` +
-		`(?:active|attempted|limited|targeted|ongoing|confirmed|successful|widespread) exploitation of|exploitation of [^.]{0,80}? in the wild|` +
-		`(?:active|attempted|limited|targeted|ongoing|confirmed) exploitation|exploitation attempts|attempts to exploit|` +
-		`under (?:limited,? )?(?:and )?(?:targeted )?exploitation|may have been exploited|known to (?:have been|be) exploited|` +
-		`exploited (?:as|in) (?:a |an )?zero[- ]day|zero[- ]day exploitation|exploited in (?:targeted |limited |real[- ]world |active )?attacks|` +
-		`aware of (?:the |any )?(?:malicious use|exploitation of))`)
-	// claimNegationRE: in the clause up to the phrase's end, these take the claim back or make it a condition, a possibility or a
-	// purpose.
-	claimNegationRE = regexp.MustCompile(`(?i)(\b(?:not|never|no|nor|none|without|unaware|unlikely|if|whether|unless|cannot)\b|n't\b|` +
-		`\bcan only be\b|\bto stop\b|\bprevent|\b(?:could|can|might|would|should)\s+(?:be|allow|enable|lead|result|permit)\b)`)
-	// claimAnswerRE: right after the phrase, an answer that says no ("Exploited in the wild: No").
-	claimAnswerRE = regexp.MustCompile(`(?i)^[^:=.;]{0,30}[:=]\s*(?:no|false|none|n/a|unknown)\b`)
-	// claimClauseRE: where a sentence turns to another subject.
-	claimClauseRE = regexp.MustCompile(`(?i)(;|,? but |,? however,? |,? whereas |,? while |,? although |,? except |` +
-		`,? and (?:is|are|was|were|has|have|had|it|its|this|that|these|those|the|there|cisco|fortinet|microsoft|apple|google)\b)`)
-	// claimCVERE: a CVE id inside text (bounded digits, as cvesOf).
-	claimCVERE = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,12}\b`)
-	// claimPluralRE: a clause about every vulnerability of its section ("these vulnerabilities"), unless it picks some of them
-	// (claimSomeRE: "one of the vulnerabilities").
-	claimPluralRE = regexp.MustCompile(`(?i)\b(these|the|both|all(?: of the)?|all the) (vulnerabilities|issues|flaws|cves)\b`)
-	claimSomeRE   = regexp.MustCompile(`(?i)\b(one|some|any|either|neither|none|each|several|certain|many|few|two|three|which) of\s*$`)
-)
-
-// claimWords: every exploitation phrase holds one of them; a sentence without any is not matched against the patterns.
-var claimWords = []string{"exploit", "malicious use"}
-
-// textClaim is one clause that claims exploitation: the CVE ids it names (upper case, in order, distinct) and whether it speaks of
-// every vulnerability of its section ("these vulnerabilities").
-type textClaim struct {
-	CVEs   []string
-	Plural bool
+// claimForm is one sentence form of a vendor, as a pattern over the canonical sentence (whole sentence).
+type claimForm struct {
+	re    *regexp.Regexp
+	claim bool // the form claims exploitation; false: a known form that claims nothing
+	all   bool // without CVE ids it speaks of every vulnerability of its section; else of the section's only one
 }
 
-// exploitationClaims reads text (plain or HTML) sentence by sentence and returns its claiming clauses.
-func exploitationClaims(text string) []textClaim {
+func forms(claim, all bool, patterns ...string) []claimForm {
+	out := make([]claimForm, 0, len(patterns))
+	for _, p := range patterns {
+		out = append(out, claimForm{re: regexp.MustCompile(`^(?:` + p + `)$`), claim: claim, all: all})
+	}
+	return out
+}
+
+var (
+	claimWordsRE = regexp.MustCompile(`(?i)exploit|malicious use|in the wild`) // a sentence about exploitation
+	claimCVERE   = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,12}\b`)
+	// canonical form
+	claimLinkRE  = regexp.MustCompile(`\s*\["[^"\]]{0,500}"\]`)
+	claimCVEsRE  = regexp.MustCompile(`cve-[0-9]{4}-[0-9]{4,12}(?:(?:,| and| or|, and|, or) cve-[0-9]{4}-[0-9]{4,12})*`)
+	claimWhenRE  = regexp.MustCompile(`^(?:in|on) (?:january|february|march|april|may|june|july|august|september|october|november|december)(?: [0-9]{1,2},)? [0-9]{4}, `)
+	claimSpaceRE = regexp.MustCompile(`\s+`)
+)
+
+// The parts of Cisco's sentences.
+const (
+	ciscoPSIRT    = `(?:the cisco (?:psirt|product security incident response team \(psirt\)))`
+	ciscoWhen     = `(?:\{when\} )?`
+	ciscoOne      = `(?:this (?:vulnerability|issue)|the (?:vulnerability|issue) (?:that is )?described in (?:this advisory|\{cve\})(?: only)?|\{cve\})`
+	ciscoMany     = `(?:these vulnerabilities|the vulnerabilities (?:that are )?described in (?:this advisory|\{cve\})(?: only)?|\{cve\})`
+	ciscoAwareOf  = ciscoWhen + ciscoPSIRT + ` (?:is|became) aware of (?:the )?`
+	ciscoExploits = `(?:(?:active|attempted|limited|successful) )?exploitation of `
+	ciscoWild     = `(?: in the wild)?(?: after local administrator credentials were compromised)?`
+)
+
+// ciscoForms: Cisco's "Exploitation and Public Announcements" section, as written in its advisories of 2025–2026.
+var ciscoForms = concatForms(
+	forms(true, false,
+		ciscoAwareOf+ciscoExploits+ciscoOne+ciscoWild,
+		ciscoAwareOf+`malicious use of `+ciscoOne),
+	forms(true, true,
+		ciscoAwareOf+ciscoExploits+ciscoMany+ciscoWild,
+		ciscoAwareOf+`malicious use of `+ciscoMany),
+	forms(false, false,
+		`(?:except as otherwise noted previously, )?(?:`+ciscoPSIRT+`|cisco) is not aware of [a-z0-9 ,{}()-]{1,300}`,
+		ciscoPSIRT+` is aware that proof-of-concept exploit code is available for [a-z0-9 ,{}()-]{1,200}`,
+		`\{when\} this vulnerability was added to the known exploited vulnerabilit(?:y|ies) \(kev\) [a-z0-9 ,.()-]{1,200}`,
+		`to exploit this vulnerability, an attacker must [a-z0-9 ,()-]{1,300}`),
+)
+
+// fortinetForms: Fortinet's descriptions of a vulnerability, as written in its advisories of 2024–2026.
+var fortinetForms = concatForms(
+	forms(true, false,
+		`(?:fortinet has observed this to be|this has been (?:observed|reported) to be|this vulnerability was found being|`+
+			`please note that reports show this is being|fortinet is aware of an instance where this vulnerability was) exploited in the wild`+
+			`(?: on [a-z0-9 -]{1,60}| and urges vulnerable customers to [a-z0-9 .,:-]{1,200}|, customers are urged to apply the workaround below|`+
+			` by two malicious forticloud accounts, which were locked out on [0-9-]{10})?`),
+	forms(false, false,
+		`(?:however, )?(?:successful )?exploitation requires [a-z0-9 ,()/-]{1,300}`,
+		`the presence of security controls [a-z0-9 ,()-]{1,200} required for exploitation`,
+		`this vulnerability can only be abused as a consequence of [a-z0-9 ,()-]{1,300}`,
+		`in order to protect its customers from further exploit, [a-z0-9 ,-]{1,200}`,
+		`the vulnerability can be exploited via [a-z0-9 ,()-]{1,200}`,
+		`patch bypass for persistency abused in a post-exploit scenario in [a-z0-9 -]{1,60}`,
+		`an exposure of sensitive information [a-z0-9 ,()\[\]/-]{1,400}post-exploit cases, via crafted http requests`),
+)
+
+func concatForms(parts ...[]claimForm) []claimForm {
+	var out []claimForm
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
+}
+
+// claimWork counts the steps of reading claims (sentences, CVE ids, revisions): a test checks it grows with the document's size only.
+type claimWork struct{ steps int }
+
+func (w *claimWork) step(n int) {
+	if w != nil {
+		w.steps += n
+	}
+}
+
+// claimReader reads the claims of one document against a vendor's forms, within the scope of its sections.
+type claimReader struct {
+	forms        []claimForm
+	claimed      map[string]bool
+	order        []string
+	unclassified int
+	total        int // the CVEs of the document: once all are claimed, nothing is left to read
+	budget       int // bytes of text still read (csafMaxClaimText for a document)
+	work         *claimWork
+}
+
+func newClaimReader(forms []claimForm, budget int, work *claimWork) *claimReader {
+	return &claimReader{forms: forms, claimed: map[string]bool{}, budget: budget, work: work}
+}
+
+func (r *claimReader) claim(cve string) {
+	if !r.claimed[cve] {
+		r.claimed[cve] = true
+		r.order = append(r.order, cve)
+	}
+}
+
+// read reads one text (plain or HTML) of a section whose CVEs are scope (scopeSet: the same as a set). It stops when ctx ends.
+func (r *claimReader) read(ctx context.Context, text string, scope []string, scopeSet map[string]bool) error {
 	if len(text) > maxClaimText {
 		text = text[:maxClaimText]
+	}
+	if r.budget -= len(text); r.budget < 0 || !claimWordsRE.MatchString(text) {
+		return nil
 	}
 	if strings.ContainsRune(text, '<') {
 		text = stripTags(text)
@@ -74,31 +148,73 @@ func exploitationClaims(text string) []textClaim {
 	if strings.ContainsRune(text, '&') {
 		text = html.UnescapeString(text)
 	}
-	var out []textClaim
-	for _, sentence := range claimSentences(text) {
-		lower := strings.ToLower(sentence)
-		if len(sentence) > maxClaimSentence || !slices.ContainsFunc(claimWords, func(w string) bool { return strings.Contains(lower, w) }) ||
-			!exploitPhraseRE.MatchString(sentence) {
+	for i, sentence := range claimSentences(text) {
+		r.work.step(1)
+		if r.total > 0 && len(r.order) == r.total {
+			return nil
+		}
+		if i%64 == 0 {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		if !claimWordsRE.MatchString(sentence) {
 			continue
 		}
-		for _, clause := range claimClauseRE.Split(sentence, -1) {
-			m := exploitPhraseRE.FindStringIndex(clause)
-			if m == nil || claimNegationRE.MatchString(clause[:m[1]]) || claimAnswerRE.MatchString(clause[m[1]:]) {
-				continue // up to the phrase's end: "is not aware of … exploitation"; after it: ": No"
+		if len(sentence) > maxClaimSentence || strings.HasSuffix(sentence, "?") {
+			r.unclassified++
+			continue
+		}
+		canon, named := canonicalSentence(sentence)
+		r.work.step(len(named))
+		var form *claimForm
+		for i := range r.forms {
+			if r.forms[i].re.MatchString(canon) {
+				form = &r.forms[i]
+				break
 			}
-			c := textClaim{}
-			if p := claimPluralRE.FindStringIndex(clause); p != nil && !claimSomeRE.MatchString(clause[:p[0]]) {
-				c.Plural = true
-			}
-			for _, id := range claimCVERE.FindAllString(clause, -1) {
-				if id = strings.ToUpper(id); !slices.Contains(c.CVEs, id) {
-					c.CVEs = append(c.CVEs, id)
+		}
+		switch {
+		case form == nil:
+			r.unclassified++
+		case !form.claim:
+		case len(named) > 0:
+			for _, c := range named {
+				if scopeSet[c] {
+					r.claim(c)
 				}
 			}
-			out = append(out, c)
+		case form.all:
+			for _, c := range scope {
+				r.claim(c)
+			}
+			r.work.step(len(scope))
+		case len(scope) == 1:
+			r.claim(scope[0])
+		default:
+			r.unclassified++ // "this vulnerability" in a section of several
 		}
 	}
-	return out
+	return nil
+}
+
+// canonicalSentence is a sentence in the canonical form the forms are written for, and the CVE ids it names (upper case, in order,
+// distinct).
+func canonicalSentence(s string) (string, []string) {
+	var named []string
+	seen := map[string]bool{}
+	for _, id := range claimCVERE.FindAllString(s, -1) {
+		if id = strings.ToUpper(id); !seen[id] {
+			seen[id] = true
+			named = append(named, id)
+		}
+	}
+	s = claimLinkRE.ReplaceAllString(s, "")
+	s = strings.ToLower(claimSpaceRE.ReplaceAllString(strings.TrimSpace(s), " "))
+	s = strings.TrimRight(s, ".! ")
+	s = claimCVEsRE.ReplaceAllString(s, "{cve}")
+	s = claimWhenRE.ReplaceAllString(s, "{when} ")
+	return s, named
 }
 
 // stripTags replaces each HTML tag (a "<" with a ">" within 500 bytes and no "<" between) by a line break, in one pass.
@@ -119,50 +235,27 @@ func stripTags(text string) string {
 	return b.String()
 }
 
-// claimSentences splits text at line breaks and at a full stop, question or exclamation mark followed by a space or the end.
+// claimSentences splits text at line breaks and at a full stop, question or exclamation mark followed by a space or the end (the
+// mark stays with its sentence, so a question can be told).
 func claimSentences(text string) []string {
 	var out []string
 	start := 0
 	for i := 0; i < len(text); i++ {
+		end := i
 		switch c := text[i]; {
 		case c == '\n' || c == '\r':
 		case (c == '.' || c == '!' || c == '?') && (i+1 == len(text) || text[i+1] == ' ' || text[i+1] == '\t' || text[i+1] == '\n' || text[i+1] == '\r' || text[i+1] == 0xc2):
-			// 0xc2: a no-break space (U+00A0) as vendors' HTML exports write it
+			end = i + 1 // 0xc2: a no-break space (U+00A0) as vendors' HTML exports write it
 		default:
 			continue
 		}
-		if s := strings.TrimSpace(text[start:i]); s != "" {
+		if s := strings.TrimSpace(text[start:end]); s != "" {
 			out = append(out, s)
 		}
 		start = i + 1
 	}
 	if s := strings.TrimSpace(text[start:]); s != "" {
 		out = append(out, s)
-	}
-	return out
-}
-
-// claimedCVEs is the CVEs of scope (the CVEs the text's section is about, in order) that the text claims are exploited: those a
-// claiming clause names, or, for a clause that names no CVE, the section's only CVE, or all of them when the clause speaks of every
-// vulnerability. A clause that names only CVEs outside the scope (another advisory's) claims nothing here.
-func claimedCVEs(text string, scope []string) []string {
-	var out []string
-	add := func(c string) {
-		if slices.Contains(scope, c) && !slices.Contains(out, c) {
-			out = append(out, c)
-		}
-	}
-	for _, c := range exploitationClaims(text) {
-		switch {
-		case len(c.CVEs) > 0:
-			for _, id := range c.CVEs {
-				add(id)
-			}
-		case len(scope) == 1 || c.Plural:
-			for _, id := range scope {
-				add(id)
-			}
-		}
 	}
 	return out
 }

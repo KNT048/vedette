@@ -3,29 +3,33 @@ import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { Loading, RequireModule, SampleDataNote } from '@/components/common/States'
-import { useWeekly } from './api'
-import { useReportFilters, weeklyView } from './filters'
+import { useReportDocument } from './api'
+import { emptyReport } from './ReportTab'
 
-const WeeklyTab = lazy(() => import('./WeeklyTab'))
+const ReportTab = lazy(() => import('./ReportTab'))
+const HistoryTab = lazy(() => import('./HistoryTab'))
+const SettingsTab = lazy(() => import('./SettingsTab'))
 const PdplTab = lazy(() => import('./PdplTab'))
 
 export default function ReportsPage() {
   const { t } = useTranslation('reports')
-  const weekly = useWeekly()
-  const [filters] = useReportFilters()
-  const c = weekly.data?.report.counts
-  const empty = !!c && c.devices === 0 && c.open_confirmed + c.open_suspected === 0 && c.new_findings === 0 && c.resolved === 0
-  // The open count follows the report's switches, as the report below does; the devices awaiting approval are named whatever they are.
-  const v = weekly.data ? weeklyView(weekly.data.report, filters).report.counts : undefined
-  const open = v ? v.open_confirmed + v.open_suspected : 0
-  const title = empty ? t('page.titleEmpty') : c ? (open > 0 ? t('page.title', { open, unapproved: c.devices_unapproved }) : t('page.titleClear', { unapproved: c.devices_unapproved })) : t('page.titleLoading')
+  const doc = useReportDocument()
+  const d = doc.data
+  // The title says where things stand, as the report's own first line does (open now, handled in its period).
+  const s = d?.summary
+  const handled = s?.handled ?? d?.handled?.totals.reduce((n, x) => n + x.n, 0) ?? 0
+  const title = !d ? t('page.titleLoading') : emptyReport(d) ? t('page.titleEmpty')
+    : s && s.open_now === 0 ? t('page.titleClear', { handled }) : s ? t('page.title', { count: s.open_now, handled }) : t('page.titleLoading')
+  const tab = (panel: React.ReactNode) => <Suspense fallback={<Loading />}>{panel}</Suspense>
   return (
     <>
-      <PageHeader title={title} meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{t('page.meta')}</span>} stories={['S-REP-1', 'S-REP-2']} />
+      <PageHeader title={title} meta={<SampleDataNote />} stories={['S-REP-1', 'S-REP-2']} />
       <RequireModule module="reports">
         <PageTabs label={t('page.tabs')} tabs={[
-          { id: 'weekly', label: t('page.weekly'), panel: <Suspense fallback={<Loading />}><WeeklyTab /></Suspense> },
-          { id: 'pdpl', label: t('page.pdpl'), panel: <Suspense fallback={<Loading />}><PdplTab /></Suspense> },
+          { id: 'report', label: t('page.report'), panel: tab(<ReportTab />) },
+          { id: 'history', label: t('page.history'), panel: tab(<HistoryTab />) },
+          { id: 'settings', label: t('page.settings'), panel: tab(<SettingsTab />) },
+          { id: 'pdpl', label: t('page.pdpl'), panel: tab(<PdplTab />) },
         ]} />
       </RequireModule>
     </>

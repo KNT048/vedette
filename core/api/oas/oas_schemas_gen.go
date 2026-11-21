@@ -206499,7 +206499,9 @@ type ReportsGetReportsDocumentOK struct {
 	New          OptReportsGetReportsDocumentOKNew        `json:"new"`
 	Open         OptReportsGetReportsDocumentOKOpen       `json:"open"`
 	// The options the document was made with.
-	Options ReportsGetReportsDocumentOKOptions    `json:"options"`
+	Options ReportsGetReportsDocumentOKOptions `json:"options"`
+	// The organisation name when the report was made, so a sent report keeps it.
+	Org     string                                `json:"org"`
 	Period  ReportsGetReportsDocumentOKPeriod     `json:"period"`
 	Summary OptReportsGetReportsDocumentOKSummary `json:"summary"`
 	Title   string                                `json:"title"`
@@ -206553,6 +206555,11 @@ func (s *ReportsGetReportsDocumentOK) GetOpen() OptReportsGetReportsDocumentOKOp
 // GetOptions returns the value of Options.
 func (s *ReportsGetReportsDocumentOK) GetOptions() ReportsGetReportsDocumentOKOptions {
 	return s.Options
+}
+
+// GetOrg returns the value of Org.
+func (s *ReportsGetReportsDocumentOK) GetOrg() string {
+	return s.Org
 }
 
 // GetPeriod returns the value of Period.
@@ -206618,6 +206625,11 @@ func (s *ReportsGetReportsDocumentOK) SetOpen(val OptReportsGetReportsDocumentOK
 // SetOptions sets the value of Options.
 func (s *ReportsGetReportsDocumentOK) SetOptions(val ReportsGetReportsDocumentOKOptions) {
 	s.Options = val
+}
+
+// SetOrg sets the value of Org.
+func (s *ReportsGetReportsDocumentOK) SetOrg(val string) {
+	s.Org = val
 }
 
 // SetPeriod sets the value of Period.
@@ -207780,6 +207792,9 @@ func (s *ReportsGetReportsDocumentOKExposureTargetsItemServicesItemProto) Unmars
 
 type ReportsGetReportsDocumentOKHandled struct {
 	Devices []ReportsGetReportsDocumentOKHandledDevicesItem `json:"devices"`
+	// Median days from first seen to handled, of the findings patched or mitigated in the period; null
+	// when none.
+	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
 	// Handled in the period by resolution.
@@ -207789,6 +207804,11 @@ type ReportsGetReportsDocumentOKHandled struct {
 // GetDevices returns the value of Devices.
 func (s *ReportsGetReportsDocumentOKHandled) GetDevices() []ReportsGetReportsDocumentOKHandledDevicesItem {
 	return s.Devices
+}
+
+// GetMedianDays returns the value of MedianDays.
+func (s *ReportsGetReportsDocumentOKHandled) GetMedianDays() NilFloat64 {
+	return s.MedianDays
 }
 
 // GetMore returns the value of More.
@@ -207804,6 +207824,11 @@ func (s *ReportsGetReportsDocumentOKHandled) GetTotals() []ReportsGetReportsDocu
 // SetDevices sets the value of Devices.
 func (s *ReportsGetReportsDocumentOKHandled) SetDevices(val []ReportsGetReportsDocumentOKHandledDevicesItem) {
 	s.Devices = val
+}
+
+// SetMedianDays sets the value of MedianDays.
+func (s *ReportsGetReportsDocumentOKHandled) SetMedianDays(val NilFloat64) {
+	s.MedianDays = val
 }
 
 // SetMore sets the value of More.
@@ -208538,10 +208563,11 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalText(data []b
 }
 
 type ReportsGetReportsDocumentOKNew struct {
-	// Found in the period, with their status now.
+	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsDocumentOKNewItemsItem `json:"items"`
 	More  int                                       `json:"more"`
-	Total int                                       `json:"total"`
+	// Findings first seen in the period, open or handled since; equals summary.new.
+	Total int `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -210790,14 +210816,19 @@ func (s *ReportsGetReportsDocumentOKPeriodKind) UnmarshalText(data []byte) error
 
 type ReportsGetReportsDocumentOKSummary struct {
 	// The three things to do first, most urgent first.
-	First   []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
-	Handled int                                           `json:"handled"`
-	New     int                                           `json:"new"`
+	First []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
+	// differs from open_now only by other changes: a device removed, a finding reopened.
+	Handled int `json:"handled"`
+	// Findings first seen in the period, whether still open or handled since (the New section counts the
+	// same).
+	New int `json:"new"`
 	// Open at the start of the period.
 	OpenBefore int `json:"open_before"`
 	// Open findings now, one row per status that has any.
 	OpenByStatus []ReportsGetReportsDocumentOKSummaryOpenByStatusItem `json:"open_by_status"`
-	OpenNow      int                                                  `json:"open_now"`
+	// Open at the end of the period.
+	OpenNow int `json:"open_now"`
 }
 
 // GetFirst returns the value of First.
@@ -211473,9 +211504,11 @@ type ReportsGetReportsHistoryIDOK struct {
 	Period     ReportsGetReportsHistoryIDOKPeriod   `json:"period"`
 	Recipients []string                             `json:"recipients"`
 	SentAt     time.Time                            `json:"sent_at"`
-	Status     ReportsGetReportsHistoryIDOKStatus   `json:"status"`
-	Title      string                               `json:"title"`
-	Trigger    ReportsGetReportsHistoryIDOKTrigger  `json:"trigger"`
+	// Who pressed Send now; null for a scheduled send.
+	SentBy  NilString                           `json:"sent_by"`
+	Status  ReportsGetReportsHistoryIDOKStatus  `json:"status"`
+	Title   string                              `json:"title"`
+	Trigger ReportsGetReportsHistoryIDOKTrigger `json:"trigger"`
 }
 
 // GetDefinitionID returns the value of DefinitionID.
@@ -211511,6 +211544,11 @@ func (s *ReportsGetReportsHistoryIDOK) GetRecipients() []string {
 // GetSentAt returns the value of SentAt.
 func (s *ReportsGetReportsHistoryIDOK) GetSentAt() time.Time {
 	return s.SentAt
+}
+
+// GetSentBy returns the value of SentBy.
+func (s *ReportsGetReportsHistoryIDOK) GetSentBy() NilString {
+	return s.SentBy
 }
 
 // GetStatus returns the value of Status.
@@ -211563,6 +211601,11 @@ func (s *ReportsGetReportsHistoryIDOK) SetSentAt(val time.Time) {
 	s.SentAt = val
 }
 
+// SetSentBy sets the value of SentBy.
+func (s *ReportsGetReportsHistoryIDOK) SetSentBy(val NilString) {
+	s.SentBy = val
+}
+
 // SetStatus sets the value of Status.
 func (s *ReportsGetReportsHistoryIDOK) SetStatus(val ReportsGetReportsHistoryIDOKStatus) {
 	s.Status = val
@@ -211590,7 +211633,9 @@ type ReportsGetReportsHistoryIDOKDocument struct {
 	New          OptReportsGetReportsHistoryIDOKDocumentNew        `json:"new"`
 	Open         OptReportsGetReportsHistoryIDOKDocumentOpen       `json:"open"`
 	// The options the document was made with.
-	Options ReportsGetReportsHistoryIDOKDocumentOptions    `json:"options"`
+	Options ReportsGetReportsHistoryIDOKDocumentOptions `json:"options"`
+	// The organisation name when the report was made, so a sent report keeps it.
+	Org     string                                         `json:"org"`
 	Period  ReportsGetReportsHistoryIDOKDocumentPeriod     `json:"period"`
 	Summary OptReportsGetReportsHistoryIDOKDocumentSummary `json:"summary"`
 	Title   string                                         `json:"title"`
@@ -211644,6 +211689,11 @@ func (s *ReportsGetReportsHistoryIDOKDocument) GetOpen() OptReportsGetReportsHis
 // GetOptions returns the value of Options.
 func (s *ReportsGetReportsHistoryIDOKDocument) GetOptions() ReportsGetReportsHistoryIDOKDocumentOptions {
 	return s.Options
+}
+
+// GetOrg returns the value of Org.
+func (s *ReportsGetReportsHistoryIDOKDocument) GetOrg() string {
+	return s.Org
 }
 
 // GetPeriod returns the value of Period.
@@ -211709,6 +211759,11 @@ func (s *ReportsGetReportsHistoryIDOKDocument) SetOpen(val OptReportsGetReportsH
 // SetOptions sets the value of Options.
 func (s *ReportsGetReportsHistoryIDOKDocument) SetOptions(val ReportsGetReportsHistoryIDOKDocumentOptions) {
 	s.Options = val
+}
+
+// SetOrg sets the value of Org.
+func (s *ReportsGetReportsHistoryIDOKDocument) SetOrg(val string) {
+	s.Org = val
 }
 
 // SetPeriod sets the value of Period.
@@ -212871,6 +212926,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentExposureTargetsItemServicesItemProt
 
 type ReportsGetReportsHistoryIDOKDocumentHandled struct {
 	Devices []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem `json:"devices"`
+	// Median days from first seen to handled, of the findings patched or mitigated in the period; null
+	// when none.
+	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
 	// Handled in the period by resolution.
@@ -212880,6 +212938,11 @@ type ReportsGetReportsHistoryIDOKDocumentHandled struct {
 // GetDevices returns the value of Devices.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetDevices() []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem {
 	return s.Devices
+}
+
+// GetMedianDays returns the value of MedianDays.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMedianDays() NilFloat64 {
+	return s.MedianDays
 }
 
 // GetMore returns the value of More.
@@ -212895,6 +212958,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetTotals() []ReportsGetRe
 // SetDevices sets the value of Devices.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetDevices(val []ReportsGetReportsHistoryIDOKDocumentHandledDevicesItem) {
 	s.Devices = val
+}
+
+// SetMedianDays sets the value of MedianDays.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMedianDays(val NilFloat64) {
+	s.MedianDays = val
 }
 
 // SetMore sets the value of More.
@@ -213629,10 +213697,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalText
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNew struct {
-	// Found in the period, with their status now.
+	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsHistoryIDOKDocumentNewItemsItem `json:"items"`
 	More  int                                                `json:"more"`
-	Total int                                                `json:"total"`
+	// Findings first seen in the period, open or handled since; equals summary.new.
+	Total int `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -215881,14 +215950,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentPeriodKind) UnmarshalText(data []by
 
 type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	// The three things to do first, most urgent first.
-	First   []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
-	Handled int                                                    `json:"handled"`
-	New     int                                                    `json:"new"`
+	First []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
+	// differs from open_now only by other changes: a device removed, a finding reopened.
+	Handled int `json:"handled"`
+	// Findings first seen in the period, whether still open or handled since (the New section counts the
+	// same).
+	New int `json:"new"`
 	// Open at the start of the period.
 	OpenBefore int `json:"open_before"`
 	// Open findings now, one row per status that has any.
 	OpenByStatus []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem `json:"open_by_status"`
-	OpenNow      int                                                           `json:"open_now"`
+	// Open at the end of the period.
+	OpenNow int `json:"open_now"`
 }
 
 // GetFirst returns the value of First.
@@ -216677,15 +216751,17 @@ func (s *ReportsGetReportsHistoryOK) SetItems(val []ReportsGetReportsHistoryOKIt
 }
 
 type ReportsGetReportsHistoryOKItemsItem struct {
-	DefinitionID string                                     `json:"definition_id"`
-	Error        NilString                                  `json:"error"`
-	ID           string                                     `json:"id"`
-	Period       ReportsGetReportsHistoryOKItemsItemPeriod  `json:"period"`
-	Recipients   []string                                   `json:"recipients"`
-	SentAt       time.Time                                  `json:"sent_at"`
-	Status       ReportsGetReportsHistoryOKItemsItemStatus  `json:"status"`
-	Title        string                                     `json:"title"`
-	Trigger      ReportsGetReportsHistoryOKItemsItemTrigger `json:"trigger"`
+	DefinitionID string                                    `json:"definition_id"`
+	Error        NilString                                 `json:"error"`
+	ID           string                                    `json:"id"`
+	Period       ReportsGetReportsHistoryOKItemsItemPeriod `json:"period"`
+	Recipients   []string                                  `json:"recipients"`
+	SentAt       time.Time                                 `json:"sent_at"`
+	// Who pressed Send now; null for a scheduled send.
+	SentBy  NilString                                  `json:"sent_by"`
+	Status  ReportsGetReportsHistoryOKItemsItemStatus  `json:"status"`
+	Title   string                                     `json:"title"`
+	Trigger ReportsGetReportsHistoryOKItemsItemTrigger `json:"trigger"`
 }
 
 // GetDefinitionID returns the value of DefinitionID.
@@ -216716,6 +216792,11 @@ func (s *ReportsGetReportsHistoryOKItemsItem) GetRecipients() []string {
 // GetSentAt returns the value of SentAt.
 func (s *ReportsGetReportsHistoryOKItemsItem) GetSentAt() time.Time {
 	return s.SentAt
+}
+
+// GetSentBy returns the value of SentBy.
+func (s *ReportsGetReportsHistoryOKItemsItem) GetSentBy() NilString {
+	return s.SentBy
 }
 
 // GetStatus returns the value of Status.
@@ -216761,6 +216842,11 @@ func (s *ReportsGetReportsHistoryOKItemsItem) SetRecipients(val []string) {
 // SetSentAt sets the value of SentAt.
 func (s *ReportsGetReportsHistoryOKItemsItem) SetSentAt(val time.Time) {
 	s.SentAt = val
+}
+
+// SetSentBy sets the value of SentBy.
+func (s *ReportsGetReportsHistoryOKItemsItem) SetSentBy(val NilString) {
+	s.SentBy = val
 }
 
 // SetStatus sets the value of Status.
@@ -227547,15 +227633,17 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItemStatus) UnmarshalText(data []b
 }
 
 type ReportsPostReportsSendOK struct {
-	DefinitionID string                          `json:"definition_id"`
-	Error        NilString                       `json:"error"`
-	ID           string                          `json:"id"`
-	Period       ReportsPostReportsSendOKPeriod  `json:"period"`
-	Recipients   []string                        `json:"recipients"`
-	SentAt       time.Time                       `json:"sent_at"`
-	Status       ReportsPostReportsSendOKStatus  `json:"status"`
-	Title        string                          `json:"title"`
-	Trigger      ReportsPostReportsSendOKTrigger `json:"trigger"`
+	DefinitionID string                         `json:"definition_id"`
+	Error        NilString                      `json:"error"`
+	ID           string                         `json:"id"`
+	Period       ReportsPostReportsSendOKPeriod `json:"period"`
+	Recipients   []string                       `json:"recipients"`
+	SentAt       time.Time                      `json:"sent_at"`
+	// Who pressed Send now; null for a scheduled send.
+	SentBy  NilString                       `json:"sent_by"`
+	Status  ReportsPostReportsSendOKStatus  `json:"status"`
+	Title   string                          `json:"title"`
+	Trigger ReportsPostReportsSendOKTrigger `json:"trigger"`
 }
 
 // GetDefinitionID returns the value of DefinitionID.
@@ -227586,6 +227674,11 @@ func (s *ReportsPostReportsSendOK) GetRecipients() []string {
 // GetSentAt returns the value of SentAt.
 func (s *ReportsPostReportsSendOK) GetSentAt() time.Time {
 	return s.SentAt
+}
+
+// GetSentBy returns the value of SentBy.
+func (s *ReportsPostReportsSendOK) GetSentBy() NilString {
+	return s.SentBy
 }
 
 // GetStatus returns the value of Status.
@@ -227631,6 +227724,11 @@ func (s *ReportsPostReportsSendOK) SetRecipients(val []string) {
 // SetSentAt sets the value of SentAt.
 func (s *ReportsPostReportsSendOK) SetSentAt(val time.Time) {
 	s.SentAt = val
+}
+
+// SetSentBy sets the value of SentBy.
+func (s *ReportsPostReportsSendOK) SetSentBy(val NilString) {
+	s.SentBy = val
 }
 
 // SetStatus sets the value of Status.

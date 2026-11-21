@@ -157,8 +157,8 @@ function ReportSection({ s }: { s: PdplState }) {
             <ReportFilterSwitches idPrefix="pdpl-include" notRelevant={false} />
             <Card><PdplDocument report={r} aiAction={(
               <>
-                <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('weekly.ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('weekly.ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('weekly.ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('weekly.ai.button')}</Button></div>
-                <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('weekly.ai.waiting')}</BusyNote>
+                <div><Button onClick={() => ai.mutate(undefined, { onSuccess: () => toast.success(t('ai.done')) })} disabled={!operator || !s.ai_available} busy={ai.isPending} busyLabel={t('ai.working')} title={!operator ? reason : s.ai_available ? undefined : t('ai.unavailable')} aria-describedby="pdpl-ai-wait"><Sparkles aria-hidden />{t('ai.button')}</Button></div>
+                <BusyNote id="pdpl-ai-wait" busy={ai.isPending}>{t('ai.waiting')}</BusyNote>
                 <ActionError error={ai.error} />
               </>
             )} /></Card>

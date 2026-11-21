@@ -21,7 +21,6 @@ const CONTENT_TAG = /<(?!\/)(?!(?:p|span|div|strong|em|b|i|br|code|small|time|In
 
 /** The named exceptions: file, the heading's text, and why it stays. */
 const ALLOWED: { file: string; heading: string; why: string }[] = [
-  { file: 'features/reports/WeeklyDocument.tsx', heading: 'doc.weekly.appendix', why: 'the title of a printed appendix whose sub-sections follow it as siblings; the weekly report is reworked on its own' },
   { file: 'features/core/parts.tsx', heading: "t('readOnly'", why: 'says the reader\'s role cannot change the section: a state of this page, not an explanation' },
   { file: 'features/scanning/EnginesTab.tsx', heading: "t('adminOnly')", why: 'says the reader\'s role cannot change the engines: a state of this page' },
   { file: 'features/scanning/SafetyTab.tsx', heading: "t('safety.adminOnly')", why: 'says the reader\'s role cannot change the settings: a state of this page' },

@@ -71,6 +71,8 @@ type Fire struct {
 	Trigger    run.Trigger
 	By         string    // run.System, or the person's email
 	DueAt      time.Time // when it came due; the moment asked for a run once
+	// Rule is the rule the schedule has now (the owner's default for a schedule nobody saved): an owner reads its window from it.
+	Rule Rule
 }
 
 // Owner is a kind of schedule a module offers.
@@ -380,7 +382,7 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 				skip = "The run it started at " + orgtime.Stamp(*since, zoneOf(OrgZone, org)) + " had not ended."
 				break
 			}
-			runID, skip, err = s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Schedule, By: run.System, DueAt: *r.NextDueAt})
+			runID, skip, err = s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Schedule, By: run.System, DueAt: *r.NextDueAt, Rule: r.Rule})
 			if err != nil {
 				return err
 			}

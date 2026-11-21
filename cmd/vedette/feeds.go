@@ -39,7 +39,7 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	db := d.DB
 	fd.Pins = func(ctx context.Context) ([]string, error) { return findings.PinnedCVEs(ctx, db) } // the catalogue keeps a finding's CVE
-	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
+	if d.Bus != nil {                                                                             // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
 	// The alert of the CISA list (both copies failing at two checks in a row, or six checks old) and its "up to date

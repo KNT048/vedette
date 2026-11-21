@@ -86,7 +86,6 @@ const (
 	planDistro  = "distro"
 )
 
-
 // tierSource says whether a row's version may confirm a tier CVE: the device's agent, a person, the device's own
 // SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap, the scan, the
 // passive sensor) or a row of unknown origin: for CVEs nobody exploits yet a guess is noise, so it is dropped (the brief's worst case).

@@ -286,6 +286,7 @@ func sourceNames(ctx context.Context, q queryer) (map[string]string, error) {
 		}
 		out[id] = name
 	}
+	out[appleClaimSource] = appleSourceName // written from the catalogue's CVE records, not by a feed of its own
 	return out, rows.Err()
 }
 

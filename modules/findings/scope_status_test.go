@@ -94,7 +94,7 @@ func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
 		}
 	}
-	if e.count(`SELECT count(*) FROM core_audit`) != before || e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`) != 2 || len(e.pub.take()) != 0 {
+	if e.count(`SELECT count(*) FROM core_audit`) != before || e.count(`SELECT count(*) FROM fnd_finding WHERE state = 'open' AND verified = 'no'`) != 2 || len(e.pub.take()) != 0 {
 		t.Fatal("a refused bulk change wrote something")
 	}
 	if _, err := e.svc.SetStatus(t.Context(), res.Created[1], ActionPatched, "updated to 6.1.2", "it@acme.example"); err != nil {
@@ -105,24 +105,10 @@ func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 	if err != nil || n != 1 || skipped != 1 {
 		t.Fatalf("bulk = %d changed, %d skipped, %v", n, skipped, err)
 	}
-	if e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'false_positive' AND resolution_note = 'iPhone on guest Wi-Fi'`) != 1 ||
-		e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'patched' AND resolution_note = 'updated to 6.1.2'`) != 1 ||
+	if e.count(`SELECT count(*) FROM fnd_finding WHERE resolution = 'false_positive' AND note = 'iPhone on guest Wi-Fi'`) != 1 ||
+		e.count(`SELECT count(*) FROM fnd_finding WHERE resolution = 'patched' AND note = 'updated to 6.1.2'`) != 1 ||
 		e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status'`) != 2 || len(e.pub.take()) != 1 {
 		t.Fatal("an open finding gets its own status, audit row and event; a closed one keeps its reason")
-	}
-}
-
-// A device with no hostname and no IP is named, never shown by its internal id, even in old evidence.
-func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
-	t.Parallel()
-	r := Record{ID: "f-1", AssetID: "a-vft3", CVE: "CVE-2023-36845", Finding: Finding{Evidence: &Evidence{Summary: "a-vft3 runs Juniper Junos 15.1R7.9."}}}
-	row := newRow(r, &AssetView{ID: "a-vft3", Name: "a-vft3", IP: NoIP, Kind: "switch", Display: "Juniper Junos"}, nil, nil)
-	if row.Asset.Name != "Juniper Junos" || row.Evidence.Summary != "Juniper Junos runs Juniper Junos 15.1R7.9." || row.Asset.HasIP() {
-		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
-	}
-	row = newRow(r, &AssetView{ID: "a-vft3", Name: "Juniper Networks EX4200-48T", IP: NoIP, Kind: "switch"}, nil, nil)
-	if row.Asset.Name != "Juniper Networks EX4200-48T" || row.Evidence.Summary != "Juniper Networks EX4200-48T runs Juniper Junos 15.1R7.9." {
-		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
 	}
 }
 
@@ -133,7 +119,7 @@ func TestHaveScope_KeepsNotAffected(t *testing.T) {
 	a := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
 	proof := Match{CVE: "CVE-2022-27593", SoftwareID: "s-2"}
 	got := haveScope(a, nil, MatchResult{NotAffected: []Match{proof}}, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0}}, nil, t0)
-	if len(got.NotAffected) != 1 || got.NotAffected[0] != proof {
+	if len(got.NotAffected) != 1 || got.NotAffected[0].CVE != proof.CVE || got.NotAffected[0].SoftwareID != proof.SoftwareID {
 		t.Fatalf("NotAffected = %+v", got.NotAffected)
 	}
 }

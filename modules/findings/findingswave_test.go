@@ -26,22 +26,6 @@ func TestMatchAsset_AgentBuildIsADetection(t *testing.T) {
 	}
 }
 
-// A repeated match of the same basis brings today's evidence, so a finding written before says the agent's words; a scan's
-// evidence is the template's and stays.
-func TestApplyMatch_SameBasisBringsTheEvidence(t *testing.T) {
-	old := &Evidence{Summary: "pc-01 runs Windows 11 24H2 10.0.26100.1742. … only suspected."}
-	m := Match{Basis: BasisVersion, Severity: SeverityHigh, Evidence: Evidence{Summary: "The agent on pc-01 reports …", Agent: true}}
-	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: old}.ApplyMatch(m)
-	if f.Evidence == nil || !f.Evidence.Agent || f.Evidence.Summary != "The agent on pc-01 reports …" {
-		t.Fatalf("version: %+v", f.Evidence)
-	}
-	scan := &Evidence{Summary: "template matched", Template: "t"}
-	f = Finding{Status: StatusConfirmed, Basis: BasisScan, Evidence: scan}.ApplyMatch(Match{Basis: BasisScan, Evidence: Evidence{Summary: "other"}})
-	if f.Evidence != scan {
-		t.Fatalf("scan evidence replaced: %+v", f.Evidence)
-	}
-}
-
 // W-3: one missing monthly update is one item: every open finding of the Windows row gets the same group, the build that
 // fixes them all, and the mark that it is Windows's cumulative update.
 func TestRowFixes_OneWindowsUpdate(t *testing.T) {
@@ -139,15 +123,6 @@ func TestMatchAsset_AgentWordsOnlyWhenTheyHold(t *testing.T) {
 	_, w := oneMatch(t, winPC(19045, false, "6456", "x64"), cve62215, false) // Windows 10 22H2 after its last free update
 	if !w.Evidence.Agent || !strings.Contains(w.Evidence.Summary, "comes only with Extended Security Updates for Windows 10 22H2") || strings.Contains(w.Evidence.Summary, "monthly update") {
 		t.Fatalf("esu: %q", w.Evidence.Summary)
-	}
-}
-
-// Review r1 #12: once the agent's row no longer decides it, "Detected by the agent" goes, the basis stays.
-func TestApplyMatch_AgentFlagGoesWithTheAgentRow(t *testing.T) {
-	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent on pc-01 reports …", Agent: true}}
-	f = f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "pc-01 runs X. Vedette cannot compare …"}})
-	if f.Basis != BasisVersion || f.Evidence.Agent || f.Evidence.Summary != "pc-01 runs X. Vedette cannot compare …" {
-		t.Fatalf("%+v %+v", f, f.Evidence)
 	}
 }
 

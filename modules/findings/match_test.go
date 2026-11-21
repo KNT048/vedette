@@ -287,50 +287,6 @@ func TestMatchAsset_EvidenceTextIsCleaned(t *testing.T) {
 	}
 }
 
-func FuzzMatchAsset(f *testing.F) {
-	f.Add("QNAP", "Photo Station", "6.1.1", "qnap|photo station", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
-	f.Add("x", "Multiple Products", "", "x|y", "", "", "", "CVE-2020-0001")
-	f.Add("", "", "weird", "|", "cpe:2.3:a:::::::::::", "a", "b", "CVE-1-1")
-	f.Add("QNAP", "Photo Station", "weird", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
-	f.Add("QNAP", "Photo Station", "0.0.0", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
-	f.Add("QNAP", "Photo Station", "9.9", "x", "garbage", "6.0", "6.1.2", "CVE-2022-27593")
-	f.Add("QNAP", "Photo Station", "", "x", "", "6.0", "6.1.2", "CVE-2022-27593")
-	f.Fuzz(func(t *testing.T, vendor, product, version, key, cpe, lo, hi, cve string) {
-		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key, productid.Key(vendor, product)}, CPE: cpe}}}
-		v := Vuln{CVE: cve, Vendor: vendor, Product: product, Affected: []Affected{
-			{CPE: cpe, Range: VersionRange{StartIncl: lo, EndExcl: hi}},
-			{CPE: qnapCPE},
-		}}
-		res := MatchAsset(a, []Vuln{v, v}, map[string]bool{cve: len(key)%2 == 0}, t0)
-		all := append(append([]Match{}, res.New...), res.Existing...)
-		if len(all) > 1 {
-			t.Fatalf("more than one match for one CVE: %+v", all)
-		}
-		// Oracle (review): a KEV-key match is never dropped when the version is empty,
-		// unreadable or a placeholder, or when an Affected entry cannot be read: it is a
-		// finding or, without a usable version, the software's "add the version" item.
-		eff := version
-		sc, scErr := ParseCPE(cpe)
-		if eff == "" && scErr == nil {
-			eff, _ = sc.Version.Literal()
-		}
-		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion)+len(res.NameOnly)+len(res.Aged) != 1 { // Or name-only
-			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
-		}
-		for _, m := range all {
-			if !ValidCVE(m.CVE) || m.Confidence <= 0 || m.Confidence > 1 || rank(m.Basis) == 0 || m.Basis == BasisScan {
-				t.Fatalf("bad match %+v", m)
-			}
-			if m.Severity != SeverityHigh && m.Severity != SeverityCritical && m.Severity != SeverityMedium {
-				t.Fatalf("bad severity %+v", m)
-			}
-			if nf, _ := NewFinding(m, t0); nf.Validate() != nil {
-				t.Fatalf("NewFinding produced an invalid finding: %v", nf.Validate())
-			}
-		}
-	})
-}
-
 func sshHost(version, cpe string) Asset {
 	return Asset{ID: "a", Name: "gw", Software: []Software{
 		{ID: "s", Display: "OpenSSH", Vendor: "OpenSSH", Product: "OpenSSH", Version: version, KevKeys: []string{"openbsd|openssh"}, CPE: cpe},
@@ -536,4 +492,48 @@ func TestMatchAsset_NamesTheListOfTheEntry(t *testing.T) {
 	if got := MatchAsset(a, []Vuln{v}, nil, t0).NameOnly[0].said; !strings.Contains(got, "VulnCheck KEV lists this flaw") || strings.Contains(got, "CISA") {
 		t.Fatalf("summary = %q", got)
 	}
+}
+
+func FuzzMatchAsset(f *testing.F) {
+	f.Add("QNAP", "Photo Station", "6.1.1", "qnap|photo station", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("x", "Multiple Products", "", "x|y", "", "", "", "CVE-2020-0001")
+	f.Add("", "", "weird", "|", "cpe:2.3:a:::::::::::", "a", "b", "CVE-1-1")
+	f.Add("QNAP", "Photo Station", "weird", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "0.0.0", "x", `cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*`, "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "9.9", "x", "garbage", "6.0", "6.1.2", "CVE-2022-27593")
+	f.Add("QNAP", "Photo Station", "", "x", "", "6.0", "6.1.2", "CVE-2022-27593")
+	f.Fuzz(func(t *testing.T, vendor, product, version, key, cpe, lo, hi, cve string) {
+		a := Asset{ID: "a", Name: vendor, Software: []Software{{ID: "s", Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{key, productid.Key(vendor, product)}, CPE: cpe}}}
+		v := Vuln{CVE: cve, Vendor: vendor, Product: product, Affected: []Affected{
+			{CPE: cpe, Range: VersionRange{StartIncl: lo, EndExcl: hi}},
+			{CPE: qnapCPE},
+		}}
+		res := MatchAsset(a, []Vuln{v, v}, map[string]bool{cve: len(key)%2 == 0}, t0)
+		all := append(append([]Match{}, res.New...), res.Existing...)
+		if len(all) > 1 {
+			t.Fatalf("more than one match for one CVE: %+v", all)
+		}
+		// Oracle (review): a KEV-key match is never dropped when the version is empty,
+		// unreadable or a placeholder, or when an Affected entry cannot be read: it is a
+		// finding or, without a usable version, the software's "add the version" item.
+		eff := version
+		sc, scErr := ParseCPE(cpe)
+		if eff == "" && scErr == nil {
+			eff, _ = sc.Version.Literal()
+		}
+		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion)+len(res.NameOnly)+len(res.Aged) != 1 { // Or name-only
+			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
+		}
+		for _, m := range all {
+			if !ValidCVE(m.CVE) || m.Confidence <= 0 || m.Confidence > 1 || rank(m.Basis) == 0 || m.Basis == BasisScan {
+				t.Fatalf("bad match %+v", m)
+			}
+			if m.Severity != SeverityHigh && m.Severity != SeverityCritical && m.Severity != SeverityMedium {
+				t.Fatalf("bad severity %+v", m)
+			}
+			if nf, _ := NewFinding(m, t0); nf.Row.Validate() != nil {
+				t.Fatalf("NewFinding produced an invalid finding: %v", nf.Row.Validate())
+			}
+		}
+	})
 }

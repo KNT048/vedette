@@ -241,7 +241,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		return matchedOn(a, k, v)
 	}
 	for _, r := range top {
-		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: r.severity, FirstSeen: store.FormatTS(r.firstSeen)}
+		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: SeverityMedium, FirstSeen: store.FormatTS(r.firstSeen)}
 		if a, ok := assets[r.assetID]; ok {
 			a = shownAsset(a)
 			it.Asset = &a
@@ -255,7 +255,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 			it.Source = &list
 		}
 		if c, ok := scores[r.cve]; ok {
-			it.CVSS = &c
+			it.CVSS, it.Severity = &c, bandOf(c) // the CVE's CVSS band, as every reader of a finding shows it
 		}
 		s.Top = append(s.Top, it)
 	}
@@ -325,18 +325,20 @@ func rankOpen(open []summaryRow, kev map[string]KevInfo, scores map[string]CVSS)
 type summaryRow struct {
 	id, assetID, cve string
 	status           Status
-	severity         Severity
 	firstSeen        time.Time
 }
 
 // summaryData reads the open findings and the trend: at the end of each of the last SummaryDays days of the organization's time zone
 // (ServiceConfig.Zone, the days Home's chart names; the last is now), how many
 // findings had been first seen and were not closed yet. Two reads: the open rows (status index), and the first_seen/resolved_at of the
-// rows closed inside the window, one range per closed status on fnd_finding_status_resolved_idx (the statuses are listed so the index
-// serves it; rows closed before the window count on no day). The last point is the open count. A finding reopened after a close
+// rows handled inside the window (fnd_finding_resolved_ix; rows handled before the window count on no day). The last point is the open count. A finding reopened after a close
 // counts as open since its first sighting (fnd_finding keeps one resolved_at): the line is a trend, the tile's number is exact.
 func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow, []int, error) {
 	db := s.cfg.DB.Reader()
+	ignored, err := s.ignoredDevices(ctx) // a person's ignored devices are left out of Home
+	if err != nil {
+		return nil, nil, fmt.Errorf("findings: summary: %w", err)
+	}
 	loc := orgtime.At(ctx, s.cfg.Zone)
 	now = now.UTC()
 	y, m, d := now.In(loc).Date()
@@ -357,7 +359,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 			}
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, status, severity, first_seen FROM fnd_finding WHERE status IN ('confirmed', 'suspected')`)
+	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, CASE WHEN verified = 'no' THEN 'suspected' ELSE 'confirmed' END, first_seen FROM fnd_finding WHERE state = 'open'`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 	}
@@ -365,7 +367,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 	for rows.Next() {
 		var r summaryRow
 		var fs string
-		if err := rows.Scan(&r.id, &r.assetID, &r.cve, &r.status, &r.severity, &fs); err != nil {
+		if err := rows.Scan(&r.id, &r.assetID, &r.cve, &r.status, &fs); err != nil {
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 		}
@@ -373,22 +375,25 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 		}
+		if ignored[r.assetID] {
+			continue
+		}
 		count(r.firstSeen, time.Time{})
 		open = append(open, r)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: open findings: %w", err)
 	}
-	rows, err = db.QueryContext(ctx, `SELECT first_seen, resolved_at FROM fnd_finding
-		WHERE status IN ('mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted') AND resolved_at >= ? AND first_seen <= ?`,
+	rows, err = db.QueryContext(ctx, `SELECT asset_id, first_seen, resolved_at FROM fnd_finding
+		WHERE state = 'handled' AND resolved_at >= ? AND first_seen <= ?`,
 		store.FormatTS(start), store.FormatTS(now))
 	if err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)
 	}
 	for rows.Next() {
-		var fs string
+		var asset, fs string
 		var rs sql.NullString
-		if err := rows.Scan(&fs, &rs); err != nil {
+		if err := rows.Scan(&asset, &fs, &rs); err != nil {
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)
 		}
@@ -398,7 +403,9 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)
 		}
-		count(first, resolved)
+		if !ignored[asset] {
+			count(first, resolved)
+		}
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)

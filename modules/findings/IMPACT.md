@@ -1,5 +1,16 @@
 # Findings — Change Impact Map
 
+## Modifying: `Transition`, `Finding`, `Trigger`, the vocabularies (`Resolution`, `Via`, `Verified`, `DetectionBasis`, `EventKind`, `QuestionKind`)
+- Every change of the handling goes through `Transition`; a new state or trigger needs its row in `transition_table_test.go`, and the
+  database CHECKs, `Finding.Validate` and the selfcheck invariants must agree. A new value of an open vocabulary is added to its list
+  (`Vias`, `DetectionBases`, `EventKinds`, `QuestionKinds`): the selfcheck vocabulary rules read the lists.
+- Readers of the older model (`legacy.go`: the current endpoints, notify, the AI context, MCP, reports, response) see the change
+  through `LegacyStatus`, `record` and `legacyEvent`.
+
+## Modifying: `applyMatch`, `detectionOf`, `goneVia`, `questionsOfMatch` (the match write)
+- `goneVia` decides patch credit: a change here moves `TestCredit_*` and the fixture count test. The inventory's `MatchSoftware`
+  (`ReportedSource`, `MarkedBy`, the effective reading first) is its input.
+
 ## Modifying: `classify`, `classified`, `RiskOf`, `RiskMap`, `AssetRisk`, `riskyUpdate`, `risk` and `risks` of to-fix and plan (INV-26)
 - **One rule**: the marker is `RiskOf` of To fix's own classification (`actionable`, `Planned`), never a cheaper test of its own (#949: a ranking shortcut showed red for findings only in Needs your input, and a different count from the card). Change To fix and the marker changes with it, by design.
 - **Cost and freshness**: `classified` does To fix's per-device work for every device once per change (`gen`, `plan.ver`, the feeds switch, `riskTTL`) and serves both the To fix page (display cap `ToFixLimit`) and every marker; a new input to To fix's classification must also move that key. `ToFix(…, id)` stays uncached (the device's own page).

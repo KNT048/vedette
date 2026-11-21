@@ -28,20 +28,7 @@ func (e *env) insertRows(rows ...sumRow) {
 	e.t.Helper()
 	err := e.db.Write(e.t.Context(), func(tx *sql.Tx) error {
 		for _, r := range rows {
-			basis, evidence := "product", sql.NullString{}
-			if r.status == StatusConfirmed {
-				basis, evidence = "scan", sql.NullString{String: `{"template":"t"}`, Valid: true}
-			}
-			var resolved, accepted sql.NullString
-			if !r.resolvedAt.IsZero() {
-				resolved = sql.NullString{String: store.FormatTS(r.resolvedAt), Valid: true}
-			}
-			if r.status == StatusRiskAccepted {
-				accepted = sql.NullString{String: "2027-01-01", Valid: true}
-			}
-			if _, err := tx.ExecContext(e.t.Context(), `INSERT INTO fnd_finding (id, asset_id, cve, status, severity, confidence, basis, evidence,
-				first_seen, last_seen, resolved_at, accepted_until) VALUES (?, ?, ?, ?, 'high', 0.5, ?, ?, ?, ?, ?, ?)`,
-				r.id, r.asset, r.cve, r.status, basis, evidence, store.FormatTS(r.firstSeen), store.FormatTS(r.firstSeen), resolved, accepted); err != nil {
+			if err := writeTestFinding(e.t.Context(), tx, legacyRow(r.id, r.asset, r.cve, r.status, r.firstSeen, r.resolvedAt)); err != nil {
 				return fmt.Errorf("%s: %w", r.id, err)
 			}
 		}
@@ -302,20 +289,6 @@ func TestContract_INV23_SummaryReadsOnlyFindingsTables(t *testing.T) {
 	}
 }
 
-// The trend's closed-row query lists the closed statuses (so the status index serves it): every status but the two open ones.
-func TestSummaryClosedStatusesAreEveryClosedStatus(t *testing.T) {
-	t.Parallel()
-	src, err := os.ReadFile("summary.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, st := range []Status{StatusMitigated, StatusPatched, StatusFalsePositive, StatusNotRelevant, StatusRiskAccepted} {
-		if st.Open() || !strings.Contains(string(src), "'"+string(st)+"'") {
-			t.Errorf("closed status %q missing from the trend query", st)
-		}
-	}
-}
-
 // GET /findings/summary is a viewer read through the generated API.
 func TestContract_INV23_SummaryEndpoint(t *testing.T) {
 	t.Parallel()
@@ -343,8 +316,8 @@ func TestContract_INV23_SummaryEndpoint(t *testing.T) {
 	}
 }
 
-// INV-23: both reads of the summary go through an index on status, never a scan of fnd_finding; the trend's closed read is a range on
-// (status, resolved_at) (migration 0006).
+// INV-23: both reads of the summary go through an index on state, never a scan of fnd_finding; the trend's closed read is a range on
+// (state, resolved_at).
 func TestContract_INV23_SummaryReadsUseTheStatusIndex(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -378,11 +351,11 @@ func TestContract_INV23_SummaryReadsUseTheStatusIndex(t *testing.T) {
 		p := strings.Join(plan, "; ")
 		switch {
 		case strings.Contains(q[1], "resolved_at"): // the closed rows of the window: a range on (status, resolved_at), not every closed row
-			if !strings.Contains(p, "USING INDEX fnd_finding_status_resolved_idx (status=? AND resolved_at>?)") {
-				t.Errorf("query %q: plan %q is not a range on (status, resolved_at)", q[1], p)
+			if !strings.Contains(p, "USING INDEX fnd_finding_resolved_ix (state=? AND resolved_at>?)") {
+				t.Errorf("query %q: plan %q is not a range on (state, resolved_at)", q[1], p)
 			}
-		case !strings.Contains(p, "USING INDEX fnd_finding_status"): // the open rows: either index on status
-			t.Errorf("query %q: plan %q does not use a status index", q[1], p)
+		case !strings.Contains(p, "USING INDEX") || !strings.Contains(p, "(state=?)"): // the open rows: an index on state
+			t.Errorf("query %q: plan %q does not use an index on state", q[1], p)
 		}
 	}
 }

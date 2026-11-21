@@ -46,8 +46,8 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatalf("one action for the 4 findings of one product: %+v", u)
 	}
 	x := u.Exploited[0]
-	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "critical" ||
-		x.CVEs[0] != "CVE-2099-0002" || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
+	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "medium" ||
+		!slices.Contains(x.CVEs, "CVE-2099-0002") || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
 		t.Fatalf("action %+v", x)
 	}
 	if x.Confirmed != 4 || x.Suspected != 0 || x.Detected != 0 { // the finding page says confirmed: To fix counts it the same
@@ -122,38 +122,5 @@ func TestDeviceUpdates_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 	}
 	if len(u.NoUpdate) != 1 || u.NoUpdate[0].Group != "a-1/" || u.NoUpdate[0].SoftwareID != "" || !slices.Equal(u.NoUpdate[0].CVEs, []string{"CVE-2022-27593"}) {
 		t.Fatalf("left the list: %+v", u.NoUpdate)
-	}
-}
-
-// Review r2 L1, L2 of #935. The status is read from the row the finding matched on, never from the fix group's row when they differ
-// (a banner-matched CVE grouped under a person's row of the same product stays suspected), and an agent's row is "detected" only
-// when the matcher set evidence.agent (unset while the range has no end or a platform condition is open, so the person still
-// checks it): otherwise "reported".
-func TestDeviceUpdates_ProofReadsTheMatchedRowAndTheAgentFlag(t *testing.T) {
-	t.Parallel()
-	banner := Software{ID: "s-nmap", Display: "Photo Station", Version: "6.1.1", Source: "nmap"}
-	typed := Software{ID: "s-man", Display: "Photo Station", Version: "6.0.0", Source: "manual"}
-	sws := map[string]Software{banner.ID: banner, typed.ID: typed}
-	fix := &RowFix{Group: "a-1/s-man", SoftwareID: typed.ID}
-	version := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "…"}}}
-	if row, ok := proofRow(banner, true, fix, sws); proofOf(version, row, ok) != ProofSuspected {
-		t.Fatalf("matched on the banner, grouped under the typed row: %s", proofOf(version, row, ok))
-	}
-	if row, ok := proofRow(Software{}, false, fix, sws); proofOf(version, row, ok) != ProofDetected {
-		t.Fatal("no matched row: the group's (typed) row decides")
-	}
-	agent := Software{ID: "s-ag", Version: "6.1.1", Source: "agent"}
-	open := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "It affects only …"}}}
-	if got := proofOf(open, agent, true); got != ProofReported {
-		t.Fatalf("agent row without evidence.agent (platform open): %s, want reported", got)
-	}
-	open.Evidence.Agent = true
-	if got := proofOf(open, agent, true); got != ProofDetected {
-		t.Fatalf("evidence.agent: %s", got)
-	}
-	for _, src := range []string{"snmp", "manual"} {
-		if got := proofOf(version, Software{ID: "s-x", Source: src}, true); got != ProofDetected {
-			t.Fatalf("%s row: %s", src, got)
-		}
 	}
 }

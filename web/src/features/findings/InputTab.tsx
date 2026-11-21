@@ -40,12 +40,12 @@ function useRoles() {
   }
 }
 
-function NotAddedItem({ i }: { i: Item<'device_not_added'> }) {
+function NotAddedItem({ i, link }: { i: Item<'device_not_added'>; link: boolean }) {
   const { t } = useTranslation('findings')
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="grid gap-0.5">
-        <DeviceLine device={i.device} status={i.status} />
+        <DeviceLine device={i.device} status={i.status} link={link} />
         <span className="text-meta text-muted">{t('queue.notAdded', { count: i.findings })}</span>
       </div>
       <NotAdded asset={asAsset(i.device)} findings={i.findings} />
@@ -53,7 +53,7 @@ function NotAddedItem({ i }: { i: Item<'device_not_added'> }) {
   )
 }
 
-function UnconfirmedItem({ i }: { i: Item<'unconfirmed'> }) {
+function UnconfirmedItem({ i, link }: { i: Item<'unconfirmed'>; link: boolean }) {
   const { t } = useTranslation('findings')
   const r = useRoles()
   const run = useStartRun()
@@ -68,7 +68,7 @@ function UnconfirmedItem({ i }: { i: Item<'unconfirmed'> }) {
         <StatusBadge code={i.status} />
       </div>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <DeviceLine device={i.device} badge={false} />
+        <DeviceLine device={i.device} badge={false} link={link} />
         {i.software ? <span className="text-meta text-muted">{i.software.version ? `${i.software.name} ${i.software.version}` : i.software.name}</span> : null}
       </span>
       <VerificationLine verified="no" basis={i.basis} />
@@ -134,7 +134,7 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
   )
 }
 
-function QuestionItem({ i }: { i: Item<'question'> }) {
+function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
   const { t } = useTranslation('findings')
   const r = useRoles()
   const act = useDeviceAction(i.device.id)
@@ -146,7 +146,7 @@ function QuestionItem({ i }: { i: Item<'question'> }) {
     <div className="grid gap-2">
       <p className="text-sm">{t(`queue.q.${i.question}`, words)}</p>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <DeviceLine device={i.device} badge={false} />
+        <DeviceLine device={i.device} badge={false} link={link} />
         {i.cve ? <Link to={`/cve/${encodeURIComponent(i.cve)}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link> : null}
         {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{t('fixLine.advisory')}</a> : null}
       </span>
@@ -174,8 +174,24 @@ function QuestionItem({ i }: { i: Item<'question'> }) {
   )
 }
 
-export function QueueItem({ i }: { i: InputItem }) {
-  return i.kind === 'device_not_added' ? <NotAddedItem i={i} /> : i.kind === 'unconfirmed' ? <UnconfirmedItem i={i} /> : <QuestionItem i={i} />
+/** One item of the queue. linkDevice false names its device without a link: an earlier item of the page links to its page. */
+export function QueueItem({ i, linkDevice = true }: { i: InputItem; linkDevice?: boolean }) {
+  return i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} />
+    : i.kind === 'unconfirmed' ? <UnconfirmedItem i={i} link={linkDevice} /> : <QuestionItem i={i} link={linkDevice} />
+}
+
+/** The ids of the items that link to their device's page: the first item of each device on the page, so the page has one link per
+ * device. */
+function deviceLinks(items: InputItem[]): Set<string> {
+  const seen = new Set<string>()
+  const out = new Set<string>()
+  for (const i of items) {
+    if (!seen.has(i.device.id)) {
+      seen.add(i.device.id)
+      out.add(i.id)
+    }
+  }
+  return out
 }
 
 export function InputTab({ device, onDevice }: { device: string; onDevice: (id: string) => void }) {
@@ -184,8 +200,9 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
   const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
   const size = list.size ?? PAGE_DEFAULT
   const q = useInputList({ device }, { offset: list.page * size, limit: size })
+  const links = useMemo(() => deviceLinks(q.data?.items ?? []), [q.data])
   const columns: ColumnDef<InputItem>[] = [
-    { id: 'item', header: t('queue.col'), cell: ({ row: { original: i } }) => <QueueItem i={i} /> },
+    { id: 'item', header: t('queue.col'), cell: ({ row: { original: i } }) => <QueueItem i={i} linkDevice={links.has(i.id)} /> },
   ]
   const named = q.data?.items.find((x) => x.device.id === device)?.device.name
   return (
@@ -194,7 +211,7 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
       <QueryState query={q}>
         {(d) => d.total === 0 && !device ? <EmptyState title={t('queue.empty')}>{t('queue.emptyBody')}</EmptyState> : (
           <DataTable urlKey="input" caption={t('queue.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list }} filtered={!!device} onClearFilters={() => onDevice('')} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} />} />
+            server={{ total: d.total, list }} filtered={!!device} onClearFilters={() => onDevice('')} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
         )}
       </QueryState>
     </div>

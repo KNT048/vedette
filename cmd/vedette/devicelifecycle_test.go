@@ -55,10 +55,10 @@ func TestMergeOfTwoRowsIsOneTransactionThatLosesNothing(t *testing.T) {
 	if n := s.count(`SELECT count(*) FROM inv_asset WHERE id = ?`, from); n != 0 {
 		t.Fatal("the merged row is still there")
 	}
-	if n := s.count(`SELECT count(*) FROM (SELECT cve FROM fnd_finding WHERE asset_id = ? GROUP BY cve HAVING count(*) > 1)`, into); n != 0 {
-		t.Fatal("a CVE has two findings on the device")
+	if n := s.count(`SELECT count(*) FROM (SELECT cve FROM fnd_finding WHERE asset_id = ? GROUP BY cve, ifnull(software_id, '') HAVING count(*) > 1)`, into); n != 0 {
+		t.Fatal("a CVE has two findings on one software line of the device")
 	}
-	if n := s.count(`SELECT count(*) FROM fnd_finding_history h JOIN fnd_finding f ON f.id = h.finding_id WHERE f.asset_id = ? AND h.user IN ('person@example.com', 'other@example.com')`, into); n != 3 {
+	if n := s.count(`SELECT count(*) FROM fnd_finding_event e JOIN fnd_finding f ON f.id = e.finding_id WHERE f.asset_id = ? AND e.actor IN ('person@example.com', 'other@example.com')`, into); n != 3 {
 		t.Errorf("%d of the 3 people's decisions are on the device", n)
 	}
 	if n := s.count(`SELECT count(*) FROM fnd_finding f WHERE f.asset_id = ? AND f.software_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id AND s.asset_id = f.asset_id)`, into); n != 0 {

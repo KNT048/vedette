@@ -117,7 +117,7 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 			ignored[id] = true
 		}
 	}
-	recs = slices.DeleteFunc(recs, func(r findings.Record) bool { return ignored[r.AssetID] || r.ClosedForIgnore() })
+	recs = slices.DeleteFunc(recs, func(r findings.Record) bool { return ignored[r.AssetID] })
 	source := a.vulnCheckCVEs(ctx, recs)
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {

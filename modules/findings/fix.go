@@ -1,9 +1,12 @@
 package findings
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
 
+	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -12,6 +15,8 @@ import (
 // Windows release). The match pass stores its answer on the finding (fnd_finding.fix_*, fix_key); every reader shows the stored fix,
 // never a fix of its own.
 //
+//   - a product whose vendor states its fixes per release train in its own notation (Vuln.Schemed: ESXi's builds): the vendor's
+//     fixed release of the device's train (versionscheme.Judge), when the device's version and build place it in a train;
 //   - a Windows release row: the monthly update whose build the range ends at (os_update, the build, its KB when Microsoft's release
 //     data lists it), or the later release that has the fix when the device's release no longer gets one (feature_update);
 //   - a distribution's package: the distribution's fixed package release (distro_update; "" when its data names none yet);
@@ -21,6 +26,9 @@ import (
 //
 // It never guesses: a range's end that is itself listed affected (Junos' release-by-release lists) is no fix.
 func FixOf(a Asset, s Software, v Vuln) Fix {
+	if f, ok := schemeFix(a, s, v); ok {
+		return f
+	}
 	in := newSWInfo(s, a.OS)
 	if f, ok := windowsFixedIn(in, v); ok {
 		return winFixOf(in, f)
@@ -94,4 +102,47 @@ func noEnd(in swInfo, v Vuln, key []identity) bool {
 		}
 	}
 	return true
+}
+
+// esxiBuildRE reads the build an ESXi host states in its OS line ("VMware ESXi 8.0.3 (build 24022510)").
+var esxiBuildRE = regexp.MustCompile(`\(build ([0-9]{5,9})\)`)
+
+// schemeFix is FixOf from the ranges a vendor states in its notation for the line's product: the fixed release of the device's train
+// (versionscheme.Judge). ok is false when none names the product, the device's version does not place it in a train, or the vendor
+// states no fix for it.
+func schemeFix(a Asset, s Software, v Vuln) (Fix, bool) {
+	if len(v.Schemed) == 0 {
+		return Fix{}, false
+	}
+	p, ok := productid.ResolveStored(s.Vendor, s.Product, s.Display, s.CPE)
+	if !ok {
+		return Fix{}, false
+	}
+	var spans []versionscheme.Span
+	var scheme *versionscheme.Scheme
+	for _, r := range v.Schemed {
+		if r.Product == p.Key && r.Scheme != nil {
+			spans, scheme = append(spans, r.Span), r.Scheme
+		}
+	}
+	if scheme == nil {
+		return Fix{}, false
+	}
+	build := ""
+	if m := esxiBuildRE.FindStringSubmatch(a.OS); m != nil { // the host states its build in its OS line, beside the version
+		build = m[1]
+	}
+	installed, ok := scheme.Installed(s.Version, build)
+	if !ok {
+		return Fix{}, false
+	}
+	verdict := versionscheme.Judge(installed, spans)
+	if verdict.State != versionscheme.Affected || verdict.Fix == nil {
+		return Fix{}, false
+	}
+	release := verdict.Fix.Display
+	if release == "" {
+		release = verdict.Fix.Label
+	}
+	return Fix{Kind: FixUpdate, Version: release}, true
 }

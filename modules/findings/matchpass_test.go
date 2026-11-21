@@ -267,3 +267,47 @@ func TestMatchPass_ACVEOnNoListNeedsATrustedReading(t *testing.T) {
 		t.Errorf("a distribution's package with no word from the distribution: %d findings", got)
 	}
 }
+
+// Selfcheck D6 for the fix: after the match pass, every finding's stored fix and fix key equal a fresh FixOf of its device, line and
+// CVE, on every device of the fix count (the golden lists, a Windows host, an ESXi host with VMware's per-train builds).
+func TestMatchPass_StoredFixEqualsFixOf(t *testing.T) {
+	t.Parallel()
+	checked := 0
+	for _, d := range fixDevices(t) {
+		e := newEnv(t)
+		e.inv.match = map[string]Asset{d.a.ID: d.a}
+		e.inv.assets[d.a.ID] = AssetView{ID: d.a.ID, Name: d.a.Name}
+		e.feeds.vulns = d.vulns
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		fs, err := e.svc.Findings(t.Context(), d.a.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		byCVE := map[string]Vuln{}
+		for _, v := range d.vulns {
+			byCVE[v.CVE] = v
+		}
+		lines := deviceLines(d.a)
+		for _, f := range fs {
+			l, ok := lines[f.SoftwareID]
+			if !ok || !f.Detected {
+				continue
+			}
+			want := FixOf(d.a, l.sw, byCVE[f.CVE])
+			key := FixKey(productKey(l.sw), want)
+			if productKey(l.sw) == "" {
+				key = FixKey("unknown", want)
+			}
+			if f.Fix != want || f.FixKey != key {
+				t.Errorf("%s on %s: stored %+v %q, recomputed %+v %q", f.CVE, d.a.ID, f.Fix, f.FixKey, want, key)
+			}
+			checked++
+		}
+	}
+	if checked < 100 {
+		t.Fatalf("only %d findings checked", checked)
+	}
+	t.Logf("%d findings: stored fix equals FixOf", checked)
+}

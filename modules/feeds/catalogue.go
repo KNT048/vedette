@@ -457,6 +457,24 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	return out, nil
 }
 
+// VendorRangesOf returns the ranges of these CVEs kept in their vendor's notation (Range.Generic false), sorted by CVE, then as
+// stored: only a product's version scheme reads them (RangeScheme).
+func (s *Store) VendorRangesOf(ctx context.Context, cves []string) ([]Range, error) {
+	var out []Range
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND NOT (`+genericRowSQL+`)`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rows...)
+	}
+	return out, nil
+}
+
 // MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as
 // "cpe:2.3:*:<vendor>:<product>:…" of the name the catalogue knows it by (MatchName, kevRecordRow). ok is false for a record row of a vendor whose versions findings
 // compares with rules of its own (recordSkipVendors).

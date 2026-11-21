@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -593,7 +594,7 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	if err != nil {
 		return nil, err
 	}
-	out := slices.Clip(kev) // the cached list is never written: a later append copies
+	out := slices.Clone(kev) // the cached list is never written
 	for _, cve := range cves {
 		e, inCatalogue := cat[cve]
 		rows := byCVE[cve]
@@ -629,7 +630,38 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 			out = append(out, v)
 		}
 	}
+	if err := a.withSchemed(ctx, out); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// withSchemed adds to each entry of vulns the ranges its vendor states in its own notation, read in the version scheme of the
+// product they name (feeds.RangeScheme): what findings.FixOf names the vendor's fixed release of a device's train from.
+func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) error {
+	cves := make([]string, len(vulns))
+	at := make(map[string]int, len(vulns))
+	for i, v := range vulns {
+		cves[i] = v.CVE
+		at[v.CVE] = i
+	}
+	rows, err := a.st.VendorRangesOf(ctx, cves)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		s, sp, _, ok := feeds.RangeScheme(r)
+		if !ok {
+			continue
+		}
+		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+		if !ok {
+			continue
+		}
+		i := at[r.CVE]
+		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin})
+	}
+	return nil
 }
 
 // recordOrigin is the origin of a CVE's ranges as the catalogue's precedence gave them: nvd when any is NVD's, else cna when the CNA

@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Basis says how a finding was established.
@@ -164,6 +165,10 @@ type Vuln struct {
 	Affected    []Affected
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV; names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record
+	// Schemed are the ranges a vendor states in its own notation (an ESXi build per release train), read in the version scheme of
+	// the product they name: FixOf names the vendor's fixed release of the device's train from them. The generic comparison never
+	// reads them.
+	Schemed []SchemedRange
 	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
 	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
 	Origin string
@@ -187,6 +192,14 @@ const (
 	RangesCVEOrg        = "cve.org"
 	RangesCVEOrgPartial = "cve.org-partial"
 )
+
+// SchemedRange is one range a vendor states in its notation, read in its product's version scheme.
+type SchemedRange struct {
+	Product string                // the core/productid key of the product it names
+	Scheme  *versionscheme.Scheme // the product's version scheme
+	Span    versionscheme.Span
+	Origin  string // RangeNVD, RangeCNA, RangeADP
+}
 
 // listed says the entry is on an exploited list (the catalogue's other CVEs have no list vendor and product).
 func (v Vuln) listed() bool { return v.Vendor != "" || v.Product != "" }

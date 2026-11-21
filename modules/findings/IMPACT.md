@@ -224,3 +224,11 @@
 - **GUI** (`PlanItem.distro_data`, `PlanItem.done`, `counts.done`, `ToFixAction.distro_data` trong `web/src/features/findings/contract.ts`, `api/openapi.json`, `core/api/oas`): `fix.ts` (câu "No fix from … yet", "Check …'s security updates"), `Plan.tsx`, `PlanDone.tsx`, `DoneList.tsx` (mục đã xong, đọc khi mở), `PlanPage.tsx`, `ToFix.tsx`, `DevicePanel.tsx`; nút "Mark as done…" gọi `POST /findings/plan/done|undone` (operator); mục đã xong ở `GET /findings/plan?done=true`; thêm giá trị `distro_data` hay đổi `PlanItem.group` (khoá của dấu) ⇒ sửa schema, mocks và các nơi trên.
 - **core/server** `modules_test.go` `contractRoutes` nêu hai route POST mới; **audit** `findings.plan_done`, `findings.plan_undone`; xoá thiết bị xoá `fnd_plan_done` của nó.
 - `DeviceUpdates`/`ToFixAction` (thẻ To fix, tab Software, dấu rủi ro của thiết bị) đọc mục qua `notDone`: đổi cách lọc đổi cả ba.
+
+## Match pass over the catalogue and the fix resolver
+- `Feeds.MatchSet` (cmd/vedette `findingsFeeds.MatchSet`) reads feeds' `RangeProducts`, `Ranges`, `RangesOf`, `Catalogue`, `DistroFixesFor`,
+  `Range.MatchRow`; a change of their shape changes what the pass compares.
+- feeds `Deps.Pins` = `findings.PinnedCVEs`: dropping it lets the catalogue age out a finding's CVE (selfcheck `findings.cve_in_catalogue`).
+- Readers that still compute a fix of their own (finding page `FixedInFor`, list row `RowFixes`, To fix, the plan, the report's
+  `FixedInForAll`) move to the stored fix with the view of the finding; until then the list row may name a later release than the stored fix.
+- Readers that treat every open finding as exploited (To fix's exploited section, Home) now also see catalogue CVEs on no list.

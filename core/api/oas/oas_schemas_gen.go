@@ -83136,6 +83136,11 @@ func (s *FindingsGetFindingsIDOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsGetFindingsIDOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsGetFindingsIDOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -83156,6 +83161,11 @@ type FindingsGetFindingsIDOKAiConfig struct {
 	Steps     []string                              `json:"steps"`
 	Tokens    FindingsGetFindingsIDOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                             `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsGetFindingsIDOKAiConfig) GetAnswers() []FindingsGetFindingsIDOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -83213,6 +83223,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsGetFindingsIDOKAiConfig) SetAnswers(val []FindingsGetFindingsIDOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsGetFindingsIDOKAiConfig) SetCitations(val []FindingsGetFindingsIDOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -83266,6 +83281,132 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetTokens(val FindingsGetFindingsIDOKA
 // SetTs sets the value of Ts.
 func (s *FindingsGetFindingsIDOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsGetFindingsIDOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsGetFindingsIDOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) GetKey() FindingsGetFindingsIDOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) GetLinks() []FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) SetKey(val FindingsGetFindingsIDOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) SetLinks(val []FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsGetFindingsIDOKAiConfigAnswersItemKey string
+
+const (
+	FindingsGetFindingsIDOKAiConfigAnswersItemKeyAffected   FindingsGetFindingsIDOKAiConfigAnswersItemKey = "affected"
+	FindingsGetFindingsIDOKAiConfigAnswersItemKeyFix        FindingsGetFindingsIDOKAiConfigAnswersItemKey = "fix"
+	FindingsGetFindingsIDOKAiConfigAnswersItemKeyWorkaround FindingsGetFindingsIDOKAiConfigAnswersItemKey = "workaround"
+	FindingsGetFindingsIDOKAiConfigAnswersItemKeyUrgency    FindingsGetFindingsIDOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKAiConfigAnswersItemKey values.
+func (FindingsGetFindingsIDOKAiConfigAnswersItemKey) AllValues() []FindingsGetFindingsIDOKAiConfigAnswersItemKey {
+	return []FindingsGetFindingsIDOKAiConfigAnswersItemKey{
+		FindingsGetFindingsIDOKAiConfigAnswersItemKeyAffected,
+		FindingsGetFindingsIDOKAiConfigAnswersItemKeyFix,
+		FindingsGetFindingsIDOKAiConfigAnswersItemKeyWorkaround,
+		FindingsGetFindingsIDOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKAiConfigAnswersItemKey(data) {
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsGetFindingsIDOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyFix:
+		*s = FindingsGetFindingsIDOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsGetFindingsIDOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsGetFindingsIDOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsGetFindingsIDOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsIDOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsGetFindingsIDOKAiConfigCitationsItem struct {
@@ -83422,6 +83563,11 @@ func (s *FindingsGetFindingsIDOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsGetFindingsIDOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsGetFindingsIDOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -83442,6 +83588,11 @@ type FindingsGetFindingsIDOKAiExplain struct {
 	Steps     []string                               `json:"steps"`
 	Tokens    FindingsGetFindingsIDOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                              `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsGetFindingsIDOKAiExplain) GetAnswers() []FindingsGetFindingsIDOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -83499,6 +83650,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsGetFindingsIDOKAiExplain) SetAnswers(val []FindingsGetFindingsIDOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsGetFindingsIDOKAiExplain) SetCitations(val []FindingsGetFindingsIDOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -83552,6 +83708,132 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetTokens(val FindingsGetFindingsIDOK
 // SetTs sets the value of Ts.
 func (s *FindingsGetFindingsIDOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsGetFindingsIDOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsGetFindingsIDOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) GetKey() FindingsGetFindingsIDOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) GetLinks() []FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) SetKey(val FindingsGetFindingsIDOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) SetLinks(val []FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsGetFindingsIDOKAiExplainAnswersItemKey string
+
+const (
+	FindingsGetFindingsIDOKAiExplainAnswersItemKeyAffected   FindingsGetFindingsIDOKAiExplainAnswersItemKey = "affected"
+	FindingsGetFindingsIDOKAiExplainAnswersItemKeyFix        FindingsGetFindingsIDOKAiExplainAnswersItemKey = "fix"
+	FindingsGetFindingsIDOKAiExplainAnswersItemKeyWorkaround FindingsGetFindingsIDOKAiExplainAnswersItemKey = "workaround"
+	FindingsGetFindingsIDOKAiExplainAnswersItemKeyUrgency    FindingsGetFindingsIDOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKAiExplainAnswersItemKey values.
+func (FindingsGetFindingsIDOKAiExplainAnswersItemKey) AllValues() []FindingsGetFindingsIDOKAiExplainAnswersItemKey {
+	return []FindingsGetFindingsIDOKAiExplainAnswersItemKey{
+		FindingsGetFindingsIDOKAiExplainAnswersItemKeyAffected,
+		FindingsGetFindingsIDOKAiExplainAnswersItemKeyFix,
+		FindingsGetFindingsIDOKAiExplainAnswersItemKeyWorkaround,
+		FindingsGetFindingsIDOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKAiExplainAnswersItemKey(data) {
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsGetFindingsIDOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyFix:
+		*s = FindingsGetFindingsIDOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsGetFindingsIDOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsGetFindingsIDOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsGetFindingsIDOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsIDOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsGetFindingsIDOKAiExplainCitationsItem struct {
@@ -104076,6 +104358,11 @@ func (s *FindingsPostFindingsIDAiOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAiOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDAiOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -104096,6 +104383,11 @@ type FindingsPostFindingsIDAiOKAiConfig struct {
 	Steps     []string                                 `json:"steps"`
 	Tokens    FindingsPostFindingsIDAiOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                                `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetAnswers() []FindingsPostFindingsIDAiOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -104153,6 +104445,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetAnswers(val []FindingsPostFindingsIDAiOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetCitations(val []FindingsPostFindingsIDAiOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -104206,6 +104503,132 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetTokens(val FindingsPostFindingsI
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDAiOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDAiOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) GetKey() FindingsPostFindingsIDAiOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) GetLinks() []FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) SetKey(val FindingsPostFindingsIDAiOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) SetLinks(val []FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDAiOKAiConfigAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyAffected   FindingsPostFindingsIDAiOKAiConfigAnswersItemKey = "affected"
+	FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyFix        FindingsPostFindingsIDAiOKAiConfigAnswersItemKey = "fix"
+	FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyWorkaround FindingsPostFindingsIDAiOKAiConfigAnswersItemKey = "workaround"
+	FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyUrgency    FindingsPostFindingsIDAiOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKAiConfigAnswersItemKey values.
+func (FindingsPostFindingsIDAiOKAiConfigAnswersItemKey) AllValues() []FindingsPostFindingsIDAiOKAiConfigAnswersItemKey {
+	return []FindingsPostFindingsIDAiOKAiConfigAnswersItemKey{
+		FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyAffected,
+		FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyFix,
+		FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKAiConfigAnswersItemKey(data) {
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDAiOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDAiOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDAiOKAiConfigCitationsItem struct {
@@ -104362,6 +104785,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAiOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDAiOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -104382,6 +104810,11 @@ type FindingsPostFindingsIDAiOKAiExplain struct {
 	Steps     []string                                  `json:"steps"`
 	Tokens    FindingsPostFindingsIDAiOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                                 `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetAnswers() []FindingsPostFindingsIDAiOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -104439,6 +104872,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetAnswers(val []FindingsPostFindingsIDAiOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetCitations(val []FindingsPostFindingsIDAiOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -104492,6 +104930,132 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetTokens(val FindingsPostFindings
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDAiOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDAiOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) GetKey() FindingsPostFindingsIDAiOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) GetLinks() []FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) SetKey(val FindingsPostFindingsIDAiOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) SetLinks(val []FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDAiOKAiExplainAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyAffected   FindingsPostFindingsIDAiOKAiExplainAnswersItemKey = "affected"
+	FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyFix        FindingsPostFindingsIDAiOKAiExplainAnswersItemKey = "fix"
+	FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyWorkaround FindingsPostFindingsIDAiOKAiExplainAnswersItemKey = "workaround"
+	FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyUrgency    FindingsPostFindingsIDAiOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKAiExplainAnswersItemKey values.
+func (FindingsPostFindingsIDAiOKAiExplainAnswersItemKey) AllValues() []FindingsPostFindingsIDAiOKAiExplainAnswersItemKey {
+	return []FindingsPostFindingsIDAiOKAiExplainAnswersItemKey{
+		FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyAffected,
+		FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyFix,
+		FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKAiExplainAnswersItemKey(data) {
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDAiOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDAiOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDAiOKAiExplainCitationsItem struct {
@@ -108269,6 +108833,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDAppliedOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -108289,6 +108858,11 @@ type FindingsPostFindingsIDAppliedOKAiConfig struct {
 	Steps     []string                                      `json:"steps"`
 	Tokens    FindingsPostFindingsIDAppliedOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                                     `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetAnswers() []FindingsPostFindingsIDAppliedOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -108346,6 +108920,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetAnswers(val []FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetCitations(val []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -108399,6 +108978,132 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetTokens(val FindingsPostFind
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) GetKey() FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) GetLinks() []FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) SetKey(val FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) SetLinks(val []FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyAffected   FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey = "affected"
+	FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyFix        FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey = "fix"
+	FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyWorkaround FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey = "workaround"
+	FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyUrgency    FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey values.
+func (FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey) AllValues() []FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey {
+	return []FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey{
+		FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyAffected,
+		FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyFix,
+		FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKey(data) {
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfigCitationsItem struct {
@@ -108555,6 +109260,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDAppliedOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -108575,6 +109285,11 @@ type FindingsPostFindingsIDAppliedOKAiExplain struct {
 	Steps     []string                                       `json:"steps"`
 	Tokens    FindingsPostFindingsIDAppliedOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                                      `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetAnswers() []FindingsPostFindingsIDAppliedOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -108632,6 +109347,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetAnswers(val []FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetCitations(val []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -108685,6 +109405,132 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetTokens(val FindingsPostFin
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) GetKey() FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) GetLinks() []FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) SetKey(val FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) SetLinks(val []FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyAffected   FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey = "affected"
+	FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyFix        FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey = "fix"
+	FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyWorkaround FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey = "workaround"
+	FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyUrgency    FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey values.
+func (FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey) AllValues() []FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey {
+	return []FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey{
+		FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyAffected,
+		FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyFix,
+		FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKey(data) {
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplainCitationsItem struct {
@@ -112483,6 +113329,11 @@ func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDConfirmOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDConfirmOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -112503,6 +113354,11 @@ type FindingsPostFindingsIDConfirmOKAiConfig struct {
 	Steps     []string                                      `json:"steps"`
 	Tokens    FindingsPostFindingsIDConfirmOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                                     `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetAnswers() []FindingsPostFindingsIDConfirmOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -112560,6 +113416,11 @@ func (s *FindingsPostFindingsIDConfirmOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetAnswers(val []FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -112613,6 +113474,132 @@ func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTokens(val FindingsPostFind
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDConfirmOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) GetKey() FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) GetLinks() []FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) SetKey(val FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) SetLinks(val []FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyAffected   FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey = "affected"
+	FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyFix        FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey = "fix"
+	FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyWorkaround FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey = "workaround"
+	FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyUrgency    FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey values.
+func (FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey) AllValues() []FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey {
+	return []FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey{
+		FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyAffected,
+		FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyFix,
+		FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKey(data) {
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDConfirmOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDConfirmOKAiConfigCitationsItem struct {
@@ -112769,6 +113756,11 @@ func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDConfirmOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDConfirmOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -112789,6 +113781,11 @@ type FindingsPostFindingsIDConfirmOKAiExplain struct {
 	Steps     []string                                       `json:"steps"`
 	Tokens    FindingsPostFindingsIDConfirmOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                                      `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetAnswers() []FindingsPostFindingsIDConfirmOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -112846,6 +113843,11 @@ func (s *FindingsPostFindingsIDConfirmOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetAnswers(val []FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -112899,6 +113901,132 @@ func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTokens(val FindingsPostFin
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDConfirmOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) GetKey() FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) GetLinks() []FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) SetKey(val FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) SetLinks(val []FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyAffected   FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey = "affected"
+	FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyFix        FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey = "fix"
+	FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyWorkaround FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey = "workaround"
+	FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyUrgency    FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey values.
+func (FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey) AllValues() []FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey {
+	return []FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey{
+		FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyAffected,
+		FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyFix,
+		FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKey(data) {
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDConfirmOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDConfirmOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDConfirmOKAiExplainCitationsItem struct {
@@ -119186,6 +120314,11 @@ func (s *FindingsPostFindingsIDStatusOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDStatusOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDStatusOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -119206,6 +120339,11 @@ type FindingsPostFindingsIDStatusOKAiConfig struct {
 	Steps     []string                                     `json:"steps"`
 	Tokens    FindingsPostFindingsIDStatusOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                                    `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetAnswers() []FindingsPostFindingsIDStatusOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -119263,6 +120401,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetAnswers(val []FindingsPostFindingsIDStatusOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetCitations(val []FindingsPostFindingsIDStatusOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -119316,6 +120459,132 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetTokens(val FindingsPostFindi
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDStatusOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) GetKey() FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) GetLinks() []FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) SetKey(val FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) SetLinks(val []FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyAffected   FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey = "affected"
+	FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyFix        FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey = "fix"
+	FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyWorkaround FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey = "workaround"
+	FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyUrgency    FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey values.
+func (FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey) AllValues() []FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey {
+	return []FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey{
+		FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyAffected,
+		FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyFix,
+		FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKAiConfigAnswersItemKey(data) {
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDStatusOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDStatusOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDStatusOKAiConfigCitationsItem struct {
@@ -119472,6 +120741,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDStatusOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDStatusOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -119492,6 +120766,11 @@ type FindingsPostFindingsIDStatusOKAiExplain struct {
 	Steps     []string                                      `json:"steps"`
 	Tokens    FindingsPostFindingsIDStatusOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                                     `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetAnswers() []FindingsPostFindingsIDStatusOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -119549,6 +120828,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetAnswers(val []FindingsPostFindingsIDStatusOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetCitations(val []FindingsPostFindingsIDStatusOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -119602,6 +120886,132 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetTokens(val FindingsPostFind
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDStatusOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) GetKey() FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) GetLinks() []FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) SetKey(val FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) SetLinks(val []FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyAffected   FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey = "affected"
+	FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyFix        FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey = "fix"
+	FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyWorkaround FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey = "workaround"
+	FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyUrgency    FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey values.
+func (FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey) AllValues() []FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey {
+	return []FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey{
+		FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyAffected,
+		FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyFix,
+		FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKAiExplainAnswersItemKey(data) {
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDStatusOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDStatusOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDStatusOKAiExplainCitationsItem struct {
@@ -123431,6 +124841,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiConfig struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -123451,6 +124866,11 @@ type FindingsPostFindingsIDUnconfirmOKAiConfig struct {
 	Steps     []string                                        `json:"steps"`
 	Tokens    FindingsPostFindingsIDUnconfirmOKAiConfigTokens `json:"tokens"`
 	Ts        time.Time                                       `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetAnswers() []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -123508,6 +124928,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetAnswers(val []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem) {
 	s.Citations = val
@@ -123561,6 +124986,132 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTokens(val FindingsPostFi
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDUnconfirmOKAiConfig) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) GetKey() FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) GetLinks() []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) SetKey(val FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) SetLinks(val []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyAffected   FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey = "affected"
+	FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyFix        FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey = "fix"
+	FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyWorkaround FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey = "workaround"
+	FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyUrgency    FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey values.
+func (FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey) AllValues() []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey {
+	return []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey{
+		FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyAffected,
+		FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyFix,
+		FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKey(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem struct {
@@ -123717,6 +125268,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetOutput(val float64)
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiExplain struct {
+	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
+	// brief and the finding, every claim that has a reference with its link; the page gives each its
+	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
+	// stored before.
+	Answers   []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
 	// rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based
@@ -123737,6 +125293,11 @@ type FindingsPostFindingsIDUnconfirmOKAiExplain struct {
 	Steps     []string                                         `json:"steps"`
 	Tokens    FindingsPostFindingsIDUnconfirmOKAiExplainTokens `json:"tokens"`
 	Ts        time.Time                                        `json:"ts"`
+}
+
+// GetAnswers returns the value of Answers.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetAnswers() []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCitations returns the value of Citations.
@@ -123794,6 +125355,11 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetAnswers sets the value of Answers.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetAnswers(val []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) {
+	s.Answers = val
+}
+
 // SetCitations sets the value of Citations.
 func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetCitations(val []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem) {
 	s.Citations = val
@@ -123847,6 +125413,132 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTokens(val FindingsPostF
 // SetTs sets the value of Ts.
 func (s *FindingsPostFindingsIDUnconfirmOKAiExplain) SetTs(val time.Time) {
 	s.Ts = val
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+	Key FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey `json:"key"`
+	// The references the answer rests on, from the brief; http(s) only.
+	Links []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem `json:"links"`
+	// A few short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) GetKey() FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) GetLinks() []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) SetKey(val FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) SetLinks(val []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: version, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (the status reasons, attack vector, privileges).
+type FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey string
+
+const (
+	FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyAffected   FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey = "affected"
+	FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyFix        FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey = "fix"
+	FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyWorkaround FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey = "workaround"
+	FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyUrgency    FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey values.
+func (FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey) AllValues() []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey {
+	return []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey{
+		FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyAffected,
+		FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyFix,
+		FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyWorkaround,
+		FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKey(data) {
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyAffected:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyAffected
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyFix:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyFix
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyWorkaround:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyWorkaround
+		return nil
+	case FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyUrgency:
+		*s = FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem struct {

@@ -25,6 +25,8 @@ export type CompromiseCheck = z.infer<typeof C.CompromiseCheck>
 /** M2-1: the general compromise checks, not a recommendation for the CVE (mitigation INV-8; no firewall config). */
 export type GeneralHardening = z.infer<typeof C.GeneralHardening>
 export type AiResult = z.infer<typeof C.AiResult>
+export type AiAnswer = z.infer<typeof C.AiAnswer>
+export type AiAnswerKey = z.infer<typeof C.AiAnswerKey>
 export type AppliedEntry = z.infer<typeof C.AppliedEntry>
 export type FindingDetail = z.infer<typeof C.FindingDetail>
 export type KnownVersion = z.infer<typeof C.KnownVersion>

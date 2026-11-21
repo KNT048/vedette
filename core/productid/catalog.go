@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Trains says how a product's release trains install side by side on one machine: one software line per train. "" (none) is
@@ -78,10 +79,11 @@ type Product struct {
 	// Vendor and Product are the product's inventory and exploited-list name; Key is their key.
 	Vendor, Product, Key string
 	// Also are other "vendor|product" names of the same product (an older name an inventory or a list still uses).
-	Also   []string
-	CPEs   []CPEName
-	KEV    []string // the exploited-list keys of the product, Key first
-	Scheme string   // version scheme ("java"; "" for dotted numbers)
+	Also []string
+	CPEs []CPEName
+	KEV  []string // the exploited-list keys of the product, Key first
+	// Scheme is the product's version scheme, a core/versionscheme name ("vmware-esxi", "java"); "" for dotted numbers.
+	Scheme string
 	Trains Trains
 	Class  Class
 
@@ -119,6 +121,7 @@ type fileEntry struct {
 	WindowsPrefix []string      `json:"windows_prefix"`
 	Nmap          []string      `json:"nmap"`
 	Patterns      []filePattern `json:"patterns"`
+	Record        []string      `json:"record"`
 }
 
 type filePattern struct {
@@ -178,6 +181,7 @@ type catalogue struct {
 	byCPE       map[string]*entry // "part:vendor:product" of its NVD names and of the CPEs nmap prints for it
 	nmap        map[string]*entry // "part:vendor:product" nmap prints
 	byKey       map[string]*entry // Key of every product, the curated ones too
+	byRecord    map[string]*entry // the names a CVE record gives a product of the files (ByRangeName)
 	curated     []*entry          // the curated products the catalogue files do not list
 }
 
@@ -200,7 +204,7 @@ var (
 
 func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
 	c := &catalogue{linux: map[string]linuxName{}, windows: map[string]*entry{}, byIdentity: map[string]*entry{}, byCPE: map[string]*entry{},
-		nmap: map[string]*entry{}, byKey: map[string]*entry{}}
+		nmap: map[string]*entry{}, byKey: map[string]*entry{}, byRecord: map[string]*entry{}}
 	names, err := fs.Glob(fsys, "products/*.json")
 	if err != nil || len(names) == 0 {
 		return nil, fmt.Errorf("%w: no products/*.json", errData)
@@ -244,6 +248,9 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 	}
 	if !fe.Class.Valid() || (fe.Trains != TrainsNone && fe.Trains != TrainsMajor && fe.Trains != TrainsMajorMinor) {
 		return nil, errors.New("unknown class or trains")
+	}
+	if _, ok := versionscheme.Lookup(fe.Scheme); fe.Scheme != "" && !ok {
+		return nil, fmt.Errorf("scheme %q is not a core/versionscheme scheme", fe.Scheme)
 	}
 	p := Product{ID: fe.ID, Display: fe.Display, Vendor: fe.Vendor, Product: fe.Product, Key: Key(fe.Vendor, fe.Product), Also: fe.Also,
 		Scheme: fe.Scheme, Trains: fe.Trains, Class: fe.Class}
@@ -334,8 +341,57 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 			}
 		}
 	}
+	// the names a CVE record's affected entry gives the product, keyed as feeds keys a record range (recordKey): its own name, its
+	// other names, its exploited-list names and the record names of the entry
+	record := func(vendor, product string) error {
+		k := recordKey(vendor, product)
+		if k == "|" || strings.HasPrefix(k, "|") || strings.HasSuffix(k, "|") {
+			return fmt.Errorf("record name %q|%q has no vendor or product", vendor, product)
+		}
+		if _, taken := c.byRecord[k]; !taken {
+			c.byRecord[k] = e
+		}
+		return nil
+	}
+	if err := record(fe.Vendor, fe.Product); err != nil {
+		return nil, err
+	}
+	for _, n := range slices.Concat(fe.Also, fe.KEV, fe.Record) {
+		v, pr, ok := strings.Cut(n, "|")
+		if !ok {
+			return nil, fmt.Errorf("name %q is not vendor|product", n)
+		}
+		if err := record(v, pr); err != nil {
+			return nil, err
+		}
+	}
 	c.entries = append(c.entries, e)
 	return e, nil
+}
+
+// recordKey is a CVE record's vendor and product as feeds keys a record range (feeds.RecordProductKey: NormVendor, NormProduct).
+func recordKey(vendor, product string) string {
+	return NormVendor(vendor) + "|" + NormProduct(product, vendor)
+}
+
+// ByRangeName is the product of the catalogue files that a vulnerability range names, to read its versions with the product's
+// scheme: part, vendor and product of an NVD CPE (part "a", "o" or "h"), or, for a CVE record's range without a CPE (part ""), the
+// record key feeds stores (feeds.RecordProductKey of the entry's vendor and product: "vmware", "esxi"). A record names a product by
+// its own name, one of its other or exploited-list names, or a name its "record" list gives ("NetScaler", "ADC"). ok is false for a
+// product the files do not list (a curated product has no scheme).
+func ByRangeName(part, vendor, product string) (Product, bool) {
+	if part != "" {
+		e, ok := cat.byCPE[strings.ToLower(part+":"+vendor+":"+product)]
+		if !ok || strings.HasPrefix(e.p.ID, "curated-") {
+			return Product{}, false
+		}
+		return e.p, true
+	}
+	e, ok := cat.byRecord[recordKey(vendor, product)]
+	if !ok {
+		return Product{}, false
+	}
+	return e.p, true
 }
 
 // Products is every product of the catalogue, in file and file order.

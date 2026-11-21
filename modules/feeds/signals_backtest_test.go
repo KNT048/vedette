@@ -294,7 +294,7 @@ func TestTextClaims_CountsOfTheFrozenFixtures(t *testing.T) {
 		}
 		var read vendorRead
 		forms := map[string][]claimForm{rapid7FeedID: rapid7Forms, gtiFeedID: gtiForms, chromeFeedID: chromeForms}[src.id]
-		if err := postClaims(t.Context(), posts, forms, &read); err != nil {
+		if err := postClaims(t.Context(), posts, forms, unlinkedSource(src.id), &read); err != nil {
 			t.Fatal(err)
 		}
 		if read.Rejected != 0 {

@@ -21,7 +21,7 @@ func FuzzParsePostFeed(f *testing.F) {
 			t.Fatalf("%d posts", len(posts))
 		}
 		var read vendorRead
-		if err := postClaims(t.Context(), posts, proseForms, &read); err != nil {
+		if err := postClaims(t.Context(), posts, proseForms, false, &read); err != nil {
 			t.Fatal(err)
 		}
 		for _, d := range read.Docs {

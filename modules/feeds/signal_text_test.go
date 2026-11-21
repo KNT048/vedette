@@ -34,11 +34,11 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		count int // sentences in no known form
 	}{
 		// the sources' own claiming sentences
-		{"Rapid7 relays a confirmation", rapid7Forms, "Also, Mandiant/Google Threat Intelligence confirmed in-the-wild exploitation of <a href=\"https://www.cve.org/CVERecord?id=" + a + "\">" + a + "</a> by Chinese state-linked threat actor ARMORY CASTLE as early as September 2026.", []string{a}, 0},
-		{"Rapid7 detected", rapid7Forms, "On November 13, 2026, Rapid7 MDR detected exploitation of " + a + " against Atlassian Confluence Data Center in a customer environment.", []string{a}, 0},
-		{"Rapid7 now exploited", rapid7Forms, a + " is now being actively exploited in the wild against both known affected products.", []string{a}, 0},
-		{"Rapid7 title list", rapid7Forms, "Additional Ivanti Connect Secure zero-days exploited in the wild (" + a + ", " + b + ")", []string{a, b}, 0},
-		{"Rapid7 Patch Tuesday", rapid7Forms, "Now we’re talking about " + a + ", an exploited-in-the-wild spoofing vulnerability.", []string{a}, 0},
+		{"Rapid7 relays a confirmation", rapid7Forms, "Also, Mandiant/Google Threat Intelligence confirmed in-the-wild exploitation of <a href=\"https://www.cve.org/CVERecord?id=" + a + "\">" + a + "</a> by a state-linked threat actor as early as September 2026.", []string{a}, 0},
+		{"Rapid7 detected", rapid7Forms, "On November 13, 2026, Rapid7 MDR detected exploitation of " + a + " against a wiki server at a customer.", []string{a}, 0},
+		{"Rapid7 now exploited", rapid7Forms, a + " is now being actively exploited in the wild against both affected products.", []string{a}, 0},
+		{"Rapid7 title list", rapid7Forms, "More VPN zero-days exploited in the wild (" + a + ", " + b + ")", []string{a, b}, 0},
+		{"Rapid7 Patch Tuesday", rapid7Forms, "Next up is " + a + ", an exploited-in-the-wild spoofing vulnerability.", []string{a}, 0},
 		{"GTI attributes", gtiForms, "GTIG attributes the zero-day exploitation of " + a + " and the subsequent deployment of SAWFLY to the suspected PRC-nexus espionage actor ARMORY CASTLE (formerly tracked as UNC5221).", []string{a}, 0},
 		{"GTI identified a zero-day", gtiForms, "In late September 2026, Mandiant Consulting and Google Threat Intelligence Group (GTIG) identified active, in-the-wild exploitation of a zero-day vulnerability (" + a + ") affecting Citrix NetScaler ADC.", []string{a}, 0},
 		{"GTI actor exploited", gtiForms, "Mandiant published a post in which the suspected PRC-nexus threat actor ARMORY CASTLE (formerly tracked as UNC5221) exploited " + a + ", a zero-day vulnerability in BeyondTrust Remote Support.", []string{a}, 0},
@@ -87,7 +87,7 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"no evidence", rapid7Forms, "There is no evidence that " + a + " has been exploited in the wild.", nil, 1},
 		{"if", rapid7Forms, "If " + a + " is exploited in the wild, attackers gain root.", nil, 1},
 		{"a lab", rapid7Forms, a + " has been exploited in our lab.", nil, 1},
-		{"we believe", rapid7Forms, "We believe this is " + a + ", which was reported as being exploited in-the-wild last month as a zero-day.", nil, 1},
+		{"we believe", rapid7Forms, "We think this is " + a + ", which was reported last month as being exploited in-the-wild as a zero-day.", nil, 1},
 		{"should monitor", gtiForms, "Organizations should monitor for observed exploitation of " + a + ".", nil, 1},
 		{"Chrome denied", chromeForms, "Google is not aware that an exploit for " + a + " exists in the wild.", nil, 1},
 		{"Android none", androidForms, "There are no indications that " + a + " may be under limited, targeted exploitation.", nil, 1},
@@ -131,7 +131,7 @@ func TestProseForms_ClaimsOnlyWhatASentenceStatesAsAFact(t *testing.T) {
 		{"could have exploited", gtiForms, "The threat actor could have exploited " + a + ".", nil, 1},
 		{"not actively exploiting", gtiForms, "Threat actors are not actively exploiting " + a + ".", nil, 1},
 		{"a question", rapid7Forms, "Has " + a + " been exploited in the wild?", nil, 1},
-		{"CISA added", rapid7Forms, "CISA added " + a + " to its Known Exploited Vulnerabilities (KEV) catalog, based on evidence of active exploitation.", nil, 1},
+		{"CISA added", rapid7Forms, "CISA added " + a + " to its Known Exploited Vulnerabilities (KEV) catalog, citing evidence of active exploitation.", nil, 1},
 
 		// passed over: no CVE id, or not about exploitation as a fact
 		{"no CVE", rapid7Forms, "This vulnerability is being actively exploited in the wild.", nil, 0},
@@ -267,7 +267,7 @@ func TestRapid7_PullsClaimsKeepsTheFirstSightingAndRetracts(t *testing.T) {
 	e.mirror(rapid7FeedID, o.url("/rss.xml"))
 	const p1, p2 = "https://www.rapid7.com/blog/post/etr-one", "https://www.rapid7.com/blog/post/etr-two"
 	o.body("/rss.xml", `"a"`, rapid7Feed(
-		[4]string{"CVE-2026-123890: Critical Authentication Bypass in VMware vCenter", p1, "Thu, 19 Nov 2026 21:06:24 GMT",
+		[4]string{"CVE-2026-123890: authentication bypass in a virtualization manager", p1, "Thu, 19 Nov 2026 21:06:24 GMT",
 			`<p>A malicious actor may exploit <a href="x">CVE-2026-123890</a> without credentials.</p><p>Also, Mandiant/Google Threat Intelligence confirmed in-the-wild exploitation of <a href="https://www.cve.org/CVERecord?id=CVE-2026-123890">CVE-2026-123890</a> by a state-linked threat actor as early as September 2026.</p>`},
 		[4]string{"Patch notes", p2, "Tue, 10 Nov 2026 21:55:37 GMT", `<p>Exploitation of CVE-2026-2002 could allow code execution.</p>`},
 		[4]string{"no date", "https://www.rapid7.com/blog/post/x", "", `<p>x</p>`},
@@ -276,10 +276,14 @@ func TestRapid7_PullsClaimsKeepsTheFirstSightingAndRetracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := e.feed(rapid7FeedID)
-	if st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 sentence about exploitation in no form Vedette knows (first in "+p2+")") {
+	// Rapid7's claims are kept without a link to the post: the row says only the CVE, the source and the date (the detail tells the
+	// post apart by a digest, so a post that takes a claim back still removes it); the note names the post by its date
+	if st.Status != "ok" || st.Records == nil || *st.Records != 1 || !strings.Contains(deref(st.Error), "1 sentence about exploitation in no form Vedette knows (first in the post of 10 November 2026)") ||
+		strings.Contains(deref(st.Error), "rapid7.com") {
 		t.Fatalf("%+v %q", st, deref(st.Error))
 	}
-	if got := vendorRows(t, e, rapid7FeedID); got["CVE-2026-123890"] != "2026-11-19T21:06 "+p1+"  1" || len(got) != 1 {
+	d1, d2 := unlinkedDoc(p1).Detail, unlinkedDoc(p2).Detail
+	if got := vendorRows(t, e, rapid7FeedID); got["CVE-2026-123890"] != "2026-11-19T21:06  "+d1+" 1" || len(got) != 1 {
 		t.Fatalf("%v", got)
 	}
 
@@ -298,7 +302,7 @@ func TestRapid7_PullsClaimsKeepsTheFirstSightingAndRetracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := vendorRows(t, e, rapid7FeedID)
-	if got["CVE-2026-123890"] != "2026-11-19T21:06 "+p2+"  1" || !strings.HasPrefix(got["CVE-2026-2003"], "2026-11-20T10:00 "+p2) || len(got) != 2 {
+	if got["CVE-2026-123890"] != "2026-11-19T21:06  "+d2+" 1" || got["CVE-2026-2003"] != "2026-11-20T10:00  "+d2+" 1" || len(got) != 2 {
 		t.Fatalf("the row moves to the post that claims it, with its first date: %v %+v %q", got, e.feed(rapid7FeedID), deref(e.feed(rapid7FeedID).Error))
 	}
 	// both take it back: the row goes
@@ -355,6 +359,38 @@ func TestTextFeeds_AFirstPullLoadsTheSeed(t *testing.T) {
 	}
 	if got := vendorRows(t, e, gtiFeedID); len(got) != 1 {
 		t.Fatalf("%v", got)
+	}
+}
+
+func TestRapid7_TheSeedsClaimsCarryNoLink(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.setNow(time.Date(2026, 11, 21, 6, 0, 0, 0, time.UTC))
+	e.only(rapid7FeedID)
+	e.mirror(rapid7FeedID, o.url("/rss.xml"))
+	e.svc.claimSeed = seedDocsOf(Seed{Claims: []SeedClaim{
+		{CVE: "CVE-2026-90436", Source: rapid7FeedID, Date: "2026-11-16T18:14:14Z"},
+		{CVE: "CVE-2026-123890", Source: rapid7FeedID, Date: "2026-11-19T21:06:24Z"},
+	}})
+	const p1 = "https://www.rapid7.com/blog/post/p1"
+	o.body("/rss.xml", `"a"`, rapid7Feed([4]string{"t", p1, "Fri, 20 Nov 2026 10:00:00 GMT", `<p>CVE-2026-123890 is now being actively exploited in the wild.</p>`}))
+	if err := e.svc.Fetch(t.Context(), rapid7FeedID); err != nil {
+		t.Fatal(err)
+	}
+	got := vendorRows(t, e, rapid7FeedID)
+	if len(got) != 2 || got["CVE-2026-90436"] != "2026-11-16T18:14   1" || got["CVE-2026-123890"] != "2026-11-19T21:06  "+unlinkedDoc(p1).Detail+" 1" {
+		t.Fatalf("%v", got)
+	}
+	if _, err := ParseSeed([]byte(`{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":""}]}`)); err != nil {
+		t.Errorf("a Rapid7 claim without a link: %v", err)
+	}
+	for _, bad := range []string{
+		`{"claims":[{"cve":"CVE-2026-1001","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"https://www.rapid7.com/blog/post/p1"}]}`,
+		`{"claims":[{"cve":"CVE-2026-1001","source":"gti-blog","date":"2026-11-19T21:06:24Z","url":""}]}`,
+	} {
+		if _, err := ParseSeed([]byte(bad)); err == nil {
+			t.Errorf("accepted %s", bad)
+		}
 	}
 }
 
@@ -542,7 +578,7 @@ func TestProseParsers_HostileShapesStayLinear(t *testing.T) { //nolint:parallelt
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	var read vendorRead
-	if err := postClaims(ctx, []post{{Link: "https://example.com/a", Date: "Thu, 19 Nov 2026 21:06:24 GMT", Body: "x"}}, proseForms, &read); err == nil {
+	if err := postClaims(ctx, []post{{Link: "https://example.com/a", Date: "Thu, 19 Nov 2026 21:06:24 GMT", Body: "x"}}, proseForms, false, &read); err == nil {
 		t.Error("a cancelled pull read its posts")
 	}
 }

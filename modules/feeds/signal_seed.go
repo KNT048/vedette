@@ -59,6 +59,10 @@ func (c SeedClaim) check() string {
 		return "a source that is not a claim feed"
 	case terr != nil:
 		return "a bad date"
+	case unlinkedSource(c.Source) && c.URL != "":
+		return "a link for a source whose claims are kept without one"
+	case unlinkedSource(c.Source):
+		return ""
 	case err != nil || u.Scheme != "https" || u.User != nil || len(c.URL) > 500:
 		return "a bad link"
 	case u.Host != seedHosts[c.Source]:
@@ -121,8 +125,11 @@ type SeedRead struct {
 // MergeSeed is the next seed: the previous one, without the claims a document read now no longer makes, plus the claims read now; of
 // one (CVE, source), the earliest date and its link.
 func MergeSeed(prev Seed, reads []SeedRead) Seed {
-	readNow := map[string]map[string]bool{} // link → the CVEs it claims now
+	readNow := map[string]map[string]bool{} // link → the CVEs it claims now (a claim kept without its link is never taken back here)
 	for _, r := range reads {
+		if r.URL == "" {
+			continue
+		}
 		if readNow[r.URL] == nil {
 			readNow[r.URL] = map[string]bool{}
 		}
@@ -174,7 +181,7 @@ func SeedFromFeed(ctx context.Context, source string, body []byte) ([]SeedRead, 
 		return nil, err
 	}
 	var read vendorRead
-	if err := postClaims(ctx, posts, forms, &read); err != nil {
+	if err := postClaims(ctx, posts, forms, unlinkedSource(source), &read); err != nil {
 		return nil, err
 	}
 	return seedReads(source, read.Docs), nil
@@ -256,9 +263,15 @@ func seedDocsOf(s Seed) map[string][]claimDoc {
 	for _, c := range s.Claims {
 		day, _ := time.Parse(time.RFC3339, c.Date) // checked by ParseSeed
 		k := [2]string{c.Source, c.URL}
+		if c.URL == "" { // a claim kept without its link: a document of its own
+			k[1] = "seed:" + c.CVE
+		}
 		i, ok := at[k]
 		if !ok {
 			d := claimDoc{URL: c.URL}
+			if c.URL == "" {
+				d.Key = k[1]
+			}
 			if c.Source == ciscoFeedID || c.Source == fortinetFeedID {
 				detail, _ := json.Marshal(map[string]string{"advisory": lastPart(c.URL)})
 				d.Detail = string(detail)
@@ -285,11 +298,11 @@ func (s *Service) seedDocs(source string, readNow []claimDoc) []claimDoc {
 	docs := seed[source]
 	read := map[string]bool{}
 	for _, d := range readNow {
-		read[d.URL] = true
+		read[d.key()] = true
 	}
 	var out []claimDoc
 	for _, d := range docs {
-		if !read[d.URL] {
+		if !read[d.key()] {
 			out = append(out, d)
 		}
 	}

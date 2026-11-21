@@ -55,7 +55,7 @@ func TestSignalSeed_PreviousSeedPlusTheFeedsReadNow(t *testing.T) {
 	prev := feeds.Seed{Claims: []feeds.SeedClaim{
 		{CVE: "CVE-2026-88772", Source: "gti-blog", Date: "2026-09-29T14:00:00Z", URL: "https://cloud.google.com/blog/topics/threat-intelligence/old/"},
 		{CVE: "CVE-2026-35273", Source: "gti-blog", Date: "2026-09-25T14:00:00Z", URL: "https://cloud.google.com/blog/topics/threat-intelligence/older/"},
-		{CVE: "CVE-2026-123890", Source: "rapid7-blog", Date: "2026-11-20T00:00:00Z", URL: "https://www.rapid7.com/blog/post/later"},
+		{CVE: "CVE-2026-123890", Source: "rapid7-blog", Date: "2026-11-20T00:00:00Z"}, // Rapid7's claims are kept without a link
 	}}
 	prevPath, outPath := filepath.Join(dir, "prev.json"), filepath.Join(dir, "seed.json")
 	if err := os.WriteFile(prevPath, prev.JSON(), 0o600); err != nil {
@@ -91,7 +91,7 @@ func TestSignalSeed_PreviousSeedPlusTheFeedsReadNow(t *testing.T) {
 		{CVE: "CVE-2026-125350", Source: "chrome-releases", Date: "2026-11-09T20:52:57Z", URL: "https://chromereleases.googleblog.com/2026/11/a.html"},
 		{CVE: "CVE-2026-20122", Source: "cisco-psirt", Date: "2026-03-05T16:00:00Z", URL: "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-x-1"},
 		{CVE: "CVE-2026-35273", Source: "gti-blog", Date: "2026-09-25T14:00:00Z", URL: "https://cloud.google.com/blog/topics/threat-intelligence/older/"},
-		{CVE: "CVE-2026-123890", Source: "rapid7-blog", Date: "2026-11-19T21:06:24Z", URL: "https://www.rapid7.com/blog/post/etr-cve-2026-123890"},
+		{CVE: "CVE-2026-123890", Source: "rapid7-blog", Date: "2026-11-19T21:06:24Z"},
 	}
 	if len(got.Claims) != len(want) {
 		t.Fatalf("%+v\n%s", got.Claims, out.String())

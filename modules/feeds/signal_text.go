@@ -50,9 +50,13 @@ const (
 const (
 	chromeNotice  = "Facts from Google's Chrome Releases blog (its Atom feed), Google Terms of Service. Each claim links its post."
 	androidNotice = "Facts from the Android Security Bulletins (source.android.com, content under CC BY 4.0). Each claim links its bulletin."
-	rapid7Notice  = "Facts from Rapid7's blog (its RSS feed), Rapid7 website terms of use. Each claim links its post; no text is kept."
+	rapid7Notice  = "Facts from Rapid7's blog (its RSS feed), Rapid7 website terms of use. Facts only (CVE id, date): no link to the post, no text."
 	gtiNotice     = "Facts from Google Threat Intelligence's blog (its RSS feed), Google Terms of Service. Each claim links its post; no text is kept."
 )
+
+// unlinkedSource reports a source whose claims are kept without a link to the post: Rapid7's website terms ask for written permission
+// to link to it and allow downloads for personal use only, so the box keeps the fact alone (CVE id, source, date).
+func unlinkedSource(id string) bool { return id == rapid7FeedID }
 
 // textClaimFeed reports a prose feed of exploitation claims.
 func textClaimFeed(id string) bool {
@@ -357,7 +361,7 @@ func proseClaims(ctx context.Context, forms []claimForm, title, text string) ([]
 
 // postClaims turns the posts of a feed into claim documents: a post with no https link or no readable date is rejected; one that
 // claims nothing is still a document read (so a claim it took back goes).
-func postClaims(ctx context.Context, posts []post, forms []claimForm, read *vendorRead) error {
+func postClaims(ctx context.Context, posts []post, forms []claimForm, unlinked bool, read *vendorRead) error {
 	tl := newTally()
 	for i, p := range posts {
 		if err := ctx.Err(); err != nil {
@@ -366,7 +370,11 @@ func postClaims(ctx context.Context, posts []post, forms []claimForm, read *vend
 		u, err := url.Parse(p.Link)
 		day, ok := postTime(p.Date)
 		if err != nil || u.Scheme != "https" || u.Host == "" || len(p.Link) > 500 || !ok {
-			tl.reject(i+1, "post: %s has no https link or no date", quoteVal(p.Link))
+			if unlinked { // the link is not repeated on the box
+				tl.reject(i+1, "post: no https link or no date")
+			} else {
+				tl.reject(i+1, "post: %s has no https link or no date", quoteVal(p.Link))
+			}
 			continue
 		}
 		cs, unclassified, err := proseClaims(ctx, forms, proseText(p.Title), proseText(p.Body))
@@ -377,10 +385,16 @@ func postClaims(ctx context.Context, posts []post, forms []claimForm, read *vend
 		if unclassified > 0 {
 			if read.Unclassified == 0 {
 				read.UnclassifiedIn = p.Link
+				if unlinked {
+					read.UnclassifiedIn = "the post of " + day.Format("2 January 2006")
+				}
 			}
 			read.Unclassified += unclassified
 		}
 		doc := claimDoc{URL: p.Link}
+		if unlinked {
+			doc = unlinkedDoc(p.Link)
+		}
 		for _, c := range cs {
 			doc.Claims = append(doc.Claims, vendorClaim{CVE: c, Date: day})
 		}
@@ -395,8 +409,8 @@ func claimedNow(docs []claimDoc) map[string][]string {
 	out := map[string][]string{}
 	for _, d := range docs {
 		for _, c := range d.Claims {
-			if !slices.Contains(out[c.CVE], d.URL) {
-				out[c.CVE] = append(out[c.CVE], d.URL)
+			if !slices.Contains(out[c.CVE], d.key()) {
+				out[c.CVE] = append(out[c.CVE], d.key())
 			}
 		}
 	}
@@ -435,7 +449,7 @@ func (s *Service) buildTextClaims(ctx context.Context, src sourceRow, p pullPlan
 		return p, nil
 	}
 	var read vendorRead
-	if err := postClaims(ctx, posts, forms, &read); err != nil {
+	if err := postClaims(ctx, posts, forms, unlinkedSource(src.ID), &read); err != nil {
 		return p, err
 	}
 	if err := accepted(read.Stats); err != nil {

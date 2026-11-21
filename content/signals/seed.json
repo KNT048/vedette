@@ -56,9 +56,9 @@
   {"cve":"CVE-2026-40217","source":"gti-blog","date":"2026-11-02T14:00:00Z","url":"https://cloud.google.com/blog/topics/threat-intelligence/llmjacking-monetizing-compromised-cloud-models/"},
   {"cve":"CVE-2026-88771","source":"gti-blog","date":"2026-09-29T14:00:00Z","url":"https://cloud.google.com/blog/topics/threat-intelligence/defending-against-active-exploitation-of-citrix-netscaler-adc-and-gateway-appliances/"},
   {"cve":"CVE-2026-88772","source":"gti-blog","date":"2026-09-29T14:00:00Z","url":"https://cloud.google.com/blog/topics/threat-intelligence/defending-against-active-exploitation-of-citrix-netscaler-adc-and-gateway-appliances/"},
-  {"cve":"CVE-2026-111357","source":"rapid7-blog","date":"2026-11-02T11:04:08Z","url":"https://www.rapid7.com/blog/post/etr-additional-ivanti-connect-secure-zero-days-exploited-in-the-wild-cve-2026-111357-cve-2026-118527"},
-  {"cve":"CVE-2026-118527","source":"rapid7-blog","date":"2026-11-02T11:04:08Z","url":"https://www.rapid7.com/blog/post/etr-additional-ivanti-connect-secure-zero-days-exploited-in-the-wild-cve-2026-111357-cve-2026-118527"},
-  {"cve":"CVE-2026-123890","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":"https://www.rapid7.com/blog/post/etr-cve-2026-123890-critical-authentication-bypass-vmware-vcenter"},
-  {"cve":"CVE-2026-124194","source":"rapid7-blog","date":"2026-11-10T21:55:37Z","url":"https://www.rapid7.com/blog/post/em-patch-tuesday-november-2026"},
-  {"cve":"CVE-2026-90436","source":"rapid7-blog","date":"2026-11-16T18:14:14Z","url":"https://www.rapid7.com/blog/post/etr-rapid7-detected-exploitation-of-cve-2026-90436-against-atlassian-confluence-data-center-n-able-n-central-also-exploited"}
+  {"cve":"CVE-2026-111357","source":"rapid7-blog","date":"2026-11-02T11:04:08Z","url":""},
+  {"cve":"CVE-2026-118527","source":"rapid7-blog","date":"2026-11-02T11:04:08Z","url":""},
+  {"cve":"CVE-2026-123890","source":"rapid7-blog","date":"2026-11-19T21:06:24Z","url":""},
+  {"cve":"CVE-2026-124194","source":"rapid7-blog","date":"2026-11-10T21:55:37Z","url":""},
+  {"cve":"CVE-2026-90436","source":"rapid7-blog","date":"2026-11-16T18:14:14Z","url":""}
 ]}

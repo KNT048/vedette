@@ -30,6 +30,22 @@ var invariants = []selfcheck.Invariant{
 			OR ifnull(via, 'person') NOT IN (` + quoted(Vias) + `)
 			OR fix_kind NOT IN (` + quoted([]FixKind{FixUpdate, FixDistroUpdate, FixOSUpdate, FixFeatureUpdate, FixNoneYet, FixUnknown}) + `)`,
 	},
+	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
+		Name:  "findings.cve_in_catalogue",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,
+	},
+	{ // every catalogue CVE published before the window has an exploited-list entry, a qualifying signal or a finding
+		Name: "findings.catalogue_retention",
+		Query: `SELECT count(*) FROM feeds_cve c WHERE c.published < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-366 days')
+			AND NOT EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = c.cve)
+			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
+			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
+	},
+	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for
+		Name: "findings.range_precedence",
+		Query: `SELECT count(*) FROM fnd_finding f WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
+			AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`,
+	},
 	{
 		Name:  "findings.event_vocabulary",
 		Query: `SELECT count(*) FROM fnd_finding_event WHERE kind NOT IN (` + quoted(EventKinds) + `)`,

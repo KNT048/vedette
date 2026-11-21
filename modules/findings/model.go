@@ -225,7 +225,7 @@ func (f Finding) Open() bool { return f.State == StateOpen }
 // Confirmed reports whether the finding is confirmed (by the device, a safe check or a person).
 func (f Finding) Confirmed() bool { return f.Verified != VerifiedNo && f.Verified != "" }
 
-// Validate checks the invariants of one row (DB-DESIGN D4 and D5, and the vocabularies): open exactly when no resolution; a handled
+// Validate checks the invariants of one row (and the vocabularies): open exactly when no resolution; a handled
 // row has a resolution, a way, who and when; accepted exactly with a last day; version_moved exactly with two different versions.
 func (f Finding) Validate() error {
 	bad := func(format string, args ...any) error {
@@ -368,7 +368,7 @@ func (q Question) key() string {
 
 var wordRE = regexp.MustCompile(`^[a-z0-9_]{1,40}$`)
 
-// validWord is the shape check of the open vocabularies (DB-DESIGN rule 6).
+// validWord is the shape check of the open vocabularies.
 func validWord(s string) bool { return wordRE.MatchString(s) }
 
 // clipBytes cuts s to at most n bytes, on a character boundary.

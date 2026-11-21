@@ -69,7 +69,7 @@ type Detection struct {
 	Urgency int
 }
 
-// Transition is the one function that changes the handling of a finding (DB-DESIGN 3.5). It is total: every finding (new: State
+// Transition is the one function that changes the handling of a finding. It is total: every finding (new: State
 // "") and every trigger has a defined outcome, which is the finding after the trigger, the events to append (oldest first) and an
 // error for a person's action that does not apply (the finding is then returned unchanged). The rules:
 //

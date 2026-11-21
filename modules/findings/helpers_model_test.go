@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/findings/findingstest"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -40,9 +41,8 @@ func NewFinding(m Match, at time.Time) (Record, []Event) {
 // Validate checks the finding behind a record.
 func (r Record) Validate() error { return r.Row.Validate() }
 
-// migrateWithInventory migrates core, inventory and findings, and adds test-only triggers that create the device and software line
-// rows a finding or a question points at when the test's fake inventory did not: the findings tables have real foreign keys to
-// inventory's, and these tests describe devices only through the fake ports.
+// migrateWithInventory migrates core, inventory and findings, with the test-only triggers that create the device and software line
+// rows a finding or a question points at (findingstest.ParentRows): these tests describe devices only through the fake ports.
 func migrateWithInventory(t testing.TB, db *store.DB) {
 	t.Helper()
 	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "inventory", FS: inventory.Migrations}, {Module: "findings", FS: Migrations}} {
@@ -50,22 +50,7 @@ func migrateWithInventory(t testing.TB, db *store.DB) {
 			t.Fatal(err)
 		}
 	}
-	const ts = `'2026-01-01T00:00:00.000Z'`
-	asset := func(col string) string {
-		return `INSERT OR IGNORE INTO inv_asset (id, origin, first_seen, last_seen) VALUES (NEW.` + col + `, 'discovered', ` + ts + `, ` + ts + `);`
-	}
-	line := `INSERT OR IGNORE INTO inv_software (id, asset_id, product_key, line, display, vendor, product, source, confidence, seen_at, first_seen, last_seen)
-		SELECT NEW.software_id, NEW.asset_id, 'test|' || NEW.software_id, '', NEW.software_id, 'test', NEW.software_id, 'agent', 1, ` + ts + `, ` + ts + `, ` + ts + `
-		WHERE NEW.software_id IS NOT NULL;`
-	for _, q := range []string{
-		`CREATE TRIGGER test_fnd_finding_parents BEFORE INSERT ON fnd_finding BEGIN ` + asset("asset_id") + line + ` END`,
-		`CREATE TRIGGER test_fnd_finding_parents_moved BEFORE UPDATE OF asset_id, software_id ON fnd_finding BEGIN ` + asset("asset_id") + line + ` END`,
-		`CREATE TRIGGER test_fnd_question_parents BEFORE INSERT ON fnd_question BEGIN ` + asset("asset_id") + line + ` END`,
-	} {
-		if err := db.Write(t.Context(), func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q); return err }); err != nil {
-			t.Fatal(err)
-		}
-	}
+	findingstest.ParentRows(t, db)
 }
 
 // writeTestFinding inserts f straight into fnd_finding inside tx, the unset detection and urgency columns filled with plain values.

@@ -19,7 +19,7 @@ var creditSources = []struct {
 	{"distribution package", Software{Source: "agent", Version: "1.0", Packaged: true, PkgVersion: "1.0-1ubuntu1", PkgSource: "app"}},
 }
 
-// The ways a flaw goes away, and the handling each must give whatever read the version (SPEC P1).
+// The ways a flaw goes away, and the handling each must give whatever read the version.
 var creditWays = []struct {
 	name string
 	want string // resolution/via
@@ -52,7 +52,7 @@ func versionMatch(sw Software) Match {
 		Evidence: Evidence{Summary: "inside the range", Read: readingOf(sw, newSWInfo(sw, ""))}}
 }
 
-// P1, the class test: every source of a reading × every way a flaw goes away gives the handling of the way, never one that depends on
+// The patch credit class test: every source of a reading × every way a flaw goes away gives the handling of the way, never one that depends on
 // the source. Patch credit (patched, with who and how) for an upgrade, a removal and a distribution's fix; "Vedette corrected its
 // match" for a range correction. Before this model only an agent's or SNMP's upgrade was credited (2 of the 20).
 func TestCredit_EverySourceAndEveryWayAFlawGoesAway(t *testing.T) {
@@ -141,7 +141,7 @@ func TestCredit_NotInstalledIsThePersonsWord(t *testing.T) {
 }
 
 // A CVE on two software lines of one device (Java 8 beside Java 21) is two findings: updating one line credits that one finding and
-// leaves the other open (DB-DESIGN 3.5), through the matcher itself.
+// leaves the other open, through the matcher itself.
 func TestCredit_TwoLinesOfOneCVEAreTwoFindings(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

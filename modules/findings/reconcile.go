@@ -185,7 +185,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	return d
 }
 
-// goneVia says how a finding the match no longer detects went away, from what the device reads now (DB-DESIGN 3.5):
+// goneVia says how a finding the match no longer detects went away, from what the device reads now:
 //   - its software line is gone: software_removed; a person said it is not installed: not_installed (by that person);
 //   - the line reads a newer release than the one matched: version_moved (from, to), unless the reading is a person's correction of
 //     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected;

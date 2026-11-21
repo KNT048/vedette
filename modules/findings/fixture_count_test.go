@@ -33,7 +33,7 @@ type anonFixture struct {
 // The count test of the model on the export of a test network: findings rows per (device, CVE) in the older model (the export as it
 // is) and after its findings go through Transition into fnd_finding. The older model holds one row per (device, CVE), whatever the
 // software line, and a row for every pair it matched by product name only and closed as checked; the new one holds a row per
-// (device, CVE, software line) that was affected at some time, and every row passes the data invariants (D4, D5, D7).
+// (device, CVE, software line) that was affected at some time, and every row passes the data invariants (selfcheck).
 func TestFixture_RowsPerDeviceCVEAndLine(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("testdata/anon-findings-before.json")

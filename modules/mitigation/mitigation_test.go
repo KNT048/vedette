@@ -25,6 +25,8 @@ import (
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/findings/findingstest"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 var t0 = time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)
@@ -149,11 +151,12 @@ type composite struct {
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	db := storetest.New(t)
-	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "findings", FS: findings.Migrations}, {Module: "mitigation", FS: Migrations}} {
+	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "inventory", FS: inventory.Migrations}, {Module: "findings", FS: findings.Migrations}, {Module: "mitigation", FS: Migrations}} {
 		if err := store.Migrate(t.Context(), db, m.Module, m.FS); err != nil {
 			t.Fatal(err)
 		}
 	}
+	findingstest.ParentRows(t, db)
 	log := slog.New(slog.DiscardHandler)
 	clock := func() time.Time { return t0 }
 	a := audit.New(clock)
@@ -636,7 +639,7 @@ func TestDeletingTheDeviceTakesAppliedAndAIWithIt(t *testing.T) {
 func TestMigrationsUsePrefix(t *testing.T) {
 	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "mitigation", Migrations, "mit_",
-		storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "findings", FS: findings.Migrations})
+		storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: inventory.Migrations}, storetest.Migration{Module: "findings", FS: findings.Migrations})
 }
 
 func FuzzParsePack(f *testing.F) {

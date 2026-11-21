@@ -120,7 +120,7 @@ func transitionOutcome(before Finding, t Trigger) string {
 	return strings.TrimSpace(s + " " + strings.Join(kinds, ","))
 }
 
-// Every state against every trigger: the whole of the state machine in one table (DB-DESIGN 3.5). A row for every pair, so a new
+// Every state against every trigger: the whole of the state machine in one table. A row for every pair, so a new
 // state or trigger fails here until its outcome is written down.
 func TestTransition_EveryStateAndTrigger(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func mapValues[K comparable, V any](m map[K]V) []V {
 	return out
 }
 
-// D4 and D5 hold after any sequence of triggers from any state: open exactly when there is no resolution; every handled row has a
+// The handling invariants hold after any sequence of triggers from any state: open exactly when there is no resolution; every handled row has a
 // way, who and when; a version move names two different versions. And every value written is in its vocabulary.
 func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 	t.Parallel()
@@ -203,13 +203,13 @@ func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 			if err := g.Validate(); err != nil {
 				t.Fatalf("after %+v from %+v: %v", tr, f, err)
 			}
-			if g.State == StateHandled && (g.Via == "" || g.ResolvedBy == "" || g.ResolvedAt.IsZero()) { // D4
+			if g.State == StateHandled && (g.Via == "" || g.ResolvedBy == "" || g.ResolvedAt.IsZero()) {
 				t.Fatalf("handled without how, who or when: %+v", g)
 			}
-			if (g.State == StateOpen) != (g.Resolution == "") { // D4
+			if (g.State == StateOpen) != (g.Resolution == "") {
 				t.Fatalf("state and resolution disagree: %+v", g)
 			}
-			if g.Via == ViaVersionMoved && (g.FromVersion == "" || g.ToVersion == "" || g.FromVersion == g.ToVersion) { // D5
+			if g.Via == ViaVersionMoved && (g.FromVersion == "" || g.ToVersion == "" || g.FromVersion == g.ToVersion) {
 				t.Fatalf("a version move without two versions: %+v", g)
 			}
 			for _, e := range evs {

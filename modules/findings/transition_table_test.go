@@ -1,6 +1,6 @@
 package findings
 
-// transitionTable is every outcome of Transition (transitionOutcome): the state machine of DB-DESIGN 3.5 written down, one row per
+// transitionTable is every outcome of Transition (transitionOutcome): the state machine written down, one row per
 // starting state, one cell per trigger. "!" marks a finding the data no longer detects.
 func transitionTable() map[string]map[string]string {
 	return map[string]map[string]string{

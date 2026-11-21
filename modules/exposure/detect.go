@@ -276,6 +276,9 @@ func (s *Service) detectLocked(ctx context.Context, user string, deep bool) (Det
 				if err := insertTarget(ctx, tx, nt); err != nil {
 					return err
 				}
+				if err := s.ensureSchedule(ctx, tx, id); err != nil {
+					return err
+				}
 				detail := "box_egress"
 				if auto {
 					detail = "box_egress, auto-detect"

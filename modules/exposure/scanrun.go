@@ -106,6 +106,7 @@ type scanExec struct {
 	gaps     []GapRow
 	gbRun    GreenboneRun
 	written  bool // its rows are written
+	first    bool // they were the target's first rows: its baseline, announced to nobody
 	started  bool // its work began in this process (a queued scan has not)
 	err      error
 	done     chan struct{}
@@ -363,13 +364,8 @@ func (s *Service) queueScan(ctx context.Context, user string, t Target) (string,
 		if err != nil {
 			return err
 		}
-		runID, err = s.cfg.Runs.CreateTx(ctx, tx, corerun.Spec{Module: ModuleID, Kind: RunKind, Title: "External scan of " + t.Value,
-			Trigger: corerun.Manual, RequestedBy: user, Subject: &corerun.Subject{Kind: "target", ID: t.ID, Label: t.Value}})
-		if err != nil {
+		if runID, err = s.createScanRun(ctx, tx, fresh, corerun.Manual, user, ""); err != nil {
 			return err
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO exp_scan (run_id, target_id, mode) VALUES (?, ?, ?)`, runID, t.ID, modeWord(fresh.mode())); err != nil {
-			return fmt.Errorf("recording the scan: %w", err)
 		}
 		x = s.waiter(runID) // before the commit: the run cannot start before it, so a caller that waits never misses its end
 		s.runMu.Lock()
@@ -484,8 +480,14 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if err != nil {
 		return corerun.Result{}, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
 	}
+	if user == SystemUser && !fresh.Terms.current() { // a scan the box queued by itself waited while the terms were withdrawn
+		err := apiErr(409, "terms_required", "%s was not scanned: its testing terms were withdrawn, or are of an older version, after this scheduled scan was queued. "+
+			"The box scans a target on its schedule only while they are accepted.", t.Value)
+		s.auditFailedScan(ctx, user, t, err)
+		return corerun.Result{}, err
+	}
 	s.runMu.Lock()
-	ex.mode = fresh.mode()
+	ex.mode = boxMode(user, fresh.mode()) // a scan the box runs by itself never runs the disruptive checks
 	s.runMu.Unlock()
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE exp_scan SET mode = ? WHERE run_id = ?`, modeWord(ex.mode), x.ID())
@@ -526,7 +528,8 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	ex.content, ex.vulns, ex.gaps, ex.written = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true
+	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
+	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	_ = x.Progress(ctx, surface, 1, 1)
 	_ = x.EndStep(ctx, surface, corerun.Done, fmt.Sprintf("%d open services (%d new, %d closed), %d open issues (%d new)",
 		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
@@ -648,7 +651,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
 	checked, gone := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: !s.hasRows(wctx, t.ID),
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID),
 		checked: checked, gone: gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
@@ -656,14 +659,27 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		out.final, out.checked = m, checked
-		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.opened), NewIssues: nz(out.newIssues)})
+		out.final, out.checked, out.first = m, checked, w.first
+		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.openedAt), NewIssues: nz(out.newAt)})
 		return nil
 	})
 	return out, err
 }
 
-// hasRows says an earlier scan of target id wrote rows: a name, a service or an issue.
+// baseline says this scan (run runID) is the first of target id: no earlier scan of it wrote its results, and it holds no rows (a child
+// target holds rows its parent scanned before it). Only then is everything it finds the baseline, announced to nobody. An earlier scan
+// that found nothing open still counts: what opens after it is news.
+func (s *Service) baseline(ctx context.Context, id, runID string) bool {
+	var n int
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_scan WHERE target_id = ? AND run_id <> ? AND json_extract(summary, '$.counts') IS NOT NULL)`,
+		id, runID).Scan(&n)
+	if err != nil || n == 1 {
+		return false // when in doubt, news: an alert too many beats a port never announced
+	}
+	return !s.hasRows(ctx, id)
+}
+
+// hasRows says target id holds rows: a name, a service or an issue.
 func (s *Service) hasRows(ctx context.Context, id string) bool {
 	var n int
 	_ = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_service WHERE target_id = ?1) OR EXISTS (SELECT 1 FROM exp_host WHERE target_id = ?1)
@@ -712,8 +728,10 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	ex.content.Greenbone = append(ex.content.Greenbone, o.rows...)
 	ex.content.Checks = append(ex.content.Checks, o.checks...)
 	ex.content.NotChecked = append(slices.DeleteFunc(ex.content.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "greenbone" && n.Text == gbPending }), o.not...)
+	var fresh []NewIssue
 	werr := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
-		if err := s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, openVASCoverage(t, o, c.Ports)); err != nil {
+		var err error
+		if fresh, err = s.writeOpenVAS(wctx, tx, t, x.ID(), s.clock(), o, openVASCoverage(t, o, c.Ports)); err != nil {
 			return err
 		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
@@ -723,6 +741,7 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 		_ = x.EndStep(wctx, seq, corerun.Failed, clipText("External scan of "+t.Value+": OpenVAS's results could not be stored", 500))
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS's results could not be stored"}, nil
 	}
+	s.alertNews(wctx, t, x.ID(), stepOpenVAS, ex.first, nil, fresh)
 	st2 := corerun.Done
 	if s, ok := stepStatus[outcome]; ok {
 		st2 = s

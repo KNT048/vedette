@@ -13,9 +13,6 @@ const maxGatewayName = 80
 // sit at a hosting provider, so only the box's own IPs say anything about the gateway. A lookup that fails is logged and answered
 // as "cannot tell" (all nil): the page never claims what it did not read.
 func (s *Service) GatewayNote(ctx context.Context, items []TargetView) *GatewayView {
-	if s.cfg.Gateway == nil {
-		return nil
-	}
 	open := false
 	for _, t := range items {
 		if t.Kind == KindIP && t.Origin != "person" && len(t.OpenPorts) > 0 {
@@ -23,7 +20,12 @@ func (s *Service) GatewayNote(ctx context.Context, items []TargetView) *GatewayV
 			break
 		}
 	}
-	if !open {
+	return s.gatewayNote(ctx, open)
+}
+
+// gatewayNote is the gateway note when one of the box's own IPs has an open service (open); nil otherwise.
+func (s *Service) gatewayNote(ctx context.Context, open bool) *GatewayView {
+	if s.cfg.Gateway == nil || !open {
 		return nil
 	}
 	g, err := s.cfg.Gateway.Gateway(ctx)

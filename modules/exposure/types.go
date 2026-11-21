@@ -194,8 +194,6 @@ type TargetView struct {
 	ScanState string `json:"scan_state"`
 	// OpenExposures is the number of open ports of the newest scan (0 when never scanned): the count the target row shows.
 	OpenExposures int `json:"open_exposures"`
-	// Schedule is how often the target is scanned by itself, when next and why not (INV-36).
-	Schedule *ScheduleView `json:"schedule"`
 }
 
 // MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).

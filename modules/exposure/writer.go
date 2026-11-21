@@ -50,7 +50,13 @@ type written struct {
 	counts    ScanCounts
 	opened    []PortRow
 	newIssues []string
-	probed    map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
+	// openedAt and newAt are opened and newIssues with the target that holds each row once the tree settled: the target the alert and
+	// the event name.
+	openedAt []OpenedService
+	newAt    []NewIssue
+	first    bool              // the target's first scan: the baseline
+	again    map[string]string // the new issues a scan opened again after a person marked them patched or mitigated: how
+	probed   map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
 }
 
 // issueIn is one issue a scan reported, before it is a row.
@@ -102,7 +108,11 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 		issues = append(issues, matchIssues(w.vulns)...)
 	}
 	hosts := hostAddrs(w.target, w.c.Hosts)
-	if out.newIssues, err = writeIssues(ctx, tx, w.target.ID, w.runID, at, hosts, issues, ran, scanCoverage(w)); err != nil {
+	var again []reopenedIssue
+	if out.newIssues, again, err = writeIssues(ctx, tx, w.target.ID, w.runID, at, hosts, issues, ran, scanCoverage(w)); err != nil {
+		return written{}, err
+	}
+	if out.again, err = s.auditAgain(ctx, tx, again); err != nil {
 		return written{}, err
 	}
 	if err := goneWithService(ctx, tx, out.closed); err != nil {
@@ -118,8 +128,15 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err != nil {
 		return written{}, err
 	}
-	out.opened, out.newIssues = stillNew(hl, out.opened, openedIDs, out.newIssues)
+	var keptIDs []string
+	out.opened, keptIDs, out.newIssues = stillNew(hl, out.opened, openedIDs, out.newIssues)
 	out.counts.NewServices, out.counts.NewIssues = len(out.opened), len(out.newIssues)
+	if out.openedAt, err = holders(ctx, tx, w.target.ID, out.opened, keptIDs); err != nil {
+		return written{}, err
+	}
+	if out.newAt, err = issueHolders(ctx, tx, out.newIssues, out.again); err != nil {
+		return written{}, err
+	}
 	if err := rowCounts(ctx, tx, w.target.ID, &out.counts); err != nil {
 		return written{}, err
 	}
@@ -149,11 +166,12 @@ func serviceIDs(ctx context.Context, tx *sql.Tx, target string, ports []PortRow)
 
 // stillNew keeps, of the services opened (ids: their rows) and the issues new in a write, those the settle did not fold into a row another
 // target held before: a port or an issue new here stays new (once) when it moves with its name to the target that scans it now.
-func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]PortRow, []string) {
+func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]PortRow, []string, []string) {
 	var ports []PortRow
+	var kept []string
 	for i, p := range opened {
 		if !hl.merged[ids[i]] {
-			ports = append(ports, p)
+			ports, kept = append(ports, p), append(kept, ids[i])
 		}
 	}
 	var out []string
@@ -162,15 +180,15 @@ func stillNew(hl *handLog, opened []PortRow, ids []string, fresh []string) ([]Po
 			out = append(out, id)
 		}
 	}
-	return ports, out
+	return ports, kept, out
 }
 
 // writeOpenVAS writes the issues of the OpenVAS step of a scan whose other rows are written. covered is where OpenVAS finished (the
 // addresses it scanned to the end, and their open ports): an OpenVAS issue it no longer reports is gone only there; nil (a step that
 // failed, was stopped or was cut short everywhere) only adds what it found.
-func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) error {
+func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID string, at time.Time, o gbOutcome, covered coverFunc) ([]NewIssue, error) {
 	if _, err := loadTarget(ctx, tx, t.ID); err != nil {
-		return err
+		return nil, err
 	}
 	issues := make([]issueIn, 0, len(o.rows))
 	for _, r := range o.rows {
@@ -178,11 +196,15 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	}
 	hosts, err := storedHostAddrs(ctx, tx, t)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fresh, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: covered != nil}, map[IssueEngine]coverFunc{EngineOpenVAS: covered})
+	fresh, reopened, err := writeIssues(ctx, tx, t.ID, runID, store.FormatTS(at), hosts, issues, engineSet{EngineOpenVAS: covered != nil}, map[IssueEngine]coverFunc{EngineOpenVAS: covered})
 	if err != nil {
-		return err
+		return nil, err
+	}
+	again, err := s.auditAgain(ctx, tx, reopened)
+	if err != nil {
+		return nil, err
 	}
 	var countErr error
 	err = updateSummary(ctx, tx, runID, func(sum *scanSummary) {
@@ -198,7 +220,10 @@ func (s *Service) writeOpenVAS(ctx context.Context, tx *sql.Tx, t Target, runID 
 	if err == nil {
 		err = countErr
 	}
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return issueHolders(ctx, tx, fresh, again)
 }
 
 // ---- hosts and addresses ----
@@ -740,13 +765,25 @@ func openvasIssue(r GreenboneRow) issueIn {
 		detail: IssueDetail{Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
 }
 
+// reopenedIssue is an issue a person marked patched or mitigated that a scan reported again: the flaw is still there, so it is open
+// again (as findings does), with how and by whom it had been marked.
+type reopenedIssue struct{ id, was, by string }
+
 // writeIssues upserts the issues of one write and marks gone the open issues of the engines in ran that it did not report, when their
 // service was seen by this scan or they are about the target as a whole. It returns the ids of the issues that are open now and were
-// not before.
-func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, hosts map[string][]string, issues []issueIn, ran engineSet, cov map[IssueEngine]coverFunc) ([]string, error) {
+// not before, and among them the ones it opened again: patched or mitigated before this run started, and reported again (a mark made
+// while the run ran, during a long OpenVAS step say, is newer than what it saw and stays). Accepted, not relevant and false positive
+// keep the person's decision.
+func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, hosts map[string][]string, issues []issueIn, ran engineSet, cov map[IssueEngine]coverFunc) ([]string, []reopenedIssue, error) {
+	var again []reopenedIssue
 	svcIDs, seenNow, err := serviceIndex(ctx, tx, target, runID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	// A mark made after this run started is newer than what the run saw: only a mark from before it can be proved wrong by it.
+	since := at
+	if err := tx.QueryRowContext(ctx, `SELECT coalesce(started_at, ?) FROM core_run WHERE id = ?`, at, runID).Scan(&since); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, fmt.Errorf("the start of the run: %w", err)
 	}
 	reported := map[string]bool{}
 	var fresh []string
@@ -765,16 +802,17 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		}
 		cves, err := json.Marshal(nz(in.cves))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		in.detail.Evidence = nz(in.detail.Evidence)
 		detail, err := json.Marshal(in.detail)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		var id, state string
-		err = tx.QueryRowContext(ctx, `SELECT id, state FROM exp_issue WHERE target_id = ? AND engine = ? AND key = ? AND ifnull(service_id, '') = ifnull(?, '')`,
-			target, string(in.engine), clipText(in.key, 600), svc).Scan(&id, &state)
+		var id, state, res, by, resolvedAt string
+		err = tx.QueryRowContext(ctx, `SELECT id, state, coalesce(resolution, ''), coalesce(resolved_by, ''), coalesce(resolved_at, '') FROM exp_issue
+			WHERE target_id = ? AND engine = ? AND key = ? AND ifnull(service_id, '') = ifnull(?, '')`,
+			target, string(in.engine), clipText(in.key, 600), svc).Scan(&id, &state, &res, &by, &resolvedAt)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			id = store.NewID("xi")
@@ -786,11 +824,19 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 				fresh = append(fresh, id)
 				state = IssueOpen
 			}
+			if state == IssueHandled && (res == string(ResolvedPatched) || res == string(ResolvedMitigated)) && resolvedAt < since {
+				fresh, again = append(fresh, id), append(again, reopenedIssue{id: id, was: res, by: by})
+				state = IssueOpen
+				if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET state = 'open', resolution = NULL, resolved_by = NULL, resolved_at = NULL, note = NULL,
+					accepted_until = NULL WHERE id = ?`, id); err != nil {
+					return nil, nil, fmt.Errorf("opening the issue %s again: %w", id, err)
+				}
+			}
 			_, err = tx.ExecContext(ctx, `UPDATE exp_issue SET title = ?, severity = ?, cves = ?, detail = ?, state = ?, last_seen = max(last_seen, ?), last_run_id = ? WHERE id = ?`,
 				in.title, in.severity, string(cves), string(detail), state, at, runID, id)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("writing the issue %s %s: %w", in.engine, in.key, err)
+			return nil, nil, fmt.Errorf("writing the issue %s %s: %w", in.engine, in.key, err)
 		}
 		reported[id] = true
 	}
@@ -801,7 +847,7 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0) FROM exp_issue i
 			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.target_id = ? AND i.engine = ? AND i.state = 'open'`, target, string(e))
 		if err != nil {
-			return nil, fmt.Errorf("issues of %s: %w", e, err)
+			return nil, nil, fmt.Errorf("issues of %s: %w", e, err)
 		}
 		var gone []string
 		for rows.Next() {
@@ -809,7 +855,7 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 			var w issueWhere
 			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port); err != nil {
 				_ = rows.Close()
-				return nil, err
+				return nil, nil, err
 			}
 			if w.service {
 				w.seen = seenNow[svcIDs[portKey(w.ip, w.port)]]
@@ -825,15 +871,15 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 			}
 		}
 		if err := rows.Close(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, id := range gone {
 			if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET state = 'gone' WHERE id = ?`, id); err != nil {
-				return nil, fmt.Errorf("issue %s gone: %w", id, err)
+				return nil, nil, fmt.Errorf("issue %s gone: %w", id, err)
 			}
 		}
 	}
-	return fresh, nil
+	return fresh, again, nil
 }
 
 // issueWhere is where an open issue is, for the coverage of the engine that reported it.

@@ -68,14 +68,18 @@ function IssuesTable({ node, issues, services }: { node: TargetNode; issues: Iss
   const where = useWhere(services)
   const [params, setParams] = useSearchParams()
   const view: IssueState = VIEWS.find((v) => v === params.get('issues')) ?? 'open'
+  // ?service=<id> (the issue count of a row on the Services tab) shows the issues of that one service
+  const only = services?.find((s) => s.id === params.get('service')) ?? null
+  const clearOnly = () => { const p = new URLSearchParams(params); p.delete('service'); setParams(p, { replace: true }); setSelected(new Set()) }
+  const shown = only ? issues.filter((i) => i.service_id === only.id) : issues
   const setView = (v: IssueState) => { const p = new URLSearchParams(params); if (v === 'open') p.delete('issues'); else p.set('issues', v); setParams(p, { replace: true }); setSelected(new Set()) }
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [handling, setHandling] = useState<string[] | null>(null)
   const [detail, setDetail] = useState<Issue | null>(null)
   const reopen = useReopenIssues()
   const opener = useRef<HTMLButtonElement | null>(null)
-  const rows = issues.filter((i) => i.state === view)
-  const count = (v: IssueState) => issues.filter((i) => i.state === v).length
+  const rows = shown.filter((i) => i.state === view)
+  const count = (v: IssueState) => shown.filter((i) => i.state === v).length
   // Only rows of this view stay selected: a hidden row is never acted on.
   const picked = rows.filter((i) => selected.has(i.id)).map((i) => i.id)
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
@@ -126,7 +130,13 @@ function IssuesTable({ node, issues, services }: { node: TargetNode; issues: Iss
           </div>
         ) : null}
       </div>
-      <DataTable urlKey="exposure-issues" resetPageOn={view} caption={t('issues.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
+      {only ? (
+        <p className="flex flex-wrap items-center gap-2 text-meta">
+          <span>{t('issues.onlyService', { where: `${only.ip}:${only.port}/${only.proto}` })}</span>
+          <Button size="sm" variant="ghost" onClick={clearOnly}>{t('issues.allServices')}</Button>
+        </p>
+      ) : null}
+      <DataTable urlKey="exposure-issues" resetPageOn={`${view}:${only?.id ?? ''}`} caption={t('issues.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
         initialSort={[{ id: 'severity', desc: false }]} onRowClick={setDetail}
         mobileRow={(i) => (
           <div className="grid gap-1.5">

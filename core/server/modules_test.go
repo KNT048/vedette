@@ -212,7 +212,6 @@ var contractRoutes = map[string][]string{
 		"POST /exposure/tree/{id}/verify",
 		"PUT /exposure/box-ip/settings",
 		"PUT /exposure/greenbone",
-		"PUT /exposure/targets/{id}/schedule",
 		"PUT /exposure/targets/{id}/terms",
 		"PUT /exposure/tree/{id}/terms",
 	},

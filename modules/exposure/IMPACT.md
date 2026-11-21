@@ -1,5 +1,20 @@
 # Exposure — Change Impact Map
 
+## Modifying: the schedule of a target (`schedule.go`: `registerSchedules`, `startScheduled`, `ensureSchedule`, `EnsureSchedules`, `boxMode`, `DefaultSchedule`, `MinScheduleMinutes`) (INV-36)
+- core/schedule calls `startScheduled` inside its own write: it must stay quick and never ask the network (the run's gate does that when it starts). A new place that inserts or deletes `exp_target` must call `ensureSchedule` / `dropSchedule` in the same write.
+- `boxMode` is what keeps a scheduled scan off the disruptive checks: `execute` and `ModeNow` both apply it to the `system` actor. The testing terms (2026-11-18b) promise this; changing it means new terms.
+- Web: `TargetPage.tsx` (`ScanSchedule`, the shared `ScheduleEditor`), `web/src/features/core/schedulesMock.ts` (the owner's limits and default, held equal by hand). cmd/vedette: `exposure.go` (`cfg.Schedules`, `exposureAtStart` → `EnsureSchedules`).
+
+## Modifying: alerts (`alerts.go`: `alertNews`, `alertsOf`, `holders`, `issueHolders`; `written.openedAt/newAt`; `ScanWrittenEvent.Opened/NewIssues`) (INV-36 (4))
+- Once each rests on the writer: `opened`/`newIssues` are only rows not open before, and `stillNew` drops what merged into a row the new holder had. Holders are read after `settleTree` in the same write.
+- cmd/vedette `exposureports.go` (response's new_port names `Opened[i].TargetID`) and `exposureAlert` (notify).
+
+## Modifying: issue handling (`issues.go`: `HandleIssues`, `ReopenIssues`, `RunAcceptExpiry`, `Resolution`) (INV-40)
+- The vocabulary is findings' (`web/src/lib/statusCodes.ts` FINDING_RESOLUTIONS, contract.ts `Resolution`); `exp_issue` CHECKs tie `state = handled` to `resolution/resolved_by/resolved_at` and `accepted_until` to `accepted` (selfcheck `exposure.handled_issue_says_how`). Web: `IssuesPanel.tsx` (`HandleDialog`), mock `/exposure/issues/*`, `conformance.test.ts`.
+
+## Modifying: the node view (`node.go`: `NodeView`, `proofOf`, `coverOf`, `Tree`, `Node`, `treeOrder`, `nodeCounts`, `lastScans`)
+- contract.ts `TargetNode`/`TargetTree`: every answer goes through the generated decoder (`into`), so a field out of step with the contract fails the request; `tree_api_test.go` and `web/src/features/exposure/conformance.test.ts` (mock, and the real backend with `VITE_EXPOSURE_REAL_URL`) cover them.
+
 ## Modifying: the tree (`settleTree`, `handOver`, `parentOf`, `ownerOf`, `NamePlan`, `ScanTarget.Names`, `Content.Listed`, `AddNode`, `EditNode`, `uncover`, `exp_target.parent_id/scope_mode/enabled`, `exp_host.child_target_id/selected`) (INV-39)
 - The runner (`cmd/vedette/scan.go` `exposureRunner`) hands the plan (`Scans`, `Find`, `Choose`, `Chosen`) to `modules/scan/surface` `Scanner.Domain` as `surface.Names`, maps `Result.Skipped` to `Content.Listed` and `Result.NamesCut` to `NotNamesCut`; a name it does not own must never be probed (scan INV-12).
 - `deepGate` filters the names of a deep step by the plan; `writeScan` ends with `settleTree` and drops from `opened`/`new_issues` only what the settle folded into a row the receiver held before (`handLog`), so `exposure.scan.written` never reports a move and still reports a port new in that scan once.

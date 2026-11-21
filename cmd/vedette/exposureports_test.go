@@ -23,7 +23,7 @@ func TestExposureScanOpensNewPorts(t *testing.T) {
 		for _, p := range ports {
 			ip, port, _ := strings.Cut(p, " ")
 			n, _ := strconv.Atoi(port)
-			ev.Opened = append(ev.Opened, exposure.PortRow{IP: ip, Port: n, Service: "svc-" + port})
+			ev.Opened = append(ev.Opened, exposure.OpenedService{TargetID: "xt-1", PortRow: exposure.PortRow{IP: ip, Port: n, Service: "svc-" + port}})
 		}
 		if err := s.d.Bus.Publish(ctx, events.Event{Name: exposure.EventScanWritten, Data: ev}); err != nil {
 			t.Fatal(err)

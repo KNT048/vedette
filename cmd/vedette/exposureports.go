@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strings"
@@ -45,8 +46,9 @@ func exposurePortsOpened(d deps) func(ctx context.Context, data any) error {
 				break
 			}
 			// rules compare nmap's name (service); the summary reads the person's name, "probably SIP" for a port-number guess
-			p := response.PortOpenedEvent{TargetID: ev.TargetID, Date: day, IP: r.IP, Port: r.Port, Service: r.Service,
-				Label: shortLabel(exposure.ServiceLabel(r)), Identified: r.Ident}
+			// the target that holds the port now: a port the scan of a domain found on a name its child target took over is the child's
+			p := response.PortOpenedEvent{TargetID: cmp.Or(r.TargetID, ev.TargetID), Date: day, IP: r.IP, Port: r.Port, Service: r.Service,
+				Label: shortLabel(exposure.ServiceLabel(r.PortRow)), Identified: r.Ident}
 			if err := d.Bus.Publish(ctx, events.Event{Name: response.EventPortOpened, Data: p}); err != nil {
 				return err
 			}

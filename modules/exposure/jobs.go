@@ -17,12 +17,14 @@ const JobTick = time.Minute
 // then every interval_min minutes while the customer has auto-detect on.
 //
 // greenbone-feed wakes up every GreenboneSyncTick and updates Greenbone's feed once a week while Greenbone is enabled
-// (RunGreenboneSync); most wake-ups do nothing.
+// (RunGreenboneSync); most wake-ups do nothing. accept-expiry opens again the issues whose accepted risk's last day is over
+// (RunAcceptExpiry). The scans a target's schedule starts are core/schedule's, not a job of this module.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "auto-detect", Every: JobTick, Run: svc.RunAutoDetect},
 		{Module: ModuleID, Name: "ip-proof", Every: IPProofTick, Run: svc.RunIPRecheck},
 		{Module: ModuleID, Name: "greenbone-feed", Every: GreenboneSyncTick, Run: svc.RunGreenboneSync},
+		{Module: ModuleID, Name: "accept-expiry", Every: AcceptTick, Run: svc.RunAcceptExpiry},
 	}
 }
 

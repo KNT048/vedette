@@ -103,7 +103,13 @@ func TestContract_PRE4_Roles(t *testing.T) {
 		{"POST", "/exposure/box-ip/verify", "", "admin"},
 		{"PUT", "/exposure/box-ip/settings", `{"auto":true,"interval_min":60}`, "admin"},
 		{"DELETE", "/exposure/box-ip/ignored/" + ipC, "", "admin"},
-		{"PUT", "/exposure/targets/" + d.ID + "/schedule", `{"every":"daily"}`, "admin"},
+		{"GET", "/exposure/tree", "", "viewer"},
+		{"GET", "/exposure/tree/" + d.ID, "", "viewer"},
+		{"PATCH", "/exposure/tree/" + d.ID, `{"enabled":true}`, "admin"},
+		{"POST", "/exposure/tree/" + d.ID + "/verify", "", "operator"},
+		{"PUT", "/exposure/tree/" + d.ID + "/terms", `{"version":"v","disruptive":false}`, "admin"},
+		{"POST", "/exposure/issues/handle", `{"ids":["xi-1"],"resolution":"patched","note":""}`, "operator"},
+		{"POST", "/exposure/issues/reopen", `{"ids":["xi-1"]}`, "operator"},
 		{"DELETE", "/exposure/targets/" + d.ID + "/queue", "", "operator"},
 		{"DELETE", "/exposure/targets/" + d.ID, "", "admin"},
 	}
@@ -373,27 +379,10 @@ func TestHandlers_AddTargetTakesAPublicIP(t *testing.T) {
 	}
 }
 
-// The target-tree operations not built yet answer 501 not_implemented (behind the module gate and the role check).
-func TestHandlers_TreeOperationsAre501UntilBuilt(t *testing.T) {
+// The rows of a node are served: an unknown node is 404.
+func TestHandlers_RowsOfAnUnknownNodeAre404(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	for _, c := range []struct{ method, path, body string }{
-		{"GET", "/exposure/tree", ""},
-		{"POST", "/exposure/tree", `{"value":"example.com","scope_mode":"all"}`},
-		{"GET", "/exposure/tree/xt-1", ""},
-		{"PATCH", "/exposure/tree/xt-1", `{"enabled":false}`},
-		{"DELETE", "/exposure/tree/xt-1", ""},
-		{"POST", "/exposure/tree/xt-1/verify", ""},
-		{"PUT", "/exposure/tree/xt-1/terms", `{"version":"v","disruptive":false}`},
-		{"DELETE", "/exposure/tree/xt-1/terms", ""},
-		{"POST", "/exposure/issues/handle", `{"ids":["xi-1"],"resolution":"patched","note":""}`},
-		{"POST", "/exposure/issues/reopen", `{"ids":["xi-1"]}`},
-	} {
-		if code, b := e.call(c.method, c.path, "admin", c.body); code != 501 || errCode(b) != "not_implemented" {
-			t.Errorf("%s %s: %d %v", c.method, c.path, code, b)
-		}
-	}
-	// the rows of a node are served: an unknown node is 404
 	for _, p := range []string{"scans", "hosts", "addresses", "services", "issues"} {
 		if code, b := e.call("GET", "/exposure/tree/xt-1/"+p, "viewer", ""); code != 404 || errCode(b) != "not_found" {
 			t.Errorf("GET %s of an unknown node: %d %v", p, code, b)

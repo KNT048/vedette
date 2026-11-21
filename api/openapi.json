@@ -22864,7 +22864,7 @@
                                 "properties": {
                                   "zone": {
                                     "type": "string",
-                                    "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                    "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                                   },
                                   "host": {
                                     "type": "string",
@@ -22980,48 +22980,6 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
                             "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                          },
-                          "schedule": {
-                            "type": "object",
-                            "properties": {
-                              "every": {
-                                "type": "string",
-                                "enum": [
-                                  "off",
-                                  "daily",
-                                  "weekly",
-                                  "monthly"
-                                ],
-                                "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                              },
-                              "next_at": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                              },
-                              "note": {
-                                "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "every",
-                              "next_at",
-                              "note"
-                            ],
-                            "additionalProperties": false,
-                            "description": "How often the box scans the target by itself, when next, and why not"
                           }
                         },
                         "required": [
@@ -23051,8 +23009,7 @@
                           "ip_proof",
                           "next_check_at",
                           "scan_state",
-                          "open_exposures",
-                          "schedule"
+                          "open_exposures"
                         ],
                         "additionalProperties": false
                       },
@@ -24980,7 +24937,7 @@
                                 "properties": {
                                   "zone": {
                                     "type": "string",
-                                    "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                    "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                                   },
                                   "host": {
                                     "type": "string",
@@ -25096,48 +25053,6 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
                             "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                          },
-                          "schedule": {
-                            "type": "object",
-                            "properties": {
-                              "every": {
-                                "type": "string",
-                                "enum": [
-                                  "off",
-                                  "daily",
-                                  "weekly",
-                                  "monthly"
-                                ],
-                                "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                              },
-                              "next_at": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "format": "date-time",
-                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                              },
-                              "note": {
-                                "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "every",
-                              "next_at",
-                              "note"
-                            ],
-                            "additionalProperties": false,
-                            "description": "How often the box scans the target by itself, when next, and why not"
                           }
                         },
                         "required": [
@@ -25167,8 +25082,7 @@
                           "ip_proof",
                           "next_check_at",
                           "scan_state",
-                          "open_exposures",
-                          "schedule"
+                          "open_exposures"
                         ],
                         "additionalProperties": false
                       }
@@ -25900,7 +25814,7 @@
                           "properties": {
                             "zone": {
                               "type": "string",
-                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                              "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                             },
                             "host": {
                               "type": "string",
@@ -26016,48 +25930,6 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                    },
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "every": {
-                          "type": "string",
-                          "enum": [
-                            "off",
-                            "daily",
-                            "weekly",
-                            "monthly"
-                          ],
-                          "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                        },
-                        "next_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
-                          "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                        },
-                        "note": {
-                          "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "every",
-                        "next_at",
-                        "note"
-                      ],
-                      "additionalProperties": false,
-                      "description": "How often the box scans the target by itself, when next, and why not"
                     }
                   },
                   "required": [
@@ -26087,8 +25959,7 @@
                     "ip_proof",
                     "next_check_at",
                     "scan_state",
-                    "open_exposures",
-                    "schedule"
+                    "open_exposures"
                   ],
                   "additionalProperties": false
                 }
@@ -26704,7 +26575,7 @@
                           "properties": {
                             "zone": {
                               "type": "string",
-                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                              "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                             },
                             "host": {
                               "type": "string",
@@ -26820,48 +26691,6 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                    },
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "every": {
-                          "type": "string",
-                          "enum": [
-                            "off",
-                            "daily",
-                            "weekly",
-                            "monthly"
-                          ],
-                          "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                        },
-                        "next_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
-                          "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                        },
-                        "note": {
-                          "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "every",
-                        "next_at",
-                        "note"
-                      ],
-                      "additionalProperties": false,
-                      "description": "How often the box scans the target by itself, when next, and why not"
                     }
                   },
                   "required": [
@@ -26891,8 +26720,7 @@
                     "ip_proof",
                     "next_check_at",
                     "scan_state",
-                    "open_exposures",
-                    "schedule"
+                    "open_exposures"
                   ],
                   "additionalProperties": false
                 }
@@ -28134,787 +27962,6 @@
                     "snapshot_id",
                     "error",
                     "progress"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/exposure/targets/{id}/schedule": {
-      "put": {
-        "operationId": "exposure_put_exposure_targets_id_schedule",
-        "summary": "Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly, counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of the current version are accepted (else it is skipped and schedule.note says why), with the same steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan. What it finds new since the scan before (an open port, an admin page, a certificate now expiring within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value for another value. Audited (exposure.schedule)",
-        "tags": [
-          "exposure"
-        ],
-        "x-stories": [
-          "S-EXP-1"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "every": {
-                    "type": "string",
-                    "enum": [
-                      "off",
-                      "daily",
-                      "weekly",
-                      "monthly"
-                    ]
-                  }
-                },
-                "required": [
-                  "every"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "domain",
-                        "ip"
-                      ]
-                    },
-                    "value": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "unverified",
-                        "verified",
-                        "expired"
-                      ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
-                    },
-                    "method": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "dns_txt",
-                            "box_egress",
-                            "ip_file",
-                            "ip_ptr"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "token": {
-                      "type": "string",
-                      "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). Typed IP: the token the proof file carries (ip_proof). IP the box found: empty string"
-                    },
-                    "verified_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
-                    },
-                    "expires_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
-                    },
-                    "validity": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "valid",
-                            "expiring",
-                            "expired"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IPs only: expiring = 5 days or less left"
-                    },
-                    "last_check": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            "ok": {
-                              "type": "boolean"
-                            },
-                            "message": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "at",
-                            "ok",
-                            "message"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "commitment": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "by": {
-                              "type": "string"
-                            },
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            "version": {
-                              "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an older version",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            },
-                            "sentence": {
-                              "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by an older version",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "by",
-                            "at",
-                            "version",
-                            "sentence"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact sentence shown next to the button"
-                    },
-                    "commitment_notice": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": "string"
-                            },
-                            "text": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "version",
-                            "text"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once, so a target with a commitment can carry it too"
-                    },
-                    "terms": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "version": {
-                              "type": "string"
-                            },
-                            "by": {
-                              "type": "string"
-                            },
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            "text": {
-                              "type": "string",
-                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
-                            },
-                            "disruptive": {
-                              "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
-                            }
-                          },
-                          "required": [
-                            "version",
-                            "by",
-                            "at",
-                            "text",
-                            "disruptive"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
-                    },
-                    "terms_notice": {
-                      "type": "object",
-                      "properties": {
-                        "version": {
-                          "type": "string"
-                        },
-                        "text": {
-                          "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
-                        }
-                      },
-                      "required": [
-                        "version",
-                        "text",
-                        "disruptive"
-                      ],
-                      "additionalProperties": false,
-                      "description": "The current testing terms for this target, to accept or to read again"
-                    },
-                    "terms_warning": {
-                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "full_scan": {
-                      "type": "boolean",
-                      "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of the Scan now sentence"
-                    },
-                    "scannable": {
-                      "type": "boolean"
-                    },
-                    "blocked_reason": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "unverified",
-                            "expired",
-                            "txt_missing",
-                            "proof_missing",
-                            "no_commitment",
-                            "ip_not_current"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "last_scan_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "When the newest scan started: every page names a scan by its start"
-                    },
-                    "last_scan_finished_at": {
-                      "description": "When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never scanned, or when not known",
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "latest": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "subdomains": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ips": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ports": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "admin_panels": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "certs_expiring": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "subdomains",
-                            "ips",
-                            "ports",
-                            "admin_panels",
-                            "certs_expiring"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "open_ports": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "ip": {
-                                "type": "string"
-                              },
-                              "port": {
-                                "type": "integer",
-                                "minimum": -9007199254740991,
-                                "maximum": 9007199254740991
-                              },
-                              "service": {
-                                "type": "string"
-                              },
-                              "product": {
-                                "type": "string"
-                              },
-                              "last_seen": {
-                                "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
-                                "type": "string",
-                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                              },
-                              "misses": {
-                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
-                                "type": "integer",
-                                "minimum": -9007199254740991,
-                                "maximum": 9007199254740991
-                              },
-                              "unchecked": {
-                                "description": "The newest scan did not check the address: the row is as an earlier scan left it",
-                                "type": "boolean"
-                              },
-                              "ident": {
-                                "description": "How service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
-                                "type": "string",
-                                "enum": [
-                                  "probed",
-                                  "port",
-                                  "none"
-                                ]
-                              },
-                              "cert_names": {
-                                "description": "The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "title": {
-                                "description": "The title of the web page on the port (deep scan, http-title)",
-                                "type": "string"
-                              },
-                              "server": {
-                                "description": "The HTTP Server header on the port (deep scan, http-server-header)",
-                                "type": "string"
-                              },
-                              "location": {
-                                "description": "Where the port's first page redirects, when the deep scan did not follow it (http-title)",
-                                "type": "string"
-                              },
-                              "appliance": {
-                                "description": "The network appliance the port names, with the inventory devices of that family; absent when none",
-                                "type": "object",
-                                "properties": {
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins)"
-                                  },
-                                  "vendor": {
-                                    "type": "string",
-                                    "description": "The family's vendor; \"\" for a product of no family"
-                                  },
-                                  "kind": {
-                                    "type": "string",
-                                    "enum": [
-                                      "admin",
-                                      "vpn",
-                                      "admin_or_vpn"
-                                    ],
-                                    "description": "admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both"
-                                  },
-                                  "evidence": {
-                                    "type": "string",
-                                    "enum": [
-                                      "certificate",
-                                      "title",
-                                      "server",
-                                      "redirect",
-                                      "product"
-                                    ],
-                                    "description": "Which statement of the port named it"
-                                  },
-                                  "devices": {
-                                    "anyOf": [
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "device_id": {
-                                              "type": "string"
-                                            },
-                                            "name": {
-                                              "type": "string"
-                                            },
-                                            "open_exploited": {
-                                              "type": "integer",
-                                              "minimum": -9007199254740991,
-                                              "maximum": 9007199254740991,
-                                              "description": "Open exploited (KEV) findings of the device"
-                                            }
-                                          },
-                                          "required": [
-                                            "device_id",
-                                            "name",
-                                            "open_exploited"
-                                          ],
-                                          "additionalProperties": false
-                                        }
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ],
-                                    "description": "The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN client), at most 5, with their open exploited findings; [] when none is in the inventory; null when Vedette cannot tell or the product has no family"
-                                  },
-                                  "more": {
-                                    "description": "Devices of the family beyond the 5 listed",
-                                    "type": "integer",
-                                    "minimum": -9007199254740991,
-                                    "maximum": 9007199254740991
-                                  }
-                                },
-                                "required": [
-                                  "name",
-                                  "vendor",
-                                  "kind",
-                                  "evidence",
-                                  "devices"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "ip",
-                              "port",
-                              "service"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
-                    },
-                    "proof": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "zone": {
-                              "type": "string",
-                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
-                            },
-                            "host": {
-                              "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
-                            },
-                            "alt_host": {
-                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            },
-                            "covered_by": {
-                              "description": "A verified domain of this box that covers this name already (its parent or the zone): a Check is enough, no second record; null when none",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "zone",
-                            "host",
-                            "alt_host",
-                            "covered_by"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Domains: where the TXT record goes and which verified domain covers this one already; null for an IP"
-                    },
-                    "origin": {
-                      "type": "string",
-                      "enum": [
-                        "person",
-                        "box"
-                      ],
-                      "description": "Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as its own egress address, neutral until its testing terms are accepted)"
-                    },
-                    "ip_proof": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "path": {
-                              "type": "string",
-                              "description": "/.well-known/vedette-verify.txt"
-                            },
-                            "content": {
-                              "type": "string",
-                              "description": "The token: the whole content of the file"
-                            },
-                            "urls": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "The two addresses the box asks, http and https, on the IP"
-                            },
-                            "ptr_domains": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the IP under one of them, resolving back to the IP, proves it"
-                            }
-                          },
-                          "required": [
-                            "path",
-                            "content",
-                            "urls",
-                            "ptr_domains"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that proves it; null for a domain and for an IP the box found"
-                    },
-                    "next_check_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
-                    },
-                    "scan_state": {
-                      "type": "string",
-                      "enum": [
-                        "unproved",
-                        "expired",
-                        "paused",
-                        "needs_terms",
-                        "ready",
-                        "queued",
-                        "scanning"
-                      ],
-                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
-                    },
-                    "open_exposures": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991,
-                      "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                    },
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "every": {
-                          "type": "string",
-                          "enum": [
-                            "off",
-                            "daily",
-                            "weekly",
-                            "monthly"
-                          ],
-                          "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                        },
-                        "next_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
-                          "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                        },
-                        "note": {
-                          "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "every",
-                        "next_at",
-                        "note"
-                      ],
-                      "additionalProperties": false,
-                      "description": "How often the box scans the target by itself, when next, and why not"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "kind",
-                    "value",
-                    "status",
-                    "method",
-                    "token",
-                    "verified_at",
-                    "expires_at",
-                    "validity",
-                    "last_check",
-                    "commitment",
-                    "commitment_notice",
-                    "terms",
-                    "terms_notice",
-                    "full_scan",
-                    "scannable",
-                    "blocked_reason",
-                    "created_at",
-                    "last_scan_at",
-                    "latest",
-                    "open_ports",
-                    "proof",
-                    "origin",
-                    "ip_proof",
-                    "next_check_at",
-                    "scan_state",
-                    "open_exposures",
-                    "schedule"
                   ],
                   "additionalProperties": false
                 }
@@ -30752,7 +29799,7 @@
                           "properties": {
                             "zone": {
                               "type": "string",
-                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                              "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                             },
                             "host": {
                               "type": "string",
@@ -30868,48 +29915,6 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                    },
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "every": {
-                          "type": "string",
-                          "enum": [
-                            "off",
-                            "daily",
-                            "weekly",
-                            "monthly"
-                          ],
-                          "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                        },
-                        "next_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
-                          "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                        },
-                        "note": {
-                          "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "every",
-                        "next_at",
-                        "note"
-                      ],
-                      "additionalProperties": false,
-                      "description": "How often the box scans the target by itself, when next, and why not"
                     }
                   },
                   "required": [
@@ -30939,8 +29944,7 @@
                     "ip_proof",
                     "next_check_at",
                     "scan_state",
-                    "open_exposures",
-                    "schedule"
+                    "open_exposures"
                   ],
                   "additionalProperties": false
                 }
@@ -31530,7 +30534,7 @@
                           "properties": {
                             "zone": {
                               "type": "string",
-                              "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                              "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                             },
                             "host": {
                               "type": "string",
@@ -31646,48 +30650,6 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                    },
-                    "schedule": {
-                      "type": "object",
-                      "properties": {
-                        "every": {
-                          "type": "string",
-                          "enum": [
-                            "off",
-                            "daily",
-                            "weekly",
-                            "monthly"
-                          ],
-                          "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                        },
-                        "next_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
-                          "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                        },
-                        "note": {
-                          "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "every",
-                        "next_at",
-                        "note"
-                      ],
-                      "additionalProperties": false,
-                      "description": "How often the box scans the target by itself, when next, and why not"
                     }
                   },
                   "required": [
@@ -31717,8 +30679,7 @@
                     "ip_proof",
                     "next_check_at",
                     "scan_state",
-                    "open_exposures",
-                    "schedule"
+                    "open_exposures"
                   ],
                   "additionalProperties": false
                 }
@@ -32295,7 +31256,7 @@
                               "properties": {
                                 "zone": {
                                   "type": "string",
-                                  "description": "The registered domain: the DNS zone the record is added in (\"beyondnetglobal.com\")"
+                                  "description": "The registered domain: the DNS zone the record is added in (\"example.com\")"
                                 },
                                 "host": {
                                   "type": "string",
@@ -32411,48 +31372,6 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
                           "description": "Open ports of the newest scan (0 when never scanned): the number the target row shows"
-                        },
-                        "schedule": {
-                          "type": "object",
-                          "properties": {
-                            "every": {
-                              "type": "string",
-                              "enum": [
-                                "off",
-                                "daily",
-                                "weekly",
-                                "monthly"
-                              ],
-                              "description": "off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by itself, counted from the start of its newest scan"
-                            },
-                            "next_at": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "format": "date-time",
-                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
-                              "description": "When the next scheduled scan is expected to start: when it is due, moved to the next opening of the scan window; null when the schedule is off or the target cannot be scanned on schedule now (note says why)"
-                            },
-                            "note": {
-                              "description": "Why the target is not scanned on schedule, e.g. \"Not scanned on schedule: terms need confirming again\"; null otherwise",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "every",
-                            "next_at",
-                            "note"
-                          ],
-                          "additionalProperties": false,
-                          "description": "How often the box scans the target by itself, when next, and why not"
                         }
                       },
                       "required": [
@@ -32482,8 +31401,7 @@
                         "ip_proof",
                         "next_check_at",
                         "scan_state",
-                        "open_exposures",
-                        "schedule"
+                        "open_exposures"
                       ],
                       "additionalProperties": false
                     }
@@ -34922,7 +33840,8 @@
                     "type": "boolean"
                   },
                   "selected": {
-                    "maxItems": 1000,
+                    "description": "The ids of the names to scan, at most 299: Choose at most 299 names: one scan reads at most 300 names, this one included. For more, add a subdomain as its own target.",
+                    "maxItems": 299,
                     "type": "array",
                     "items": {
                       "type": "string"

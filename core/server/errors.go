@@ -89,9 +89,13 @@ func mapError(err error) (*apierr.Error, bool) {
 // allowed (the same sentence the handler's own check and the mock use). Keyed by operation id and field: other endpoints have their
 // own `username` pattern (the credentialed scan's differs).
 var fieldRule = map[string]string{
-	"core_post_core_connections username":   connUserRule,
-	"core_put_core_connections_id username": connUserRule,
+	"core_post_core_connections username":      connUserRule,
+	"core_put_core_connections_id username":    connUserRule,
+	"exposure_patch_exposure_tree_id selected": selectedNamesRule,
 }
+
+// selectedNamesRule is why a target chooses at most 299 of its names (exposure.MaxSelected; contract.ts SELECTED_LIMIT_WHY).
+const selectedNamesRule = "Choose at most 299 names: one scan reads at most 300 names, this one included. For more, add a subdomain as its own target."
 
 const connUserRule = "The user name is 1 to 64 characters, with no spaces, colons or control characters."
 

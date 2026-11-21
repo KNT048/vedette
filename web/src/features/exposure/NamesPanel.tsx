@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useCan } from '@/lib/session'
 import { useEditNode, useRows } from './api'
+import { MAX_SELECTED } from './contract'
 import { Seen } from './NodeParts'
 import type { Address, Host, TargetNode } from './types'
 
@@ -39,6 +40,9 @@ function NamesTable({ node, hosts, addresses, onEdit }: { node: TargetNode; host
   const picked = free.filter((h) => selected.has(h.id)).map((h) => h.id)
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const chosen = free.filter((h) => h.selected).map((h) => h.id)
+  // One scan reads at most 300 names with the target's own: a choice beyond that is refused, so the page says so before sending it.
+  const withPicked = [...new Set([...chosen, ...picked])].length
+  const tooMany = withPicked > MAX_SELECTED
   // The choice is replaced as a whole: the names chosen now, with the picked ones added or taken out.
   const save = (on: boolean) => {
     setAdding(on)
@@ -77,10 +81,11 @@ function NamesTable({ node, hosts, addresses, onEdit }: { node: TargetNode; host
         <div role="region" aria-label={t('names.selection')} className="flex flex-wrap items-center gap-2">
           <span className="text-meta font-medium">{t('names.selected', { count: picked.length })}</span>
           {/* empty-guard: the bar shows only with a selection */}
-          <Button size="sm" variant="primary" disabled={edit.isPending && !adding} busy={edit.isPending && adding} busyLabel={t('common:busy.saving')} onClick={() => save(true)}>{t('names.choose', { count: picked.length })}</Button>
+          <Button size="sm" variant="primary" disabled={(edit.isPending && !adding) || tooMany} aria-describedby={tooMany ? 'ex-names-too-many' : undefined} busy={edit.isPending && adding} busyLabel={t('common:busy.saving')} onClick={() => save(true)}>{t('names.choose', { count: picked.length })}</Button>
           {/* empty-guard: the bar shows only with a selection */}
           <Button size="sm" disabled={edit.isPending && adding} busy={edit.isPending && !adding} busyLabel={t('common:busy.saving')} onClick={() => save(false)}>{t('names.unchoose', { count: picked.length })}</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t('issues.clearSelection')}</Button>
+          {tooMany ? <p id="ex-names-too-many" className="w-full text-meta text-warn">{t('names.tooMany', { max: MAX_SELECTED, count: withPicked })}</p> : null}
         </div>
       ) : null}
       <DataTable urlKey="exposure-names" caption={t('names.caption', { value: node.value })} data={hosts} columns={columns} pageSize={50} fillColumn="name" initialSort={[{ id: 'name', desc: false }]}

@@ -1759,22 +1759,6 @@ func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule operation.
-//
-// Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly,
-// counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window
-// of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of
-// the current version are accepted (else it is skipped and schedule.note says why), with the same
-// steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan.
-// What it finds new since the scan before (an open port, an admin page, a certificate now expiring
-// within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value
-// for another value. Audited (exposure.schedule).
-//
-// PUT /exposure/targets/{id}/schedule
-func (UnimplementedHandler) ExposurePutExposureTargetsIDSchedule(ctx context.Context, req *ExposurePutExposureTargetsIDScheduleReq, params ExposurePutExposureTargetsIDScheduleParams) (r *ExposurePutExposureTargetsIDScheduleOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms operation.
 //
 // Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds

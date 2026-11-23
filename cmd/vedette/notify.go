@@ -14,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
@@ -331,3 +332,34 @@ func notifyBoxAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
 
 // notifyJobs is the Jobs func of the notify entry in wiredModules: the "deliver" job.
 func notifyJobs(d deps) []jobs.Job { return newNotify(&d).Jobs() }
+
+// homeFirstRun is findings.HomeSources.FirstRun over notify: the first-run summary Home shows, in the overview's words (findings
+// imports neither notify nor its channel types).
+func homeFirstRun(svc *notify.Service) func(ctx context.Context, since time.Time) (*findings.FirstRunSummary, error) {
+	return func(ctx context.Context, since time.Time) (*findings.FirstRunSummary, error) {
+		f, err := svc.FirstRunSummary(ctx, since)
+		if err != nil || f == nil {
+			return nil, err
+		}
+		ts := func(t time.Time) *string {
+			if t.IsZero() {
+				return nil
+			}
+			s := store.FormatTS(t)
+			return &s
+		}
+		out := &findings.FirstRunSummary{ID: f.ID, Load: f.Load, Title: f.Title, MadeAt: store.FormatTS(f.At), State: f.State, SentAt: ts(f.SentAt),
+			Channels: []string{}, DueAt: ts(f.DueAt), Quiet: f.Quiet, Link: f.Link, Later: f.Later}
+		for _, c := range f.Channels {
+			out.Channels = append(out.Channels, string(c))
+		}
+		if f.NotSent != nil {
+			text, reason := f.NotSent.Text, string(f.NotSent.Reason)
+			out.NotSent, out.Reason = &text, &reason
+		}
+		if f.LaterTitle != "" {
+			out.LaterTitle = &f.LaterTitle
+		}
+		return out, nil
+	}
+}

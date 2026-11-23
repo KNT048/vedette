@@ -55094,6 +55094,137 @@
                       ],
                       "description": "null when Notifications is off"
                     },
+                    "first_run_summary": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "The first summary of the load (a notice id)"
+                            },
+                            "load": {
+                              "type": "string",
+                              "enum": [
+                                "install",
+                                "catalogue",
+                                "source"
+                              ],
+                              "description": "install: Vedette's own first look at the network (the first 36 hours); catalogue: the first load of its catalogue of vulnerabilities; source: the first load of a source of exploitation news"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The first summary's title as the message said it (\"Patch first: 7 urgent findings on 3 devices\")"
+                            },
+                            "made_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the summary was made (the first rating of its load)"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "sent",
+                                "waiting",
+                                "not_sent"
+                              ],
+                              "description": "sent: a channel delivered it; waiting: queued (it waits a few minutes for the rest of its load, for quiet hours, or for the next deliver run); not_sent: no channel took it or every channel failed"
+                            },
+                            "sent_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "sent: the first delivery"
+                            },
+                            "channels": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "sent: the channels that delivered it (telegram, slack, zalo, zalo-personal, email, webhook)"
+                            },
+                            "due_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "waiting: when it goes out"
+                            },
+                            "quiet": {
+                              "type": "boolean",
+                              "description": "waiting: only quiet hours hold it"
+                            },
+                            "not_sent": {
+                              "description": "not_sent: why, as the alert history says it",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "description": "not_sent: the reason code of the alert history (no_channel, channels_off, below_min_severity, failed, ...)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "link": {
+                              "type": "string",
+                              "description": "The findings list of every summary of the load: /findings?tab=device&status=<the statuses they named>"
+                            },
+                            "later": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Summaries of the same load made after the first (\"N more urgent findings ... to patch first\")"
+                            },
+                            "later_title": {
+                              "description": "The newest of them; null when later is 0",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "load",
+                            "title",
+                            "made_at",
+                            "state",
+                            "sent_at",
+                            "channels",
+                            "due_at",
+                            "quiet",
+                            "not_sent",
+                            "reason",
+                            "link",
+                            "later",
+                            "later_title"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The first-run summary of the newest load made in the last 7 days"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when there is none in the last 7 days, or Notifications is off"
+                    },
                     "generated_at": {
                       "type": "string",
                       "format": "date-time",
@@ -55109,6 +55240,7 @@
                     "trend_start",
                     "alerts",
                     "incidents",
+                    "first_run_summary",
                     "generated_at"
                   ],
                   "additionalProperties": false,

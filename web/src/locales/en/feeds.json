@@ -443,6 +443,27 @@
     "emptyBody_other": "Vedette checks your {{count}} devices again whenever the exploited lists change.",
     "emptyInfo": "A finding appears when a device runs software affected by a known vulnerability. Newly exploited vulnerabilities, matched or not, are on the board below."
   },
+  "firstRun": {
+    "title": {
+      "install": "Vedette's first look at your network",
+      "catalogue": "First load of the vulnerability catalogue",
+      "source": "First load of a new exploitation news source"
+    },
+    "info": "When Vedette first rates findings urgent (its first 36 hours, or the first load of a source), it sends one summary instead of an alert for each. Home shows that summary for 7 days, or until you hide it.",
+    "sent": "Sent {{when}}.",
+    "sentBy": "Sent {{when}} by {{by}}.",
+    "waiting": "Goes out at {{when}}. Vedette waits a few minutes so one message covers the whole first pass.",
+    "goingNow": "Going out now.",
+    "quiet": "Held for quiet hours. It goes out at {{when}}.",
+    "notSent": "Not sent. No channel delivered it.",
+    "setUp": "Set up an alert channel",
+    "history": "See the alert history",
+    "later_one": "Since then: {{title}}",
+    "later_other": "Since then, {{count}} more summaries. The newest: {{title}}",
+    "allHandled": "Nothing on that list is open any more.",
+    "open": "Open the list",
+    "hide": "Hide"
+  },
   "start": {
     "title": "Get started",
     "doneTitle": "You're set up",

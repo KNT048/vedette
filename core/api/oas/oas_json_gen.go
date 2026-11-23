@@ -194183,6 +194183,10 @@ func (s *FindingsGetFindingsOverviewOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("first_run_summary")
+		s.FirstRunSummary.Encode(e)
+	}
+	{
 		e.FieldStart("generated_at")
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
@@ -194212,16 +194216,17 @@ func (s *FindingsGetFindingsOverviewOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOverviewOK = [9]string{
+var jsonFieldsNameOfFindingsGetFindingsOverviewOK = [10]string{
 	0: "alerts",
 	1: "devices",
 	2: "first",
-	3: "generated_at",
-	4: "incidents",
-	5: "input",
-	6: "open",
-	7: "trend",
-	8: "trend_start",
+	3: "first_run_summary",
+	4: "generated_at",
+	5: "incidents",
+	6: "input",
+	7: "open",
+	8: "trend",
+	9: "trend_start",
 }
 
 // Decode decodes FindingsGetFindingsOverviewOK from json.
@@ -194271,8 +194276,18 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"first\"")
 			}
-		case "generated_at":
+		case "first_run_summary":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.FirstRunSummary.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_run_summary\"")
+			}
+		case "generated_at":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.GeneratedAt = v
@@ -194284,7 +194299,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"generated_at\"")
 			}
 		case "incidents":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Incidents.Decode(d); err != nil {
 					return err
@@ -194294,7 +194309,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"incidents\"")
 			}
 		case "input":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Input = int(v)
@@ -194306,7 +194321,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"input\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Open.Decode(d); err != nil {
 					return err
@@ -194316,7 +194331,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "trend":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Trend = make([]int, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -194336,7 +194351,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trend\"")
 			}
 		case "trend_start":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDate(d)
 				s.TrendStart = v
@@ -194358,7 +194373,7 @@ func (s *FindingsGetFindingsOverviewOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -197393,6 +197408,406 @@ func (s FindingsGetFindingsOverviewOKFirstItemDeviceKind) MarshalJSON() ([]byte,
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsOverviewOKFirstItemDeviceKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("due_at")
+		s.DueAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("later")
+		e.Int(s.Later)
+	}
+	{
+		e.FieldStart("later_title")
+		s.LaterTitle.Encode(e)
+	}
+	{
+		e.FieldStart("link")
+		e.Str(s.Link)
+	}
+	{
+		e.FieldStart("load")
+		s.Load.Encode(e)
+	}
+	{
+		e.FieldStart("made_at")
+		json.EncodeDateTime(e, s.MadeAt)
+	}
+	{
+		e.FieldStart("not_sent")
+		s.NotSent.Encode(e)
+	}
+	{
+		e.FieldStart("quiet")
+		e.Bool(s.Quiet)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("sent_at")
+		s.SentAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("title")
+		e.Str(s.Title)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsOverviewOKFirstRunSummary = [14]string{
+	0:  "channels",
+	1:  "due_at",
+	2:  "id",
+	3:  "later",
+	4:  "later_title",
+	5:  "link",
+	6:  "load",
+	7:  "made_at",
+	8:  "not_sent",
+	9:  "quiet",
+	10: "reason",
+	11: "sent_at",
+	12: "state",
+	13: "title",
+}
+
+// Decode decodes FindingsGetFindingsOverviewOKFirstRunSummary from json.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsOverviewOKFirstRunSummary to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		case "due_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.DueAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"due_at\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "later":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Later = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"later\"")
+			}
+		case "later_title":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.LaterTitle.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"later_title\"")
+			}
+		case "link":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Link = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "load":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Load.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"load\"")
+			}
+		case "made_at":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.MadeAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"made_at\"")
+			}
+		case "not_sent":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.NotSent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_sent\"")
+			}
+		case "quiet":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Quiet = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"quiet\"")
+			}
+		case "reason":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "sent_at":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sent_at\"")
+			}
+		case "state":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "title":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Title = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"title\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsOverviewOKFirstRunSummary")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsOverviewOKFirstRunSummary) {
+					name = jsonFieldsNameOfFindingsGetFindingsOverviewOKFirstRunSummary[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsOverviewOKFirstRunSummaryLoad as json.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryLoad) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsOverviewOKFirstRunSummaryLoad from json.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryLoad) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsOverviewOKFirstRunSummaryLoad to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsOverviewOKFirstRunSummaryLoad(v) {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource
+	default:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoad(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryLoad) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryLoad) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsOverviewOKFirstRunSummaryState as json.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsOverviewOKFirstRunSummaryState from json.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsOverviewOKFirstRunSummaryState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsOverviewOKFirstRunSummaryState(v) {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateSent:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateSent
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent
+	default:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -289260,6 +289675,50 @@ func (s NilFindingsGetFindingsOverviewOKFirstItemBlockSoftware) MarshalJSON() ([
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsOverviewOKFirstItemBlockSoftware) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsOverviewOKFirstRunSummary as json.
+func (o NilFindingsGetFindingsOverviewOKFirstRunSummary) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes FindingsGetFindingsOverviewOKFirstRunSummary from json.
+func (o *NilFindingsGetFindingsOverviewOKFirstRunSummary) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsOverviewOKFirstRunSummary to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v FindingsGetFindingsOverviewOKFirstRunSummary
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFindingsGetFindingsOverviewOKFirstRunSummary) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFindingsGetFindingsOverviewOKFirstRunSummary) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

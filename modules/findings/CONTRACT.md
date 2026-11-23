@@ -134,7 +134,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-22** Every finding row carries the CVE's base CVSS as feeds picks it (`Feeds.CVSS`).
 - **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's. `devices.affected` counts every device with an
   open finding (the Vedette box included, which carries no badge); the trend starts at `trend_start`, the day this box began keeping
-  findings when that is inside the 30 days.
+  findings when that is inside the 30 days. `first_run_summary` is notify's first-run summary of the newest load made in the last 7
+  days (`HomeSources.FirstRun`, a notice, never an incident): shown on Home even when no channel took it; `null` when there is none or
+  notify is off.
 - **INV-30** Findings of a device not yet added show, marked; an ignored device's findings are listed only under Ignored, and readers
   of one finding outside its page answer "not found" for them.
 

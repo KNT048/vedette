@@ -872,8 +872,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
 	// Home's one read (GET /findings/overview; also the shell's nav badges) carries inventory's device counts and notify's sent
-	// messages and open incidents; findings imports neither.
-	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents}
+	// messages, open incidents and first-run summary; findings imports neither.
+	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents, FirstRun: homeFirstRun(notifySvc)}
 	if d.Inventory != nil {
 		home.Devices = d.Inventory.DeviceCounts
 	}

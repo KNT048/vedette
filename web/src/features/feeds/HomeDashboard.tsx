@@ -26,6 +26,7 @@ import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
 import type { RunningJob } from '@/features/scanning/contract'
 import { KEY, SCANNING_KEY, affectedDevices, isFirstRun, useHome, useScanning } from './homeSummary'
+import { FirstRunCard } from './FirstRunCard'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
 const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
@@ -294,7 +295,8 @@ function Onboarding({ s, firstRun, prompts }: { s: Overview; firstRun: boolean; 
 }
 
 /**
- * Home at a glance (S-UI-1): the first-run path, or the tiles and "Fix first", all from the findings overview. Without the findings module, or
+ * Home at a glance (S-UI-1): the first-run summary Vedette sent (while the overview carries it), the first-run path, or the tiles and
+ * "Fix first", all from the findings overview. Without the findings module, or
  * when the read fails, only `prompts`; a placeholder of the same height while the module list or the read is on its way (never a 0 that
  * is really "unknown"). `prompts` mount once the card's place is known, so a notice never shows, goes and comes back. `kevNotice`: why
  * Vedette cannot say "nothing exploited" (the CISA list off, never loaded or never fetched); null when it can.
@@ -310,6 +312,7 @@ export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; pr
   const firstRun = isFirstRun(s)
   return (
     <>
+      <FirstRunCard o={s} />
       <Onboarding s={s} firstRun={firstRun} prompts={prompts} />
       {firstRun ? null : (
         <>

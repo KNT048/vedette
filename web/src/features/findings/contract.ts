@@ -435,6 +435,22 @@ export const View = z.object({
   events: z.array(FindingEvent).describe('Oldest first, append-only'),
 }).describe('A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields')
 export const FirstItem = z.object({ device: DeviceRef, block: FixBlock })
+export const FirstRunSummary = z.object({
+  id: z.string().describe('The first summary of the load (a notice id)'),
+  load: z.enum(['install', 'catalogue', 'source']).describe("install: Vedette's own first look at the network (the first 36 hours); catalogue: the first load of its catalogue of vulnerabilities; source: the first load of a source of exploitation news"),
+  title: z.string().describe('The first summary\'s title as the message said it ("Patch first: 7 urgent findings on 3 devices")'),
+  made_at: iso.describe('When the summary was made (the first rating of its load)'),
+  state: z.enum(['sent', 'waiting', 'not_sent']).describe('sent: a channel delivered it; waiting: queued (it waits a few minutes for the rest of its load, for quiet hours, or for the next deliver run); not_sent: no channel took it or every channel failed'),
+  sent_at: iso.nullable().describe('sent: the first delivery'),
+  channels: z.array(z.string()).describe('sent: the channels that delivered it (telegram, slack, zalo, zalo-personal, email, webhook)'),
+  due_at: iso.nullable().describe('waiting: when it goes out'),
+  quiet: z.boolean().describe('waiting: only quiet hours hold it'),
+  not_sent: z.string().nullable().describe('not_sent: why, as the alert history says it'),
+  reason: z.string().nullable().describe('not_sent: the reason code of the alert history (no_channel, channels_off, below_min_severity, failed, ...)'),
+  link: z.string().describe('The findings list of every summary of the load: /findings?tab=device&status=<the statuses they named>'),
+  later: z.number().int().min(0).describe('Summaries of the same load made after the first ("N more urgent findings ... to patch first")'),
+  later_title: z.string().nullable().describe('The newest of them; null when later is 0'),
+}).describe('The first-run summary of the newest load made in the last 7 days')
 export const Overview = z.object({
   open: z.object({
     findings: z.number().int().min(0).describe('Open findings on devices that are not ignored'),
@@ -455,6 +471,7 @@ export const Overview = z.object({
   trend_start: z.iso.date().describe('The first day of the trend that holds data, in the organization time zone: the first of the 30 days, or the day this box began keeping findings when that is later. The days before it are not drawn or compared'),
   alerts: HomeSummary.shape.alerts,
   incidents: HomeSummary.shape.incidents,
+  first_run_summary: FirstRunSummary.nullable().describe('null when there is none in the last 7 days, or Notifications is off'),
   generated_at: iso,
 }).describe('Home at a glance, from the same status function as the lists')
 

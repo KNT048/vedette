@@ -3,7 +3,6 @@ package inventory
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -401,13 +400,9 @@ func namesWithoutIP(ctx context.Context, q querier) (map[string]bool, error) {
 
 // ipOwner returns the name of the device that has ip (as every page names it), or "".
 func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
-	var id string
-	err := q.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, ip).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("inventory: check IP: %w", err)
+	id, err := addressHolder(ctx, q, ip) // its main address or one of its others (INV-57)
+	if err != nil || id == "" {
+		return "", err
 	}
 	return deviceName(ctx, q, id), nil
 }

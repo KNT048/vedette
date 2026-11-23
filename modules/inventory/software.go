@@ -234,8 +234,9 @@ func readingsOfList(items []SoftwareItem, source, seenAt string) []listed {
 
 // replaceSoftwareTx makes what a source reads of a device equal to items: the readings of that source (of the instances scope
 // names, all of them when scope is nil) that are not in the list go, new ones come, the rest are refreshed; then every line the
-// change touched is settled. Readings of other sources are not touched.
-func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, assetID string, items []SoftwareItem, source string, scope []string, seenAt string) error {
+// change touched is settled. Readings of other sources are not touched, nor those the source read at another address of the device
+// (addr: "" for the main address, else the id of the other address a scan read, INV-57).
+func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, assetID string, items []SoftwareItem, source string, scope []string, seenAt, addr string) error {
 	before, err := deviceKeys(ctx, tx, assetID)
 	if err != nil {
 		return err
@@ -244,7 +245,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		line, version, pkg string
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT r.software_id, r.instance, ifnull(r.version, ''), ifnull(r.pkg_version, '') FROM inv_software_reading r
-		JOIN inv_software s ON s.id = r.software_id WHERE s.asset_id = ? AND r.source = ?`, assetID, source)
+		JOIN inv_software s ON s.id = r.software_id WHERE s.asset_id = ? AND r.source = ? AND r.addr_id = ?`, assetID, source, addr)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
@@ -267,6 +268,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	kept := map[[2]string]bool{}
 	changed, released := false, false
 	for _, l := range readingsOfList(items, source, seenAt) {
+		l.reading.Addr = addr
 		if !inScope(l.reading.Instance) {
 			continue // a list covers only the instances of its scope
 		}
@@ -308,7 +310,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		if kept[k] || !inScope(k[1]) {
 			continue
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = ? AND instance = ?`, h.line, source, k[1]); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = ? AND instance = ? AND addr_id = ?`, h.line, source, k[1], addr); err != nil {
 			return fmt.Errorf("inventory: remove software reading: %w", err)
 		}
 		touched[h.line] = true
@@ -378,7 +380,7 @@ func (s *Service) UpsertSoftware(ctx context.Context, assetID string, items []So
 		if !ok {
 			return ErrNotFound
 		}
-		return s.replaceSoftwareTx(ctx, tx, o, assetID, clean, source, nil, s.now())
+		return s.replaceSoftwareTx(ctx, tx, o, assetID, clean, source, nil, s.now(), "")
 	})
 }
 
@@ -436,7 +438,13 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 				return err
 			}
 		}
-		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), scope, now)
+		addr := ""
+		if addressBound(string(source)) { // a scan of one of the device's other addresses replaces what it read there only
+			if addr, err = addressOf(ctx, tx, id, ip); err != nil {
+				return err
+			}
+		}
+		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), scope, now, addr)
 	})
 }
 

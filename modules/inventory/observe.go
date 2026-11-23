@@ -468,8 +468,11 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 	found := false
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var id string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE (?1 <> '' AND agent_key = ?1) OR (?2 <> '' AND mac = ?2) OR (?3 <> '' AND ip = ?3)
-			ORDER BY (?1 <> '' AND agent_key = ?1) DESC, (?2 <> '' AND mac = ?2) DESC LIMIT 1`, agent, mac, ipS).Scan(&id)
+		// the main address first, then the device's other addresses (INV-57)
+		err := tx.QueryRowContext(ctx, `SELECT id FROM (SELECT id, (?1 <> '' AND agent_key = ?1) AS byKey, (?2 <> '' AND mac = ?2) AS byMAC, 1 AS main FROM inv_asset
+			WHERE (?1 <> '' AND agent_key = ?1) OR (?2 <> '' AND mac = ?2) OR (?3 <> '' AND ip = ?3)
+			UNION ALL SELECT asset_id, 0, (?2 <> '' AND mac = ?2), 0 FROM inv_asset_address WHERE (?2 <> '' AND mac = ?2) OR (?3 <> '' AND ip = ?3))
+			ORDER BY byKey DESC, byMAC DESC, main DESC LIMIT 1`, agent, mac, ipS).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		} else if err != nil {
@@ -622,6 +625,13 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 		case !errors.Is(err, sql.ErrNoRows):
 			return "", false, fmt.Errorf("inventory: find device by MAC: %w", err)
 		}
+		// one of a device's other addresses (INV-57): that device, wherever the interface is now
+		if x, ok, err := extraByMAC(ctx, tx, c.mac); err != nil {
+			return "", false, err
+		} else if ok {
+			id, err := s.atExtraMAC(ctx, tx, o, x, c)
+			return id, false, err
+		}
 		if !c.ip.IsValid() {
 			if id, err := chassisOwner(ctx, tx, c.mac); id != "" || err != nil {
 				return id, false, err
@@ -641,6 +651,16 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 		}
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
+			// one of a device's other addresses (INV-57), by the rules of the main address (atExtraIP)
+			x, ok, err := extraByIP(ctx, tx, c.ip.String())
+			if err != nil {
+				return "", false, err
+			}
+			if ok {
+				if id, done, err := s.atExtraIP(ctx, tx, x, c, cutoff); done || err != nil {
+					return id, false, err
+				}
+			}
 		case err != nil:
 			return "", false, fmt.Errorf("inventory: find device by IP: %w", err)
 		case c.mac == "":
@@ -883,6 +903,12 @@ func handBound(ctx context.Context, tx *sql.Tx, id string) (from, why string, er
 // one set to "never", a fragile or unclassified one after its first scan are never probed). Only then is its silence news; the passive
 // sensor hears broadcasts only, so a quiet server it never hears is not stale.
 func sweptAway(ctx context.Context, tx *sql.Tx, id, cutoff string) (bool, error) {
+	return sweptAwayAt(ctx, tx, id, netip.Addr{}, cutoff)
+}
+
+// sweptAwayAt is sweptAway for one of the device's other addresses at (INV-57): the same rules, with that address in place of the
+// device's main one. The zero at is the main address.
+func sweptAwayAt(ctx context.Context, tx *sql.Tx, id string, at netip.Addr, cutoff string) (bool, error) {
 	var ran bool
 	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_observation WHERE field = 'mac' AND source = 'nmap' AND seen_at >= ?)`, cutoff).Scan(&ran); err != nil {
 		return false, fmt.Errorf("inventory: check the discovery sweep: %w", err)
@@ -893,6 +919,9 @@ func sweptAway(ctx context.Context, tx *sql.Tx, id, cutoff string) (bool, error)
 	var f scanFacts
 	if err := f.scan(tx.QueryRowContext(ctx, `SELECT `+scanCols+` FROM inv_asset WHERE id = ?`, id)); err != nil {
 		return false, fmt.Errorf("inventory: read device: %w", err)
+	}
+	if at.IsValid() {
+		f.addr = at
 	}
 	st, err := loadSettings(ctx, tx)
 	if err != nil {
@@ -1087,13 +1116,27 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string,
 	if cur.Valid && cur.String == ip.String() {
 		return confirmIP(ctx, tx, id, ip, seenAt)
 	}
-	var freed string
-	switch err := tx.QueryRowContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL WHERE ip = ? AND id <> ? AND is_box = 0
-		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) RETURNING id`, ip.String(), id).Scan(&freed); {
-	case err == nil: // the address is unique (inv_asset_ip_uq): one row at most
-		o.readdress(freed)
-	case !errors.Is(err, sql.ErrNoRows):
-		return fmt.Errorf("inventory: free IP: %w", err)
+	// INV-57: one of the device's other addresses is still that address (the device answers on it too); another device's other
+	// address goes to this one, as a main address does
+	switch x, ok, err := extraByIP(ctx, tx, ip.String()); {
+	case err != nil:
+		return err
+	case ok && x.assetID == id && cur.Valid:
+		return touchExtra(ctx, tx, x.id, source, seenAt)
+	case ok && x.assetID == id: // a device with no main address takes this one as its main address, with what a scan read there
+		if err := s.unbindAddress(ctx, tx, id, x.id); err != nil {
+			return err
+		}
+		if err := s.releaseExtraIP(ctx, tx, nil, x); err != nil {
+			return err
+		}
+	case ok:
+		if err := s.releaseExtraIP(ctx, tx, o, x); err != nil {
+			return err
+		}
+	}
+	if _, err := freeMainIP(ctx, tx, o, id, ip.String()); err != nil { // the address is unique (inv_asset_ip_uq): one row at most
+		return err
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,
 		ip.String(), seenAt, id, ip.String())
@@ -1209,7 +1252,9 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 		delete(best, "mac")
 		for _, c := range cands {
 			var other string
-			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ? AND id <> ?`, c.value, assetID).Scan(&other)
+			// a MAC of an address row is an interface of its own (INV-57), never a device's main MAC, this device's included
+			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?1 AND id <> ?2 UNION ALL SELECT asset_id FROM inv_asset_address WHERE mac = ?1 LIMIT 1`,
+				c.value, assetID).Scan(&other)
 			if errors.Is(err, sql.ErrNoRows) {
 				best["mac"] = c
 				break

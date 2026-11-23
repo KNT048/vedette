@@ -31685,6 +31685,154 @@ func (s *Server) handleInventoryGetInventoryDevicesIDRequest(args [1]string, arg
 	}
 }
 
+// handleInventoryGetInventoryDevicesIDMergePreviewRequest handles inventory_get_inventory_devices_id_merge_preview operation.
+//
+// What merging the devices `from` into this device would do, without changing anything: both sides
+// (addresses, software, ports, findings, badge), what moves, the fields they state differently with
+// the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more
+// than 8, one twice or this device itself. 404 not_found: any device.
+//
+// GET /inventory/devices/{id}/merge-preview
+func (s *Server) handleInventoryGetInventoryDevicesIDMergePreviewRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryGetInventoryDevicesIDMergePreviewOperation,
+			ID:   "inventory_get_inventory_devices_id_merge_preview",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventoryDevicesIDMergePreviewOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryGetInventoryDevicesIDMergePreviewParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryGetInventoryDevicesIDMergePreviewOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetInventoryDevicesIDMergePreviewOperation,
+			OperationSummary: "What merging the devices `from` into this device would do, without changing anything: both sides (addresses, software, ports, findings, badge), what moves, the fields they state differently with the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more than 8, one twice or this device itself. 404 not_found: any device",
+			OperationID:      "inventory_get_inventory_devices_id_merge_preview",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryGetInventoryDevicesIDMergePreviewParams
+			Response = *InventoryGetInventoryDevicesIDMergePreviewOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryGetInventoryDevicesIDMergePreviewParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetInventoryDevicesIDMergePreview(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetInventoryDevicesIDMergePreview(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetInventoryDevicesIDMergePreviewResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryGetInventoryDevicesIDSourcesRequest handles inventory_get_inventory_devices_id_sources operation.
 //
 // The device's sources as three rows (network scan, SNMP, agent): each with its state, colour, last
@@ -35542,13 +35690,15 @@ func (s *Server) handleInventoryPostInventoryDevicesIDKeepSeparateRequest(args [
 
 // handleInventoryPostInventoryDevicesIDMergeRequest handles inventory_post_inventory_devices_id_merge operation.
 //
-// The same machine: device `from` joins this device and is gone. This device keeps its id, approval
-// (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept),
-// findings and settings; the MACs, sources, software and open ports of `from` move to it, and its
-// address when it was seen later and this device was found by a sensor (a device added by hand keeps
-// the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
-// box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in
-// MACs, say two machines.
+// The same machine: every device of `from` joins this device and is gone, in one step. This device
+// keeps its id, main address, approval (it becomes approved when one of them was, and loses a
+// suspicious mark as on Approve), notes (all kept), findings and settings; the addresses of each (with
+// what a scan read at each one: the device is found by any of them, and a scan of one address never
+// replaces what another address showed), MACs, sources, software, open ports and findings move to it.
+// `fields` sets the name, type or OS a person picked where the devices differ. 400 invalid: no device,
+// more than 8, one twice or this device itself. 400 bad_choice: a picked value none of the devices
+// has. 404 not_found: any device. 409 box_device: one is the Vedette box. 409 not_same_device: two
+// agents say two machines.
 //
 // POST /inventory/devices/{id}/merge
 func (s *Server) handleInventoryPostInventoryDevicesIDMergeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35642,7 +35792,7 @@ func (s *Server) handleInventoryPostInventoryDevicesIDMergeRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventoryDevicesIDMergeOperation,
-			OperationSummary: "The same machine: device `from` joins this device and is gone. This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
+			OperationSummary: "The same machine: every device of `from` joins this device and is gone, in one step. This device keeps its id, main address, approval (it becomes approved when one of them was, and loses a suspicious mark as on Approve), notes (all kept), findings and settings; the addresses of each (with what a scan read at each one: the device is found by any of them, and a scan of one address never replaces what another address showed), MACs, sources, software, open ports and findings move to it. `fields` sets the name, type or OS a person picked where the devices differ. 400 invalid: no device, more than 8, one twice or this device itself. 400 bad_choice: a picked value none of the devices has. 404 not_found: any device. 409 box_device: one is the Vedette box. 409 not_same_device: two agents say two machines",
 			OperationID:      "inventory_post_inventory_devices_id_merge",
 			Body:             request,
 			RawBody:          rawBody,
@@ -35850,6 +36000,171 @@ func (s *Server) handleInventoryPostInventoryDevicesIDSoftwareRequest(args [1]st
 	}
 
 	if err := encodeInventoryPostInventoryDevicesIDSoftwareResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostInventoryDevicesIDSplitRequest handles inventory_post_inventory_devices_id_split operation.
+//
+// Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a
+// device of its own with what was read only there (the MAC's observations, the readings and open ports
+// a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the
+// main address, the other address seen last becomes the main one. The new device is approved when this
+// one was (no new-device alert), and the pair is kept separate: never offered as possibly the same
+// device again. Findings follow the software (matched again on both). One audit row. Returns the new
+// device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one
+// of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409
+// agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with
+// the agent's machine: split off the other addresses.
+//
+// POST /inventory/devices/{id}/split
+func (s *Server) handleInventoryPostInventoryDevicesIDSplitRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventoryDevicesIDSplitOperation,
+			ID:   "inventory_post_inventory_devices_id_split",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventoryDevicesIDSplitOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPostInventoryDevicesIDSplitParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPostInventoryDevicesIDSplitRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPostInventoryDevicesIDSplitOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventoryDevicesIDSplitOperation,
+			OperationSummary: "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409 agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with the agent's machine: split off the other addresses",
+			OperationID:      "inventory_post_inventory_devices_id_split",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *InventoryPostInventoryDevicesIDSplitReq
+			Params   = InventoryPostInventoryDevicesIDSplitParams
+			Response = *InventoryPostInventoryDevicesIDSplitOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPostInventoryDevicesIDSplitParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventoryDevicesIDSplit(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventoryDevicesIDSplit(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventoryDevicesIDSplitResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

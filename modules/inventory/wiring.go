@@ -225,7 +225,7 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.vendor, s.product, s.product_key, s.state, ifnull(s.not_installed_by, ''), ifnull(s.not_installed_at, ''),
 		`+guessLine+`, `+readingCols+`
 		FROM inv_software s JOIN inv_software_reading r ON r.software_id = s.id
-		WHERE s.asset_id = ? AND (`+liveSW+` OR `+notInstalledSW+`) ORDER BY s.display, s.id, r.source, r.instance`, id)
+		WHERE s.asset_id = ? AND (`+liveSW+` OR `+notInstalledSW+`) ORDER BY s.display, s.id, r.source, r.instance, r.addr_id`, id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("inventory: read software: %w", err)
 	}
@@ -239,7 +239,7 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 		var l line
 		var r Reading
 		if err := rows.Scan(&l.id, &l.vendor, &l.product, &l.key, &l.state, &l.markedBy, &l.markedAt, &l.guess,
-			&r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt); err != nil {
+			&r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt, &r.Addr); err != nil {
 			_ = rows.Close()
 			return nil, nil, fmt.Errorf("inventory: read software: %w", err)
 		}
@@ -511,7 +511,7 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 // (Devices stops at MaxListed and would forget the oldest device). A read error is returned and the caller must fail closed.
 func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_asset WHERE ip = ? AND is_box = 0`, ip).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM inv_asset WHERE ip = ?1 AND is_box = 0) + (SELECT count(*) FROM inv_asset_address WHERE ip = ?1)`, ip).Scan(&n); err != nil {
 		return false, fmt.Errorf("inventory: read address: %w", err)
 	}
 	return n > 0, nil
@@ -521,7 +521,7 @@ func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
 // absent from it as new, so a capped list would make old devices eat the budget of real new ones. Lower case, ordered; a read error is
 // returned, never a short list.
 func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT mac FROM inv_asset WHERE mac IS NOT NULL ORDER BY mac`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT mac FROM inv_asset WHERE mac IS NOT NULL UNION SELECT mac FROM inv_asset_address WHERE mac IS NOT NULL ORDER BY 1`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read macs: %w", err)
 	}
@@ -540,9 +540,10 @@ func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// AddressMap returns the device id of every IP the inventory knows, with no row cap. Read error: returned, never a short map.
+// AddressMap returns the device id of every IP the inventory knows (a device's main address and its others, INV-57), with no row cap.
+// Read error: returned, never a short map.
 func (s *Service) AddressMap(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip, id FROM inv_asset WHERE ip IS NOT NULL`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip, id FROM inv_asset WHERE ip IS NOT NULL UNION ALL SELECT ip, asset_id FROM inv_asset_address WHERE ip IS NOT NULL`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read addresses: %w", err)
 	}

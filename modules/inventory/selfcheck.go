@@ -29,6 +29,16 @@ func init() {
 		Name:  "inventory.removed_line_has_no_reading",
 		Query: `SELECT count(*) FROM inv_software s WHERE s.state = 'removed' AND EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = s.id)`,
 	})
+	// An address has one home (INV-57): an IP or a MAC is the main address of one device or one row of inv_asset_address, never both or
+	// two of them; and what a scan read at an address row points at a row of the same device.
+	selfcheck.Register(selfcheck.Invariant{
+		Name: "inventory.address_has_one_home",
+		Query: `SELECT (SELECT count(*) FROM (SELECT v FROM (SELECT ip AS v FROM inv_asset WHERE ip IS NOT NULL UNION ALL SELECT ip FROM inv_asset_address WHERE ip IS NOT NULL
+			UNION ALL SELECT mac FROM inv_asset WHERE mac IS NOT NULL UNION ALL SELECT mac FROM inv_asset_address WHERE mac IS NOT NULL) GROUP BY v HAVING count(*) > 1))
+			+ (SELECT count(*) FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE r.addr_id <> ''
+				AND NOT EXISTS (SELECT 1 FROM inv_asset_address x WHERE x.id = r.addr_id AND x.asset_id = w.asset_id))
+			+ (SELECT count(*) FROM inv_service s WHERE s.addr_id <> '' AND NOT EXISTS (SELECT 1 FROM inv_asset_address x WHERE x.id = s.addr_id AND x.asset_id = s.asset_id))`,
+	})
 	// A present line has a reading (a source's or a person's entry).
 	selfcheck.Register(selfcheck.Invariant{
 		Name:  "inventory.present_line_has_a_reading",

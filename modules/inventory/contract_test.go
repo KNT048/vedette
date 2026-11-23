@@ -189,6 +189,7 @@ func ptr[T any](v T) *T { return &v }
 // code is never listed.
 var seedsInvRows = map[string]bool{
 	"../../cmd/vedette/merge_count_test.go":               true,
+	"../../cmd/vedette/addresses_count_test.go":           true, // the count test of merging and splitting a device's interfaces
 	"../../cmd/vedette/devicelifecycle_test.go":           true,
 	"../../cmd/vedette/softwareline_fixture_test.go":      true,
 	"../../modules/findings/findingstest/findingstest.go": true, // creates the device and line rows findings' tests point at (foreign keys)

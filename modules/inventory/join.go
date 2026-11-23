@@ -183,13 +183,19 @@ const (
 // module that keeps rows about a device moves them in this same transaction (core/lifecycle, before from's row goes); an error of
 // any of them rolls the whole write back.
 func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, o *outbox, from, into, why string, mode joinMode) (string, error) {
-	return s.joinAs(ctx, tx, o, from, into, why, mode, systemActor)
+	return s.joinAs(ctx, tx, o, from, into, why, mode, systemActor, false)
 }
 
 // joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows. It
 // returns the event the caller publishes for into after the merge events when the two rows differed in being ignored: ""
 // when they did not.
-func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into, why string, mode joinMode, actor string) (watchEvent string, err error) {
+//
+// Addresses (INV-57): from's other addresses always become into's. With keep (a person's merge: the rows are interfaces of one
+// machine, not one card seen twice) from's main address becomes one of into's too, and what a scan read there stays bound to it, so
+// into keeps its own main address and the next scan of either address reaches the same device without replacing the other's
+// readings. Without keep (the join rules: a rotated private address, an agent's orphan row) from's main address is an old one: it
+// moves to into only as the machine join's address rule says, as before. A device with no main address at all takes from's as its main.
+func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into, why string, mode joinMode, actor string, keep bool) (watchEvent string, err error) {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
 	var fromIgnored, intoIgnored, fromApproved, carry bool
 	var fromApprovedAt sql.NullString
@@ -258,6 +264,10 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.ip_confirmed_at, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
 		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	placed, err := s.moveAddresses(ctx, tx, from, into, keep && mode == joinMachine)
+	if err != nil {
+		return "", err
 	}
 	software, err := foldSoftware(ctx, tx, s, from, into)
 	if err != nil {
@@ -330,7 +340,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		}
 	}
 	// from is deleted: its address is free. A hand-added row bound to a MAC or an agent moves like a discovered one (#829).
-	if mode == joinMachine && fromIP.Valid {
+	if mode == joinMachine && fromIP.Valid && !placed {
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND is_box = 0
 			AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) AND (ip IS NULL OR ?)`,
 			fromIP.String, fromConfirmed, into, newer); err != nil {
@@ -346,6 +356,82 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		}
 	}
 	return watchEvent, s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why+watch)
+}
+
+// moveAddresses gives into the other addresses of from (INV-57) and, with keep (a person's merge), from's main address too, so every
+// address of both stays the device's. The main address follows the machine join's rule: from's when from was seen later and into may
+// lose its address (a discovered device, or one bound to a MAC or an agent: claimIP's rule); into's main address is then one of its
+// others. Each interface stays whole (its IP and MAC together): the halves of one (an address known without its MAC, a MAC seen without
+// an address) make into's main address; two whole interfaces stay two, the one with an IP the main one. What a scan read at an address
+// that becomes a row is bound to that row (addr_id), so it stays apart from what was read at the other. It reports whether it placed the addresses itself: the machine join's own address
+// move is then skipped.
+func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into string, keep bool) (placed bool, err error) {
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
+		return false, fmt.Errorf("inventory: move the addresses: %w", err)
+	}
+	if !keep {
+		return false, nil
+	}
+	type side struct {
+		ip, mac, confirmed sql.NullString
+		first, last        string
+	}
+	var f, i side
+	var newer, movable bool
+	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.mac, f.ip_confirmed_at, f.first_seen, coalesce(f.ip_confirmed_at, f.last_seen),
+		i.ip, i.mac, i.ip_confirmed_at, i.first_seen, coalesce(i.ip_confirmed_at, i.last_seen),
+		f.last_seen >= i.last_seen, i.is_box = 0 AND (i.origin = 'discovered' OR i.mac IS NOT NULL OR i.agent_key IS NOT NULL) FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
+		from, into).Scan(&f.ip, &f.mac, &f.confirmed, &f.first, &f.last, &i.ip, &i.mac, &i.confirmed, &i.first, &i.last, &newer, &movable); err != nil {
+		return false, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	// an address has one home: from's main address leaves from before it is anyone else's
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL, mac = NULL WHERE id = ?`, from); err != nil {
+		return false, fmt.Errorf("inventory: move the addresses: %w", err)
+	}
+	// row is the interface that becomes one of into's other addresses; main the one that is into's main address
+	row, main, rowOf := f, i, from
+	if newer && movable && f.ip.Valid {
+		row, main, rowOf = i, f, into
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL, mac = NULL WHERE id = ?`, into); err != nil {
+			return false, fmt.Errorf("inventory: move the addresses: %w", err)
+		}
+	}
+	// An interface stays whole, its IP and MAC together: one IP with another interface's MAC would make a later sighting of that MAC
+	// move the main address (claimIP) and a split take the wrong pair.
+	switch {
+	case !main.ip.Valid && main.mac.Valid && row.ip.Valid && row.mac.Valid: // two whole interfaces: the one with an IP is the main one
+		row, main = main, row
+		if rowOf == from {
+			rowOf = into
+		} else {
+			rowOf = from
+		}
+	case !main.ip.Valid && row.ip.Valid, !main.mac.Valid && !row.ip.Valid: // two halves of one interface: they are into's main address
+		if !main.ip.Valid {
+			main.ip, main.confirmed, row.ip = row.ip, row.confirmed, sql.NullString{}
+		}
+		if !main.mac.Valid {
+			main.mac, row.mac = row.mac, sql.NullString{}
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ?, mac = ? WHERE id = ?`, main.ip, main.confirmed, main.mac, into); err != nil {
+		return false, fmt.Errorf("inventory: move the addresses: %w", err)
+	}
+	id, err := addExtra(ctx, tx, into, row.ip, row.mac, addrMerge, row.first, row.last)
+	if err != nil {
+		return false, err
+	}
+	if id != "" && row.ip.Valid { // what a scan read at that address is the row's
+		for _, q := range []string{
+			`UPDATE inv_software_reading SET addr_id = ?1 WHERE addr_id = '' AND source IN ('nmap', 'scan') AND software_id IN (SELECT id FROM inv_software WHERE asset_id = ?2)`,
+			`UPDATE inv_service SET addr_id = ?1 WHERE addr_id = '' AND source IN ('nmap', 'scan') AND asset_id = ?2`,
+		} {
+			if _, err := tx.ExecContext(ctx, q, id, rowOf); err != nil {
+				return false, fmt.Errorf("inventory: move what was read at an address: %w", err)
+			}
+		}
+	}
+	return true, nil
 }
 
 // chassisOwner is the device a join left the chassis MAC mac on, when it still has an address: an observation that names only that
@@ -863,11 +949,12 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 			`UPDATE inv_software_reading SET first_seen = (SELECT min(g.first_seen) FROM inv_software_reading g WHERE g.software_id IN (?1, ?2)
 				AND g.source <> 'manual' AND ifnull(g.version, '') = ifnull(inv_software_reading.version, '') AND ifnull(g.pkg_version, '') = ifnull(inv_software_reading.pkg_version, ''))
 				WHERE software_id IN (?1, ?2) AND source <> 'manual'`,
-			// of two readings of one source and instance, the newer stays
+			// of two readings of one source, instance and address, the newer stays (two interfaces' readings are two, INV-57)
 			`DELETE FROM inv_software_reading WHERE software_id = ?1 AND EXISTS (SELECT 1 FROM inv_software_reading g WHERE g.software_id = ?2
-				AND g.source = inv_software_reading.source AND g.instance = inv_software_reading.instance AND g.seen_at > inv_software_reading.seen_at)`,
+				AND g.source = inv_software_reading.source AND g.instance = inv_software_reading.instance AND g.addr_id = inv_software_reading.addr_id
+				AND g.seen_at > inv_software_reading.seen_at)`,
 			`DELETE FROM inv_software_reading WHERE software_id = ?2 AND EXISTS (SELECT 1 FROM inv_software_reading k WHERE k.software_id = ?1
-				AND k.source = inv_software_reading.source AND k.instance = inv_software_reading.instance)`,
+				AND k.source = inv_software_reading.source AND k.instance = inv_software_reading.instance AND k.addr_id = inv_software_reading.addr_id)`,
 			`UPDATE inv_software_reading SET software_id = ?1 WHERE software_id = ?2`,
 
 			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
@@ -922,12 +1009,13 @@ func foldServices(ctx context.Context, tx *sql.Tx, from, into string) error {
 		confidence = max(inv_service.confidence, g.confidence),
 		seen_at = max(inv_service.seen_at, g.seen_at),
 		read_at = CASE WHEN g.read_at > coalesce(inv_service.read_at, '') THEN g.read_at ELSE inv_service.read_at END
-		FROM inv_service AS g WHERE g.asset_id = ?1 AND inv_service.asset_id = ?2 AND g.port = inv_service.port AND g.proto = inv_service.proto AND g.source = inv_service.source`,
+		FROM inv_service AS g WHERE g.asset_id = ?1 AND inv_service.asset_id = ?2 AND g.port = inv_service.port AND g.proto = inv_service.proto AND g.source = inv_service.source
+		AND g.addr_id = inv_service.addr_id`,
 		from, into); err != nil {
 		return fmt.Errorf("inventory: fold open ports: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_service WHERE asset_id = ?1 AND EXISTS (SELECT 1 FROM inv_service i WHERE i.asset_id = ?2
-		AND i.port = inv_service.port AND i.proto = inv_service.proto AND i.source = inv_service.source)`, from, into); err != nil {
+		AND i.port = inv_service.port AND i.proto = inv_service.proto AND i.source = inv_service.source AND i.addr_id = inv_service.addr_id)`, from, into); err != nil {
 		return fmt.Errorf("inventory: fold open ports: %w", err)
 	}
 	return nil

@@ -30,6 +30,7 @@ export const Service = z.object({
   port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(),
   detail: z.string().optional().describe('What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject. Evidence only, never software'),
   source: ObsSource, confidence,
+  address: z.string().optional().describe('The other address of the device a scan found the port on (an IP, or a MAC when that interface has no IP now); absent for the main address and for an agent\'s list. One port open on two interfaces is two rows'),
 })
 export const KindGuess = z.object({
   kind: AssetKind, confidence, evidence: z.string().describe('What matched and what it most likely means, one sentence'),
@@ -192,13 +193,25 @@ export const DetectedDiffers = z.object({
 export const DetectedChoice = z.object({ detected: z.string().min(1).max(253).describe('The detected value the person saw. 409 detected_changed when the sources read another value now or it no longer differs: reload') })
 /** When the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
  * generic name, an older MAC two rows share), a person decides: "Possibly the same device as X" with Merge and Keep separate. */
+/** What two devices share when they are offered as possibly one machine, strongest first. */
+export const SameReason = z.enum(['same_mac', 'mac_block', 'same_name_cards', 'rotating_name', 'rotating_model', 'mac_at_added_device'])
+  .describe('same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the address of a device added by hand')
 export const PossibleSame = z.object({
   id: z.string(), name: z.string().describe('The other device, named as every page names it'),
   why: z.string().describe('What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same time, and a private Wi-Fi address (phones and laptops change it).'),
+  reason: SameReason,
   approved: z.boolean(), last_seen: dt,
   ignored: z.boolean().describe('a person ignored the other device. A merge keeps the kept device watched or ignored, except that an approved device a person watches is never hidden: merged with it, an ignored device is watched again'),
 })
-export const SameRef = PossibleSame.omit({ why: true, ignored: true })
+export const SameRef = PossibleSame.omit({ why: true, ignored: true, reason: true })
+/** One address of a device: an interface as it was seen (an IPv4 address, a MAC, or both). */
+export const DeviceAddress = z.object({
+  ip: z.string().nullable(), mac: z.string().nullable(),
+  main: z.boolean().describe('The main address: the one lists show and every scan and read of the device goes to. Exactly one when the device has any address'),
+  source: z.string().describe('What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan, agent, snmp), manual for the address a person typed, merge for one a person\'s merge brought that nothing has seen since'),
+  first_seen: dt, last_seen: dt,
+  agent: z.boolean().describe('The address the device\'s agent reports from (an osquery node bound to the device, a Wazuh agent): it cannot be split off (409 agent_address), the agent\'s machine keeps it. Offer Split off on the other addresses only'),
+})
 export const DeviceDetail = z.object({
   asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({
     software: z.array(SoftwareLine).describe('The device\'s software lines, by name'),
@@ -212,14 +225,50 @@ export const DeviceDetail = z.object({
   detected_differs: z.array(DetectedDiffers).describe('INV-47: fields where a trusted source reads another value than the one a person entered, which still wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept their value for the value now detected'),
   manual_at: dt.nullable().describe('INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or "not installed"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it ("last changed 2 hours ago")'),
   kinds: z.array(AssetKind),
-  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
+  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)'),
+  addresses: z.array(DeviceAddress).describe('Every address of the device, the main one first, then the others, the one seen last first: the device is found by any of them. Split off = POST /inventory/devices/{id}/split'),
 })
 export const SamePairs = z.object({
   items: z.array(z.object({
-    a: SameRef.describe('The approved device when one is, else the one seen first: the one a merge most likely keeps'), b: SameRef, why: PossibleSame.shape.why,
+    a: SameRef.describe('The approved device when one is, else the one seen first: the one a merge most likely keeps'), b: SameRef, why: PossibleSame.shape.why, reason: SameReason,
   })).describe('Every pair of devices that may be one machine, the pair seen last first'),
 })
-export const MergeInput = z.object({ from: z.string().min(1).max(96).describe('The device that goes into the device of the path') })
+/** The name, type and OS a person picked for the kept device where the merged devices differ; each must be one of their own values (MergePreview differs). */
+export const MergeChoice = z.object({
+  name: z.string().min(1).max(64).optional(), kind: AssetKind.optional(), os: z.string().min(1).max(200).optional(),
+})
+export const MergeInput = z.object({
+  from: z.array(z.string().min(1).max(96)).min(1).max(8).describe('The devices that go into the device of the path, 1 to 8 (the interfaces of one firewall in one step)'),
+  fields: MergeChoice.optional().describe('Values a person chose where the devices differ; left out: the merge\'s own result (MergePreview differs kept)'),
+})
+export const MergeValue = z.object({ device: z.string(), value: z.string() })
+export const MergeField = z.object({
+  field: z.enum(['name', 'kind', 'os', 'vendor', 'model', 'hostname']),
+  values: z.array(MergeValue).describe('Each device\'s value, the kept device first; a device without a value is left out'),
+  kept: z.string().describe('What the kept device has after the merge unless the person picks another: the kept device\'s own name in Vedette (else the first that has one), the strongest source\'s reading for the other fields'),
+  choosable: z.boolean().describe('name, kind and os: the merge takes a choice (fields); the others follow the sources'),
+})
+export const MergeSide = z.object({
+  id: z.string(), name: z.string(), approved: z.boolean(), ignored: z.boolean(), agent: z.boolean().describe('An agent reports from it'),
+  addresses: z.array(DeviceAddress), software: z.number().int().describe('Software lines present'), open_ports: z.number().int(),
+  findings: z.number().int(), risk: DeviceRisk.nullable(), last_seen: dt,
+})
+export const MergePreview = z.object({
+  into: MergeSide.describe('The device that stays'), from: z.array(MergeSide).describe('The devices that go into it, in the order given'),
+  moves: z.object({
+    addresses: z.number().int().describe('Addresses that become the kept device\'s, each with what a scan read there'),
+    software_new: z.number().int().describe('Software lines the kept device does not have'),
+    software_shared: z.number().int().describe('Lines it has too: one line keeps every reading of both'),
+    readings: z.number().int().describe('Software readings that move; none is dropped'),
+    open_ports: z.number().int(),
+    findings: z.number().int().describe('Findings that move, with their history and decisions; one CVE of one software line becomes one finding'),
+    exploited: z.number().int().describe('Exploited CVEs the devices taken are marked with'),
+  }),
+  differs: z.array(MergeField).describe('Only the fields the devices state differently; empty when they agree'),
+  refusal: z.object({ code: z.enum(['box_device', 'not_same_device']), message: z.string() }).nullable().describe('Why the merge would be refused (409 with this code); null when it may go ahead'),
+})
+export const MergePreviewQuery = z.object({ from: z.string().min(1).max(800).describe('Comma-separated ids of the devices that would go into the device of the path, 1 to 8') })
+export const SplitInput = z.object({ address: z.string().min(1).max(40).describe('One IPv4 address or MAC of the device: that interface (its IP and MAC together) becomes a device of its own') })
 export const KeepSeparateInput = z.object({ other: z.string().min(1).max(96).describe('The other device of the pair') })
 export const CatalogItem = z.object({
   id: z.string().describe('Stable: curated entries have fixed ids, entries from CISA KEV have id "kev:<vendor>:<product>"'), display: z.string().describe('Name the user recognizes'), hint: z.string(),
@@ -444,7 +493,9 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
   { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
-  { method: 'post', path: '/inventory/devices/{id}/merge', summary: 'The same machine: device `from` joins this device and is gone. This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines', stories: ['S-INV-3'], role: 'admin', params: id, body: MergeInput, response: id },
+  { method: 'get', path: '/inventory/devices/{id}/merge-preview', summary: 'What merging the devices `from` into this device would do, without changing anything: both sides (addresses, software, ports, findings, badge), what moves, the fields they state differently with the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more than 8, one twice or this device itself. 404 not_found: any device', stories: ['S-INV-3'], role: 'admin', params: id, query: MergePreviewQuery, response: MergePreview, example: { params: { id: 'a-fw01' }, query: { from: 'a-nas02' } } },
+  { method: 'post', path: '/inventory/devices/{id}/merge', summary: 'The same machine: every device of `from` joins this device and is gone, in one step. This device keeps its id, main address, approval (it becomes approved when one of them was, and loses a suspicious mark as on Approve), notes (all kept), findings and settings; the addresses of each (with what a scan read at each one: the device is found by any of them, and a scan of one address never replaces what another address showed), MACs, sources, software, open ports and findings move to it. `fields` sets the name, type or OS a person picked where the devices differ. 400 invalid: no device, more than 8, one twice or this device itself. 400 bad_choice: a picked value none of the devices has. 404 not_found: any device. 409 box_device: one is the Vedette box. 409 not_same_device: two agents say two machines', stories: ['S-INV-3'], role: 'admin', params: id, body: MergeInput, response: id },
+  { method: 'post', path: '/inventory/devices/{id}/split', summary: 'Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC\'s observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device\'s addresses. 409 box_device; 409 only_address: the device has no other address; 409 agent_address: the device\'s agent reports from this address (DeviceAddress.agent), so it stays with the agent\'s machine: split off the other addresses', stories: ['S-INV-3'], role: 'admin', params: id, body: SplitInput, response: id },
   { method: 'post', path: '/inventory/devices/{id}/keep-separate', summary: 'Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged. Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge', stories: ['S-INV-3'], role: 'admin', params: id, body: KeepSeparateInput, response: ok },
   { method: 'post', path: '/inventory/devices/{id}/differs/{field}/use', summary: 'Use the detected value: the person\'s own value of that field is removed, so the sources\' reading is the one shown and used (INV-47). One audit row with the person. 400 bad_field. 404 not_found. 409 detected_changed', stories: ['S-INV-1'], role: 'operator', params: id.extend({ field: DetectedField }), body: DetectedChoice, response: ok },
   { method: 'post', path: '/inventory/devices/{id}/differs/{field}/keep', summary: 'Keep the person\'s value against the detected one (INV-47): the notice stays hidden until the sources read another value. Nothing else changes. One audit row. 400 bad_field. 404 not_found. 409 detected_changed', stories: ['S-INV-1'], role: 'operator', params: id.extend({ field: DetectedField }), body: DetectedChoice, response: ok },

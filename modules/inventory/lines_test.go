@@ -359,7 +359,8 @@ func TestSoftwareLines_MergeKeepsTheMarkAndTheHistory(t *testing.T) {
 }
 
 // A merge dates a reading by when that release was first read on either row, never by when the folded line first appeared: a newer
-// release the other row read after a person's mark or version still ends it.
+// release the other row read after a person's mark or version still ends it. The two rows were two addresses of the device: what the
+// scan read at each stays (INV-57), the newer release is the line's value and the other address's older one is still matched.
 func TestSoftwareLines_MergeDatesReadingsByRelease(t *testing.T) {
 	t.Parallel()
 	for _, mark := range []bool{true, false} {
@@ -389,8 +390,8 @@ func TestSoftwareLines_MergeDatesReadingsByRelease(t *testing.T) {
 		if err := e.svc.Merge(e.ctx(), "op@example.com", into, from); err != nil {
 			t.Fatal(err)
 		}
-		if m := matchRows(t, e, into); len(m) != 1 || m[0].ID != id || m[0].Version != "9.8" || m[0].Source != "nmap" {
-			t.Fatalf("mark %v: after the merge %+v, want the line at 9.8", mark, m)
+		if m := matchRows(t, e, into); len(m) != 2 || m[0].ID != id || m[0].Version != "9.8" || m[0].Source != "nmap" || m[1].Version != "9.6" {
+			t.Fatalf("mark %v: after the merge %+v, want the line at 9.8 and the other address's 9.6", mark, m)
 		}
 	}
 }

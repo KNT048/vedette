@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
@@ -202,16 +203,57 @@ func (h *Handlers) InventoryGetInventoryPossibleSame(ctx context.Context) (*oas.
 	return convert[oas.InventoryGetInventoryPossibleSameOK](l)
 }
 
-// InventoryPostInventoryDevicesIDMerge implements POST /inventory/devices/{id}/merge (admin): body.from goes into id.
+// InventoryPostInventoryDevicesIDMerge implements POST /inventory/devices/{id}/merge (admin): every device of body.from goes into id.
 func (h *Handlers) InventoryPostInventoryDevicesIDMerge(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDMergeReq, params oas.InventoryPostInventoryDevicesIDMergeParams) (*oas.InventoryPostInventoryDevicesIDMergeOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := h.svc.Merge(ctx, who, params.ID, req.From); err != nil {
+	var choice MergeChoice
+	if f, ok := req.Fields.Get(); ok {
+		if v, ok := f.Name.Get(); ok {
+			choice.Name = &v
+		}
+		if v, ok := f.Kind.Get(); ok {
+			k := string(v)
+			choice.Kind = &k
+		}
+		if v, ok := f.Os.Get(); ok {
+			choice.OS = &v
+		}
+	}
+	if err := h.svc.MergeMany(ctx, who, params.ID, req.From, choice); err != nil {
 		return nil, fail(err)
 	}
 	return &oas.InventoryPostInventoryDevicesIDMergeOK{ID: params.ID}, nil
+}
+
+// InventoryGetInventoryDevicesIDMergePreview implements GET /inventory/devices/{id}/merge-preview (admin).
+func (h *Handlers) InventoryGetInventoryDevicesIDMergePreview(ctx context.Context, params oas.InventoryGetInventoryDevicesIDMergePreviewParams) (*oas.InventoryGetInventoryDevicesIDMergePreviewOK, error) {
+	var from []string
+	for _, f := range strings.Split(params.From, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			from = append(from, f)
+		}
+	}
+	p, err := h.svc.MergePreview(ctx, params.ID, from)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return convert[oas.InventoryGetInventoryDevicesIDMergePreviewOK](p)
+}
+
+// InventoryPostInventoryDevicesIDSplit implements POST /inventory/devices/{id}/split (admin): the address becomes a device of its own.
+func (h *Handlers) InventoryPostInventoryDevicesIDSplit(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDSplitReq, params oas.InventoryPostInventoryDevicesIDSplitParams) (*oas.InventoryPostInventoryDevicesIDSplitOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := h.svc.Split(ctx, who, params.ID, req.Address)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDSplitOK{ID: id}, nil
 }
 
 // InventoryPostInventoryDevicesIDKeepSeparate implements POST /inventory/devices/{id}/keep-separate (admin).

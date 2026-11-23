@@ -116,15 +116,16 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_trap_ips":            {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source agent_source ignored_at review_earned_at"},
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence first_seen"},
-	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at read_at"},
+	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at read_at addr_id"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id product_key line display vendor product cpe version pkg_version pkg_source packaged source set_by confidence seen_at differs state not_installed_by not_installed_at first_seen last_seen removed_at"},
-	"inv_software_reading":   {export: "software_id source instance display version pkg_version pkg_source packaged cpe confidence set_by first_seen seen_at"},
+	"inv_software_reading":   {export: "software_id source instance display version pkg_version pkg_source packaged cpe confidence set_by first_seen seen_at addr_id"},
 	"inv_software_event":     {export: "id asset_id software_id product_key display ts kind from_version to_version source actor"}, // the history of a software line
 	"inv_source":             {export: "source first_seen"},
-	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"}, // detected values a person chose not to switch to
-	"inv_separate":           {export: "a b decided_by decided_at"},               // pairs a person kept separate
-	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},       // #829: MACs seen at a hand-added device's address
+	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"},        // detected values a person chose not to switch to
+	"inv_separate":           {export: "a b decided_by decided_at"},                      // pairs a person kept separate
+	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},              // #829: MACs seen at a hand-added device's address
+	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen"}, // a device's addresses besides its main one
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},
 	"mit_pack":               {export: "cve confirmed_by confirmed_at drafted_with pack_version", json: "body compromise"},

@@ -65946,6 +65946,16 @@
               "type": "string",
               "maxLength": 80
             }
+          },
+          {
+            "name": "software",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated words, case-insensitive: keeps the devices with a software line whose \"name vendor product\" holds one of them; each row then lists those lines in matched_software",
+              "type": "string",
+              "maxLength": 400
+            }
           }
         ],
         "responses": {
@@ -66506,142 +66516,6 @@
                               }
                             ]
                           },
-                          "software": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "string"
-                                },
-                                "display": {
-                                  "type": "string",
-                                  "description": "Commercial name the user recognizes"
-                                },
-                                "vendor": {
-                                  "type": "string"
-                                },
-                                "product": {
-                                  "type": "string"
-                                },
-                                "version": {
-                                  "type": [
-                                    "string",
-                                    "null"
-                                  ]
-                                },
-                                "kev": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  },
-                                  "description": "KEV match keys: lowercase \"vendorproject|product\""
-                                },
-                                "source": {
-                                  "type": "string",
-                                  "enum": [
-                                    "manual",
-                                    "declared",
-                                    "agent",
-                                    "snmp",
-                                    "nmap",
-                                    "passive",
-                                    "scan"
-                                  ]
-                                },
-                                "confidence": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 1
-                                },
-                                "basis": {
-                                  "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
-                                  "type": "string",
-                                  "enum": [
-                                    "stated",
-                                    "stated_web",
-                                    "stated_sip",
-                                    "guess"
-                                  ]
-                                },
-                                "not_installed": {
-                                  "type": "boolean",
-                                  "description": "A person said this software is not installed on the device: it matches nothing; what the device runs (the assistant, MCP) leaves it out and the export marks it"
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "display",
-                                "vendor",
-                                "product",
-                                "version",
-                                "kev",
-                                "source",
-                                "confidence",
-                                "not_installed"
-                              ],
-                              "additionalProperties": false,
-                              "description": "One software line of the device (one row per product, or per release train of a product whose trains install side by side), its value the strongest reading; the same line and value on every page, the export and the assistant"
-                            }
-                          },
-                          "services": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "port": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 65535
-                                },
-                                "proto": {
-                                  "type": "string",
-                                  "enum": [
-                                    "tcp",
-                                    "udp"
-                                  ]
-                                },
-                                "name": {
-                                  "type": "string"
-                                },
-                                "product": {
-                                  "type": "string"
-                                },
-                                "version": {
-                                  "type": "string"
-                                },
-                                "detail": {
-                                  "description": "What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject. Evidence only, never software",
-                                  "type": "string"
-                                },
-                                "source": {
-                                  "type": "string",
-                                  "enum": [
-                                    "manual",
-                                    "declared",
-                                    "agent",
-                                    "snmp",
-                                    "nmap",
-                                    "passive",
-                                    "scan"
-                                  ]
-                                },
-                                "confidence": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 1
-                                }
-                              },
-                              "required": [
-                                "port",
-                                "proto",
-                                "name",
-                                "source",
-                                "confidence"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
                           "first_seen": {
                             "type": "string",
                             "format": "date-time",
@@ -66743,6 +66617,180 @@
                               }
                             ],
                             "description": "when a person ignored the device (a staff phone: known, not watched); null = watched. An ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it still alerts"
+                          },
+                          "software_count": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Number of the device's software lines (a line a person said is not installed counts). The lines themselves are on the device page (GET /inventory/devices/{id}): the list never carries them"
+                          },
+                          "service_count": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Number of the device's open services (ports); the services themselves are on the device page"
+                          },
+                          "product": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "display": {
+                                    "type": "string",
+                                    "description": "Commercial name the user recognizes"
+                                  },
+                                  "vendor": {
+                                    "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  },
+                                  "version": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "kev": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "KEV match keys: lowercase \"vendorproject|product\""
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "declared",
+                                      "agent",
+                                      "snmp",
+                                      "nmap",
+                                      "passive",
+                                      "scan"
+                                    ]
+                                  },
+                                  "confidence": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  },
+                                  "basis": {
+                                    "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                    "type": "string",
+                                    "enum": [
+                                      "stated",
+                                      "stated_web",
+                                      "stated_sip",
+                                      "guess"
+                                    ]
+                                  },
+                                  "not_installed": {
+                                    "type": "boolean",
+                                    "description": "A person said this software is not installed on the device: it matches nothing; what the device runs (the assistant, MCP) leaves it out and the export marks it"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "display",
+                                  "vendor",
+                                  "product",
+                                  "version",
+                                  "kev",
+                                  "source",
+                                  "confidence",
+                                  "not_installed"
+                                ],
+                                "additionalProperties": false,
+                                "description": "One software line of the device (one row per product, or per release train of a product whose trains install side by side), its value the strongest reading; the same line and value on every page, the export and the assistant"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "A device added by hand: its first software line by name that is installed (the line that names a device with no host name, and the product Settings › Declared software lists); null for a discovered device or one with no such line"
+                          },
+                          "matched_software": {
+                            "description": "Only with the software filter: the device's lines that hold one of its words, by name (the Matched software column)",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "display": {
+                                  "type": "string",
+                                  "description": "Commercial name the user recognizes"
+                                },
+                                "vendor": {
+                                  "type": "string"
+                                },
+                                "product": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "kev": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "KEV match keys: lowercase \"vendorproject|product\""
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "declared",
+                                    "agent",
+                                    "snmp",
+                                    "nmap",
+                                    "passive",
+                                    "scan"
+                                  ]
+                                },
+                                "confidence": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "basis": {
+                                  "description": "guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise",
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "stated_web",
+                                    "stated_sip",
+                                    "guess"
+                                  ]
+                                },
+                                "not_installed": {
+                                  "type": "boolean",
+                                  "description": "A person said this software is not installed on the device: it matches nothing; what the device runs (the assistant, MCP) leaves it out and the export marks it"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "display",
+                                "vendor",
+                                "product",
+                                "version",
+                                "kev",
+                                "source",
+                                "confidence",
+                                "not_installed"
+                              ],
+                              "additionalProperties": false,
+                              "description": "One software line of the device (one row per product, or per release train of a product whose trains install side by side), its value the strongest reading; the same line and value on every page, the export and the assistant"
+                            }
                           },
                           "sources": {
                             "type": "array",
@@ -66852,8 +66900,6 @@
                           "vendor",
                           "model",
                           "os",
-                          "software",
-                          "services",
                           "first_seen",
                           "last_seen",
                           "approved",
@@ -66868,6 +66914,9 @@
                           "snmp_source",
                           "approved_at",
                           "ignored_at",
+                          "software_count",
+                          "service_count",
+                          "product",
                           "sources",
                           "suspicious",
                           "findings_count",
@@ -66926,6 +66975,63 @@
                     "risk_unavailable": {
                       "type": "boolean",
                       "description": "The badges could not be read (the findings module failed): no row has one and a badge filter was not applied"
+                    },
+                    "top_software": {
+                      "type": "object",
+                      "properties": {
+                        "devices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991,
+                                "description": "Devices with a software line of this name"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "Over the listed devices that are approved or quiet"
+                        },
+                        "review": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991,
+                                "description": "Devices with a software line of this name"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "Over the listed devices that are To review"
+                        }
+                      },
+                      "required": [
+                        "devices",
+                        "review"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The 12 software names most of the listed devices run (most devices first, then by name), for the search's software: suggestions; declared software with no device is left out"
                     }
                   },
                   "required": [
@@ -66933,7 +67039,8 @@
                     "counts",
                     "notify_new",
                     "notify_available",
-                    "risk_unavailable"
+                    "risk_unavailable",
+                    "top_software"
                   ],
                   "additionalProperties": false
                 }
@@ -70071,6 +70178,16 @@
               "description": "Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
               "type": "string",
               "maxLength": 80
+            }
+          },
+          {
+            "name": "software",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated words, case-insensitive: keeps the devices with a software line whose \"name vendor product\" holds one of them; each row then lists those lines in matched_software",
+              "type": "string",
+              "maxLength": 400
             }
           }
         ],

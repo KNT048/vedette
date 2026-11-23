@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/feeds"
@@ -49,6 +50,13 @@ func newStackWith(t *testing.T, tune func(*deps)) *stack {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return stackOn(t, db, log, tune)
+}
+
+// stackOn is the binary's wiring on db, as a start of the box builds it: a second stackOn on the same file is the box after a restart.
+func stackOn(t *testing.T, db *store.DB, log *slog.Logger, tune func(*deps)) *stack {
+	t.Helper()
+	ctx := t.Context()
 	t.Cleanup(func() { _ = db.Close() })
 	logsDB := storetest.Migrated(t, storetest.Migration{Module: logs.ModuleID, FS: logs.VolumeMigrations}) // the volume of the logs module
 	aud := audit.New(nil)

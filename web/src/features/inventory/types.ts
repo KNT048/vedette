@@ -10,6 +10,9 @@ export type Observation = z.infer<typeof C.Observation>
 export type RegularScan = z.infer<typeof C.RegularScan>
 export type DeviceRow = z.infer<typeof C.DeviceRow>
 export type DevicesResponse = z.infer<typeof C.DevicesResponse>
+/** A software line as the list's matched_software and product carry it. */
+export type ListSoftware = z.infer<typeof C.Software>
+export type SoftwareName = z.infer<typeof C.SoftwareName>
 export type SoftwareLine = z.infer<typeof C.SoftwareLine>
 export type AlsoSeen = z.infer<typeof C.AlsoSeen>
 export type DeviceDetail = z.infer<typeof C.DeviceDetail>

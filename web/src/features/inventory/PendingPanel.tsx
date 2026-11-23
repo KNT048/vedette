@@ -63,8 +63,10 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
 
 /** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore or remove.
  *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
-export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, sameAs }: {
+export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, none, sameAs }: {
   items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
+  /** What an empty filtered list says instead of "No devices match." (the search's software answer not in yet, or failed). */
+  none?: ReactNode
   /** The names of the devices each row may be the same machine as (GET /inventory/possible-same). */
   sameAs?: ReadonlyMap<string, string[]>
 }) {
@@ -119,7 +121,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </Card>
       ) : filtered ? (
         <Card className="py-6 text-center text-muted">
-          <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{t('search.none')}{onClear ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}</span>
+          <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{none ?? t('search.none')}{onClear ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}</span>
         </Card>
       ) : null}
     </section>

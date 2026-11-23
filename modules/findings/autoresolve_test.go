@@ -152,3 +152,80 @@ func TestAutoResolve_AnAffectedAnswerSurvivesTheNextMatch(t *testing.T) {
 		t.Fatalf("after the next match: %+v, want open and confirmed by the person", f)
 	}
 }
+
+// A person who confirmed a finding and later corrects the version a source reads to a release outside the range closes it: the
+// correction is a person's word about the device, like "not installed", not range data. The finding is not relevant (Vedette corrected
+// its match), never patch credit (nothing changed on the device). A safe check's proof still holds against the same correction.
+func TestAutoResolve_AVersionCorrectionClosesAPersonConfirmedFinding(t *testing.T) {
+	t.Parallel()
+	for _, verified := range []Verified{VerifiedPerson, VerifiedScan} {
+		e := newEnv(t)
+		sw := Software{ID: "s-1", Display: "App", Vendor: "Acme", Product: "App", Version: "1.0", Source: "nmap", SeenAt: t0}
+		a := Asset{ID: "a-1", Name: "host-1", Software: []Software{sw}}
+		e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+		id := e.only(t).ID
+		switch verified {
+		case VerifiedPerson:
+			if _, err := e.svc.Verify(t.Context(), id, "logged in, the affected build runs", "anna@example.com"); err != nil {
+				t.Fatal(err)
+			}
+		case VerifiedScan:
+			if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2026-1001", scanEv("t1")); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if f := e.only(t); f.Verified != verified {
+			t.Fatalf("after the confirmation: %+v", f)
+		}
+		e.advance(time.Hour)
+		fixed := sw
+		fixed.Version, fixed.Source, fixed.ReportedSource = "2.0", "manual", "nmap"
+		fixed.Correction = "ben@example.com corrected App 1.0 (nmap) to App 2.0 on 23 Nov 2026"
+		a.Software = []Software{fixed}
+		e.matchPass(t, a, MatchResult{})
+		f := e.only(t)
+		switch {
+		case verified == VerifiedPerson && (f.State != StateHandled || f.Resolution != ResolutionNotRelevant || f.Via != ViaDataCorrected):
+			t.Errorf("person-confirmed, then a person's version correction: %+v, want not relevant via data corrected", f)
+		case verified == VerifiedScan && (f.State != StateOpen || f.Verified != VerifiedScan):
+			t.Errorf("scan-confirmed, then a person's version correction: %+v, want open and confirmed by the scan", f)
+		}
+	}
+}
+
+// Undo of a person's confirmation lets the next match close a finding the match no longer decides: the confirmation was the only thing
+// that held it open.
+func TestAutoResolve_UndoLetsTheNextMatchCloseAQuestionedFinding(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	sw := sshRow("9.0p1", "protocol 2.0", "nmap")
+	sw.SeenAt = t0
+	alpine := Asset{ID: "a-1", Name: "gw-alpine", ManualOS: "Alpine Linux 3.15", Software: []Software{sw}}
+	vulns := []Vuln{sshhole()}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), alpine, vulns); err != nil {
+		t.Fatal(err)
+	}
+	id := e.only(t).ID
+	if _, err := e.svc.Verify(t.Context(), id, "logged in, the affected build runs", "anna@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	unknown := alpine
+	unknown.ManualOS = ""
+	if _, err := e.svc.UpsertFromMatch(t.Context(), unknown, vulns); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.only(t); f.State != StateOpen {
+		t.Fatalf("person-confirmed, then a platform question: %+v, want open", f)
+	}
+	if _, err := e.svc.Unverify(t.Context(), id, "anna@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), unknown, vulns); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.only(t); f.State != StateHandled || f.Via != ViaDataCorrected {
+		t.Fatalf("after Undo and the next match: %+v, want closed as data corrected", f)
+	}
+}

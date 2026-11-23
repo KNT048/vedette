@@ -44,6 +44,9 @@ type Trigger struct {
 
 	Via                    Via // TrGone
 	FromVersion, ToVersion string
+	// Corrected (TrGone, data_corrected): what the line reads now is a person's correction of what a source reads. It closes a finding
+	// a person confirmed (a person's newer word about the device, like "not installed"); a safe check's proof still holds against it.
+	Corrected bool
 
 	Resolution Resolution // TrHandle
 	Note       string     // TrHandle, TrReopen, TrVerify
@@ -84,7 +87,8 @@ type Detection struct {
 //     (data_corrected) or a person said the software is not installed (not_installed). A mitigation or an accepted risk gives way to
 //     patch credit (the flaw is gone). A person's patched, false positive and not relevant hold. A safe check's proof or a person's
 //     confirmation is not undone by range data (data_corrected, distro_fixed, also a question the match asks instead), only by a
-//     newer reading of the device or a person's "not installed"; a clear safe check does not credit a flaw the device's own reading
+//     newer reading of the device or a person's "not installed" (a person's version correction also undoes a person's confirmation); a
+//     clear safe check does not credit a flaw the device's own reading
 //     still shows.
 //   - handle, reopen, verify, unverify: a person's word, checked like the API reports it. Marking a finding the way Vedette already
 //     closed it takes it over with the person's note, except Vedette's patch credit, which stays (the person's note is an event).
@@ -268,9 +272,9 @@ func (t *transition) gone(tr Trigger) error {
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
 	}
-	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) {
+	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) && !(f.Verified == VerifiedPerson && tr.Corrected) {
 		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed; a newer
-		// reading of the device does (version_moved, removed), and a person's "not installed"
+		// reading of the device does (version_moved, removed), and a person's "not installed" or version correction
 		return nil
 	}
 	if via == ViaScanClear && (f.Basis == DetectDeviceVersion || f.Basis == DetectPackage) {

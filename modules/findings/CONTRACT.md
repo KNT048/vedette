@@ -31,7 +31,7 @@ readers until they read the view of the finding; nothing of it is stored.
   relevant when only the data changed (`data_corrected`) or a person said the software is not installed (`not_installed`, under
   their name). A mitigation or an accepted risk gives way to patch credit. A safe check's proof or a person's confirmation is not
   undone by range data or by a question the match asks instead (`data_corrected`, `distro_fixed`), only by a newer reading of the
-  device (a version move, the line gone; on a line with a package release, the release is compared) or a person's "not installed"; a
+  device (a version move, the line gone; on a line with a package release, the release is compared) or a person's "not installed" (a person's correction of the version a source reads also undoes a person's confirmation); a
   clear safe check does not credit a flaw the device's own reading (agent, SNMP, a package release) still shows on that line now. A person who marks a finding the way Vedette closed it takes it over with their note; Vedette's patch credit
   stays, the note becomes an event. A safe check confirms the finding of the line the matcher reads the CVE on (`scanLine`), at the
   version that line reads; a finding on no line takes it. `TestScanProof_*`.

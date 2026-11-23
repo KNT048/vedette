@@ -121,8 +121,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
 			continue
 		}
-		via, from, to, by := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
-		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by}, emit)
+		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
+		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by, Corrected: corrected}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)
 		}
@@ -227,21 +227,21 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 // goneVia says how a finding the match no longer detects went away, from what the device reads now:
 //   - its software line is gone: software_removed; a person said it is not installed: not_installed (by that person);
 //   - the line reads a newer release than the one matched: version_moved (from, to), unless the reading is a person's correction of
-//     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected;
+//     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected, corrected;
 //   - the distribution's fixed package release proves it: distro_fixed;
 //   - anything else (range data changed, an answer about the platform): data_corrected.
-func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string) {
+func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string, corrected bool) {
 	l, ok := lines[f.SoftwareID]
 	if !ok {
 		for _, ni := range a.NotInstalled {
 			if ni.ID == f.SoftwareID && f.SoftwareID != "" {
-				return ViaNotInstalled, "", "", ni.MarkedBy
+				return ViaNotInstalled, "", "", ni.MarkedBy, false
 			}
 		}
 		if f.SoftwareID != "" {
-			return ViaSoftwareRemoved, "", "", ""
+			return ViaSoftwareRemoved, "", "", "", false
 		}
-		return ViaDataCorrected, "", "", ""
+		return ViaDataCorrected, "", "", "", false
 	}
 	cur := l.reading.Version
 	if l.reading.Pkg != "" { // a line with a package release is matched on it (detectionOf, scanLine): whatever the basis
@@ -249,14 +249,14 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 	}
 	if moved(f.MatchedVersion, cur) {
 		if l.sw.Source == "manual" && l.sw.ReportedSource != "" {
-			return ViaDataCorrected, "", "", "" // a person corrected what a source reads
+			return ViaDataCorrected, "", "", "", true // a person corrected what a source reads
 		}
-		return ViaVersionMoved, f.MatchedVersion, cur, ""
+		return ViaVersionMoved, f.MatchedVersion, cur, "", false
 	}
 	if p, ok := proofs[f.CVE]; ok && p.pkgFixed {
-		return ViaDistroFixed, "", "", ""
+		return ViaDistroFixed, "", "", "", false
 	}
-	return ViaDataCorrected, "", "", ""
+	return ViaDataCorrected, "", "", "", false
 }
 
 // moved reports whether cur is a newer release than was: both known, ordered, and not the same release written more or less

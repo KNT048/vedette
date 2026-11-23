@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "findings": "Findings"
-  },
   "titleLoading": "Findings",
   "titleNone": "No open findings",
   "emptyDevices": "Open Devices",

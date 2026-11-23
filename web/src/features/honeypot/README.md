@@ -1,9 +1,9 @@
 # features/honeypot
 
-Stories: S-HP-1, S-HP-2. Trang gồm: KPI (Trap IP đang nghe, hit hôm nay, hit 7 ngày), tab Overview, Trap IPs, Services, Tokens, Hits (`?tab=`).
-**Trap IP** là một hồ sơ: tên (host name NetBIOS), địa chỉ, preset (`presets.ts` = `modules/honeypot/presets.go`), vendor cho tiền tố MAC, dịch vụ riêng; mỗi Trap IP chỉ trả lời dịch vụ của nó (host đóng cổng khác). Danh sách cho thấy nó nằm ở đâu (B2): MAC và hãng mà máy quét đọc từ MAC, dịch vụ đang mở, link macvlan `vdh…` trên card nào, lần chạm cuối, thiết bị kho đang chiếm địa chỉ (link). Lỗi form nằm dưới đúng ô.
-Phát hiện quét: một nguồn chạm ≥ 2 Trap IP trong 1 phút = một hit `scan` (thẻ "Scan detection" nêu các Trap IP lần quét chạm); bảng hit có cột Trap IP.
-Máy quét của chính Vedette (hộp 192.168.10.250) luôn bị loại trừ và hiện rõ ở trang; "Test trap" tạo lần chạm có nhãn "thử" trên Trap IP đầu tiên có dịch vụ đó, không tính vào số liệu, không gửi cảnh báo.
-Bảng mock: `hp_config`, `hp_trap_ips` (core network mock đọc bằng `peek`), `hp_hits` (`kind` service|token|scan, `source_ip`, `token_id`, `trap_ip`, `trap_hostname`; module response đọc bằng `peek`), `hp_tokens`. Mỗi lần chạm có liên kết Respond tới `/response`. Đọc `assetsStore` (kiểm tra IP/tên trùng, tra thiết bị nguồn).
-Slot cung cấp: `device.panels` (props `{ assetId }`). Không tiêu thụ slot nào.
-Quyền: thêm/sửa/bật/tắt/xoá Trap IP = admin; Test trap, Test scan, Test token = operator; xem = viewer.
+Stories: S-HP-1, S-HP-2. The page has: KPIs (Trap IPs listening, hits today, hits in 7 days), tabs Overview, Trap IPs, Services, Tokens, Hits (`?tab=`).
+A **Trap IP** is one profile: a name (NetBIOS host name), an address, a preset (`presets.ts` = `modules/honeypot/presets.go`), the vendor for the MAC prefix, its own services; each Trap IP answers only its own services (the host closes other ports). The list shows where it sits (B2): the MAC and vendor the scanner reads from the MAC, the open services, which card the macvlan link `vdh…` is on, the last hit, the inventory device that holds the address (a link). Form errors sit under the exact field.
+Scan detection: one source touching ≥ 2 Trap IPs within 1 minute = one `scan` hit (the "Scan detection" card names the Trap IPs the scan touched); the hit table has a Trap IP column.
+Vedette's own scanner (the box 192.168.10.250) is always excluded and shown plainly on the page; "Test trap" creates a hit labelled "test" on the first Trap IP that has that service, not counted in the figures, no alert sent.
+Mock tables: `hp_config`, `hp_trap_ips` (the core network mock reads them with `peek`), `hp_hits` (`kind` service|token|scan, `source_ip`, `token_id`, `trap_ip`, `trap_hostname`; the response module reads them with `peek`), `hp_tokens`. Each hit has a Respond link to `/response`. Reads `assetsStore` (checks for a duplicate IP/name, looks up the source device).
+Slot provided: `device.panels` (props `{ assetId }`). Consumes no slot.
+Permissions: add/edit/enable/disable/delete a Trap IP = admin; Test trap, Test scan, Test token = operator; view = viewer.

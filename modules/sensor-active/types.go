@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"time"
+
+	"github.com/knt048/vedette/core/observe"
 )
 
 // Settings is the part of the inventory's scan settings this module obeys (S-INV-1). The adapter in
@@ -67,6 +70,14 @@ type Inventory interface {
 	// TurnSNMPOn stores a device's SNMP switch on as the person (audited by the inventory): saving SNMP settings on a device is
 	// the person's consent to read it. The inventory's refusals (box_device, device_ignored) are API errors, passed on as they are.
 	TurnSNMPOn(ctx context.Context, actor, assetID string) error
+}
+
+// Services is the inventory's open ports: the scans write them through observe.ServiceSink, and the weekly scan of every port reads
+// back when the nmap source last read each TCP port of a device with version detection (inventory INV-23, inv_service.read_at) to
+// pick the ports its follow-up reads: never read first, then read longest ago. A port only found open is not in the map.
+type Services interface {
+	observe.ServiceSink
+	PortReadTimes(ctx context.Context, assetID string, source observe.Source) (map[int]time.Time, error)
 }
 
 // PendingGentle is an optional part of Inventory (#714): the devices whose one gentle scan is still to come

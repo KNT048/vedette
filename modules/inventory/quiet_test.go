@@ -243,7 +243,7 @@ func (e *env) port(ip netip.Addr, open bool) {
 	if open {
 		list = []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}
 	}
-	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, list); err != nil {
+	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, observe.ServiceScope{}, list); err != nil {
 		e.t.Fatal(err)
 	}
 }

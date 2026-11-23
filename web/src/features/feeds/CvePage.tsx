@@ -35,7 +35,7 @@ export default function CvePage() {
   const tier = useTierCve(id, missing)
   // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where
   // the page sits, not the path taken (Primer, Atlassian page header): Home and Findings link here too, the browser's Back returns there.
-  const crumbs = <Breadcrumbs items={[{ label: t('nav.lookup'), to: '/lookup' }]} />
+  const crumbs = <Breadcrumbs items={[{ label: t('common:shell.lookup'), to: '/lookup' }]} />
   if (missing && !(tier.error instanceof ApiError && tier.error.code === 'not_in_data')) {
     return (
       <>

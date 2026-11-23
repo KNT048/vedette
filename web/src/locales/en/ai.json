@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "assistant": "AI assistant"
-  },
   "gate": {
     "loading": "Checking AI status",
     "off": "The AI assistant module is off",
@@ -147,7 +144,6 @@
     "fallback": "Fallback used"
   },
   "settings": {
-    "nav": "AI assistant",
     "title": "AI assistant",
     "saved": "Token level saved",
     "statusOn": "AI profiles are set up. Each task uses its assigned profile.",

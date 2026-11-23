@@ -18,8 +18,8 @@ const owedRetry = 7 * 24 * time.Hour
 // and never a normal one (INV-26). A device is scanned once when it is found, gently while its kind is unknown or fragile; when it later becomes
 // scannable (a person or a scan gave it a type that is not fragile, the fragile or regular-scan kinds changed, regular_scan=allow)
 // nothing else asked for its normal scan before the weekly round (up to a week later), so its services kept no product or version
-// and its software list stayed empty. keepNormal records a normal scan's result in sa_all_ports.normal_sw (an empty list too), which is
-// what "had one" means; a device whose normal or versions scan ran in the last owedRetry (whatever it found) is not queued again, so a
+// and its software list stayed empty. A normal scan "had one" when it left a probe row; a device whose normal or versions scan ran in
+// the last owedRetry (whatever it found) is not queued again, so a
 // device nmap cannot read costs one scan a week, not one a window. Queueing is INSERT OR IGNORE; the scan itself is checked against
 // the policy again at its turn.
 func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) error {
@@ -60,13 +60,11 @@ func (s *Service) queueOwedNormal(ctx context.Context, windowStart time.Time) er
 		err = s.db.Reader().QueryRowContext(ctx, `SELECT
 			(SELECT count(*) FROM sa_probe p JOIN core_run r ON r.id = p.run_id WHERE r.module = ?3 AND r.subject_kind = 'device' AND r.subject_id = ?1
 				AND p.shape IN ('gentle', 'gentle_titles')),
-			(SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)
-			+ (SELECT count(*) FROM sa_probe p JOIN core_run r ON r.id = p.run_id WHERE r.module = ?3 AND r.subject_kind = 'device' AND r.subject_id = ?1
+			(SELECT count(*) FROM sa_probe p JOIN core_run r ON r.id = p.run_id WHERE r.module = ?3 AND r.subject_kind = 'device' AND r.subject_id = ?1
 				AND p.shape IN ('normal', 'versions') AND p.time >= ?2),
 			(SELECT count(*) FROM core_run WHERE module = ?3 AND kind = ?4 AND subject_kind = 'device' AND subject_id = ?1 AND status IN ('queued', 'waiting', 'running')),
 			(SELECT count(*) FROM core_run r WHERE r.module = ?3 AND r.kind = ?4 AND r.subject_kind = 'device' AND r.subject_id = ?1
-				AND r.status IN ('done', 'partial', 'failed') AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.run_id = r.id))
-			+ (SELECT count(*) FROM sa_all_ports WHERE asset_id = ?1 AND normal_sw IS NOT NULL)`,
+				AND r.status IN ('done', 'partial', 'failed') AND EXISTS (SELECT 1 FROM sa_probe p WHERE p.run_id = r.id))`,
 			id, since, ModuleID, RunCheck).Scan(&gentle, &busy, &queuedNow, &checked)
 		if err != nil {
 			return fmt.Errorf("sensoractive: read the scans of a device: %w", err)

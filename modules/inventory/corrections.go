@@ -42,7 +42,7 @@ const badOS = "The operating system is at most 200 characters and cannot contain
 
 // manualOS is the OS a person set on the device, when and who (the observation's evidence), ok false when none.
 func manualOS(ctx context.Context, q querier, id string) (value, setAt, setBy string, ok bool, err error) {
-	err = q.QueryRowContext(ctx, `SELECT value, seen_at, ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL+` ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt, &setBy)
+	err = q.QueryRowContext(ctx, `SELECT value, seen_at, ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&value, &setAt, &setBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", "", false, nil
 	}
@@ -66,7 +66,7 @@ func correctionDay(at string, loc *time.Location) string {
 func detectedOS(ctx context.Context, q querier, id string) (*Observed, error) {
 	// The MACs too: an LLDP statement counts only on its vendor's card (INV-44, markStated).
 	rows, err := q.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
-		AND ((field = 'os' AND source <> 'manual') OR field = 'mac')`, id)
+		AND ((field = 'os' AND source NOT IN ('manual', 'declared')) OR field = 'mac')`, id)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the detected OS: %w", err)
 	}
@@ -108,7 +108,7 @@ func (s *Service) setOSTx(ctx context.Context, tx *sql.Tx, actor, id, name, os s
 		return false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
 	// One correction per device: the previous one goes (a declared row's stored OS too: the person's OS decides now), so an older value set again cannot lose to a newer one.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source IN ('manual', 'declared')`, id); err != nil {
 		return false, fmt.Errorf("inventory: clear the corrected OS: %w", err)
 	}
 	if os != "" {

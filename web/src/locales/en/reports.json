@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "reports": "Reports"
-  },
   "page": {
     "titleLoading": "Reports",
     "title_one": "{{count}} finding is open; {{handled}} handled in this report's period",

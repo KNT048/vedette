@@ -15,7 +15,7 @@ function Shell({ back, title, children }: { back: string; title: string; childre
     <>
       {/* docs/UI.md §3: the parent above the title; the one primary action on the right of the header */}
       <div className="no-print">
-        <PageHeader breadcrumbs={[{ label: t('nav.reports'), to: back }]} title={title} meta={t('print.hint')}
+        <PageHeader breadcrumbs={[{ label: t('common:shell.reports'), to: back }]} title={title} meta={t('print.hint')}
           actions={<Button variant="primary" onClick={() => window.print()}><Printer aria-hidden />{t('print.button')}</Button>} />
         <div className="mx-auto mb-4 max-w-[210mm]"><ReportFilterSwitches idPrefix="print-include" notRelevant={false} /></div>
       </div>

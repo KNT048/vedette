@@ -375,9 +375,6 @@ func (s *Service) storeRecords(ctx context.Context, run *recordRun, recs []CVERe
 				return fmt.Errorf("feeds: CVE record %s: %w", cve, err)
 			}
 		}
-		if err := pruneRecordRefs(ctx, tx, pinned); err != nil {
-			return err
-		}
 		run.stored += w.Stored
 		run.kevFirst = run.kevFirst && (len(w.KEVChanged) == 0 || w.KEVFirst)
 		run.kevChanged = append(run.kevChanged, w.KEVChanged...)

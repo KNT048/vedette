@@ -1,30 +1,30 @@
 # Auth-OIDC — Change Impact Map
 
-> Package `modules/auth-oidc` (Go package `authoidc`). Hợp đồng GUI: `web/src/features/core/contract.ts`. Last verified: 2026-11-21 (mọi câu đã đối chiếu với code).
+> Package `modules/auth-oidc` (Go package `authoidc`). The GUI contract: `web/src/features/core/contract.ts`. Last verified: 2026-11-21 (every sentence checked against the code).
 
 ## Modifying: `Service.Store(ctx, actor, origin, Save)` / `View(ctx, origin)` (PUT/GET `/core/oidc`)
-- **web/features/core (`UsersSection.tsx`)**: form SSO; đổi trường → sinh lại `api/openapi.json` + `make generate-api` + sửa mock.
-- **cmd/vedette/wiring.go `privacyFacts.OIDCConfigured`** đọc `Service.Configured`; `modules/core/handlers_privacy.go` (luồng 11 của Privacy) và `modules/core/handlers_session.go` (`GET /core/auth-options`, nút SSO) gọi nó qua `privacyFacts`. Đổi nghĩa "đã cấu hình" → nút và trang Privacy đổi theo.
-- `Store` ghim `redirect_uri` theo nguồn của người lưu (INV-6): đổi cách tính → mọi hộp phải đăng ký lại địa chỉ ở IdP.
+- **web/features/core (`UsersSection.tsx`)**: the SSO form; changing a field → regenerate `api/openapi.json` + `make generate-api` + fix the mock.
+- **cmd/vedette/wiring.go `privacyFacts.OIDCConfigured`** reads `Service.Configured`; `modules/core/handlers_privacy.go` (flow 11 of Privacy) and `modules/core/handlers_session.go` (`GET /core/auth-options`, the SSO button) call it through `privacyFacts`. Changing the meaning of "configured" → the button and the Privacy page change with it.
+- `Store` pins `redirect_uri` to the origin of the person who saved it (INV-6): changing how it is computed → every box must register the address again at the IdP.
 
 ## Modifying: `Service.Start` / `Service.Callback` (POST `/auth/oidc/start`, `/auth/oidc/callback`)
-- **web/src/app/LoginPage.tsx**, **web/src/features/core/SsoCallbackPage.tsx**, **ssoFlow.ts** (sessionStorage `vedette-sso-flow`). Đổi tên trường `binding` hay đường `/sso/callback` → redirect URI đã đăng ký ở IdP của khách không còn khớp.
-- **core/auth `SSOSignIn`**: Callback chuyển (`iss`, `sub`, email, `email_verified`, name, vai) sau khi đã kiểm ID token. Đổi những gì được kiểm trước khi gọi → `core/auth` tin dữ liệu chưa kiểm (INV-1).
-- **modules/core codes/catalogue test**: mã lỗi mới phải có trong `docs/API_CONVENTIONS.md` (đếm theo mỗi bảng trạng thái).
+- **web/src/app/LoginPage.tsx**, **web/src/features/core/SsoCallbackPage.tsx**, **ssoFlow.ts** (sessionStorage `vedette-sso-flow`). Changing the field name `binding` or the path `/sso/callback` → the redirect URI registered at the customer's IdP no longer matches.
+- **core/auth `SSOSignIn`**: Callback passes on (`iss`, `sub`, email, `email_verified`, name, role) after the ID token has been checked. Changing what is checked before the call → `core/auth` trusts unchecked data (INV-1).
+- **modules/core codes/catalogue test**: a new error code must be in `docs/API_CONVENTIONS.md` (counted per status table).
 
 ## Modifying: `MapRole(groups, rows, def)` và `idClaims.groups(claim)`
-- Vai của mọi tài khoản SSO ở lần đăng nhập kế tiếp; đổi quy tắc (cao nhất, khớp đúng tên, bỏ nhóm > 256 ký tự, 200 nhóm đầu) → nâng/hạ quyền hàng loạt và kết thúc phiên của người bị đổi vai.
+- The role of every SSO account at the next sign-in; changing the rules (highest, exact name match, drop groups > 256 characters, the first 200 groups) → promotes/demotes in bulk and ends the sessions of people whose role changes.
 
-## Modifying: `newClient` / `discover` / `clientFor` (mọi lời gọi tới IdP)
-- INV-11: https, không chuyển hướng, 1 MiB, 10 s, danh sách thuật toán. Nới bất kỳ điều nào → `TestContract_INV11_Discovery` và rà bảo mật.
-- INV-12: `clientFor(ca_pem)` cho discovery, JWKS (provider giữ client) và đổi mã lấy token (`idp.client`). Dùng `s.client` trực tiếp ở chỗ mới → IdP sau CA nội bộ hỏng ở chỗ đó. `parseCA` là cổng duy nhất vào `oidc_config.ca_pem`; nới nó → rà bảo mật.
-- **web/features/core (`OidcCaField.tsx`, mock `caError`)**: thông điệp `invalid_ca` và câu "does not trust" của `publicReason` được GUI nhắc tới tên ô "Identity provider CA certificate".
+## Modifying: `newClient` / `discover` / `clientFor` (every call to the IdP)
+- INV-11: https, no redirects, 1 MiB, 10 s, an algorithm list. Loosening any of these → `TestContract_INV11_Discovery` and a security review.
+- INV-12: `clientFor(ca_pem)` for discovery, JWKS (the provider holds the client) and the token exchange (`idp.client`). Using `s.client` directly in a new place → an IdP behind an internal CA breaks in that place. `parseCA` is the only gate into `oidc_config.ca_pem`; loosening it → a security review.
+- **web/features/core (`OidcCaField.tsx`, the mock `caError`)**: the message `invalid_ca` and the "does not trust" sentence of `publicReason` are referred to in the GUI by the name of the field "Identity provider CA certificate".
 
 ## Depends on core (interface)
-- `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers`; `core/secrets` (purpose `oidc_config.client_secret`); `core/audit`; cột `sso_issuer`/`sso_subject` của `core_user` (core sở hữu).
+- `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers`; `core/secrets` (purpose `oidc_config.client_secret`); `core/audit`; the columns `sso_issuer`/`sso_subject` of `core_user` (owned by core).
 
 ## Wiring
-- `cmd/vedette/modules.go` (`Deps.OIDC`, migrations), `cmd/vedette/wiring.go` (`authoidc.New`), `cmd/vedette/handler.go` (`OIDCHandlers`); `core/server/modules.go` mở/đóng route `/core/oidc`, `/auth/oidc` theo module (SYS-5); `web/src/lib/modules.ts` và `web/src/features/core/ModulesSection.tsx` (hộp thoại tắt đọc `sso_users`). Đổi đường dẫn route → sửa `core/server/modules.go`.
+- `cmd/vedette/modules.go` (`Deps.OIDC`, migrations), `cmd/vedette/wiring.go` (`authoidc.New`), `cmd/vedette/handler.go` (`OIDCHandlers`); `core/server/modules.go` opens/closes the routes `/core/oidc`, `/auth/oidc` per module (SYS-5); `web/src/lib/modules.ts` and `web/src/features/core/ModulesSection.tsx` (the turn-off dialog reads `sso_users`). Changing a route path → change `core/server/modules.go`.
 
 ## Disabling this module
-- Server trả 404 cho `/auth/oidc/*`, `/core/oidc*` (SYS-5); `auth-options.oidc=false`; không gọi IdP. Tài khoản SSO không vào được tới khi bật lại (GUI nêu `sso_users` trước khi tắt). `oidc_config` giữ nguyên; `oidc_flow` hết hạn và bị dọn ở lần `start` kế tiếp.
+- The server returns 404 for `/auth/oidc/*`, `/core/oidc*` (SYS-5); `auth-options.oidc=false`; the IdP is not called. SSO accounts cannot get in until it is turned on again (the GUI names `sso_users` before turning off). `oidc_config` is kept as it is; `oidc_flow` expires and is cleaned at the next `start`.

@@ -14,8 +14,8 @@ export const feature: Feature = {
     { path: 'cve/:id', lazy: () => import('./CvePage').then((m) => ({ Component: m.default })) },
   ],
   nav: [
-    { to: '/', label: 'feeds:nav.home', icon: House, module: 'feeds', group: 'monitor', order: 10, end: true },
-    { to: '/lookup', label: 'feeds:nav.lookup', icon: Search, module: 'feeds', group: 'monitor', order: 40 },
+    { to: '/', label: 'common:shell.home', icon: House, module: 'feeds', group: 'monitor', order: 10, end: true },
+    { to: '/lookup', label: 'common:shell.lookup', icon: Search, module: 'feeds', group: 'monitor', order: 40 },
   ],
-  settings: [{ id: 'feeds', label: 'feeds:settings.nav', module: 'feeds', minRole: 'viewer', order: 25, element: <Suspense fallback={<Loading />}><FeedsSettings /></Suspense> }],
+  settings: [{ id: 'feeds', label: 'common:shell.feedsSettings', module: 'feeds', minRole: 'viewer', order: 25, element: <Suspense fallback={<Loading />}><FeedsSettings /></Suspense> }],
 }

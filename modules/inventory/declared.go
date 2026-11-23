@@ -111,20 +111,19 @@ func outranking(d *Device) bool {
 	return slices.ContainsFunc(d.Software, func(sw Software) bool { return sw.Source == "agent" })
 }
 
-// declaredEvidence marks the stored OS observation a declared row decided: an observation of source manual whose evidence is
-// declaredEvidence + the software line's id. A person's own OS carries the person's name as evidence instead, so the two never mix.
-const declaredEvidence = "declared:"
+// sourceDeclared is the source of the stored OS observation a declared software row decided: its evidence is that row's id. A
+// person's own OS is source manual (evidence: the person's name), so the two never share a key and never fold into each other.
+const sourceDeclared = "declared"
 
 // declaredObsSQL is the condition on inv_observation rows that are such a stored decision.
-const declaredObsSQL = `(field = 'os' AND source = 'manual' AND substr(ifnull(evidence, ''), 1, 9) = 'declared:')`
+const declaredObsSQL = `(field = 'os' AND source = 'declared')`
 
-// declaredRow is the software line a stored OS came from: the id after declaredEvidence when source and evidence say a declared row
-// decided it, "" otherwise.
+// declaredRow is the software line a stored OS came from: the evidence of a declared observation (the row's id), "" otherwise.
 func declaredRow(source, evidence string) string {
-	if source != "manual" || !strings.HasPrefix(evidence, declaredEvidence) {
+	if source != sourceDeclared {
 		return ""
 	}
-	return strings.TrimPrefix(evidence, declaredEvidence)
+	return evidence
 }
 
 // declaredChoice is the declared row that is the device's OS, with the OS text it gives; nil when none (INV-45). detected is what
@@ -196,7 +195,7 @@ func (s *Service) declaredChoice(ctx context.Context, tx *sql.Tx, id string, det
 }
 
 // storeDeclared makes the OS field of a device follow the declared row, in recomputeColumns' transaction: the decision is one
-// observation (source manual, evidence declaredEvidence + the row's id), kept while the choice stands and deleted when it does not,
+// observation (source declared, evidence the row's id), kept while the choice stands and deleted when it does not,
 // and it becomes best["os"] so inv_asset.os and os_obs_id hold it. The observation is the row's own reading (its confidence and time).
 func (s *Service) storeDeclared(ctx context.Context, tx *sql.Tx, id string, best map[string]obs) error {
 	var detected *Observed
@@ -218,8 +217,8 @@ func (s *Service) storeDeclared(ctx context.Context, tx *sql.Tx, id string, best
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inventory: read the declared OS: %w", err)
 	}
-	if row != nil && have.id != "" && have.value == text && conf == row.Confidence && have.seen == row.seenAt && have.evidence == declaredEvidence+row.ID {
-		best["os"] = obs{id: have.id, field: "os", value: text, source: "manual", confidence: conf, seenAt: have.seen}
+	if row != nil && have.id != "" && have.value == text && conf == row.Confidence && have.seen == row.seenAt && have.evidence == row.ID {
+		best["os"] = obs{id: have.id, field: "os", value: text, source: sourceDeclared, confidence: conf, seenAt: have.seen}
 		return nil
 	}
 	if have.id != "" {
@@ -230,9 +229,9 @@ func (s *Service) storeDeclared(ctx context.Context, tx *sql.Tx, id string, best
 	if row == nil {
 		return nil
 	}
-	o := obs{id: store.NewID("o"), field: "os", value: text, source: "manual", confidence: row.Confidence, seenAt: row.seenAt}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, first_seen, evidence) VALUES (?, ?, 'os', ?, 'manual', ?, ?, ?, ?)`,
-		o.id, id, o.value, o.confidence, o.seenAt, o.seenAt, declaredEvidence+row.ID); err != nil {
+	o := obs{id: store.NewID("o"), field: "os", value: text, source: sourceDeclared, confidence: row.Confidence, seenAt: row.seenAt}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, first_seen, evidence) VALUES (?, ?, 'os', ?, 'declared', ?, ?, ?, ?)`,
+		o.id, id, o.value, o.confidence, o.seenAt, o.seenAt, row.ID); err != nil {
 		return fmt.Errorf("inventory: record the declared OS: %w", err)
 	}
 	best["os"] = o
@@ -275,7 +274,7 @@ func fillDeclaredHardware(d *Device) {
 	}
 	row := d.Software[i]
 	at := func(v string) *Observed {
-		return &Observed{Value: v, Source: "manual", Confidence: d.OS.Confidence, SeenAt: d.OS.SeenAt, SoftwareID: row.ID}
+		return &Observed{Value: v, Source: sourceDeclared, Confidence: d.OS.Confidence, SeenAt: d.OS.SeenAt, SoftwareID: row.ID}
 	}
 	if m := osProducts[productid.Key(row.Vendor, row.Product)].model; d.Model == nil && m != "" {
 		d.Model = at(m)

@@ -241,7 +241,7 @@ export default function FindingPage() {
   const { id = '' } = useParams()
   const q = useFinding(id)
   // docs/UI.md §3: the parent above the title, also while the finding loads or is missing, so the way back is always there.
-  const crumbs = [{ label: t('nav.findings'), to: '/findings' }]
+  const crumbs = [{ label: t('common:shell.findings'), to: '/findings' }]
   return (
     <RequireModule module="findings" page>
       {q.data ? null : <Breadcrumbs items={crumbs} />}

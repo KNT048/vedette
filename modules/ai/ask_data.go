@@ -57,6 +57,9 @@ type FindingRow struct {
 	LastSeen   string
 	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted; "" otherwise.
 	AcceptedUntil string
+	// Fix is the fix of this device in one sentence, the one the finding page shows; Confirmation says who or what confirmed the finding,
+	// or that nobody has; Workaround (get_finding only) is the CVE record's workaround, or "No workaround is published: install the fix."
+	Fix, Confirmation, Workaround string
 }
 
 // IOCFact is an indicator (an IP address or a domain) that feeds list.

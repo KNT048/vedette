@@ -48,7 +48,9 @@ type AssetFact struct {
 	IP     string
 	Kind   string
 	Basis  string // version, product, scan or person
-	Status string // open, confirmed, ...
+	Status string // confirmed or suspected
+	// Fix is this device's fix in one sentence and Confirmation says who or what confirmed the finding, both as the finding page shows them.
+	Fix, Confirmation string
 	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do. Not sent to the model.
 	IsBox bool
 }
@@ -228,7 +230,14 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 		b.WriteString("No device in the inventory matches this product.\n")
 	}
 	for _, a := range assets {
-		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name
+		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name
+		if a.Confirmation != "" {
+			fmt.Fprintf(&b, "; %s", a.Confirmation)
+		}
+		if a.Fix != "" {
+			fmt.Fprintf(&b, "; %s", a.Fix)
+		}
+		b.WriteString("\n")
 	}
 	return DataBlock{Kind: "inventory", Source: "devices on this box matching the product", Text: b.String()}
 }

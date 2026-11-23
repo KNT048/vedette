@@ -439,6 +439,8 @@ func findingMap(f FindingRow) map[string]any {
 	if f.AcceptedUntil != "" { // When an accepted risk comes back by itself
 		m["accepted_until"] = clip(f.AcceptedUntil, 10)
 	}
+	put(m, "fix", clip(f.Fix, 300))
+	put(m, "confirmation", clip(f.Confirmation, 200))
 	return m
 }
 
@@ -607,6 +609,7 @@ func toolGetFinding(ctx context.Context, d Data, raw map[string]any) (toolOut, e
 	if f.Evidence != "" {
 		m["evidence"] = clip(f.Evidence, 600)
 	}
+	put(m, "workaround", clip(f.Workaround, 600))
 	b, _ := json.Marshal(m)
 	return toolOut{Text: string(b), Summary: "1 finding", Cite: "Findings"}, nil
 }

@@ -16,9 +16,32 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// The brief is the small door the mitigation module uses (`mitigation.AI`): the AI explains a finding or drafts a
-// recommendation for it, and the answer is a few paragraphs and steps. Like every AI output it is a suggestion: mitigation stores
-// it as an AI result and the page labels it as AI-generated, never as a confirmed recommendation (INV-5).
+// The brief is the small door the mitigation module uses (`mitigation.AI`): the AI answers four questions about a finding (am I
+// affected, how do I fix it, what if I cannot patch yet, how urgent) and, for the config skill, drafts configuration for it. Like every
+// AI output it is a suggestion: mitigation stores it as an AI result and the page labels it as AI-generated, never as a confirmed
+// recommendation (INV-5).
+
+// The four questions, in the order they are answered and shown.
+const (
+	AnswerAffected   = "affected"
+	AnswerFix        = "fix"
+	AnswerWorkaround = "workaround"
+	AnswerUrgency    = "urgency"
+)
+
+// AnswerKeys are the keys of the four answers, in order.
+var AnswerKeys = []string{AnswerAffected, AnswerFix, AnswerWorkaround, AnswerUrgency}
+
+// BriefRef is a reference the box offers the model to cite: the model names it by its number in Refs (1 is Refs[0]) and the box writes the
+// link, so a link in an answer is always one the caller gave.
+type BriefRef struct{ Title, URL string }
+
+// BriefAnswerItem is one of the four answers: its key, a few sentences and the references it rests on.
+type BriefAnswerItem struct {
+	Key   string
+	Text  string
+	Links []BriefRef
+}
 
 // BriefRequest is one such call. Data holds the device and feed text of the finding; it is untrusted and goes into the prompt only
 // as fenced data.
@@ -28,6 +51,8 @@ type BriefRequest struct {
 	Target   string // the CVE, for the activity summary
 	Question string
 	Data     []DataBlock
+	// Refs are the references the answers may cite, numbered from 1 in the data the caller wrote.
+	Refs []BriefRef
 	// Trusted are the addresses the box itself knows for this finding, read from structured fields (the device's IP, the IPs of the
 	// firewalls sent), never from a banner, a name or free text. A config line that names any other address is flagged on the page for
 	// the person to check (#897 r2: warn, not filter).
@@ -36,16 +61,19 @@ type BriefRequest struct {
 
 // BriefAnswer is the checked answer. Citations are not part of it: the caller builds them from the feed entry.
 type BriefAnswer struct {
-	Model      string
-	Profile    string
-	TokensIn   int
-	TokensOut  int
+	Model     string
+	Profile   string
+	TokensIn  int
+	TokensOut int
+	// Answers are the four answers in order (AnswerKeys); Paragraphs is empty for them and kept for answers stored before.
+	Answers    []BriefAnswerItem
 	Paragraphs []string
 	Steps      []string
 	// Configs are the ready configuration blocks of a mitigation-config answer (none for explain-finding).
 	Configs []BriefConfig
-	// NoConfigReason is why no network rule (or no config at all) applies, in the model's words: a local or user-interaction flaw, or
-	// no open port of the device serves the vulnerable part (r1 H1 of #897). An answer may have no config only when it says why.
+	// NoConfigReason is one sentence on a missing network rule (or no config at all), in the model's words: a local or user-interaction
+	// flaw, or no open port of the device serves the vulnerable part (r1 H1 of #897). The config skill's page shows it where the
+	// configuration would be; an answer may have no config only when it says so.
 	NoConfigReason string
 	// Shortened is set when a part of the answer was longer than the box keeps: a text was cut at a sentence end (never mid-sentence)
 	// or a config block was left out whole (a cut config could be pasted half), so the page can say so (M2-2).
@@ -65,10 +93,16 @@ type BriefConfig struct {
 }
 
 type briefBody struct {
-	Paragraphs []string        `json:"paragraphs"`
-	Steps      []string        `json:"steps"`
-	Configs    []briefConfigIn `json:"configs"`
-	NoConfig   string          `json:"no_config_reason"`
+	Answers  []briefAnswerIn `json:"answers"`
+	Steps    []string        `json:"steps"`
+	Configs  []briefConfigIn `json:"configs"`
+	NoConfig string          `json:"no_config_reason"`
+}
+
+type briefAnswerIn struct {
+	Key  string `json:"key"`
+	Text string `json:"text"`
+	Refs []int  `json:"refs"`
 }
 
 type briefConfigIn struct {
@@ -78,20 +112,22 @@ type briefConfigIn struct {
 	BasedOn    string   `json:"based_on"`
 }
 
-const briefSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}}},"required":["paragraphs","steps"],"additionalProperties":false}`
+const briefAnswersSchema = `"answers":{"type":"array","items":{"type":"object","properties":{"key":{"type":"string","enum":["affected","fix","workaround","urgency"]},"text":{"type":"string"},"refs":{"type":"array","items":{"type":"integer"}}},"required":["key","text","refs"],"additionalProperties":false}}`
 
-// briefConfigSchema is the mitigation-config answer: the explanation and the order of work, plus the config blocks themselves. Each
+const briefSchema = `{"type":"object","properties":{` + briefAnswersSchema + `},"required":["answers"],"additionalProperties":false}`
+
+// briefConfigSchema is the mitigation-config answer: the four answers and the order of work, plus the config blocks themselves. Each
 // line of a block is its own string, so every line goes through the after_ai hooks in the form that is kept (INV-12).
-const briefConfigSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}},"configs":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"lines":{"type":"array","items":{"type":"string"}},"side_effect":{"type":"string"},"based_on":{"type":"string"}},"required":["title","lines","side_effect","based_on"],"additionalProperties":false}},"no_config_reason":{"type":"string"}},"required":["paragraphs","steps","configs","no_config_reason"],"additionalProperties":false}`
+const briefConfigSchema = `{"type":"object","properties":{` + briefAnswersSchema + `,"steps":{"type":"array","items":{"type":"string"}},"configs":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"lines":{"type":"array","items":{"type":"string"}},"side_effect":{"type":"string"},"based_on":{"type":"string"}},"required":["title","lines","side_effect","based_on"],"additionalProperties":false}},"no_config_reason":{"type":"string"}},"required":["answers","steps","configs","no_config_reason"],"additionalProperties":false}`
 
-// briefFixRule is the part of both finding tasks about the fix. The finding page states the fix from the box's own reading of the affected
-// versions (the data's "Fixed version" line); an answer that names another one contradicts the page. The end of an affected range
-// ("before 20.4") is not a fix: the vendor may list releases of 20.4 itself as affected, and then the line says so.
-const briefFixRule = `The "Fixed version" line of the device block is what the finding page tells the person about the fix: name as the fix only a release that line names as fixed, in its words. When it says a release is not a fix, names no fixed release, or says the fix is not known, say exactly that and point to the vendor advisory in the links; never call that release (or "that release or later") the fix and never tell the person to upgrade to it. Never work out a fixed release from an affected range, such as the "before" end of the range in the Evidence.`
+// briefAnswersRule is the part of both finding tasks that makes the four answers. The finding page states the fix from the box's own
+// reading (the "Fix for this device" line of the data); an answer that names another release contradicts the page. The end of an affected
+// range ("before 20.4") is not a fix: the vendor may list releases of 20.4 itself as affected.
+const briefAnswersRule = `In "answers" give exactly four answers, in this order, each with its "key": "affected" (Am I affected? Yes, no or needs a check, with the evidence: the installed version, who or what confirmed it as the Confirmation line says, and any condition the CVE brief names, such as a CPU feature or an enabled option), "fix" (How do I fix it? The exact release the "Fix for this device" line names, in its words), "workaround" (What if I cannot patch yet? The workaround of the CVE brief, or its sentence that none is published), "urgency" (How urgent? The urgency line and its reasons, the attack conditions and the privileges required). Each answer is one to three short sentences of plain English. Its "refs" are the numbers of the references of the CVE brief it rests on: every claim a reference supports carries its number, and no number that is not listed. Use only the facts in the data blocks and name no version number, product or link that is not in them. The "Fix for this device" line is the fix: never work out a fixed release from an affected version, never name a release of another release train, and never call the "before" end of an affected range a fix. Write what is true; never write a paragraph that explains why something is absent. Give firewall or gateway rules, and back-up and roll-back steps, only when the attack is over the network and the device has an open port for the product, or when a configuration change is proposed.`
 
 const (
-	briefExplainTask = `Explain one finding for this company's network: a device the box matched to a known vulnerability. The device block's Urgency line says why it matters now; call the vulnerability exploited only when that line says attackers use it, never otherwise. Use only the facts in the data blocks. In "paragraphs" write at most 4 short paragraphs of plain English: what the vulnerability is, whether it touches this device and why, and what an attacker could do. In "steps" write the steps a person should take, in order. ` + briefFixRule + ` Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
-	briefConfigTask  = `Write ready-to-paste configuration that reduces the risk of one vulnerability on this device until it is patched, when configuration can do that. Use only the facts in the data blocks: the device block gives the device, its installed software and version, the affected range and the fixed releases, the CVSS attack vector, its open ports and the ports of the vulnerable product (the ports that run it, the ones most likely the same server, the ones that run another product); the network block lists the firewalls and routers of the company's inventory a rule may be written for, each with its place on the path to this device. In "paragraphs" write at most 3 short paragraphs of plain English: whether the installed version is inside the affected range and what the data says about the fix (when the data names a fixed release, give it, do not ask the person to look it up), what the configuration below does, and what it can break. When you write a firewall or router rule, say which traffic it stops, as the network block gives it: a rule on a gateway or firewall filters only the traffic routed through it, so it protects the device only from other networks, hosts on the device's own network still reach the device directly, and only the change on the device itself protects it from them. ` + briefFixRule + ` In "configs" give the configuration blocks, each a "title" naming the target (vendor and model), its "lines" exactly as a person pastes them into that product's command line, one command per string and never a line break inside a string, its "side_effect" (what stops working, and how not to lock yourself out), and "based_on" (which source in the data the change follows, or "general practice, no source in the data names it" when none does). First one block for the device itself in its own configuration language: the vendor's known workaround for this vulnerability, such as turning off or restricting the vulnerable service, a policy or a registry setting. Then, only when the vulnerability is reached over the network (attack vector network or adjacent) and an open port of this device serves the vulnerable component, one block for each firewall or router the network block lists, in that vendor's own syntax, that blocks or limits access from other networks to the ports of the vulnerable product on this device (its IP address from the data), as the "Ports of the vulnerable product" line gives them: the ports that run it and the ones it calls most likely the same server, plain and TLS alike (a web interface's HTTP and HTTPS ports, never only one of them), and never a port it calls another product (when such a port may be a reverse proxy in front of the vulnerable product, say so in "no_config_reason"). Choose such a rule's action by where the blocked traffic comes from and by each port's protocol. Traffic from the company's own internal networks is refused, so a blocked client fails at once instead of hanging and the person sees the block when verifying: TCP ports with a TCP reset (nftables "reject with tcp reset", iptables "-p tcp -j REJECT --reject-with tcp-reset", a Junos firewall filter term "then reject tcp-reset", a pfSense or OPNsense Reject rule, a FortiGate deny policy with "set send-deny-packet enable"); UDP ports with an ICMP reject (nftables plain "reject", iptables "-p udp -j REJECT") in a rule of their own, never a TCP reset, and never TCP and UDP ports in one match with a TCP reset. Traffic that arrives from the Internet (the device is reachable through a port forward or a public address) is dropped silently in a rule of its own placed before the reject, matched on the Internet side with a placeholder such as <WAN_INTERFACE>, so the device does not answer scanners. When a product can only drop, use its deny as it is (a FortiGate deny policy drops unless send-deny-packet is enabled; a pfSense Block rule drops). Of the ports it calls not known which product, cover the ones of the same service as a port that runs it, and the ones of other services only when the vulnerability is reached through that service (such as the product's web front end); say in "no_config_reason" which of them you covered and why. When that line says the ports are not known, choose from its candidates only the ones that serve the vulnerable component (from the product the scan read on each and what the vulnerability is), with the ports it calls most likely the same server, never every web port of the device, and say in "no_config_reason" which ports you chose and why. When it says the vulnerability is in the device's own platform, choose the interface the vulnerability names (such as the web interface) and cover every port it lists for that service, plain and TLS alike, never only one of them and never the ports of the device's other interfaces. Write a rule only for a firewall or router the network block lists, never for one it says is not on the path to this device. When the network block says Vedette does not know which firewall is on the device's path, a rule for a listed one is an assumption: put "(assumed)" in the block's "title", and in "no_config_reason" name each firewall you assumed is in front of the device, why (its place as the network block gives it), and that Vedette does not know the device's path. When the network block says this device is the network edge (the default gateway of its network), write no firewall block and no Linux gateway example: nothing of the company stands in front of it, so the device's own block restricts the vulnerable service (its management or VPN access, a local-in policy), and "no_config_reason" says that no other firewall is in front of this device. For a listed firewall or router whose vendor is not known, write its block for a Linux gateway with nftables, titled with its name. When the network block lists no firewall or router a rule can be written for, one block for a Linux gateway with nftables instead, titled for the gateway the network block names when it names one, and in "no_config_reason" say that Vedette does not know which firewall is in front of the device, so this rule is an example for whatever gateway it is. Never write a firewall rule for ports unrelated to the vulnerable service. When the data gives a target a safe apply (a way to apply that undoes the change by itself when it is not confirmed, such as Junos "commit confirmed"), that target's change is applied that way: a command it calls a separate step goes in "steps", never in "lines"; its "side_effect" says what to confirm, by when, and what happens when it is not confirmed (some platforms restart); "steps" say how to confirm it; never end such a block with a plain commit alone. For a remote change to a network device or firewall the data gives no safe apply, never name an automatic rollback: its "side_effect" says to keep a second session open while applying. Use only IP addresses that are in the data; write a named placeholder such as <ADMIN_NETWORK> for what the data cannot know. In "no_config_reason" say in one or two sentences why a firewall rule, or any configuration, does not help when you give none (for example: the attack is local or needs a user to open a file, or no open port serves the vulnerable part), or which firewall a rule assumes as asked above, else an empty string. In "steps" write at most 8 short steps: back up the current configuration, apply, verify, and how to undo; when no configuration helps, the steps to patch or turn the component off. Every verify step says where to test from and the result the person sees, matching the action of the rule it checks and the network tested from: a silent drop or deny (nftables "drop", a FortiGate deny without send-deny-packet, a pfSense Block, a Junos "discard") makes the connection time out with no answer; a TCP reset makes a TCP connection refused at once; an ICMP reject makes it fail at once as unreachable or prohibited (a UDP port is never "refused": an ICMP error or no answer). Never call a timeout refused, or a refusal a timeout. Test a firewall or router rule from a host whose traffic crosses that firewall, as its line in the network block says, never from the device's own network: from there the port still answers, which is expected, and the step says so. When the network block says the device's network is assumed or not known, the step says to pick the test host by its route to the device (a traceroute or tracert lists the firewall as a hop), not by an address range. When the network block says a scan from the box does not show a gateway rule, never tell the person to check that rule with a scan from Vedette. Test the device's own change from a host it is meant to block: a service turned off answers no host, so it is refused from any host, the device's own network included; an access restriction on the device (an allowed admin network, trusted hosts, a local-in policy, a host firewall rule) is tested from a host outside the allowed sources, with the result its action gives (refused for a reset, a timeout for a drop), and from an allowed host the port still answers, as expected. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
+	briefExplainTask = `Answer four questions about one finding for this company's network: a device the box matched to a known vulnerability. The Finding status line of the device block says why it matters now; call the vulnerability exploited only when that line says attackers use it, never otherwise. ` + briefAnswersRule + ` Reply with one JSON object only.`
+	briefConfigTask  = `Write ready-to-paste configuration that reduces the risk of one vulnerability on this device until it is patched, when configuration can do that. Use only the facts in the data blocks: the CVE brief gives the weakness, the affected versions, the fixed releases and the CVSS attack conditions, the device block gives the device, its installed software and version, the fix for it, its open ports and the ports of the vulnerable product (the ports that run it, the ones most likely the same server, the ones that run another product); the network block lists the firewalls and routers of the company's inventory a rule may be written for, each with its place on the path to this device. Answer the four questions first. ` + briefAnswersRule + ` A firewall or router rule's "side_effect" also says which traffic it stops, as the network block gives it: a rule on a gateway or firewall filters only the traffic routed through it, so it protects the device only from other networks, hosts on the device's own network still reach the device directly, and only the change on the device itself protects it from them. In "configs" give the configuration blocks, each a "title" naming the target (vendor and model), its "lines" exactly as a person pastes them into that product's command line, one command per string and never a line break inside a string, its "side_effect" (what stops working, and how not to lock yourself out), and "based_on" (which source in the data the change follows, or "general practice, no source in the data names it" when none does). First one block for the device itself in its own configuration language: the vendor's known workaround for this vulnerability, such as turning off or restricting the vulnerable service, a policy or a registry setting. Then, only when the vulnerability is reached over the network (attack vector network or adjacent) and an open port of this device serves the vulnerable component, one block for each firewall or router the network block lists, in that vendor's own syntax, that blocks or limits access from other networks to the ports of the vulnerable product on this device (its IP address from the data), as the "Ports of the vulnerable product" line gives them: the ports that run it and the ones it calls most likely the same server, plain and TLS alike (a web interface's HTTP and HTTPS ports, never only one of them), and never a port it calls another product (when such a port may be a reverse proxy in front of the vulnerable product, say so in "no_config_reason"). Choose such a rule's action by where the blocked traffic comes from and by each port's protocol. Traffic from the company's own internal networks is refused, so a blocked client fails at once instead of hanging and the person sees the block when verifying: TCP ports with a TCP reset (nftables "reject with tcp reset", iptables "-p tcp -j REJECT --reject-with tcp-reset", a Junos firewall filter term "then reject tcp-reset", a pfSense or OPNsense Reject rule, a FortiGate deny policy with "set send-deny-packet enable"); UDP ports with an ICMP reject (nftables plain "reject", iptables "-p udp -j REJECT") in a rule of their own, never a TCP reset, and never TCP and UDP ports in one match with a TCP reset. Traffic that arrives from the Internet (the device is reachable through a port forward or a public address) is dropped silently in a rule of its own placed before the reject, matched on the Internet side with a placeholder such as <WAN_INTERFACE>, so the device does not answer scanners. When a product can only drop, use its deny as it is (a FortiGate deny policy drops unless send-deny-packet is enabled; a pfSense Block rule drops). Of the ports it calls not known which product, cover the ones of the same service as a port that runs it, and the ones of other services only when the vulnerability is reached through that service (such as the product's web front end); say in "no_config_reason" which of them you covered and why. When that line says the ports are not known, choose from its candidates only the ones that serve the vulnerable component (from the product the scan read on each and what the vulnerability is), with the ports it calls most likely the same server, never every web port of the device, and say in "no_config_reason" which ports you chose and why. When it says the vulnerability is in the device's own platform, choose the interface the vulnerability names (such as the web interface) and cover every port it lists for that service, plain and TLS alike, never only one of them and never the ports of the device's other interfaces. Write a rule only for a firewall or router the network block lists, never for one it says is not on the path to this device. When the network block says Vedette does not know which firewall is on the device's path, a rule for a listed one is an assumption: put "(assumed)" in the block's "title", and in "no_config_reason" name each firewall you assumed is in front of the device, why (its place as the network block gives it), and that Vedette does not know the device's path. When the network block says this device is the network edge (the default gateway of its network), write no firewall block and no Linux gateway example: nothing of the company stands in front of it, so the device's own block restricts the vulnerable service (its management or VPN access, a local-in policy), and "no_config_reason" says that no other firewall is in front of this device. For a listed firewall or router whose vendor is not known, write its block for a Linux gateway with nftables, titled with its name. When the network block lists no firewall or router a rule can be written for, one block for a Linux gateway with nftables instead, titled for the gateway the network block names when it names one, and in "no_config_reason" say that Vedette does not know which firewall is in front of the device, so this rule is an example for whatever gateway it is. Never write a firewall rule for ports unrelated to the vulnerable service. When the data gives a target a safe apply (a way to apply that undoes the change by itself when it is not confirmed, such as Junos "commit confirmed"), that target's change is applied that way: a command it calls a separate step goes in "steps", never in "lines"; its "side_effect" says what to confirm, by when, and what happens when it is not confirmed (some platforms restart); "steps" say how to confirm it; never end such a block with a plain commit alone. For a remote change to a network device or firewall the data gives no safe apply, never name an automatic rollback: its "side_effect" says to keep a second session open while applying. Use only IP addresses that are in the data; write a named placeholder such as <ADMIN_NETWORK> for what the data cannot know. In "no_config_reason" write one sentence of fact when you give no firewall rule or no configuration (for example: the attack is local, or needs a user to open a file, or no open port serves the vulnerable part), or which firewall a rule assumes as asked above, else an empty string. In "steps" write at most 8 short steps: back up the current configuration, apply, verify, and how to undo; when no configuration helps, the steps to patch or turn the component off. Every verify step says where to test from and the result the person sees, matching the action of the rule it checks and the network tested from: a silent drop or deny (nftables "drop", a FortiGate deny without send-deny-packet, a pfSense Block, a Junos "discard") makes the connection time out with no answer; a TCP reset makes a TCP connection refused at once; an ICMP reject makes it fail at once as unreachable or prohibited (a UDP port is never "refused": an ICMP error or no answer). Never call a timeout refused, or a refusal a timeout. Test a firewall or router rule from a host whose traffic crosses that firewall, as its line in the network block says, never from the device's own network: from there the port still answers, which is expected, and the step says so. When the network block says the device's network is assumed or not known, the step says to pick the test host by its route to the device (a traceroute or tracert lists the firewall as a hop), not by an address range. When the network block says a scan from the box does not show a gateway rule, never tell the person to check that rule with a scan from Vedette. Test the device's own change from a host it is meant to block: a service turned off answers no host, so it is refused from any host, the device's own network included; an access restriction on the device (an allowed admin network, trusted hosts, a local-in policy, a host firewall rule) is tested from a host outside the allowed sources, with the result its action gives (refused for a reset, a timeout for a drop), and from an allowed host the port still answers, as expected. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
 )
 
 // briefMaxTokens is the output limit of an explanation. The answer itself (4 paragraphs and a list of steps, as JSON) runs to about
@@ -108,15 +144,13 @@ const (
 // middle of one (M2-2: "No confirmed recommendation exists yet, and a" was a paragraph cut at 500 characters); a config block over its
 // limits is left out whole. Either sets BriefAnswer.Shortened.
 const (
-	briefMaxParagraphs = 6
-	briefParagraphRune = 1500
-	briefMaxSteps      = 12
-	briefStepRunes     = 600
-	briefMaxConfigs    = 8
-	briefMaxLines      = 80
-	briefLineRunes     = 400
-	briefTitleRunes    = 200
-	briefSideRunes     = 800
+	briefMaxSteps   = 12
+	briefStepRunes  = 600
+	briefMaxConfigs = 8
+	briefMaxLines   = 80
+	briefLineRunes  = 400
+	briefTitleRunes = 200
+	briefSideRunes  = 800
 )
 
 func parseBrief(text string, job Job) (briefBody, error) {
@@ -126,17 +160,25 @@ func parseBrief(text string, job Job) (briefBody, error) {
 	if err := dec.Decode(&b); err != nil || dec.More() {
 		return briefBody{}, ErrBadOutput
 	}
-	keys := []string{"paragraphs", "steps"}
+	keys := []string{"answers"}
 	if job == JobMitigationConfig {
-		keys = append(keys, "configs")
+		keys = append(keys, "steps", "configs")
 	}
 	if !hasKeys(text, keys...) {
 		return briefBody{}, ErrBadOutput
 	}
-	if len(cleanList(b.Paragraphs)) == 0 {
+	// the four answers, once each, none empty: a missing one is a format error the caller asks again about, never an empty section
+	seen := map[string]bool{}
+	for _, x := range b.Answers {
+		if !slices.Contains(AnswerKeys, x.Key) || seen[x.Key] || cleanText(x.Text) == "" {
+			return briefBody{}, ErrBadOutput
+		}
+		seen[x.Key] = true
+	}
+	if len(seen) != len(AnswerKeys) {
 		return briefBody{}, ErrBadOutput
 	}
-	if job == JobMitigationConfig { // the job is the config: an answer without one must say why none helps (M2-2, r1 H1)
+	if job == JobMitigationConfig { // the job is the config: an answer without one must say so (M2-2, r1 H1)
 		found := strings.TrimSpace(b.NoConfig) != ""
 		for _, c := range b.Configs {
 			for _, l := range c.Lines {
@@ -147,15 +189,37 @@ func parseBrief(text string, job Job) (briefBody, error) {
 			return briefBody{}, ErrBadOutput
 		}
 	} else {
-		b.Configs, b.NoConfig = nil, ""
+		b.Steps, b.Configs, b.NoConfig = nil, nil, ""
 	}
 	return b, nil
 }
 
+// answerRunes is the longest text of one answer the box keeps.
+const answerRunes = 1200
+
+// maxAnswerLinks is how many references one answer keeps.
+const maxAnswerLinks = 8
+
 // keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole, each
 // with the addresses it names that are not trusted (#897 r2: shown for checking, never dropped).
-func keptBrief(b briefBody, trusted []netip.Addr) (a BriefAnswer) {
-	a.Paragraphs, a.Shortened = sentenceList(b.Paragraphs, briefMaxParagraphs, briefParagraphRune)
+func keptBrief(b briefBody, refs []BriefRef, trusted []netip.Addr) (a BriefAnswer) {
+	a.Paragraphs = []string{}
+	for _, key := range AnswerKeys { // in the order of the questions, whatever order the model wrote them in
+		for _, x := range b.Answers {
+			if x.Key != key {
+				continue
+			}
+			text, c := clipSentence(cleanText(x.Text), answerRunes)
+			a.Shortened = a.Shortened || c
+			it := BriefAnswerItem{Key: key, Text: text}
+			for _, n := range x.Refs { // the box writes the link of a number it offered; any other number is dropped
+				if n >= 1 && n <= len(refs) && !slices.Contains(it.Links, refs[n-1]) && len(it.Links) < maxAnswerLinks {
+					it.Links = append(it.Links, refs[n-1])
+				}
+			}
+			a.Answers = append(a.Answers, it)
+		}
+	}
 	var cut bool
 	a.Steps, cut = sentenceList(b.Steps, briefMaxSteps, briefStepRunes)
 	a.Shortened = a.Shortened || cut
@@ -439,7 +503,7 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 			if perr != nil {
 				return perr
 			}
-			kept = keptBrief(body, r.Trusted)
+			kept = keptBrief(body, r.Refs, r.Trusted)
 			if r.Job == JobMitigationConfig && len(kept.Configs) == 0 && kept.NoConfigReason == "" {
 				return ErrBadOutput
 			}

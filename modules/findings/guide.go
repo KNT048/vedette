@@ -139,6 +139,9 @@ type AIResult struct {
 	Paragraphs []string   `json:"paragraphs"`
 	Steps      []string   `json:"steps"`
 	Citations  []Citation `json:"citations"`
+	// Answers are the four answers in the order of the questions; when present the page shows them instead of the paragraphs and steps
+	// (absent for answers stored before).
+	Answers []AIAnswer `json:"answers,omitempty"`
 	// Configs are the ready config blocks of a mitigation-config answer (M2-2): the device's own workaround and a rule per firewall
 	// vendor, each with its side effect; absent for explain and for answers stored before them.
 	Configs []CodeStep `json:"configs,omitempty"`
@@ -146,6 +149,20 @@ type AIResult struct {
 	Shortened bool `json:"shortened,omitempty"`
 	// NoConfigReason: why no config or no firewall rule helps (a local flaw, no open port serves it), in the AI's words (#897 r1 H1).
 	NoConfigReason string `json:"no_config_reason,omitempty"`
+}
+
+// AIAnswer is one of the four answers of "Ask my AI": its key (affected, fix, workaround, urgency), a few sentences and the references it
+// rests on. The links are the brief's own references, written by the box.
+type AIAnswer struct {
+	Key   string   `json:"key"`
+	Text  string   `json:"text"`
+	Links []AILink `json:"links"`
+}
+
+// AILink is a reference an answer cites.
+type AILink struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 // AIResults holds the last result per skill.

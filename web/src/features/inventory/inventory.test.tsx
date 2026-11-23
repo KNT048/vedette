@@ -30,7 +30,7 @@ afterEach(() => { server.events.removeAllListeners(); span.SPAN_IN_UI = true }) 
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
-/** The device list's own count line ("34 devices, 2 not yet approved"); the pager next to it has a status of its own ("1–34 of 34"). */
+/** The device list's own count line ("34 devices, 2 not added yet"); the pager next to it has a status of its own ("1–34 of 34"). */
 const countLine = () => { const l = screen.queryAllByRole('status').filter((s) => /devices/.test(s.textContent ?? '')); expect(l).toHaveLength(1); return l[0] }
 const asAdmin = () => sessionStore.set({ userId: 'u-admin' })
 async function call(method: string, path: string, body?: unknown) {
@@ -56,10 +56,10 @@ async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string) 
 }
 
 describe('inventory: device list (S-INV-1, S-INV-3)', () => {
-  it('the first sentence says "N devices, 2 not yet approved", with a table and no a11y violations', async () => {
+  it('the first sentence says "N devices, 2 not added yet", with a table and no a11y violations', async () => {
     renderApp('/devices')
     expect(await screen.findByRole('heading', { level: 1, name: 'Devices' }, T)).toBeInTheDocument()
-    expect(await screen.findByText(`${assetsStore.get().length} devices, 2 not yet approved`, undefined, T)).toBeInTheDocument() // the toolbar's small line
+    expect(await screen.findByText(`${assetsStore.get().length} devices, 2 not added yet`, undefined, T)).toBeInTheDocument() // the toolbar's small line
     const table = await deviceTable()
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(10)
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('#849: the two lists: Devices holds the approved, To review the rest; no Software or Add devices tab', async () => {
     renderApp('/devices')
     const table = await deviceTable()
-    expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Devices', 'To review 2 waiting for your approval'])
+    expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Devices', 'To review 2 not added yet'])
     // The count is a plain grey one, not the red alarm style: pending devices come and go.
     const count = screen.getByRole('tab', { name: /To review/ }).querySelector('span.rounded-full')
     expect(count).toHaveClass('bg-off-soft', 'text-off')
@@ -241,11 +241,11 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 
   it('the viewer role cannot add; the operator role can', async () => {
     renderApp('/devices?tab=review', { role: 'viewer' })
-    await screen.findByText('2 new devices not approved', undefined, T)
+    await screen.findByText('2 new devices not added yet', undefined, T)
     expect(screen.getAllByRole('button', { name: 'Add a device' })[0]).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Approve' })[0]).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: 'Add device' })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
 
@@ -373,7 +373,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(bar).getByRole('combobox', { name: 'Search devices' })).toBeInTheDocument()
     expect(within(bar).getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
     expect(within(bar).getByRole('link', { name: 'Device discovery settings' })).toBeInTheDocument()
-    expect(within(bar).getByText(/not yet approved/)).toBeInTheDocument()
+    expect(within(bar).getByText(/not added yet/)).toBeInTheDocument()
     // primary = the accent-filled button; Export, Filters and Settings are quiet or outlined
     const primary = within(bar).getAllByRole('button').filter((b) => b.className.includes('bg-accent text-accent-ink'))
     expect(primary).toEqual([add])
@@ -407,10 +407,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     const total = assetsStore.get().length
     const approved = assetsStore.get().filter((a) => a.approved).length
-    await waitFor(() => expect(countLine()).toHaveTextContent(`${total} devices, 2 not yet approved`), T)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${total} devices, 2 not added yet`), T)
     await toggleFilter(user, /^Fragile/)
     const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
-    await waitFor(() => expect(countLine()).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not yet approved`), T)
+    await waitFor(() => expect(countLine()).toHaveTextContent(`${fragile} of ${approved} devices shown · 2 not added yet`), T)
     expect(screen.getAllByRole('status').filter((s) => /devices/.test(s.textContent ?? ''))).toHaveLength(1) // the pager's range names rows, not devices
     await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'zzz')
     await user.click(await screen.findByRole('button', { name: 'Clear filters' }, T))
@@ -438,15 +438,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('S-INV-3: approve a pending device', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
-    await screen.findByText('2 new devices not approved', undefined, T)
-    const tab = screen.getByRole('tab', { name: /To review 2 waiting for your approval/ })
+    await screen.findByText('2 new devices not added yet', undefined, T)
+    const tab = screen.getByRole('tab', { name: /To review 2 not added yet/ })
     expect(tab).toHaveAttribute('aria-selected', 'true')
     const pending = assetsStore.get().filter((a) => !a.approved).map((a) => a.id)
-    await user.click(screen.getAllByRole('button', { name: 'Approve' })[0]!)
+    await user.click(screen.getAllByRole('button', { name: 'Add device' })[0]!)
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
-    const toast = (await screen.findByText(/^Approved .+\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
+    const toast = (await screen.findByText(/^Added .+ to your devices\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
-    expect(await screen.findByText(/1 not yet approved/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/1 not added yet/, undefined, T)).toBeInTheDocument()
     // The toast says where to find it again and opens the device
     expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()
     const approved = pending.find((id) => find(id).approved)!
@@ -463,15 +463,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 
   it('S-INV-3: a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
     renderApp('/devices?tab=review')
-    const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
+    const list = await screen.findByRole('list', { name: '2 new devices not added yet' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
-    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Approve', 'Ignore', 'Remove'])
+    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add device', 'Ignore', 'Remove'])
     expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
     cleanup()
-    // the device page's notice has Approve, Ignore and Remove: no Mark unknown, and no second Remove from list beside it
+    // the device page's notice has Add device, Ignore and Remove: no Mark unknown, and no second Remove from list beside it
     renderApp('/devices/a-unk01')
-    await screen.findByText('This device is not approved yet', undefined, T)
-    for (const name of ['Approve', 'Ignore', 'Remove']) expect(await screen.findByRole('button', { name }, T)).toBeInTheDocument()
+    await screen.findByText('This device is not added yet', undefined, T)
+    for (const name of ['Add device', 'Ignore', 'Remove']) expect((await screen.findAllByRole('button', { name }, T))[0]).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /unknown/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Remove from list' })).toBeNull()
     expect(find('a-unk01').approved).toBe(false)
@@ -480,7 +480,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('Ignore asks first, says what still alerts and that a private MAC may come back; the Ignored tab lists it with Stop ignoring', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
-    const list = await screen.findByRole('list', { name: '2 new devices not approved' }, T)
+    const list = await screen.findByRole('list', { name: '2 new devices not added yet' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
     await user.click(within(row).getByRole('button', { name: 'Ignore' }))
     expect(auditStore.get().some((e) => e.action === 'inventory.ignore')).toBe(false) // nothing before confirming
@@ -488,7 +488,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(dialog).toHaveTextContent('when it touches a trap or the intrusion detection reports it')
     expect(dialog).toHaveTextContent('It uses a private Wi-Fi address (da:a1:19:5c:77:01).')
     await user.click(within(dialog).getByRole('button', { name: 'Ignore device' }))
-    expect(await screen.findByRole('list', { name: '1 new device not approved' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: '1 new device not added yet' }, T)).toBeInTheDocument()
     expect(auditStore.get().some((e) => e.action === 'inventory.ignore')).toBe(true)
     // the Ignored tab appears with the device and Stop ignoring sends it back to To review
     await user.click(await screen.findByRole('tab', { name: 'Ignored (1)' }, T))
@@ -498,7 +498,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(await screen.findByText(/is back in To review\./, undefined, T)).toBeInTheDocument()
     expect(auditStore.get().some((e) => e.action === 'inventory.unignore')).toBe(true)
     await user.click(await screen.findByRole('tab', { name: /To review/ }, T))
-    expect(await screen.findByRole('list', { name: '2 new devices not approved' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: '2 new devices not added yet' }, T)).toBeInTheDocument()
   })
 
   it('an ignored device is out of Devices by default; its page says so and offers Stop ignoring', async () => {
@@ -524,10 +524,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('S-INV-3: Approve all approves every device in To review in one action', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review')
-    await screen.findByText('2 new devices not approved', undefined, T)
-    await user.click(await screen.findByRole('button', { name: /^Approve all \(\d+\)$/ }, T))
+    await screen.findByText('2 new devices not added yet', undefined, T)
+    await user.click(await screen.findByRole('button', { name: /^Add all \(\d+\)$/ }, T))
     const dialog = await screen.findByRole('dialog', undefined, T)
-    await user.click(within(dialog).getByRole('button', { name: 'Approve' }))
+    await user.click(within(dialog).getByRole('button', { name: /^Add \d+ devices$/ }))
     expect(await screen.findByText('No new devices waiting', undefined, T)).toBeInTheDocument()
   })
 
@@ -535,7 +535,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
     renderApp('/devices?tab=review')
-    await screen.findByText('2 new devices not approved', undefined, T)
+    await screen.findByText('2 new devices not added yet', undefined, T)
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]!)
     expect(assetsStore.get()).toHaveLength(before) // nothing removed before confirming
     const dialog = await screen.findByRole('dialog', undefined, T)
@@ -652,6 +652,8 @@ describe('inventory: device types in two levels', () => {
     renderApp('/devices/a-unk02')
     const box = await screen.findByTestId('kind-guess', undefined, T)
     expect(box).toHaveTextContent('Most likely: Firewall (Security)')
+    // the header names the type the list shows: the guess, marked likely, never "Unknown" next to it
+    expect(screen.getByText(/^Firewall \(likely\), last seen/)).toBeInTheDocument()
     expect(box).toHaveTextContent('Fortinet network card and port 22 (ssh)')
     expect(box).toHaveTextContent('scans still treat this device as unknown')
     const picker = screen.getByRole('combobox', { name: 'Device type' })
@@ -981,9 +983,9 @@ describe('inventory: device detail (S-INV-1)', () => {
   it('a pending device has an approval box right on the detail page', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-prn03')
-    expect(await screen.findByText('This device is not approved yet', undefined, T)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Approve' }))
-    await waitFor(() => expect(screen.queryByText('This device is not approved yet')).not.toBeInTheDocument(), T)
+    expect(await screen.findByText('This device is not added yet', undefined, T)).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Add device' })[0]!) // the notice's; the SNMP source row offers the same action in the same words
+    await waitFor(() => expect(screen.queryByText('This device is not added yet')).not.toBeInTheDocument(), T)
     expect(find('a-prn03').approved).toBe(true)
   })
 
@@ -1001,7 +1003,7 @@ describe('inventory: device detail (S-INV-1)', () => {
 
   it('a device not approved yet has Ignore and Remove in its notice and no More menu', async () => {
     renderApp('/devices/a-unk01')
-    await screen.findByText('This device is not approved yet', undefined, T)
+    await screen.findByText('This device is not added yet', undefined, T)
     expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Ignore' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
@@ -1013,7 +1015,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     await screen.findByRole('switch', { name: 'Fragile device' }, T)
     await user.click(await moreItem(user, 'Remove from list'))
     await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
-    expect(await screen.findByText(/devices, 2 not yet approved/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/devices, 2 not added yet/, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get().find((a) => a.id === 'a-pc02')).toBeUndefined()
   })
 

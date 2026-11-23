@@ -47,7 +47,7 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (the toast links the device). */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
+        <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('inventory:pending.adding')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
         {/* Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
@@ -90,7 +90,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
           <p className="max-w-3xl text-meta text-muted">{t('pending.description')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {ready.length > 1 ? <Button size="sm" variant="primary" disabled={!can || approveAll.isPending} busy={approveAll.isPending} busyLabel={t('common:busy.approving')}
+          {ready.length > 1 ? <Button size="sm" variant="primary" disabled={!can || approveAll.isPending} busy={approveAll.isPending} busyLabel={t('inventory:pending.adding')}
             title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setConfirmAll(true)}>{t('pending.approveAll', { count: ready.length })}</Button> : null}
           <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
             onCheckedChange={(v) => notify.mutate(v, { onSuccess: () => toast.success(v ? t('pending.notifyOn') : t('pending.notifyOff')), onError: (e) => toast.error(errMsg(e)) })} />
@@ -101,11 +101,11 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         <DialogContent title={t('pending.approveAllTitle', { count: ready.length })} description={t('pending.approveAllBody', { count: ready.length })}>
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="primary" busy={approveAll.isPending} busyLabel={t('common:busy.approving')}
+            <Button variant="primary" busy={approveAll.isPending} busyLabel={t('inventory:pending.adding')}
               onClick={() => approveAll.mutate(ready.map((d) => d.id), {
                 onSuccess: (n) => { setConfirmAll(false); toast.success(t('pending.approveAllDone', { count: n })) },
                 onError: (e) => { setConfirmAll(false); toast.error(t('pending.approveAllFailed', { done: (e as { done?: number }).done ?? 0, count: ready.length, error: errMsg(e) })) },
-              })}>{t('pending.approve')}</Button>
+              })}>{t('pending.approveAllConfirm', { count: ready.length })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -96,7 +96,7 @@ function Row({ d, row, onAction, busy }: { d: DeviceDetail; row: DeviceSourceRow
   const button = !a ? null
     : a === 'turn_on_module' ? <TurnOnModule id={MODULE[row.source]} reason={t(`sources.moduleOff.${row.source}`)} />
     : a === 'scan_now' ? (admin ? <ScanNowButton targets={[d.asset.id]} size="sm" variant="secondary" showProgress={false} /> : null)
-    : <Button size="sm" disabled={!role} title={need} busy={busy} busyLabel={t(a === 'approve' ? 'common:busy.approving' : 'common:busy.checking')} onClick={() => onAction(row)}>{t(`sources.action.${a}`)}</Button>
+    : <Button size="sm" disabled={!role} title={need} busy={busy} busyLabel={(a === 'approve' ? t('inventory:pending.adding') : t('common:busy.checking'))} onClick={() => onAction(row)}>{t(`sources.action.${a}`)}</Button>
   const info = row.source === 'agent' ? t('sources.what.agent') : t(`sources.what.${row.source}`)
   return (
     <li id={row.source === 'snmp' ? 'device-snmp' : row.source === 'agent' ? 'device-agent' : undefined} data-source={row.source} data-state={row.state}

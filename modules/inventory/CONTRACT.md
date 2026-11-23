@@ -160,7 +160,7 @@ detail is in its doc comment.
 
 | Event | Subscribers |
 |---|---|
-| `inventory.asset.discovered` | notify (new-device incident), sensor-active (first light scan), findings and feeds (`wiring.go`) |
+| `inventory.asset.discovered` | notify (new-device incident), sensor-active (first light scan; `no_address` says the device has no IPv4 address to check), findings and feeds (`wiring.go`) |
 | `inventory.asset.updated` | notify, scan (stop scanning a device no longer allowed), sensor-active, findings, feeds |
 | `inventory.asset.deleted` | sensor-active |
 | `inventory.asset.approved`, `inventory.asset.ignored` | notify |

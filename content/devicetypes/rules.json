@@ -7,6 +7,7 @@
   {"id": "juniper-mx-says", "type": "router", "confidence": 0.6, "text": "\\b((MX|ACX|PTX)[0-9]{2,5}[A-Z0-9-]*)", "vendor": ["juniper"], "model_from": {"re": "\\b((?:MX|ACX|PTX)[0-9]{2,5}[A-Z0-9-]*)", "format": "Juniper {1}"}, "says": "a Juniper router"},
   {"id": "bmc-says", "type": "bmc", "confidence": 0.6, "text": "(?i)\\b(idrac[0-9]*|integrated lights-out|ilo [3-7]|supermicro bmc|ipmi)\\b", "says": "a server's management card"},
   {"id": "hypervisor-says", "type": "hypervisor", "confidence": 0.6, "text": "(?i)\\b(vmware esxi|proxmox virtual environment|xenserver|xcp-ng)\\b", "says": "a virtualization host"},
+  {"id": "hypervisor-os", "type": "hypervisor", "confidence": 0.6, "os": "(?i)\\b(vmware esxi|esxi|proxmox virtual environment|proxmox ve|xenserver|citrix hypervisor|xcp-ng|nutanix ahv)\\b", "says": "a virtualization host"},
   {"id": "nas-says", "type": "nas", "confidence": 0.6, "text": "(?i)\\b(synology|diskstation|qnap|turbo nas|truenas|readynas)\\b", "says": "a NAS"},
   {"id": "printer-says", "type": "printer", "confidence": 0.6, "text": "(?i)\\b(laserjet|officejet|deskjet|jetdirect|imagerunner|bizhub|workcentre|versalink|ecosys|brother hl|brother mfc|ricoh|lexmark)\\b", "says": "a printer"},
   {"id": "firewall-says", "type": "firewall", "confidence": 0.55, "text": "(?i)\\b(pfsense|opnsense|sophos (xg|utm|firewall)|sonicwall|watchguard|palo alto networks|check point)\\b", "says": "a firewall"},

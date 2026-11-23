@@ -10,7 +10,13 @@ import type {
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
-export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
+/** The device page reads its device again every minute while it is open, so "last seen", a new agent report and its software show
+ *  without a reload (the lists keep their page: their page lives in the URL). */
+export const devicePoll = { ms: 60_000 } // a test shortens it
+/** Every device, both lists (Devices and To review) from one read, read again every minute while open: a quiet device that earns a
+ *  look moves to To review on the screen too, so the two tabs never say opposite things about one device for long. */
+export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices'),
+  refetchInterval: (q) => (q.state.status === 'error' ? false : devicePoll.ms) })
 /** The software lines of each device that the Devices search's `software:` words hold (GET /inventory/devices?software=): the
  *  list itself carries no lines, so the server matches them. Read only while the search has such words; the last answer stays while the
  *  next is read, so typing does not empty the list. */
@@ -20,9 +26,6 @@ export const useSoftwareMatches = (words: string[]) => useQuery({
 })
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
-/** The device page reads its device again every minute while it is open, so "last seen", a new agent report and its software show
- *  without a reload (the lists keep their page: their page lives in the URL). */
-export const devicePoll = { ms: 60_000 } // a test shortens it
 export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '',
   refetchInterval: (q) => (q.state.status === 'error' ? false : devicePoll.ms) })
 /** The device's three source rows (network scan, SNMP, agent), each decided on the server. `modules` names the state of the modules

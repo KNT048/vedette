@@ -6,9 +6,9 @@ import { ModuleBadge, ModuleLine } from './V1Scope'
 import { PageModule } from '@/lib/v1'
 import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 
-/** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
- *  Khung trang: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
-/*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
+/** The first line of each page answers the persona's question (FRONTEND §3, information hierarchy).
+ *  Page frame: a ~20 px heading and a short description on one line (the description wraps when there is not enough room); then KpiStrip, PageTabs (`PageFrame.tsx`). */
+/*  `meta` is one short line (about 12 words); longer explanation goes into `info` (ⓘ next to the heading, #824). */
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
 /** `titleAction` sits right after the title, outside the heading (a Rename button); `editing` replaces the visible title with an
  *  edit-in-place field while the heading stays for screen readers. */
@@ -38,8 +38,8 @@ export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, t
   )
 }
 
-/** Khối nội dung có tiêu đề; không phải card — viền chỉ khi nội dung là bảng/khối dữ liệu. */
-/*  `description` là một dòng ngắn (≈ 12 từ); cách hoạt động, lý do, ví dụ vào `info` (ⓘ cạnh tiêu đề, #824). */
+/** A content block with a heading; not a card: a border only when the content is a table/data block. */
+/*  `description` is one short line (about 12 words); how it works, why, examples go into `info` (ⓘ next to the heading, #824). */
 export function Section({ title, description, info, actions, children, id, stories }: { title: ReactNode; description?: ReactNode; info?: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; stories?: string[] }) {
   return (
     <section className="mb-8" aria-labelledby={id ? `${id}-title` : undefined} id={id}>
@@ -71,10 +71,10 @@ const NOTICE = {
   off: 'border-rule bg-off-soft',
 } as const
 
-/** Khung báo một trạng thái của trang (một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
- *  `tone` mang nghĩa cố định của FRONTEND §3: danger = hỏng/khẩn, warn = cần người xem, accent = thông tin của sản phẩm, off = tắt/không có. */
-/*  `className` thắng lớp mặc định (cn), ví dụ `mb-0` cho lỗi nằm trong một form có `gap`. */
-/*  Cảnh báo, lỗi, trạng thái luôn hiện (#824): `title` + tối đa một dòng `children`; chi tiết vào `info`. */
+/** A frame that reports one state of the page (one style for the whole app): a heading, one explanatory paragraph, an action button on the right (wraps on a phone).
+ *  `tone` has the fixed meaning of FRONTEND §3: danger = broken/urgent, warn = needs a person's attention, accent = product information, off = off/none. */
+/*  `className` wins over the default classes (cn), for example `mb-0` for an error inside a form that has a `gap`. */
+/*  Warnings, errors and status always show (#824): `title` + at most one `children` line; detail goes into `info`. */
 export function Notice({ tone, title, children, info, actions, role, className, ref, id, ...rest }: {
   tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; info?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status' | 'note'; className?: string; 'data-testid'?: string; ref?: Ref<HTMLDivElement>; id?: string
 }) {
@@ -97,7 +97,7 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
   return <div className={cn('rounded-md border border-rule bg-surface', className)}>{children}</div>
 }
 
-/** Danh sách nhãn: giá trị, dùng cho trang chi tiết. */
+/** A list of labels: values, for detail pages. */
 export function KeyValue({ items }: { items: { label: string; value: ReactNode }[] }) {
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[minmax(140px,max-content)_1fr]">

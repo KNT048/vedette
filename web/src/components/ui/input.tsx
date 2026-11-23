@@ -29,7 +29,7 @@ export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return <textarea className={cn(field, 'min-h-24 py-2 leading-relaxed', className)} {...props} {...aria} />
 }
 
-/** Select gốc của trình duyệt: truy cập được bằng bàn phím và trình đọc màn hình, không cần JS. */
+/** The browser's native select: reachable by keyboard and screen reader, needs no JS. */
 export function Select({ className, ...props }: ComponentProps<'select'>) {
   const aria = useFieldAria(props.id, props)
   return <select className={cn(field, 'h-10 pr-8 sm:h-9', className)} {...props} {...aria} />
@@ -39,7 +39,7 @@ export function Label({ className, ...props }: ComponentProps<'label'>) {
   return <label className={cn('text-sm font-medium text-ink', className)} {...props} />
 }
 
-/** Ô nhập kèm nhãn, gợi ý và lỗi — dùng cho mọi form. `hint` chỉ là ví dụ/định dạng một dòng ngắn; giải thích vào `info` (ⓘ cạnh nhãn, #824).
+/** An input with a label, hint and error, used for every form. `hint` is only a one-line example/format; explanation goes into `info` (ⓘ next to the label, #824).
  *  The Input, Select or Textarea whose id is `htmlFor` gets aria-describedby (the error, else the hint) and aria-invalid (WCAG 1.3.1, 3.3.1). */
 export function Field({ label, hint, info, error, htmlFor, children, className }: { label: string; hint?: string; info?: React.ReactNode; error?: string; htmlFor: string; children: React.ReactNode; className?: string }) {
   const describedBy = error ? `${htmlFor}-error` : hint ? `${htmlFor}-hint` : undefined

@@ -20,7 +20,7 @@ export const typeLine = (kind: AssetKind) => `${categoryLabel(categoryOf(kind))}
 
 export const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e))
 
-/** Đọc file người dùng chọn: File.text() nếu có, không thì FileReader. */
+/** Read the file the user chose: File.text() if available, otherwise FileReader. */
 export function readText(file: File): Promise<string> {
   if (typeof file.text === 'function') return file.text()
   return new Promise((resolve, reject) => {

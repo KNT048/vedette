@@ -24,8 +24,8 @@ timing.engineMs = 0 // the mock's engine is busy after Stop now only where a tes
 runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
 afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
-describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => {
-  it('từ chối thiết bị chưa duyệt, tên miền chưa xác thực, mục lạ, danh sách rỗng, và quét chồng', async () => {
+describe('scan: the API never scans outside the scope (LEGAL §3)', () => {
+  it('refuses an unapproved device, an unverified domain, an unknown entry, an empty list, and an overlapping scan', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' }, { timeout: 4000 }) // the first test loads the page's code
     as('u-op')
@@ -48,7 +48,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await again.json()).error.code).toBe('already_running')
   })
 
-  it('mục tiêu ngoài đã xác thực chưa được quét ở bản này: 400 out_of_scope nói rõ, không lượt nào bắt đầu', async () => {
+  it('a verified external target is not scanned in this build yet: 400 out_of_scope says so plainly, no run starts', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
@@ -63,7 +63,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('chọn tay là đồng ý cho thiết bị khai tay đã bật quét mạng, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
+  it('a manual pick is consent for hand-declared devices that have network scanning on, fragile, unclassified, and the box itself; a "never" device never', async () => {
     const { ensureBox } = await import('@/features/inventory/mocks')
     ensureBox()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
@@ -85,7 +85,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await postRun(['a-box'])).status).toBe(201)
   })
 
-  it('máy quét không sẵn sàng: can_scan=false kèm lý do, nút khoá, POST trả 503 scanner_unavailable', async () => {
+  it('the scanner is not ready: can_scan=false with a reason, the button is locked, POST returns 503 scanner_unavailable', async () => {
     scannerStore.set({ available: false })
     as('u-admin')
     const cfg = await (await fetch(`${base()}/scans/config`)).json()
@@ -116,7 +116,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect(await within(card).findByText(/nothing runs until the scan scope commitment is ticked/)).toBeInTheDocument()
   })
 
-  it('thiết bị nằm trong loại trừ cũng bị từ chối khi gọi thẳng API', async () => {
+  it('a device in the exclusions is also refused when the API is called directly', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-admin')
@@ -127,8 +127,8 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
   })
 })
 
-describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
-  it('quét một thiết bị đến khi xong: ghi kết quả vào phát hiện dùng chung, kiểm toán, nhật ký probe', async () => {
+describe('scan: scan now, progress, stop now (S-SCAN-4)', () => {
+  it('scans one device to the end: the result goes into the shared finding, the audit, the probe log', async () => {
     timing.stepMs = 30
     as('u-admin')
     await postRun(['a-nas02']) // fragile: a person's own pick
@@ -146,7 +146,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(run.results.find((r) => r.result === 'matched')!.finding_id).toBe('f-1')
   })
 
-  it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện', async () => {
+  it('already mitigated then rescanned: no match is just "no match reported", nothing changes on the finding', async () => {
     timing.stepMs = 30
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'mitigated' as const } : f)))
     const before = findingsStore.get().find((x) => x.id === 'f-1')!.history.length
@@ -161,7 +161,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(f.history).toHaveLength(before) // nuclei reports matches only: "no match" never marks the finding
   })
 
-  it('"Dừng ngay": bấm dừng thì chạy "stopping" rồi "stopped" trong 5 giây, thiết bị chưa quét không bị chạm', async () => {
+  it('"Stop now": clicking stop runs "stopping" then "stopped" within 5 seconds, a device not yet scanned is not touched', async () => {
     timing.stepMs = 60_000
     timing.stopMs = 300
     as('u-admin')
@@ -182,7 +182,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(auditStore.get().some((a) => a.action === 'scanning.run_stop')).toBe(true)
   })
 
-  it('dừng lần quét đã kết thúc báo lỗi rõ; dừng hai lần không lỗi', async () => {
+  it('stopping a finished scan reports a clear error; stopping twice is not an error', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
@@ -199,7 +199,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect((await getRuns())[0]!.status).toBe('stopping')
   })
 
-  it('thiết bị không phản hồi: bật tự dừng thì dừng kèm lý do; tắt thì bỏ qua và quét tiếp', async () => {
+  it('a device that does not answer: with auto-stop on it stops with a reason; off, it is skipped and the scan continues', async () => {
     timing.stepMs = 30
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
@@ -220,7 +220,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(full.results.find((r) => r.label === 'NAS-PHOTOS')!.result).toBe('matched')
   })
 
-  it('vai chỉ xem không quét và không dừng được', async () => {
+  it('a view-only role cannot scan or stop', async () => {
     as('u-view')
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(403)
@@ -251,8 +251,8 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
   })
 })
 
-describe('scan: lịch và an toàn (S-SCAN-4)', () => {
-  it('hiện thiết lập hiện tại, lần quét kế tiếp, và ghi rõ không khai thác, không DoS; không lỗi a11y', async () => {
+describe('scan: schedule and safety (S-SCAN-4)', () => {
+  it('shows the current setup, the next scan, and says plainly there is no exploitation and no DoS; no a11y errors', async () => {
     renderApp('/settings/scanning?tab=safety')
     expect(await screen.findByLabelText('From')).toHaveValue('22:00')
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
@@ -286,7 +286,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     await waitFor(() => expect(screen.queryByText('Safety settings saved')).toBeNull())
   })
 
-  it('lưu tốc độ và loại trừ: lưu bền, ghi kiểm toán, còn sau khi mở lại', async () => {
+  it('saves the rate and exclusions: stored durably, audited, still there after reopening', async () => {
     const view = renderApp('/settings/scanning?tab=safety')
     await userEvent.selectOptions(await screen.findByLabelText('Vulnerability checks on the LAN'), '2')
     const ex = screen.getByLabelText('One IP or network per line')
@@ -304,7 +304,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(await screen.findByLabelText('Vulnerability checks on the LAN')).toHaveValue('2')
   })
 
-  it('loại trừ sai nói rõ dòng nào và sửa thế nào', async () => {
+  it('a wrong exclusion says which line and how to fix it', async () => {
     renderApp('/settings/scanning?tab=safety')
     const ex = await screen.findByLabelText('One IP or network per line')
     await userEvent.type(ex, 'may-in')
@@ -314,7 +314,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(alert).toHaveTextContent('Enter an IP (192.168.10.10)')
   })
 
-  it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7)', async () => {
+  it('the day of week is 1 to 7 (Monday = 1, Sunday = 7)', async () => {
     renderApp('/settings/scanning?tab=safety')
     await screen.findByLabelText('From')
     expect(screen.getAllByRole('checkbox', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ }).map((c) => c.getAttribute('id'))).toEqual(['day-1', 'day-2', 'day-3', 'day-4', 'day-5', 'day-6', 'day-7'])
@@ -336,7 +336,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(screen.getByRole('button', { name: 'Change the schedule of LAN sweep' })).toBeEnabled()
   })
 
-  it('API kiểm tra ở biên và không cho bật phép thử nguy hiểm', async () => {
+  it('the API checks at the edge and does not allow turning on a dangerous test', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-admin')
@@ -353,7 +353,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect((await put({ rate: 10 })).status).toBe(200)
   })
 
-  it('vai vận hành xem được nhưng không đổi được thiết lập', async () => {
+  it('an operator role can view but not change the setup', async () => {
     renderApp('/settings/scanning?tab=safety', { role: 'operator' })
     expect(await screen.findByText(/Only an administrator can change these settings/)).toBeInTheDocument()
     expect(screen.getByLabelText('Vulnerability checks on the LAN')).toBeDisabled()
@@ -363,8 +363,8 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
   })
 })
 
-describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
-  it('nhật ký sự kiện từ KEV thật, CVE nối về trang tra cứu; không lỗi a11y', async () => {
+describe('scan: rescans itself when a new KEV appears (S-SCAN-2)', () => {
+  it('the event log from the real KEV, the CVE links back to the lookup page; no a11y errors', async () => {
     renderApp('/settings/scanning?tab=history')
     const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
     expect(within(table).getAllByRole('link', { name: /^CVE-/ })[0]!.getAttribute('href')).toMatch(/^\/cve\/CVE-/)
@@ -438,7 +438,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     expect((await postRun(['a-nas02'])).status).toBe(201)
   })
 
-  it('quản trị tắt được, có ghi chú giải thích; vận hành thì không', async () => {
+  it('an admin can turn it off, with an explanatory note; an operator cannot', async () => {
     const view = renderApp('/settings/scanning?tab=engines#nuclei')
     await userEvent.click(await screen.findByRole('switch', { name: 'Rescan automatically when a new KEV has a scan template' }))
     expect(await screen.findByText(/Off: new vulnerabilities will not be rescanned automatically/)).toBeInTheDocument()
@@ -450,8 +450,8 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
   })
 })
 
-describe('scan: nhật ký probe (S-SCAN-4)', () => {
-  it('liệt kê đích, thời điểm, mẫu; ghi rõ giữ tối thiểu 90 ngày; lọc được; tải CSV', async () => {
+describe('scan: probe log (S-SCAN-4)', () => {
+  it('lists the target, the time, the template; says plainly it is kept at least 90 days; can be filtered; CSV download', async () => {
     renderApp('/settings/scanning?tab=probes')
     const table = await screen.findByRole('table', { name: 'Probe log' })
     expect(await screen.findByText(/Kept for at least 90 days\. \d+ lines now, oldest from/)).toBeInTheDocument()
@@ -466,7 +466,7 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
     await expectNoA11yViolations()
   })
 
-  it('CSV không để bảng tính đọc tên thiết bị như công thức (tên đến từ mạng)', async () => {
+  it('the CSV does not let a spreadsheet read a device name as a formula (the name comes from the network)', async () => {
     timing.stepMs = 30
     assetsStore.update((l) => l.map((a) => (a.id === 'a-nas02' ? { ...a, hostname: '=HYPERLINK("http://x","y")' } : a)))
     as('u-op')
@@ -477,7 +477,7 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
     expect(lines.some((l) => /,"=/.test(l))).toBe(false)
   })
 
-  it('seed giữ bản ghi cũ hơn 80 ngày (không xoá trước 90 ngày)', async () => {
+  it('the seed keeps records older than 80 days (nothing is deleted before 90 days)', async () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     const items = (await (await fetch(`${base()}/scans/probes`)).json()) as { items: { ts: string }[]; retention_days: number }
@@ -488,7 +488,7 @@ describe('scan: nhật ký probe (S-SCAN-4)', () => {
 
 const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACD1234567890abcdefGHIJKLMNOPQRSTUVWXYZQk2f\n-----END OPENSSH PRIVATE KEY-----'
 
-describe('scan: quét có tài khoản (S-SCAN-5)', () => {
+describe('scan: credentialed scan (S-SCAN-5)', () => {
   const enable = () => modulesStore.update((l) => l.map((m) => (m.id === 'scan-credentialed' ? { ...m, enabled: true } : m)))
   /** Adding a server opens a dialog over the list; this opens it and gives back its server select. */
   const openAddServer = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Add a server' })); return screen.findByLabelText('Target server') }
@@ -503,13 +503,13 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     } finally { credFlag.CREDENTIALED_IN_UI = true }
   })
 
-  it('module tắt mặc định thì nói rõ và chỉ chỗ bật', async () => {
+  it('the module is off by default: says so plainly and points where to turn it on', async () => {
     renderApp('/settings/scanning?tab=credentialed')
     expect(await screen.findByText('Credentialed scan module is off')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules#module-scan-credentialed')
   })
 
-  it('hiện hướng dẫn chuẩn bị máy đích, mỗi lệnh một khung; không lỗi a11y', async () => {
+  it('shows the target machine preparation guide, one frame per command; no a11y errors', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
     expect(await screen.findByText('No server is scanned with an account yet.')).toBeInTheDocument()
@@ -528,7 +528,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect(within(select).getByRole('option', { name: /192\.168\.10\.12/ })).toHaveValue('a-web01')
   })
 
-  it('thêm máy chủ với khoá riêng: chỉ hiện 4 ký tự cuối, khoá không được lưu hay trả lại; kiểm tra kết nối; xoá', async () => {
+  it('adds a server with a private key: only the last 4 characters show, the key is not stored or returned; test the connection; delete', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
     await userEvent.selectOptions(await openAddServer(), 'a-web01')
@@ -558,7 +558,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect(await screen.findByText('No server is scanned with an account yet.')).toBeInTheDocument()
   })
 
-  it('thử kết nối thất bại nói rõ phải kiểm tra gì', async () => {
+  it('a failed connection test says plainly what to check', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
     await userEvent.selectOptions(await openAddServer(), 'a-srvad')
@@ -571,7 +571,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect(within(table).getByText(/Check that the SSH service is running and the firewall allows the Vedette box 192\.168\.10\.250/)).toBeInTheDocument()
   })
 
-  it('kiểm tra ở biên: khoá công khai, khoá sai, cổng, tài khoản, trùng, ngoài phạm vi', async () => {
+  it('checks at the edge: a public key, a wrong key, the port, the account, a duplicate, out of scope', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
     await screen.findByRole('button', { name: 'Add a server' })
@@ -590,7 +590,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect((await add({})).status).toBe(409)
   })
 
-  it('vai vận hành thử kết nối được nhưng không thêm hay xoá; chỉ xem thì không làm gì', async () => {
+  it('an operator role can test the connection but not add or delete; view only can do nothing', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed', { role: 'operator' })
     const open = await screen.findByRole('button', { name: 'Add a server' })
@@ -600,7 +600,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     expect((await fetch(`${base()}/scans/credentialed`, json('POST', { asset_id: 'a-web01', port: 22, username: 'x', private_key: KEY }))).status).toBe(403)
   })
 
-  it('tệp khoá được đọc bằng bộ chọn tệp', async () => {
+  it('the key file is read through the file picker', async () => {
     enable()
     renderApp('/settings/scanning?tab=credentialed')
     await openAddServer()

@@ -15,7 +15,7 @@ import { Brand, NavList, Sidebar, UserMenu } from './Sidebar'
 import { navItemOf, useNavState } from './nav'
 import { cn } from '@/lib/utils'
 
-/** Tiêu đề tab trình duyệt theo trang (WCAG 2.4.2) và focus vào nội dung khi đổi trang (trình đọc màn hình đọc trang mới). */
+/** Browser tab title per page (WCAG 2.4.2) and focus on the content when the page changes (a screen reader reads the new page). */
 function usePageChrome() {
   const { t, i18n } = useTranslation(['common', ...shellNamespaces])
   const loc = useLocation()

@@ -78,7 +78,7 @@ func TestTelegramPressOnARequestThatIsOverIsNotDecided(t *testing.T) {
 	}
 }
 
-// Slice 2 (13b-8, spec approval-tokens.md 6 "sửa tin để bỏ nút", CONTRACT Events "response.decision.made"): once a request is finally
+// Slice 2 (13b-8, spec approval-tokens.md 6 edit the message to remove the buttons, CONTRACT Events "response.decision.made"): once a request is finally
 // decided or has ended, the Approve/Reject buttons are removed from the Telegram message that carried them, so nobody presses a dead
 // button. The removal is made by the deliver job (event handlers only write the database).
 

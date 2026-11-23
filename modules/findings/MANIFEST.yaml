@@ -8,5 +8,5 @@ permissions: []
 ports: []
 container: core
 tables_prefix: fnd_
-stories: [S-MIT-1, S-INV-2, S-SCAN-3, S-ALERT-1, S-TIER-1, S-TIER-2, S-TIER-4]   # S-MIT-1: danh sách + vòng đời; phần "What to do" thuộc mitigation
+stories: [S-MIT-1, S-INV-2, S-SCAN-3, S-ALERT-1, S-TIER-1, S-TIER-2, S-TIER-4]   # S-MIT-1: the list + the lifecycle; the "What to do" part belongs to mitigation
 milestone: M2

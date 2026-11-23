@@ -8,14 +8,14 @@ import { useCan } from '@/lib/session'
 
 export const errMsg = (e: unknown, t: TFunction) => (e instanceof ApiError ? e.message : t('common:error.unknown'))
 
-/** Thuộc tính cho nút/ô cần vai `role`: tắt kèm giải thích khi thiếu quyền. */
+/** Props for a button/field that needs role `role`: off with an explanation when the permission is missing. */
 export function useGate(role: Role) {
   const { t } = useTranslation()
   const ok = useCan(role)
   return { ok, title: ok ? undefined : t('common:needRole', { role: t(`common:role.${role}`) }), disabled: !ok }
 }
 
-/** Người xem được mục này nhưng không sửa được: nói rõ cần vai nào. */
+/** The person can see this section but cannot edit it: say plainly which role is needed. */
 export function ReadOnlyNote({ role }: { role: Role }) {
   const { t } = useTranslation('core')
   const ok = useCan(role)
@@ -23,14 +23,14 @@ export function ReadOnlyNote({ role }: { role: Role }) {
   return <Notice tone="off" role="note" className="mb-4" title={t('readOnly', { role: t(`common:role.${role}`) })} />
 }
 
-/** Chỉ bản xem thử (mock) có mã này; backend thật không bao giờ gửi `preview_code`, nên ghi chú này biến mất khi build với VITE_API_MOCK=off. */
+/** Only the preview (mock) build has this code; the real backend never sends `preview_code`, so this note disappears when built with VITE_API_MOCK=off. */
 export function PreviewCode({ code }: { code?: string }) {
   const { t } = useTranslation('core')
   if (import.meta.env.VITE_API_MOCK === 'off' || !code) return null
   return <p data-testid="preview-code" className="rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-meta text-muted">{t('preview.emailCode', { code })}</p>
 }
 
-/** Đầu một khối lớn của trang (Cập nhật có ba khối): số thứ tự, tên, một dòng giải thích, nút chính. Giải thích dài vào `info` (ⓘ cạnh tên, #824). */
+/** The head of a large block of a page (Updates has three blocks): the number, the name, one line of explanation, the main button. A long explanation goes into `info` (ⓘ next to the name, #824). */
 export function Band({ n, title, desc, info, actions, id }: { n: string; title: string; desc?: string; info?: React.ReactNode; actions?: React.ReactNode; id?: string }) {
   // #842 (UI.md §1, FRONTEND §4): no all-caps eyebrow; the step number sits before the title, muted, and the rule is a `rule` line.
   return (

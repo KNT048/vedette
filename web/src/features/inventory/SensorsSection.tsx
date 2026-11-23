@@ -130,7 +130,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   )
 }
 
-/** Cảm biến của chính hộp này: chọn cổng mạng nghe và chế độ SPAN/TAP (chỉ đọc metadata, không lưu nội dung gói tin). Chỉ nghe, không chặn traffic. Nhiều site chưa hỗ trợ. */
+/** The sensors of this box itself: pick the network port to listen on and the SPAN/TAP mode (reads metadata only, does not store packet contents). Listens only, never blocks traffic. Several sites are not supported yet. */
 export function SensorsSection() {
   const { t } = useTranslation('inventory')
   const q = useSensors()

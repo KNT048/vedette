@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The first install (docs/specs/host-api.md "Khởi động lần đầu"): vedette-host
+// The first install (docs/specs/host-api.md first-start section): vedette-host
 // -bootstrap runs once, as root, from the installer, and never from the socket. It is the only way to get
 // the first unit onto the box, because the installer is not core and cannot pass the peer check.
 //

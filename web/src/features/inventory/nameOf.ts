@@ -8,9 +8,9 @@ const userName = (a: Named) => a.name?.trim() ?? ''
 
 const hasIp = (a: Named) => !!a.ip && a.ip !== '—'
 
-/** Một luật đặt tên cho mọi module, đúng như `inventory.DisplayName` của backend (findings, scans, báo cáo, mock của chúng):
- *  tên người đặt trong Vedette (`name`) luôn thắng khi có; rồi tên máy (tên người gõ lúc khai tay cũng là tên máy); thiết bị khai tay thì theo sản phẩm đầu tiên, không có IP thì "<sản phẩm> (no device)",
- *  không bao giờ là hàng trống tên; thiết bị phát hiện thì hãng + model; rồi IP. '' khi không biết gì. */
+/** One naming rule for every module, exactly like the backend's `inventory.DisplayName` (findings, scans, reports, their mocks):
+ *  the name a person gave in Vedette (`name`) always wins when present; then the host name (the name typed at hand declaration is also the host name); a hand-declared device follows its first product, with no IP "<product> (no device)",
+ *  never an empty row name; a discovered device gets vendor + model; then the IP. '' when nothing is known. */
 export function displayName(a: Named): string {
   if (userName(a)) return userName(a)
   if (a.hostname) return a.hostname
@@ -24,7 +24,7 @@ export function displayName(a: Named): string {
   return hw || (hasIp(a) ? a.ip : '')
 }
 
-/** Tên trên trang Devices: như `displayName`, nhưng thiết bị chỉ biết IP thì kèm loại ("Router 192.168.1.1"), không biết gì thì loại. */
+/** The name on the Devices page: like `displayName`, but a device known only by IP gets its type too ("Router 192.168.1.1"), and one known by nothing gets the type. */
 export function nameOf(a: Named, fallback: string) {
   if (userName(a)) return userName(a) // a person's name is shown as typed, even when it is the IP
   const name = displayName(a)

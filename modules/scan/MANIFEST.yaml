@@ -3,10 +3,10 @@ name: { en: "Vulnerability scans" }
 summary: { en: "Confirms exploited vulnerabilities with safe Nuclei templates on approved internal devices, inside your time window, speed and exclusions, with a Stop now button." }
 tier: optional
 default: false
-depends: [core, inventory, feeds]    # exposure là phụ thuộc tuỳ chọn (mục tiêu ngoài)
-permissions: [outbound:https]        # quét Internet chỉ tới mục tiêu exposure đã xác thực; LAN qua mạng của hộp
+depends: [core, inventory, feeds]    # exposure is an optional dependency (external targets)
+permissions: [outbound:https]        # Internet scans go only to exposure targets that are verified; the LAN goes over the box's network
 ports: []
-container: scan                      # Nuclei chạy theo việc
+container: scan                      # Nuclei runs per job
 tables_prefix: scan_
 stories: [S-SCAN-1, S-SCAN-2, S-SCAN-3, S-SCAN-4]
 milestone: M4

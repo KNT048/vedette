@@ -1,5 +1,5 @@
-// Bảng dùng chung giữa module trong mock: phiên, người dùng, module, tài sản, kiểm toán.
-// Bảng riêng của từng module nằm trong features/<m>/mocks.ts.
+// Tables shared between modules in the mock: session, users, modules, assets, audit.
+// Each module's own tables are in features/<m>/mocks.ts.
 import { collection, dataMode, newId, nowIso, peek } from './db'
 import { canonHash, GENESIS } from '@/lib/chain'
 import type { Role } from '@/lib/session'
@@ -9,7 +9,7 @@ import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
 import { seedFindings } from './seed/findings'
 
-export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** Kiểu hai bước; thiếu = 'app' khi twofa bật */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** The password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null; /** Made by an SSO sign-in; (issuer, subject) of the IdP identity. No Vedette password. */ sso?: { iss: string; sub: string } | null }
+export interface User { id: string; name: string; email: string; role: Role; password: string; twofa: boolean; /** The two-step type; missing = 'app' when twofa is on */ twofa_method?: 'app' | 'email' | null; created_at: string; last_login: string | null; disabled?: boolean; /** The password was set by an administrator; set until the user changes it. A time in the past = expired. */ temp_password_expires_at?: string | null; /** Made by an SSO sign-in; (issuer, subject) of the IdP identity. No Vedette password. */ sso?: { iss: string; sub: string } | null }
 
 /** How long an administrator-set password works. */
 export const TEMP_PASSWORD_HOURS = 72
@@ -47,7 +47,7 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at' | 'available'>> = [
   { id: 'reports', enabled: true, tier: 'optional', depends: ['inventory', 'feeds', 'notify'] },
   { id: 'mcp-server', enabled: false, tier: 'optional', depends: ['core'] },
   { id: 'auth-oidc', enabled: false, tier: 'optional', depends: ['core'] },
-  // AI đề xuất phản ứng (bật). Thực thi đã duyệt là công tắc riêng bên trong module, TẮT mặc định.
+  // The AI proposes responses (on). Executing approved actions is a separate switch inside the module, OFF by default.
   { id: 'response', enabled: true, tier: 'optional', depends: ['ai', 'notify', 'inventory'] },
 ]
 export const modulesStore = collection<Array<Omit<ModuleState, 'available'>>>('core_modules', () => MODULES.map((m) => ({ ...m, enabled_at: m.enabled ? '2026-10-01T02:00:00Z' : null })))
@@ -67,7 +67,7 @@ export const findingsStore = collection<Finding[]>('fnd_finding', seedFindings, 
 export interface AuditEntry { id: string; ts: string; user: string; action: string; target: string; detail: string | null; prev_hash: string; hash: string }
 export const auditStore = collection<AuditEntry[]>('core_audit', () => [])
 
-/** SYS-3: mọi mutation ghi kiểm toán. The preview keeps the latest 1000 lines only because they live in browser storage; the box keeps
+/** SYS-3: every mutation writes an audit entry. The preview keeps the latest 1000 lines only because they live in browser storage; the box keeps
  * 365 days, at most 200,000 lines (core INV-37). */
 export function audit(action: string, target: string, detail?: string) {
   const u = realSessionOn() ? realUser() : usersStore.get().find((x) => x.id === sessionStore.get().userId)
@@ -77,16 +77,16 @@ export function audit(action: string, target: string, detail?: string) {
   })
 }
 
-// AI BYOK (S-AI-1/4): cấu hình và đồng hồ token dùng chung — module ai sở hữu UI/endpoint; module khác đọc để biết "Hỏi AI của tôi" dùng được không.
+// BYOK AI (S-AI-1/4): the shared configuration and token gauge; the ai module owns the UI/endpoints; other modules read it to know whether "Ask my AI" is usable.
 export interface AiConfig { configured: boolean; provider: 'anthropic' | 'openai' | 'gemini' | 'openai-compatible'; base_url: string; model: string; key_last4: string | null; tier: 'min' | 'med' | 'max'; monthly_budget: number; redact_pii: boolean }
 export const aiConfigStore = collection<AiConfig>('ai_config', () => ({ configured: true, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '7Qk2', tier: 'med', monthly_budget: 1_800_000, redact_pii: true }),
   () => ({ configured: false, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: '', key_last4: null, tier: 'min', monthly_budget: 300_000, redact_pii: true }))
-export interface AiRun { id: string; ts: string; skill: string; model: string; tokens_in: number; tokens_out: number; status: 'ok' | 'schema_error' | 'capped' | 'failed'; target?: string; /** Tên hồ sơ AI đã trả lời (thêm sau, tuỳ chọn) */ profile?: string; /** true khi hồ sơ chính lỗi, quá trần hoặc không được phép nên chạy bằng hồ sơ dự phòng */ fallback?: boolean }
+export interface AiRun { id: string; ts: string; skill: string; model: string; tokens_in: number; tokens_out: number; status: 'ok' | 'schema_error' | 'capped' | 'failed'; target?: string; /** The name of the AI profile that answered (added later, optional) */ profile?: string; /** true when the primary profile failed, was over its cap or was not allowed, so the fallback profile ran */ fallback?: boolean }
 export const aiRunsStore = collection<AiRun[]>('ai_runs', () => [], () => [])
-// ---- Nhiều hồ sơ AI + phân việc (owner 2026-11-06). Thêm vào cuối, các trường cũ của aiConfigStore vẫn dùng được:
-// `configured` = có ít nhất một hồ sơ dùng được (module ai cập nhật mỗi khi đổi hồ sơ); provider/model/key_last4 phản chiếu hồ sơ dùng được đầu tiên.
+// ---- Several AI profiles + job assignments. Added at the end; the old fields of aiConfigStore still work:
+// `configured` = at least one usable profile (the ai module updates it whenever a profile changes); provider/model/key_last4 mirror the first usable profile.
 export type AiJob = 'explain-finding' | 'mitigation-config' | 'cve-news' | 'log-digest' | 'log-investigate' | 'ask-my-data' | 'weekly-report' | 'pdpl-assessment' | 'translate-advisory' | 'response-plan'
-/** `data`: internal = gửi log/thiết bị của khách; public = chỉ dữ liệu công khai (CVE, khuyến cáo). */
+/** `data`: internal = sends the customer's logs/devices; public = public data only (CVEs, advisories). */
 export const AI_JOBS: { id: AiJob; data: 'internal' | 'public' }[] = [
   { id: 'explain-finding', data: 'internal' }, { id: 'mitigation-config', data: 'internal' }, { id: 'cve-news', data: 'public' },
   { id: 'log-digest', data: 'internal' }, { id: 'log-investigate', data: 'internal' }, { id: 'ask-my-data', data: 'internal' },
@@ -98,10 +98,10 @@ export const aiJobOf = (skill: string): AiJob | null => (AI_JOBS.some((j) => j.i
 export interface AiProfile {
   id: string; name: string
   kind: 'anthropic' | 'openai' | 'gemini' | 'openai-compatible' | 'custom'
-  /** Kiểu API: Chat Completions (OpenAI), Messages (Anthropic) hoặc Gemini. Hồ sơ dựng sẵn suy ra từ `kind`. */
+  /** The API type: Chat Completions (OpenAI), Messages (Anthropic) or Gemini. A built-in profile derives it from `kind`. */
   api_style: 'openai' | 'anthropic' | 'gemini'
   base_url: string; model: string; key_last4: string | null
-  /** internal = chạy trong mạng công ty, dữ liệu không rời mạng; cloud = nhà cung cấp đám mây */
+  /** internal = runs inside the company network, data does not leave the network; cloud = a cloud provider */
   location: 'internal' | 'cloud'
   monthly_budget: number
 }
@@ -124,7 +124,7 @@ export const aiAssignStore = collection<{ internal_only: boolean; jobs: AiAssign
     'response-plan': { primary: 'p-sonnet', fallback: 'p-ollama' },
   },
 }), () => ({ internal_only: false, jobs: noAssign() }))
-/** Hồ sơ dùng được cho một việc, theo thứ tự chính rồi dự phòng; bỏ hồ sơ không dùng được và hồ sơ đám mây khi luật riêng tư bắt buộc nội bộ. */
+/** The profiles usable for a job, in order primary then fallback; drops profiles that are not usable and cloud profiles when the privacy rule requires internal. */
 export function aiCandidates(job: AiJob): AiProfile[] {
   const a = aiAssignStore.get()
   const profiles = aiProfilesStore.get()
@@ -133,7 +133,7 @@ export function aiCandidates(job: AiJob): AiProfile[] {
     .map((id) => profiles.find((p) => p.id === id))
     .filter((p): p is AiProfile => !!p && aiProfileUsable(p) && !(a.internal_only && internalData && p.location !== 'internal'))
 }
-/** Ghi một lần gọi AI (đồng hồ token, S-AI-4). Hồ sơ trả lời = hồ sơ chính của việc (module ai tự ghi khi có chuyển dự phòng). */
+/** Record one AI call (the token gauge, S-AI-4). The answering profile = the job's primary profile (the ai module records it itself when it switches to the fallback). */
 export function recordAiRun(skill: string, tokens_in: number, tokens_out: number, target?: string, profile?: AiProfile, fallback?: boolean): AiRun {
   const job = aiJobOf(skill)
   const p = profile ?? (job ? aiCandidates(job)[0] : undefined)
@@ -141,16 +141,16 @@ export function recordAiRun(skill: string, tokens_in: number, tokens_out: number
   aiRunsStore.update((l) => [run, ...l].slice(0, 500))
   return run
 }
-/** "Hỏi AI của tôi" chỉ hiện khi module ai bật, có hồ sơ dùng được, và (nếu nêu việc) việc đó có hồ sơ được phép. */
+/** "Ask my AI" shows only when the ai module is on, there is a usable profile, and (if a job is named) that job has an allowed profile. */
 export const aiAvailable = (job?: AiJob) => {
   if (!isOn('ai') || !aiConfigStore.get().configured) return false
   return job ? aiCandidates(job).length > 0 : AI_JOBS.some((j) => aiCandidates(j.id).length > 0)
 }
 
 /**
- * Mạng của chính hộp Vedette (mock thay cho thông tin card mạng thật).
- * Dữ liệu mẫu: 192.168.10.250 trong 192.168.10.0/24. Cài sạch: suy ra từ dải LAN đầu tiên người dùng khai
- * (Thiết bị → Phạm vi), lấy địa chỉ .250 của dải /24 (hoặc địa chỉ gần cuối dải nhỏ hơn); chưa khai thì null.
+ * The Vedette box's own network (the mock stands in for real network card information).
+ * Sample data: 192.168.10.250 in 192.168.10.0/24. A clean install: derived from the first LAN range the user declares
+ * (Devices → Scope), taking the .250 address of a /24 (or the address near the end of a smaller range); null when none is declared yet.
  */
 export interface BoxInfo { hostname: string; ip: string | null; lan: string | null; iface: string }
 export function boxInfo(): BoxInfo {
@@ -165,18 +165,18 @@ export function boxInfo(): BoxInfo {
   return { hostname: 'vedette', ip: [24, 16, 8, 0].map((s) => (ip >>> s) & 255).join('.'), lan, iface: 'eth0' }
 }
 
-// ---- Đăng nhập hai bước bằng mã email. Module core sở hữu; module notify đọc số người dùng để cảnh báo khi tắt kênh. ----
+// ---- Two-step sign-in with an email code. The core module owns it; the notify module reads the user count to warn when the channel is turned off. ----
 export type TwofaMethod = 'app' | 'email'
 export const twofaMethodOf = (u: Pick<User, 'twofa' | 'twofa_method'>): TwofaMethod | null => (u.twofa ? (u.twofa_method ?? 'app') : null)
 
-/** Kênh email của module notify đã cấu hình, đang bật và module đang bật? Đọc chéo bằng peek (không import mock của notify). */
+/** Is the notify module's email channel configured, on, and the module on? A cross-module read through peek (without importing notify's mock). */
 export function emailChannelReady(): boolean {
   if (!isOn('notify')) return false
   const list = peek<{ type: string; configured: boolean; enabled: boolean }[]>('notify_channels')
-  // Chưa ai mở module notify thì bảng chưa được gieo: dữ liệu mẫu có kênh email, cài sạch thì không.
+  // Nobody has opened the notify module yet so its table has not been seeded: sample data has an email channel, a clean install does not.
   if (!list) return dataMode() === 'sample'
   return list.some((c) => c.type === 'email' && c.configured && c.enabled)
 }
 
-/** Số người dùng (chưa bị vô hiệu) đăng nhập bằng mã email: họ không vào được khi kênh email không gửi được. */
+/** The number of users (not disabled) who sign in with an email code: they cannot get in when the email channel cannot send. */
 export const emailCodeUserCount = () => usersStore.get().filter((u) => !u.disabled && twofaMethodOf(u) === 'email').length

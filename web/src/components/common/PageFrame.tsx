@@ -4,18 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Counter } from './Counter'
 import { useKeepListParams } from './listParams'
 
-// Khung trang (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
+// Page frame (S-UI-1): PageHeader > KpiStrip (optional) > PageTabs. Settings keeps its vertical menu.
 
 export type Kpi = { value: ReactNode; label: string; to: string }
 
 const COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid-cols-4']
 
-/** Tối đa 4 con số trả lời câu hỏi của trang (FRONTEND §3: số to chỉ khi là câu trả lời), mỗi số dẫn tới chỗ xem chi tiết.
- *  Một khung chia ô bằng đường kẻ (như một hàng bảng), không phải 4 card rời; điện thoại 2 × 2. */
+/** At most 4 numbers that answer the page's question (FRONTEND §3: a big number only when it is the answer), each leading to where the detail is.
+ *  One frame divided by rules (like a table row), not 4 separate cards; 2 x 2 on a phone. */
 const isZero = (v: ReactNode) => v === 0 || v === '0'
 
 export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string }) {
-  // Lỗi lập trình: báo khi phát triển, không làm vỡ trang của người dùng.
+  // A programming error: reported during development, it does not break the user's page.
   if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items, got ${all.length}; the rest are dropped`)
   const items = all.slice(0, 4)
   const keep = useKeepListParams()
@@ -23,7 +23,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
         <li key={k.label} className="bg-surface [&:last-child:nth-child(odd)]:col-span-2 sm:[&:last-child:nth-child(odd)]:col-span-1">
-          {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn.
+          {/* The whole cell is a link (not text in a paragraph): no underline on the number or the label; hover gives a background and underlines the label.
               A 0 opens nothing (a link to an empty list is an action with nothing behind it), so it is plain text. */}
           {isZero(k.value) ? (
             <div className="grid h-full gap-0.5 px-3 py-2">
@@ -42,17 +42,17 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
   )
 }
 
-/** `badge`: việc đang chờ người dùng ở tab đó (số đỏ). `label` là phần đọc sau con số cho trình đọc màn hình, ví dụ "waiting for a decision"
- *  → tên tab "Requests 3 waiting for a decision" (chứa đúng chữ nhìn thấy, WCAG 2.5.3). */
+/** `badge`: work waiting for the user in that tab (a red number). `label` is the part read after the number for a screen reader, for example "waiting for a decision"
+ *  gives the tab name "Requests 3 waiting for a decision" (it contains exactly the visible text, WCAG 2.5.3). */
 export type PageTab = { id: string; label: string; panel: ReactNode; badge?: { count: number; label: string; tone?: 'danger' | 'off' } }
 
-/** Tab đang mở ở `?tab=<id>`: tải lại và quay lại giữ tab; id lạ hoặc không được phép → tab đầu. */
+/** The open tab is in `?tab=<id>`: reload and Back keep the tab; an unknown or not-allowed id → the first tab. */
 export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   const [params, setParams] = useSearchParams()
   const raw = params.get('tab')
   const open = tabs.find((x) => x.id === raw) ?? tabs[0]
   const list = useRef<HTMLDivElement>(null)
-  // Trên điện thoại tab đang mở có thể nằm ngoài phần đang thấy của hàng tab: cuộn nó vào (chỉ hàng tab, không cuộn trang).
+  // On a phone the open tab may sit outside the visible part of the tab row: scroll it into view (only the tab row, not the page).
   useEffect(() => {
     const row = list.current
     const el = row?.querySelector<HTMLElement>('[data-state="active"]')
@@ -66,11 +66,11 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   return (
     <Tabs
       value={open.id}
-      // replace: phím mũi tên đổi tab (WAI-ARIA tự kích hoạt); push sẽ bắt Back đi qua từng tab đã lướt.
+      // replace: arrow keys change tab (WAI-ARIA automatic activation); push would make Back walk through every tab visited.
       onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}
     >
-      {/* Hàng tab cuộn ngang (overflow) cắt mọi thứ vẽ ra ngoài nó, nên: đường kẻ dưới là bóng inset (không phải border mà gạch chân -mb-px đè lên),
-          viền focus vẽ vào trong tab (-outline-offset-2), thanh cuộn ẩn (mép tab bị cắt là dấu hiệu còn tab; mũi tên trái/phải tự cuộn tới tab). ui-guard: the inset rule under the row. */}
+      {/* A horizontally scrolling (overflow) tab row clips everything drawn outside it, so: the line below is an inset shadow (not a border that a -mb-px underline overlaps),
+          the focus ring is drawn inside the tab (-outline-offset-2), the scrollbar is hidden (a clipped tab edge shows there are more tabs; the left/right arrows scroll to the tab by themselves). ui-guard: the inset rule under the row. */}
       <TabsList ref={list} aria-label={label} className="flex-nowrap overflow-x-auto overscroll-x-contain border-b-0 shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((x) => (
           <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
@@ -84,8 +84,8 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   )
 }
 
-/** Liên kết cũ `#<phần>` của một trang đã chuyển sang tab → `?tab=<id>`, giữ các tham số khác, bỏ hash.
- *  Chỉ các tên trong `map`; hash khác (ví dụ `#main` của "Skip to content") để nguyên. Trả về null khi không có gì để chuyển. */
+/** An old `#<part>` link of a page that moved to tabs → `?tab=<id>`, keeping the other parameters and dropping the hash.
+ *  Only the names in `map`; any other hash (for example `#main` of "Skip to content") is left alone. Returns null when there is nothing to redirect. */
 export function OldHashToTab({ map }: { map: Record<string, string> }) {
   const { hash, search } = useLocation()
   const tab = Object.hasOwn(map, hash.slice(1)) ? map[hash.slice(1)] : undefined

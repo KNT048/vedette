@@ -26,7 +26,7 @@ export function useMe(enabled = true) {
   })
 }
 
-/** RBAC 3 vai (ARCHITECTURE §5): viewer chỉ xem; operator thao tác; admin cấu hình hệ thống. */
+/** RBAC with 3 roles (ARCHITECTURE §5): viewer only views; operator operates; admin configures the system. */
 export function useCan(min: Role): boolean {
   const { data } = useMe()
   return !!data && rank[data.role] >= rank[min]

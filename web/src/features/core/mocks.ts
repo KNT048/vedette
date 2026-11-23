@@ -1,4 +1,4 @@
-// Mock API module core (S-CORE-1..4, S-MCP-1, cài đặt ban đầu). Handler lõi (đăng nhập, /me, /modules) ở src/mocks/core.ts.
+// Mock API of the core module (S-CORE-1..4, S-MCP-1, initial setup). The core handlers (sign-in, /me, /modules) are in src/mocks/core.ts.
 import { http, HttpResponse } from 'msw'
 import { logExportHandlers } from './logExport'
 import { API, audit, body, currentUser, fail, guard, EMAIL_RE } from '@/mocks/http'
@@ -24,18 +24,18 @@ const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
 const adminOf = (u: User): AdminUser => ({ id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), disabled: !!u.disabled, created_at: u.created_at, last_login: u.last_login, sso: !!u.sso })
 const ssoOnly = () => fail(409, 'sso_user', 'This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider.')
-/** Mã cài đặt một lần: hộp thật in nó vào nhật ký lúc khởi động khi chưa có quản trị viên; mock dùng một mã cố định. */
+/** The one-time setup code: the real box prints it into the log at start-up while there is no admin yet; the mock uses a fixed code. */
 export const MOCK_SETUP_CODE = 'setup-code-demo'
 const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 
-// ---------- Cài đặt ban đầu ----------
+// ---------- Initial setup ----------
 // The acceptance of the terms of use (core_setting terms.accepted on the box). The sample box was set up by its
 // administrator a month ago; a clean box has none until setup.
 const termsStore = collection<TermsState['accepted']>('core_terms', () => ({ by: 'admin@acme.example', at: daysAgo(30), version: TERMS_VERSION, via: 'setup' }), () => null)
 const TERMS_REFUSED = 'Read the terms of use and tick that you agree to them before you go on.'
 
 const setupHandlers = [
-  // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
+  // Public, only id/tier/dependencies (it does not reveal which modules are on) so the bundle step can draw the list.
   http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
 
   // Restore from a backup file on a new box. Mock: any gzip file is a backup of the sample organization, a key is any
@@ -72,7 +72,7 @@ const setupHandlers = [
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
     const b = await body<SetupPayload>(request)
     if (b.sample === true) {
-      // Bản xem thử: mọi bảng về dữ liệu mẫu nguyên bản, đăng nhập luôn quản trị mẫu.
+      // Preview build: every table returns to the original sample data, and sign-in is always the sample admin.
       resetMockDb()
       setDataMode('sample')
       orgStore.update((o) => ({ ...o, setup_complete: true }))
@@ -104,7 +104,7 @@ const setupHandlers = [
     const clash = uniqueLan.map((r) => [r, overlapping(r, uniqueLan)] as const).find(([, o]) => o)
     if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
     let enable: ModuleId[]
-    const all = modulesStore.get() // danh sách module mặc định; kiểm tra xong mới dọn kho (lỗi thì không mất gì)
+    const all = modulesStore.get() // the default module list; the store is cleaned only after the check passes (on an error nothing is lost)
     // A bundle leaves out what this install cannot run; a custom choice naming it is refused.
     if (b.bundle === 'smb' || b.bundle === 'mid') enable = BUNDLES[b.bundle].filter(moduleAvailable)
     else if (b.bundle === 'custom') {
@@ -120,7 +120,7 @@ const setupHandlers = [
       }
     } else return fail(400, 'invalid_bundle', 'Choose a module bundle: smb, mid or custom.')
 
-    // Cài thật: xoá sạch rồi vào chế độ 'clean' để MỌI module bắt đầu rỗng (không tài khoản, thiết bị, cảnh báo mẫu).
+    // A real install: wipe everything, then enter 'clean' mode so EVERY module starts empty (no sample accounts, devices, alerts).
     const install = installStore.get() // the install kind is the box, not its data
     resetMockDb()
     installStore.set(install)
@@ -170,7 +170,7 @@ const generalHandlers = [
   }),
 ]
 
-// ---------- Tài khoản của tôi ----------
+// ---------- My account ----------
 const sessionsStore = collection<Record<string, AccountSession[]>>('core_sessions_list', () => ({}))
 const totpSecrets = collection<Record<string, string>>('core_totp', () => ({}))
 const totpPending = collection<Record<string, string>>('core_totp_pending', () => ({}))
@@ -178,7 +178,7 @@ const totpPending = collection<Record<string, string>>('core_totp_pending', () =
 function sessionsOf(userId: string): AccountSession[] {
   const all = sessionsStore.get()
   if (!all[userId]) {
-    // Cài sạch: chỉ có phiên đang dùng (không phiên "Firefox trên Windows" mẫu). Device is the raw User-Agent, as the box stores it.
+    // A clean install: only the current session (no sample "Firefox on Windows" session). Device is the raw User-Agent, as the box stores it.
     const firefoxWindows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0'
     all[userId] = dataMode() === 'clean'
       ? [{ id: newId('s'), device: navigator.userAgent, ip: '127.0.0.1', started_at: nowIso(), last_seen: nowIso(), current: true }]
@@ -313,7 +313,7 @@ const accountHandlers = [
   }),
 ]
 
-// ---------- Người dùng, OIDC ----------
+// ---------- Users, OIDC ----------
 interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** Pinned when an administrator saves, from the address they used */ redirect_uri?: string; /** extra CA certificates for this IdP */ ca_pem?: string }
 const oidcStore = collection<OidcStored>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [] }))
 const oidcView = (): OidcConfig => {
@@ -338,22 +338,22 @@ function caError(raw: string): string | null {
   if (blocks.length > 5) return 'The CA certificate text holds more than 5 certificates.'
   return null
 }
-// Luồng đăng nhập SSO đang chờ gọi lại: state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
+// SSO sign-in flows waiting for the callback: state, binding, 10 minute expiry, single use. The real version keeps only the SHA-256 of the two values.
 const oidcFlows = collection<{ state: string; binding: string; expires: number; issuer: string; client_id: string }[]>('oidc_flow', () => [])
-// Người dùng ở IdP mẫu: mock không có IdP thật, nên bước đăng nhập ở IdP được bỏ qua và trả về ngay một mã.
+// Users at the sample IdP: the mock has no real IdP, so the sign-in step at the IdP is skipped and a code is returned at once.
 export const MOCK_IDP_USER: { sub: string; email: string; email_verified?: boolean; name: string; groups: string[] } = { sub: 'mock-sub-1', email: 'sso.user@acme.example', email_verified: true, name: 'SSO user', groups: ['vedette-operators', 'staff'] }
-/** vai cao nhất trong các dòng khớp nhóm; không khớp dòng nào → vai mặc định (null = không có quyền). */
+/** The highest role among the rows that match a group; no row matches → the default role (null = no access). */
 export function ssoRole(groups: string[], c: Pick<OidcStored, 'role_map' | 'default_role'>): Role | null {
   const hits = c.role_map.filter((m) => groups.includes(m.group)).map((m) => m.role)
   if (!hits.length) return c.default_role ?? null
   return hits.reduce((a, b) => (ROLES.indexOf(b) > ROLES.indexOf(a) ? b : a))
 }
-// RFC 6749 §3.3 scope-token; tên claim chỉ chữ, số và _ . : / -
+// RFC 6749 §3.3 scope-token; a claim name has only letters, digits and _ . : / -
 const SCOPE_RE = /^[\x21\x23-\x5B\x5D-\x7E]{1,64}$/
 const CLAIM_RE = /^[A-Za-z0-9_.:/-]{1,64}$/
 const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')
 const OIDC_OFF = 'SSO sign-in is not set up. Sign in with your email and password, or ask an administrator.'
-// đường vào dự phòng là quản trị viên dùng mật khẩu, nên chỉ họ được tính.
+// the fallback way in is an administrator using a password, so only they count.
 const activeAdmins = (l: User[]) => l.filter((x) => x.role === 'admin' && !x.disabled && !x.sso).length
 
 const usersHandlers = [
@@ -479,10 +479,10 @@ const usersHandlers = [
     return HttpResponse.json({ ok: true, endpoints: { authorization: `${c.issuer}/protocol/openid-connect/auth`, token: `${c.issuer}/protocol/openid-connect/token`, jwks: `${c.issuer}/protocol/openid-connect/certs` } })
   }),
 
-  // Công khai: trang đăng nhập hỏi để biết có nút SSO không.
+  // Public: the sign-in page asks to learn whether there is an SSO button.
   http.get(`${API}/core/auth-options`, () => HttpResponse.json({ oidc: isOn('auth-oidc') && !!oidcStore.get().issuer })),
-  // Bắt đầu đăng nhập SSO. Bản thật trả điểm authorization của IdP; mock bỏ qua IdP và đưa thẳng về trang gọi lại kèm một mã.
-  // Module tắt: không có route (404, SYS-5); bật mà chưa có issuer: 400 oidc_off.
+  // Start SSO sign-in. The real version returns the IdP's authorization endpoint; the mock skips the IdP and goes straight back to the callback page with a code.
+  // Module off: no route (404, SYS-5); on but no issuer yet: 400 oidc_off.
   http.post(`${API}/auth/oidc/start`, () => {
     if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
     const cfg = oidcStore.get()
@@ -496,8 +496,8 @@ const usersHandlers = [
     oidcFlows.update((l) => [...l.filter((f) => f.expires > now).slice(-999), { state, binding, expires: now + 10 * 60_000, issuer: cfg.issuer, client_id: cfg.client_id }])
     return HttpResponse.json({ authorize_url: `${location.origin}/sso/callback?code=mock-${randomToken().slice(0, 16)}&state=${state}`, binding })
   }),
-  // Gọi lại. Luồng dùng một lần và gắn với issuer/client lúc bắt đầu; vai theo nhóm; không nối vào tài khoản mật khẩu.
-  // Bản thật giới hạn theo địa chỉ như start; mock không đếm. Chỉ ghi kiểm toán khi luồng có thật (không để người lạ làm đầy nhật ký).
+  // Callback. The flow is single use and bound to the issuer/client at the start; the role follows the groups; it does not link to a password account.
+  // The real version limits per address like start; the mock does not count. Audit only when the flow is real (so a stranger cannot fill the log).
   http.post(`${API}/auth/oidc/callback`, async ({ request }) => {
     if (!isOn('auth-oidc')) return fail(404, 'not_found', 'Not found.')
     const cfg = oidcStore.get()
@@ -505,7 +505,7 @@ const usersHandlers = [
     const b = await body<{ code?: string; state?: string; binding?: string }>(request)
     const refuse = (reason: string, status: number, code: string, msg: string, who = cfg.issuer) => { audit('auth.login_failed', who, `SSO: ${reason}`); return fail(status, code, msg) }
     const flow = oidcFlows.get().find((f) => f.state === b.state)
-    oidcFlows.update((l) => l.filter((f) => f.state !== b.state)) // dùng một lần, kể cả khi binding sai
+    oidcFlows.update((l) => l.filter((f) => f.state !== b.state)) // single use, even when the binding is wrong
     if (!flow) return fail(400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
     if (flow.expires < Date.now() || flow.issuer !== cfg.issuer || flow.client_id !== cfg.client_id) return refuse('state', 400, 'sso_expired', 'This sign-in has expired or was already used. Start again from the sign-in page.')
     if (flow.binding !== b.binding) return refuse('binding', 400, 'sso_expired', 'This sign-in was started in another tab or browser. Start again from the sign-in page.')
@@ -525,7 +525,7 @@ const usersHandlers = [
     let relinked = false
     if (!u) {
       const same = list.find((x) => x.email.toLowerCase() === email)
-      // Tài khoản mật khẩu, tài khoản SSO cùng issuer khác sub, hay email chưa xác minh: không nối. Tài khoản SSO của issuer cũ + email đã xác minh: gắn lại.
+      // A password account, an SSO account of the same issuer with a different sub, or an unverified email: not linked. An SSO account of the old issuer + a verified email: re-linked.
       if (same && (!same.sso || same.sso.iss === cfg.issuer || idp.email_verified !== true)) return refuse('email_in_use', 409, 'email_in_use', `A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator.`, email)
       if (same) { u = { ...same, sso: { iss: cfg.issuer, sub: idp.sub } }; relinked = true }
     }
@@ -547,7 +547,7 @@ const usersHandlers = [
   }),
 ]
 
-// ---------- Nhật ký kiểm toán ----------
+// ---------- Audit log ----------
 function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
   const text = (q.q ?? '').trim().toLowerCase()
   const from = q.from ? new Date(`${q.from}T00:00:00`).getTime() : -Infinity
@@ -577,7 +577,7 @@ function auditNames(rows: AuditRow[]): Record<string, string> {
   for (const [id, name] of assets) if (ids.has(id) && name) out[id] = name
   return out
 }
-/** Ô CSV bắt đầu bằng = + - @ bị Excel hiểu là công thức: thêm dấu nháy để thành chữ. */
+/** A CSV cell that starts with = + - @ is read by Excel as a formula: add a quote so it becomes text. */
 const csvCell = (v: string) => { const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
 
 const auditHandlers = [
@@ -602,7 +602,7 @@ const auditHandlers = [
   }),
 ]
 
-// ---------- Cập nhật ----------
+// ---------- Updates ----------
 const CATALOG: UpdateAvailable[] = [
   { component: 'software', version: '0.9.4', channel: 'stable', size_kb: 18200, note: 'Fixes a hang when receiving oversized syslog packets (VSA-2026-003).' },
   { component: 'software', version: '0.10.0-beta.1', channel: 'beta', size_kb: 19100, note: 'Preview: new settings interface.' },
@@ -610,9 +610,9 @@ const CATALOG: UpdateAvailable[] = [
   { component: 'pack-mitigation', version: '2026.11.06', channel: 'stable', size_kb: 410, note: 'Adds mitigation guidance for Ivanti Connect Secure.' },
   { component: 'pack-parsers', version: '1.4.1', channel: 'stable', size_kb: 96, note: 'Fixes how FortiGate 7.4 logs are read.' },
 ]
-/** Trình trợ giúp `vedette-host` mà mỗi bản phát hành mang theo (manifest `host.version`). */
+/** The `vedette-host` helper that each release carries (manifest `host.version`). */
 const HOST_IN: Record<string, string> = { '0.9.4': '0.9.4', '0.10.0-beta.1': '0.10.0-beta.1' }
-/** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật. */
+/** A release that declares `rollback.safe=false` (changes the DB): a rollback from this release restores the DB from before the update. */
 const RESTORES_DATA = new Set(['0.9.4'])
 const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
 const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string | null; last_check_error?: UpdateCheckError | null; run?: UpdateRun | null }>('core_updates', () => ({
@@ -628,7 +628,7 @@ const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; c
     { id: 'h4', ts: daysAgo(14), component: 'pack-parsers', from: '1.3.2', to: '1.4.0', action: 'update', user: 'system' },
   ],
 }), () => ({
-  // Cài sạch: bản vừa cài, chưa có lịch sử cập nhật và chưa có "bản trước" để quay về.
+  // A clean install: the version just installed, no update history yet and no "previous version" to go back to.
   channel: 'stable',
   mode: 'manual',
   last_check: null,
@@ -643,10 +643,10 @@ const ADVISORIES: Omit<Advisory, 'status'>[] = [
   { id: 'VSA-2026-002', title: 'The YAML library can use a lot of memory', severity: 'medium', published: '2026-10-12', fixed_in: '0.9.2', summary: 'A configuration file entered by an administrator can make the process use all memory. Fixed in 0.9.2.' },
 ]
 
-/** Phiên bản phần mềm đang chạy. */
+/** The software version that is running. */
 export const softwareVersion = () => updStore.get().components.find((c) => c.id === 'software')!.version
 
-/** Gói do Vedette ghim và cập nhật cùng bản phát hành; không gói nào tự lấy từ kho hệ điều hành. */
+/** Packages pinned by Vedette and updated with the release; none is taken from the operating system repository by itself. */
 function managedOf(components: UpdateComponent[], available: UpdateAvailable[]): ManagedPackage[] {
   const nuclei = components.find((c) => c.id === 'pack-nuclei')?.version ?? '–'
   const pending = available.some((a) => a.component === 'pack-nuclei')
@@ -658,7 +658,7 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
   ]
 }
 
-/** Mỗi bước của một lần chạy mô phỏng; bản thật: kéo image tới 45 phút, rồi khởi động lại. */
+/** Each step of a simulated run; the real version: pulls the image for up to 45 minutes, then restarts. */
 export const RUN_STEP_MS = import.meta.env.MODE === 'test' ? 300 : 1500
 const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['steps'] => (action === 'update' ? ['download', 'restart', 'start'] : restore ? ['start', 'restore', 'restart'] : ['start', 'restart'])
 
@@ -719,7 +719,7 @@ function settleHost(run: UpdateRun, to: string): boolean {
   return false
 }
 
-/** Đưa lần chạy phần mềm đang chạy tới bước đúng với thời gian đã trôi; xong thì đổi phiên bản và ghi lịch sử. */
+/** Bring the running software run to the step that matches the elapsed time; when done, change the version and record the history. */
 function tickRun() {
   const run = updStore.get().run
   if (!run || run.status !== 'running') return
@@ -776,7 +776,7 @@ function updView(): UpdatesState {
   })
   // A container-only install has no system helper: no host row, no host_version (S-CORE-2).
   const container = installStore.get().kind === 'container'
-  // chỉ giữ bản mới nhất cho mỗi thành phần
+  // keep only the newest version for each component
   const latest = available.filter((a) => !available.some((b) => b.component === a.component && compareVersion(b.version, a.version) > 0)).map((a) => {
     if (a.component !== 'software') return a
     const host = container ? undefined : hostTarget(a.version)
@@ -811,7 +811,7 @@ function rollbackOne(component: string, user: string) {
 const softwareBusy = () => updStore.get().run?.status === 'running'
 const busy = () => fail(409, 'busy', 'An update or rollback of the software is already running. Wait for it to finish.')
 
-/** Chữ ký mô phỏng (FNV-1a). Bản thật: minisign/cosign (UPDATES.md §1). */
+/** A simulated signature (FNV-1a). The real version: minisign/cosign (UPDATES.md §1). */
 export function mockSign(text: string): string {
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
@@ -929,7 +929,7 @@ const updatesHandlers = [
   }),
 ]
 
-// ---------- Quyền riêng tư ----------
+// ---------- Privacy ----------
 function telemetryPayload() {
   const clean = dataMode() === 'clean'
   const counts: Record<string, number> = {}
@@ -944,7 +944,7 @@ function telemetryPayload() {
     country: 'VN',
     version: updStore.get().components.find((c) => c.id === 'software')!.version,
     hour: hour.toISOString(),
-    // Cài sạch: hộp chưa ghi nhận gì nên mọi số đếm là 0 (bản mẫu hiện số minh hoạ).
+    // A clean install: the box has recorded nothing yet, so every count is 0 (the sample build shows illustrative numbers).
     honeypot_touches: clean ? { smb: 0, rdp: 0, ssh: 0 } : { smb: 0, rdp: 2, ssh: 1 },
     ioc_connections: clean ? 0 : 3,
     cve_matches: clean ? {} : { 'CVE-2022-27593': 1 }, // counts of matches between devices and exploited vulnerabilities, by CVE (there is no IDS)
@@ -1056,7 +1056,7 @@ const mcpHandlers = [
   }),
 ]
 
-// ---------- Dữ liệu ----------
+// ---------- Data ----------
 const download = (name: string, data: unknown) => new HttpResponse(JSON.stringify(data, null, 2), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename=${name}` } })
 const stamp = () => new Date().toISOString().slice(0, 10)
 
@@ -1064,7 +1064,7 @@ const stamp = () => new Date().toISOString().slice(0, 10)
 const PURGE_MAX_TRIES = 5
 const purgeTries = collection<{ n: number }>('core_purge_tries', () => ({ n: 0 }))
 
-// Bản sao lưu trình hỗ trợ giữ trên hộp (host-api §6.11) và lần khôi phục gần nhất. Mock: khôi phục xong ngay, không khởi động lại.
+// Backups the helper keeps on the box (host-api §6.11) and the latest restore. Mock: the restore finishes at once, with no restart.
 const boxBackupsStore = collection<BoxBackup[]>('core_box_backups', () => [
   { id: 'b3c1a7e0d2f94b5e8a6c0d1e2f3a4b5c', kind: 'pre_os_update', created_at: daysAgo(1), size: 48_300_000, includes_key: true },
   { id: 'a9e2c4f6b8d0e1f2a3b4c5d6e7f8a9b0', kind: 'pre_update', created_at: daysAgo(6), size: 47_100_000, includes_key: true },
@@ -1109,7 +1109,7 @@ const dataHandlers = [
     const denied = guard('admin')
     if (denied) return denied
     audit('data.backup', 'backup')
-    // Không đưa mật khẩu và khoá vào bản sao lưu mock (SYS-4).
+    // Passwords and keys are not put into the mock backup (SYS-4).
     return download(`vedette-backup-${stamp()}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
   }),
   http.get(`${API}/core/data/backups`, () => {
@@ -1154,7 +1154,7 @@ const dataHandlers = [
     audit('data.export', 'JSON export')
     return download(`vedette-export-${stamp()}.json`, { format: 'vedette-export/1', exported_at: nowIso(), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
   }),
-  // Xoá toàn bộ: mọi bảng của mọi module về trạng thái chưa cài đặt (bản thật: vedette data purge). Phiên kết thúc, lần tải sau mở /setup.
+  // Delete everything: every table of every module returns to the not-set-up state (real version: vedette data purge). The session ends, the next load opens /setup.
   http.post(`${API}/core/data/purge`, async ({ request }) => {
     const denied = guard('admin')
     if (denied) return denied

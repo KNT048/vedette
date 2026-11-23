@@ -1,5 +1,5 @@
-// Mock API module ai (S-AI-1, S-AI-3..6). Cấu hình chung, hồ sơ, phân việc, đồng hồ dùng chung nằm ở mocks/stores.ts.
-// Khoá API KHÔNG bao giờ được lưu hay trả lại: chỉ giữ 4 ký tự cuối (SYS-4). Toàn bộ chữ hiển thị là tiếng Anh.
+// Mock API of the ai module (S-AI-1, S-AI-3..6). The shared configuration, profiles, assignments and the shared usage gauge live in mocks/stores.ts.
+// An API key is NEVER stored or returned: only the last 4 characters are kept (SYS-4). All displayed text is English.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -50,7 +50,7 @@ export function scheduledProfileStop(job: AiJob): string | null {
   return `The monthly budget of the AI profile ${cands[cands.length - 1]!.name} is used up and no other profile could take ${JOB_NAME[job]}, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on ${renewDay()}.`
 }
 
-// Lịch sử mẫu để đồng hồ và nhật ký có số liệu ngay (dữ liệu mẫu, không phải lần gọi thật). Cài sạch: rỗng.
+// Sample history so the gauge and the log have figures at once (sample data, not real calls). A clean install: empty.
 const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
   const at = (back: number, min: number) => new Date(Math.min(Date.now() - 60_000 * (back + 1), startOfToday() - back * DAY + min * 6e4)).toISOString()
   const r = (back: number, min: number, skill: string, i: number, o: number, target?: string, profile = 'Claude Haiku', model = 'claude-haiku-5-5'): AiRun => ({ id: newId('ai'), ts: at(back, min), skill, model, tokens_in: i, tokens_out: o, status: 'ok', target, profile })
@@ -83,7 +83,7 @@ function usage(): Usage {
   return { tier: cfg.tier, monthly_budget: cfg.monthly_budget, today: sum(month.filter((r) => new Date(r.ts).getTime() >= s)), month: sum(month), by_skill: [...by.entries()].map(([skill, v]) => ({ skill, ...v })).sort((a, b) => b.tokens - a.tokens), downgrades: downgrades.get() }
 }
 
-// Lần thử kết nối gần nhất của hồ sơ như đã lưu (S-AI-1), theo id; hồ sơ đổi địa chỉ/model/khoá thì mất. Mẫu: hai hồ sơ đám mây đã thử được.
+// The latest connection test of a profile as saved (S-AI-1), by id; a profile whose address/model/key changes loses it. Sample: two cloud profiles have been tested.
 type LastTest = NonNullable<AiProfile['last_test']>
 const lastTests = collection<Record<string, LastTest>>('ai_last_tests', () => ({
   'p-haiku': { at: new Date(Date.now() - 2 * DAY).toISOString(), ok: true, detail: '' }, 'p-sonnet': { at: new Date(Date.now() - 2 * DAY).toISOString(), ok: true, detail: '' },
@@ -100,7 +100,7 @@ const profileView = (p: StoredProfile): AiProfile => ({ ...p, key_lost: false, u
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
 const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
 
-/** `configured` (dùng chung với module khác) = có ít nhất một hồ sơ dùng được; provider/model/khoá phản chiếu hồ sơ dùng được đầu tiên. */
+/** `configured` (shared with other modules) = at least one usable profile; provider/model/key mirror the first usable profile. */
 function syncConfig() {
   const first = aiProfilesStore.get().find(aiProfileUsable)
   aiConfigStore.update((c) => ({ ...c, configured: !!first, provider: first ? (first.kind === 'custom' ? 'openai-compatible' : first.kind) : c.provider, base_url: first?.base_url ?? c.base_url, model: first?.model ?? '', key_last4: first?.key_last4 ?? null }))
@@ -117,7 +117,7 @@ function notReady(job: AiJob) {
   return fail(409, 'ai_unavailable', `No AI profile is assigned to ${JOB_NAME[job]}. Assign one in Settings, AI assistant.`)
 }
 
-/** Chọn hồ sơ trả lời một việc: chính, rồi dự phòng khi hồ sơ chính lỗi, hết ngân sách tháng riêng hoặc bị luật riêng tư loại. Ghi lần chạy; ngân sách tháng chung dùng hết → mọi việc dừng, không hạ mức. */
+/** Pick the profile that answers a job: the primary, then the fallback when the primary fails, runs out of its own monthly budget or is excluded by the privacy rule. Records the run; when the shared monthly budget is used up, every job stops without lowering the level. */
 /** What the activity log needs to know about one call (S-AI-8). Missing parts get a plain default. */
 type Act = Partial<Pick<ActivityInput, 'hooks' | 'tools' | 'links' | 'input' | 'output' | 'summary' | 'result' | 'trigger'>>
 function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act = {}) {
@@ -153,7 +153,7 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
   return { error: null, profile: pick, fallback: idx > 0 }
 }
 
-// ---- Hồ sơ
+// ---- Profiles
 const KIND_STYLE: Record<string, ProfileInput['api_style']> = { anthropic: 'anthropic', openai: 'openai', gemini: 'gemini', 'openai-compatible': 'openai' }
 /** The box's sentence for Vedette itself (provider.OwnText): the same in feeds, notify, logs and ai. */
 const AI_OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
@@ -191,7 +191,7 @@ function toStored(b: ProfileInput, ok: { name: string; url: URL; key: string | n
 }
 const capError = (b: Partial<ProfileInput>) => { const c = Number(b.monthly_budget); return !Number.isInteger(c) || c < 1000 || c > 150_000_000 ? fail(400, 'invalid_cap', 'The profile\'s monthly budget must be a whole number of tokens from 1000 to 150000000.') : null }
 
-// ---- Phân việc
+// ---- Job assignments
 const allowed = (p: StoredProfile, job: AiJob, internalOnly: boolean) => aiProfileUsable(p) && !(internalOnly && AI_JOBS.find((j) => j.id === job)?.data === 'internal' && p.location !== 'internal')
 function checkAssign(b: Partial<Assignments>): Response | Assignments {
   const profiles = aiProfilesStore.get()
@@ -215,7 +215,7 @@ function checkAssign(b: Partial<Assignments>): Response | Assignments {
 }
 const FAST = /haiku|mini|luna|flash|lite|nano|\b[1-9]b\b|:[1-9]b\b/i
 const BATCH: AiJob[] = ['log-digest', 'translate-advisory', 'cve-news', 'weekly-report']
-/** Gợi ý: model nhanh cho việc hàng loạt, model mạnh cho việc cần suy luận; việc dữ liệu nội bộ ưu tiên hồ sơ nội bộ, việc dữ liệu công khai ưu tiên đám mây. */
+/** Suggestion: a fast model for bulk jobs, a strong model for jobs that need reasoning; internal-data jobs prefer an internal profile, public-data jobs prefer the cloud. */
 function suggest(internalOnly: boolean): Assignments {
   const profiles = aiProfilesStore.get()
   const jobs = {} as AiAssign
@@ -229,7 +229,7 @@ function suggest(internalOnly: boolean): Assignments {
   return { internal_only: internalOnly, jobs }
 }
 
-// ---- Kết quả lưu (khoá: CVE hoặc mức)
+// ---- Saved results (key: CVE or level)
 const explains = collection<Record<string, ExplainResult>>('ai_explains', () => ({}))
 const news = collection<Record<string, NewsResult>>('ai_news', () => ({}))
 const asks = collection<AskResult[]>('ai_asks', () => [])
@@ -287,7 +287,7 @@ function buildNews(v: Kev): Omit<NewsResult, 'generated_at' | 'model' | 'profile
 function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | 'profile' | 'tokens'> {
   // the same words as the box (modules/ai/logdigest.go digestCadence): every digest is made when someone asks
   const cadence = tier === 'min' ? 'A short summary of the most serious points, made when you ask' : tier === 'med' ? 'A full summary of new kinds of line, spikes and bad connections, made when you ask' : 'A full summary made when you ask, with the AI checking points through read-only tools (what the logs counted for an address, devices, threat feeds, the exploited list)'
-  // Cài sạch: chưa có nguồn log nào gửi về nên không có gì để tóm tắt; không gọi AI, không tốn token.
+  // Clean install: no log source has sent anything yet, so there is nothing to summarise; no AI call, no tokens spent.
   if (dataMode() === 'clean') return { tier, cadence, empty: true, summary: 'There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here.', items: [], tool_calls: [], memories_suggested: 0 }
   const as = assetsStore.get()
   const nm = (id: string, fb: string) => as.find((a) => a.id === id)?.hostname ?? fb
@@ -336,7 +336,7 @@ export const handlers = [
     const p = toStored(b as ProfileInput, ok, newId('p'))
     aiProfilesStore.update((l) => [...l, p])
     setLastTest(p.id, draftTestOf(p)); endDraftTest() // the Add dialog's test of these settings
-    // Việc nào chưa có hồ sơ chính thì lấy hồ sơ mới (nếu được phép) để thêm xong dùng được ngay.
+    // A job with no primary profile takes the new profile (if allowed) so it is usable right after adding.
     aiAssignStore.update((a) => ({ ...a, jobs: Object.fromEntries(AI_JOBS.map((j) => [j.id, !a.jobs[j.id].primary && allowed(p, j.id, a.internal_only) ? { ...a.jobs[j.id], primary: p.id } : a.jobs[j.id]])) as AiAssign }))
     syncConfig()
     audit('ai.profile.add', p.name, `${p.kind}, ${p.location}, model=${p.model}${ok.key ? ', key set' : ''}`)
@@ -350,7 +350,7 @@ export const handlers = [
     const ok = checkProfile(b, cur); if (ok instanceof Response) return ok
     const bad = capError(b); if (bad) return bad
     const p = toStored(b as ProfileInput, ok, cur.id, cur)
-    // Đổi sang đám mây khi luật riêng tư bật: bỏ khỏi các việc dữ liệu nội bộ để không gửi nhầm.
+    // Switching to cloud while the privacy rule is on: remove it from internal-data jobs so nothing is sent by mistake.
     const a = aiAssignStore.get()
     const dropped = AI_JOBS.filter((j) => (a.jobs[j.id].primary === p.id || a.jobs[j.id].fallback === p.id) && !allowed(p, j.id, a.internal_only))
     if (dropped.length) return fail(400, 'privacy_rule', `This profile is assigned to ${dropped.map((j) => JOB_NAME[j.id]).join(', ')}, which send internal data, and the privacy rule only allows internal profiles. Unassign it there first or switch the rule off.`)
@@ -370,7 +370,7 @@ export const handlers = [
       const s = a.jobs[j.id]
       if (s.primary !== cur.id && s.fallback !== cur.id) return [j.id, s]
       cleared.push(j.id)
-      // hồ sơ chính bị xoá thì hồ sơ dự phòng lên làm chính
+      // when the primary profile is deleted, the fallback becomes the primary
       return [j.id, s.primary === cur.id ? { primary: s.fallback, fallback: null } : { primary: s.primary, fallback: null }]
     })) as AiAssign }))
     aiProfilesStore.update((l) => l.filter((p) => p.id !== cur.id))
@@ -433,7 +433,7 @@ export const handlers = [
     if (!aiAvailable('ask-my-data')) return notReady('ask-my-data')
     if (q.length < 3 || q.length > 500) return fail(400, 'invalid_question', 'The question must be 3 to 500 characters. For example: "Which machines still expose RDP?"')
     if (skillsView().find((k) => k.id === 'ask-my-data')?.enabled === false) return fail(409, 'skill_off', 'The "Ask your data" skill is turned off. Turn it on in Settings, AI assistant, Skills.')
-    // Hook trước khi gửi AI (S-AI-7): chặn/giữ thì không gọi AI, không tốn token; che thì câu hỏi đã che mới đi tiếp và mới được lưu.
+    // A hook before sending to the AI (S-AI-7): block/hold means no AI call and no tokens spent; mask means the masked question goes on and is the one stored.
     const defs = activeDefs()
     const pre = runHooks(q, 'before_ai', defs)
     const at = (step: AskHookHit['step'], hits: HookHit[], tool?: string): AskHookHit[] => hits.map((h) => ({ ...h, step, ...(tool ? { tool } : {}) }))
@@ -446,7 +446,7 @@ export const handlers = [
     }
     const sent = pre.text
     const ans = answerQuestion(sent)
-    // Hook trước khi gọi công cụ và sau khi AI trả lời
+    // A hook before calling a tool and after the AI answers
     ans.tool_calls = ans.tool_calls.map((tc) => {
       const r = runHooks(tc.args, 'before_tool', defs)
       hooks.push(...at('tool_call', r.hits, tc.tool))
@@ -462,7 +462,7 @@ export const handlers = [
     const uniqNames = [...new Set(hooks.map((h) => h.name))]
     const tools = ans.tool_calls.map((tc) => ({ name: tc.tool, access: 'read' as const, args: tc.args.slice(0, 120) }))
     const c = runJob('ask-my-data', tin, tout, sent.slice(0, 80), { hooks: uniqNames, tools, input: sent, output: ans.answer.join('\n'), summary: `Answered: ${sent.slice(0, 80)}`, result: stop || ans.tool_calls.some((tc) => /^(Blocked|Waiting for approval)/.test(tc.result)) ? 'blocked_by_hook' : undefined }); if (c.error) return c.error
-    // Memory được dùng thì ghi lần dùng cuối
+    // When a memory is used, record its last use
     const words = new Set(sent.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => w.length >= 5))
     memoryStore.update((l) => l.map((m) => (m.enabled && m.text.toLowerCase().split(/[^a-z0-9-]+/).some((w) => words.has(w)) ? { ...m, last_used_at: nowIso() } : m)))
     const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message && x.step === h.step && x.tool === h.tool) === i)
@@ -536,7 +536,7 @@ export const handlers = [
     }
     const [i, o] = DIGEST_TOKENS[tier0]
     const c = runJob('log-digest', i, o, `tier ${tier0}`, { input: `digest tier ${tier0}`, output: JSON.stringify(buildDigest(tier0)), summary: 'Log digest regenerated', tools: [{ name: 'query_logs', access: 'read', args: `tier=${tier0}` }] }); if (c.error) return c.error
-    const t = aiConfigStore.get().tier // có thể vừa bị hạ mức
+    const t = aiConfigStore.get().tier // may have just been lowered
     const d: LogDigest = { ...buildDigest(t), generated_at: nowIso(), model: c.profile!.model, profile: c.profile!.name, tokens: { input: i, output: o } }
     digests.update((m) => ({ ...m, [t]: d }))
     // memory suggestions (S-AI-7): only while allowed, never the same text twice; the stored digest reads back 0

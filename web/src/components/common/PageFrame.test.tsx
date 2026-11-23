@@ -144,10 +144,10 @@ describe('KpiStrip', () => {
   })
 })
 
-// một kiểu cho cả ứng dụng: module không tự dựng hàng tab; mọi tab của trang đi qua PageTabs (?tab=, cùng hình, cùng bàn phím).
+// one style for the whole app: a module does not build its own tab row; every tab of a page goes through PageTabs (?tab=, same look, same keyboard).
 describe('one style gate', () => {
   const sources = import.meta.glob<string>('../../features/**/*.tsx', { query: '?raw', import: 'default', eager: true })
-  // Ngoại lệ: một bộ chuyển nhỏ bên trong một khối (không phải các phần của trang), ví dụ xem trước tin theo từng kênh.
+  // Exception: a small switcher inside a block (not the parts of a page), for example a per-channel message preview.
   const INNER = ['../../features/notify/IncidentDetailPage.tsx']
   it('no feature page imports the raw tab primitives; pages use PageTabs', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(50)

@@ -445,7 +445,7 @@ func TestSelfUpdate_NoNetworkInTheSelfUpdatePath(t *testing.T) {
 	}
 }
 
-// Adoption at Start (spec 6.14 "Nhận bản đầu") keeps two packages; GET /v1/state/host shows them.
+// Adoption at Start (spec 6.14 adopting the first package) keeps two packages; GET /v1/state/host shows them.
 func TestSelfUpdate_StartAdoptsTheKeptPackageAndKeepsTwo(t *testing.T) {
 	t.Parallel()
 	e := startSU(t, suFrom) // adopts 1.3.0 (no versions.json yet)

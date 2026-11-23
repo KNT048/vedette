@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// E2E chạy trên BẢN BUILD THẬT (vite preview) với mock API trong service worker — đúng thứ người dùng mở.
+// E2E runs against the REAL BUILD (vite preview) with a mock API in a service worker: exactly what the user opens.
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,

@@ -39,7 +39,7 @@ const (
 	hostPackageFetch  = 15 * time.Minute // one package download, at most 256 MiB
 	maxHostPackage    = 256 << 20        // the host's limit on host.files[].size
 
-	// The host's clocks (host-api 6.14 "Thời hạn"): Run parks within 10 minutes, the run's deadline is 130 minutes after
+	// The host's clocks (host-api 6.14 time limits): Run parks within 10 minutes, the run's deadline is 130 minutes after
 	// the journal starts, and the host settles a parked run at the latest 15 minutes past it (its safety net); core
 	// waits 20 minutes past the deadline (host/ops coreWaitPastDeadline) before it calls the run stopped half way.
 	selfUpdatePrePark = 10 * time.Minute
@@ -49,7 +49,7 @@ const (
 	// End codes of the host step that core decides itself.
 	codeHostTooOld   = "host_too_old"         // the helper has no host.self_update (criterion (h))
 	codeHostDownload = "host_download_failed" // the package could not be downloaded
-	// codeSelfUpdateRollbackFailed is the host's audit and phase name of rollback_failed (host-api 6.14 "Kiểm toán").
+	// codeSelfUpdateRollbackFailed is the host's audit and phase name of rollback_failed (host-api 6.14 audit).
 	codeSelfUpdateRollbackFailed = "self_update_rollback_failed"
 )
 

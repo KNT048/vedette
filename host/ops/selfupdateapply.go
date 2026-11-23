@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The applier (spec 6.14 "Bộ áp"): vedette-host -self-update-apply <run_id>, run by systemd-run
+// The applier (spec 6.14 applier): vedette-host -self-update-apply <run_id>, run by systemd-run
 // as the transient unit vedette-host-upgrade.service, outside the host's cgroup, from the copy of the OLD binary
 // in <state>/selfupdate/applier. It opens no socket, takes no host.lock and never writes the audit chain (one
 // writer: the host); its phases and at most 50 log lines go to journal.json, everything else to journald. Every

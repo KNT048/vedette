@@ -1,4 +1,4 @@
-// Mã loại nguồn log (contract.ts dùng danh sách này làm enum). Nội dung hướng dẫn từng loại nằm ở catalog.ts.
+// Log source type codes (contract.ts uses this list as an enum). The guidance for each type is in catalog.ts.
 export const KIND_IDS = [
   'fortigate', 'sophos', 'paloalto', 'cisco-asa', 'cisco-ftd', 'cisco-ios', 'meraki', 'mikrotik', 'pfsense', 'opnsense', 'sonicwall', 'watchguard',
   'checkpoint', 'juniper-srx', 'huawei', 'draytek', 'ubiquiti', 'zyxel', 'omada',

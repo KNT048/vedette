@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-/** Chọn một trong vài giá trị (bộ lọc, cửa sổ thời gian). Dùng Tabs chỉ khi có nội dung tab thật. */
+/** Choose one of a few values (a filter, a time window). Use Tabs only when there is real tab content. */
 export function Segmented<T extends string>({ value, onChange, options, label, className }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; label: string; className?: string }) {
   return (
     <div role="group" aria-label={label} className={cn('inline-flex max-w-full flex-wrap rounded-md border border-rule bg-surface p-0.5', className)}>

@@ -4,9 +4,9 @@ summary: { en: "Sends alerts, vulnerability notices and approval requests to Tel
 tier: standard
 default: true
 depends: [core]
-permissions: [outbound:https, outbound:smtp]   # Telegram/Slack/Zalo/webhook qua HTTPS; email qua SMTP của khách
-ports: []        # Slack Socket Mode và Telegram long polling chỉ mở kết nối RA
+permissions: [outbound:https, outbound:smtp]   # Telegram/Slack/Zalo/webhook over HTTPS; email over the customer's SMTP
+ports: []        # Slack Socket Mode and Telegram long polling only open OUTGOING connections
 container: core
 tables_prefix: notify_
-stories: [S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2]   # MODULES.md ghi S-ALERT-1..2 (S-ALERT-2 đã rớt)
+stories: [S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2]   # MODULES.md lists S-ALERT-1..2 (S-ALERT-2 was dropped)
 milestone: M2

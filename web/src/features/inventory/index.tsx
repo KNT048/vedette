@@ -5,8 +5,8 @@ import { Loading } from '@/components/common/States'
 
 const DeclaredSoftware = lazy(() => import('./DeclaredSoftwareSection'))
 
-// Module inventory (S-INV-1..4): danh sách thiết bị (Devices, To review), chi tiết, Add a device, phạm vi và cảm biến, agent;
-// Settings › Declared software (#849): sản phẩm khai mà không có thiết bị.
+// The inventory module (S-INV-1..4): the device list (Devices, To review), detail, Add a device, scope and sensors, agents;
+// Settings › Declared software (#849): products declared without a device.
 export const feature: Feature = {
   id: 'inventory',
   routes: [

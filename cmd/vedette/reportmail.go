@@ -67,9 +67,7 @@ func reportVerification(v reports.Verification) string {
 		}
 		return "Confirmed by a person"
 	}
-	if v.Basis == "" {
-		return "Not confirmed yet"
-	}
+	// findings' own words: a basis that is empty or unknown is read as a scan banner, as the finding's view (and so every screen) reads it
 	return "Not confirmed yet: based on " + findings.BasisWords(findings.DetectionBasis(v.Basis))
 }
 

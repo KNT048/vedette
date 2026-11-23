@@ -196,3 +196,24 @@ func TestReportListedFixIsTheBlockRelease(t *testing.T) {
 		t.Fatalf("listed fix %+v", got)
 	}
 }
+
+// The report mail's verification line is findings' wording, also for a finding whose basis is empty or unknown: the finding's view
+// reads that as a scan banner, so every screen says "based on a scan banner" and the mail says the same.
+func TestReportVerificationLineIsTheScreensWording(t *testing.T) {
+	t.Parallel()
+	by := "ana@example.com"
+	for _, c := range []struct {
+		v    reports.Verification
+		want string
+	}{
+		{reports.Verification{Verified: "no"}, "Not confirmed yet: based on a scan banner"},
+		{reports.Verification{Verified: "no", Basis: "something_new"}, "Not confirmed yet: based on a scan banner"},
+		{reports.Verification{Verified: "no", Basis: "statement"}, "Not confirmed yet: based on a version someone entered"},
+		{reports.Verification{Verified: "person", By: &by}, "Confirmed by ana@example.com"},
+		{reports.Verification{Verified: "scan"}, "Confirmed by a safe check"},
+	} {
+		if got := reportVerification(c.v); got != c.want {
+			t.Errorf("reportVerification(%+v) = %q, want %q", c.v, got, c.want)
+		}
+	}
+}

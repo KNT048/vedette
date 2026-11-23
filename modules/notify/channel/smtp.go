@@ -387,7 +387,7 @@ func buildMIME(from string, to []string, m Message, link string, now time.Time) 
 	}
 	// A document (the periodic report): the same content as plain text and as HTML, the text first (RFC 2046: the last part is the
 	// richest the reader can show).
-	text, page, _ := m.Doc.render(link)
+	text, page := m.Doc.fit(link)
 	boundary := "vedette-" + hex.EncodeToString(id[:])
 	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	b.WriteString("\r\nThis is a message in MIME format.\r\n")

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -296,7 +297,7 @@ func (b Batch) Message() (channel.Message, error) {
 		if change != "" {
 			line += ": " + change
 		}
-		if why := findingLine(n); why != "" {
+		if why := findingLine(n, channel.MaxItemRunes-utf8.RuneCountInString(line)-3); why != "" {
 			line += " — " + why
 		}
 		items = append(items, line)
@@ -345,18 +346,32 @@ func (b Batch) Message() (channel.Message, error) {
 }
 
 // findingLine is what a digest line says of its finding after the CVE and the device, as the finding page says it: the reasons line
-// (which starts with the status), or the status when there is no reason, then the verification line.
-func findingLine(n Notice) string {
-	var parts []string
-	if r := strings.TrimSpace(n.Reasons); r != "" {
-		parts = append(parts, r)
-	} else if st := strings.TrimSpace(n.Status); st != "" {
-		parts = append(parts, st)
+// (which starts with the status), or the status when there is no reason, then the verification line, in at most room runes. A line
+// longer than a channel keeps is cut in the reasons, never in the verification line: the reasons are shortened with "…", or left out
+// when the verification line alone fills the room.
+func findingLine(n Notice, room int) string {
+	why := strings.TrimSpace(n.Reasons)
+	if why == "" {
+		why = strings.TrimSpace(n.Status)
 	}
-	if v := strings.TrimSpace(n.Verification); v != "" {
-		parts = append(parts, v)
+	v := strings.TrimSpace(n.Verification)
+	join := func(a, b string) string {
+		if a == "" || b == "" {
+			return a + b
+		}
+		return a + " · " + b
 	}
-	return strings.Join(parts, " · ")
+	if line := join(why, v); utf8.RuneCountInString(line) <= room || room <= 0 {
+		return line
+	}
+	left := room - utf8.RuneCountInString(v) - len(" · ")
+	if v == "" {
+		left = room
+	}
+	if left < 12 { // no useful part of the reasons fits: the verification line alone
+		return string([]rune(v)[:min(utf8.RuneCountInString(v), max(room, 0))])
+	}
+	return join(string([]rune(why)[:left-1])+"…", v)
 }
 
 // deviceRefs pairs device names with their ids (ids may be missing).

@@ -63,7 +63,7 @@ Build priority: P2 → P1 → P3 → P4. P2 is the person who will **install and
 - Reads logs for you at 3 cost levels; a token gauge and a daily cap. (S-AI-4)
 - A one-page weekly report; a safety assessment report under the Personal Data Protection Law. (S-REP-1, S-REP-2)
 
-**Mô hình**
+**Model**
 - Open source, free forever (Apache-2.0). Install it yourself or hire someone to deploy/operate it.
 - Your data stays where you are: inventory, logs and AI keys never leave the device. The only thing sent out is an **anonymous signal** (the number of times a trap was touched, the number of connections to IOCs, counts by device type) so the hot board can have a Vietnam column; this is stated in `PRIVACY.md` and can be turned off with one click. (S-CORE-4)
 - Any x86 machine (4 cores, 8 GB), not in the network path, can be taken out at any time.
@@ -98,6 +98,6 @@ All from **one** codebase, modules switched on/off, no separate branches. Sensor
 
 Do not say: "the first exploitation feed", "the first AI EASM".
 
-## 8. Tên
+## 8. Name
 
 **Vedette** (chosen 2026-11-06). Checked: there is no security product/repo with the same name. Avoid: Exploit Shield, KEV Watch, PatchWatch, the word "Shield" (CyRadar Internet Shield in VN). Vietnamese tagline: *Know early. Know clearly. Know what to do.*

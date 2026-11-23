@@ -26,7 +26,7 @@ Everything related to law, licences and cookies must be clear, transparent and c
 - There is no mode that scans an IP outside the scope; there are no exploit templates (`-exclude-tags dos,intrusive,fuzz`).
 - The honeypot only listens, does not counter-attack, and does not interact with outside systems.
 
-## 4. Cookie và web
+## 4. Cookies and web
 
 - The Vedette SPA uses **three cookies, all the box's own and needed for sign-in**: the session cookie (`__Host-vedette_session`, HttpOnly, Secure, SameSite=Strict), the CSRF cookie (`__Host-vedette_csrf`, readable by the SPA) and the trusted-device cookie (`__Secure-vedette_device`, HttpOnly, sent only to the sign-in endpoints), and `localStorage` for UI preferences (language, theme). No tracking cookies, no third-party analytics, no external fonts/CDN (fonts are embedded). Because there are only necessary cookies, no banner is needed; it is still stated in `PRIVACY.md` §4 and on the Settings → Privacy page.
 - ~~A public static site (the hot board on Cloudflare Pages)~~: dropped: the project runs no server outside GitHub.

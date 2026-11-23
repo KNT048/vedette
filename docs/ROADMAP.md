@@ -24,7 +24,7 @@ The milestone table above does not record status; this is the situation by work 
 | Milestone | Status | Detail |
 |---|---|---|
 | M0 | dropped | none |
-| M1 GUI | **xong** (2026-11-09, trên mock API) | WP-06 xong (#26) |
+| M1 GUI | **done** (2026-11-09, on the mock API) | done (#26) |
 | M2 Core + Feed + Notifications | **nearly done, being connected** | The critical path is done (#58); `feeds` has a real backend and UI (#46, #80); `notify` has channels, Incidents, vulnerability notices (#60, #120); `inventory` is done. The host helper is **done** (#140, #148, #163); health check (#144), self-reissuing TLS certificate, fast CI (#147). Remaining: packaging/release not done yet (waiting for the release key and a lab VM) |
 | M3 Inventory + Mitigation | **main backend done** | `sensor-passive`, `sensor-active` and the mTLS sensor protocol are done; `mitigation` + `findings` (#44) merged. Two further sensor-protocol steps are done (#151, #158); not done: the remaining sensor-protocol steps (one in progress) |
 | M4 External surface + Scanning | **in progress** | `exposure` + the self-detected IP (#91) done; `scan` has finished four slices (#127, #131, #138, #154), the next is #164, open; on the sensor side the protocol step in #151 is done |

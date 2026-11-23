@@ -272,7 +272,7 @@ func (t *transition) gone(tr Trigger) error {
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
 	}
-	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) && !(f.Verified == VerifiedPerson && tr.Corrected) {
+	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) && (f.Verified != VerifiedPerson || !tr.Corrected) {
 		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed; a newer
 		// reading of the device does (version_moved, removed), and a person's "not installed" or version correction
 		return nil

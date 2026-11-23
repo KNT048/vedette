@@ -258,9 +258,13 @@ func buildDocument(in docInput) Document {
 		}
 		r := row{f: f, h: historyOf(f, from, to)}
 		// "Include not relevant" off: a finding Vedette or a person found not relevant in the period counts nowhere (it was never a
-		// real flaw), so the summary's arithmetic stays whole.
+		// real flaw), so the summary's arithmetic stays whole. One detected again since is open at the end: it stays, without that
+		// handling.
 		if !o.IncludeNotRelevant && r.h.handled != nil && r.h.handled.Resolution == "not_relevant" {
-			continue
+			if !r.h.openAtTo {
+				continue
+			}
+			r.h.handled = nil
 		}
 		if r.h.openAtFrom {
 			before++

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.json")
@@ -189,5 +190,23 @@ func TestHistoryOfAFindingHandledTwice(t *testing.T) {
 	h = historyOf(f, at("2026-11-04T10:00:00Z"), t0)
 	if !h.openAtFrom || h.openAtTo || h.handled == nil {
 		t.Fatalf("history without events = %+v", h)
+	}
+}
+
+// A match Vedette corrected (not relevant) and then detected again in the period is open at its end: with "include not relevant"
+// off it is still listed as open and counted, only its not-relevant handling is left out of Handled.
+func TestDocumentReopenedAfterACorrectionStaysOpen(t *testing.T) {
+	t.Parallel()
+	f := FindingView{ID: "f-flap", CVE: "CVE-2024-0001", Device: devWeb, Product: "OpenSSH", Status: "exploited", Urgency: 2, Severity: sev("high", 8.1),
+		Verification: byBanner, Fix: fix("update", "OpenSSH", "9.8"), FirstSeen: at("2026-10-01T09:00:00Z"),
+		Events: []FindingEvent{created("2026-10-01T09:00:00Z"),
+			handledEv("2026-11-06T09:00:00Z", "not_relevant", "data_corrected", "system", nil, nil, nil, nil),
+			{At: at("2026-11-08T09:00:00Z"), Kind: "reopened"}}}
+	doc := buildDocument(docInput{def: defaultDefinition(), now: t0, loc: time.UTC, findings: []FindingView{f}})
+	if doc.Open.Total != 1 || doc.Summary.OpenNow != 1 || doc.Summary.OpenBefore != 1 {
+		t.Fatalf("a finding open at the end of the period is missing: open %+v, summary %+v", doc.Open, doc.Summary)
+	}
+	if doc.Summary.Handled != 0 || len(doc.Handled.Devices) != 0 {
+		t.Fatalf("a not-relevant handling is listed with include not relevant off: %+v", doc.Handled)
 	}
 }

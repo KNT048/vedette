@@ -10,5 +10,3 @@ import type { Connector } from '@/features/core/types'
 
 export const connectorsStore = collection<Connector[]>('core_connections', seedConnectors, () => [])
 
-/** Enabled write tools on enabled connections (what the response module may propose). */
-export const writeTools = () => connectorsStore.get().filter((c) => c.enabled).flatMap((c) => c.tools.filter((t) => t.enabled && t.access === 'write').map((t) => ({ connector: c, tool: t })))

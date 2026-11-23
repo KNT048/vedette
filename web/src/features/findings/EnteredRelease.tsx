@@ -38,10 +38,6 @@ export function enteredResult(items: FindingRow[], rowIds: readonly string[], en
   }
 }
 
-/** The device's findings now, before a save, to tell later what the re-match changed; null when they cannot be read. */
-export const readDeviceFindings = (assetId: string) =>
-  api.get<{ items: FindingRow[] }>(`/findings?asset=${encodeURIComponent(assetId)}`).then((d) => d.items, () => null)
-
 /** One software line of the device as inventory gives it (the device's lines, DeviceDetail.asset.software): its id and the ids its
  *  other readings name. */
 type LineIds = Pick<SoftwareLine, 'id' | 'vendor' | 'product'> & { also_seen: { id: string }[] }

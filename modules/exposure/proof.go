@@ -54,9 +54,6 @@ const maxProofLevels = 8
 // x.example.ddns.net); ok is false when name is a public suffix or not under any.
 func registered(name string) (string, bool) { return proofat.Registered(name) }
 
-// IsPublicSuffix says whether name is itself a public suffix of the list (co.uk, ddns.net, github.io): never a target.
-func IsPublicSuffix(name string) bool { return proofat.IsPublicSuffix(name) }
-
 // under says whether name is parent or a name under it.
 func under(name, parent string) bool { return name == parent || strings.HasSuffix(name, "."+parent) }
 

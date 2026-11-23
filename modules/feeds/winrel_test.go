@@ -1,6 +1,11 @@
 package feeds
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -298,4 +303,40 @@ func day(t *testing.T, s string) time.Time {
 		t.Fatal(err)
 	}
 	return d
+}
+
+// A read of the Windows releases cut short by the end of its context (the box stopping while a pull or the first request runs) is
+// not an error in the log; the same read failing with the context alive is.
+func TestLearnWindowsReleases_StopIsNotAnError(t *testing.T) {
+	t.Cleanup(func() { winrel.Learn(nil); winrel.LearnUpdates(nil) })
+	e := newEnv(t)
+	var buf bytes.Buffer
+	e.svc.Log = slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	levels := func() []string {
+		var out []string
+		for line := range strings.SplitSeq(strings.TrimSpace(buf.String()), "\n") {
+			var r struct{ Level, Msg string }
+			if err := json.Unmarshal([]byte(line), &r); err != nil {
+				t.Fatalf("log line %q: %v", line, err)
+			}
+			out = append(out, r.Level+" "+r.Msg)
+		}
+		buf.Reset()
+		return out
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	e.svc.learnWindowsReleases(ctx)
+	if got := levels(); !slices.Equal(got, []string{"DEBUG reading the Windows releases failed"}) {
+		t.Fatalf("after a stop the log has %q, want one debug line", got)
+	}
+
+	if err := e.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.learnWindowsReleases(t.Context())
+	if got := levels(); !slices.Equal(got, []string{"ERROR reading the Windows releases failed"}) {
+		t.Fatalf("with the database gone the log has %q, want one error line", got)
+	}
 }

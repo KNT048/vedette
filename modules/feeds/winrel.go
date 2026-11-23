@@ -402,3 +402,11 @@ func (s *Service) LearnWindowsReleases(ctx context.Context) error {
 	winrel.LearnUpdates(ups)
 	return nil
 }
+
+// learnWindowsReleases is LearnWindowsReleases for the callers that go on without the list: a failure is logged, and a read cut short
+// because the caller's context ended (shutdown, the module turned off) is not a failure.
+func (s *Service) learnWindowsReleases(ctx context.Context) {
+	if err := s.LearnWindowsReleases(ctx); err != nil {
+		s.Log.Log(ctx, failLevel(ctx), "reading the Windows releases failed", "error", err)
+	}
+}

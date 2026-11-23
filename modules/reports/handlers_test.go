@@ -2,6 +2,7 @@ package reports
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -76,22 +77,22 @@ const orgBody = `{"name":"Acme Ltd","tax_code":"0312345678","address":"1 Main St
 func TestContract_Roles(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	e.saveSchedule(false, "a@acme.example")
+	e.saveRecipients("a@acme.example")
+	def := `{"name":"Security report","options":{"period":"last_7_days","grouping":"device","include_not_added":true,"include_not_relevant":false,"sections":{"summary":true,"handled":true,"open":true,"new":true,"exposure":true,"detections":true,"coverage":true},"charts":true},"recipients":["a@acme.example"]}`
 	cases := []struct{ method, path, body, min string }{
-		{"GET", "/reports/weekly/preview", "", "viewer"},
-		{"GET", "/reports/schedule", "", "viewer"},
-		{"GET", "/reports/weekly/history", "", "viewer"},
-		{"GET", "/reports/weekly/history/none", "", "viewer"},
+		{"GET", "/reports/definition", "", "viewer"},
+		{"GET", "/reports/document", "", "viewer"},
+		{"GET", "/reports/history", "", "viewer"},
+		{"GET", "/reports/history/none", "", "viewer"},
 		{"GET", "/reports/pdpl", "", "viewer"},
-		{"POST", "/reports/weekly/ai-summary", "", "operator"},
-		{"POST", "/reports/weekly/send", "", "operator"},
+		{"POST", "/reports/send", "", "operator"},
 		{"PUT", "/reports/pdpl/org", orgBody, "operator"},
 		{"POST", "/reports/pdpl/generate", "", "operator"},
 		{"POST", "/reports/pdpl/ai-summary", "", "operator"},
-		{"PUT", "/reports/schedule", `{"enabled":false,"day":1,"hour":8,"recipients":[]}`, "admin"},
+		{"PUT", "/reports/definition", def, "admin"},
 	}
 	rank := map[string]int{"viewer": 0, "operator": 1, "admin": 2}
-	if code, _ := e.call("GET", "/reports/schedule", "", ""); code != 401 {
+	if code, _ := e.call("GET", "/reports/definition", "", ""); code != 401 {
 		t.Fatalf("no session: %d", code)
 	}
 	for _, c := range cases {
@@ -112,97 +113,203 @@ func TestHandlers_ModuleOffIs404(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	e.gate.Set(ModuleID, false)
-	for _, p := range [][2]string{{"GET", "/reports/weekly/preview"}, {"POST", "/reports/weekly/send"}, {"GET", "/reports/pdpl"}} {
+	for _, p := range [][2]string{{"GET", "/reports/document"}, {"POST", "/reports/send"}, {"GET", "/reports/pdpl"}} {
 		if code, _ := e.call(p[0], p[1], "admin", ""); code != 404 {
 			t.Errorf("%s %s with the module off: %d", p[0], p[1], code)
 		}
 	}
 	e.gate.Set(ModuleID, true)
-	if code, _ := e.call("GET", "/reports/weekly/preview", "admin", ""); code != 200 {
+	if code, _ := e.call("GET", "/reports/document", "admin", ""); code != 200 {
 		t.Fatal(code)
 	}
 }
 
-// The generated decoder checks every response against the OpenAPI schema; these calls prove each body fits it.
-func TestHandlers_ResponsesFitTheSchema(t *testing.T) {
+func list(b map[string]any, key string) []any {
+	l, _ := b[key].([]any)
+	return l
+}
+
+func obj(v any) map[string]any {
+	m, _ := v.(map[string]any)
+	return m
+}
+
+// The web contract's conformance script (web/src/features/reports/conformance.test.ts), replayed against the real handlers. Every
+// answer goes through the generated encoder, which refuses a body that does not fit the API schema, so each 2xx here is also a check
+// of contract.ts.
+func TestConformance_TheRealBackendAnswersTheWebContract(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	code, b := e.call("GET", "/reports/weekly/preview", "viewer", "")
-	rep, _ := b["report"].(map[string]any)
-	if code != 200 || rep == nil || b["ai_available"] != true {
-		t.Fatalf("preview: %d %v", code, b)
+
+	// reads the definition and its schedule key, and only an admin saves it
+	code, b := e.call("GET", "/reports/definition", "viewer", "")
+	if code != 200 || b["schedule_key"] != "reports.def:"+b["id"].(string) {
+		t.Fatalf("definition: %d %v", code, b)
 	}
-	if c, _ := rep["counts"].(map[string]any); c["new_findings"] != float64(1) {
-		t.Fatalf("counts = %v", c)
+	opts, _ := json.Marshal(b["options"])
+	body := func(name, options, recipients string) string {
+		return fmt.Sprintf(`{"name":%q,"options":%s,"recipients":%s}`, name, options, recipients)
 	}
-	if code, b = e.call("GET", "/reports/schedule", "viewer", ""); code != 200 || b["next_run"] != nil {
-		t.Fatalf("schedule: %d %v", code, b)
+	if code, b = e.call("PUT", "/reports/definition", "operator", body("Security report", string(opts), `[]`)); code != 403 || errCode(b) != "forbidden" {
+		t.Fatalf("operator saves: %d %v", code, b)
 	}
-	if code, b = e.call("PUT", "/reports/schedule", "admin", `{"enabled":true,"day":1,"hour":8,"recipients":["A@acme.example"]}`); code != 200 || b["next_run"] == nil {
-		t.Fatalf("save schedule: %d %v", code, b)
+	code, b = e.call("PUT", "/reports/definition", "admin", body("Security report", string(opts), `[" Boss@Example.com ","boss@example.com"]`))
+	if code != 200 || fmt.Sprint(b["recipients"]) != "[boss@example.com]" {
+		t.Fatalf("admin saves: %d %v", code, b)
 	}
-	if code, b = e.call("POST", "/reports/weekly/send", "operator", ""); code != 200 || b["status"] != "sent" || b["trigger"] != "manual" {
+
+	// refuses a definition that is not valid and names the field (an enum outside the schema is refused by the decoder itself)
+	noSections := strings.NewReplacer(`"summary":true`, `"summary":false`, `"handled":true`, `"handled":false`, `"open":true`, `"open":false`, `"new":true`, `"new":false`,
+		`"exposure":true`, `"exposure":false`, `"detections":true`, `"detections":false`, `"coverage":true`, `"coverage":false`).Replace(string(opts))
+	for _, c := range []struct{ body, code, field string }{
+		{body(" ", string(opts), `[]`), "invalid_name", "name"},
+		{body("R", strings.Replace(string(opts), `"last_7_days"`, `"yearly"`, 1), `[]`), "invalid", "options.period"},
+		{body("R", strings.Replace(string(opts), `"device"`, `"site"`, 1), `[]`), "invalid", "options.grouping"},
+		{body("R", noSections, `[]`), "no_sections", "options.sections"},
+		{body("R", string(opts), `["ok@example.com","not-an-email"]`), "invalid_email", "recipients[1]"},
+	} {
+		code, b := e.call("PUT", "/reports/definition", "admin", c.body)
+		if er := obj(b["error"]); code != 400 || er["code"] != c.code || er["field"] != c.field {
+			t.Errorf("%s: %d %v", c.code, code, b)
+		}
+	}
+	if code, _ := e.call("PUT", "/reports/definition", "admin", body("R", string(opts), `[]`)[:len(body("R", string(opts), `[]`))-1]+`,"cc":[]}`); code != 400 {
+		t.Fatalf("an unknown field is refused: %d", code)
+	}
+
+	// makes the document with the saved options: sections, devices not added yet, not relevant, grouping
+	code, doc := e.call("GET", "/reports/document", "viewer", "")
+	if code != 200 {
+		t.Fatalf("document: %d %v", code, doc)
+	}
+	for _, k := range []string{"summary", "handled", "open", "new", "exposure", "detections", "coverage"} {
+		if doc[k] == nil {
+			t.Fatalf("section %s missing: %v", k, doc)
+		}
+	}
+	var winrar map[string]any
+	notRelevant, notAdded := false, false
+	for _, d := range list(obj(doc["handled"]), "devices") {
+		for _, it := range list(obj(d), "items") {
+			h := obj(obj(it)["handled"])
+			if obj(it)["product"] == "WinRAR" {
+				winrar = h
+			}
+			notRelevant = notRelevant || h["resolution"] == "not_relevant"
+		}
+	}
+	if winrar == nil || winrar["resolution"] != "patched" || winrar["via"] != "version_moved" || winrar["by"] != "system" || winrar["from_version"] != "6.24" || winrar["to_version"] != "7.23" {
+		t.Fatalf("WinRAR = %v", winrar)
+	}
+	for _, g := range list(obj(doc["open"]), "groups") {
+		for _, f := range list(obj(g), "items") {
+			notAdded = notAdded || obj(obj(f)["device"])["added"] == false
+		}
+	}
+	if notRelevant || !notAdded || len(list(obj(doc["summary"]), "first")) > 3 {
+		t.Fatalf("defaults: not relevant %v, not added %v", notRelevant, notAdded)
+	}
+	narrow := strings.NewReplacer(`"grouping":"device"`, `"grouping":"cve"`, `"include_not_added":true`, `"include_not_added":false`,
+		`"include_not_relevant":false`, `"include_not_relevant":true`, `"exposure":true`, `"exposure":false`, `"coverage":true`, `"coverage":false`).Replace(string(opts))
+	if code, b = e.call("PUT", "/reports/definition", "admin", body("Security report", narrow, `["boss@example.com"]`)); code != 200 {
+		t.Fatalf("narrow: %d %v", code, b)
+	}
+	_, doc = e.call("GET", "/reports/document", "viewer", "")
+	if doc["exposure"] != nil || doc["coverage"] != nil || obj(doc["open"])["grouping"] != "cve" {
+		t.Fatalf("narrow document: %v", doc)
+	}
+	for _, g := range list(obj(doc["open"]), "groups") {
+		if !strings.HasPrefix(obj(g)["key"].(string), "CVE-") {
+			t.Fatalf("group %v", g)
+		}
+	}
+
+	// sends to the saved recipients and keeps the document exactly as sent
+	if code, _ = e.call("POST", "/reports/send", "viewer", ""); code != 403 {
+		t.Fatalf("viewer sends: %d", code)
+	}
+	code, b = e.call("POST", "/reports/send", "operator", "")
+	if code != 200 || b["trigger"] != "manual" || b["status"] != "sent" || b["sent_by"] == nil {
 		t.Fatalf("send: %d %v", code, b)
 	}
-	id, _ := b["id"].(string)
-	if code, b = e.call("GET", "/reports/weekly/history", "viewer", ""); code != 200 || len(b["items"].([]any)) != 1 {
+	id := b["id"].(string)
+	if code, b = e.call("GET", "/reports/history", "viewer", ""); code != 200 || obj(list(b, "items")[0])["id"] != id {
 		t.Fatalf("history: %d %v", code, b)
 	}
-	if code, b = e.call("GET", "/reports/weekly/history/"+id, "viewer", ""); code != 200 || b["report"] == nil {
-		t.Fatalf("history entry: %d %v", code, b)
+	_, kept := e.call("GET", "/reports/history/"+id, "viewer", "")
+	before, _ := json.Marshal(kept["document"])
+	if code, b = e.call("PUT", "/reports/definition", "admin", body("Security report", strings.Replace(narrow, `"last_7_days"`, `"last_30_days"`, 1), `["boss@example.com"]`)); code != 200 {
+		t.Fatalf("save: %d %v", code, b)
 	}
-	if code, b = e.call("GET", "/reports/weekly/history/missing", "viewer", ""); code != 404 || errCode(b) != "not_found" {
-		t.Fatalf("missing entry: %d %v", code, b)
+	_, again := e.call("GET", "/reports/history/"+id, "viewer", "")
+	after, _ := json.Marshal(again["document"])
+	if string(before) != string(after) || obj(obj(again["document"])["period"])["kind"] != "last_7_days" {
+		t.Fatalf("the sent document changed")
 	}
-	if code, b = e.call("POST", "/reports/weekly/ai-summary", "operator", ""); code != 200 || b["model"] != "m" || b["profile"] != "p" {
-		t.Fatalf("weekly ai: %d %v", code, b)
+	if code, b = e.call("GET", "/reports/history/nope", "viewer", ""); code != 404 || errCode(b) != "not_found" {
+		t.Fatalf("missing: %d %v", code, b)
 	}
-	if code, b = e.call("GET", "/reports/pdpl", "viewer", ""); code != 200 || b["org"] != nil || b["report"] != nil {
+
+	// refuses to send with no recipient
+	if code, _ = e.call("PUT", "/reports/definition", "admin", body("Security report", string(opts), `[]`)); code != 200 {
+		t.Fatal(code)
+	}
+	if code, b = e.call("POST", "/reports/send", "operator", ""); code != 400 || errCode(b) != "no_recipients" {
+		t.Fatalf("no recipient: %d %v", code, b)
+	}
+	e.saveRecipients("a@acme.example")
+	e.mail.ready = false
+	if code, b = e.call("POST", "/reports/send", "operator", ""); code != 409 || errCode(b) != "email_not_ready" {
+		t.Fatalf("email not ready: %d %v", code, b)
+	}
+}
+
+// A clean install answers every read with a valid, empty report: no finding, no target, nothing sent.
+func TestConformance_CleanInstall(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	e.inv.devs, e.views.vs, e.exp.ts, e.det.counts, e.det.top, e.feeds.hs = nil, nil, nil, nil, nil, nil
+	code, doc := e.call("GET", "/reports/document", "viewer", "")
+	if code != 200 || obj(doc["summary"])["open_now"] != float64(0) || len(list(obj(doc["exposure"]), "targets")) != 0 {
+		t.Fatalf("clean document: %d %v", code, doc)
+	}
+	if code, b := e.call("GET", "/reports/history", "viewer", ""); code != 200 || len(list(b, "items")) != 0 {
+		t.Fatalf("clean history: %d %v", code, b)
+	}
+	e.mods["exposure"], e.mods["notify"] = false, false
+	_, doc = e.call("GET", "/reports/document", "viewer", "")
+	if obj(doc["exposure"])["module_on"] != false || obj(doc["detections"])["module_on"] != false {
+		t.Fatalf("modules off: %v %v", doc["exposure"], doc["detections"])
+	}
+}
+
+func TestHandlers_Pdpl(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	code, b := e.call("GET", "/reports/pdpl", "viewer", "")
+	if code != 200 || b["org"] != nil || b["report"] != nil {
 		t.Fatalf("pdpl clean: %d %v", code, b)
 	}
 	if code, b = e.call("POST", "/reports/pdpl/generate", "operator", ""); code != 409 || errCode(b) != "org_required" {
 		t.Fatalf("generate without org: %d %v", code, b)
 	}
+	if code, b = e.call("PUT", "/reports/pdpl/org", "operator", strings.Replace(orgBody, `"tax_code":"0312345678"`, `"tax_code":"x"`, 1)); code != 400 || errCode(b) != "invalid_tax_code" {
+		t.Fatalf("bad tax code: %d %v", code, b)
+	}
 	if code, b = e.call("PUT", "/reports/pdpl/org", "operator", orgBody); code != 200 || b["name"] != "Acme Ltd" {
 		t.Fatalf("save org: %d %v", code, b)
 	}
-	if code, b = e.call("POST", "/reports/pdpl/generate", "operator", ""); code != 200 || len(b["measures"].([]any)) != 9 || len(b["obligations"].([]any)) != 7 {
+	if code, b = e.call("POST", "/reports/pdpl/generate", "operator", ""); code != 200 || len(list(b, "measures")) != 9 || len(list(b, "obligations")) != 7 {
 		t.Fatalf("generate: %d %v", code, b)
 	}
 	if code, b = e.call("POST", "/reports/pdpl/ai-summary", "operator", ""); code != 200 {
 		t.Fatalf("pdpl ai: %d %v", code, b)
 	}
-	if code, b = e.call("GET", "/reports/pdpl", "viewer", ""); code != 200 || b["report"].(map[string]any)["ai_summary"] == nil || b["defaults"].(map[string]any)["name"] != "Acme Ltd" {
+	if code, b = e.call("GET", "/reports/pdpl", "viewer", ""); code != 200 || obj(b["report"])["ai_summary"] == nil || obj(b["defaults"])["name"] != "Acme Ltd" {
 		t.Fatalf("pdpl full: %d %v", code, b)
 	}
-}
-
-func TestHandlers_Errors(t *testing.T) {
-	t.Parallel()
-	e := newHTTPEnv(t)
-	if code, b := e.call("POST", "/reports/weekly/send", "operator", ""); code != 400 || errCode(b) != "no_recipients" {
-		t.Fatalf("send without recipients: %d %v", code, b)
-	}
-	e.saveSchedule(false, "a@acme.example")
-	e.mail.ready = false
-	if code, b := e.call("POST", "/reports/weekly/send", "operator", ""); code != 409 || errCode(b) != "email_not_ready" {
-		t.Fatalf("send with email not ready: %d %v", code, b)
-	}
-	if code, b := e.call("PUT", "/reports/schedule", "admin", `{"enabled":true,"day":1,"hour":8,"recipients":[]}`); code != 400 || errCode(b) != "no_recipients" {
-		t.Fatalf("on without recipients: %d %v", code, b)
-	}
-	if code, b := e.call("PUT", "/reports/schedule", "admin", `{"enabled":false,"day":1,"hour":8,"recipients":["bad"]}`); code != 400 || errCode(b) != "invalid_email" {
-		t.Fatalf("bad email: %d %v", code, b)
-	}
 	e.ai.on = false
-	if code, b := e.call("POST", "/reports/weekly/ai-summary", "operator", ""); code != 409 || errCode(b) != "ai_unavailable" {
+	if code, b = e.call("POST", "/reports/pdpl/ai-summary", "operator", ""); code != 409 || errCode(b) != "ai_unavailable" {
 		t.Fatalf("ai off: %d %v", code, b)
-	}
-	if code, b := e.call("PUT", "/reports/pdpl/org", "operator", strings.Replace(orgBody, `"tax_code":"0312345678"`, `"tax_code":"x"`, 1)); code != 400 || errCode(b) != "invalid_tax_code" {
-		t.Fatalf("bad tax code: %d %v", code, b)
-	}
-	// Unknown fields are not silently dropped.
-	if code, _ := e.call("PUT", "/reports/schedule", "admin", `{"enabled":false,"day":1,"hour":8,"recipients":[],"cc":["x@y.example"]}`); code != 400 {
-		t.Fatalf("unknown field: %d", code)
 	}
 }

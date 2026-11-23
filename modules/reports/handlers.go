@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ReportsHandlers implements the 11 reports operations (modules/reports/CONTRACT.md). Embed it in the composite handler. Roles
+// ReportsHandlers implements the reports operations (modules/reports/CONTRACT.md). Embed it in the composite handler. Roles
 // are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to the other modules' handlers
@@ -59,76 +59,43 @@ func actor(ctx context.Context) (string, error) {
 	return p.Email, nil
 }
 
-// ReportsGetReportsWeeklyPreview implements reports_get_reports_weekly_preview.
-func (h *ReportsHandlers) ReportsGetReportsWeeklyPreview(ctx context.Context) (*oas.ReportsGetReportsWeeklyPreviewOK, error) {
-	v, err := h.svc.Preview(ctx)
+// ReportsGetReportsDefinition implements reports_get_reports_definition.
+func (h *ReportsHandlers) ReportsGetReportsDefinition(ctx context.Context) (*oas.ReportsGetReportsDefinitionOK, error) {
+	v, err := h.svc.Definition(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return into[oas.ReportsGetReportsWeeklyPreviewOK](v)
+	return into[oas.ReportsGetReportsDefinitionOK](v)
 }
 
-// ReportsPostReportsWeeklyAiSummary implements reports_post_reports_weekly_ai_summary.
-func (h *ReportsHandlers) ReportsPostReportsWeeklyAiSummary(ctx context.Context) (*oas.ReportsPostReportsWeeklyAiSummaryOK, error) {
+// ReportsPutReportsDefinition implements reports_put_reports_definition (admin).
+func (h *ReportsHandlers) ReportsPutReportsDefinition(ctx context.Context, req *oas.ReportsPutReportsDefinitionReq) (*oas.ReportsPutReportsDefinitionOK, error) {
 	user, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.svc.WeeklyAI(ctx, user)
+	in, err := body[DefinitionInput](req)
 	if err != nil {
 		return nil, err
 	}
-	return into[oas.ReportsPostReportsWeeklyAiSummaryOK](v)
+	v, err := h.svc.SaveDefinition(ctx, user, in)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.ReportsPutReportsDefinitionOK](v)
 }
 
-// ReportsGetReportsSchedule implements reports_get_reports_schedule.
-func (h *ReportsHandlers) ReportsGetReportsSchedule(ctx context.Context) (*oas.ReportsGetReportsScheduleOK, error) {
-	v, err := h.svc.Schedule(ctx)
+// ReportsGetReportsDocument implements reports_get_reports_document.
+func (h *ReportsHandlers) ReportsGetReportsDocument(ctx context.Context) (*oas.ReportsGetReportsDocumentOK, error) {
+	v, err := h.svc.Document(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return into[oas.ReportsGetReportsScheduleOK](v)
+	return into[oas.ReportsGetReportsDocumentOK](v)
 }
 
-// ReportsPutReportsSchedule implements reports_put_reports_schedule (admin).
-func (h *ReportsHandlers) ReportsPutReportsSchedule(ctx context.Context, req *oas.ReportsPutReportsScheduleReq) (*oas.ReportsPutReportsScheduleOK, error) {
-	user, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	in, err := body[ScheduleInput](req)
-	if err != nil {
-		return nil, err
-	}
-	v, err := h.svc.SaveSchedule(ctx, user, in)
-	if err != nil {
-		return nil, err
-	}
-	return into[oas.ReportsPutReportsScheduleOK](v)
-}
-
-// ReportsGetReportsWeeklyHistory implements reports_get_reports_weekly_history.
-func (h *ReportsHandlers) ReportsGetReportsWeeklyHistory(ctx context.Context) (*oas.ReportsGetReportsWeeklyHistoryOK, error) {
-	items, err := h.svc.History(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return into[oas.ReportsGetReportsWeeklyHistoryOK](struct {
-		Items []HistoryItem `json:"items"`
-	}{items})
-}
-
-// ReportsGetReportsWeeklyHistoryID implements reports_get_reports_weekly_history_id.
-func (h *ReportsHandlers) ReportsGetReportsWeeklyHistoryID(ctx context.Context, params oas.ReportsGetReportsWeeklyHistoryIDParams) (*oas.ReportsGetReportsWeeklyHistoryIDOK, error) {
-	v, err := h.svc.HistoryEntry(ctx, params.ID)
-	if err != nil {
-		return nil, err
-	}
-	return into[oas.ReportsGetReportsWeeklyHistoryIDOK](v)
-}
-
-// ReportsPostReportsWeeklySend implements reports_post_reports_weekly_send (operator).
-func (h *ReportsHandlers) ReportsPostReportsWeeklySend(ctx context.Context) (*oas.ReportsPostReportsWeeklySendOK, error) {
+// ReportsPostReportsSend implements reports_post_reports_send (operator).
+func (h *ReportsHandlers) ReportsPostReportsSend(ctx context.Context) (*oas.ReportsPostReportsSendOK, error) {
 	user, err := actor(ctx)
 	if err != nil {
 		return nil, err
@@ -137,7 +104,27 @@ func (h *ReportsHandlers) ReportsPostReportsWeeklySend(ctx context.Context) (*oa
 	if err != nil {
 		return nil, err
 	}
-	return into[oas.ReportsPostReportsWeeklySendOK](v)
+	return into[oas.ReportsPostReportsSendOK](v)
+}
+
+// ReportsGetReportsHistory implements reports_get_reports_history.
+func (h *ReportsHandlers) ReportsGetReportsHistory(ctx context.Context) (*oas.ReportsGetReportsHistoryOK, error) {
+	items, err := h.svc.History(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.ReportsGetReportsHistoryOK](struct {
+		Items []SentItem `json:"items"`
+	}{items})
+}
+
+// ReportsGetReportsHistoryID implements reports_get_reports_history_id.
+func (h *ReportsHandlers) ReportsGetReportsHistoryID(ctx context.Context, params oas.ReportsGetReportsHistoryIDParams) (*oas.ReportsGetReportsHistoryIDOK, error) {
+	v, err := h.svc.Sent(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.ReportsGetReportsHistoryIDOK](v)
 }
 
 // ReportsGetReportsPdpl implements reports_get_reports_pdpl.

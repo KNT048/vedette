@@ -697,39 +697,42 @@ func TestIncidentsListIsCappedAndEachHasItsOwnChildren(t *testing.T) {
 	}
 }
 
-// The weekly report counts a busy week whole (the incident list is capped at 500) and tells the failed-login
-// incidents apart; a "failed logins" incident of severity high had a login accepted in it.
-func TestIncidentsSinceCountsEveryClassBeyondTheListCap(t *testing.T) {
+// The periodic report counts a busy period whole (the incident list is capped at 500), by kind, with only the incidents active in
+// the period, and names the most severe first with their device.
+func TestIncidentsInCountsEveryKindBeyondTheListCap(t *testing.T) {
 	e := newEnv(t)
 	now := e.clock.Now()
-	add := func(id, kind, title, sev string, at time.Time) {
+	add := func(id, kind, title, sev string, first, last time.Time) {
 		e.write(func(tx *sql.Tx) error {
 			_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, '/logs', ?, '', '', ?, ?, ?)`,
-				id, kind, title, sev, store.FormatTS(at), store.FormatTS(at), fmt.Sprintf("%064s", id))
+				id, kind, title, sev, store.FormatTS(first), store.FormatTS(last), fmt.Sprintf("%064s", id))
 			return err
 		})
 	}
 	for i := range 600 {
-		add(fmt.Sprintf("bad-%d", i), "bad_address", "pc reached a known-bad address", "low", now.Add(-time.Hour))
+		add(fmt.Sprintf("bad-%d", i), "bad_address", "pc reached a known-bad address", "low", now.Add(-time.Hour), now.Add(-time.Hour))
 	}
-	add("t1", "trap", "Someone touched the SSH trap", "high", now.Add(-48*time.Hour))
-	add("f1", "log_anomaly", "5 failed logins from 45.1.1.1 on web in 10 minutes", "medium", now.Add(-2*time.Hour))
-	add("f2", "log_anomaly", "6 failed logins from 45.1.1.2 on web in 10 minutes", "high", now.Add(-3*time.Hour)) // a login got in
-	add("a1", "log_anomaly", "A login from 45.1.1.3 was ACCEPTED after 6 failed attempts on web", "high", now.Add(-4*time.Hour))
-	add("b1", "log_anomaly", "web: the certificate was ACCEPTED after renegotiation", "high", now.Add(-5*time.Hour)) // not the failed-login rule
-	add("b2", "log_anomaly", "A login from 45.1.1.9 was accepted after 3 failed attempts", "high", now.Add(-5*time.Hour))
-	add("b3", "log_anomaly", "web saw 5 failed logins from the app itself", "medium", now.Add(-5*time.Hour))
-	add("u1", "unknown_device", "A new unknown device appeared: cam", "medium", now.Add(-time.Hour))
-	add("old", "trap", "last month", "high", now.Add(-30*24*time.Hour))
-	w, err := e.svc.IncidentsSince(e.ctx(), now.Add(-7*24*time.Hour), 3)
+	add("t1", "trap", "Someone touched the SSH trap", "high", now.Add(-48*time.Hour), now.Add(-48*time.Hour))
+	add("x1", "intrusion", "Exploit attempt against web", "critical", now.Add(-3*time.Hour), now.Add(-2*time.Hour))
+	add("old", "trap", "last month", "high", now.Add(-30*24*time.Hour), now.Add(-30*24*time.Hour))
+	add("late", "trap", "after the period", "high", now.Add(time.Hour), now.Add(2*time.Hour))
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES ('x1', 'a-web', 'web-01')`)
+		return err
+	})
+	p, err := e.svc.IncidentsIn(e.ctx(), now.Add(-7*24*time.Hour), now, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{"bad_connection": 600, "trap": 1, "failed_logins": 1, "login_accepted": 2, "anomaly": 3}
-	if !maps.Equal(w.Counts, want) {
-		t.Fatalf("counts = %v, want %v", w.Counts, want)
+	got := map[notify.IncidentKind]int{}
+	for _, k := range p.Kinds {
+		got[k.Kind] = k.Incidents
 	}
-	if len(w.Top) != 3 || w.Top[0].Class != "login_accepted" || w.Top[1].Class != "login_accepted" || w.Top[2].Class != "trap" {
-		t.Fatalf("top = %+v", w.Top)
+	want := map[notify.IncidentKind]int{notify.IncidentBadAddress: 600, notify.IncidentTrap: 1, notify.IncidentIntrusion: 1}
+	if !maps.Equal(got, want) {
+		t.Fatalf("counts = %v, want %v", got, want)
+	}
+	if len(p.Top) != 3 || p.Top[0].Kind != notify.IncidentIntrusion || p.Top[0].DeviceID != "a-web" || p.Top[0].DeviceName != "web-01" || p.Top[1].Kind != notify.IncidentTrap {
+		t.Fatalf("top = %+v", p.Top)
 	}
 }

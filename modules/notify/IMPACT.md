@@ -6,8 +6,8 @@
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (nút Respond ở `/response?incident=<id>`). Đổi khoá gộp = đổi số incident người dùng thấy.
 
-## Modifying: `notify.Service.SendReport(ctx, to, ReportMail)` và `IncidentsSince(ctx, since, top)`
-- **reports** (`cmd/vedette/reports.go`: `reportsMailer` gửi tóm tắt báo cáo tuần qua kênh email đã lưu, tối đa 20 địa chỉ, không vào lịch sử gửi; `reportsIncidents.Week` đọc số incident theo lớp và vài incident đáng chú ý). Đổi lỗi cố định của `SendReport` hay `incidentClass` (các lớp `trap`, `failed_logins`, `login_accepted`, `bad_connection`, `anomaly`) làm đổi số trong báo cáo.
+## Modifying: `notify.Service.SendReport(ctx, to, ReportMail)` and `IncidentsIn(ctx, from, to, top)`
+- **reports** (`cmd/vedette/reports.go`: `reportsMailer` mails the periodic report's digest through the saved email channel, at most 20 addresses, not in the send history; `reportsDetections.Period` reads the incidents with activity in the period by kind, and the top few by severity with their first device). Changing the fixed errors of `SendReport`, or what counts as activity in a period (`last_seen` after its start, `first_seen` before its end), changes the report.
 
 ## Modifying: kind `intrusion`, `IncidentOf`, `KindCounts`
 - **ids** (`cmd/vedette/ids.go` `idsIncidents`): liên kết cảnh báo với sự cố qua `IncidentOf` và cùng khoá gộp (`dedupeKey`); đổi cách tính khoá → cảnh báo mất `incident`.

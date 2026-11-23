@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (259 mã)
+#### HTTP 400 (257 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -210,13 +210,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
 | `invalid_content` | 400 | This is not a Word (DOCX) file. Only PDF, MD, TXT and DOCX files can be added. (also: this is not a PDF file; not UTF-8 text) | `POST /ai/knowledge` |
 | `invalid_cve` | 400 | A CVE ID looks like CVE-2022-27593. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
-| `invalid_day` | 400 | Pick a day of the week. | module reports (validator dùng chung) |
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |
 | `invalid_employees` | 400 | Headcount is a whole number from 0 to 1,000,000. | module reports (validator dùng chung) |
 | `invalid_format` | 400 | Choose JSON or CSV. | `GET /core/logs/export`; `POST /feeds/parse-test` |
 | `invalid_from` | 400 | The start of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T00:00:00Z. | `GET /core/audit`; `GET /core/audit/export`. Mã mới của backend [ĐX]: không dùng `bad_from` vì nó đã nghĩa là "email người gửi sai" ở notify (§3.2 mục 5). Ngày `YYYY-MM-DD` tính theo múi giờ của tổ chức; thời điểm phải tận cùng `Z` (độ lệch như `+07:00` bị từ chối) |
 | `invalid_grouping` | 400 | Group the open findings by device or by CVE. | `PUT /reports/definition` |
-| `invalid_hour` | 400 | The send hour must be 0 to 23. | module reports (validator dùng chung) |
 | `invalid_issuer` | 400 | The issuer must be an https address, for example https://sso.example.com/realms/main. | `PUT /core/oidc` |
 | `invalid_items` | 400 | Pick at least one action of this request. | module response (validator dùng chung) |
 | `invalid_jobs` | 400 | One of the chosen jobs is not an AI job. Pick from the list. | `POST /ai/knowledge`; `PUT /ai/knowledge/{id}` |

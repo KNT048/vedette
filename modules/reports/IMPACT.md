@@ -1,40 +1,43 @@
 # Reports — Change Impact Map
 
-> Mã Go ở `modules/reports` (service.go, weekly.go, pdpl.go); chữ ký dưới đây là chữ ký thật. Cổng sang module khác nằm ở `ports.go`, bộ chuyển ở `cmd/vedette/reports.go`.
+> Go code in `modules/reports` (definition.go, document.go, service.go, schedule.go, mail.go, pdpl.go); the signatures below are
+> the real ones. Ports to other modules are in `ports.go`, their adapters in `cmd/vedette/reports.go`.
 
-## Modifying: `Service.Weekly(ctx) (WeeklyReport, error)` (`buildWeekly`) — 3 người gọi
-- **`Preview`** (`/reports/weekly/preview`), **`WeeklyAI`** (`/reports/weekly/ai-summary`), **`send`** (job gửi theo lịch và `/reports/weekly/send`): đổi cấu trúc `counts`/`actions` → GUI `WeeklyDocument` + trang in + email đều đổi; lịch sử cũ (`HistoryEntry.report`) phải đọc được (số liệu lưu theo phiên bản schema).
+## Modifying: `Service.Document(ctx) (Document, error)` (`buildDocument`) — 2 callers
+- **HTTP** `GET /reports/document` and **`send`** (`POST /reports/send`, the `report-send` job). The document's shape is
+  `contract.ts` `ReportDocument`: a change is a change of the web's Report tab, the print page and every sent report read back from
+  `rep_history` (a sent document is never recomputed, so a field added later is absent in older ones: keep new fields optional).
+- The golden file `testdata/document_week.golden.json` shows every figure, order and field: a change shows in its diff
+  (`go test ./modules/reports -run TestDocumentGolden -update`, then review).
 
-## Modifying: `buildWeekly` / `buildPdpl` → `computeWeekly` / `computePdpl` + `approvedOnly(weeklyInput)` (INV-16)
-- `buildWeekly`/`buildPdpl` tính hai lần khi có thiết bị chưa duyệt: bản đầy đủ và `approved_only` (không thiết bị chưa duyệt, không finding của chúng). Lần hai đọc lại bản sửa (`fixesFor`) cho top risks của nó; không có thiết bị chưa duyệt thì không tính lại. `buildPdpl` gọi `computeWeekly` (không cần khung nhìn tuần).
-- **web** `features/reports/filters.tsx` (`weeklyView`, `pdplView`) đọc `approved_only`, `device_approved`, `not_relevant*`: đổi tên/nghĩa các trường này → công tắc trên trang, trang in và lịch sử lọc sai mà không báo lỗi.
-- Đổi nghĩa `Device.Approved` ở adapter `cmd/vedette/reports.go` (từ `inventory` `Approved`) → "devices not in the Devices list" đổi theo.
+## Modifying: the findings read (`findings.Service.Views`, `View.JSON`, `fnd_finding_event` kinds and details)
+- `reportsViews` maps `View.JSON` (device ref, software line, status, severity, verification, fix, handled line) and the state
+  events `created`, `handled`, `reopened`, `acceptance_expired`. Handled this period, open at the start and at the end of the period
+  are replayed from those events (`historyOf`): a new state-changing event kind, or a handled event that no longer carries
+  `from_version`/`to_version`/`note`, changes the report without an error.
+- `findings.Views` leaving out ignored devices is what keeps them out of the report.
+- The reasons line reads `findings.Service.View` per listed finding (open, layers 1 to 4, at most 100 per list).
 
-## Modifying: `Service.GeneratePdpl(ctx, actor) (PdplReport, error)` (`buildPdpl`, `Regime`) — 1 người gọi
-- **HTTP** `/reports/pdpl/generate`. Đổi luật/quy tắc tính `regime`, `measures` → nội dung pháp lý thay đổi: phải kiểm lại với nguồn chính thức và ghi ngày vào CONTRACT.
+## Modifying: `exposure.Service.Tree/Services/Issues`
+- `reportsExposure` reads proof state, parent, last scan, service rows (`state`, `first_seen`, `last_seen`, cert expiry) and issue
+  rows (`engine`, `severity`, `state`, `first_seen`). A change of these names or meanings changes the External exposure section.
 
-## Modifying: interface đọc dữ liệu (`inventory.AllDevices`, `findings.List`, `feeds.Store.KevVulns` / `KevPulledAt`, `feeds.Service.NewlyExploited`, `feeds.DisplayOf`)
-- `kev_new`/`kev_matched` là `feeds.Service.NewlyExploited` (cùng số với trang chủ), tên sản phẩm là `feeds.DisplayOf` (cùng tên với Findings), `devices` đếm cả hộp như trang Devices. Đổi một trong ba ở module kia là đổi báo cáo theo, đúng ý.
-- Finding `patched` do Vedette đóng vì thiết bị được cập nhật (`fixed_by_update`, `resolved_by=system`) được tính là đã xử lý và dòng ghi `by` = "Vedette" (INV-13); đổi `resolved_by` của đóng tự động ⇒ sửa `weekly.go`.
-- Reports là **người tiêu thụ** của `inventory`, findings (core), `feeds`; đổi ngữ nghĩa trạng thái finding (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` là đã đóng nhưng **không** tính vào "đã xử lý" của tuần: `Counts.Accepted`/`AcceptedUntil` và dòng "Risk accepted: N (until …)"; cần `Finding.AcceptedUntil` do adapter `cmd/vedette/reports.go` điền từ findings) hoặc loại thiết bị → báo cáo đếm sai nhưng không báo lỗi. Cần test hợp đồng ở `inventory`.
+## Modifying: `notify.Service.IncidentsIn(ctx, from, to, top)` / `SendReport` / `EmailReady`
+- Detections counts the incidents with activity in the period by kind (the detection kinds; a kind a producer adds later is not
+  named) and names the top 5 by severity with their first device. `SendReport`'s errors become the history's fixed messages.
 
-- `reportsFindings.All` (`cmd/vedette/reports.go`) bỏ finding của thiết bị đã bỏ qua và finding `ClosedForIgnore`; `reportsInventory.Devices` bỏ thiết bị đã bỏ qua; `reportsKEV.Entries` chỉ giữ danh sách `cisa-kev`. Đổi một trong ba là đổi số của báo cáo.
-- `Finding.Agent` do `cmd/vedette/reports.go` điền từ `findings.Record.Evidence.Agent`; mất ⇒ dòng báo cáo lại nói "Suspected" cho phát hiện của agent.
+## Modifying: `feeds` `GET /feeds/sources`, `GET /feeds/status`, `feeds.IsStale`
+- Coverage lists the enabled vulnerability feeds with their last good pull (status `sources[].fetched_at`, joined by name) and
+  staleness by their schedule. A change of those answers changes Coverage.
 
-## Modifying: `notify.Service.IncidentsSince` (class of an incident) / `findings.FixedInForAll` (via `reportsRemedies`, `reportsIncidents`)
-- **reports**: `modules/logs/authfail.go` titles ("N failed logins from …", "A login from … was ACCEPTED after …") are how notify's `incidentClass` tells failed-login from accepted-login incidents (`TestIncidentsSinceCountsEveryClassBeyondTheListCap`); `findings.GroupFix` kinds `fixed|none|up_to|distro|feature_update|esu` feed the action sentence (`todo.go`; the last two from a Windows release row: "Move … to a Windows release Microsoft still services", "Install the Extended Security Update …"; each its own `class()` and counted as a "fix" step).
+## Modifying: `core/schedule` (Owner, Fire, Skip)
+- `ScheduleOwner` registers `reports.def`; `startSend` runs inside the schedule's transaction and writes `rep_definition.send_due_at`.
+  `RunPending` sends outside it.
 
-## Modifying: `notify.Service.SendReport(ctx, to, ReportMail) error` / `EmailReady`
-- **notify**: đổi chữ ký/lỗi → `status`/`error` trong lịch sử sai.
-
-## Modifying: `ai.Service.RunJob(weekly-report | pdpl-assessment)` (qua `reportsAI`)
-- **ai**: đổi `JobResult` → khối nhận xét AI vỡ; đổi `data: internal` của hai việc này → có thể gửi dữ liệu tổ chức tới cloud.
+## Modifying: the PDPL assessment (`GeneratePdpl`, `buildPdpl`, `Regime`)
+- **HTTP** `/reports/pdpl/generate`. Changing the rule of `regime` or `measures` changes legal content: check it again against the
+  official sources and record the date in CONTRACT. It reads `Findings.All` (the legacy finding projection) and `KEV.Entries`.
 
 ## Disabling this module
-- Trang Reports và lịch gửi biến mất; người nhận không còn nhận báo cáo tuần (không báo lỗi phía họ).
-- Không module nào phụ thuộc vào `reports`. `rep_*` giữ nguyên.
-
-## Modifying: loại thiết bị (`content/devicetypes`)
-- **Loại thiết bị**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). PDPL so loại hành xử như (`ActsAs`): VPN gateway là firewall, máy ảo là hệ thống chính (server); đếm theo loại giữ id loại.
-
-- `Finding.Urgency` (findings' layer, 0 = not stated, reads as exploited): an action sentence says "exploited vulnerabilit(y/ies)" only while every finding of its line is layer 1 or 2, else "vulnerabilit(y/ies)"; the PDPL facts say "Open vulnerability findings". Adapter: `cmd/vedette/reports.go`.
+- The Reports page and the scheduled sends stop; recipients get no report (no error on their side). `rep_*` are kept.
+- No module depends on `reports`.

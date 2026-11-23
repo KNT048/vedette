@@ -84,16 +84,41 @@ func reportSeverity(c *reports.CveSeverity) string {
 	return strings.TrimSpace(band + " " + strconv.FormatFloat(c.Score, 'f', 1, 64))
 }
 
-func reportFix(f reports.Fix) string {
-	switch {
-	case f.Version != nil && *f.Version != "":
-		return "Update " + f.Product + " to " + *f.Version
-	case f.Ref != nil && *f.Ref != "":
-		return "Install " + *f.Ref
-	case f.Kind == "none_yet":
-		return "No fix is published yet; follow the vendor advisory"
+// reportFix is the fix line of the report page and the finding page (web findings fixLine, useFixTitle), from being the listed
+// finding's own version ("" when the line names no device's version).
+func reportFix(f reports.Fix, from string) string {
+	to, ref := reportText(f.Version), reportText(f.Ref)
+	switch f.Kind {
+	case "update":
+		switch {
+		case to == "":
+			return "Update " + f.Product + " to a fixed release"
+		case from != "":
+			return "Update " + f.Product + " " + from + " → " + to
+		}
+		return "Update " + f.Product + " to " + to
+	case "distro_update":
+		if to != "" {
+			return "Install the " + f.Product + " package " + to + " or later"
+		}
+		return "Install the distribution's security updates for " + f.Product
+	case "os_update":
+		switch {
+		case ref != "":
+			return "Install " + ref + " on " + f.Product
+		case to != "":
+			return "Update " + f.Product + " to build " + to
+		}
+		return "Install the latest cumulative update on " + f.Product
+	case "feature_update":
+		if to != "" {
+			return "Move " + f.Product + " to release " + to
+		}
+		return "Move " + f.Product + " to a later release"
+	case "none_yet":
+		return "No fix known yet for " + f.Product
 	}
-	return ""
+	return "No fix data for " + f.Product
 }
 
 func reportDevice(d reports.DeviceRef) string {
@@ -128,7 +153,7 @@ func reportFindingRow(f reports.ReportFinding, loc *time.Location, withDevice bo
 	if withDevice {
 		row = append(row, reportDevice(f.Device))
 	}
-	return append(row, reportStatus(f.Status), reportReasons(f.Reasons), reportVerification(f.Verification), reportSeverity(f.Severity), reportFix(f.Fix),
+	return append(row, reportStatus(f.Status), reportReasons(f.Reasons), reportVerification(f.Verification), reportSeverity(f.Severity), reportFix(f.Fix, reportText(f.Version)),
 		reportDay(f.FirstSeen, loc))
 }
 
@@ -181,7 +206,7 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 				if more := f.DeviceCount - len(f.Devices); more > 0 {
 					on += fmt.Sprintf(" and %s", reportPlural(more, "more device", "more devices"))
 				}
-				t.Rows = append(t.Rows, []string{reportStatus(f.Status), f.CVE + " · " + f.Product, on, reportFix(f.Fix)})
+				t.Rows = append(t.Rows, []string{reportStatus(f.Status), f.CVE + " · " + f.Product, on, reportFix(f.Fix, "")})
 			}
 			sec.Tables = append(sec.Tables, t)
 		}

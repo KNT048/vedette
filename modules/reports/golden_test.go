@@ -304,3 +304,15 @@ func TestHandledAPersonsVersionChangeIsTheirs(t *testing.T) {
 		t.Errorf("totals = %v, want the person's two with the people's handlings and Vedette's one as version_moved", got)
 	}
 }
+
+// "Not installed" is a person's word that keeps its own count in the totals ("2 software not installed"): only a version a person
+// changed joins the people's marks.
+func TestHandledNotInstalledKeepsItsOwnCount(t *testing.T) {
+	t.Parallel()
+	at := "2026-11-24T03:51:00.000Z"
+	ni := Handled{Resolution: "not_relevant", Via: "not_installed", By: "qa@example.com", At: at}
+	out := handledOf([]row{{h: history{handled: &ni}}})
+	if len(out.Totals) != 1 || out.Totals[0].Via != "not_installed" || out.Totals[0].N != 1 {
+		t.Errorf("totals = %+v, want one not_installed", out.Totals)
+	}
+}

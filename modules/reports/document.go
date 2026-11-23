@@ -406,9 +406,9 @@ func handledOf(rows []row) *ReportHandled {
 	for _, r := range rows {
 		h := r.h.handled
 		via := h.Via
-		if h.By != "" && h.By != "system" {
-			// a person's handling, whatever it moved: a version a person changed (via version_moved, by them) is not something Vedette
-			// saw by itself, so it is counted with the people's marks, never as "Vedette saw it itself"
+		if via == "version_moved" && h.By != "" && h.By != "system" {
+			// a version a person changed (via version_moved, by them) is not something Vedette saw by itself, so it is counted with the
+			// people's marks, never as "Vedette saw it itself"; "not installed" keeps its own count
 			via = "person"
 		}
 		totals[key{h.Resolution, via}]++

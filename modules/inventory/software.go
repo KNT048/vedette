@@ -182,26 +182,27 @@ func (s *Service) matchAfter(assetID string, before, after []string, rematch boo
 	}
 }
 
-// listed is one item of a list as it lands: its line and its reading.
+// listed is one item of a list as it lands: its line, its reading and what the source sent of it.
 type listed struct {
 	id      lineIdentity
 	reading Reading
+	ev      itemEvidence
 }
 
 // readingsOfList turns a validated list into readings, one per line and instance. An item without an instance that shares its line
 // with another item of the list at another version (two installs the source does not tell apart) gets its version as instance; the
 // same product at the same version twice is one reading.
-func readingsOfList(items []SoftwareItem, source, seenAt string) []listed {
+func readingsOfList(ident identifier, items []SoftwareItem, source, seenAt string) []listed {
 	out := make([]listed, 0, len(items))
 	for _, it := range items {
-		id, version := identify(it, source)
+		id, version := ident(it, source)
 		pv, ps := pkgOf(it, source)
 		inst := it.Instance
 		if it.Guess && inst == "" {
 			inst = instanceOSGuess
 		}
 		out = append(out, listed{id: id, reading: Reading{Source: source, Instance: inst, Display: it.Display, Version: version, PkgVersion: pv, PkgSource: ps,
-			CPE: it.CPE, Packaged: packaged(it, source), Confidence: it.Confidence, FirstSeen: seenAt, SeenAt: seenAt}})
+			CPE: it.CPE, Packaged: packaged(it, source), Confidence: it.Confidence, FirstSeen: seenAt, SeenAt: seenAt}, ev: evidenceOf(it, inst)})
 	}
 	type slot struct{ key, line, inst string }
 	versions := map[slot]map[string]bool{}
@@ -217,10 +218,7 @@ func readingsOfList(items []SoftwareItem, source, seenAt string) []listed {
 	for _, l := range out {
 		k := slot{l.id.productKey, l.id.line, l.reading.Instance}
 		if len(versions[k]) > 1 {
-			l.reading.Instance = clip(strings.TrimPrefix(l.reading.Instance+"@"+cmpOr(l.reading.PkgVersion, l.reading.Version), "@"), 120)
-			if l.reading.Instance == "" {
-				l.reading.Instance = "@"
-			}
+			l.reading.Instance = installInstance(l.reading.Instance, l.reading)
 		}
 		k.inst = l.reading.Instance
 		if seen[k] {
@@ -230,6 +228,16 @@ func readingsOfList(items []SoftwareItem, source, seenAt string) []listed {
 		kept = append(kept, l)
 	}
 	return kept
+}
+
+// installInstance is the instance of one of two installs of one line that one source reads at different releases and does not tell
+// apart itself: its own instance with its release ("@1.8.0_491", "tcp/8080@2.4.58").
+func installInstance(inst string, r Reading) string {
+	out := clip(strings.TrimPrefix(inst+"@"+cmpOr(r.PkgVersion, r.Version), "@"), maxInstance)
+	if out == "" {
+		return "@"
+	}
+	return out
 }
 
 // replaceSoftwareTx makes what a source reads of a device equal to items: the readings of that source (of the instances scope
@@ -267,7 +275,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	names := map[string]map[[2]string][2]string{} // line -> the names its readings of this list carry
 	kept := map[[2]string]bool{}
 	changed, released := false, false
-	for _, l := range readingsOfList(items, source, seenAt) {
+	for _, l := range readingsOfList(s.ident, items, source, seenAt) {
 		l.reading.Addr = addr
 		if !inScope(l.reading.Instance) {
 			continue // a list covers only the instances of its scope
@@ -297,7 +305,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		case h.version != l.reading.Version || h.pkg != l.reading.PkgVersion:
 			released = true
 		}
-		if err := putReading(ctx, tx, lineID, l.reading); err != nil {
+		if err := putReading(ctx, tx, lineID, l.reading, l.ev); err != nil {
 			return err
 		}
 		touched[lineID] = true

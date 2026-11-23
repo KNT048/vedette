@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -197,6 +198,13 @@ func (s *Service) settled(ctx context.Context, tx *sql.Tx, o *outbox, assetID st
 			return err
 		}
 	}
+	return s.announceSoftware(ctx, tx, o, assetID, before, true)
+}
+
+// announceSoftware ends a change of a device's software lines: the device's fields are folded again, and findings is told to match
+// the device again (inventory.software.changed, and after the commit a match event per CVE the device's keys gained). With rematch, or
+// when the keys stay (a version or train moved), one more match event names the device's first CVE (matchAfter).
+func (s *Service) announceSoftware(ctx context.Context, tx *sql.Tx, o *outbox, assetID string, before []string, rematch bool) error {
 	moved, err := s.RecomputeAsset(ctx, tx, assetID) // a declared OS row may now be (or no longer be) the device's OS
 	if err != nil {
 		return err
@@ -209,7 +217,7 @@ func (s *Service) settled(ctx context.Context, tx *sql.Tx, o *outbox, assetID st
 		return err
 	}
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID}) // findings matches the device again on it (#910)
-	o.after = append(o.after, s.matchAfter(assetID, before, after, true))
+	o.after = append(o.after, s.matchAfter(assetID, before, after, rematch || slices.Equal(before, after)))
 	return nil
 }
 
@@ -278,7 +286,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 				return fmt.Errorf("inventory: correct software: %w", err)
 			}
 		}
-		if err := putReading(ctx, tx, l.id, next); err != nil {
+		if err := putReading(ctx, tx, l.id, next, itemEvidence{}); err != nil { // a person's edit: the entry follows its line
 			return err
 		}
 		if err := softwareEvent(ctx, tx, l.assetID, l.id, l.productKey, next.Display, now, "entry_set", releaseText(shownVersion, shownPkg), releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
@@ -297,7 +305,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, id); err != nil {
 			return fmt.Errorf("inventory: correct software: %w", err)
 		}
-		if err := putReading(ctx, tx, id, next); err != nil {
+		if err := putReading(ctx, tx, id, next, itemEvidence{}); err != nil {
 			return err
 		}
 		if err := softwareEvent(ctx, tx, l.assetID, id, target.productKey, next.Display, now, "entry_set", "", releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
@@ -338,7 +346,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 // addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
 // already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it).
 func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
-	id, version := identify(it, sourceManual)
+	id, version := s.ident(it, sourceManual)
 	var lineID, state string
 	var guess bool
 	err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line = ?`, assetID, id.productKey, id.line).
@@ -358,7 +366,7 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, lineID); err != nil {
 		return false, false, fmt.Errorf("inventory: store software: %w", err)
 	}
-	if err := putReading(ctx, tx, lineID, r); err != nil {
+	if err := putReading(ctx, tx, lineID, r, evidenceOf(it, "")); err != nil {
 		return false, false, err
 	}
 	if err := softwareEvent(ctx, tx, assetID, lineID, id.productKey, it.Display, now, "entry_set", "", version, sourceManual, actor); err != nil {

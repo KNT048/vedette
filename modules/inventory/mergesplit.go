@@ -707,19 +707,22 @@ func (s *Service) moveInterface(ctx context.Context, tx *sql.Tx, from, to, addr 
 	type moving struct {
 		line, key, train, vendor, product string
 		r                                 Reading
+		ev                                itemEvidence
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT `+readingCols+`, w.id, w.product_key, w.line, w.vendor, w.product FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id
-		WHERE w.asset_id = ? AND r.addr_id = ? AND r.source IN ('nmap', 'scan')`, from, addr)
+	rows, err := tx.QueryContext(ctx, `SELECT `+readingCols+`, w.id, w.product_key, w.line, w.vendor, w.product, `+evidenceCols+` FROM inv_software_reading r
+		JOIN inv_software w ON w.id = r.software_id WHERE w.asset_id = ? AND r.addr_id = ? AND r.source IN ('nmap', 'scan')`, from, addr)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
 	var list []moving
 	for rows.Next() {
 		var m moving
-		if m.r, err = scanReading(rows, &m.line, &m.key, &m.train, &m.vendor, &m.product); err != nil {
+		evDst, ev := evidenceDest()
+		if m.r, err = scanReading(rows, append([]any{&m.line, &m.key, &m.train, &m.vendor, &m.product}, evDst...)...); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
+		m.ev = ev()
 		list = append(list, m)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
@@ -734,7 +737,7 @@ func (s *Service) moveInterface(ctx context.Context, tx *sql.Tx, from, to, addr 
 		if err != nil {
 			return err
 		}
-		if err := putReading(ctx, tx, target, r); err != nil {
+		if err := putReading(ctx, tx, target, r, m.ev); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = ? AND instance = ? AND addr_id = ?`, m.line, m.r.Source, m.r.Instance, addr); err != nil {

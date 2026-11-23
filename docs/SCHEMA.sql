@@ -674,7 +674,7 @@ CREATE TABLE inv_software_reading (
     seen_at     TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     -- the address a network scan read it at: '' for the device's main address and for sources that read the whole machine, else the
     -- id of one of the device's other addresses (inv_asset_address), as inv_service.addr_id
-    addr_id     TEXT NOT NULL DEFAULT '' CHECK (length(addr_id) <= 96),
+    addr_id     TEXT NOT NULL DEFAULT '' CHECK (length(addr_id) <= 96), item_vendor TEXT CHECK (item_vendor IS NULL OR length(item_vendor) <= 200), item_product TEXT CHECK (item_product IS NULL OR length(item_product) <= 200), item_version TEXT CHECK (item_version IS NULL OR length(item_version) <= 400), item_kev TEXT CHECK (item_kev IS NULL OR length(item_kev) <= 400), item_instance TEXT CHECK (item_instance IS NULL OR length(item_instance) <= 120),
     PRIMARY KEY (software_id, source, instance, addr_id)
 ) WITHOUT ROWID;
 
@@ -832,6 +832,14 @@ WHEN NEW.id IS NOT OLD.id OR NEW.product_key IS NOT OLD.product_key OR NEW.displ
 BEGIN
     SELECT RAISE(ABORT, 'inv_software_event is append-only');
 END;
+
+CREATE TABLE inv_catalogue_pass (
+    id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    revision   TEXT NOT NULL CHECK (length(revision) <= 64),
+    target     TEXT NOT NULL DEFAULT '' CHECK (length(target) <= 64),
+    after      TEXT NOT NULL DEFAULT '' CHECK (length(after) <= 96),
+    updated_at TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
 
 -- module agent-intake
 

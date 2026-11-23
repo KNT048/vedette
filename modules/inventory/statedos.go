@@ -94,7 +94,7 @@ func (s *Service) syncStatedOS(ctx context.Context, tx *sql.Tx, assetID, now str
 		for _, h := range have {
 			same = same || h.line == id && h.source == want.reading.Source && h.version == want.reading.Version
 		}
-		if err := putReading(ctx, tx, id, want.reading); err != nil { // the same statement again only moves its time
+		if err := putReading(ctx, tx, id, want.reading, want.ev); err != nil { // the same statement again only moves its time
 			return false, err
 		}
 		if !same {

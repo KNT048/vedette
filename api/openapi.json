@@ -39013,7 +39013,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -39196,7 +39196,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -40755,7 +40755,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -40938,7 +40938,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -42499,7 +42499,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -42682,7 +42682,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -44237,7 +44237,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -44420,7 +44420,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -46852,7 +46852,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -47035,7 +47035,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -48570,7 +48570,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -48753,7 +48753,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {

@@ -98,7 +98,7 @@ func (f aiFacts) CVE(ctx context.Context, id string) (ai.CVEFacts, bool, error) 
 	}
 	c := findingCase{Brief: b, Known: true}
 	links := c.Links()
-	out := ai.CVEFacts{CVE: b.CVE, Product: b.Display, Name: b.Title, Description: b.Description, Brief: c.briefFeedText(links)}
+	out := ai.CVEFacts{CVE: b.CVE, Product: b.Display, Name: b.Title, Description: b.Description, Brief: c.briefFeedText(links), BriefKey: c.briefKeyText(links)}
 	for _, l := range links {
 		out.Refs = append(out.Refs, ai.BriefRef{Title: l.Title, URL: l.URL})
 	}
@@ -1052,7 +1052,7 @@ func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpda
 	if err != nil {
 		return ai.DeviceUpdates{}, false, err
 	}
-	out := ai.DeviceUpdates{PlanRan: true, PlanCompared: true, PlanOff: a.gate != nil && !a.gate.Enabled(findings.FeedsModule)}
+	out := ai.DeviceUpdates{PlanOff: a.gate != nil && !a.gate.Enabled(findings.FeedsModule)}
 	if len(cards.Items) == 0 {
 		return out, true, nil
 	}
@@ -1064,7 +1064,7 @@ func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpda
 		switch {
 		case named && urgent:
 			out.Exploited = append(out.Exploited, row)
-		case named:
+		case named && !out.PlanOff: // with the feeds module off recommended updates are not listed, as planNote tells the model
 			out.Planned = append(out.Planned, row)
 		case urgent:
 			out.NoUpdate = append(out.NoUpdate, row)

@@ -28,7 +28,7 @@ const (
 	deviceUpdatesDesc   = "What to install on one device to clear its CVEs, in one call (device: IP, name or asset_id): open exploited findings grouped by the update that fixes them, those with no named update, and recommended updates. Use it for what to upgrade; part and offset page one list. status: detected = the agent reported the version (never say it needs confirming); suspected = a network guess."
 	deviceUpdatesSchema = `{"type":"object","properties":{"device":{"type":"string","minLength":1,"maxLength":96},"part":{"type":"string","enum":["exploited","no_named_update","recommended"]},"offset":{"type":"integer","minimum":0,"maximum":1000}},"required":["device"],"additionalProperties":false}`
 	// statusWords is sent with the first call of a device, so the model reads the words from the data and not only from the description.
-	statusWords = "confirmed = a scan proved it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. reported = the agent reported the installed version but the box has not proved it affected (it could not compare it, or the finding's evidence names a condition to check): not a guess. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
+	statusWords = "confirmed = a scan proved it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
 	// updatesRowsMax is how many rows of one list a call returns at most, before what fits askResultBytes.
 	updatesRowsMax = askRowsMax
 )
@@ -90,7 +90,7 @@ func knownAs(u UpdateRow) string {
 	for _, p := range []struct {
 		n    int
 		word string
-	}{{u.Confirmed, "confirmed"}, {u.Detected, "detected"}, {u.Reported, "reported"}, {u.Suspected, "suspected"}} {
+	}{{u.Confirmed, "confirmed"}, {u.Detected, "detected"}, {u.Suspected, "suspected"}} {
 		if p.n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", p.n, p.word))
 		}
@@ -107,10 +107,8 @@ func updateLine(u UpdateRow, exploited bool) string {
 	b.WriteString(clip(u.Action, 200))
 	switch {
 	case len(u.CVEs) == 0: // Microsoft's newest Windows update with no CVE in NVD's data for the release: no count to give
-		b.WriteString("; " + noCVEsYet(u))
+		b.WriteString("; " + noCVEsYet())
 		return b.String()
-	case u.NVDLag: // the plan's words: the CVEs NVD has analysed so far, never "all"
-		b.WriteString("; fixes at least " + plural(len(u.CVEs), "CVE", "CVEs"))
 	default:
 		b.WriteString("; " + plural(len(u.CVEs), "CVE", "CVEs"))
 	}
@@ -120,24 +118,11 @@ func updateLine(u UpdateRow, exploited bool) string {
 	if exploited {
 		b.WriteString(", " + knownAs(u))
 	}
-	if u.Ransomware > 0 {
-		fmt.Fprintf(&b, ", %d ransomware", u.Ransomware)
-	}
-	if u.Likely > 0 {
-		fmt.Fprintf(&b, ", %d likely exploited soon", u.Likely)
-	}
-	if u.NVDLag {
-		b.WriteString("; the newest update's CVEs are not yet analysed by NVD")
-	}
 	return b.String()
 }
 
-// noCVEsYet is what a recommended Windows update with no CVE says instead of a count, as the plan page: while the update is young
-// (NVDLag) NVD has not analysed its CVEs yet; after that NVD lists none of them for the release yet.
-func noCVEsYet(u UpdateRow) string {
-	if u.NVDLag {
-		return "its CVEs are not yet analysed by NVD"
-	}
+// noCVEsYet is what a recommended Windows update with no CVE says instead of a count, as the plan page: NVD lists none of them for the release yet.
+func noCVEsYet() string {
 	return "NVD lists no CVE of it for this release yet"
 }
 
@@ -147,10 +132,6 @@ func planNote(u DeviceUpdates) string {
 	switch {
 	case u.PlanOff:
 		return "Recommended updates are off (the feeds module is off): say they are not available, not that there are none."
-	case !u.PlanRan:
-		return "The recommended updates are not compared yet (the box compares them a few minutes after it starts): say so, do not say there are none."
-	case !u.PlanCompared:
-		return "This device was not compared for recommended updates: no version reported by its agent, a person or SNMP (or it is newer than the last comparison). Say they are not known, not that there are none."
 	}
 	return ""
 }
@@ -299,14 +280,12 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 	return out, nil
 }
 
-// cveCell is the table's CVE count of a row: "12 CVEs", "at least 12 CVEs" while NVD lags, never "0 CVEs" for an update whose CVEs
+// cveCell is the table's CVE count of a row: "12 CVEs", never "0 CVEs" for an update whose CVEs
 // NVD has not listed yet (its words instead).
 func cveCell(u UpdateRow) string {
 	switch {
 	case len(u.CVEs) == 0:
-		return noCVEsYet(u)
-	case u.NVDLag:
-		return "at least " + plural(len(u.CVEs), "CVE", "CVEs")
+		return noCVEsYet()
 	}
 	return plural(len(u.CVEs), "CVE", "CVEs")
 }

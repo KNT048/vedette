@@ -99,15 +99,13 @@ func TestCount_ReadersAgreeOnTheFixAndWhoConfirmed(t *testing.T) {
 				noFixWhileNamed++
 				t.Errorf("%s: %s says no fixed release while the page names %q", c.name, reader, page)
 			}
-			if c.verify == findings.VerifiedPerson {
-				who := c.by
-				if reader == "mcp" {
-					who = "a person"
-				}
-				if strings.Contains(text, "Not confirmed") || !strings.Contains(text, "Confirmed by "+who) {
-					notConfirmed++
-					t.Errorf("%s: %s does not say confirmed by %s: %q", c.name, reader, who, text)
-				}
+			if strings.Contains(text, "@") || c.by != "" && strings.Contains(text, c.by) {
+				notConfirmed++
+				t.Errorf("%s: %s carries a user's address or name: %q", c.name, reader, text)
+			}
+			if c.verify == findings.VerifiedPerson && (strings.Contains(text, "Not confirmed") || !strings.Contains(text, "Confirmed by a person on this box")) {
+				notConfirmed++
+				t.Errorf("%s: %s does not say confirmed by a person: %q", c.name, reader, text)
 			}
 			if strings.Contains(strings.ToLower(text), "why there is no") {
 				t.Errorf("%s: %s explains an absence: %q", c.name, reader, text)
@@ -134,7 +132,7 @@ func TestCount_TheESXiFindingReadsTheSameEverywhere(t *testing.T) {
 	req := mitigation.AIRequest{Skill: mitigation.SkillExplain}
 	blocks, links := aiFindingData(req, fc, nil, aiFirewalls{})
 	device := blocks[1].Text
-	for _, want := range []string{"Fix for this device: Update VMware ESXi to 8.0 U3d (build 24585383).", "Confirmation: Confirmed by it@example.com on 2026-11-20"} {
+	for _, want := range []string{"Fix for this device: Update VMware ESXi to 8.0 U3d (build 24585383).", "Confirmation: Confirmed by a person on this box on 2026-11-20"} {
 		if !strings.Contains(device, want) {
 			t.Errorf("device block lacks %q:\n%s", want, device)
 		}
@@ -182,11 +180,11 @@ func TestCount_RealReadersSayWhoConfirmedAndTheStoredFix(t *testing.T) {
 			t.Fatalf("mcp: %v %v", ok, err)
 		}
 		for reader, text := range map[string]string{"context": blocks[0].Text + blocks[1].Text, "tools": row.Confirmation + " " + row.Fix, "mcp": m.Verification + " " + m.Fix} {
-			who := "Confirmed by it@acme.example"
-			if reader == "mcp" {
-				who = "Confirmed by a person"
+			if strings.Contains(text, "@") || strings.Contains(text, "acme.example") {
+				bad++
+				t.Errorf("%s of %s carries a user's address: %q", reader, v.Finding.CVE, text)
 			}
-			if !strings.Contains(text, who) || strings.Contains(text, "Not confirmed") || !strings.Contains(text, fc.View.FixText()) {
+			if !strings.Contains(text, "Confirmed by a person on this box") || strings.Contains(text, "Not confirmed") || !strings.Contains(text, fc.View.FixText()) {
 				bad++
 				t.Errorf("%s of %s: %q", reader, v.Finding.CVE, text)
 			}

@@ -83327,10 +83327,10 @@ func (s *FindingsGetFindingsIDOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsGetFindingsIDOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsGetFindingsIDOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -83754,10 +83754,10 @@ func (s *FindingsGetFindingsIDOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsGetFindingsIDOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsGetFindingsIDOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -103186,10 +103186,10 @@ func (s *FindingsPostFindingsIDAiOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAiOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDAiOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -103613,10 +103613,10 @@ func (s *FindingsPostFindingsIDAiOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAiOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDAiOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -107675,10 +107675,10 @@ func (s *FindingsPostFindingsIDAppliedOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDAppliedOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -108102,10 +108102,10 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDAppliedOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -112185,10 +112185,10 @@ func (s *FindingsPostFindingsIDConfirmOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDConfirmOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDConfirmOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDConfirmOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -112612,10 +112612,10 @@ func (s *FindingsPostFindingsIDConfirmOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDConfirmOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDConfirmOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDConfirmOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -119184,10 +119184,10 @@ func (s *FindingsPostFindingsIDStatusOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDStatusOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDStatusOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -119611,10 +119611,10 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDStatusOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDStatusOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -123725,10 +123725,10 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiConfig struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDUnconfirmOKAiConfigAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDUnconfirmOKAiConfigCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a
@@ -124152,10 +124152,10 @@ func (s *FindingsPostFindingsIDUnconfirmOKAiConfigTokens) SetOutput(val float64)
 }
 
 type FindingsPostFindingsIDUnconfirmOKAiExplain struct {
-	// Mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE
-	// brief and the finding, every claim that has a reference with its link; the page gives each its
-	// heading. When present, the page shows them instead of paragraphs and steps. Absent for answers
-	// stored before.
+	// Explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing
+	// only the CVE brief and the finding, every claim that has a reference with its link; the page gives
+	// each its heading. When present, the page shows them instead of paragraphs and steps. Absent for
+	// answers stored before.
 	Answers   []FindingsPostFindingsIDUnconfirmOKAiExplainAnswersItem   `json:"answers"`
 	Citations []FindingsPostFindingsIDUnconfirmOKAiExplainCitationsItem `json:"citations"`
 	// Mitigation-config: config blocks to paste as they are, the device's own workaround first, then a

@@ -36,8 +36,15 @@ type CVEFacts struct {
 	// fixed releases, solution, workaround, references numbered from 1); Refs are those references. Empty Brief: the box writes the block
 	// from the exploited-list entry above.
 	Brief string
-	Refs  []BriefRef
+	// BriefKey is Brief without the numbers that change every day: the saved answer is keyed on it, so the next day's score is no reason
+	// to ask (and pay) again. Empty: Brief is used.
+	BriefKey string
+	Refs     []BriefRef
 }
+
+// Listed reports whether an exploited list has the CVE: only then does Source name the list. A CVE the catalogue holds that no list has
+// is no claim that attackers use it.
+func (f CVEFacts) Listed() bool { return f.Source != "" }
 
 // ListLabel names the exploited list an entry is on, for prompts and texts: VulnCheck's entries are never CISA's.
 func ListLabel(source string) string {
@@ -350,7 +357,11 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 			rules = append(rules, r.Text)
 		}
 	}
-	hash := HashContent("explain-v3\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
+	keyText := feed.Text
+	if facts.BriefKey != "" {
+		keyText = facts.BriefKey
+	}
+	hash := HashContent("explain-v3\n" + keyText + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
 	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash, know: know}, true, nil
 }
 

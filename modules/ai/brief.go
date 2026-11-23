@@ -208,7 +208,7 @@ func keepAnswers(in []briefAnswerIn, refs []BriefRef) (out []BriefAnswerItem, cu
 			if x.Key != key {
 				continue
 			}
-			text, c := clipSentence(cleanText(x.Text), answerRunes)
+			text, c := clipSentence(withoutAddresses(cleanText(x.Text)), answerRunes)
 			cut = cut || c
 			it := BriefAnswerItem{Key: key, Text: text}
 			for _, n := range x.Refs {
@@ -220,6 +220,14 @@ func keepAnswers(in []briefAnswerIn, refs []BriefRef) (out []BriefAnswerItem, cu
 		}
 	}
 	return out, cut
+}
+
+var urlInText = regexp.MustCompile(`(?i)\b(?:https?|ftp)://\S+|\bwww\.\S+`)
+
+// withoutAddresses removes the web addresses a model wrote in an answer: the only links of an answer are the references the box offered
+// and wrote itself, so an address in the text is one the model made up or an injected one.
+func withoutAddresses(s string) string {
+	return strings.Join(strings.Fields(urlInText.ReplaceAllString(s, "")), " ")
 }
 
 // answerRunes is the longest text of one answer the box keeps.

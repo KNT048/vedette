@@ -69,10 +69,10 @@ func TestFixCount_TheWordsOfAViewNameTheStoredFixAndWhoConfirmed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		named, anon := c.ConfirmText(true), c.ConfirmText(false)
-		if !strings.HasPrefix(named, "Confirmed by it@example.com on ") || !strings.HasPrefix(anon, "Confirmed by a person on ") || strings.Contains(anon, "example.com") || strings.Contains(named, "Not confirmed") {
+		text := c.ConfirmText()
+		if !strings.HasPrefix(text, "Confirmed by a person on this box on ") || strings.Contains(text, "example.com") || strings.Contains(text, "@") || strings.Contains(text, "Not confirmed") {
 			notConfirmed++
-			t.Errorf("%s: %q, %q", v.Finding.CVE, named, anon)
+			t.Errorf("%s: %q", v.Finding.CVE, text)
 		}
 	}
 	t.Logf("open findings %d, %d with a stored release; words not carrying it: %d; saying no fixed release: %d; the finding page's own reader names none for: %d; person-confirmed not read as confirmed: %d of 9",

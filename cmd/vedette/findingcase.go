@@ -108,12 +108,8 @@ func (c findingCase) matchingRange() *feeds.BriefRange {
 	return nil
 }
 
-// ConfirmText says who or what confirmed the finding, or that nobody has.
-func (c findingCase) ConfirmText() string { return c.View.ConfirmText(true) }
-
-// ConfirmWords is ConfirmText for a reader that is not given the people of the box (the MCP tools): a person's confirmation says "a
-// person", never who.
-func (c findingCase) ConfirmWords() string { return c.View.ConfirmText(false) }
+// ConfirmText says what confirmed the finding, or that nothing has; never who (findings.View.ConfirmText).
+func (c findingCase) ConfirmText() string { return c.View.ConfirmText() }
 
 // WorkaroundText is the workaround the CVE record gives, or the plain sentence when it gives none.
 func (c findingCase) WorkaroundText() string { return briefWorkaround(c.Brief) }
@@ -212,7 +208,13 @@ func (c findingCase) attackWords() string {
 
 // briefFeedText is the CVE brief as the text of a data block (the numbered references go with it): every line is a fact of the stored
 // catalogue, each value one line and cut, since a feed wrote it.
-func (c findingCase) briefFeedText(links []caseLink) string {
+func (c findingCase) briefFeedText(links []caseLink) string { return c.briefText(links, true) }
+
+// briefKeyText is briefFeedText without the numbers that change every day (EPSS), for the key of a saved answer: the next day's score
+// is no reason to ask again.
+func (c findingCase) briefKeyText(links []caseLink) string { return c.briefText(links, false) }
+
+func (c findingCase) briefText(links []caseLink, volatile bool) string {
 	b := c.Brief
 	var t strings.Builder
 	p := func(format string, a ...any) { fmt.Fprintf(&t, format+"\n", a...) }
@@ -251,7 +253,7 @@ func (c findingCase) briefFeedText(links []caseLink) string {
 	for _, g := range b.Signals {
 		p("Signal: %s from %s, first seen %s", aiVal(g.Kind, 40), aiVal(g.SourceName, 60), g.FirstSeen.UTC().Format(time.DateOnly))
 	}
-	if e := b.EPSS; e != nil {
+	if e := b.EPSS; e != nil && volatile {
 		p("EPSS: %.1f%% chance of exploitation in the next 30 days (FIRST, %s)", e.Score*100, aiVal(e.Day, 20))
 	}
 	if b.RangesFrom != "" {

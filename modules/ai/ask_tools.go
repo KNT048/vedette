@@ -226,7 +226,7 @@ const (
 	searchAssetsDesc = "Search the inventory's devices. Optional filters, combined: text (every word in the name, IP, vendor, model, OS, services or software), kind, an open port, approved, os_contains. Returns how many match and the first limit (default 10) with vendor, model, OS, open ports and software; detail=true adds first and last seen, how it was added and which source saw it."
 	listFindingsDesc = "List findings: devices matched to a known vulnerability (urgency: none or under_attack means attackers use it; public_exploit, critical_edge, update_recommended do not). Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns the match count, counts by severity, status, basis and device, then the riskiest limit findings (default 10). get_finding: evidence of one."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
-	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
+	lookupCVEDesc    = "Look a CVE up in the box's catalogue; lists the devices it matches. on_exploited_list false: no list says it is exploited."
 	lookupIOCDesc    = "Check whether an IP address or a domain name is listed by the threat feeds this box pulls."
 )
 
@@ -621,12 +621,13 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 		return toolOut{}, readFailed(err)
 	}
 	if !ok {
-		return toolOut{Text: `{"found":false,"note":"This CVE is not on the exploited list the box holds."}`, Summary: "not on the list"}, nil
+		return toolOut{Text: `{"found":false,"note":"The box's catalogue has no record of this CVE."}`, Summary: "not in the catalogue"}, nil
 	}
 	assets, err := f.AffectedAssets(ctx, id)
 	if err != nil {
 		return toolOut{}, readFailed(err)
 	}
+	listed := facts.Listed()
 	var links []string
 	for _, l := range facts.Links {
 		if (strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://")) && len(links) < 4 {
@@ -641,6 +642,7 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 	text, _ := fit(len(devs), 0, func(n, _ int) any {
 		return struct {
 			Found                bool             `json:"found"`
+			OnExploitedList      bool             `json:"on_exploited_list"`
 			CVE                  string           `json:"cve"`
 			MatchingDevicesTotal int              `json:"matching_devices_total"`
 			Shown                int              `json:"shown"`
@@ -654,9 +656,12 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 			Ransomware           bool             `json:"ransomware"`
 			Links                []string         `json:"links"`
 			MatchingDevices      []map[string]any `json:"matching_devices"`
-		}{true, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
+		}{true, listed, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
 			clip(facts.Description, 800), clip(facts.RequiredAction, 400), clip(facts.DateAdded, 20), facts.Ransomware, links, devs[:n]}
 	})
+	if !listed {
+		return toolOut{Text: text, Summary: "not on an exploited list, " + plural(len(assets), "device", "devices"), Cite: "CVE record: " + id}, nil
+	}
 	return toolOut{Text: text, Summary: "on the list, " + plural(len(assets), "device", "devices"), Cite: "Exploited list: " + id}, nil
 }
 

@@ -168,7 +168,7 @@ func mcpFinding(c findingCase) mcpserver.Finding {
 	f := c.View.Finding
 	out := mcpserver.Finding{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Status: aiStatusWord(f), Severity: aiSeverityWord(c.View.Severity), Confidence: aiConfidence(f),
 		Basis: aiBasisWord(f), Urgency: findings.LayerCode(f.Urgency), FirstSeen: f.FirstSeen.UTC().Format(mcpTS), LastSeen: f.LastSeen.UTC().Format(mcpTS),
-		Fix: c.FixText(), Verification: c.ConfirmWords(), History: []mcpserver.HistoryStep{}}
+		Fix: c.FixText(), Verification: c.ConfirmText(), History: []mcpserver.HistoryStep{}}
 	if !f.ResolvedAt.IsZero() {
 		at := f.ResolvedAt.UTC().Format(mcpTS)
 		out.ResolvedAt = &at
@@ -197,9 +197,13 @@ func (s mcpSource) Findings(ctx context.Context) ([]mcpserver.Finding, error) {
 	if err := s.need("findings"); err != nil {
 		return nil, err
 	}
-	cs, err := s.cases.Many(ctx, findings.ViewFilter{})
+	vs, err := s.cases.findings.Views(ctx, findings.ViewFilter{}) // no brief: a finding's words need none
 	if err != nil {
 		return nil, err
+	}
+	cs := make([]findingCase, len(vs))
+	for i, v := range vs {
+		cs[i] = findingCase{View: v}
 	}
 	slices.SortStableFunc(cs, func(a, b findingCase) int {
 		if c := b.View.Finding.FirstSeen.Compare(a.View.Finding.FirstSeen); c != 0 {

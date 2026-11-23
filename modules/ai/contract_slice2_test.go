@@ -727,3 +727,31 @@ func asAPI(err error, target **apierr.Error) bool {
 }
 
 var _ = context.Background
+
+// The saved answer is keyed on the brief without the numbers that change every day: a new EPSS score the next day keeps it, and
+// "Ask again" costs nothing; a change of anything else in the brief asks again.
+func TestExplainSavedAnswerSurvivesANextDayEPSSChange(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	setBrief := func(text, key string) {
+		a.facts.mu.Lock()
+		f := a.facts.cves["CVE-2022-27593"]
+		f.Brief, f.BriefKey = text, key
+		a.facts.cves["CVE-2022-27593"] = f
+		a.facts.mu.Unlock()
+	}
+	setBrief("CVE: CVE-2022-27593\nEPSS: 1.0%\n", "CVE: CVE-2022-27593\n")
+	a.explain("CVE-2022-27593", 200, "")
+	calls := a.fake.total()
+	setBrief("CVE: CVE-2022-27593\nEPSS: 4.0%\n", "CVE: CVE-2022-27593\n")
+	if c := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"]; c == nil {
+		t.Fatal("the saved answer is gone after the EPSS score changed")
+	}
+	if again := a.explain("CVE-2022-27593", 200, ""); again["cached"] != true || a.fake.total() != calls {
+		t.Fatalf("asked again after an EPSS change: %v", again)
+	}
+	setBrief("CVE: CVE-2022-27593\nWorkaround: turn it off.\n", "CVE: CVE-2022-27593\nWorkaround: turn it off.\n")
+	if again := a.explain("CVE-2022-27593", 200, ""); again["cached"] != false {
+		t.Fatalf("a new workaround kept the old answer: %v", again)
+	}
+}

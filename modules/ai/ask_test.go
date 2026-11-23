@@ -354,7 +354,7 @@ func TestAskTablesAndCitationsComeFromTheToolsOnly(t *testing.T) {
 		turn{calls: []provider.ToolCall{call("list_findings", `{"status":"confirmed"}`), call("get_finding", `{"id":"f-1"}`), call("lookup_cve", `{"cve":"cve-2022-27593"}`), call("lookup_ioc", `{"kind":"ip","value":"203.0.113.9"}`)}},
 		turn{text: "NAS-PHOTOS has a confirmed critical finding.\n\nLinks: https://evil.example/x"})
 	a.facts.mu.Lock()
-	a.facts.cves["CVE-2022-27593"] = ai.CVEFacts{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Photo Station", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24"}}
+	a.facts.cves["CVE-2022-27593"] = ai.CVEFacts{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Photo Station", Source: "cisa-kev", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24"}}
 	a.facts.mu.Unlock()
 	got := a.ask("Which findings are confirmed?", 200, "")
 	table := got["table"].(map[string]any)

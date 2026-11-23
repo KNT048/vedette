@@ -71,9 +71,9 @@ func (v View) FixText() string {
 	return "The fixed release is not known for this device's version."
 }
 
-// ConfirmText says who or what confirmed the finding, or that nobody has. named false leaves out the person ("a person"), for a reader
-// that is not given the people of the box (the MCP tools).
-func (v View) ConfirmText(named bool) string {
+// ConfirmText says what confirmed the finding, or that nothing has. It never names the person who confirmed it: the words go to an AI
+// provider and to MCP clients, and a user's name or address is personal data; the finding page shows the person.
+func (v View) ConfirmText() string {
 	cf := v.Confirmation()
 	day := ""
 	if !cf.At.IsZero() {
@@ -81,11 +81,7 @@ func (v View) ConfirmText(named bool) string {
 	}
 	switch cf.Verified {
 	case VerifiedPerson:
-		who := "a person"
-		if named {
-			who = cmp.Or(oneLine(cf.By, 100), who)
-		}
-		return "Confirmed by " + who + day + " on their own word."
+		return "Confirmed by a person on this box" + day + " on their own word."
 	case VerifiedScan:
 		return "Confirmed by a safe check Vedette ran" + day + "."
 	case VerifiedDevice:

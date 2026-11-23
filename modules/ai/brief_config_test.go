@@ -293,3 +293,15 @@ func TestBrief_InstructionsAskTheFourQuestionsAndNoWhyThereIsNo(t *testing.T) {
 		}
 	}
 }
+
+// A web address the model writes in an answer is removed: the links of an answer are the references the box offered, written by the box.
+func TestBrief_AddressesInAnswerTextAreRemoved(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"Yes, see https://evil.example/patch now or www.evil.example for details.","refs":[]},` +
+		`{"key":"fix","text":"Update.","refs":[]},{"key":"workaround","text":"None.","refs":[]},{"key":"urgency","text":"High.","refs":[]}]}`)
+	out, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Question: "Explain."})
+	if err != nil || strings.Contains(out.Answers[0].Text, "evil") || out.Answers[0].Text != "Yes, see now or for details." {
+		t.Fatalf("answer = %q, %v", out.Answers[0].Text, err)
+	}
+}

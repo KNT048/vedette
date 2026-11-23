@@ -74,8 +74,3 @@ export type Resolution = z.infer<typeof C.Resolution>
 export type Issue = z.infer<typeof C.Issue>
 export type IssueCve = z.infer<typeof C.IssueCve>
 export type CveSeverity = z.infer<typeof C.CveSeverity>
-
-/** The label key of a blocked target: a commitment of an older sentence reads as asked again, not as a missing first scan. */
-export function blockedKey(t: Pick<Target, 'blocked_reason' | 'commitment'>): string {
-  return t.blocked_reason === 'no_commitment' && t.commitment ? 'no_commitment_again' : (t.blocked_reason ?? '')
-}

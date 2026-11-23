@@ -28,7 +28,6 @@ export interface NetStore {
 export type SpanVerdict = 'off' | 'ok' | 'own_only' | 'no_traffic' | 'no_link' | 'sensor_unreachable'
 export interface SpanStatus { verdict: SpanVerdict; interface: string | null; packets_per_s: number; other_macs: number; last_packet_at: string | null }
 
-export const DEFAULT_NTP = 'pool.ntp.org'
 /** A device that is switched on but not in the inventory (a printer nobody scanned yet): the box finds it with an ARP probe before it takes an address. */
 export const SILENT_DEVICES = ['192.168.10.77']
 export const CONFIRM_SECONDS = 300 // The admin signs in again at the new address (new origin, two-step), which takes more than 2 minutes

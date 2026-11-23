@@ -43,7 +43,5 @@ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Write an audit entry for every mutation (SYS-3). The core module shows it in Settings → Audit log. */
 export { audit } from './stores'
 
-/** The product is English only. Keep the signature so old code runs; new code uses English strings directly. */
-export const langOf = (_req: Request): 'en' => 'en'
 /** @deprecated use English strings directly. Returns the English text. */
 export const msg = (_req: Request, _vi: string, en: string) => en

@@ -360,13 +360,6 @@ func sanitizeWeb(in []WebFindingRow) []WebFindingRow {
 	return out
 }
 
-// isWebService says nmap named a web site on the port: http, https, http-alt, https-alt, with nmap's "ssl/" prefix. Not an HTTP proxy,
-// MS RPC over HTTP (http-rpc-epmap) or a guess (http?). It is only a hint of the transport (webTLS); whether a port is a web service
-// is what answeredHTTP says.
-func isWebService(name string) bool {
-	return slices.Contains([]string{"http", "https", "http-alt", "https-alt"}, strings.TrimPrefix(strings.ToLower(name), "ssl/"))
-}
-
 // webPort is one open port that answered HTTP, with the reading webPages ranks it by.
 type webPort struct {
 	ip     netip.Addr

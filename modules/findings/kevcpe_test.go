@@ -43,8 +43,8 @@ func TestMatchAsset_910_ChromiumV8OnChrome(t *testing.T) {
 	if f := FixedInFor(a, v); f == nil || f.Kind != "fixed" || f.Fixed != "153.0.8010.36" {
 		t.Errorf("fixed_in: %+v", f)
 	}
-	if got := matchedOn(a, KevInfo{Vendor: v.Vendor, Product: v.Product}, &v); got != "Google Chrome" {
-		t.Errorf("matchedOn = %q, want the Chrome row", got)
+	if s, ok := matchedRow(a, KevInfo{Vendor: v.Vendor, Product: v.Product}, &v); !ok || clean(s.Display) != "Google Chrome" {
+		t.Errorf("matched row = %q %v, want the Chrome row", s.Display, ok)
 	}
 
 	a.Software = []Software{chromeRow("153.0.8010.36")} // updated: the finding closes on NVD's range

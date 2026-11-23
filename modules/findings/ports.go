@@ -96,7 +96,7 @@ type AssetView struct {
 	Hostname *string `json:"hostname"` // nil when the device has no name
 	IP       string  `json:"ip"`       // "—" when the device has no IP address (hand-added, LLDP only)
 	Kind     string  `json:"kind"`     // one of the inventory kinds; anything else is shown as "unknown"
-	Display  string  `json:"display"`  // the device's OS, else its kind; GET /findings/{id} puts the matched software here (matchedOn, #905)
+	Display  string  `json:"display"`  // the device's OS, else its kind; GET /findings/{id} puts the matched software here (matchedRow, #905)
 	Approved bool    `json:"approved"` // false: the device is not added yet (nobody approved it); its findings say so and offer Add device and Ignore
 	Ignored  bool    `json:"ignored"`  // a person ignored the device: its findings are under Findings > Ignored
 	Box      bool    `json:"-"`        // the Vedette box itself: never given a risk marker

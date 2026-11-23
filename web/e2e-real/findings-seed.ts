@@ -1,4 +1,4 @@
-// Getting a real finding onto the box through public APIs only (WP-30), for findings.global.spec.ts.
+// Getting a real finding onto the box through public APIs only, for the specs that need one (mitigation packs, scans, alerts).
 // A finding is made from the CISA list only (feeds `Store` answers from `cisa-kev` rows: "a custom feed's CVE is not a KEV entry"; inventory and
 // findings read nothing else), so a custom vulnerability feed cannot make one. The public path that works with no internet: the built-in CISA
 // KEV feed lets an administrator set a mirror address (PUT /feeds/sources/cisa-kev {url}); a node `http` server on 127.0.0.1 (INV-2 of feeds

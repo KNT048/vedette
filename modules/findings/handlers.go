@@ -187,19 +187,6 @@ func (h *FindingHandlers) suspectedWhy(ctx context.Context, rec Record, d Detail
 	return &s
 }
 
-// matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
-// OS it states, deviceSoftware): the Device panel of the finding names it, not the device's first software by name, which
-// showed "Microsoft Edge" for a Windows CVE. A "Multiple Products" entry is keyed to every row of its vendor, so there it is the row the
-// matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry), as it is for an entry no
-// row is keyed to (#910: NVD's list names the row). "" when no row is keyed to the entry and the entry is not read or the matcher
-// matches none (the panel then keeps AssetView.Display: the device's OS, else its kind, never an arbitrary software row, #905).
-func matchedOn(a Asset, k KevInfo, v *Vuln) string {
-	if s, ok := matchedRow(a, k, v); ok {
-		return clean(s.Display)
-	}
-	return ""
-}
-
 // findingRow is the row the finding was matched on, the one its evidence speaks of (review r1 M3 of #896): the row the matcher
 // matches the stored entry on, on the device as it is now. Without the entry, or when the matcher no longer matches, the keyed row
 // with a version from the most trusted source (agent, a person, SNMP, a scan), else matchedRow's.
@@ -242,7 +229,8 @@ func findingRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
 	return matchedRow(a, k, v)
 }
 
-// matchedRow is the software row matchedOn names; ok is false when there is none. With the stored entry, the row the matcher matches
+// matchedRow names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the
+// network OS it states, deviceSoftware), not the device's first software by name; ok is false when there is none. With the stored entry, the row the matcher matches
 // it on (the finding's row, as FixedInFor reads it: a version match through NVD's list beats a keyed row's product match,
 // #910, review r1 L1 of #913); else, or when it matches none, a row keyed to the entry (never for "Multiple Products").
 func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {

@@ -344,18 +344,23 @@ function detect(who: 'user' | 'system'): Detected {
   const onIgnored = pub.filter((ip) => blockedIps.includes(ip))
   for (const ip of pub.filter((x) => !blockedIps.includes(x))) {
     const msg = `The box reaches the Internet via ${ip}. Verified until ${until}.`
+    // The target list the pages read is the tree (exp_tree), as on the box; the older list (exp_targets) is kept in step for the
+    // readers that still use it (the scan module's external targets, the scan-time check).
+    const node = tree.get().find((x) => x.kind === 'ip' && x.value === ip)
     const existing = targets.get().find((x) => x.kind === 'ip' && x.value === ip)
-    if (existing) {
-      const was = view(existing).validity
-      const next: StoredTarget = { ...existing, verified_at: at, expires_at: plus(at, VERIFY_DAYS), last_check: { at, ok: true, message: msg } }
-      targets.update((l) => l.map((x) => (x.id === next.id ? next : x)))
+    if (node || existing) {
+      const was = node ? (ownProof(node) === 'expired' ? 'expired' : 'valid') : view(existing!).validity
+      upsertBoxNode(ip, at, msg, node)
+      const next: StoredTarget = existing ? { ...existing, verified_at: at, expires_at: plus(at, VERIFY_DAYS), last_check: { at, ok: true, message: msg } } : boxTarget(ip, at, msg)
+      targets.update((l) => (existing ? l.map((x) => (x.id === next.id ? next : x)) : [...l, next]))
       if (!auto || was === 'expired') log('exposure.verify_renew', ip, 'box_egress')
       if (was === 'expired') changed = true
       seen.push(next)
-    } else if (targets.get().length >= MAX_TARGETS) {
+    } else if (targets.get().length >= MAX_TARGETS || tree.get().length >= MAX_TARGETS) {
       skipped.push(ip)
     } else {
-      const next: StoredTarget = { id: newId('xt'), kind: 'ip', value: ip, token: '', method: 'box_egress', verified_at: at, expires_at: plus(at, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at, ok: true, message: msg }, created_at: at, last_scan_at: null }
+      upsertBoxNode(ip, at, msg, undefined)
+      const next = boxTarget(ip, at, msg)
       targets.update((l) => [...l, next])
       log('exposure.verify_ok', ip, auto ? 'box_egress, auto-detect' : 'box_egress')
       added.push(ip)
@@ -382,6 +387,16 @@ function detect(who: 'user' | 'system'): Detected {
   record(skipped.length === 0, message)
   if (auto && (changed || switched(skipped.length === 0))) auditSystem('exposure.auto_detect', 'box', `seen: ${list(seen.map((x) => x.value))}${added.length ? `; added: ${list(added)}` : ''}${skipped.length ? `; not added: ${list(skipped)}` : ''}`)
   return { kind: 'ok', seen, message }
+}
+
+const boxTarget = (ip: string, at: string, message: string): StoredTarget =>
+  ({ id: newId('xt'), kind: 'ip', value: ip, token: '', method: 'box_egress', verified_at: at, expires_at: plus(at, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: { at, ok: true, message }, created_at: at, last_scan_at: null })
+/** The box saw it leave through this IP: a new node of the tree (this box's IP, proven by the sighting), or the node renewed. An IP a
+ *  person typed becomes the box's own IP, proven the same way. */
+function upsertBoxNode(ip: string, at: string, message: string, node: StoredNode | undefined) {
+  const seen = { origin: 'box' as const, method: 'box_egress' as const, verified_at: at, last_check: { at, ok: true, message } }
+  if (node) { patchNode(node.id, (x) => ({ ...x, ...seen, checks: x.checks + 1 })); return }
+  tree.update((l) => [...l, { id: newId('xt'), parent_id: null, kind: 'ip', value: ip, scope_mode: null, enabled: true, created_at: at, token: '', checks: 1, commitment: null, terms: null, ...seen }])
 }
 
 const CURRENT_MS = 5 * 60_000
@@ -571,6 +586,7 @@ scheduleSubjects['exposure.target'] = (id) => {
 const treeHandlers = [
   http.get(`${API}/exposure/tree`, () => {
     const denied = guard('viewer'); if (denied) return denied
+    autoDetectIfDue()
     advanceRuns()
     const all = tree.get()
     const items = treeOrder(all).map((n) => nodeView(n, all))
@@ -663,10 +679,16 @@ const treeHandlers = [
     if (proof.state === 'covered') {
       return HttpResponse.json({ verified: true, message: `Ownership already proven by the TXT record at ${proof.covered_by!.value}.`, node: nodeView(n) })
     }
+    const box = n.kind === 'ip' && n.origin === 'box'
+    const limited = box ? rateLimit() : null; if (limited) return limited // this box's IP: within the 10 attempts an hour Detect now uses too
     const at = nowIso(), checks = n.checks + 1
-    // The mock finds a new record or file from the second check on; the box's own IP is seen while it goes out through it.
-    const found = n.origin === 'box' || checks >= 2
-    const message = n.origin === 'box' ? `The box reaches the Internet via ${n.value}.`
+    // The mock finds a new record or file from the second check on; this box's IP is seen only while the box goes out through it.
+    const observed = box ? egressIps() : null
+    const found = box ? Array.isArray(observed) && observed.includes(n.value) : checks >= 2
+    const message = box
+      ? found ? `The box reaches the Internet via ${n.value}.`
+        : !Array.isArray(observed) ? (observed === 'offline' ? OFFLINE : DISAGREE)
+          : `This box currently reaches the Internet via ${list(observed)}, not ${n.value}. Ask your admin to route the box through ${n.value} (for example switch WAN), then verify again.`
       : n.kind === 'domain' ? `The TXT record vedette-verify=${n.token} was ${found ? '' : 'not '}found on ${n.value}.`
         : found ? `The proof file was found at http://${n.value}/.well-known/vedette-verify.txt.` : `No proof file at http://${n.value}/.well-known/vedette-verify.txt or https://${n.value}/.well-known/vedette-verify.txt.`
     const next = patchNode(n.id, (x) => ({ ...x, checks, last_check: { at, ok: found, message }, ...(found ? { verified_at: at, method: x.method ?? (x.kind === 'domain' ? 'dns_txt' : 'ip_file') } : {}) }))

@@ -36,7 +36,7 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     expect(sumOf(await devicesTable(), /(\d+) findings?, \d+ CVE/)).toBe(open)
     await openTab(/^By fix/)
     expect(await summary('fix')).toBe(open)
-    expect(sumOf(await fixesTable(), /\d+ devices, (\d+) findings?/)).toBe(open)
+    expect(sumOf(await fixesTable(), /\d+ devices?, (\d+) findings?/)).toBe(open)
     console.info(`open findings: title ${open}, by device ${open}, by fix ${open}`)
 
     // one status: both lists still agree, and match the toggle's own count
@@ -45,7 +45,7 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await waitFor(async () => expect(await summary('fix')).toBe(exploited), T)
-    expect(sumOf(await fixesTable(), /\d+ devices, (\d+) findings?/)).toBe(exploited)
+    expect(sumOf(await fixesTable(), /\d+ devices?, (\d+) findings?/)).toBe(exploited)
     await openTab(/^By device/)
     await waitFor(async () => expect(await summary('device')).toBe(exploited), T)
     expect(sumOf(await devicesTable(), /(\d+) findings?, \d+ CVE/)).toBe(exploited)
@@ -65,6 +65,16 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     // the device badge leads to that device's findings with that status
     expect(within(fw).getByRole('link', { name: /exploited$/ })).toHaveAttribute('href', '/devices/a-fw01?tab=findings&status=exploited')
     await expectNoA11yViolations()
+  })
+})
+
+describe('Findings: counts read as English', () => {
+  it('one device, one fix and one finding are singular in the summaries and on a fix', async () => {
+    renderApp('/findings?tab=device&by-device.q=CVE-2022-27593')
+    await waitFor(() => expect(document.querySelector('[data-count="device"]')).toHaveTextContent(/^1 open finding on 1 device$/), T)
+    renderApp('/findings?tab=fix&by-fix.q=CVE-2022-27593')
+    await waitFor(() => expect(document.querySelector('[data-count="fix"]')).toHaveTextContent(/^1 open finding, 1 fix$/), T)
+    expect(within(await fixesTable()).getByRole('button', { name: /^Update Photo Station/ })).toHaveTextContent(/1 device, 1 finding$/)
   })
 })
 

@@ -11,7 +11,7 @@ import type { ZodType } from 'zod'
 import { server } from '@/test/server'
 import { sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
-import { DeviceCards, FIRST_TOP, FixCards, HandledList, InputList, Overview, PAGE_DEFAULT, TREND_DAYS, View } from './contract'
+import { DeviceCards, FindingDetail, FIRST_TOP, FixCards, HandledList, InputList, Overview, PAGE_DEFAULT, TREND_DAYS, View } from './contract'
 import type { DeviceCards as Cards, FixCards as Fixes, InputList as Input } from './types'
 
 const REAL = import.meta.env.VITE_FINDINGS_REAL_URL as string | undefined
@@ -174,6 +174,15 @@ const steps: Step[] = [
       for (const r of b.urgency.reasons) expect(r.layer).toBeGreaterThanOrEqual(b.urgency.layer)
     } },
   { name: 'the view of an unknown finding', role: 'viewer', method: 'GET', path: '/findings/fv-nope/view', status: 404, code: 'not_found' },
+  // Every list links a finding to its page by the same id: the page's detail answers for it.
+  { name: 'the page of a listed finding', role: 'viewer', method: 'GET', path: (c) => `/findings/${c.fid}`, status: 200, schema: FindingDetail,
+    check: (b, c) => { expect([b.id, b.asset?.id]).toEqual([c.fid, c.device]); expect(['confirmed', 'suspected']).toContain(b.status) } },
+  { name: 'the page of the finding with a confirmed recommendation', role: 'viewer', method: 'GET', path: '/findings/fv-nas02-ps-1', status: 200, schema: FindingDetail, mockOnly: true,
+    check: (b) => { expect(b.cve).toBe('CVE-2022-27593'); expect(b.pack).not.toBeNull(); expect(b.applied).toEqual([]) } },
+  { name: '"Applied" on a listed finding is kept on its page', role: 'operator', method: 'POST', path: '/findings/fv-nas02-ps-1/applied', body: { item: 'patch' }, status: 200, schema: FindingDetail, mockOnly: true,
+    check: (b) => expect(b.applied).toMatchObject([{ item: 'patch', user: who('operator') }]) },
+  { name: 'it is still there on the next read', role: 'viewer', method: 'GET', path: '/findings/fv-nas02-ps-1', status: 200, mockOnly: true,
+    check: (b) => expect(b.applied.map((a: { item: string }) => a.item)).toEqual(['patch']) },
 
   // ---- handling
   { name: 'a viewer cannot handle', role: 'viewer', method: 'POST', path: '/findings/handle', body: (c) => ({ ids: [c.fid], resolution: 'patched', note: '' }), status: 403, code: 'forbidden' },
@@ -197,6 +206,8 @@ const steps: Step[] = [
       expect(b.handled).toMatchObject({ resolution: 'patched', via: 'person', by: who('operator'), note: 'updated by hand', accepted_until: null })
       expect(b.events.at(-1)).toMatchObject({ kind: 'handled', actor: who('operator'), resolution: 'patched' })
     } },
+  { name: 'the page says it is handled', role: 'viewer', method: 'GET', path: (c) => `/findings/${c.fid}`, status: 200, schema: FindingDetail,
+    check: (b) => { expect(b.status).toBe('patched'); expect(b.resolved_by).toBe(who('operator')) } },
   { name: 'handled lists it', role: 'viewer', method: 'GET', path: (c) => `/findings/handled?device=${encodeURIComponent(c.device!)}&limit=100`, status: 200, schema: HandledList,
     check: (b, c) => expect(b.items.map((r: { id: string }) => r.id)).toContain(c.fid) },
   { name: 'one finding handled another way changes exactly that one', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ ids: [c.fid], resolution: 'mitigated', note: 'firewall rule' }), status: 200,

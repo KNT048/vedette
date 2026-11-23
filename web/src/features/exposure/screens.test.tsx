@@ -112,7 +112,7 @@ describe('exposure screens: issues', () => {
   it('accepting a risk needs a note and a last day; the handled view shows the shared badge and who handled it; reopen brings it back', async () => {
     renderApp('/exposure/xt-11')
     const table = await screen.findByRole('table', { name: 'Issues of example.com' })
-    await userEvent.click(within(table).getByRole('button', { name: 'Mark Content Security Policy (CSP) header not set as handled' }))
+    await userEvent.click(within(table).getByRole('button', { name: 'Mark as handled: Content Security Policy (CSP) header not set' }))
     const dialog = await screen.findByRole('dialog', { name: 'Mark the issue as handled' })
     await userEvent.click(within(dialog).getByRole('radio', { name: /Risk accepted/ }))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Mark as handled' }))
@@ -154,6 +154,6 @@ describe('exposure screens: issues', () => {
     renderApp('/exposure/xt-11', { role: 'viewer' })
     const table = await screen.findByRole('table', { name: 'Issues of example.com' })
     expect(within(table).queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(within(table).getAllByRole('button', { name: /^Mark .* as handled$/ })[0]).toBeDisabled()
+    expect(within(table).getAllByRole('button', { name: /^Mark as handled: / })[0]).toBeDisabled()
   })
 })

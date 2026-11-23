@@ -50,6 +50,23 @@ describe('exposure tree', () => {
     expect(parsed(TargetNode, (await call('GET', `/exposure/tree/${sub.id}`)).json)).toMatchObject({ parent_id: null, proof: { state: 'missing' } })
   })
 
+  it('Verify again of this box\'s IP passes only while the box goes out through it, and shares the 10 attempts an hour', async () => {
+    type Verify = { verified: boolean; message: string; node: z.infer<typeof TargetNode> }
+    try {
+      localStorage.setItem('vedette-mock-egress', '198.51.100.9')
+      const away = (await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')).json as Verify
+      expect(away).toMatchObject({ verified: false, node: { blocked: 'proof', proof: { state: 'missing' } } })
+      expect(away.message).toBe('This box currently reaches the Internet via 198.51.100.9, not 198.51.100.2. Ask your admin to route the box through 198.51.100.2 (for example switch WAN), then verify again.')
+      localStorage.setItem('vedette-mock-egress', '198.51.100.2,198.51.100.9')
+      const back = (await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')).json as Verify
+      expect(back).toMatchObject({ verified: true, node: { blocked: null, proof: { state: 'proven', method: 'box_egress' } } })
+      for (let i = 2; i < 10; i++) expect((await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')).status).toBe(200)
+      const limited = await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')
+      expect([limited.status, (limited.json as { error: { code: string } }).error.code]).toEqual([429, 'rate_limited'])
+      expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(429) // Detect now draws on the same 10
+    } finally { localStorage.removeItem('vedette-mock-egress') }
+  })
+
   it('refuses a scope on an IP and a choice of names outside the selected scope', async () => {
     expect((await call('POST', '/exposure/tree', { value: '198.51.100.9', scope_mode: 'all' })).status).toBe(400)
     expect((await call('PATCH', '/exposure/tree/xt-11', { selected: ['xh-2'] })).status).toBe(400)

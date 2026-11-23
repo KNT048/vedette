@@ -10,13 +10,13 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack } from './types'
+import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack, SeverityBand } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
-import { deviceStatus } from './modelMocks'
+import { deviceStatus, modelHandlers, records } from './modelMocks'
 import type { DeviceStatusCode } from '@/lib/statusCodes'
-import { modelHandlers } from './modelMocks'
+import { SAMPLE_SEVERITY, type FindingRecord } from '@/mocks/seed/findings'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
@@ -77,13 +77,14 @@ function assetView(a: Asset | undefined): FindingAsset | null {
   return a ? { id: a.id, name: nameOf(a), hostname: a.hostname, ip: a.ip || '—', kind: a.kind, display: a.software[0]?.display ?? a.kind, approved: a.approved, ignored: !!metaStore.get()[a.id]?.ignored_at } : null
 }
 
-function row(f: Finding): FindingRow {
-  const until = accepted.get()[f.id] ?? null
+function row(shown: Shown): FindingRow {
+  const { layer, accepted_until: recordUntil, ...f } = shown
+  const until = recordUntil ?? accepted.get()[f.id] ?? null
   const status = until ? 'risk_accepted' : f.status
   // as findings.ShownConfidence: a finding its evidence confirms is never shown below a scan's confirmation (0.95), in any status
   const confirmedBy = f.basis === 'scan' || f.basis === 'person' || (f.basis === 'version' && f.status === 'confirmed')
   const confidence = confirmedBy ? Math.max(f.confidence, 0.95) : f.confidence
-  const urgency = kevInfo(f.cve) ? 2 : 5 // a CVE on an exploited list is layer 2; any other catalogue CVE is an update to recommend
+  const urgency = layer ?? (kevInfo(f.cve) ? 2 : 5) // a row of the findings model has its layer; else a CVE on an exploited list is layer 2, any other an update to recommend
   return { ...f, status, confidence, urgency, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve) }
 }
 
@@ -215,7 +216,7 @@ function whySuspected(f: Finding, kv: KnownVersion | null, k: KevInfo | null): s
   return `${head}${device}${check}`
 }
 
-function detail(f: Finding): FindingDetail {
+function detail(f: Shown): FindingDetail {
   const r = row(f)
   const pack = packs()[f.cve]
   const check = compromise()[f.cve] ?? null
@@ -247,8 +248,50 @@ function hardeningFor(f: Finding, r: FindingRow, _pack: MitigationPack | undefin
 const who = () => currentUser()?.email ?? 'system'
 /** The basis a finding had before a person confirmed it (Undo returns to it). */
 const priorBasis = new Map<string, Finding['basis']>()
-const find = (id: unknown) => findingsStore.get().find((f) => f.id === String(id))
 const patch = (id: string, fn: (f: Finding) => Finding) => findingsStore.update((l) => l.map((f) => (f.id === id ? fn(f) : f)))
+
+/** A finding as the finding page reads it: a row of findingsStore, or a row of the findings model (modelMocks' records, the ids every
+ *  list links to) with its urgency layer and accepted risk. On the box both are one table and one id. */
+type Shown = Finding & { layer?: number; accepted_until?: string | null }
+/** "Applied" entries of the findings model's rows: the history the page reads besides the row's own events. */
+const modelApplied = collection<Record<string, Finding['history']>>('mit_model_applied', () => ({}))
+const BASIS_TEXT: Record<FindingRecord['basis'], (software: string) => string> = {
+  scan: (sw) => `A safe check confirmed the flaw on ${sw}.`,
+  device_version: (sw) => `The device itself reports ${sw}, a version the advisory lists as affected.`,
+  package: (sw) => `The installed package ${sw} is a version the advisory lists as affected.`,
+  banner_version: (sw) => `The scan read ${sw} from the service banner; no check has confirmed it yet.`,
+  statement: (sw) => `${sw} was stated by a person; no check has confirmed it yet.`,
+  person: (sw) => `A person confirmed ${sw} is affected.`,
+}
+const SEVERITY_OF: Record<SeverityBand, Finding['severity']> = { critical: 'critical', high: 'high', medium: 'medium', low: 'low', none: 'info' }
+function fromRecord(r: FindingRecord): Shown {
+  const sw = r.software ? [r.software.name, r.software.version].filter(Boolean).join(' ') : r.cve
+  // The sample keeps a findingsStore row for a few of the same device and CVE: with the same basis, its evidence (request, response) is the richer one.
+  const twin = findingsStore.get().find((f) => f.asset_id === r.asset_id && f.cve === r.cve)
+  const confirmed = r.verified !== 'no'
+  const basis: Finding['basis'] = r.basis === 'scan' || r.basis === 'person' ? r.basis : 'version'
+  const handled = r.events.map((e) => ({ ts: e.ts, user: e.actor, action: e.kind === 'handled' ? (e.resolution ?? 'handled') : e.kind, ...(e.note ? { note: e.note } : {}) }))
+  return {
+    id: r.id, asset_id: r.asset_id, cve: r.cve,
+    status: r.state === 'open' ? (confirmed ? 'confirmed' : 'suspected') : r.resolution === 'accepted' ? 'not_relevant' : r.resolution!,
+    severity: SEVERITY_OF[SAMPLE_SEVERITY[r.cve]?.band ?? 'medium'],
+    confidence: confirmed ? 0.95 : 0.6,
+    basis,
+    evidence: twin?.basis === basis && twin.evidence ? twin.evidence : {
+      summary: BASIS_TEXT[r.basis](sw), checked_at: r.last_seen,
+      ...(r.basis === 'scan' ? { template: `http/cves/${r.cve.slice(4, 8)}/${r.cve}.yaml` } : {}), ...(r.verified === 'device' ? { source: 'agent' as const } : {}),
+    },
+    first_seen: r.first_seen, last_seen: r.last_seen, resolved_by: r.resolved_by, resolved_at: r.resolved_at, resolution_note: r.note,
+    history: [...handled, ...(modelApplied.get()[r.id] ?? [])].sort((a, b) => a.ts.localeCompare(b.ts)),
+    layer: r.layer, accepted_until: r.resolution === 'accepted' ? r.accepted_until : null,
+  }
+}
+const find = (id: unknown): Shown | undefined => {
+  const f = findingsStore.get().find((x) => x.id === String(id))
+  if (f) return f
+  const r = records.get().find((x) => x.id === String(id))
+  return r ? fromRecord(r) : undefined
+}
 
 const BASIS: Record<Finding['basis'], string> = {
   scan: 'A safe scan template confirmed the flaw is still present on this device.',
@@ -453,7 +496,9 @@ export const handlers = [
     const b = await body<{ item: ApplyItem }>(request)
     if (!b.item || !APPLY_ITEMS.includes(b.item)) return fail(400, 'bad_item', 'Invalid item to apply.')
     if (!f.history.some((h) => h.action === `applied:${b.item}`)) {
-      patch(f.id, (x) => ({ ...x, history: [...x.history, { ts: nowIso(), user: who(), action: `applied:${b.item}` }] }))
+      const entry = { ts: nowIso(), user: who(), action: `applied:${b.item}` }
+      if (findingsStore.get().some((x) => x.id === f.id)) patch(f.id, (x) => ({ ...x, history: [...x.history, entry] }))
+      else modelApplied.update((m) => ({ ...m, [f.id]: [...(m[f.id] ?? []), entry] }))
       audit('findings.applied', f.id, `${f.cve}: ${b.item}`)
     }
     return HttpResponse.json(detail(find(f.id)!))

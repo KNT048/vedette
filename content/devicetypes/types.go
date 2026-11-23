@@ -112,22 +112,6 @@ func MatchesKind(kinds []string, id string) bool {
 	return ok && !t.NoAutoIsolate && slices.Contains(kinds, t.ActsAs)
 }
 
-// CategoryOf is the category of the type; "unknown" for an id that is not a type.
-func CategoryOf(id string) string {
-	if t, ok := byID[id]; ok {
-		return t.Category
-	}
-	return Unknown
-}
-
-// Label is what a person reads for the type; the id itself when it is not a type.
-func Label(id string) string {
-	if t, ok := byID[id]; ok {
-		return t.Label
-	}
-	return id
-}
-
 // ActingAs returns every type that acts as one of kinds, and every type listed in kinds itself, in the file's order: what a read keyed
 // on kinds (never-touch gateways, the devices logs names) must ask the database for.
 func ActingAs(kinds []string) []string {

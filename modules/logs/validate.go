@@ -30,17 +30,6 @@ var kinds = func() map[string]kind {
 	return out
 }()
 
-// KindIDs returns the ids of the source kinds, in the order of the file.
-func KindIDs() []string {
-	var list []kind
-	_ = json.Unmarshal(logsdata.Kinds, &list)
-	ids := make([]string, len(list))
-	for i, k := range list {
-		ids[i] = k.ID
-	}
-	return ids
-}
-
 var certPinRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)

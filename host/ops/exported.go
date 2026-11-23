@@ -50,13 +50,6 @@ func ValidateNetplan(args []string) error { return validateNetplan(args) }
 // ValidateChronyc is the validator of the chronyc binary.
 func ValidateChronyc(args []string) error { return validateChronyc(args) }
 
-// ParseARP validates one ARP frame (exactly 42 bytes) and reports its opcode, sender MAC and sender IP.
-// The fuzz targets and the contract tests call it; the host's own code calls parseARP.
-func ParseARP(b []byte) (op uint16, senderMAC [6]byte, senderIP [4]byte, err error) {
-	p, err := parseARP(b)
-	return p.Op, p.SenderMAC, p.SenderIP.As4(), err
-}
-
 // BinIP is the name of ip in the command runner (the literal is spelled once, here).
 const BinIP = binIP
 

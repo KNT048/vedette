@@ -1,4 +1,4 @@
-// Mock API module findings (S-MIT-1/2/3, S-SCAN-3, S-AI-2). Phát hiện nằm ở findingsStore dùng chung; kết quả AI nằm ở collection mit_ai_outputs. Mọi chuỗi hiển thị bằng tiếng Anh.
+// Mock API of the findings module (S-MIT-1/2/3, S-SCAN-3, S-AI-2). Findings live in the shared findingsStore; AI results live in the mit_ai_outputs collection. Every displayed string is English.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
@@ -21,7 +21,7 @@ import { modelHandlers } from './modelMocks'
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
 
-// Gói giảm thiểu và dấu hiệu khai thác là nội dung ký của dự án Vedette (content pack), không phải dữ liệu người dùng: đọc từ packs.ts.
+// Mitigation packs and signs of exploitation are signed content of the Vedette project (content pack), not user data: read from packs.ts.
 const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => ({}))
 // Accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
 // the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
@@ -68,7 +68,7 @@ export function deviceRisk(assetId: string): Risk | null {
   return deviceStatus(assetId)
 }
 
-/** Tên như trang Devices (`displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
+/** Name as on the Devices page (`displayName`): host name, manually declared product ("… (no device)" when there is no IP), vendor + model, IP, then software; never an id. */
 function nameOf(a: Asset): string {
   return displayName(a) || a.software[0]?.display || a.kind
 }
@@ -104,7 +104,7 @@ function expireAccepted() {
 
 const fill = (s: string, ip: string, host: string) => s.replaceAll('{IP}', ip).replaceAll('{HOST}', host)
 
-/** Gói theo thiết bị thật: thay IP/tên máy, đánh dấu hãng firewall khách đã khai (S-MIT-1). */
+/** The pack for a real device: replace IP/host name, mark the firewall vendor the customer declared (S-MIT-1). */
 function renderPack(p: MitigationPack, asset: FindingAsset | null): MitigationPack {
   const ip = asset?.ip ?? '<IP-NAS>'
   const host = asset?.hostname ?? ip
@@ -444,7 +444,7 @@ export const handlers = [
     return HttpResponse.json({})
   }),
 
-  // "Đã áp dụng": ghi nhật ký, không tự đổi trạng thái; chỉ quét lại mới xác nhận đã hết.
+  // "Applied": writes a log entry, does not change the status by itself; only a rescan confirms it is gone.
   http.post(`${API}/findings/:id/applied`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const f = find(params.id)
@@ -459,7 +459,7 @@ export const handlers = [
     return HttpResponse.json(detail(find(f.id)!))
   }),
 
-  // S-AI-2: chạy bằng khoá AI của khách; chỉ khi module ai bật và đã có khoá. Kết quả lưu lại để còn sau khi tải lại trang.
+  // S-AI-2: runs with the customer's AI key; only when the ai module is on and a key exists. The result is stored so it survives a page reload.
   http.post(`${API}/findings/:id/ai`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const f = find(params.id)

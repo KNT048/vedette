@@ -37,7 +37,7 @@ function PageWatch({ ids, onChange }: { ids: string[]; onChange: (key: string) =
   return null
 }
 
-/** Một trạng thái, một ghi chú cho các incident đã chọn (INV-25): mỗi incident vẫn có dòng kiểm toán riêng; incident đã Resolved giữ nguyên. */
+/** One status, one note for the selected incidents (INV-25): each incident still gets its own audit line; an incident that is already Resolved stays as it is. */
 function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string[]; status: BulkStatus | null; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
   const { t } = useTranslation('notify')
   const bulk = useBulkIncidents()

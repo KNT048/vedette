@@ -1,6 +1,6 @@
-// Test hợp đồng, chạy riêng một module: `pnpm exec vitest run src/lib/contract.test.ts -t "<module>"`.
-// 1) Mọi handler mock có endpoint trong contract.ts và ngược lại. 2) Mọi GET gọi thử được trả dữ liệu khớp schema.
-// 3) api/openapi.json khớp hợp đồng hiện tại (sinh lại bằng `pnpm openapi`).
+// Contract test, run one module at a time: `pnpm exec vitest run src/lib/contract.test.ts -t "<module>"`.
+// 1) Every mock handler has an endpoint in contract.ts and the other way round. 2) Every GET that can be called returns data matching the schema.
+// 3) api/openapi.json matches the current contract (regenerate with `pnpm openapi`).
 import { describe, expect, it } from 'vitest'
 import type { RequestHandler } from 'msw'
 import { handlersByModule } from '@/mocks/handlers'
@@ -17,20 +17,20 @@ function handlerKey(h: RequestHandler) {
 
 const modules = Object.keys(handlersByModule).sort()
 
-describe.each(modules)('hợp đồng %s', (mod) => {
+describe.each(modules)('contract %s', (mod) => {
   const handlers = handlersByModule[mod]!.map(handlerKey)
   const eps = allEndpoints.filter((e) => e.module === mod)
 
-  it('mọi handler mock có trong contract.ts và ngược lại', () => {
+  it('every mock handler is in contract.ts and the other way round', () => {
     const declared = new Set(eps.map((e) => key(e.method, e.path)))
     // A module's mock may answer part of another module's endpoint for its own rows (e.g. stopping its run through the
     // shared runs endpoint); that endpoint must still be declared, by its owner.
     const declaredAnywhere = new Set(allEndpoints.map((e) => key(e.method, e.path)))
-    expect(handlers.filter((h) => !declared.has(h) && !declaredAnywhere.has(h)), 'handler chưa khai trong contract.ts').toEqual([])
+    expect(handlers.filter((h) => !declared.has(h) && !declaredAnywhere.has(h)), 'handler not declared in contract.ts').toEqual([])
     expect([...declared].filter((d) => !handlers.includes(d)), 'endpoint khai mà mock không có').toEqual([])
   })
 
-  it('GET trả dữ liệu khớp schema', async () => {
+  it('GET returns data matching the schema', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     // an off module's paths are 404 by design (SYS-5; /core/mcp of mcp-server): the schema is checked with every module on
     modulesStore.update((l) => l.map((m) => ({ ...m, enabled: true })))
@@ -42,13 +42,13 @@ describe.each(modules)('hợp đồng %s', (mod) => {
       const res = await fetch(`${location.origin}/api/v1${path}${qs}`)
       expect(res.status, `GET ${path}${qs}`).toBeLessThan(300)
       const parsed = (e.response as Exclude<typeof e.response, null | 'file' | 'text'>).safeParse(await res.json())
-      expect(parsed.success ? [] : parsed.error.issues.slice(0, 5).map((i) => `${i.path.join('.')}: ${i.message}`), `GET ${path}${qs} khớp schema`).toEqual([])
+      expect(parsed.success ? [] : parsed.error.issues.slice(0, 5).map((i) => `${i.path.join('.')}: ${i.message}`), `GET ${path}${qs} matches the schema`).toEqual([])
     }
   })
 })
 
 describe('openapi.json', () => {
-  it('khớp hợp đồng hiện tại (chạy `pnpm openapi` nếu lệch)', () => {
+  it('matches the current contract (run `pnpm openapi` if it drifts)', () => {
     expect(openapiFile).toEqual(JSON.parse(JSON.stringify(buildOpenApi())))
   })
 })

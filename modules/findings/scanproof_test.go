@@ -52,46 +52,6 @@ func TestScanProof_AConfirmedFindingIsCreditedWhenTheVersionMoves(t *testing.T) 
 	}
 }
 
-// A safe check that comes back clear does not credit a flaw the device's own reading still shows; against a banner it does, and the
-// banner does not reopen it.
-func TestScanProof_AClearCheckAgainstTheDevicesOwnReading(t *testing.T) {
-	t.Parallel()
-	for _, c := range []struct {
-		src, want string
-	}{{"agent", "open"}, {"nmap", "handled patched scan_clear"}} {
-		t.Run(c.src, func(t *testing.T) {
-			e := newEnv(t)
-			e.feeds.vulns = []Vuln{qnapRanged}
-			if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", c.src), e.feeds.vulns); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", qnapRanged.CVE, scanEv("t1")); err != nil {
-				t.Fatal(err)
-			}
-			e.advance(time.Hour)
-			if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", c.src), e.feeds.vulns); err != nil { // read again: still affected
-				t.Fatal(err)
-			}
-			e.advance(time.Hour)
-			if err := e.svc.RescanClear(t.Context(), "a-1", qnapRanged.CVE); err != nil {
-				t.Fatal(err)
-			}
-			e.advance(time.Hour)
-			if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", c.src), e.feeds.vulns); err != nil {
-				t.Fatal(err)
-			}
-			f := e.only(t)
-			got := string(f.State)
-			if f.State == StateHandled {
-				got += " " + string(f.Resolution) + " " + string(f.Via)
-			}
-			if got != c.want {
-				t.Fatalf("%s: %s (%+v)", c.src, got, f)
-			}
-		})
-	}
-}
-
 // A safe check is about the line the CVE is on: with two lines of the product, it confirms the one the matcher reads the entry on,
 // not every line; on a device with a line but no finding yet, the finding it makes is on that line.
 func TestScanProof_TheCheckConfirmsOneLine(t *testing.T) {
@@ -155,34 +115,5 @@ func TestScanProof_APackageFixAfterTheCheck(t *testing.T) {
 		if f.State != StateHandled || f.Via != ViaVersionMoved || f.FromVersion != "1.0-1ubuntu1" || f.ToVersion != "1.0-1ubuntu2" {
 			t.Errorf("a match pass between: %v: %+v", between, f)
 		}
-	}
-}
-
-// A clear safe check right after the confirmation, with no match pass between, gives no credit while the device's agent still reads
-// the affected version.
-func TestScanProof_AClearCheckRightAfterTheConfirmation(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.feeds.vulns = []Vuln{qnapRanged}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", "agent"), e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	e.advance(time.Hour)
-	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", qnapRanged.CVE, scanEv("t1")); err != nil {
-		t.Fatal(err)
-	}
-	e.advance(time.Hour)
-	if err := e.svc.RescanClear(t.Context(), "a-1", qnapRanged.CVE); err != nil {
-		t.Fatal(err)
-	}
-	if f := e.only(t); f.State != StateOpen {
-		t.Fatalf("credited against the agent's reading: %+v", f)
-	}
-	e.advance(time.Hour)
-	if _, err := e.svc.UpsertFromMatch(t.Context(), e.scanDevice("6.1.1", "agent"), e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE kind IN ('handled', 'reopened')`); n != 0 {
-		t.Fatalf("%d handled or reopened events: a false credit and its reopen", n)
 	}
 }

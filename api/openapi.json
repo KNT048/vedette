@@ -71579,13 +71579,8 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "trap",
-                              "bad_address",
-                              "log_anomaly",
-                              "unknown_device",
-                              "intrusion"
-                            ]
+                            "pattern": "^[a-z0-9_]{1,40}$",
+                            "description": "What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label"
                           },
                           "attempt": {
                             "type": "boolean",
@@ -71885,13 +71880,8 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "trap",
-                            "bad_address",
-                            "log_anomaly",
-                            "unknown_device",
-                            "intrusion"
-                          ]
+                          "pattern": "^[a-z0-9_]{1,40}$",
+                          "description": "What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label"
                         },
                         "attempt": {
                           "type": "boolean",
@@ -72247,13 +72237,8 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "trap",
-                            "bad_address",
-                            "log_anomaly",
-                            "unknown_device",
-                            "intrusion"
-                          ]
+                          "pattern": "^[a-z0-9_]{1,40}$",
+                          "description": "What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label"
                         },
                         "attempt": {
                           "type": "boolean",

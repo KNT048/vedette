@@ -557,7 +557,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		publish(t, bus, siemEventIncident, map[string]any{"id": "i-1", "kind": "trap", "severity": "high"})
 		publish(t, bus, siemEventBadAddress, map[string]any{"id": "b-1", "src_ip": "10.0.0.9", "dest": "evil.example", "dest_kind": "domain"})
 		publish(t, bus, siemEventFindingStatus, map[string]any{"finding_id": "f-1", "from": "not_relevant", "to": "suspected", "reason": "matches_again"})
-		publish(t, bus, siemEventFindingRaised, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from_severity": "medium", "to_severity": "critical", "basis": "version"})
+		publish(t, bus, siemEventFindingUrgency, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from": 2, "to": 1, "basis": "version"})
 	}
 	queued := func() int { r, _ := e.svc.siemQ.peek(100); return len(r) }
 
@@ -590,7 +590,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 			t.Fatalf("sent only %v", names)
 		}
 	}
-	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.severity_raised]" {
+	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.urgency_raised]" {
 		t.Fatalf("forwarded %v", names)
 	}
 	fields := func(r siemRecord) map[string]string {
@@ -600,8 +600,8 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		}
 		return m
 	}
-	if r := got["finding.severity_raised"]; r.Severity != "critical" || fields(r)["from_severity"] != "medium" || fields(r)["to_severity"] != "critical" || fields(r)["basis"] != "version" || fields(r)["cve"] != "CVE-2022-27593" {
-		t.Fatalf("severity_raised record = %+v", r)
+	if r := got["finding.urgency_raised"]; r.Severity != "critical" || fields(r)["from"] != "2" || fields(r)["to"] != "1" || fields(r)["basis"] != "version" || fields(r)["cve"] != "CVE-2022-27593" {
+		t.Fatalf("urgency_raised record = %+v", r)
 	}
 	if fields(got["finding.status_changed"])["reason"] != "matches_again" {
 		t.Fatalf("status_changed record = %+v", got["finding.status_changed"])

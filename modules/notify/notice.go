@@ -26,11 +26,17 @@ type Notice struct {
 	CVEs     []string // vulnerability
 	// FindingIDs are the findings this notice is about (vulnerability); they let the finding page list who was told.
 	FindingIDs []string
-	Devices    []string // names of the matched devices (vulnerability: at least one)
-	Title      string   // one plain sentence
-	What       string   // what happened and how urgent
-	Action     string   // what to do first
-	Change     string   // vulnerability changed since it was first told ("now critical (was medium)"): added to its line of a digest
+	// Event is the finding event the notice tells (NoticeCreated, NoticeUrgencyChanged, NoticeReopened, NoticeAcceptanceExpired,
+	// NoticeFirstRun); "" for a notice that tells none. A notice of the kinds that tell an urgency (created, urgency_changed, first_run)
+	// is recorded at its layer (FindingLayers, else Layer) and is not sent for a finding already told at that layer or a more urgent one.
+	Event NoticeEvent
+	// FindingLayers is the layer each of FindingIDs is told at, parallel to it; empty = Layer for all.
+	FindingLayers []int
+	Devices       []string // names of the matched devices (vulnerability: at least one)
+	Title         string   // one plain sentence
+	What          string   // what happened and how urgent
+	Action        string   // what to do first
+	Change        string   // vulnerability changed since it was first told ("now critical (was medium)"): added to its line of a digest
 	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
 	Layer int
 	Link  string // absolute URL of the finding or incident in Vedette

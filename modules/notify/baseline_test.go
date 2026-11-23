@@ -19,9 +19,9 @@ func baselineEnv(t *testing.T) (*env, func(context.Context, string, any)) {
 	t.Helper()
 	m := map[string]notify.FindingInfo{}
 	for i := range 5 {
-		m[fmt.Sprintf("f-%d", i)] = notify.FindingInfo{CVE: fmt.Sprintf("CVE-2026-50%d", i), Product: fmt.Sprintf("Product%d", i), Severity: notify.Critical, Title: "is being exploited", What: "w", Action: "a", Devices: []string{"NAS-01"}}
+		m[fmt.Sprintf("f-%d", i)] = notify.FindingInfo{CVE: fmt.Sprintf("CVE-2026-50%d", i), Product: fmt.Sprintf("Product%d", i), Severity: notify.Critical, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2), Devices: []string{"NAS-01"}}
 	}
-	m["f-new"] = notify.FindingInfo{CVE: "CVE-2026-900", Product: "Fresh", Severity: notify.Critical, Title: "is being exploited", What: "w", Action: "a", Devices: []string{"NAS-01"}}
+	m["f-new"] = notify.FindingInfo{CVE: "CVE-2026-900", Product: "Fresh", Severity: notify.Critical, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2), Devices: []string{"NAS-01"}}
 	e := newEnv(t, func(c *notify.Config) { c.Findings = fakeFindings{m} })
 	e.telegram(notify.Low)
 	e.plain()

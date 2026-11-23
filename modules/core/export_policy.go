@@ -131,9 +131,8 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_incident_device": {export: "incident_id asset_id name"},
 	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at ca_pem", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},
 	"oidc_flow":              {skipAll: true, skip: "state_hash binding_hash nonce verifier issuer client_id redirect_uri created_at expires_at"},
-	"notify_kev":             {export: "cve seen_at matched"},
-	"notify_notice":          {export: "id created_at product", json: "cves"},
-	"notify_notice_finding":  {export: "notice_id finding_id"},
+	"notify_notice":          {export: "id event created_at product", json: "cves"},
+	"notify_notice_finding":  {export: "notice_id finding_id layer"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
 	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by first_enrolled_at device_id", skip: "token_hash"},                                                                                                                                                                                          // the hash never leaves (agent-intake INV-3)

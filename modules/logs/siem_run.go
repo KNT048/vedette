@@ -19,7 +19,6 @@ import (
 const (
 	siemEventFindingCreated = "findings.finding.created"
 	siemEventFindingStatus  = "findings.finding.status_changed"
-	siemEventFindingRaised  = "findings.finding.severity_raised"
 	// siemEventFindingUrgency: an open finding rose into a more urgent layer; a rise to exploited (2) or under attack here (1) is
 	// forwarded as finding.urgency_raised (its CVE joined an exploited list, or an attack here named it).
 	siemEventFindingUrgency = "findings.finding.urgency_raised"
@@ -187,12 +186,6 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 		return newSiemRecord("finding.status_changed", "info", now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "from", Val: str(m, "from")}, siemField{Key: "to", Val: str(m, "to")},
 			siemField{Key: "reason", Val: str(m, "reason")}) // "matches_again", "not_affected_version", "fixed_by_update" or "acceptance_expired" when Vedette changed it itself, else ""
-	})
-	on(siemEventFindingRaised, "findings", func(m map[string]any) siemRecord { // The event severity is the new one, so a SIEM rule on severity sees it
-		return newSiemRecord("finding.severity_raised", sevOr(str(m, "to_severity"), "medium"), now(),
-			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
-			siemField{Key: "cve", Val: str(m, "cve")}, siemField{Key: "basis", Val: str(m, "basis")},
-			siemField{Key: "from_severity", Val: str(m, "from_severity")}, siemField{Key: "to_severity", Val: str(m, "to_severity")})
 	})
 	on(siemEventFindingUrgency, "findings", func(m map[string]any) siemRecord {
 		sev := "high"

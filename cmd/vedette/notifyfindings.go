@@ -1,13 +1,16 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
@@ -16,78 +19,47 @@ import (
 // Sizes of the texts of a vulnerability notice. notify accepts up to 4000 characters; a message is read on a phone,
 // so the adapter stays well under that. The KEV texts come from a feed on the internet: data, not instructions.
 const (
-	noticeTitleMax   = 200
 	noticeProductMax = 120
-	noticeNameMax    = 200
+	noticeReasonsMax = 400
 	noticeActionMax  = 600
 )
 
-// notifyFindings implements notify.FindingDirectory (S-ALERT-1) from three sources, none of them read by table:
-// the findings module (the record: device, CVE, severity), the feeds KEV entry through findingsFeeds (name, product,
-// the action CISA requires) and the inventory device names through notifyDevices. findings and feeds are read
-// through deps at call time: notify is built before them (see buildServices).
+// notifyFindings implements notify.FindingDirectory (S-ALERT-1): one finding as findings.View reads it now. The status name, its
+// meaning and the reasons are the ones the finding page shows (findings.StatusName, StatusMeaning, View.ReasonsLine); the feeds' KEV
+// entry adds the product name and the action CISA requires, and the inventory the device names through notifyDevices. findings and
+// feeds are read through deps at call time: notify is built before them (see buildServices).
 type notifyFindings struct{ d *deps }
 
 func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingInfo, bool, error) {
 	if n.d.Findings == nil {
 		return notify.FindingInfo{}, false, nil
 	}
-	rec, err := n.d.Findings.Get(ctx, id)
+	v, err := n.d.Findings.View(ctx, id)
 	if errors.Is(err, findings.ErrNotFound) { // deleted between the event and now (the device went away)
 		return notify.FindingInfo{}, false, nil
 	}
 	if err != nil {
 		return notify.FindingInfo{}, false, err
 	}
+	f := v.Finding
 	var kev findings.KevInfo
-	var sources []string // the sources whose qualifying signals say the CVE is exploited, when it is on no list
 	if fs, err := feedsService(*n.d); err == nil {
-		got, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{rec.CVE})
+		got, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{f.CVE})
 		if err != nil {
 			return notify.FindingInfo{}, false, err
 		}
-		kev = got[rec.CVE]
-		if rec.Row.Urgency == findings.UrgencyExploited && !kevListed(kev) {
-			sigs, err := fs.Store().Signals(ctx, []string{rec.CVE})
-			if err != nil {
-				return notify.FindingInfo{}, false, err
-			}
-			for _, g := range sigs[rec.CVE] {
-				name := g.Source
-				if b, ok := feeds.BuiltinByID(g.Source); ok {
-					name = b.Name // the feed's own name, never its id
-				}
-				if g.Kind == findings.SignalExploited && g.Qualifies && !slices.Contains(sources, name) {
-					sources = append(sources, name)
-				}
-			}
-		}
+		kev = got[f.CVE]
 	}
-	info := notify.FindingInfo{CVE: plainText(rec.CVE, 40), Severity: notify.Severity(rec.Severity), Layer: rec.Row.Urgency}
-	info.Product = plainText(kev.Display, noticeProductMax)
-	if info.Product == "" { // on no list: the product of the finding's own software line
-		info.Product = plainText(n.lineName(ctx, rec), noticeProductMax)
-	}
-	if info.Product == "" {
-		info.Product = "A product on your network"
-	}
-	title, what, lead := layerTexts(rec.Row.Urgency, info, kev, sources)
-	info.Title = plainText(title, noticeTitleMax)
-	info.What = what + " A device in your inventory runs " + info.Product + "."
-	if rec.Row.Urgency < findings.UrgencyUpdate {
-		if line := urgencyReasons(ctx, n.d, rec.Row); line != "" {
-			info.What += " Why: " + line + "."
-		}
-	}
-	info.Action = plainText(kev.RequiredAction, noticeActionMax)
-	if info.Action == "" {
-		info.Action = "Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device."
-	}
-	info.Action = lead + info.Action
+	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
+		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
+		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax)}
+	info.Product = cmp.Or(plainText(kev.Display, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
+	info.Action = cmp.Or(plainText(kev.RequiredAction, noticeActionMax),
+		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")
 	if n.d.Inventory == nil {
 		return info, true, nil // no device name: notify sends nothing for a finding that matched no device
 	}
-	name, ok, err := notifyDevices{n.d.Inventory}.DeviceName(ctx, rec.AssetID)
+	name, ok, err := notifyDevices{n.d.Inventory}.DeviceName(ctx, f.AssetID)
 	if err != nil {
 		return notify.FindingInfo{}, false, err
 	}
@@ -95,8 +67,8 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		info.Devices = []string{plainText(name, 120)}
 	}
 	// A device nobody approved yet is marked the way the finding is in the app: "Device not added yet", also when it has no name
-	if refs, err := n.d.Inventory.DeviceRefs(ctx, []string{rec.AssetID}); err == nil {
-		if r, found := refs[rec.AssetID]; found && !r.Approved && !r.Ignored {
+	if refs, err := n.d.Inventory.DeviceRefs(ctx, []string{f.AssetID}); err == nil {
+		if r, found := refs[f.AssetID]; found && !r.Approved && !r.Ignored {
 			label := plainText(name, 100)
 			if label == "" && r.IP != "" && r.IP != "—" {
 				label = plainText(r.IP, 100)
@@ -105,70 +77,92 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 				label = "a device"
 			}
 			info.Devices = []string{label + " (device not added yet)"}
-			info.What += " The device is not added yet: open the finding to add it or ignore it."
+			info.Note = "The device is not added yet: open the finding to add it or ignore it."
 		}
 	}
 	return info, true, nil
 }
 
+// noticeSeverity is the severity class of a notice: the band of the CVE's score as the finding page shows it, medium while the CVE has no
+// score.
+func noticeSeverity(v findings.View) notify.Severity {
+	if v.Severity == nil {
+		return notify.Medium
+	}
+	switch findings.SeverityBand(*v.Severity) {
+	case "critical":
+		return notify.Critical
+	case "high":
+		return notify.High
+	case "medium":
+		return notify.Medium
+	case "low":
+		return notify.Low
+	}
+	return notify.Info
+}
+
 // lineName names the product a finding is on: the device's software line as the Devices page shows it, else the catalogue's name of the
 // finding's product; "" when neither is known.
-func (n notifyFindings) lineName(ctx context.Context, rec findings.Record) string {
-	if n.d.Inventory != nil && rec.SoftwareID != "" {
-		if lines, err := (findingsInventory{n.d.Inventory}).EffectiveSoftware(ctx, rec.AssetID); err == nil {
-			for _, l := range lines {
-				if l.ID == rec.SoftwareID && strings.TrimSpace(l.Display) != "" {
-					return l.Display
-				}
-			}
-		}
+func lineName(v findings.View) string {
+	if v.Line != nil && strings.TrimSpace(v.Line.Display) != "" {
+		return v.Line.Display
 	}
-	if p, ok := findings.ProductOf(rec.Row); ok {
+	if p, ok := findings.ProductOf(v.Finding); ok {
 		return p.Display
 	}
 	return ""
 }
 
-// kevListed says the feeds returned an exploited list entry (a CVE on no list has none).
-func kevListed(k findings.KevInfo) bool { return k.Vendor != "" || k.Product != "" || k.Source != "" }
+// notifySignals implements notify.SignalDirectory over feeds' signals and the findings' table: the CVEs a source reports as exploited
+// that no device has a finding for.
+type notifySignals struct{ d *deps }
 
-// layerTexts words a notice for the finding's urgency layer: the title, the sentence about the CVE, and what leads the action. Only
-// the layers of attackers using the flaw say "exploited"; a public exploit and a critical flaw on an edge device are named for what
-// they are, and an update that nobody attacks is never worded as an attack.
-func layerTexts(layer int, info notify.FindingInfo, kev findings.KevInfo, sources []string) (title, what, lead string) {
-	switch layer {
-	case findings.UrgencyUnderAttack:
-		return info.Product + " is under attack on your network (" + info.CVE + ")",
-			"An intrusion alert on your network named " + info.CVE + ".", ""
-	case findings.UrgencyPublicExploit:
-		return "A public exploit exists for " + info.Product + " (" + info.CVE + ")",
-			"Working exploit code for " + info.CVE + " is public.", "Patch this week. "
-	case findings.UrgencyCriticalEdge:
-		return info.Product + " has a critical flaw on a device facing the network edge (" + info.CVE + ")",
-			info.CVE + " is a critical flaw that can be used over the network without signing in, on a kind of device attackers target first.", "Patch now. "
-	case findings.UrgencyUpdate:
-		return info.Product + " has a known vulnerability (" + info.CVE + ")",
-			info.CVE + " affects the version a device in your inventory runs. There is no sign of attacks yet.", ""
+// unmatchedChunk is how many CVEs one read of the facts takes.
+const unmatchedChunk = 500
+
+func (n notifySignals) UnmatchedExploited(ctx context.Context, since time.Time) (int, error) {
+	if n.d.DB == nil {
+		return 0, nil
 	}
-	title = info.Product + " is being exploited (" + info.CVE + ")"
-	if !kevListed(kev) { // on no list: the sources of the signals that say so
-		for i := range sources {
-			sources[i] = plainText(sources[i], 60)
+	q := n.d.DB.Reader()
+	rows, err := q.QueryContext(ctx, `SELECT DISTINCT s.cve FROM feeds_signal s
+WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = s.cve)`,
+		store.FormatTS(since))
+	if err != nil {
+		return 0, err
+	}
+	var cves []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			_ = rows.Close()
+			return 0, err
 		}
-		if len(sources) == 0 {
-			return title, info.CVE + " is reported as exploited in real attacks.", ""
+		cves = append(cves, c)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil || len(cves) == 0 {
+		return 0, err
+	}
+	// The urgency reader drops the sources that are switched off, and marks what came with a source's first load: a first load is not news.
+	// Every candidate is read (in chunks), so what the filter drops can never hide a CVE behind a cap.
+	count := 0
+	reader := feeds.NewUrgencyReader(q)
+	for chunk := range slices.Chunk(cves, unmatchedChunk) {
+		facts, err := reader.Facts(ctx, chunk)
+		if err != nil {
+			return 0, err
 		}
-		return title, strings.Join(sources, ", ") + " report " + info.CVE + " as exploited in real attacks.", ""
+		for _, c := range chunk {
+			for _, g := range facts[c].Signals {
+				if g.Kind == findings.SignalExploited && g.Qualifies && !g.FirstLoad && !g.StoredAt.Before(since) {
+					count++
+					break
+				}
+			}
+		}
 	}
-	list := "CISA"
-	if kev.Source == findings.SourceVulnCheck {
-		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown
-	}
-	what = list + " lists " + info.CVE + " as exploited in real attacks."
-	if name := plainText(kev.Name, noticeNameMax); name != "" {
-		what = list + " lists " + info.CVE + " (" + name + ") as exploited in real attacks."
-	}
-	return title, what, ""
+	return count, nil
 }
 
 // plainText makes feed text safe to show: control characters and line breaks become spaces, invisible format characters

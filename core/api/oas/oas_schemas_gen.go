@@ -191309,10 +191309,13 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
-	HandledBy NilString                                `json:"handled_by"`
-	ID        string                                   `json:"id"`
-	Kind      NotifyGetNotifyIncidentsIDOKIncidentKind `json:"kind"`
-	LastSeen  time.Time                                `json:"last_seen"`
+	HandledBy NilString `json:"handled_by"`
+	ID        string    `json:"id"`
+	// What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device,
+	// intrusion are the ones with their own labels); a kind the app does not know is shown with a generic
+	// label.
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
@@ -191378,7 +191381,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) GetID() string {
 }
 
 // GetKind returns the value of Kind.
-func (s *NotifyGetNotifyIncidentsIDOKIncident) GetKind() NotifyGetNotifyIncidentsIDOKIncidentKind {
+func (s *NotifyGetNotifyIncidentsIDOKIncident) GetKind() string {
 	return s.Kind
 }
 
@@ -191478,7 +191481,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) SetID(val string) {
 }
 
 // SetKind sets the value of Kind.
-func (s *NotifyGetNotifyIncidentsIDOKIncident) SetKind(val NotifyGetNotifyIncidentsIDOKIncidentKind) {
+func (s *NotifyGetNotifyIncidentsIDOKIncident) SetKind(val string) {
 	s.Kind = val
 }
 
@@ -191555,68 +191558,6 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentDevicesItem) SetID(val string) {
 // SetName sets the value of Name.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentDevicesItem) SetName(val string) {
 	s.Name = val
-}
-
-type NotifyGetNotifyIncidentsIDOKIncidentKind string
-
-const (
-	NotifyGetNotifyIncidentsIDOKIncidentKindTrap          NotifyGetNotifyIncidentsIDOKIncidentKind = "trap"
-	NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress    NotifyGetNotifyIncidentsIDOKIncidentKind = "bad_address"
-	NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly    NotifyGetNotifyIncidentsIDOKIncidentKind = "log_anomaly"
-	NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice NotifyGetNotifyIncidentsIDOKIncidentKind = "unknown_device"
-	NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion     NotifyGetNotifyIncidentsIDOKIncidentKind = "intrusion"
-)
-
-// AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentKind values.
-func (NotifyGetNotifyIncidentsIDOKIncidentKind) AllValues() []NotifyGetNotifyIncidentsIDOKIncidentKind {
-	return []NotifyGetNotifyIncidentsIDOKIncidentKind{
-		NotifyGetNotifyIncidentsIDOKIncidentKindTrap,
-		NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress,
-		NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly,
-		NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice,
-		NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s NotifyGetNotifyIncidentsIDOKIncidentKind) MarshalText() ([]byte, error) {
-	switch s {
-	case NotifyGetNotifyIncidentsIDOKIncidentKindTrap:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) error {
-	switch NotifyGetNotifyIncidentsIDOKIncidentKind(data) {
-	case NotifyGetNotifyIncidentsIDOKIncidentKindTrap:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindTrap
-		return nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress
-		return nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly
-		return nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice
-		return nil
-	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
@@ -192246,10 +192187,13 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
-	HandledBy NilString                                   `json:"handled_by"`
-	ID        string                                      `json:"id"`
-	Kind      NotifyGetNotifyIncidentsOKIncidentsItemKind `json:"kind"`
-	LastSeen  time.Time                                   `json:"last_seen"`
+	HandledBy NilString `json:"handled_by"`
+	ID        string    `json:"id"`
+	// What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device,
+	// intrusion are the ones with their own labels); a kind the app does not know is shown with a generic
+	// label.
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
@@ -192315,7 +192259,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetID() string {
 }
 
 // GetKind returns the value of Kind.
-func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetKind() NotifyGetNotifyIncidentsOKIncidentsItemKind {
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetKind() string {
 	return s.Kind
 }
 
@@ -192415,7 +192359,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetID(val string) {
 }
 
 // SetKind sets the value of Kind.
-func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetKind(val NotifyGetNotifyIncidentsOKIncidentsItemKind) {
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetKind(val string) {
 	s.Kind = val
 }
 
@@ -192492,68 +192436,6 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem) SetID(val string) {
 // SetName sets the value of Name.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem) SetName(val string) {
 	s.Name = val
-}
-
-type NotifyGetNotifyIncidentsOKIncidentsItemKind string
-
-const (
-	NotifyGetNotifyIncidentsOKIncidentsItemKindTrap          NotifyGetNotifyIncidentsOKIncidentsItemKind = "trap"
-	NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress    NotifyGetNotifyIncidentsOKIncidentsItemKind = "bad_address"
-	NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly    NotifyGetNotifyIncidentsOKIncidentsItemKind = "log_anomaly"
-	NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice NotifyGetNotifyIncidentsOKIncidentsItemKind = "unknown_device"
-	NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion     NotifyGetNotifyIncidentsOKIncidentsItemKind = "intrusion"
-)
-
-// AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemKind values.
-func (NotifyGetNotifyIncidentsOKIncidentsItemKind) AllValues() []NotifyGetNotifyIncidentsOKIncidentsItemKind {
-	return []NotifyGetNotifyIncidentsOKIncidentsItemKind{
-		NotifyGetNotifyIncidentsOKIncidentsItemKindTrap,
-		NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress,
-		NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly,
-		NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice,
-		NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) MarshalText() ([]byte, error) {
-	switch s {
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindTrap:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte) error {
-	switch NotifyGetNotifyIncidentsOKIncidentsItemKind(data) {
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindTrap:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindTrap
-		return nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress
-		return nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly
-		return nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice
-		return nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
@@ -193730,10 +193612,13 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	FirstSeen       time.Time   `json:"first_seen"`
 	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
-	HandledBy NilString                                  `json:"handled_by"`
-	ID        string                                     `json:"id"`
-	Kind      NotifyPatchNotifyIncidentsIDOKIncidentKind `json:"kind"`
-	LastSeen  time.Time                                  `json:"last_seen"`
+	HandledBy NilString `json:"handled_by"`
+	ID        string    `json:"id"`
+	// What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device,
+	// intrusion are the ones with their own labels); a kind the app does not know is shown with a generic
+	// label.
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
@@ -193799,7 +193684,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetID() string {
 }
 
 // GetKind returns the value of Kind.
-func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetKind() NotifyPatchNotifyIncidentsIDOKIncidentKind {
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetKind() string {
 	return s.Kind
 }
 
@@ -193899,7 +193784,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetID(val string) {
 }
 
 // SetKind sets the value of Kind.
-func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetKind(val NotifyPatchNotifyIncidentsIDOKIncidentKind) {
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetKind(val string) {
 	s.Kind = val
 }
 
@@ -193976,68 +193861,6 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem) SetID(val string) {
 // SetName sets the value of Name.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem) SetName(val string) {
 	s.Name = val
-}
-
-type NotifyPatchNotifyIncidentsIDOKIncidentKind string
-
-const (
-	NotifyPatchNotifyIncidentsIDOKIncidentKindTrap          NotifyPatchNotifyIncidentsIDOKIncidentKind = "trap"
-	NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress    NotifyPatchNotifyIncidentsIDOKIncidentKind = "bad_address"
-	NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly    NotifyPatchNotifyIncidentsIDOKIncidentKind = "log_anomaly"
-	NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice NotifyPatchNotifyIncidentsIDOKIncidentKind = "unknown_device"
-	NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion     NotifyPatchNotifyIncidentsIDOKIncidentKind = "intrusion"
-)
-
-// AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentKind values.
-func (NotifyPatchNotifyIncidentsIDOKIncidentKind) AllValues() []NotifyPatchNotifyIncidentsIDOKIncidentKind {
-	return []NotifyPatchNotifyIncidentsIDOKIncidentKind{
-		NotifyPatchNotifyIncidentsIDOKIncidentKindTrap,
-		NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress,
-		NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly,
-		NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice,
-		NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) MarshalText() ([]byte, error) {
-	switch s {
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindTrap:
-		return []byte(s), nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress:
-		return []byte(s), nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		return []byte(s), nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		return []byte(s), nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) error {
-	switch NotifyPatchNotifyIncidentsIDOKIncidentKind(data) {
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindTrap:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindTrap
-		return nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress
-		return nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly
-		return nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice
-		return nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {

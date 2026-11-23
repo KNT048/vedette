@@ -220,12 +220,6 @@ func TestMatchPass_ACVEOnNoListIsNeverAnnounced(t *testing.T) {
 					id = x.FindingID
 				case StatusChangedEvent:
 					id = x.FindingID
-				case UncheckedAddedEvent:
-					for _, c := range x.CVEs {
-						if c.CVE == quiet {
-							t.Errorf("announced a question of the CVE on no list: %+v", x)
-						}
-					}
 				}
 				switch id {
 				case byCVE[quiet].ID:

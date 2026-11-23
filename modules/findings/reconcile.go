@@ -129,8 +129,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			res.Closed++
 		}
 	}
-	added, err := replaceQuestions(ctx, tx, a.ID, questionsOfMatch(qm), now)
-	if err != nil {
+	if err := replaceQuestions(ctx, tx, a.ID, questionsOfMatch(qm), now); err != nil {
 		return res, err
 	}
 	n, err := countQuestions(ctx, tx, a.ID)
@@ -138,9 +137,6 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		return res, err
 	}
 	res.Questions = n
-	if cves := announced(added, existing, seen, byCVE); len(cves) > 0 {
-		emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: cves})
-	}
 	return res, nil
 }
 
@@ -312,30 +308,6 @@ func questionsOfMatch(m MatchResult) []Question {
 		}
 		out = append(out, Question{SoftwareID: storedLine(u.SoftwareID), CVE: u.CVE, Kind: kind, Cves: 1,
 			Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), NVDPending: u.NVDPending, Choice: u.Answer}})
-	}
-	return out
-}
-
-// announced is the CVEs of the questions a write added that the device has no finding for (announced once, as a new question), of
-// the entries on an exploited list.
-func announced(added []Question, existing []Finding, detected map[string]bool, vulns map[string]Vuln) []UncheckedAddedCVE {
-	has := map[string]bool{}
-	for _, f := range existing {
-		has[f.CVE] = true
-	}
-	for k := range detected {
-		cve, _, _ := strings.Cut(k, "\x1f")
-		has[cve] = true
-	}
-	var out []UncheckedAddedCVE
-	listed := map[string]bool{}
-	for _, q := range added {
-		if q.CVE == "" || has[q.CVE] || listed[q.CVE] || !vulns[q.CVE].listed() { // a CVE on no list is never announced
-			continue
-		}
-		listed[q.CVE] = true
-		out = append(out, UncheckedAddedCVE{CVE: q.CVE, SoftwareID: q.SoftwareID, Software: q.Detail.Software, Version: q.Detail.Version,
-			Reason: UncheckedReason(q.Detail.Reason), NVDPending: q.Detail.NVDPending})
 	}
 	return out
 }

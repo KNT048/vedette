@@ -356,18 +356,17 @@ func questionsOf(ctx context.Context, q querier, assetID string) ([]Question, er
 }
 
 // replaceQuestions makes qs the questions of the device: a question that still holds keeps its row (its id, when it was asked and
-// its answer), one that no longer holds goes, a new one is added. It returns the questions it added.
-func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Question, now time.Time) ([]Question, error) {
+// its answer), one that no longer holds goes, a new one is added.
+func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Question, now time.Time) error {
 	old, err := questionsOf(ctx, tx, assetID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	have := make(map[string]Question, len(old))
 	for _, q := range old {
 		have[q.key()] = q
 	}
 	keep := map[string]bool{}
-	var added []Question
 	for _, q := range qs {
 		q.AssetID = assetID
 		k := q.key()
@@ -377,31 +376,30 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		keep[k] = true
 		detail, err := json.Marshal(q.Detail)
 		if err != nil {
-			return nil, fmt.Errorf("findings: encoding a question: %w", err)
+			return fmt.Errorf("findings: encoding a question: %w", err)
 		}
 		if q.Cves < 1 {
 			q.Cves = 1
 		}
 		if was, ok := have[k]; ok {
 			if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ? WHERE id = ?`, string(detail), q.Cves, was.ID); err != nil {
-				return nil, fmt.Errorf("findings: updating a question: %w", err)
+				return fmt.Errorf("findings: updating a question: %w", err)
 			}
 			continue
 		}
 		q.ID, q.AskedAt = store.NewID("q"), now
 		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			q.ID, assetID, nullString(q.SoftwareID), nullString(q.CVE), string(q.Kind), string(detail), q.Cves, store.FormatTS(now)); err != nil {
-			return nil, fmt.Errorf("findings: adding a question: %w", err)
+			return fmt.Errorf("findings: adding a question: %w", err)
 		}
-		added = append(added, q)
 	}
 	for k, q := range have {
 		if keep[k] {
 			continue
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE id = ?`, q.ID); err != nil {
-			return nil, fmt.Errorf("findings: removing a question: %w", err)
+			return fmt.Errorf("findings: removing a question: %w", err)
 		}
 	}
-	return added, nil
+	return nil
 }

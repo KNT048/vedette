@@ -73,7 +73,7 @@ turns finding events into notices. Every mutation by a person or the system writ
 | `core_job_run` | Internal housekeeping ticks (`core/jobs`): the last 200 runs per job. Not shown as runs. |
 | `core_run`, `core_run_step`, `core_run_item`, `core_run_log` | Every user-visible piece of scanning work (section 5.7). |
 | `core_schedule` | Every schedule a person can set (section 5.7). |
-| `core_schema_epoch` | The schema generation and the hash of the embedded migration files (section 6). |
+| `core_schema_epoch`, `core_schema_file` | The schema generation, and the SHA-256 of every migration file the database applied (section 6). |
 
 ## 4. Data by module
 
@@ -369,10 +369,19 @@ Migrations run with [`goose`](https://github.com/pressly/goose), embedded in the
 **Schema epoch and the baseline before the first public release.** The history restarted once: epoch 2
 (`core/store/SCHEMA_EPOCH`) begins with one file `0001_<module>.sql` per module that creates the module's whole schema. Until the
 first public release this baseline is edited in place, and rules 2 and 3 apply again from that release. `core_schema_epoch`
-records the epoch and the SHA-256 of every embedded migration file. At start, a database made before epoch 2, or by a build whose
-migration files differ, is refused with one message: install fresh (`install.sh --uninstall --yes` without `--keep-data`, then
-install again). Restoring a backup refuses one with a different epoch row, and the release tooling treats a higher epoch as new
-history.
+records the epoch and `core_schema_file` the SHA-256 of every migration file the database applied. At start
+(`store.MigrateAll`), a database made before epoch 2 or of another epoch is refused with one message: install fresh
+(`install.sh --uninstall --yes` without `--keep-data`, then install again). A database whose applied files differ from this
+build's copies (a baseline edited after the database was made) is refused too, naming the file; goose would never run the new
+copy. New migrations are applied and recorded (an update), and a file the binary does not have is ignored (a rollback that keeps
+the database, rule 2). A database stamped by an earlier pre-release build with one hash of all its files is accepted once when
+those files are unchanged, and then gets `core_schema_file`. Restoring a backup refuses one of another epoch, one without
+`core_schema_file`, or one whose applied files differ; a backup of an earlier release of the epoch is restored and migrated up.
+
+The release builder (`scripts/release`) enforces the history: every release is compared with the migrations of every earlier
+release tag of the same epoch, whatever `rollback.safe` says, and is refused when an applied migration was removed or edited or a
+new one is numbered below it. A release whose epoch is above the previous release's starts a new history and must declare
+`rollback.safe=false`; an epoch never goes down.
 
 ## 7. SQLite
 

@@ -127,25 +127,29 @@ func (e *osEnv) upload(code string, body []byte, mutate ...func(*http.Request)) 
 	}}, mutate...)...)
 }
 
-// A backup is restored only when its schema epoch row is the live database's: a backup made by a pre-release build (no row,
-// or other migration files) is refused, because this build would not start on it.
+// A backup is restored only when this build can run on it: its schema epoch is the live database's and every migration file it
+// applied is the same as the live database's. A backup made by a pre-release build (no epoch row, another epoch, no record of
+// its files, or another copy of an applied file) is refused. A backup of an earlier release of the epoch, which applied fewer
+// files, is restored (core migrates it up).
 func TestSetupRestoreUploadRefusesAPreReleaseBackup(t *testing.T) {
 	t.Parallel()
 	e, _ := newRestoreEnv(t)
 	code := e.openSetup()
 	key := newKey(t)
-	rev := strings.Repeat("ab", 32)
 	if err := e.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `CREATE TABLE `+store.EpochTable+` (id INTEGER PRIMARY KEY, epoch INTEGER NOT NULL, rev TEXT NOT NULL);
-			INSERT INTO `+store.EpochTable+` (id, epoch, rev) VALUES (1, ?, ?)`, store.SchemaEpoch, rev)
+		_, err := tx.ExecContext(t.Context(), `CREATE TABLE `+store.EpochTable+` (id INTEGER PRIMARY KEY, epoch INTEGER NOT NULL);
+			INSERT INTO `+store.EpochTable+` (id, epoch) VALUES (1, ?);
+			CREATE TABLE `+store.FilesTable+` (module TEXT NOT NULL, version INTEGER NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY (module, version));
+			INSERT INTO `+store.FilesTable+` (module, version, sha256) VALUES ('core', 1, ?), ('core', 2, ?)`, store.SchemaEpoch, strings.Repeat("ab", 32), strings.Repeat("12", 32))
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
 	for name, change := range map[string]string{
-		"no epoch row":     `DROP TABLE ` + store.EpochTable,
-		"other files":      `UPDATE ` + store.EpochTable + ` SET rev = '` + strings.Repeat("cd", 32) + `'`,
-		"an earlier epoch": `UPDATE ` + store.EpochTable + ` SET epoch = epoch - 1`,
+		"no epoch row":          `DROP TABLE ` + store.EpochTable,
+		"an earlier epoch":      `UPDATE ` + store.EpochTable + ` SET epoch = epoch - 1`,
+		"no applied files":      `DROP TABLE ` + store.FilesTable,
+		"an applied file other": `UPDATE ` + store.FilesTable + ` SET sha256 = '` + strings.Repeat("cd", 32) + `' WHERE version = 1`,
 	} {
 		body := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(key, change)})
 		r := e.upload(code, body)
@@ -154,7 +158,8 @@ func TestSetupRestoreUploadRefusesAPreReleaseBackup(t *testing.T) {
 			t.Errorf("%s: %s", name, r.Raw)
 		}
 	}
-	good := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(key)})
+	earlier := `DELETE FROM ` + store.FilesTable + ` WHERE version = 2`
+	good := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(key, earlier)})
 	wantOK(t, e.upload(code, good), 200)
 }
 

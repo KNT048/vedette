@@ -33,10 +33,14 @@ import (
 // outside -- +goose StatementBegin/StatementEnd. Between releases a migration file must also not be removed, edited or
 // inserted below an applied number of its directory, and the number of migrations (db_schema) must not go down.
 //
+// The history guard (CheckHistory) applies to every release, whatever rollback.safe says: within one schema epoch, a migration
+// file of an earlier release is never removed or edited and no new one is numbered below it, because a box updates in place,
+// goose never runs an applied file again, and core refuses a database whose applied files differ from its own copies.
+//
 // The schema epoch (core/store/SCHEMA_EPOCH; a revision without the file is epoch 1) is the generation of the history. A
-// release whose epoch is above the baseline's starts a new history: its migrations are not compared file by file, and it is
-// never add-only (the newer core refuses the older database and the older core does not know the newer one), so it must
-// declare rollback.safe=false.
+// release whose epoch is above an earlier release's starts a new history: its migrations are not compared file by file with that
+// release, and it is never add-only (the newer core refuses the older database and the older core does not know the newer
+// one), so a release whose epoch is above the previous release's must declare rollback.safe=false. An epoch never goes down.
 
 // maxMigFile and maxMigFiles bound what the guard reads (a repository is not trusted to be small).
 const (
@@ -226,21 +230,48 @@ func (f Finding) String() string { return f.File + ": " + f.Reason }
 // far as the database goes.
 func CheckMigrations(prev, cur Tree) []Finding {
 	var out []Finding
-	add := func(file, format string, a ...any) { out = append(out, Finding{file, fmt.Sprintf(format, a...)}) }
 	if prev.Count() == 0 {
-		add("(baseline)", "the baseline revision holds no migrations: wrong ref?")
+		out = append(out, Finding{"(baseline)", "the baseline revision holds no migrations: wrong ref?"})
 	}
+	if f, same := checkEpochs(prev, cur); !same {
+		return append(out, f...)
+	}
+	return append(out, history(prev, cur, true)...)
+}
+
+// CheckHistory compares the migrations of an earlier release with the tree being released and returns every reason a box that
+// runs the earlier release cannot update in place: within one schema epoch the history is forward-only (no migration removed,
+// edited or numbered below one of the earlier release, the count never goes down), whatever rollback.safe says, because goose
+// never runs an applied file again and core refuses a database whose applied files changed. A tree of a higher epoch starts a new
+// history and is not compared file by file (no finding); a lower epoch, or one that cannot be read, is a finding.
+func CheckHistory(prev, cur Tree) []Finding {
+	if f, same := checkEpochs(prev, cur); !same {
+		if cur.Epoch() > prev.Epoch() && prev.Epoch() > 0 {
+			return nil
+		}
+		return f
+	}
+	return history(prev, cur, false)
+}
+
+// checkEpochs compares the schema epochs of two trees; same is true when both are readable and equal, else f says why not.
+func checkEpochs(prev, cur Tree) (f []Finding, same bool) {
 	switch pe, ce := prev.Epoch(), cur.Epoch(); {
 	case pe == 0 || ce == 0:
-		add(EpochPath, "does not hold a schema epoch number")
-		return out
+		return []Finding{{EpochPath, "does not hold a schema epoch number"}}, false
 	case ce < pe:
-		add(EpochPath, "the schema epoch went down from %d to %d", pe, ce)
-		return out
+		return []Finding{{EpochPath, fmt.Sprintf("the schema epoch went down from %d to %d", pe, ce)}}, false
 	case ce > pe:
-		add(EpochPath, "the schema epoch went up from %d to %d: the migration history starts again, so no box can roll back across this release", pe, ce)
-		return out
+		return []Finding{{EpochPath, fmt.Sprintf("the schema epoch went up from %d to %d: the migration history starts again, so no box can roll back across this release", pe, ce)}}, false
 	}
+	return nil, true
+}
+
+// history returns the reasons cur does not continue the history of prev (one epoch); with classify, also the reasons each new
+// migration is not add-only.
+func history(prev, cur Tree, classify bool) []Finding {
+	var out []Finding
+	add := func(file, format string, a ...any) { out = append(out, Finding{file, fmt.Sprintf(format, a...)}) }
 	if cur.Count() < prev.Count() {
 		add("(db_schema)", "the number of migrations went down from %d to %d", prev.Count(), cur.Count())
 	}
@@ -271,7 +302,7 @@ func CheckMigrations(prev, cur Tree) []Finding {
 	for _, p := range paths {
 		n, ok := migNumber(p)
 		if !ok {
-			if _, old := prev[p]; !old {
+			if _, old := prev[p]; !old && classify {
 				add(p, "is not an NNNN_name.sql goose migration, so it cannot be classified")
 			}
 			continue
@@ -287,8 +318,10 @@ func CheckMigrations(prev, cur Tree) []Finding {
 		if n <= maxPrev[path.Dir(p)] {
 			add(p, "is numbered %d, not above the highest migration of the previous release (%d)", n, maxPrev[path.Dir(p)])
 		}
-		for _, r := range classifyUp(cur[p]) {
-			add(p, "%s", r)
+		if classify {
+			for _, r := range classifyUp(cur[p]) {
+				add(p, "%s", r)
+			}
 		}
 	}
 	return out

@@ -46,6 +46,12 @@ func TestContract_INV12_CatalogMatchesTheWebGolden(t *testing.T) {
 			Text string  `json:"text"`
 			ID   *string `json:"id"`
 		} `json:"find"`
+		Custom []struct {
+			Vendor   string   `json:"vendor"`
+			Product  string   `json:"product"`
+			Kev      []string `json:"kev"`
+			KevCount int      `json:"kev_count"`
+		} `json:"custom"`
 	}
 	if err := json.Unmarshal(raw, &golden); err != nil {
 		t.Fatal(err)
@@ -76,6 +82,15 @@ func TestContract_INV12_CatalogMatchesTheWebGolden(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("find %q = %q, web has %q", g.Text, got, want)
+		}
+	}
+	if len(golden.Custom) == 0 {
+		t.Error("the golden file has no typed products")
+	}
+	for _, g := range golden.Custom { // a product a person typed: the exploited products the web says before Save, the server after
+		e := c.custom(g.Vendor, g.Product)
+		if got := slices.Sorted(slices.Values(e.kev)); !slices.Equal(got, g.Kev) || e.kevCount != g.KevCount {
+			t.Errorf("custom %q %q = %v (%d), web has %v (%d)", g.Vendor, g.Product, got, e.kevCount, g.Kev, g.KevCount)
 		}
 	}
 }

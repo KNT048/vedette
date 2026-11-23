@@ -245,7 +245,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getAllByRole('button', { name: 'Add a device' })[0]).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Add device' })[0]).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /^Add .+ to your devices$/ })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
 
@@ -442,7 +442,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const tab = screen.getByRole('tab', { name: /To review 2 not added yet/ })
     expect(tab).toHaveAttribute('aria-selected', 'true')
     const pending = assetsStore.get().filter((a) => !a.approved).map((a) => a.id)
-    await user.click(screen.getAllByRole('button', { name: 'Add device' })[0]!)
+    await user.click(screen.getAllByRole('button', { name: /^Add .+ to your devices$/ })[0]!)
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
     const toast = (await screen.findByText(/^Added .+ to your devices\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
@@ -466,6 +466,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const list = await screen.findByRole('list', { name: '2 new devices not added yet' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
     expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add device', 'Ignore', 'Remove'])
+    // its accessible name says which device it adds: never confused with the toolbar's "Add a device" (a device typed by hand)
+    expect(within(row).getByRole('button', { name: /^Add .+ to your devices$/ })).toHaveTextContent('Add device')
     expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
     cleanup()
     // the device page's notice has Add device, Ignore and Remove: no Mark unknown, and no second Remove from list beside it
@@ -776,6 +778,14 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect((await call('POST', '/import', { text: 'name,ip\r\nok,192.168.55.1\r\n\"\r' })).json).toMatchObject({ created: 1, errors: [{ line: 3 }] })
     // header only
     expect((await call('POST', '/import', { text: 'name,ip,product\n' })).json?.error.code).toBe('no_rows')
+  })
+
+  it('a bare "Linux" is several distributions: the row asks for the distribution, a named one imports', async () => {
+    asAdmin()
+    const r = (await call('POST', '/import', { text: 'name,ip,product,version\nsrv-1,,Linux,12\nsrv-2,,Debian,12\n' })).json!
+    expect(r).toMatchObject({ created: 1, skipped: 1 })
+    expect(r.errors[0].message).toContain('Name the distribution')
+    expect(r.errors[0].message).toContain('Debian Linux')
   })
 
   it('a public IP or an IP outside the saved ranges is added with a note', async () => {
@@ -1169,9 +1179,13 @@ describe('inventory: catalog', () => {
     expect(findById('kev:vmware:esxi')?.display).toBe('VMware ESXi')
   })
 
-  it('a product typed by hand is never matched to every product of its vendor', () => {
-    expect(customEntry('Red Hat', 'OpenJDK').kev).toEqual(['red hat|openjdk'])
-    expect(customEntry('Red Hat', 'OpenJDK').kev_count).toBe(0)
+  it('a product typed by hand is never matched to every product of its vendor, but is the catalogue product of that name', () => {
+    // "Red Hat" "OpenJDK" is Java, as the server says, never Red Hat's other products
+    const jdk = customEntry('Red Hat', 'OpenJDK')
+    expect(jdk.kev.length).toBeGreaterThan(0)
+    expect(jdk.kev.every((k) => k.startsWith('oracle|java'))).toBe(true)
+    expect(customEntry('Red Hat', 'Some Future Tool').kev).toEqual(['red hat|some future tool'])
+    expect(customEntry('Red Hat', 'Some Future Tool').kev_count).toBe(0)
   })
 
   it('every KEV vendor/product pair is selectable (exact key)', () => {

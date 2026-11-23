@@ -12,7 +12,7 @@ import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
 import { hasOpenFindings } from './deviceQuery'
-import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
+import { customEntry, findById, findCatalog, operatingSystemsOf, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceAddress, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeField, MergeInput, MergePreview, MergeSide, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
@@ -410,8 +410,12 @@ export function linesOf(a: Asset): SoftwareLine[] {
     const corr = g.find((s) => s.corrects)
     const marked = corr?.not_installed ? corr : undefined
     const orig = corr ? g.find((s) => s.id === corr.corrects) : undefined
-    // a "not installed" mark shows the row it marks; else the strongest source (an agent, then a person's version)
-    const top = marked ? (orig ?? marked) : [...g].sort((x, y) => (LINE_RANK[y.source] ?? 0) - (LINE_RANK[x.source] ?? 0))[0]!
+    // a "not installed" mark shows the row it marks; a person's newest correction is the line until an agent reads a newer release
+    // (the server's resolver); else the strongest source (an agent, then a person's version)
+    const entry = g.filter((x) => x.corrects && !x.not_installed).sort((x, y) => (y.set_at ?? '').localeCompare(x.set_at ?? ''))[0]
+    const newer = (a?: string | null, b?: string | null) => !!a && !!b && a.localeCompare(b, 'en', { numeric: true }) > 0
+    const outgrown = !!entry && g.some((o) => o.source === 'agent' && newer(o.version, entry.version))
+    const top = marked ? (orig ?? marked) : entry && !outgrown ? entry : [...g].sort((x, y) => (LINE_RANK[y.source] ?? 0) - (LINE_RANK[x.source] ?? 0))[0]!
     const at = (x: Software) => x.set_at ?? nowIso()
     const also = g.filter((o) => o !== top && !o.not_installed).map((o) => ({ id: o.id, source: o.source, version: o.version ?? '', pkg_version: o.pkg_version ?? '', seen_at: at(o), same_release: sameRelease(top, o) }))
     const det = orig ?? null
@@ -912,13 +916,16 @@ function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?
 }
 
 /** GET /inventory/devices/{id}/sources: the three rows, as inventory DeviceSources decides them. */
+/** When the box last read its own packages (its hourly read, or Check now): the agent row's last and next report. */
+let boxReadAt = Date.now() - 20 * 60_000
+
 function sourceRowsOf(a: Asset): DeviceSourcesView {
   const times = new Map<string, string>()
   const cls = (src: string) => (src === 'nmap' ? 'scan' : src)
   for (const o of obsOf(a)) times.set(cls(o.source), [times.get(cls(o.source)) ?? '', o.seen_at].sort().at(-1)!)
   for (const x of [...a.software, ...a.services]) if (!times.has(cls(x.source))) times.set(cls(x.source), 'set_at' in x && x.set_at ? x.set_at : a.last_seen)
   const dot = (state: DeviceSourceRow['state']): DeviceSourceRow['dot'] => (state === 'working' || state === 'reporting' ? 'green' : state === 'quiet' || state === 'never_reported' ? 'amber' : state === 'not_answering' ? 'red' : 'grey')
-  const row = (r: Omit<DeviceSourceRow, 'dot'>): DeviceSourceRow => ({ ...r, dot: dot(r.state) })
+  const row = (r: Omit<DeviceSourceRow, 'dot' | 'next_at'> & { next_at?: string | null }): DeviceSourceRow => ({ ...r, next_at: r.next_at ?? null, dot: dot(r.state) })
   const ip = hasIp(a)
   const scanSwitch = sourceOf(a, 'scan_source')
   const self = a.id === BOX_ID ? 'box' as const : metaStore.get()[a.id]?.ignored_at ? 'ignored' as const : null // no switch, no button
@@ -938,8 +945,10 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
     : agentsStore.get().filter((t) => t.device_id === a.id && (!t.expires_at || Date.parse(t.expires_at) > Date.now())).at(-1) ?? null
   const reads = agentKind === 'osquery' || agentKind === 'wazuh'
   const agent = row({ source: 'agent', switch: isOn('agent-intake') && a.id !== BOX_ID && (reads || agentSwitch === 'off') ? agentSwitch : null, agent: agentKind,
-    token: isOn('agent-intake') && currentUser()?.role === 'admin' ? token : null, last_at: rep?.last_seen ?? times.get('agent') ?? null,
-    ...(a.id === BOX_ID ? { state: 'reporting', action: null } : !isOn('agent-intake') ? { state: 'module_off', action: 'turn_on_module' }
+    token: isOn('agent-intake') && currentUser()?.role === 'admin' ? token : null,
+    last_at: a.id === BOX_ID ? new Date(boxReadAt).toISOString() : rep?.last_seen ?? times.get('agent') ?? null,
+    next_at: a.id === BOX_ID ? new Date(boxReadAt + 3_600_000).toISOString() : null,
+    ...(a.id === BOX_ID ? { state: 'reporting', action: 'box_check' } : !isOn('agent-intake') ? { state: 'module_off', action: 'turn_on_module' }
       : agentSwitch === 'off' ? { state: 'off', action: reads ? 'check' : token ? 'show_setup' : 'create_token' }
       : agentKind === 'osquery' ? { state: rep?.state ?? 'reporting', action: rep?.state === 'never_reported' ? 'show_setup' : 'check' }
       : agentKind === 'wazuh' ? { state: rep?.state ?? 'reporting', action: 'check' } : token ? { state: 'waiting', action: 'show_setup' } : { state: 'none', action: 'create_token' }) })
@@ -1120,6 +1129,13 @@ export const handlers = [
   }),
 
   // The device's three source rows (network scan, SNMP, agent), decided as the server does (inventory DeviceSources).
+  // The box's own agent reads its packages and ports now.
+  http.post(`${API}/inventory/box/check`, () => {
+    const denied = guard('operator'); if (denied) return denied
+    boxReadAt = Date.now()
+    return HttpResponse.json(sourceRowsOf(find(BOX_ID)!))
+  }),
+
   http.get(`${API}/inventory/devices/:id/sources`, ({ params, request }) => {
     const denied = guard('viewer'); if (denied) return denied
     const a = find(String(params.id))
@@ -1421,6 +1437,8 @@ export const handlers = [
       const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
+      const systems = productText && !entry ? operatingSystemsOf(productText) : []
+      if (systems.length) return err(`Product "${productText.slice(0, 40)}" could be ${systems.slice(0, -1).join(', ')} or ${systems.at(-1)}. Name the distribution, for example ${systems[0]}.`)
       if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
       const userName = get('name_in_vedette')
       if (badUserName(userName)) return err('The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')

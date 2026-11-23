@@ -34915,6 +34915,135 @@ func (s *Server) handleInventoryPostInventoryAgentsWazuhTestRequest(args [0]stri
 	}
 }
 
+// handleInventoryPostInventoryBoxCheckRequest handles inventory_post_inventory_box_check operation.
+//
+// The box's own agent reads the packages installed on the box and the ports it listens on now, as its
+// hourly read does; answers the box's source rows. One audit row inventory.box_check. 409
+// not_appliance: a container-only install (no packages of its own). 502 box_read_failed: the read
+// failed, what was read last stays.
+//
+// POST /inventory/box/check
+func (s *Server) handleInventoryPostInventoryBoxCheckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventoryBoxCheckOperation,
+			ID:   "inventory_post_inventory_box_check",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventoryBoxCheckOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *InventoryPostInventoryBoxCheckOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventoryBoxCheckOperation,
+			OperationSummary: "The box's own agent reads the packages installed on the box and the ports it listens on now, as its hourly read does; answers the box's source rows. One audit row inventory.box_check. 409 not_appliance: a container-only install (no packages of its own). 502 box_read_failed: the read failed, what was read last stays",
+			OperationID:      "inventory_post_inventory_box_check",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *InventoryPostInventoryBoxCheckOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventoryBoxCheck(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventoryBoxCheck(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventoryBoxCheckResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryPostInventoryDevicesRequest handles inventory_post_inventory_devices operation.
 //
 // Declare a device manually using a product from the suggestion list.

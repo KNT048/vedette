@@ -143087,7 +143087,10 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	// When the source last read the device: the newest scan result (observation, open port, software
 	// banner); SNMP's last answer; the agent's last call (osquery) or its newest data (Wazuh, the box).
 	// null when never.
-	LastAt NilDateTime                                           `json:"last_at"`
+	LastAt NilDateTime `json:"last_at"`
+	// When the source reads the device next by itself: the box's own agent row (its hourly read of its
+	// packages and ports); null on the other rows and before the box's first read since it started.
+	NextAt NilDateTime                                           `json:"next_at"`
 	Source InventoryGetInventoryDevicesIDSourcesOKRowsItemSource `json:"source"`
 	// Module_off: the module behind the source is off. no_address: the device has no address to send to
 	// (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet
@@ -143135,6 +143138,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetLastAt() NilDateTim
 	return s.LastAt
 }
 
+// GetNextAt returns the value of NextAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
 // GetSource returns the value of Source.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetSource() InventoryGetInventoryDevicesIDSourcesOKRowsItemSource {
 	return s.Source
@@ -143175,6 +143183,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetLastAt(val NilDateT
 	s.LastAt = val
 }
 
+// SetNextAt sets the value of NextAt.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
 // SetSource sets the value of Source.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetSource(val InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) {
 	s.Source = val
@@ -143195,9 +143208,10 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetToken(val NilInvent
 	s.Token = val
 }
 
-// The one button of the row. turn_on_module: the module is off. scan_now: check the device now instead
-// of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set
-// up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST
+// The one button of the row. box_check: the box's own agent reads its packages and ports now (POST
+// /inventory/box/check). turn_on_module: the module is off. scan_now: check the device now instead of
+// at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up
+// SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST
 // /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made
 // for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a
 // token was made for this device and no agent reads it yet, or its agent enrolled and never reported:
@@ -143214,6 +143228,7 @@ const (
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCreateToken  InventoryGetInventoryDevicesIDSourcesOKRowsItemAction = "create_token"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemActionShowSetup    InventoryGetInventoryDevicesIDSourcesOKRowsItemAction = "show_setup"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck        InventoryGetInventoryDevicesIDSourcesOKRowsItemAction = "check"
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck     InventoryGetInventoryDevicesIDSourcesOKRowsItemAction = "box_check"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDSourcesOKRowsItemAction values.
@@ -143227,6 +143242,7 @@ func (InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) AllValues() []Inven
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCreateToken,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemActionShowSetup,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck,
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck,
 	}
 }
 
@@ -143248,6 +143264,8 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) MarshalText() ([]
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionShowSetup:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -143280,6 +143298,9 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) UnmarshalText(da
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck
+		return nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -153181,6 +153202,825 @@ func (s *InventoryPostInventoryAgentsWazuhTestReq) SetURL(val string) {
 // SetUsername sets the value of Username.
 func (s *InventoryPostInventoryAgentsWazuhTestReq) SetUsername(val string) {
 	s.Username = val
+}
+
+type InventoryPostInventoryBoxCheckOK struct {
+	// When a person last entered or changed something on the device (as DeviceDetail.manual_at).
+	ManualAt NilDateTime `json:"manual_at"`
+	// What feeds the device when none of the rows does: passive = only heard on the network ("Seen
+	// passively"), manual = only what a person entered ("Added by hand"); null otherwise.
+	Only NilInventoryPostInventoryBoxCheckOKOnly `json:"only"`
+	// Always three rows: scan, snmp, agent, in this order.
+	Rows []InventoryPostInventoryBoxCheckOKRowsItem `json:"rows"`
+}
+
+// GetManualAt returns the value of ManualAt.
+func (s *InventoryPostInventoryBoxCheckOK) GetManualAt() NilDateTime {
+	return s.ManualAt
+}
+
+// GetOnly returns the value of Only.
+func (s *InventoryPostInventoryBoxCheckOK) GetOnly() NilInventoryPostInventoryBoxCheckOKOnly {
+	return s.Only
+}
+
+// GetRows returns the value of Rows.
+func (s *InventoryPostInventoryBoxCheckOK) GetRows() []InventoryPostInventoryBoxCheckOKRowsItem {
+	return s.Rows
+}
+
+// SetManualAt sets the value of ManualAt.
+func (s *InventoryPostInventoryBoxCheckOK) SetManualAt(val NilDateTime) {
+	s.ManualAt = val
+}
+
+// SetOnly sets the value of Only.
+func (s *InventoryPostInventoryBoxCheckOK) SetOnly(val NilInventoryPostInventoryBoxCheckOKOnly) {
+	s.Only = val
+}
+
+// SetRows sets the value of Rows.
+func (s *InventoryPostInventoryBoxCheckOK) SetRows(val []InventoryPostInventoryBoxCheckOKRowsItem) {
+	s.Rows = val
+}
+
+type InventoryPostInventoryBoxCheckOKOnly string
+
+const (
+	InventoryPostInventoryBoxCheckOKOnlyPassive InventoryPostInventoryBoxCheckOKOnly = "passive"
+	InventoryPostInventoryBoxCheckOKOnlyManual  InventoryPostInventoryBoxCheckOKOnly = "manual"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKOnly values.
+func (InventoryPostInventoryBoxCheckOKOnly) AllValues() []InventoryPostInventoryBoxCheckOKOnly {
+	return []InventoryPostInventoryBoxCheckOKOnly{
+		InventoryPostInventoryBoxCheckOKOnlyPassive,
+		InventoryPostInventoryBoxCheckOKOnlyManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKOnly) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKOnlyPassive:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKOnlyManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKOnly) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKOnly(data) {
+	case InventoryPostInventoryBoxCheckOKOnlyPassive:
+		*s = InventoryPostInventoryBoxCheckOKOnlyPassive
+		return nil
+	case InventoryPostInventoryBoxCheckOKOnlyManual:
+		*s = InventoryPostInventoryBoxCheckOKOnlyManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItem struct {
+	// Null when the row offers no button.
+	Action NilInventoryPostInventoryBoxCheckOKRowsItemAction `json:"action"`
+	// Agent row: which agent of this box reads the device (box = the Vedette box itself, which reads its
+	// own packages); null on the other rows.
+	Agent NilInventoryPostInventoryBoxCheckOKRowsItemAgent `json:"agent"`
+	// Green: working or reporting; amber: quiet or never reported; red: SNMP not answering; grey:
+	// everything else (off, not set up, waiting, module off).
+	Dot InventoryPostInventoryBoxCheckOKRowsItemDot `json:"dot"`
+	// When the source last read the device: the newest scan result (observation, open port, software
+	// banner); SNMP's last answer; the agent's last call (osquery) or its newest data (Wazuh, the box).
+	// null when never.
+	LastAt NilDateTime `json:"last_at"`
+	// When the source reads the device next by itself: the box's own agent row (its hourly read of its
+	// packages and ports); null on the other rows and before the box's first read since it started.
+	NextAt NilDateTime                                    `json:"next_at"`
+	Source InventoryPostInventoryBoxCheckOKRowsItemSource `json:"source"`
+	// Module_off: the module behind the source is off. no_address: the device has no address to send to
+	// (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet
+	// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
+	// the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
+	// settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
+	// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+	// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+	// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+	// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+	// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+	// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+	// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+	// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+	// (no switch, no button).
+	State InventoryPostInventoryBoxCheckOKRowsItemState `json:"state"`
+	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
+	// the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box
+	// itself and an ignored device.
+	Switch NilInventoryPostInventoryBoxCheckOKRowsItemSwitch `json:"switch"`
+	// Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest
+	// token made for this device that still enrolls machines (the secret is never here: it is shown once,
+	// when the token is made); administrators only (the tokens list is theirs): null for the other roles,
+	// and on the other rows.
+	Token NilInventoryPostInventoryBoxCheckOKRowsItemToken `json:"token"`
+}
+
+// GetAction returns the value of Action.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetAction() NilInventoryPostInventoryBoxCheckOKRowsItemAction {
+	return s.Action
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetAgent() NilInventoryPostInventoryBoxCheckOKRowsItemAgent {
+	return s.Agent
+}
+
+// GetDot returns the value of Dot.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetDot() InventoryPostInventoryBoxCheckOKRowsItemDot {
+	return s.Dot
+}
+
+// GetLastAt returns the value of LastAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetLastAt() NilDateTime {
+	return s.LastAt
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetSource() InventoryPostInventoryBoxCheckOKRowsItemSource {
+	return s.Source
+}
+
+// GetState returns the value of State.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetState() InventoryPostInventoryBoxCheckOKRowsItemState {
+	return s.State
+}
+
+// GetSwitch returns the value of Switch.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetSwitch() NilInventoryPostInventoryBoxCheckOKRowsItemSwitch {
+	return s.Switch
+}
+
+// GetToken returns the value of Token.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetToken() NilInventoryPostInventoryBoxCheckOKRowsItemToken {
+	return s.Token
+}
+
+// SetAction sets the value of Action.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetAction(val NilInventoryPostInventoryBoxCheckOKRowsItemAction) {
+	s.Action = val
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetAgent(val NilInventoryPostInventoryBoxCheckOKRowsItemAgent) {
+	s.Agent = val
+}
+
+// SetDot sets the value of Dot.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetDot(val InventoryPostInventoryBoxCheckOKRowsItemDot) {
+	s.Dot = val
+}
+
+// SetLastAt sets the value of LastAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetLastAt(val NilDateTime) {
+	s.LastAt = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetSource(val InventoryPostInventoryBoxCheckOKRowsItemSource) {
+	s.Source = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetState(val InventoryPostInventoryBoxCheckOKRowsItemState) {
+	s.State = val
+}
+
+// SetSwitch sets the value of Switch.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetSwitch(val NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) {
+	s.Switch = val
+}
+
+// SetToken sets the value of Token.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetToken(val NilInventoryPostInventoryBoxCheckOKRowsItemToken) {
+	s.Token = val
+}
+
+// The one button of the row. box_check: the box's own agent reads its packages and ports now (POST
+// /inventory/box/check). turn_on_module: the module is off. scan_now: check the device now instead of
+// at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up
+// SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST
+// /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made
+// for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a
+// token was made for this device and no agent reads it yet, or its agent enrolled and never reported:
+// show the token (the row's token) and the install command again. check: the agent reported at least
+// once: the troubleshooting steps.
+type InventoryPostInventoryBoxCheckOKRowsItemAction string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule InventoryPostInventoryBoxCheckOKRowsItemAction = "turn_on_module"
+	InventoryPostInventoryBoxCheckOKRowsItemActionScanNow      InventoryPostInventoryBoxCheckOKRowsItemAction = "scan_now"
+	InventoryPostInventoryBoxCheckOKRowsItemActionApprove      InventoryPostInventoryBoxCheckOKRowsItemAction = "approve"
+	InventoryPostInventoryBoxCheckOKRowsItemActionSetUp        InventoryPostInventoryBoxCheckOKRowsItemAction = "set_up"
+	InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow     InventoryPostInventoryBoxCheckOKRowsItemAction = "check_now"
+	InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken  InventoryPostInventoryBoxCheckOKRowsItemAction = "create_token"
+	InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup    InventoryPostInventoryBoxCheckOKRowsItemAction = "show_setup"
+	InventoryPostInventoryBoxCheckOKRowsItemActionCheck        InventoryPostInventoryBoxCheckOKRowsItemAction = "check"
+	InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck     InventoryPostInventoryBoxCheckOKRowsItemAction = "box_check"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemAction values.
+func (InventoryPostInventoryBoxCheckOKRowsItemAction) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemAction {
+	return []InventoryPostInventoryBoxCheckOKRowsItemAction{
+		InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule,
+		InventoryPostInventoryBoxCheckOKRowsItemActionScanNow,
+		InventoryPostInventoryBoxCheckOKRowsItemActionApprove,
+		InventoryPostInventoryBoxCheckOKRowsItemActionSetUp,
+		InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow,
+		InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken,
+		InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup,
+		InventoryPostInventoryBoxCheckOKRowsItemActionCheck,
+		InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAction) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionScanNow:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionApprove:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionSetUp:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheck:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAction) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemAction(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionScanNow:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionScanNow
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionApprove:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionApprove
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionSetUp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionSetUp
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheck:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCheck
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItemAgent string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery InventoryPostInventoryBoxCheckOKRowsItemAgent = "osquery"
+	InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh   InventoryPostInventoryBoxCheckOKRowsItemAgent = "wazuh"
+	InventoryPostInventoryBoxCheckOKRowsItemAgentBox     InventoryPostInventoryBoxCheckOKRowsItemAgent = "box"
+	InventoryPostInventoryBoxCheckOKRowsItemAgentNone    InventoryPostInventoryBoxCheckOKRowsItemAgent = "none"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemAgent values.
+func (InventoryPostInventoryBoxCheckOKRowsItemAgent) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemAgent {
+	return []InventoryPostInventoryBoxCheckOKRowsItemAgent{
+		InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery,
+		InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh,
+		InventoryPostInventoryBoxCheckOKRowsItemAgentBox,
+		InventoryPostInventoryBoxCheckOKRowsItemAgentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentBox:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAgent) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemAgent(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentBox:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentBox
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentNone:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Green: working or reporting; amber: quiet or never reported; red: SNMP not answering; grey:
+// everything else (off, not set up, waiting, module off).
+type InventoryPostInventoryBoxCheckOKRowsItemDot string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemDotGreen InventoryPostInventoryBoxCheckOKRowsItemDot = "green"
+	InventoryPostInventoryBoxCheckOKRowsItemDotAmber InventoryPostInventoryBoxCheckOKRowsItemDot = "amber"
+	InventoryPostInventoryBoxCheckOKRowsItemDotRed   InventoryPostInventoryBoxCheckOKRowsItemDot = "red"
+	InventoryPostInventoryBoxCheckOKRowsItemDotGrey  InventoryPostInventoryBoxCheckOKRowsItemDot = "grey"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemDot values.
+func (InventoryPostInventoryBoxCheckOKRowsItemDot) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemDot {
+	return []InventoryPostInventoryBoxCheckOKRowsItemDot{
+		InventoryPostInventoryBoxCheckOKRowsItemDotGreen,
+		InventoryPostInventoryBoxCheckOKRowsItemDotAmber,
+		InventoryPostInventoryBoxCheckOKRowsItemDotRed,
+		InventoryPostInventoryBoxCheckOKRowsItemDotGrey,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemDot) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGreen:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotAmber:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotRed:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGrey:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemDot) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemDot(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGreen:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotGreen
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotAmber:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotAmber
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotRed:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotRed
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGrey:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotGrey
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItemSource string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemSourceScan  InventoryPostInventoryBoxCheckOKRowsItemSource = "scan"
+	InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp  InventoryPostInventoryBoxCheckOKRowsItemSource = "snmp"
+	InventoryPostInventoryBoxCheckOKRowsItemSourceAgent InventoryPostInventoryBoxCheckOKRowsItemSource = "agent"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemSource values.
+func (InventoryPostInventoryBoxCheckOKRowsItemSource) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemSource {
+	return []InventoryPostInventoryBoxCheckOKRowsItemSource{
+		InventoryPostInventoryBoxCheckOKRowsItemSourceScan,
+		InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp,
+		InventoryPostInventoryBoxCheckOKRowsItemSourceAgent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceScan:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceAgent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSource) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemSource(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceScan:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceScan
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceAgent:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceAgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Module_off: the module behind the source is off. no_address: the device has no address to send to
+// (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet
+// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
+// the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP
+// settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this
+// box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by
+// its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than
+// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
+// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
+// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
+// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
+// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
+// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
+// (no switch, no button).
+type InventoryPostInventoryBoxCheckOKRowsItemState string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff     InventoryPostInventoryBoxCheckOKRowsItemState = "module_off"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress     InventoryPostInventoryBoxCheckOKRowsItemState = "no_address"
+	InventoryPostInventoryBoxCheckOKRowsItemStateOff           InventoryPostInventoryBoxCheckOKRowsItemState = "off"
+	InventoryPostInventoryBoxCheckOKRowsItemStateWaiting       InventoryPostInventoryBoxCheckOKRowsItemState = "waiting"
+	InventoryPostInventoryBoxCheckOKRowsItemStateWorking       InventoryPostInventoryBoxCheckOKRowsItemState = "working"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved   InventoryPostInventoryBoxCheckOKRowsItemState = "not_approved"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp      InventoryPostInventoryBoxCheckOKRowsItemState = "not_set_up"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering  InventoryPostInventoryBoxCheckOKRowsItemState = "not_answering"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNone          InventoryPostInventoryBoxCheckOKRowsItemState = "none"
+	InventoryPostInventoryBoxCheckOKRowsItemStateReporting     InventoryPostInventoryBoxCheckOKRowsItemState = "reporting"
+	InventoryPostInventoryBoxCheckOKRowsItemStateQuiet         InventoryPostInventoryBoxCheckOKRowsItemState = "quiet"
+	InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported InventoryPostInventoryBoxCheckOKRowsItemState = "never_reported"
+	InventoryPostInventoryBoxCheckOKRowsItemStateReplaced      InventoryPostInventoryBoxCheckOKRowsItemState = "replaced"
+	InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable   InventoryPostInventoryBoxCheckOKRowsItemState = "unavailable"
+	InventoryPostInventoryBoxCheckOKRowsItemStateBox           InventoryPostInventoryBoxCheckOKRowsItemState = "box"
+	InventoryPostInventoryBoxCheckOKRowsItemStateIgnored       InventoryPostInventoryBoxCheckOKRowsItemState = "ignored"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemState values.
+func (InventoryPostInventoryBoxCheckOKRowsItemState) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemState {
+	return []InventoryPostInventoryBoxCheckOKRowsItemState{
+		InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress,
+		InventoryPostInventoryBoxCheckOKRowsItemStateOff,
+		InventoryPostInventoryBoxCheckOKRowsItemStateWaiting,
+		InventoryPostInventoryBoxCheckOKRowsItemStateWorking,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNone,
+		InventoryPostInventoryBoxCheckOKRowsItemStateReporting,
+		InventoryPostInventoryBoxCheckOKRowsItemStateQuiet,
+		InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported,
+		InventoryPostInventoryBoxCheckOKRowsItemStateReplaced,
+		InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable,
+		InventoryPostInventoryBoxCheckOKRowsItemStateBox,
+		InventoryPostInventoryBoxCheckOKRowsItemStateIgnored,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateOff:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWaiting:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWorking:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNone:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReporting:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateQuiet:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReplaced:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateBox:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateIgnored:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemState) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemState(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateOff
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWaiting:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateWaiting
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWorking:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateWorking
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNone:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNone
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReporting:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateReporting
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateQuiet:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateQuiet
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReplaced:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateReplaced
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateBox:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateBox
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateIgnored:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateIgnored
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItemSwitch string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemSwitchOn  InventoryPostInventoryBoxCheckOKRowsItemSwitch = "on"
+	InventoryPostInventoryBoxCheckOKRowsItemSwitchOff InventoryPostInventoryBoxCheckOKRowsItemSwitch = "off"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemSwitch values.
+func (InventoryPostInventoryBoxCheckOKRowsItemSwitch) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemSwitch {
+	return []InventoryPostInventoryBoxCheckOKRowsItemSwitch{
+		InventoryPostInventoryBoxCheckOKRowsItemSwitchOn,
+		InventoryPostInventoryBoxCheckOKRowsItemSwitchOff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSwitch) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOn:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSwitch) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemSwitch(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOn:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSwitchOn
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSwitchOff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItemToken struct {
+	CreatedAt time.Time `json:"created_at"`
+	// Who made it (null for a token made before this was kept).
+	CreatedBy NilString `json:"created_by"`
+	// The device it was made for (its agent row offers Show setup); null = any machine.
+	DeviceID NilString `json:"device_id"`
+	// When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token
+	// no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can
+	// read nothing) and can be revoked.
+	ExpiresAt    NilDateTime                                       `json:"expires_at"`
+	Hosts        int                                               `json:"hosts"`
+	ID           string                                            `json:"id"`
+	Kind         InventoryPostInventoryBoxCheckOKRowsItemTokenKind `json:"kind"`
+	Last4        string                                            `json:"last4"`
+	LastReceived NilDateTime                                       `json:"last_received"`
+	Name         string                                            `json:"name"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetCreatedBy returns the value of CreatedBy.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetCreatedBy() NilString {
+	return s.CreatedBy
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetHosts returns the value of Hosts.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetHosts() int {
+	return s.Hosts
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetKind() InventoryPostInventoryBoxCheckOKRowsItemTokenKind {
+	return s.Kind
+}
+
+// GetLast4 returns the value of Last4.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetLast4() string {
+	return s.Last4
+}
+
+// GetLastReceived returns the value of LastReceived.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetLastReceived() NilDateTime {
+	return s.LastReceived
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) GetName() string {
+	return s.Name
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetCreatedBy sets the value of CreatedBy.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetCreatedBy(val NilString) {
+	s.CreatedBy = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetKind(val InventoryPostInventoryBoxCheckOKRowsItemTokenKind) {
+	s.Kind = val
+}
+
+// SetLast4 sets the value of Last4.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetLast4(val string) {
+	s.Last4 = val
+}
+
+// SetLastReceived sets the value of LastReceived.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetLastReceived(val NilDateTime) {
+	s.LastReceived = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryPostInventoryBoxCheckOKRowsItemTokenKind string
+
+const (
+	InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery InventoryPostInventoryBoxCheckOKRowsItemTokenKind = "osquery"
+)
+
+// AllValues returns all InventoryPostInventoryBoxCheckOKRowsItemTokenKind values.
+func (InventoryPostInventoryBoxCheckOKRowsItemTokenKind) AllValues() []InventoryPostInventoryBoxCheckOKRowsItemTokenKind {
+	return []InventoryPostInventoryBoxCheckOKRowsItemTokenKind{
+		InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemTokenKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemTokenKind) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryBoxCheckOKRowsItemTokenKind(data) {
+	case InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPostInventoryDevicesCreated struct {
@@ -183272,6 +184112,231 @@ func (o NilInventoryPostInventoryAgentsDevicesIDReportOKState) Get() (v Inventor
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPostInventoryAgentsDevicesIDReportOKState) Or(d InventoryPostInventoryAgentsDevicesIDReportOKState) InventoryPostInventoryAgentsDevicesIDReportOKState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKOnly returns new NilInventoryPostInventoryBoxCheckOKOnly with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKOnly(v InventoryPostInventoryBoxCheckOKOnly) NilInventoryPostInventoryBoxCheckOKOnly {
+	return NilInventoryPostInventoryBoxCheckOKOnly{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKOnly is nullable InventoryPostInventoryBoxCheckOKOnly.
+type NilInventoryPostInventoryBoxCheckOKOnly struct {
+	Value InventoryPostInventoryBoxCheckOKOnly
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKOnly) SetTo(v InventoryPostInventoryBoxCheckOKOnly) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKOnly) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKOnly) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKOnly
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKOnly) Get() (v InventoryPostInventoryBoxCheckOKOnly, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKOnly) Or(d InventoryPostInventoryBoxCheckOKOnly) InventoryPostInventoryBoxCheckOKOnly {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKRowsItemAction returns new NilInventoryPostInventoryBoxCheckOKRowsItemAction with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKRowsItemAction(v InventoryPostInventoryBoxCheckOKRowsItemAction) NilInventoryPostInventoryBoxCheckOKRowsItemAction {
+	return NilInventoryPostInventoryBoxCheckOKRowsItemAction{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKRowsItemAction is nullable InventoryPostInventoryBoxCheckOKRowsItemAction.
+type NilInventoryPostInventoryBoxCheckOKRowsItemAction struct {
+	Value InventoryPostInventoryBoxCheckOKRowsItemAction
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAction) SetTo(v InventoryPostInventoryBoxCheckOKRowsItemAction) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAction) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKRowsItemAction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAction) Get() (v InventoryPostInventoryBoxCheckOKRowsItemAction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAction) Or(d InventoryPostInventoryBoxCheckOKRowsItemAction) InventoryPostInventoryBoxCheckOKRowsItemAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKRowsItemAgent returns new NilInventoryPostInventoryBoxCheckOKRowsItemAgent with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKRowsItemAgent(v InventoryPostInventoryBoxCheckOKRowsItemAgent) NilInventoryPostInventoryBoxCheckOKRowsItemAgent {
+	return NilInventoryPostInventoryBoxCheckOKRowsItemAgent{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKRowsItemAgent is nullable InventoryPostInventoryBoxCheckOKRowsItemAgent.
+type NilInventoryPostInventoryBoxCheckOKRowsItemAgent struct {
+	Value InventoryPostInventoryBoxCheckOKRowsItemAgent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAgent) SetTo(v InventoryPostInventoryBoxCheckOKRowsItemAgent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAgent) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKRowsItemAgent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Get() (v InventoryPostInventoryBoxCheckOKRowsItemAgent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Or(d InventoryPostInventoryBoxCheckOKRowsItemAgent) InventoryPostInventoryBoxCheckOKRowsItemAgent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKRowsItemSwitch returns new NilInventoryPostInventoryBoxCheckOKRowsItemSwitch with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKRowsItemSwitch(v InventoryPostInventoryBoxCheckOKRowsItemSwitch) NilInventoryPostInventoryBoxCheckOKRowsItemSwitch {
+	return NilInventoryPostInventoryBoxCheckOKRowsItemSwitch{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKRowsItemSwitch is nullable InventoryPostInventoryBoxCheckOKRowsItemSwitch.
+type NilInventoryPostInventoryBoxCheckOKRowsItemSwitch struct {
+	Value InventoryPostInventoryBoxCheckOKRowsItemSwitch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) SetTo(v InventoryPostInventoryBoxCheckOKRowsItemSwitch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKRowsItemSwitch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) Get() (v InventoryPostInventoryBoxCheckOKRowsItemSwitch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) Or(d InventoryPostInventoryBoxCheckOKRowsItemSwitch) InventoryPostInventoryBoxCheckOKRowsItemSwitch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKRowsItemToken returns new NilInventoryPostInventoryBoxCheckOKRowsItemToken with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKRowsItemToken(v InventoryPostInventoryBoxCheckOKRowsItemToken) NilInventoryPostInventoryBoxCheckOKRowsItemToken {
+	return NilInventoryPostInventoryBoxCheckOKRowsItemToken{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKRowsItemToken is nullable InventoryPostInventoryBoxCheckOKRowsItemToken.
+type NilInventoryPostInventoryBoxCheckOKRowsItemToken struct {
+	Value InventoryPostInventoryBoxCheckOKRowsItemToken
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemToken) SetTo(v InventoryPostInventoryBoxCheckOKRowsItemToken) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemToken) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemToken) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKRowsItemToken
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemToken) Get() (v InventoryPostInventoryBoxCheckOKRowsItemToken, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemToken) Or(d InventoryPostInventoryBoxCheckOKRowsItemToken) InventoryPostInventoryBoxCheckOKRowsItemToken {
 	if v, ok := o.Get(); ok {
 		return v
 	}

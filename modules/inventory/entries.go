@@ -257,6 +257,16 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 		if e.PkgVersion == nil {
 			next.PkgVersion = "" // the release of another version is not known
 		}
+		// A name that states a release (ESXi "8.0 Update 3 (build 24022510)") must not place the person's release: the old name's
+		// build would put a line typed alone ("8.0") back in the old update. When the old name reads the person's text as another
+		// release than the product's own name does, the scheme names the new release from the product's own name.
+		if p, ok := productid.ByKey(target.productKey); ok && p.Scheme != "" && p.Display != "" {
+			byOld, _ := statedRelease(target.productKey, next.Version, next.Display)
+			byOwn, _ := statedRelease(target.productKey, next.Version, p.Display)
+			if byOld != byOwn {
+				next.Display = p.Display
+			}
+		}
 	}
 	if e.PkgVersion != nil {
 		next.PkgVersion = *e.PkgVersion

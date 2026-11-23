@@ -21,7 +21,7 @@ import { AgentCheckDialog } from './AgentQuiet'
 import { AgentSetupDialog, InstallOnDeviceDialog } from './InstallAgent'
 import { TurnOnModule } from './Inline'
 import { SnmpBlockedLine, SnmpDialogs, useSnmpSource } from './SnmpCard'
-import { useDeviceAction, useDeviceSourceRows, useDeviceSources } from './api'
+import { useBoxCheck, useDeviceAction, useDeviceSourceRows, useDeviceSources } from './api'
 import { firstCheck } from './firstCheck'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
@@ -64,6 +64,7 @@ function StateWords({ d, row }: { d: DeviceDetail; row: DeviceSourceRow }) {
   if (row.state === 'quiet') return <>{row.last_at ? t('sources.state.quiet', { when: fmtRelative(row.last_at) }) : t('sources.state.quietUnknown')}</>
   if (row.state === 'waiting') return <>{t(`sources.state.waiting.${row.source}`)}</>
   if (row.state === 'reporting' && row.agent && row.agent !== 'none') return <>{t('sources.state.reportingBy', { agent: t(`sources.agentKind.${row.agent}`) })}</>
+  if (row.state === 'box') return <>{t(`sources.state.boxRow.${row.source}`)}</>
   return <>{t(`sources.state.${row.state}`)}</>
 }
 
@@ -89,8 +90,9 @@ function Row({ d, row, onAction, busy }: { d: DeviceDetail; row: DeviceSourceRow
   const admin = useCan('admin')
   const operator = useCan('operator')
   const a = row.action
-  const role = a === 'approve' ? operator : admin
-  const need = role ? undefined : t('common:needRole', { role: t(a === 'approve' ? 'common:role.operator' : 'common:role.admin') })
+  const byOperator = a === 'approve' || a === 'box_check'
+  const role = byOperator ? operator : admin
+  const need = role ? undefined : t('common:needRole', { role: t(byOperator ? 'common:role.operator' : 'common:role.admin') })
   const button = !a ? null
     : a === 'turn_on_module' ? <TurnOnModule id={MODULE[row.source]} reason={t(`sources.moduleOff.${row.source}`)} />
     : a === 'scan_now' ? (admin ? <ScanNowButton targets={[d.asset.id]} size="sm" variant="secondary" showProgress={false} /> : null)
@@ -105,6 +107,7 @@ function Row({ d, row, onAction, busy }: { d: DeviceDetail; row: DeviceSourceRow
         <InfoTip topic={t(`sources.name.${row.source}`)}>{info}</InfoTip>
         <span className={cn('text-meta', row.dot === 'red' ? 'text-danger' : row.dot === 'amber' ? 'text-warn' : 'text-muted')}><StateWords d={d} row={row} /></span>
         {row.last_at && row.state !== 'quiet' && row.state !== 'module_off' ? <When at={row.last_at} text={t('sources.lastAt', { when: fmtRelative(row.last_at) })} /> : null}
+        {row.next_at ? <When at={row.next_at} text={t('sources.nextAt', { when: fmtRelative(row.next_at) })} /> : null}
       </div>
       {row.switch || button ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -123,8 +126,9 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const snmpOn = useModuleEnabled('sensor-active') === true
   const agentsOn = useModuleEnabled('agent-intake') === true
   const q = useDeviceSourceRows(d.asset.id, `${snmpOn}|${agentsOn}`)
-  const snmp = useSnmpSource(d, admin && snmpOn)
+  const snmp = useSnmpSource(d, admin && snmpOn && !d.asset.is_box) // the box is never read over SNMP
   const approve = useDeviceAction(d.asset.id).approve
+  const boxCheck = useBoxCheck(d.asset.id)
   const [open, setOpen] = useState<'create_token' | 'show_setup' | 'check' | null>(null)
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const agentRow = q.data?.rows.find((r) => r.source === 'agent')
@@ -134,6 +138,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
       case 'set_up': snmp.setEditing(true); break
       case 'check_now': snmp.check(); break
       case 'create_token': case 'show_setup': case 'check': setOpen(row.action); break
+      case 'box_check': boxCheck.mutate(undefined, { onSuccess: () => toast.success(t('sources.boxChecked')), onError: (e) => toast.error(errMsg(e)) }); break
       default: break
     }
   }
@@ -145,7 +150,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
           <ul aria-label={t('sources.title')} className="grid gap-1.5">
             {q.data.rows.map((row) => (
               <Row key={row.source} d={d} row={row} onAction={act}
-                busy={(row.action === 'approve' && approve.isPending) || (row.action === 'check_now' && snmp.act.check.isPending)} />
+                busy={(row.action === 'approve' && approve.isPending) || (row.action === 'check_now' && snmp.act.check.isPending) || (row.action === 'box_check' && boxCheck.isPending)} />
             ))}
           </ul>
           {only ? (
@@ -158,7 +163,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
           <SnmpBlockedLine d={d} src={snmp} />
         </div>
       )}
-      {admin && snmpOn ? <SnmpDialogs d={d} src={snmp} /> : null}
+      {admin && snmpOn && !d.asset.is_box ? <SnmpDialogs d={d} src={snmp} /> : null}
       {open === 'create_token' ? <InstallOnDeviceDialog d={d} onClose={() => setOpen(null)} /> : null}
       {open === 'show_setup' ? <AgentSetupDialog d={d} token={agentRow?.token ?? null} onClose={() => setOpen(null)} /> : null}
       {open === 'check' && agentRow ? <AgentCheckDialog d={d} row={agentRow} onClose={() => setOpen(null)} /> : null}

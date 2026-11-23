@@ -302,6 +302,10 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 			return fmt.Sprintf(`Product "%s…" is too long (at most %d characters). Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`, clip(productText, 40), maxLabel), a, ""
 		}
 		if entry = cat.find(productText); entry == nil {
+			if os := cat.operatingSystems(productText); len(os) > 0 {
+				return fmt.Sprintf(`Product "%s" could be %s or %s. Name the distribution, for example %s.`, clip(productText, 40),
+					strings.Join(os[:len(os)-1], ", "), os[len(os)-1], os[0]), a, ""
+			}
 			return fmt.Sprintf(`Product "%s" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`, clip(productText, 40)), a, ""
 		}
 	}

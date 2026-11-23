@@ -561,6 +561,7 @@
       "inventory.add_software": "Add software to a device",
       "inventory.agent_enroll": "Agent enrolled",
       "inventory.approve_enrolled": "Device approved by its agent enrolment",
+      "inventory.box_check": "Read the box's own packages and ports now",
       "inventory.agent_token_create": "Create agent enrolment token",
       "inventory.agent_token_revoke": "Revoke agent enrolment token",
       "inventory.agent_tokens_remove_unused": "Remove unused agent enrolment tokens",

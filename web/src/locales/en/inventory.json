@@ -22,6 +22,8 @@
     "title": "Sources",
     "info": "What tells Vedette about this device. Several can feed it at once: an agent's values come first, then SNMP, then scans, then passive listening. Values you enter win over all of them.",
     "lastAt": "last report {{when}}",
+    "nextAt": "next report {{when}}",
+    "boxChecked": "The box read its packages and open ports again.",
     "name": {
       "scan": "Network scan",
       "snmp": "SNMP",
@@ -60,6 +62,11 @@
       "replaced": "Replaced by a newer enrolment",
       "unavailable": "Not known just now",
       "box": "Read by the box itself",
+      "boxRow": {
+        "scan": "Not scanned: the box lists its own open ports",
+        "snmp": "Not needed: the box reads itself",
+        "agent": "Read by the box itself"
+      },
       "ignored": "Not read: the device is ignored"
     },
     "only": {
@@ -77,7 +84,8 @@
       "check_now": "Check now",
       "create_token": "Create agent token",
       "show_setup": "Show setup",
-      "check": "Check"
+      "check": "Check",
+      "box_check": "Check now"
     },
     "agent": {
       "manage": "Agents and tokens"
@@ -199,6 +207,7 @@
     "descriptionInfo": "A device seen on the network for the first time stays here until you add it. If it needs no watching, such as a staff phone, ignore it. If you do not recognise it, remove it from the list. Removing does not disconnect it.",
     "firstSeen": "First seen {{when}}.",
     "approve": "Add device",
+    "approveLabel": "Add {{name}} to your devices",
     "approved": "Added {{name}} to your devices.",
     "findLater": "Find it later in Devices.",
     "mark": "Mark unknown",
@@ -890,7 +899,7 @@
       "queries": "What Vedette asks osquery for",
       "queriesBody": "Read-only queries, delivered through the config endpoint.",
       "queriesBodyInfo": "Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device. In its first hour after enrolling, a machine runs every minute each query whose answer Vedette has not received yet, so its operating system and packages show within a few minutes; it then follows the intervals below.",
-      "queriesBodyInfo2": "Vedette marks the machine Approved, because whoever made the token vouched for it, and sets its type from its operating system (Windows Server and Linux: Server; other Windows and macOS: PC) unless a person has chosen one."
+      "queriesBodyInfo2": "Vedette adds the machine to your devices, because whoever made the token vouched for it, and sets its type from its operating system (Windows Server and Linux: Server; other Windows and macOS: PC) unless a person has chosen one."
     },
     "download": {
       "title": "Or download the package",
@@ -1122,7 +1131,7 @@
       "has": "Has findings, software or open ports",
       "software": "Runs this software",
       "suspicious": "Marked unknown",
-      "approved": "Approved recently",
+      "approved": "Added recently",
       "possible": "Possibly the same device",
       "risk": "Risk: exploited findings or an update recommended"
     },

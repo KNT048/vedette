@@ -73,16 +73,6 @@ var nativeIPS = map[string]bool{"fortigate": true, "sophos": true, "sonicwall": 
 // NativeIPS reports whether a log source of this kind is a device that writes IPS events.
 func NativeIPS(kind string) bool { return nativeIPS[kind] }
 
-// IPSKinds are the log source kinds whose lines can carry IPS events, sorted.
-func IPSKinds() []string {
-	out := make([]string, 0, len(profileKinds))
-	for k := range profileKinds {
-		out = append(out, k)
-	}
-	slices.Sort(out)
-	return out
-}
-
 // Reads reports whether lines of a source of this kind can carry IPS events.
 func Reads(kind string) bool { return profileKinds[kind] != nil }
 

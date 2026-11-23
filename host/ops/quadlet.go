@@ -387,14 +387,9 @@ func (s serviceUnit) render(tmpl *template.Template, f unitFill) ([]byte, error)
 	return out, nil
 }
 
-// ParseUnit reads back what the host's own template made: the digest of the Image= line (which must
+// parseUnit reads back what the host's own template made: the digest of the Image= line (which must
 // carry the service's repository) and whether the unit has [Install]. Anything else (a second
-// Image= line, another repository, a short digest, a carriage return) is an error. Exported for
-// fuzzing.
-func ParseUnit(service string, text []byte) (digest string, install bool, err error) {
-	return parseUnit(service, text)
-}
-
+// Image= line, another repository, a short digest, a carriage return) is an error.
 func parseUnit(service string, text []byte) (digest string, install bool, err error) {
 	s, ok := services[service]
 	if !ok {

@@ -394,15 +394,11 @@ var (
 
 const maxRepoDigests = 256
 
-// ParseImageInspect reads the output of "podman image inspect --format json <ref>" and reports
+// parseImageInspect reads the output of "podman image inspect --format json <ref>" and reports
 // whether it describes exactly one image whose manifest digest is digest, for service, on this arch:
 // a JSON array of one object (nothing after it, 1 MiB at most) with a 64-hex Id, and either Digest
 // equal to digest or RepoDigests holding the pull reference. A Digest of another value, an Os or
-// Architecture that is given and differs, or any other shape is an error. Exported for fuzzing.
-func ParseImageInspect(out []byte, service, digest, arch string) error {
-	return parseImageInspect(out, service, digest, arch)
-}
-
+// Architecture that is given and differs, or any other shape is an error.
 func parseImageInspect(out []byte, service, digest, arch string) error {
 	ref, err := pullRef(service, digest)
 	if err != nil {

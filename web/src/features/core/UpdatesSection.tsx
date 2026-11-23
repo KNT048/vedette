@@ -24,7 +24,7 @@ import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
-import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
+import { MAX_UPLOAD, compareVersion, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 /**
@@ -177,6 +177,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: () => <span className="text-meta text-muted">{t('updates.managed.how')}</span> },
   ]
   const affected = s.advisories.filter((a) => a.status === 'affected')
+  // "Update the software" only when the box offers a software update that reaches the fixed release; otherwise the advisory below says how.
+  const softwareNext = availableOf('software')?.version
+  const updateFixes = !!softwareNext && !!affected[0]?.fixed_in && compareVersion(softwareNext, affected[0].fixed_in) >= 0
 
   return (
     <>
@@ -194,7 +197,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
       <UpdateNotices s={s} />
       {affected.length ? (
-        <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t('updates.advisoryFix', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
+        <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t(updateFixes ? 'updates.advisoryFix' : 'updates.advisoryFixManual', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
       ) : null}
 
       <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.check')}</Button>}>

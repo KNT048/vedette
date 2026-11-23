@@ -219,3 +219,30 @@ func TestJunos(t *testing.T) {
 		t.Errorf("Junos OS Evolved: %+v %v", v, ok)
 	}
 }
+
+// A range from a line's start to that same start ("7.2.1" before "7.2.1") is empty: the vendor says no release of the line is
+// affected. It reads as a span that ends in the line's own train before its first release, so a release of the line is judged by it
+// (not affected), never by release order against another line's fix.
+func TestSpan_LineNotAffected(t *testing.T) {
+	t.Parallel()
+	sp, ok := SynologyDSM.Span("7.2.1", "7.2.1", "")
+	if !ok || sp.End == nil || sp.End.LineStart || sp.End.Train != "7.2.1" {
+		t.Fatalf("empty line span: %+v %v", sp, ok)
+	}
+	later, ok := SynologyDSM.Span("7.3.2", "7.3.2-86009-5", "")
+	if !ok {
+		t.Fatal("7.3.2 span")
+	}
+	for _, v := range []string{"7.2.1-69057", "7.2.1-69057-5", "7.2.1-69057-13"} {
+		installed, ok := SynologyDSM.Installed(v, "")
+		if !ok {
+			t.Fatal(v)
+		}
+		if got := Judge(installed, []Span{sp, later}); got.State != NotAffected || got.Fix != nil {
+			t.Errorf("%s: %+v", v, got)
+		}
+	}
+	if _, ok := SynologyDSM.Span("7.2.1", "7.2.2", ""); ok {
+		t.Error("an end at another line's start reads")
+	}
+}

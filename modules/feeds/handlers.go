@@ -591,14 +591,14 @@ func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.Feeds
 		if ipErr == nil {
 			kind = "ip"
 		}
-		var hit map[string]any
+		var hit any // null when there is no hit: a nil interface stays null through apijson.Into, a nil map would become {}
 		if key, ok := IOCKey(kind, value); ok {
 			rec, found, err := h.s.st.IOCLookup(ctx, kind, key)
 			if err != nil {
 				return zero, err
 			}
-			if found {
-				hit = iocHit(rec)
+			if m := iocHit(rec); found && m != nil {
+				hit = m
 			}
 			value = key
 		}

@@ -599,7 +599,7 @@ type briefDTO struct {
 	EPSS           *epssDTO        `json:"epss"`
 	NVDURL         string          `json:"nvd_url"`
 	RecordURL      string          `json:"record_url"`
-	Matched        *[]MatchedAsset `json:"matched"`
+	Matched        *[]MatchedAsset `json:"matched" nullable:"true"`
 	NotAffected    int             `json:"not_affected"`
 }
 
@@ -663,7 +663,7 @@ type signalDTO struct {
 	LastSeen   time.Time      `json:"last_seen"`
 	Qualifies  bool           `json:"qualifies"`
 	URL        *string        `json:"url"`
-	Detail     map[string]any `json:"detail"`
+	Detail     map[string]any `json:"detail" nullable:"true"`
 }
 
 type rangeDTO struct {

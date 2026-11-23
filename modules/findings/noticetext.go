@@ -42,14 +42,18 @@ func StatusMeaning(layer int) string {
 	return "A known flaw affects this version; no sign of exploitation yet. Update when convenient."
 }
 
-// ReasonsLine is the urgency reasons of the view as one line, a layer at a time, most urgent first: "Exploited in the wild: CISA KEV
-// (19 Nov 2026, fix due 3 Dec 2026), Rapid7 (20 Nov 2026) · Public exploit available: Metasploit (18 Nov 2026)". The reasons are the
-// ones the finding page lists (View.Reasons, those at or below the stored layer). "" when there are none. A day of an intrusion alert is
-// the box's own time (loc); the others are calendar days of their sources.
-func (v View) ReasonsLine(loc *time.Location) string {
+// ReasonsLine is the urgency reasons of the view as one line, built the way the finding page builds its line (ReasonsLine.tsx): a layer at a
+// time, most urgent first, each with its sources ("name, detail"), the earliest date of the layer, and after it "not yet in CISA KEV" (an
+// exploited layer with no CISA entry) and "fix by <day>" (the earliest day a list asks for): "Exploited in the wild: Rapid7, Mandiant
+// (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)". The reasons are the ones the page lists
+// (View.Reasons: the layers at or below the stored one, those with a date). "" when there are none.
+func (v View) ReasonsLine() string {
 	var layers []int
 	by := map[int][]ViewReason{}
 	for _, r := range v.Reasons {
+		if r.Since.IsZero() {
+			continue // the page lists no reason without a date
+		}
 		if _, ok := by[r.Layer]; !ok {
 			layers = append(layers, r.Layer)
 		}
@@ -59,26 +63,29 @@ func (v View) ReasonsLine(loc *time.Location) string {
 	var parts []string
 	for _, l := range layers {
 		var names []string
+		var first time.Time
+		var due string
 		listed := false
 		for _, r := range by[l] {
 			n := r.Name
-			if !r.Since.IsZero() {
-				day := orgtime.CalendarDay(r.Since)
-				if l == UrgencyUnderAttack {
-					day = orgtime.Day(r.Since, loc)
-				}
-				n += " (" + day
-				if d, err := time.Parse(time.DateOnly, r.Due); err == nil {
-					n += ", fix due " + orgtime.CalendarDay(d)
-				}
-				n += ")"
+			if d := clipBytes(r.Detail, 120); d != "" {
+				n += ", " + d
+			}
+			names = append(names, n)
+			if first.IsZero() || r.Since.Before(first) {
+				first = r.Since
+			}
+			if _, err := time.Parse(time.DateOnly, r.Due); err == nil && (due == "" || r.Due < due) {
+				due = r.Due
 			}
 			listed = listed || r.Source == "cisa-kev"
-			names = append(names, n)
 		}
-		text := StatusName(l) + ": " + strings.Join(names, ", ")
+		text := StatusName(l) + ": " + strings.Join(names, ", ") + " (" + orgtime.CalendarShort(first) + ")"
 		if l == UrgencyExploited && !listed {
-			text += ", not yet on CISA's list"
+			text += "; not yet in CISA KEV"
+		}
+		if d, err := time.Parse(time.DateOnly, due); err == nil {
+			text += "; fix by " + orgtime.CalendarDay(d)
 		}
 		parts = append(parts, text)
 	}

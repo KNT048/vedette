@@ -166,7 +166,7 @@ func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 	s.addFortiGate()
 	got := s.queuedNotices()
 	if len(got) != 1 || !strings.Contains(got[0].What, "Exploited in the wild: VulnCheck KEV (") || strings.Contains(got[0].What, "CISA lists") ||
-		strings.Contains(got[0].What, "CISA KEV") {
+		strings.Contains(got[0].What, "wild: CISA") {
 		t.Fatalf("notices: %+v", got)
 	}
 }

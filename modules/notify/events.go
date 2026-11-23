@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -90,12 +91,22 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 // The finding events a vulnerability notice tells (Notice.Event, notify_notice.event): the kinds of the findings module's own history that
 // a person has to know, and the summary of a first load. An open vocabulary.
 const (
-	NoticeCreated           = "created"
-	NoticeUrgencyChanged    = "urgency_changed"
-	NoticeReopened          = "reopened"
-	NoticeAcceptanceExpired = "acceptance_expired"
-	NoticeFirstRun          = "first_run"
+	NoticeCreated           NoticeEvent = "created"
+	NoticeUrgencyChanged    NoticeEvent = "urgency_changed"
+	NoticeReopened          NoticeEvent = "reopened"
+	NoticeAcceptanceExpired NoticeEvent = "acceptance_expired"
+	NoticeFirstRun          NoticeEvent = "first_run"
 )
+
+// NoticeEvent is the finding event a vulnerability notice tells. The column is an open vocabulary (a shape check); these are the ones notify
+// writes, and "" is a notice that tells none.
+type NoticeEvent string
+
+// NoticeEvents lists every event notify writes.
+var NoticeEvents = []NoticeEvent{NoticeCreated, NoticeUrgencyChanged, NoticeReopened, NoticeAcceptanceExpired, NoticeFirstRun}
+
+// Valid reports whether e is "" or one of NoticeEvents.
+func (e NoticeEvent) Valid() bool { return e == "" || slices.Contains(NoticeEvents, e) }
 
 // findingCreated turns findings.finding.created (a new finding at an urgency of 1–4) into a notice.
 func (s *Service) findingCreated(ctx context.Context, data any) error {
@@ -143,6 +154,13 @@ func (s *Service) findingStatus(ctx context.Context, data any) error {
 			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
 			n.What = "Vedette had closed this finding by itself, and the device matches the entry again. " + n.What
 		})
+	case "still_detected": // a person marked it patched, and a newer reading of the device still shows the flaw
+		return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeReopened, func(f FindingInfo, cve string, n *Notice) {
+			n.ID += "-" + n.At.UTC().Format("20060102")
+			n.Change = "reopened, still detected"
+			n.Title = "Vedette reopened " + about(cve, f) + ": it is still detected"
+			n.What = "It was marked patched, but a newer reading of the device still shows the flaw. " + n.What
+		})
 	case "acceptance_expired": // a risk a person accepted until a day is open again (INV-21)
 		return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeAcceptanceExpired, func(f FindingInfo, cve string, n *Notice) {
 			n.ID += "-" + n.At.UTC().Format("20060102")
@@ -181,7 +199,7 @@ func (s *Service) urgencyRaised(ctx context.Context, data any) error {
 // Only an open finding at an urgency of 1–4 is told (layer 5 never alerts); a finding that was handled or dropped since the event is not.
 // The id is the finding's and the event's; frame changes the default texts and the id for the kinds that need it. The default texts are
 // the status name, its meaning and the reasons, all from findings.
-func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventSeverity Severity, event string, frame func(f FindingInfo, cve string, n *Notice)) error {
+func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventSeverity Severity, event NoticeEvent, frame func(f FindingInfo, cve string, n *Notice)) error {
 	if s.cfg.Findings == nil {
 		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
 		return nil
@@ -201,7 +219,7 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 		return nil
 	}
 	cve := cmp.Or(f.CVE, eventCVE)
-	n := Notice{ID: "nt-" + id + "-" + event, Event: event, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
+	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
 		Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
 	if cve != "" {
 		n.CVEs = []string{cve}
@@ -270,9 +288,62 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		s.cfg.Log.WarnContext(ctx, "finding summary skipped: no finding directory is wired")
 		return nil
 	}
-	sev := Medium
-	if e.Layer >= 1 && e.Layer <= 2 {
-		sev = High
+	// What the summary tells is what is left of the event's findings now: still open, at layer 1-4 (layer 5 never alerts), not already
+	// told at that layer or a more urgent one. Its counts, its severity, its worst layer and its CVEs are those of the kept findings.
+	n := Notice{Kind: KindVuln, Event: NoticeFirstRun, Link: s.link("/findings?tab=open"), At: s.now(),
+		Action: "Open Findings, sorted by urgency, and patch the ones at the top first."}
+	seenDevice, seenCVE := map[string]bool{}, map[string]bool{}
+	devices := 0
+	for _, id := range e.FindingIDs {
+		if len(n.FindingIDs) == maxNoticeItems {
+			break
+		}
+		f, ok, err := s.cfg.Findings.Finding(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !ok || !f.Open || f.Layer < 1 || f.Layer >= layerUpdate { // handled since, or dropped to "update recommended"
+			continue
+		}
+		if told, err := s.toldAt(ctx, s.cfg.DB.Reader(), id); err != nil {
+			return err
+		} else if told != 0 && told <= f.Layer { // already told at this layer or a more urgent one
+			continue
+		}
+		n.FindingIDs = append(n.FindingIDs, id)
+		n.FindingLayers = append(n.FindingLayers, f.Layer)
+		if n.Layer == 0 || f.Layer < n.Layer {
+			n.Layer = f.Layer
+		}
+		for _, d := range f.Devices {
+			if d = strings.TrimSpace(d); d != "" && !seenDevice[d] {
+				seenDevice[d] = true
+				devices++
+				if len(n.Devices) < maxNoticeItems {
+					n.Devices = append(n.Devices, d)
+				}
+			}
+		}
+		if f.CVE != "" && !seenCVE[f.CVE] && len(n.CVEs) < maxNoticeItems {
+			seenCVE[f.CVE] = true
+			n.CVEs = append(n.CVEs, f.CVE)
+		}
+	}
+	if len(n.FindingIDs) == 0 {
+		return nil
+	}
+	// The event lists at most MaxBackfillListed findings but counts them all: when none of the listed ones was left out, its totals stand.
+	found := e.Findings - (len(e.FindingIDs) - len(n.FindingIDs))
+	if dropped := len(e.FindingIDs) - len(n.FindingIDs); dropped == 0 {
+		devices = max(devices, e.Devices)
+		if e.Layer >= 1 && e.Layer < n.Layer {
+			n.Layer = e.Layer
+		}
+	}
+	found = max(found, len(n.FindingIDs))
+	n.Severity = Medium
+	if n.Layer <= 2 {
+		n.Severity = High
 	}
 	what := "Vedette has just loaded a source of exploitation news for the first time"
 	switch {
@@ -290,51 +361,15 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM notify_notice WHERE substr(id, 1, ?) = ?`, len(prefix), prefix).Scan(&earlier); err != nil {
 		return fmt.Errorf("notify: read first-run summaries: %w", err)
 	}
-	title := fmt.Sprintf("Patch first: %s on %s", plural(e.Findings, "urgent finding", "urgent findings"), plural(e.Devices, "device", "devices"))
-	what += fmt.Sprintf(", so instead of one alert each, the %s it rated as exploited, with a public exploit or critical on an edge device are listed together here.",
-		plural(e.Findings, "finding", "findings"))
+	n.Title = fmt.Sprintf("Patch first: %s on %s", plural(found, "urgent finding", "urgent findings"), plural(devices, "device", "devices"))
+	n.What = what + fmt.Sprintf(", so instead of one alert each, the %s it rated as exploited, with a public exploit or critical on an edge device are listed together here.",
+		plural(found, "finding", "findings"))
 	if earlier > 0 {
-		title = fmt.Sprintf("%s on %s to patch first", plural(e.Findings, "more urgent finding", "more urgent findings"), plural(e.Devices, "device", "devices"))
-		what = fmt.Sprintf("Vedette is still working through what its first load brought: since its last summary it rated %s on %s as exploited, with a public exploit or critical on an edge device.",
-			plural(e.Findings, "more finding", "more findings"), plural(e.Devices, "device", "devices"))
+		n.Title = fmt.Sprintf("%s on %s to patch first", plural(found, "more urgent finding", "more urgent findings"), plural(devices, "device", "devices"))
+		n.What = fmt.Sprintf("Vedette is still working through what its first load brought: since its last summary it rated %s on %s as exploited, with a public exploit or critical on an edge device.",
+			plural(found, "more finding", "more findings"), plural(devices, "device", "devices"))
 	}
-	n := Notice{ID: prefix + at.UTC().Format("20060102T150405.000"), Kind: KindVuln, Event: NoticeFirstRun, Severity: sev, Layer: e.Layer,
-		Link: s.link("/findings?tab=open"), At: s.now(), Title: title, What: what,
-		Action: "Open Findings, sorted by urgency, and patch the ones at the top first."}
-	seen := map[string]bool{}
-	for _, id := range e.FindingIDs {
-		if len(n.FindingIDs) == maxNoticeItems {
-			break
-		}
-		f, ok, err := s.cfg.Findings.Finding(ctx, id)
-		if err != nil {
-			return err
-		}
-		if !ok || !f.Open || f.Layer < 1 || f.Layer >= layerUpdate { // handled since, or dropped to "update recommended": layer 5 never alerts
-			continue
-		}
-		if told, err := s.toldAt(ctx, s.cfg.DB.Reader(), id); err != nil {
-			return err
-		} else if told != 0 && told <= f.Layer { // already told at this layer or a more urgent one
-			continue
-		}
-		n.FindingIDs = append(n.FindingIDs, id)
-		n.FindingLayers = append(n.FindingLayers, f.Layer)
-		for _, d := range f.Devices {
-			if d = strings.TrimSpace(d); d != "" && !seen[d] && len(n.Devices) < maxNoticeItems {
-				seen[d] = true
-				n.Devices = append(n.Devices, d)
-			}
-		}
-	}
-	for _, c := range e.CVEList {
-		if len(n.CVEs) < maxNoticeItems {
-			n.CVEs = append(n.CVEs, c)
-		}
-	}
-	if len(n.FindingIDs) == 0 {
-		return nil
-	}
+	n.ID = prefix + at.UTC().Format("20060102T150405.000")
 	return s.Publish(ctx, n)
 }
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/common/StatusChip'
-import type { Incident, IncidentStatus, NotSent, NotSentReason, Preview, SendRecord } from './types'
+import { knownKind, type Incident, type IncidentStatus, type NotSent, type NotSentReason, type Preview, type SendRecord } from './types'
 import { fmtTime } from '@/lib/format'
 
 const TONE = { new: 'warn', acknowledged: 'accent', resolved: 'ok' } as const
@@ -12,7 +12,7 @@ export function IncidentStatusChip({ status }: { status: IncidentStatus }) {
 }
 
 /** The locale key of an incident's kind: a blocked connection to a known-bad address is an attempt. */
-export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : i.kind}` as const
+export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : knownKind(i.kind)}` as const
 
 
 /** Lý do có chỗ sửa: liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */

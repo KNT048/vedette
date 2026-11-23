@@ -19,6 +19,7 @@ import { useCan } from '@/lib/session'
 import { notOffered } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
+import { knownKind } from './types'
 import { useNewChannel } from './NewChannel'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
@@ -95,7 +96,7 @@ function Content() {
                 { label: t('detail.firstSeen'), value: fmtDateTime(a.first_seen) },
                 { label: t('detail.lastSeen'), value: fmtDateTime(a.last_seen) },
                 { label: t('detail.count'), value: t('incidents.times', { count: a.count }) },
-                { label: t('detail.origin'), value: <Link to={a.link} className={link}>{t(`detail.open.${a.kind}`)}</Link> },
+                { label: t('detail.origin'), value: <Link to={a.link} className={link}>{t(`detail.open.${knownKind(a.kind)}`)}</Link> },
                 { label: t('detail.what'), value: a.what },
                 { label: t('detail.action'), value: a.action },
               ]} />

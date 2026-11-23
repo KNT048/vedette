@@ -29,7 +29,7 @@ type Notice struct {
 	// Event is the finding event the notice tells (NoticeCreated, NoticeUrgencyChanged, NoticeReopened, NoticeAcceptanceExpired,
 	// NoticeFirstRun); "" for a notice that tells none. A notice of the kinds that tell an urgency (created, urgency_changed, first_run)
 	// is recorded at its layer (FindingLayers, else Layer) and is not sent for a finding already told at that layer or a more urgent one.
-	Event string
+	Event NoticeEvent
 	// FindingLayers is the layer each of FindingIDs is told at, parallel to it; empty = Layer for all.
 	FindingLayers []int
 	Devices       []string // names of the matched devices (vulnerability: at least one)

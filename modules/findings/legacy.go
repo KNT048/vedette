@@ -185,6 +185,8 @@ func legacyEvent(before, after Finding, evs []Event) (StatusChangedEvent, bool) 
 		switch {
 		case ev.Kind == EvAcceptanceExpire:
 			e.Reason, e.AcceptedBy, e.AcceptedUntil = ReasonRiskExpired, ev.Detail.From, ev.Detail.AcceptedUntil
+		case ev.Kind == EvReopened && ev.Actor == SystemUser && ev.Detail.Why == WhyStillDetected:
+			e.Reason = ReasonStillDetected
 		case ev.Kind == EvReopened && ev.Actor == SystemUser:
 			e.Reason = ReasonMatchesAgain
 		case ev.Kind == EvHandled && ev.Detail.Via != ViaPerson && e.Reason == "":

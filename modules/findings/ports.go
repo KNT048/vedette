@@ -79,6 +79,10 @@ const ReasonDeviceVersion = "device_version"
 // entry again after Vedette had closed it as not affected.
 const ReasonMatchesAgain = "matches_again"
 
+// ReasonStillDetected is the StatusChangedEvent reason of a finding a person marked patched that Vedette reopened because a newer reading
+// of the device still shows the flaw.
+const ReasonStillDetected = "still_detected"
+
 // Publisher is the event bus as this module needs it. core/events is not built yet; the real bus
 // satisfies this by adapting its Publish. Events go out after the transaction commits, and a failed
 // publish is logged, never rolled back into the change.

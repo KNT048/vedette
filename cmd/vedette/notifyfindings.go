@@ -4,12 +4,12 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -52,7 +52,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	}
 	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
-		Reasons: plainText(v.ReasonsLine(orgtime.At(ctx, orgTimeZone(n.d))), noticeReasonsMax)}
+		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax)}
 	info.Product = cmp.Or(plainText(kev.Display, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
 	info.Action = cmp.Or(plainText(kev.RequiredAction, noticeActionMax),
 		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")
@@ -118,8 +118,8 @@ func lineName(v findings.View) string {
 // that no device has a finding for.
 type notifySignals struct{ d *deps }
 
-// maxUnmatchedRead bounds the CVEs one count reads facts for.
-const maxUnmatchedRead = 5000
+// unmatchedChunk is how many CVEs one read of the facts takes.
+const unmatchedChunk = 500
 
 func (n notifySignals) UnmatchedExploited(ctx context.Context, since time.Time) (int, error) {
 	if n.d.DB == nil {
@@ -127,8 +127,8 @@ func (n notifySignals) UnmatchedExploited(ctx context.Context, since time.Time) 
 	}
 	q := n.d.DB.Reader()
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT s.cve FROM feeds_signal s
-WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = s.cve) LIMIT ?`,
-		store.FormatTS(since), maxUnmatchedRead)
+WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = s.cve)`,
+		store.FormatTS(since))
 	if err != nil {
 		return 0, err
 	}
@@ -145,16 +145,20 @@ WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXIS
 		return 0, err
 	}
 	// The urgency reader drops the sources that are switched off, and marks what came with a source's first load: a first load is not news.
-	facts, err := feeds.NewUrgencyReader(q).Facts(ctx, cves)
-	if err != nil {
-		return 0, err
-	}
+	// Every candidate is read (in chunks), so what the filter drops can never hide a CVE behind a cap.
 	count := 0
-	for _, c := range cves {
-		for _, g := range facts[c].Signals {
-			if g.Kind == findings.SignalExploited && g.Qualifies && !g.FirstLoad && !g.StoredAt.Before(since) {
-				count++
-				break
+	reader := feeds.NewUrgencyReader(q)
+	for chunk := range slices.Chunk(cves, unmatchedChunk) {
+		facts, err := reader.Facts(ctx, chunk)
+		if err != nil {
+			return 0, err
+		}
+		for _, c := range chunk {
+			for _, g := range facts[c].Signals {
+				if g.Kind == findings.SignalExploited && g.Qualifies && !g.FirstLoad && !g.StoredAt.Before(since) {
+					count++
+					break
+				}
 			}
 		}
 	}

@@ -101,7 +101,7 @@ func TestFindingNoticesGolden(t *testing.T) {
 		name         string
 		layer        int
 		publish      func(pub func(string, any), id string, at time.Time)
-		event        string
+		event        notify.NoticeEvent
 		title, what  string
 		change       string
 		wantIDPrefix string
@@ -132,6 +132,13 @@ func TestFindingNoticesGolden(t *testing.T) {
 			title:  "Vedette reopened CVE-2026-100 on NAS-01: it matches again",
 			what:   "Vedette had closed this finding by itself, and the device matches the entry again. A critical flaw that needs no login, on a device class attackers target first. Patch it now." + why,
 			change: "reopened, it matches again"},
+		{name: "reopened, still detected after a person marked it patched", layer: 2, event: notify.NoticeReopened, wantIDPrefix: "nt-f-1-reopened-",
+			publish: func(pub func(string, any), id string, _ time.Time) {
+				pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: id, From: findings.StatusPatched, To: findings.StatusSuspected, Reason: findings.ReasonStillDetected})
+			},
+			title:  "Vedette reopened CVE-2026-100 on NAS-01: it is still detected",
+			what:   "It was marked patched, but a newer reading of the device still shows the flaw. Attackers use this flaw in real attacks. Patch it now." + why,
+			change: "reopened, still detected"},
 		{name: "acceptance expired", layer: 2, event: notify.NoticeAcceptanceExpired, wantIDPrefix: "nt-f-1-acceptance_expired-",
 			publish: func(pub func(string, any), id string, _ time.Time) {
 				pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: id, From: findings.StatusRiskAccepted, To: findings.StatusConfirmed,
@@ -161,7 +168,7 @@ func TestFindingNoticesGolden(t *testing.T) {
 				fmt.Sprint(n.CVEs) != "[CVE-2026-100]" || fmt.Sprint(n.FindingIDs) != "[f-1]" || fmt.Sprint(n.Devices) != "[NAS-01]" {
 				t.Errorf("notice = %+v", n)
 			}
-			if e.count(`SELECT count(*) FROM notify_notice WHERE event = ?`, c.event) != 1 {
+			if e.count(`SELECT count(*) FROM notify_notice WHERE event = ?`, string(c.event)) != 1 {
 				t.Errorf("the notice is not recorded with its event %q", c.event)
 			}
 		})
@@ -381,5 +388,28 @@ func TestCountNoticesOfAFixturePass(t *testing.T) {
 	// exploited; f8: created (it was open then), no rise once handled
 	if notices != 9 || repeats != 0 || layerFive != 0 || handled != 0 {
 		t.Fatalf("notices %d (want 9), repeats %d, layer 5 %d, rises told for handled findings %d", notices, repeats, layerFive, handled)
+	}
+}
+
+// The summary tells what is left of the event's findings, not the event's counts: handled, layer 5 and already-told findings are not in its
+// title, severity, worst layer or CVE list.
+func TestFirstRunSummaryCountsTheKeptFindings(t *testing.T) {
+	dir := &liveFindings{}
+	other := qnap
+	other.CVE = "CVE-2026-200"
+	dir.at("f-1", 4, qnap)
+	dir.at("f-2", 1, other)
+	dir.handle("f-2")
+	dir.at("f-5", 5, other)
+	e, pub := noticeEnv(t, dir)
+	pub(notify.EventFirstRun, findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: 3, Devices: 3, Layer: 1,
+		FindingIDs: []string{"f-1", "f-2", "f-5"}, CVEList: []string{"CVE-2026-100", "CVE-2026-200"}})
+	got := queued(e)
+	if len(got) != 1 {
+		t.Fatalf("summaries = %+v", got)
+	}
+	n := got[0]
+	if n.Title != "Patch first: 1 urgent finding on 1 device" || n.Layer != 4 || n.Severity != notify.Medium || fmt.Sprint(n.CVEs) != "[CVE-2026-100]" {
+		t.Fatalf("title %q layer %d severity %q CVEs %v", n.Title, n.Layer, n.Severity, n.CVEs)
 	}
 }

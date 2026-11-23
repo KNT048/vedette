@@ -523,7 +523,7 @@ func TestContract_POST2_ConfirmFromScanReopensPatched(t *testing.T) {
 	if h := r.History[len(r.History)-1]; h.Action != "matches_again" || !strings.Contains(h.Note, "Still detected after it was marked patched") {
 		t.Fatalf("history = %+v", r.History)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusPatched, To: StatusConfirmed, Reason: ReasonMatchesAgain}) {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusPatched, To: StatusConfirmed, Reason: ReasonStillDetected}) {
 		t.Fatalf("events = %+v", ev)
 	}
 }

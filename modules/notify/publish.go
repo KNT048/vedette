@@ -72,6 +72,9 @@ func (n Notice) validate() error {
 	if !n.Severity.Valid() {
 		return bad("unknown severity")
 	}
+	if !n.Event.Valid() {
+		return bad("unknown event")
+	}
 	if len(n.CVEs) > maxNoticeItems || len(n.Devices) > maxNoticeItems || len(n.FindingIDs) > maxNoticeItems {
 		return bad("too many CVEs, devices or findings")
 	}
@@ -96,7 +99,7 @@ func (s *Service) Publish(ctx context.Context, n Notice) error {
 
 // tellsUrgency says whether a notice of this finding event tells the urgency of its findings: the ones a finding is told only once at.
 // A reopening and an ended risk acceptance are told whenever they happen (their ids carry the day).
-func tellsUrgency(event string) bool {
+func tellsUrgency(event NoticeEvent) bool {
 	return event == NoticeCreated || event == NoticeUrgencyChanged || event == NoticeFirstRun
 }
 
@@ -167,7 +170,7 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			return fmt.Errorf("notify: encode CVEs: %w", err)
 		}
 		r, err := tx.ExecContext(ctx, `INSERT INTO notify_notice (id, event, created_at, product, cves) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
-			n.ID, n.Event, store.FormatTS(n.At), n.Product, string(cves))
+			n.ID, string(n.Event), store.FormatTS(n.At), n.Product, string(cves))
 		if err != nil {
 			return fmt.Errorf("notify: save notice: %w", err)
 		}

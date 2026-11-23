@@ -203,10 +203,19 @@ EOT
 	ok "the test mirror and the test registry are gone after the install"
 	x 'test ! -e /etc/netplan/90-vedette.yaml && test ! -e /etc/cloud/cloud.cfg.d/99-vedette-network.cfg' || fail "the network was handed over without --network-handover"
 	ok "no --network-handover: netplan and cloud-init untouched"
+	units=""
 	for s in ${services//,/ }; do
-		x "grep -q '^Image=' /etc/containers/systemd/vedette-$s.container" || fail "no unit for $s"
+		if x "grep -q '^Image=' /etc/containers/systemd/vedette-$s.container"; then units="$units $s"; continue; fi
+		# Rootless Podman nested in a rootless container cannot give a build step a named network ("cannot use networks as
+		# rootless"), so the on-box scan build fails here though it passes on a real box. The installer's answer to a failed scan
+		# build is the designed one: skip scan, write no unit, record service_skipped. Accept exactly that, nothing else.
+		if [ "$s" = scan ] && x "grep -q '\"code\":\"service_skipped\"' /var/log/vedette-host/audit.jsonl && grep '\"code\":\"service_skipped\"' /var/log/vedette-host/audit.jsonl | grep -q '\"code\":\"scan_build_failed\",\"service\":\"scan\"'"; then
+			echo "install-check: note [$name] scan skipped: the on-box scan build cannot reach a network inside this nested check container; the installer recorded service_skipped (scan_build_failed) and wrote no unit, as designed"
+			continue
+		fi
+		fail "no unit for $s"
 	done
-	ok "Quadlet units written for: $services"
+	ok "Quadlet units written for:$units"
 	[ "$(x 'systemctl cat vedette-host.service | grep -c "^ExecStart=/usr/lib/vedette/vedette-host$"')" = 1 ] || fail "vedette-host.service is not the packaged unit"
 	# core starts the sensor and scan containers by itself a little after the install (its module reconcile), so the box is only compared once
 	# the containers have stopped coming: the same set of containers, none still "starting", on three looks 10 s apart
@@ -240,8 +249,8 @@ EOT
 	ok "uninstall: users, groups, units, listening sockets, links, namespaces, packages and files are exactly as before; 8443 and 8444 closed"
 
 	# ---- H2: a package somebody installed on top of ours keeps ours; netavark's nft tables are gone ------------------------
-	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | sort; }
-	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | sort; }
+	pkgnames() { x 'dpkg-query -W -f="\${binary:Package}\n"' | LC_ALL=C sort; }
+	before_pkgs() { awk '/^## packages/ {f = 1; next} /^## / {f = 0} f {print $1}' "$work/$n.before" | LC_ALL=C sort; }
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install2.log" 2>&1 || { tail -40 "$work/install2.log" >&2; fail "the second fresh install (H2 cycle) failed"; }
 	# the bridge of vedette-int has the fixed name vedette0 on this Podman (PodmanArgs=--interface-name): by effect, in the kernel
 	x 'ip link show vedette0 >/dev/null 2>&1' || { x 'cat /etc/containers/systemd/vedette-int.network; podman network inspect vedette-int; ip -br link' >&2; fail "there is no bridge vedette0 (the network file's PodmanArgs=--interface-name=vedette0 did not take effect on this Podman: $(x 'podman --version'))"; }
@@ -339,10 +348,11 @@ EOT
 	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot; the podman the
 	# uninstall kept goes (a lab box holds nothing else, so the reset is safe here; the summary no longer suggests it), and so do the folders the uninstall
 	# removes when it purges podman itself (install.sh)
+	# (podman 5 as root makes an empty /root/.config/containers/podman/machine on the reset below: removed with the other empty folders)
 	x 'podman system reset -f >/dev/null 2>&1' || fail "cannot reset the podman the uninstall kept"
 	# shellcheck disable=SC2046 # package names, one word each
-	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1" || fail "cannot remove the test packages again"
-	x 'rm -rf /var/lib/containers /run/containers /root/.config/cni; for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi; done'
+	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(LC_ALL=C comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1" || fail "cannot remove the test packages again"
+	x 'rm -rf /var/lib/containers /run/containers /root/.config/cni; for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config/containers/podman/machine /root/.config/containers/podman /root/.config/containers /root/.config; do if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi; done'
 	snap_files "$work/$n.after2"
 	same "$work/$n.before" "$work/$n.after2" "after the H2 cycle and the removal of the test packages the box is not as before"
 	ok "the H2 cycle ends with the box as before (users, units, sockets, forwarding sysctl, packages, files)"
@@ -381,7 +391,7 @@ EOT
 	# the box is not compared again after this case (an upgrade is never undone); only the test's own leftovers are removed
 	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib vic-orphan vic-dep >/dev/null 2>&1; true'
 	# shellcheck disable=SC2046 # package names, one word each
-	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
+	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(LC_ALL=C comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
 
 	# ---- --uninstall --keep-data, then install again: Vedette comes back with its data and its users -----------
 	# A box set up by a person (first-run setup done, an administrator), uninstalled keeping the data, then installed again: core healthy,
@@ -441,7 +451,8 @@ EOT
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/kd-un2.log" 2>&1 || { tail -40 "$work/kd-un2.log" >&2; fail "--uninstall --yes after the keep-data case failed"; }
 	x '! getent passwd vedette >/dev/null && ! test -e /var/lib/vedette && ! test -e /var/lib/vedette-host && ! test -e /etc/vedette' || fail "--uninstall --yes after the keep-data case left Vedette's users or data"
 	# The kept podman stayed on the installer's lists, so the full uninstall (nothing else in podman) still purges it
-	x '! dpkg -s podman >/dev/null 2>&1 && ! test -e /var/lib/containers' || fail "the full --uninstall after the keep-data case left podman or /var/lib/containers"
+	# here /var/lib/containers is the check's own volume mount, which cannot be removed: gone, or an empty mount point
+	x '! dpkg -s podman >/dev/null 2>&1 && { ! test -e /var/lib/containers || { mountpoint -q /var/lib/containers && [ -z "$(ls -A /var/lib/containers)" ]; }; }' || fail "the full --uninstall after the keep-data case left podman or /var/lib/containers"
 	ok "keep-data case: a full --uninstall --yes afterwards removes the data, the users, podman and its storage"
 
 	"$c" rm -f -t 0 "$ctr" >/dev/null

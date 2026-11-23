@@ -33,6 +33,7 @@ type fakeInv struct {
 	// matchErr makes MatchInput of a device fail (a device that cannot be read).
 	matchErr map[string]error
 	lines    map[string]Line // Lines: named lines, before the match input's
+	asked    []string        // every line id Lines was asked for, in order
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -87,6 +88,7 @@ func (f *fakeInv) EffectiveSoftware(context.Context, string) ([]EffectiveSoftwar
 func (f *fakeInv) Lines(_ context.Context, ids []string) (map[string]Line, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.asked = append(f.asked, ids...)
 	out := map[string]Line{}
 	for _, id := range ids {
 		if l, ok := f.lines[id]; ok {

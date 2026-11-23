@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/lifecycle"
 )
 
 // A finding is about one software line of one device (fnd_finding.software_id), and the line decides the device: when inventory gives
@@ -161,8 +162,12 @@ func (s *Service) followLines(ctx context.Context, tx *sql.Tx, a Asset) error {
 }
 
 // moveFinding gives finding f to device to, on the same line. When to already holds a finding of the same (CVE, line), the two fold
-// into the one that ranks higher (a person's decision, else a confirmed one, else the one that was there).
+// into the one that ranks higher (a person's decision, else a confirmed one, else the one that was there). The modules that keep a
+// device id next to a finding id are told first (lifecycle FindingMoved), so a fold that follows moves rows that are already on to.
 func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to string) error {
+	if err := s.cfg.Lifecycle.FindingMoved(ctx, tx, lifecycle.FindingMove{Finding: f.ID, From: f.AssetID, Into: to}); err != nil {
+		return err
+	}
 	held, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS ? AND id <> ?`, to, f.CVE, nullString(f.SoftwareID), f.ID)
 	if err != nil {
 		return err

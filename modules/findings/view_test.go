@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -425,5 +426,45 @@ func TestModelAPI_NeedsYourInputSearchFindsADeviceNotAddedByItsFindings(t *testi
 		if got := strings.Join(ids, ","); got != c.want {
 			t.Errorf("q=%q: %q, want %q", c.q, got, c.want)
 		}
+	}
+}
+
+// The words a device not added yet is searched by (the CVE ids and software names of its open findings) are read only for a search:
+// the queue without search text does not read inventory for the software of every open finding (Home's overview counts the same
+// queue without search text).
+func TestModelAPI_NeedsYourInputReadsSearchTermsOnlyForASearch(t *testing.T) {
+	e := modelEnv(t)
+	e.inv.mu.Lock()
+	e.inv.lines["s-lpd"] = Line{ID: "s-lpd", AssetID: "a-new", Display: "LPRng", ProductKey: "lprng|lprng", Version: "3.8"}
+	e.inv.mu.Unlock()
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		f := Finding{ID: "f-p3", AssetID: "a-new", CVE: "CVE-2026-3003", SoftwareID: "s-lpd", Fix: Fix{Kind: FixUnknown}, Urgency: 5,
+			Basis: DetectBannerVersion, Verified: VerifiedNo, FirstSeen: t0.Add(-48 * time.Hour)}
+		f.FixKey = FixKey(e.inv.lines["s-lpd"].ProductKey, f.Fix)
+		return writeTestFinding(t.Context(), tx, f)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	asked := func() bool {
+		e.inv.mu.Lock()
+		defer e.inv.mu.Unlock()
+		found := slices.Contains(e.inv.asked, "s-lpd")
+		e.inv.asked = nil
+		return found
+	}
+	all := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input", "viewer", "")
+	if asked() {
+		t.Error("the queue without search text read the software of a device's update-recommended finding")
+	}
+	if ov := conform[oas.FindingsGetFindingsOverviewOK](t, e, "GET", "/findings/overview", "viewer", ""); ov.Input != all.Total {
+		t.Errorf("overview counts %d items needing input, the queue %d", ov.Input, all.Total)
+	}
+	asked() // the overview reads lines for its own blocks
+	found := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=lprng", "viewer", "")
+	if found.Total != 1 || found.Items[0].Type != "device_not_added" || found.Items[0].FindingsGetFindingsInput1DeviceNotAdded.ID != "device:a-new" {
+		t.Fatalf("q=lprng: %+v, want the device not added that has it", found.Items)
+	}
+	if all.Total == 0 || all.Items[0].FindingsGetFindingsInput1DeviceNotAdded.Findings != 2 {
+		t.Fatalf("the queue: %d items, first %+v; want the device not added first with its 2 open findings", all.Total, all.Items[0])
 	}
 }

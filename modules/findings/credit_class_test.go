@@ -306,3 +306,33 @@ func TestCredit_ReopenNamesAPersonOnlyWhenTheirVersionWentBack(t *testing.T) {
 		}
 	})
 }
+
+// The audit log says who set the version back, as it says who changed it: the reopen row a person's version entry caused is that
+// person's row and its detail names them, like the handled row of their version change. A source's reading stays Vedette's.
+func TestCredit_ReopenAuditNamesThePersonWhoSetTheVersionBack(t *testing.T) {
+	t.Parallel()
+	const who = "qa@example.com"
+	e := newEnv(t)
+	sw := Software{ID: "s-1", Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.30.5", Source: "manual", SetBy: who, SeenAt: t0}
+	a := Asset{ID: "a-1", Name: "web-01", Software: []Software{sw}}
+	e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+	e.advance(time.Hour)
+	a.Software[0].Version = "1.30.6"
+	e.matchPass(t, a, MatchResult{})
+	e.advance(time.Hour)
+	a.Software[0].Version = "1.30.5"
+	e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(a.Software[0])}})
+	var user, detail string
+	if err := e.db.Reader().QueryRowContext(t.Context(),
+		`SELECT user, detail FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%reopened%' ORDER BY seq DESC LIMIT 1`).Scan(&user, &detail); err != nil {
+		t.Fatal(err)
+	}
+	if user != who || detail != "CVE-2026-1001: reopened (detected_again): the version was set back by "+who {
+		t.Fatalf("reopen audit row by %q: %q; want the person who set the version back, named in the detail", user, detail)
+	}
+	var handledBy string
+	if err := e.db.Reader().QueryRowContext(t.Context(),
+		`SELECT user FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%version_moved%'`).Scan(&handledBy); err != nil || handledBy != who {
+		t.Fatalf("handled audit row by %q (%v), want %s", handledBy, err, who)
+	}
+}

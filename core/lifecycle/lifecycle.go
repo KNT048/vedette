@@ -54,6 +54,13 @@ type FindingFold struct {
 	From, Into string
 }
 
+// FindingMove is a finding that went to another device with its software line (inventory gave the line to that device, as a split of
+// a merged device does): the finding keeps its id, From and Into are the device it was on and the one it is on now. Modules that keep
+// a device id next to a finding id say here which of their rows follow it.
+type FindingMove struct {
+	Finding, From, Into string
+}
+
 // LinesDelete is software lines the inventory deletes for good (removed lines past their retention): Lines are their ids, deleted
 // after the participants ran. A module that points at a line with a foreign key settles its rows on them here.
 type LinesDelete struct {
@@ -66,6 +73,7 @@ type Participant struct {
 	DeviceMerged  func(ctx context.Context, tx *sql.Tx, m Merge) error
 	DeviceDeleted func(ctx context.Context, tx *sql.Tx, d Delete) error
 	FindingFolded func(ctx context.Context, tx *sql.Tx, f FindingFold) error
+	FindingMoved  func(ctx context.Context, tx *sql.Tx, f FindingMove) error
 	LinesDeleted  func(ctx context.Context, tx *sql.Tx, l LinesDelete) error
 	// MergeCommitted and DeleteCommitted run after the write committed (in-memory state only; they cannot fail it).
 	MergeCommitted  func(ctx context.Context, m Merge)
@@ -162,6 +170,19 @@ func (h *Hooks) FindingFolded(ctx context.Context, tx *sql.Tx, f FindingFold) er
 		}
 		if err := p.FindingFolded(ctx, tx, f); err != nil {
 			return fmt.Errorf("lifecycle: %s: fold of a finding: %w", p.Name, err)
+		}
+	}
+	return nil
+}
+
+// FindingMoved calls every participant's FindingMoved in tx; the first error stops and is returned (the caller rolls back).
+func (h *Hooks) FindingMoved(ctx context.Context, tx *sql.Tx, f FindingMove) error {
+	for _, p := range h.list() {
+		if p.FindingMoved == nil {
+			continue
+		}
+		if err := p.FindingMoved(ctx, tx, f); err != nil {
+			return fmt.Errorf("lifecycle: %s: move of a finding: %w", p.Name, err)
 		}
 	}
 	return nil

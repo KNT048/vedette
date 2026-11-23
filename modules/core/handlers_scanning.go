@@ -194,11 +194,12 @@ type RunningJob struct {
 	TargetID  string // "" when none
 	StartedAt time.Time
 	Progress  *progress.View
+	Queued    bool // it has not started (or gave way): it waits for the run in its way or for the scanner; Progress says what for
 }
 
 // DiscoveryRunner starts "Scan the LAN now" (no targets) or "Check this device now" (targets) on active discovery (sensor-active).
 // It calls record once the run passed every check and before anything is sent; an error of record refuses the run (nothing starts).
-// Its errors: ErrDiscoveryModuleOff, ErrDiscoveryOff, ErrScopeNotConfirmed, ErrRunBusy, ErrNmapBusy, ErrNmapUnavailable, a
+// Its errors: ErrDiscoveryModuleOff, ErrDiscoveryOff, ErrScopeNotConfirmed, ErrNmapBusy, ErrNmapUnavailable, a
 // *RunTooSoon, a *RunRefusal, record's error, or a failure of the box.
 type DiscoveryRunner interface {
 	Run(ctx context.Context, actor string, targets []string, record func(tx *sql.Tx, c RunConsent) error) (RunningJob, error)
@@ -223,7 +224,6 @@ var (
 	ErrDiscoveryModuleOff = errors.New("core: scanning: sensor-active is off")
 	ErrDiscoveryOff       = errors.New("core: scanning: active discovery is off")
 	ErrScopeNotConfirmed  = errors.New("core: scanning: the scope is not confirmed")
-	ErrRunBusy            = errors.New("core: scanning: a run is already going")
 	ErrNmapBusy           = errors.New("core: scanning: discovery is running nmap now")
 	ErrNmapUnavailable    = errors.New("core: scanning: nmap is not available")
 )
@@ -326,6 +326,7 @@ type runningView struct {
 	TargetID  *string        `json:"target_id"`
 	StartedAt string         `json:"started_at"`
 	Progress  *progress.View `json:"progress"`
+	Queued    bool           `json:"queued"`
 }
 
 type scanningView struct {
@@ -418,7 +419,7 @@ func (h *ScanningHandlers) view(ctx context.Context) (scanningView, error) {
 		}
 		v.Engines = append(v.Engines, ev)
 		for _, r := range s.Running {
-			v.Running = append(v.Running, runningView{Engine: r.Engine, ID: r.ID, Label: r.Label, TargetID: strOrNil(r.TargetID), StartedAt: store.FormatTS(r.StartedAt), Progress: r.Progress})
+			v.Running = append(v.Running, runningView{Engine: r.Engine, ID: r.ID, Label: r.Label, TargetID: strOrNil(r.TargetID), StartedAt: store.FormatTS(r.StartedAt), Progress: r.Progress, Queued: r.Queued})
 		}
 		holds = append(holds, held{cost: e.Cost, holding: s.Enabled && (e.Cost.While == CostWhileOn || len(s.Running) > 0 || s.State == EngineRunning)})
 	}
@@ -684,6 +685,7 @@ func (h *ScanningHandlers) ScanningPostScanningEnginesNmapDiscoveryRun(ctx conte
 	}
 	return encode[oas.ScanningPostScanningEnginesNmapDiscoveryRunAccepted](runningView{
 		Engine: run.Engine, ID: run.ID, Label: run.Label, TargetID: strOrNil(run.TargetID), StartedAt: store.FormatTS(run.StartedAt), Progress: run.Progress,
+		Queued: run.Queued,
 	})
 }
 
@@ -719,10 +721,8 @@ func runError(err error) error {
 		return apierr.New(http.StatusConflict, "engine_off", "Network discovery is off. Turn it on in Settings, Scanning first.")
 	case errors.Is(err, ErrScopeNotConfirmed):
 		return apierr.New(http.StatusBadRequest, "scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
-	case errors.Is(err, ErrRunBusy):
-		return apierr.New(http.StatusConflict, "already_running", "A scan is already running. Wait for it to finish.")
 	case errors.Is(err, ErrNmapBusy):
-		return apierr.New(http.StatusConflict, "busy", "Discovery is running nmap now (the window's sweep or a device scan). Try again when it ends.")
+		return apierr.New(http.StatusConflict, "busy", "A LAN sweep is already going on: it is the answer. Follow it on the Runs tab.")
 	case errors.Is(err, ErrNmapUnavailable):
 		return apierr.New(http.StatusServiceUnavailable, "scanner_unavailable", "The scanner is not available: the scan container or its nmap is missing. Check the box's services, then try again.")
 	}

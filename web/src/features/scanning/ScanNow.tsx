@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useRunDiscovery, useScanning } from './api'
 import { ScopeButton } from './Fixes'
 import { isHere, runHref, runsHref } from './places'
+import { runningLabel } from './runningLabel'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -76,7 +77,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   // refusal left is a second LAN sweep while one goes on: that sweep is the answer, so the button points at it instead.
   const sweeping = targets === 'lan' && !ours ? running.find((j) => j.engine === 'nmap-discovery' && j.target_id === null && j.label.startsWith('LAN sweep') && j.id !== mine) ?? null : null
   // the person's own run waits for the scanner: its button says queued, not scanning
-  const queued = !!ours && /^(Queued|Waiting)/.test(ours.progress?.message ?? '')
+  const queued = !!ours?.queued
   const finished = !!mine && !ours && !!q.data && !run.isPending
   const ids = targets === 'lan' ? [] : targets
   const text = label ?? (targets === 'lan' ? t('scanNow.lan') : ids.length === 1 ? t('scanNow.device') : t('scanNow.selected', { count: ids.length }))
@@ -97,8 +98,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
           onClick={() => run.mutate(targets === 'lan' ? undefined : ids, {
             onSuccess: (j) => {
               setMine(j.id)
-              const msg = j.progress?.message ?? ''
-              if (/^Queued behind/.test(msg)) toast.success(t('scanNow.queuedToast'), { description: msg })
+              if (j.queued) toast.success(t('scanNow.queuedToast'), { description: j.progress?.message ?? undefined })
               else toast.success(t('scanNow.started'))
             },
             onError: (e) => toast.error(errMsg(e)),
@@ -132,8 +132,9 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
 
 /**
  * #850: "1 scan running" in the shell (phone top bar, sidebar foot, `shell.status` slot): one run opens its run page, several open the
- * Runs tab with the runs going on. Every engine's runs, the public scans included, from the one read of GET /scanning. On the page it
- * would open it is a status, not a link to the page you are on.
+ * Runs tab with the runs going on (all runs when some wait). Every engine's runs, the public scans included, from the one read of GET
+ * /scanning; the runs that wait for the scanner are counted apart ("1 scan running, 2 queued"). On the page it would open it is a
+ * status, not a link to the page you are on.
  */
 export function ScansRunningIndicator({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { t } = useTranslation('scanning')
@@ -141,8 +142,8 @@ export function ScansRunningIndicator({ className, compact = false }: { classNam
   const q = useScanning()
   const running = q.data?.running ?? []
   if (running.length === 0) return null
-  const to = running.length === 1 ? runHref(running[0]!.id) : runsHref({ status: 'running' })
-  const label = t('running.count', { count: running.length })
+  const label = runningLabel(t, running)
+  const to = running.length === 1 ? runHref(running[0]!.id) : runsHref(running.some((j) => j.queued) ? {} : { status: 'running' })
   const look = cn('inline-flex h-8 items-center gap-2 rounded-md border border-rule bg-accent-soft text-meta font-medium text-ink', compact ? 'px-2' : 'px-3', className)
   const body = (
     <>

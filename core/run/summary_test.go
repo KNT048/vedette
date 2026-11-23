@@ -3,8 +3,10 @@ package run_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/run"
 )
@@ -131,4 +133,106 @@ func TestRewaitChangesOnlyWhatAWaitingRunWaitsFor(t *testing.T) {
 	g.release <- run.Result{}
 	p.waitEnded(t, queued)
 	b.invariantsHold()
+}
+
+// A queued run says its place in line and when it starts, adding up the run in its way and every run queued before it as far as
+// their kinds can tell (Kind.Hold): not only the run that holds the lane now. A run that waits for its module to be turned on is not
+// ahead of it (the dispatcher passes it by).
+func TestAQueuedRunSaysItsPlaceInLineAndWhenItStarts(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	holds := map[string]time.Duration{"LAN sweep of 10.20.0.0/16": 10 * time.Minute, "Check of printer": 5 * time.Minute, "Check of router": 0}
+	hold := func(_ context.Context, r run.Run) (time.Duration, bool) {
+		d, ok := holds[r.Title]
+		return d, ok
+	}
+	sweep := g.kind("sensor-active", "lan_sweep", "nmap", true)
+	sweep.Hold = hold
+	check := g.kind("sensor-active", "device_check", "nmap", false)
+	check.Hold = hold
+	other := g.kind("scan", "vuln_identify", "nmap", false)
+	gt := &gate{}
+	p := b.process(gt, sweep, check, other)
+	p.start(t)
+	create(t, p, spec("sensor-active", "lan_sweep", "LAN sweep of 10.20.0.0/16"))
+	g.waitStarted(t)
+	gt.set("scan", false)
+	b.clock.Advance(time.Second)
+	create(t, p, spec("scan", "vuln_identify", "Identification for the vulnerability checks")) // its module is off: never ahead
+	b.clock.Advance(time.Second)
+	first := create(t, p, spec("sensor-active", "device_check", "Check of printer"))
+	b.clock.Advance(time.Second)
+	second := create(t, p, spec("sensor-active", "device_check", "Check of NAS")) // its kind cannot tell how long it takes
+	b.clock.Advance(time.Second)
+	third := create(t, p, spec("sensor-active", "device_check", "Check of router"))
+	b.clock.Advance(time.Second)
+	fourth := create(t, p, spec("sensor-active", "device_check", "Check of camera"))
+	for id, want := range map[string]string{
+		first:  "Queued behind “LAN sweep of 10.20.0.0/16”; it starts in about 10 minutes",
+		second: "Queued behind “LAN sweep of 10.20.0.0/16” and 1 run queued before it (2nd in line); it starts in about 15 minutes",
+		third:  "Queued behind “LAN sweep of 10.20.0.0/16” and 2 runs queued before it (3rd in line); it starts in more than 15 minutes",
+		fourth: "Queued behind “LAN sweep of 10.20.0.0/16” and 3 runs queued before it (4th in line); it starts in more than 15 minutes",
+	} {
+		if r := b.get(p, id); r.Summary != want {
+			t.Errorf("%s: %q, want %q", r.Title, r.Summary, want)
+		}
+	}
+	// the list reads the same lines
+	runs, _, err := p.List(t.Context(), run.Filter{Kind: "device_check"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 4 || !strings.Contains(runs[0].Summary, "(4th in line)") {
+		t.Fatalf("the list: %+v", runs)
+	}
+	g.release <- run.Result{}
+	x := g.waitStarted(t)
+	if x.ID() != first {
+		t.Fatalf("started %s, want the first queued check %s", x.ID(), first)
+	}
+	if r := b.get(p, third); r.Summary != "Queued behind “Check of printer” and 1 run queued before it (2nd in line); it starts in more than 5 minutes" {
+		t.Errorf("after the sweep: %q", r.Summary)
+	}
+	for _, id := range []string{first, second, third, fourth} {
+		if id != first {
+			g.waitStarted(t)
+		}
+		g.release <- run.Result{}
+		p.waitEnded(t, id)
+	}
+	b.invariantsHold()
+}
+
+// The words of a long line: the place in line past the teens, a wait in hours, and a holder that lets the lane go at once.
+func TestTheWordsOfALongLine(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	k := g.kind("sensor-active", "device_check", "nmap", false)
+	k.Hold = func(_ context.Context, r run.Run) (time.Duration, bool) {
+		if r.Status == run.Running {
+			return 0, true // it gives the lane up at once
+		}
+		return 2 * time.Hour, true
+	}
+	p := b.process(nil, k)
+	p.start(t)
+	create(t, p, spec("sensor-active", "device_check", "Check of printer"))
+	g.waitStarted(t)
+	ids := make([]string, 22)
+	for i := range ids {
+		b.clock.Advance(time.Second)
+		ids[i] = create(t, p, spec("sensor-active", "device_check", fmt.Sprintf("Check %d", i+1)))
+	}
+	for i, want := range map[int]string{
+		0:  "Queued behind “Check of printer”; it starts in about a minute",
+		1:  "Queued behind “Check of printer” and 1 run queued before it (2nd in line); it starts in about 2 hours",
+		10: "Queued behind “Check of printer” and 10 runs queued before it (11th in line); it starts in about 20 hours",
+		21: "Queued behind “Check of printer” and 21 runs queued before it (22nd in line); it starts in about 42 hours",
+	} {
+		if r := b.get(p, ids[i]); r.Summary != want {
+			t.Errorf("%s: %q, want %q", r.Title, r.Summary, want)
+		}
+	}
 }

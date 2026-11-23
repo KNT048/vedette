@@ -3,8 +3,7 @@
     "title": "Scanning",
     "meta": "{{on}} of {{total}} engines on. Next run {{time}}.",
     "metaNoNext": "{{on}} of {{total}} engines on. Nothing scheduled.",
-    "metaRunning_one": "{{count}} scan running now.",
-    "metaRunning_other": "{{count}} scans running now.",
+    "metaRunning": "{{what}} now.",
     "info": "Every way the box finds devices, identifies them and checks them for vulnerabilities, with the memory each takes and when it runs. The scope, window, speed, exclusions and fragile types are set once, under Safety, for every engine on your LAN.",
     "infoContext": "To scan now: Scan the LAN now on the Network discovery card or the Devices list, Scan selected on the Devices list, Check this device now on a device, Deep scan now on a public target.",
     "tabs": "Sections of Scanning",
@@ -325,7 +324,11 @@
   },
   "running": {
     "count_one": "{{count}} scan running",
-    "count_other": "{{count}} scans running"
+    "count_other": "{{count}} scans running",
+    "countAndQueued_one": "{{count}} scan running, {{queued}} queued",
+    "countAndQueued_other": "{{count}} scans running, {{queued}} queued",
+    "queuedOnly_one": "{{count}} scan queued",
+    "queuedOnly_other": "{{count}} scans queued"
   },
   "check": {
     "title": "Check {{name}} now",

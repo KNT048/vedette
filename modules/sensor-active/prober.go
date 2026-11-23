@@ -46,3 +46,7 @@ func (p localProber) Probe(ctx context.Context, argv []string) (Output, error) {
 // nmapHealther is implemented by a Prober that does not run nmap in this process: NmapHealth is "" when nmap can run,
 // otherwise the message of Health (INV-6).
 type nmapHealther interface{ NmapHealth() string }
+
+// workerWaiter is implemented by a Prober whose nmap runs in a scan worker: WorkerAbsent is true while the worker has not reported
+// (since core started, or for 90 seconds), a state it comes out of by itself, so work a person asks for can wait for it.
+type workerWaiter interface{ WorkerAbsent() bool }

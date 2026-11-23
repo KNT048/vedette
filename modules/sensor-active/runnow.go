@@ -16,8 +16,8 @@ import (
 
 // ---- Scan the LAN now and Check this device now (#850, INV-21) ----
 
-// ErrSlotBusy says a sweep is going now: a second sweep is refused (the one going is the person's answer); a person's check is
-// queued behind it instead and says so.
+// ErrSlotBusy says a sweep is going now, or gave way to other work and goes on by itself once that work is done: a second sweep is
+// refused (the one going is the person's answer); a person's check is queued behind it instead and says so.
 var ErrSlotBusy = errors.New("sensoractive: discovery is running nmap now")
 
 // TargetError is why one target of a manual run may not be checked; nothing was started. Reason is one of the Refuse* values.
@@ -55,6 +55,9 @@ type ManualRun struct {
 	StartedAt time.Time
 	Until     time.Time // a sweep's end outside the window at the latest: manualFor after its start
 	Progress  *progress.View
+	// Queued is true while the run has not started or has given way: it waits for the run in its way, or for the scan worker
+	// (Progress says what for).
+	Queued bool
 }
 
 // sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now, runs
@@ -118,10 +121,15 @@ func (s *Service) Persons(ctx context.Context) []ManualRun {
 	return out
 }
 
-// personRunIDs are the runs of the nmap lane a person started (not steps of another module's run) that have not ended, oldest first.
+// personLive is the SQL condition of a person's run of the nmap lane that is not over: queued or going, or a check that waits for
+// the scan worker (asked while it had not reported).
+const personLive = `trigger = 'manual' AND parent_id IS NULL AND (status IN ('queued', 'running', 'stopping') OR (kind = '` + RunCheck + `' AND status = 'waiting'))`
+
+// personRunIDs are the runs of the nmap lane a person started (not steps of another module's run) that are not over (personLive),
+// oldest first.
 func (s *Service) personRunIDs(ctx context.Context) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND trigger = 'manual' AND parent_id IS NULL
-		AND status IN ('queued', 'running', 'stopping') ORDER BY queued_at, rowid LIMIT ?`, ModuleID, laneNmap, MaxManualTargets*2)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND `+personLive+`
+		ORDER BY queued_at, rowid LIMIT ?`, ModuleID, laneNmap, MaxManualTargets*2)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)
 	}
@@ -156,14 +164,15 @@ func (s *Service) manualOf(ctx context.Context, r run.Run) *ManualRun {
 		}
 	}
 	m.Progress = runView(r)
+	m.Queued = r.Status == run.Queued || r.Status == run.Waiting
 	return m
 }
 
-// manualLive is the newest run of the nmap lane a person started (not a step of another module's run) that has not ended.
+// manualLive is the newest run of the nmap lane a person started (not a step of another module's run) that is not over (personLive).
 func (s *Service) manualLive(ctx context.Context) (*run.Run, error) {
 	var id string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND trigger = 'manual' AND parent_id IS NULL
-		AND status IN ('queued', 'running', 'stopping') ORDER BY queued_at DESC, rowid DESC LIMIT 1`, ModuleID, laneNmap).Scan(&id)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND `+personLive+`
+		ORDER BY queued_at DESC, rowid DESC LIMIT 1`, ModuleID, laneNmap).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) { // a pass a person asked to go on now is theirs while it goes on within their hour
 		sw, err := s.liveRun(ctx, RunSweep)
 		if err != nil || sw == nil || !sw.Status.Live() && sw.Status != run.Queued || !s.clock().Before(s.sweepUntil(*sw)) {
@@ -206,8 +215,15 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 	if err := st.allowed(); err != nil {
 		return ManualRun{}, err
 	}
+	// A scan worker that has not reported (right after a restart of core or of the scan container) comes back by itself: a person's
+	// checks wait for it, as the window's do, and the window's driver starts them once it reports (resumePersonsChecks). A sweep, and
+	// a scanner that cannot run nmap at all, are refused.
+	wait := ""
 	if err := s.available(ctx); err != nil {
-		return ManualRun{}, err
+		if len(targets) == 0 || !s.workerAbsent() {
+			return ManualRun{}, err
+		}
+		wait = waitWorker
 	}
 	ids, ip, err := s.checkTargets(ctx, st, targets)
 	if err != nil {
@@ -223,8 +239,8 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 		if err != nil {
 			return ManualRun{}, err
 		}
-		if sw != nil && sw.Status != run.Waiting {
-			return ManualRun{}, ErrSlotBusy
+		if sw != nil && (sw.Status != run.Waiting || s.goesOnAfterOthers(ctx, *sw)) {
+			return ManualRun{}, ErrSlotBusy // the pass going on is the answer: no second consent, no second pass
 		}
 		if sw != nil { // the pass that waits for the window goes on now from its cursor, under the person's hour: never a second pass
 			err := s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -247,8 +263,7 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 			if err := s.runs.Resume(ctx, sw.ID, by); err != nil {
 				return ManualRun{}, err
 			}
-			s.stopWeekly()
-			m.Progress = s.viewOfRun(ctx, sw.ID)
+			m.Progress, m.Queued = s.stateOfRun(ctx, sw.ID)
 			return m, nil
 		}
 		id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Manual, RequestedBy: by}, func(tx *sql.Tx, id string) error {
@@ -271,8 +286,7 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 			return ManualRun{}, err
 		}
 		m.ID, m.Runs = id, []string{id}
-		s.stopWeekly() // the weekly scan of every port gives the lane up to the person's pass
-		m.Progress = s.viewOfRun(ctx, id)
+		m.Progress, m.Queued = s.stateOfRun(ctx, id)
 		return m, nil
 	}
 	m.Until = time.Time{}
@@ -296,7 +310,7 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 			}
 			lbl := labels[i]
 			rid, err := s.runs.CreateTx(ctx, tx, run.Spec{Module: ModuleID, Kind: RunCheck, Title: "Check of " + lbl, Trigger: run.Manual,
-				RequestedBy: by, Subject: &run.Subject{Kind: "device", ID: id, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}})
+				RequestedBy: by, Subject: &run.Subject{Kind: "device", ID: id, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}, WaitingFor: wait})
 			if err != nil {
 				return err
 			}
@@ -311,20 +325,23 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 	if err != nil {
 		return ManualRun{}, err
 	}
-	if len(created) > 0 {
-		s.stopWeekly() // the weekly scan of every port gives the lane up to the person's checks
-	}
 	for _, id := range created { // the window's own row of the device: checked now, it waits for nothing
 		s.dropWaiting(ctx, id, "Checked now at a person's request")
 	}
-	m.Progress = s.viewOfRun(ctx, m.ID)
+	m.Progress, m.Queued = s.stateOfRun(ctx, m.ID)
 	return m, nil
 }
 
-// personChecks is, by device, the person's check of it that is queued or going now.
+// goesOnAfterOthers says pass sw waits only because it gave way to other work in the nmap lane, and goes on by itself once that work
+// is done (resumeYielded: in the window, or within a person's hour).
+func (s *Service) goesOnAfterOthers(ctx context.Context, sw run.Run) bool {
+	return sw.Status == run.Waiting && s.isYielded(sw.ID) && s.sweepWait(withManualUntil(ctx, s.sweepUntil(sw))).Status != run.Waiting
+}
+
+// personChecks is, by device, the person's check of it that is queued, waiting for the scan worker or going now.
 func (s *Service) personChecks(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT subject_id, id FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual'
-		AND parent_id IS NULL AND subject_kind = 'device' AND status IN ('queued', 'running', 'stopping')`, ModuleID, RunCheck)
+		AND parent_id IS NULL AND subject_kind = 'device' AND status IN ('queued', 'waiting', 'running', 'stopping')`, ModuleID, RunCheck)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)
 	}
@@ -352,14 +369,15 @@ func runView(r run.Run) *progress.View {
 	return v
 }
 
-// viewOfRun is runView of run id as stored now; a bare view when it cannot be read.
-func (s *Service) viewOfRun(ctx context.Context, id string) *progress.View {
+// stateOfRun is runView of run id as stored now and whether it has not started yet (ManualRun.Queued); a bare view when it cannot
+// be read.
+func (s *Service) stateOfRun(ctx context.Context, id string) (*progress.View, bool) {
 	r, err := s.runs.Read(ctx, id)
 	if err != nil {
 		now := s.now()
-		return &progress.View{Phase: progress.PhaseDiscovery, StartedAt: now, PhaseStartedAt: now, UpdatedAt: now}
+		return &progress.View{Phase: progress.PhaseDiscovery, StartedAt: now, PhaseStartedAt: now, UpdatedAt: now}, false
 	}
-	return runView(r)
+	return runView(r), r.Status == run.Queued || r.Status == run.Waiting
 }
 
 // SweepGap is the least time between two sweeps a person starts, or a person's and the window's (INV-21, review #857 L4): the window

@@ -79,6 +79,15 @@ type Kind struct {
 	// Estimate, when set, adds the time a running or waiting run has left to its summary, in words ("about 9 more nights at 50
 	// packets/s"); "" when it cannot tell. It is called while the runs are read, so it must be cheap.
 	Estimate func(ctx context.Context, r Run) string
+	// Hold, when set, is how long a run of this kind keeps its lane from the runs queued behind it: a running one until it lets the
+	// lane go (its end, or the end of its current batch for a kind that gives way between batches), a queued one how long it will
+	// keep the lane once it starts. ok is false when it cannot tell. A queued run's summary adds up the run in its way and the runs
+	// queued ahead of it ("it starts in about 25 minutes"). It is called while the runs are read, so it must be cheap.
+	Hold func(ctx context.Context, r Run) (d time.Duration, ok bool)
+	// GiveWay, when set, is told that a run of another kind is queued behind run id of this kind, which holds the lane: it should let
+	// the lane go soon. The dispatcher calls it after the transaction that saw the queued run, so that run is committed and every check
+	// the holder makes from then on sees it. It is called again at every dispatch while both stay so: it must be cheap and safe to repeat.
+	GiveWay func(ctx context.Context, id string)
 	// Run does the work. It ends when ctx ends (a stop, or the box stopping) and returns how the run ended. An error makes
 	// the run failed with the error's text, so the text must be fit for the person who reads the run page.
 	Run func(ctx context.Context, x *Exec) (Result, error)

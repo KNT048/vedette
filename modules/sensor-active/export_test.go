@@ -29,3 +29,10 @@ func SNMPJobAt(ctx context.Context, s *Service, asset string, ip netip.Addr) (se
 
 // ErrSNMPNotReadAddress is the refusal of a job whose target is not its device's read address.
 var ErrSNMPNotReadAddress = errSNMPNotReadAddress
+
+// HoldRunLock takes the lock every nmap run takes before it registers (runMu) and returns its release: a run that starts meanwhile
+// waits there, so a test can act between its start and its first look at the lane.
+func HoldRunLock(s *Service) (release func()) {
+	s.runMu.Lock()
+	return s.runMu.Unlock
+}

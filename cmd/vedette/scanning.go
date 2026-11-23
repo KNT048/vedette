@@ -495,7 +495,7 @@ func jobRun(h sensoractive.JobHead) *core.LastRun {
 
 // manualJob is a run a person started as running[] shows it.
 func manualJob(m sensoractive.ManualRun) core.RunningJob {
-	j := core.RunningJob{Engine: "nmap-discovery", ID: m.ID, StartedAt: m.StartedAt, Progress: m.Progress}
+	j := core.RunningJob{Engine: "nmap-discovery", ID: m.ID, StartedAt: m.StartedAt, Progress: m.Progress, Queued: m.Queued}
 	switch {
 	case len(m.Assets) == 0:
 		j.Label = "LAN sweep " + strings.Join(m.Ranges, ", ")

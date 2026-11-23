@@ -67,10 +67,11 @@ func execOf(ctx context.Context) *run.Exec {
 func (s *Service) registerKinds() error {
 	kinds := []run.Kind{
 		{Module: ModuleID, Name: RunSweep, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitAddresses, Estimate: s.sweepEstimate,
-			Run: s.runOf(s.runSweep)},
+			Hold: s.sweepHold, Run: s.runOf(s.runSweep)},
 		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Estimate: s.workerEstimate,
-			Run: s.runOf(s.runCheck)},
-		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Estimate: s.allPortsEstimate, Run: s.runOf(s.runAllPorts)},
+			Hold: s.checkHold, Run: s.runOf(s.runCheck)},
+		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Estimate: s.allPortsEstimate, Hold: s.allPortsHold,
+			GiveWay: s.allPortsGiveWay, Run: s.runOf(s.runAllPorts)},
 		{Module: ModuleID, Name: RunSNMP, Lane: laneSNMP, Unit: unitDevices, Run: s.runOf(s.runSNMP)},
 		{Module: ModuleID, Name: RunService, Lane: laneNmap, Run: s.runOf(nil)},
 	}
@@ -209,9 +210,6 @@ func (s *Service) submitTx(ctx context.Context, tx *sql.Tx, spec run.Spec, work 
 		if err := inTx(tx, id); err != nil {
 			return id, err
 		}
-	}
-	if spec.Kind != RunAllPorts && spec.Kind != RunSNMP && spec.WaitingFor == "" {
-		s.stopWeekly() // the weekly scan of every port gives the lane up to any other work queued in it
 	}
 	if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work and its caller
 		s.mu.Lock()

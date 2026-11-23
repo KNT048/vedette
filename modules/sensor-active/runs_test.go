@@ -191,7 +191,7 @@ func TestRunsAPersonsCheckDuringASweepIsQueuedBehindIt(t *testing.T) {
 	}
 	sweep := sweepRuns(e)[0]
 	if r.Status != run.Queued || r.BlockedBy == nil || r.BlockedBy.ID != sweep.ID ||
-		r.Summary != "Queued behind “LAN sweep of 192.168.10.0/25”, which has less than a minute left; it starts when that run ends" {
+		r.Summary != "Queued behind “LAN sweep of 192.168.10.0/25”; it starts in about a minute" { // the pass gives way after its batch
 		t.Fatalf("the person's check: %+v", r)
 	}
 	close(held.release)

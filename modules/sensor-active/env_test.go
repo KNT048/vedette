@@ -137,6 +137,8 @@ type fakeInv struct {
 	onAddresses func()
 	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
 	onInScope func()
+	// onPolicy, when set, runs at every ScanPolicy call, outside the lock (a test acting while a scan reads its device's policy).
+	onPolicy func(id string)
 	// snmpRead and snmpOn are what SNMPKnown answers (move); turnedOn are the devices TurnSNMPOn was called for, and
 	// turnOnErr what it answers.
 	snmpRead, snmpOn []string
@@ -207,6 +209,12 @@ func (f *fakeInv) InScope(_ context.Context, ip netip.Addr) (bool, error) {
 }
 
 func (f *fakeInv) ScanPolicy(_ context.Context, id string) (sa.Decision, error) {
+	f.mu.Lock()
+	hook := f.onPolicy
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.assets[id]; !ok {

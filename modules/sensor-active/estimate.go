@@ -55,6 +55,29 @@ func (s *Service) workerEstimate(_ context.Context, r run.Run) string {
 	return progressWords(u)
 }
 
+// checkHold is how long a running device check keeps the nmap lane (run.Kind.Hold): the time the worker last said its nmap has left;
+// unknown before its first report, for a local nmap and for a queued check.
+func (s *Service) checkHold(_ context.Context, r run.Run) (time.Duration, bool) {
+	if r.Status != run.Running {
+		return 0, false
+	}
+	u, ok := s.lastProgress(r.ID)
+	if !ok || u.Remaining <= 0 {
+		return 0, false
+	}
+	return u.Remaining, true
+}
+
+// allPortsHold is how long the weekly scan of every port keeps the nmap lane from a run queued behind it (run.Kind.Hold): no time, it
+// gives the lane up at once (allPortsGiveWay; a queued one never starts nmap while other work waits).
+func (s *Service) allPortsHold(_ context.Context, r run.Run) (time.Duration, bool) {
+	return 0, r.Status == run.Running || r.Status == run.Queued
+}
+
+// allPortsGiveWay stops the weekly scan of every port that holds the nmap lane: another run is queued behind it (run.Kind.GiveWay,
+// told once that run is committed). It stays due.
+func (s *Service) allPortsGiveWay(context.Context, string) { s.stopWeekly() }
+
 // progressWords writes a worker's report: its percent and the time nmap says is left.
 func progressWords(u progress.Update) string {
 	var parts []string

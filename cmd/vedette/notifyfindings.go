@@ -62,7 +62,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	}
 	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
-		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax)}
+		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax), Verification: plainText(v.VerificationLine(), noticeReasonsMax)}
 	info.Product = cmp.Or(plainText(product, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
 	info.Action = cmp.Or(plainText(action, noticeActionMax),
 		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")

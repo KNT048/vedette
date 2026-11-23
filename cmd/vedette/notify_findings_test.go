@@ -78,6 +78,10 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	if !strings.HasPrefix(n.What, findings.StatusMeaning(findings.UrgencyExploited)+" Why: Exploited in the wild: ") || n.Action != "Apply updates per vendor instructions. <b>now</b>" {
 		t.Fatalf("what/action: %q / %q", n.What, n.Action)
 	}
+	// the second line of every screen: how Vedette knows (findings View.VerificationLine), in the text and on its own for a digest line
+	if n.Verification == "" || !strings.HasPrefix(n.Verification, "Not confirmed yet: based on ") || !strings.HasSuffix(n.What, " "+n.Verification+".") || n.Status != "Exploited in the wild" {
+		t.Fatalf("verification %q status %q what %q", n.Verification, n.Status, n.What)
+	}
 	if n.Event != notify.NoticeCreated || n.Layer != findings.UrgencyExploited {
 		t.Fatalf("event %q layer %d", n.Event, n.Layer)
 	}

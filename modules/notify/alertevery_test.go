@@ -272,3 +272,39 @@ func TestHistoryGroupedNoticeWhoseWindowEndsInQuietHoursSaysQuietHours(t *testin
 		t.Errorf("not sent = %+v, want held for quiet hours until 07:00", ns)
 	}
 }
+
+// An alert says how Vedette knows the device is affected, as every screen does under the status: the single message after its reasons,
+// each line of a grouped message after the finding's reasons line.
+func TestAlertsCarryTheVerificationLine(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	one := finding("Example Manager", "CVE-2026-123890", "manager-01", notify.Critical)
+	one.Verification = "Not confirmed yet: based on a version someone entered"
+	dir.at("f-1", 2, one)
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", CVE: "CVE-x", Severity: findings.SeverityHigh})
+	e.flush()
+	two := finding("Example Hypervisor", "CVE-2025-22224", "hypervisor-01", notify.High)
+	two.Verification = "Confirmed by a safe check"
+	three := finding("Example Hypervisor", "CVE-2025-22225", "hypervisor-01", notify.High)
+	three.Verification, three.Reasons = "Confirmed: the device reports this version", ""
+	dir.at("f-2", 2, two)
+	dir.at("f-3", 2, three)
+	for _, id := range []string{"f-2", "f-3"} {
+		pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: id, CVE: "CVE-x", Severity: findings.SeverityHigh})
+	}
+	e.flush()
+	msgs := sentMessages(e)
+	if len(msgs) != 2 || len(msgs[1].Items) != 2 {
+		t.Fatalf("messages = %+v, want one single alert and one digest of two lines", msgs)
+	}
+	if !strings.HasSuffix(msgs[0].What, "Why: Exploited in the wild: CISA KEV (4 Mar); fix by 25 Mar 2025. Not confirmed yet: based on a version someone entered.") {
+		t.Errorf("single alert: %q", msgs[0].What)
+	}
+	want := []string{"CVE-2025-22224 on hypervisor-01 — Exploited in the wild: CISA KEV (4 Mar); fix by 25 Mar 2025 · Confirmed by a safe check",
+		"CVE-2025-22225 on hypervisor-01 — Exploited in the wild · Confirmed: the device reports this version"}
+	for i, w := range want {
+		if msgs[1].Items[i] != w {
+			t.Errorf("digest line %d = %q, want %q", i, msgs[1].Items[i], w)
+		}
+	}
+}

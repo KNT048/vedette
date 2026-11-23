@@ -326,6 +326,9 @@ type FindingInfo struct {
 	// Status is the name of the status the finding page shows ("Public exploit available"), Meaning the sentence that says what it asks
 	// of a person, Reasons the line of the reasons ("Exploited in the wild: CISA KEV (19 Nov 2026)"; "" when none), all from findings.
 	Status, Meaning, Reasons string
+	// Verification is the second line under the status on every screen: how Vedette knows the device is affected ("Confirmed by a safe
+	// check", "Not confirmed yet: based on a scan banner"; View.VerificationLine of findings); "" when not known.
+	Verification string
 	// Note is said after the meaning when the device needs it ("The device is not added yet: open the finding to add it or ignore it.").
 	Note    string
 	Action  string   // what to do first

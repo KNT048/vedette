@@ -54,10 +54,7 @@ func reportReasons(rs []reports.Reason) string {
 	return v.ReasonsLine()
 }
 
-var reportBasisWords = map[string]string{"scan": "a safe check", "device_version": "the version the device reports", "package": "the distribution's package data",
-	"banner_version": "a scan banner", "statement": "a version someone entered", "person": "a person's word"}
-
-// reportVerification is the second line under the status on every screen (VerificationLine.tsx, locales common verification).
+// reportVerification is the second line under the status on every screen, in findings' words (View.VerificationLine, BasisWords).
 func reportVerification(v reports.Verification) string {
 	switch v.Verified {
 	case "scan":
@@ -70,10 +67,10 @@ func reportVerification(v reports.Verification) string {
 		}
 		return "Confirmed by a person"
 	}
-	if w, ok := reportBasisWords[v.Basis]; ok {
-		return "Not confirmed yet: based on " + w
+	if v.Basis == "" {
+		return "Not confirmed yet"
 	}
-	return "Not confirmed yet"
+	return "Not confirmed yet: based on " + findings.BasisWords(findings.DetectionBasis(v.Basis))
 }
 
 func reportSeverity(c *reports.CveSeverity) string {
@@ -204,6 +201,10 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 			sec.Paragraphs = append(sec.Paragraphs, "Nothing was handled in this period.")
 		}
 		sec.Tables = append(sec.Tables, t)
+		if h.NotRelevantLeftOut > 0 {
+			sec.Paragraphs = append(sec.Paragraphs, reportPlural(h.NotRelevantLeftOut, "finding closed as not relevant in this period is left out (Settings: Include not relevant).",
+				"findings closed as not relevant in this period are left out (Settings: Include not relevant)."))
+		}
 		if h.More > 0 {
 			sec.More = reportPlural(h.More, "more handled finding is not listed.", "more handled findings are not listed.")
 		}

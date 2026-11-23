@@ -217,7 +217,7 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 	}
 	cve := cmp.Or(f.CVE, eventCVE)
 	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: AlertSeverity(sev, f.Layer), Product: f.Product, FindingIDs: []string{id},
-		Devices: f.Devices, Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
+		Devices: f.Devices, Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Status: f.Status, Verification: f.Verification, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
 	if cve != "" {
 		n.CVEs = []string{cve}
 	}
@@ -264,6 +264,9 @@ func whatOf(f FindingInfo) string {
 	}
 	if f.Reasons != "" {
 		out += " Why: " + f.Reasons + "."
+	}
+	if f.Verification != "" {
+		out += " " + f.Verification + "."
 	}
 	return out
 }

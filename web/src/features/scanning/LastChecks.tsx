@@ -6,7 +6,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { useDevice } from '@/features/inventory/api'
+import { useDevice, useDeviceSnmp } from '@/features/inventory/api'
 import { useDeviceRuns, useScanConfig } from '@/features/scan/api'
 import { RunStatusChip, runOutcome } from '@/features/scan/shared'
 import type { ScanRun } from '@/features/scan/types'
@@ -95,6 +95,8 @@ export function LastChecks(props: Record<string, unknown>) {
   const buttons = useDeviceButtons(assetId, device.data?.asset)
   // no suspected finding a run could check: the page offers no "Run vulnerability checks now", so the row never names it
   const checkable = useVulnCheckable(assetId)
+  // the device's SNMP set-up (administrators read it; the SNMP card is theirs too)
+  const snmpState = useDeviceSnmp(assetId, admin && !!assetId).data?.state
   if (!assetId) return null
   // #965: a read that failed or has not answered is never "Never"
   const failed = [history, modules, device].find((q) => q.isError)
@@ -123,6 +125,8 @@ export function LastChecks(props: Record<string, unknown>) {
   // "Set it up in Sources" leads to that card's Set up button, which an approved device with an address has (SNMP reads approved
   // devices only; a device not added yet offers Add device there instead)
   const snmpCard = !!a && a.approved && !!a.ip && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
+  // SNMP set up and not read yet: the row follows the set-up instead of asking to set it up
+  const snmpSetUp = !!snmpState && snmpState !== 'not_set_up'
   return (
     <Section id="last-checks" title={t('lastChecks.title')} stories={['S-INV-1', 'S-SCAN-4']}
       actions={<Link to={runsHref({ device: assetId })} className={`text-meta ${link}`}>{t('lastChecks.allRuns')}</Link>}>
@@ -142,7 +146,9 @@ export function LastChecks(props: Record<string, unknown>) {
                   : neverVuln}
               </Row>
               <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? runHref(snmp.id) : undefined}>
-                {snmp ? <HistoryOutcome r={snmp} /> : <Never info={t('lastChecks.neverSnmp')}>{snmpCard ? <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link> : null}</Never>}
+                {snmp ? <HistoryOutcome r={snmp} />
+                  : snmpSetUp ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('lastChecks.notReadYet')}</Chip><InfoTip topic={t('lastChecks.notReadYet')}>{t('lastChecks.notReadYetInfo')}</InfoTip></span>
+                  : <Never info={t('lastChecks.neverSnmp')}>{snmpCard ? <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link> : null}</Never>}
               </Row>
             </>
           )}

@@ -59,6 +59,9 @@ type Message struct {
 	// ZaloPersonalTo writes them, on the last line of the message, which is never cut; every other sender refuses or ignores them.
 	// Like Buttons they are never part of the JSON form, so the history never has them.
 	ReplyCodes *ReplyCodes `json:"-"`
+	// Doc is a whole document the email channel sends as HTML with a plain-text alternative (the periodic report); the other channels
+	// ignore it. Not part of the JSON form.
+	Doc *Doc `json:"-"`
 }
 
 // ReplyCodes are the codes an approver replies with: Approve "A-" and Reject "R-" plus 6 characters of the alphabet of spec 7.1, and

@@ -1017,6 +1017,19 @@ func (s *Service) checkSNMP(ctx context.Context, actor, lbl string, row snmpRow)
 		return res, nil
 	}
 	got := make(chan []sensorlink.SNMPAnswer, 1) // the work hands its answers over: the caller may stop waiting before the work ends
+	var heard []sensorlink.SNMPAnswer            // the same answers for the run's end (written and read on the run's goroutine)
+	ended := func(ctx context.Context, err error) run.Result {
+		if err != nil || len(heard) == 0 {
+			return snmpResult(ctx, err)
+		}
+		if a := heard[0]; a.Status != sensorlink.SNMPStatusOK { // the read went out and the device did not answer it
+			return run.Result{Status: run.Failed, Error: snmpMessage(a.Status, "", row.ReadFrom, row, "")}
+		}
+		if x := execOf(ctx); x != nil {
+			s.stepProgress(ctx, x, 1, 1, 1)
+		}
+		return run.Result{}
+	}
 	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: "SNMP read of " + lbl, Trigger: run.Manual, RequestedBy: actor,
 		Subject: &run.Subject{Kind: "device", ID: row.AssetID, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
 		func(ctx context.Context) error {
@@ -1032,9 +1045,10 @@ func (s *Service) checkSNMP(ctx context.Context, actor, lbl string, row snmpRow)
 			defer cancel()
 			answers, err := s.snmpBatch(bctx, jobID, []snmpTarget{{asset: row.AssetID, ip: row.ReadFrom, row: row}}, true)
 			got <- answers
+			heard = answers
 			s.closeSNMPJob(ctx, jobID, 1, err)
 			return err
-		}, snmpResult, snmpWait, "The SNMP reader stayed busy, so this read did not start")
+		}, ended, snmpWait, "The SNMP reader stayed busy, so this read did not start")
 	if errors.Is(err, errSNMPBusy) || errors.Is(err, errNotStarted) {
 		res.Reason = SNMPBusy
 		return res, nil
@@ -1536,8 +1550,13 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if len(lost) > 0 {
 		s.log.WarnContext(ctx, "sensoractive: snmp devices skipped: their saved secret was not restored", "devices", lost)
 	}
+	var silent []string // the devices that did not answer (written and read on the run's goroutine)
 	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: fmt.Sprintf("SNMP read of %d devices", len(usable)), Trigger: run.Schedule,
-		Steps: []run.StepPlan{{Name: "SNMP reads", Total: len(usable)}}}, func(ctx context.Context) error { return s.roundReads(ctx, usable) }, snmpResult, 0, "")
+		Steps: []run.StepPlan{{Name: "SNMP reads", Total: len(usable)}}}, func(ctx context.Context) error {
+		var err error
+		silent, err = s.roundReads(ctx, usable)
+		return err
+	}, func(ctx context.Context, err error) run.Result { return s.roundResult(ctx, err, silent, len(usable)) }, 0, "")
 	if errors.Is(err, ErrStopped) {
 		return nil
 	}
@@ -1573,27 +1592,62 @@ func (s *Service) runSNMP(ctx context.Context, x *run.Exec) (run.Result, error) 
 	if err != nil {
 		return run.Result{}, err
 	}
-	return snmpResult(ctx, s.roundReads(ctx, usable)), nil
+	silent, err := s.roundReads(ctx, usable)
+	return s.roundResult(ctx, err, silent, len(usable)), nil
+}
+
+// roundResult is how the window's round ends: done when every device it read answered; partly done naming the devices that did not
+// (at most three, then how many more), failed when none answered. Its count is the devices that answered (roundReads).
+func (s *Service) roundResult(ctx context.Context, err error, silent []string, total int) run.Result {
+	if err != nil || len(silent) == 0 {
+		return snmpResult(ctx, err)
+	}
+	names := make([]string, 0, 3)
+	for _, id := range silent[:min(3, len(silent))] {
+		names = append(names, s.deviceLabel(context.WithoutCancel(ctx), id))
+	}
+	who := strings.Join(names, ", ")
+	if more := len(silent) - len(names); more > 0 {
+		who += fmt.Sprintf(" and %d more", more)
+	}
+	if len(silent) >= total {
+		return run.Result{Status: run.Failed, Error: "No device answered over SNMP: " + who}
+	}
+	return run.Result{Status: run.Partial, Error: "No answer over SNMP from " + who}
 }
 
 // roundReads is the work of the window's round: the devices in batches of 64, each batch read again when one of its devices changed.
-func (s *Service) roundReads(ctx context.Context, usable []snmpRow) error {
+// The run counts the devices that answered; silent are the ones read that did not.
+func (s *Service) roundReads(ctx context.Context, usable []snmpRow) (silent []string, err error) {
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonWindow, 0)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	targets, err := s.snmpTargets(ctx, usable)
 	if err != nil {
 		s.finishJob(ctx, jobID, StatusFailed, 0, 0, err.Error())
-		return err
+		return nil, err
 	}
-	done := 0
+	done, answered := 0, 0
 	changed := map[string]int{} // the devices whose change stopped a batch of this round, and how many times
 	for batch := range slices.Chunk(targets, sensorlink.MaxSNMPTargets) {
 		for try := 1; ; try++ {
 			s.snmpMu.Lock()
-			_, err = s.snmpBatch(ctx, jobID, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3)
+			var answers []sensorlink.SNMPAnswer
+			answers, err = s.snmpBatch(ctx, jobID, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3)
 			s.snmpMu.Unlock()
+			if err == nil {
+				for _, t := range batch {
+					ok := slices.ContainsFunc(answers, func(a sensorlink.SNMPAnswer) bool {
+						return a.Target == t.ip.String() && a.Status == sensorlink.SNMPStatusOK
+					})
+					if ok {
+						answered++
+					} else if slices.ContainsFunc(answers, func(a sensorlink.SNMPAnswer) bool { return a.Target == t.ip.String() }) {
+						silent = append(silent, t.asset)
+					}
+				}
+			}
 			// A batch stopped only because one of its devices changed is read again, not the whole round from its first batch
 			// on the next Tick (#882). The new batch checks everything again: a device that moved or is gone since the round
 			// started is dropped by its recheck. A device that stops the round a second time is left out of it (the next window
@@ -1621,9 +1675,9 @@ func (s *Service) roundReads(ctx context.Context, usable []snmpRow) error {
 	}
 	s.closeSNMPJob(ctx, jobID, done, err)
 	if x := execOf(ctx); x != nil {
-		s.stepProgress(ctx, x, 1, done, len(usable))
+		s.stepProgress(ctx, x, 1, answered, len(usable))
 	}
-	return err
+	return silent, err
 }
 
 // freshTargets is a batch with every device's settings read again (an edit stopped it): a device whose SNMP was removed is left out,
@@ -1694,7 +1748,10 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		return
 	}
 	if asset != "" {
-		if held {
+		// Devices change all the time (a sensor learns a name, a check records its ports): the batch stops only when the change
+		// matters to its read of this device: it may no longer be read (never, not approved, ignored, the box, deleted, out of
+		// scope) or it left its read address. Fail closed when that cannot be told.
+		if held && !s.stillReadable(ctx, run, asset) {
 			run.changed(&snmpDeviceChanged{asset: asset})
 		}
 		return
@@ -1718,6 +1775,27 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 	if slices.ContainsFunc(targets, sc.excluded) { // SNMP: the exclusions, not lan_ranges
 		run.cancel()
 	}
+}
+
+// stillReadable says device asset of the batch may still be read at the address the batch reads it from (recheckSNMP's rules, with
+// the settings now); false when it may not, or when that cannot be read.
+func (s *Service) stillReadable(ctx context.Context, b *snmpRun, asset string) bool {
+	s.mu.Lock()
+	i := slices.Index(b.assets, asset)
+	var ip netip.Addr
+	if i >= 0 && i < len(b.targets) {
+		ip = b.targets[i]
+	}
+	s.mu.Unlock()
+	if !ip.IsValid() {
+		return false
+	}
+	st, err := s.inv.Settings(ctx)
+	if err != nil || st.allowed() != nil {
+		return false
+	}
+	kept, err := s.recheckSNMP(ctx, []snmpTarget{{asset: asset, ip: ip}}, newScope(st))
+	return err == nil && len(kept) == 1
 }
 
 // snmpSettingsChanged stops the batch in progress when it holds the device whose SNMP an edit, a removal, a delete or a merge just

@@ -2740,9 +2740,11 @@ type Handler interface {
 	// /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans
 	// module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box),
 	// scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off
-	// (sensor-active off), engine_off (active discovery off), already_running (a run a person started),
-	// busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in
-	// seconds); 503 scanner_unavailable (nmap is not available).
+	// (sensor-active off), engine_off (active discovery off), busy (a LAN sweep is going on now; any other
+	// run in the way queues this one behind it, and its progress message says so: "Queued behind
+	// “…”; it starts when that run ends"; a device that already has a check queued or going answers
+	// that run), too_soon (a sweep less than 10 minutes ago; retry_after in seconds); 503
+	// scanner_unavailable (nmap is not available).
 	//
 	// POST /scanning/engines/nmap-discovery/run
 	ScanningPostScanningEnginesNmapDiscoveryRun(ctx context.Context, req *ScanningPostScanningEnginesNmapDiscoveryRunReq) (*ScanningPostScanningEnginesNmapDiscoveryRunAccepted, error)

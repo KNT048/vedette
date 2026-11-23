@@ -361,8 +361,14 @@ func TestScanningRunNow(t *testing.T) {
 	if e := s.engine(page, "nmap-discovery"); e["state"] != "running" {
 		t.Fatalf("nmap-discovery state = %v", e["state"])
 	}
-	if code, again := run("admin", `{}`); code != http.StatusConflict || errCodeOf(again) != "already_running" {
+	// a second run while the check goes on is queued behind it and says so (never refused); both are listed
+	code, again := run("admin", `{}`)
+	if prog, _ := again["progress"].(map[string]any); code != http.StatusAccepted || prog == nil || !strings.HasPrefix(fmt.Sprint(prog["message"]), "Queued behind “Check of ") {
 		t.Fatalf("a second run: %d %v", code, again)
+	}
+	_, page = s.do("GET", "/scanning", "viewer", "")
+	if r := page["running"].([]any); len(r) != 2 {
+		t.Fatalf("running with a queued sweep = %v, want the check and the sweep", r)
 	}
 	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = ? AND detail LIKE 'check 192.168.10.20 (`+web+`) now%' AND user = 'admin@acme.example'`, out["id"]) != 1 {
 		t.Fatal("the run is not audited")

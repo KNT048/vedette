@@ -381,9 +381,11 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 	switch id {
 	case "nmap-discovery":
 		s.Reason = v.Health.Warning
-		if m := v.Manual; m != nil {
+		if len(v.Persons) > 0 { // every run a person asked for, queued or going: each says what it waits for
 			s.State = core.EngineRunning
-			s.Running = append(s.Running, manualJob(*m))
+			for _, m := range v.Persons {
+				s.Running = append(s.Running, manualJob(m))
+			}
 		} else if c := v.Current; c != nil && c.Kind == sensoractive.KindSweep {
 			s.State = core.EngineRunning
 			s.Running = append(s.Running, core.RunningJob{Engine: id, ID: orID(c.JobID, "sweep"), Label: "LAN sweep " + strings.Join(st.LANRanges, ", "), StartedAt: c.StartedAt})
@@ -391,7 +393,7 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 	case "nmap-versions":
 		if c := v.Current; c != nil && c.Kind == sensoractive.KindDevice {
 			s.State = core.EngineRunning
-			if v.Manual == nil { // a run a person started is listed once, under nmap-discovery
+			if len(v.Persons) == 0 { // a run a person started is listed once, under nmap-discovery
 				label := "Version scan"
 				if len(c.Targets) == 1 {
 					label = "Version scan " + c.Targets[0].String()
@@ -844,8 +846,6 @@ func (r discoveryRunner) Run(ctx context.Context, actor string, targets []string
 		return core.RunningJob{}, core.ErrScopeNotConfirmed
 	case errors.Is(err, sensoractive.ErrUnavailable):
 		return core.RunningJob{}, core.ErrNmapUnavailable
-	case errors.Is(err, sensoractive.ErrManualBusy):
-		return core.RunningJob{}, core.ErrRunBusy
 	case errors.Is(err, sensoractive.ErrSlotBusy):
 		return core.RunningJob{}, core.ErrNmapBusy
 	}

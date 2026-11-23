@@ -40,6 +40,9 @@ type Notice struct {
 	// Reasons is the finding page's reasons line (the status and its sources with their dates: "Exploited in the wild: CISA KEV (4 Mar);
 	// fix by 25 Mar 2025"), from findings; a digest puts it on the finding's line, so a grouped alert says why as the page does.
 	Reasons string
+	// Status (the badge, "Exploited in the wild") and Verification (how Vedette knows the device is affected) are the finding page's
+	// first and second lines; a digest line carries them with the reasons line.
+	Status, Verification string
 	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
 	Layer int
 	Link  string // absolute URL of the finding or incident in Vedette
@@ -293,8 +296,8 @@ func (b Batch) Message() (channel.Message, error) {
 		if change != "" {
 			line += ": " + change
 		}
-		if r := strings.TrimSpace(n.Reasons); r != "" {
-			line += " — " + r
+		if why := findingLine(n); why != "" {
+			line += " — " + why
 		}
 		items = append(items, line)
 	}
@@ -339,6 +342,21 @@ func (b Batch) Message() (channel.Message, error) {
 		What:   what,
 		Action: first.Action, Items: items, More: more, Link: first.Link,
 	}, nil
+}
+
+// findingLine is what a digest line says of its finding after the CVE and the device, as the finding page says it: the reasons line
+// (which starts with the status), or the status when there is no reason, then the verification line.
+func findingLine(n Notice) string {
+	var parts []string
+	if r := strings.TrimSpace(n.Reasons); r != "" {
+		parts = append(parts, r)
+	} else if st := strings.TrimSpace(n.Status); st != "" {
+		parts = append(parts, st)
+	}
+	if v := strings.TrimSpace(n.Verification); v != "" {
+		parts = append(parts, v)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // deviceRefs pairs device names with their ids (ids may be missing).

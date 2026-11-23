@@ -33,7 +33,7 @@
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 27), export policy (`feeds_cve_range`, không xuất).
 
 ## Modifying: danh mục lỗ hổng (`feeds_cve`, `feeds_cve_metric`, `feeds_cve_range`, `feeds_kev`, `feeds_signal`, `feeds_epss_hist`, `feeds_nvd_cursor`, `ParseNVD`, `PickCVSS`, `retention`)
-- **findings** (qua `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS`, `TierVulns`/`TierDistro` đọc các bảng này; đổi luật chọn CVSS, luật giữ hay thứ tự nguồn khoảng làm đổi finding: chạy golden test của findings và `cmd/vedette` (`TestReachability_910_Fixture`, các test wiring dùng `catalogue_seed_test.go`).
+- **findings** (qua `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS` đọc các bảng này; đổi luật chọn CVSS, luật giữ hay thứ tự nguồn khoảng làm đổi finding: chạy golden test của findings và `cmd/vedette` (`TestReachability_910_Fixture`, các test wiring dùng `catalogue_seed_test.go`).
 - **inventory** (`feedsKEV`: `KevProducts`, `KevIndex`) reads the owner entries of `feeds_kev`.
 - `Store.KevIndex` is kept under `kevStamp` (last pull time and rev of `cisa-kev` and `vulncheck-kev`, count and newest `updated_at` of their entries): a write to `feeds_kev` that moves none of these leaves inventory matching against the old index (`TestKevIndex_KeptUntilTheListsChange`).
 - **core** `export_policy.go`: mọi cột được phân loại (`TestExport_PolicyClassifiesEveryColumn`, danh sách bảng bỏ qua trong `data_test.go`); `docs/SCHEMA.sql` bằng `make schema`.
@@ -168,7 +168,7 @@
 - Cài bởi `cmd/vedette/wiring.go` `feedsInventory.NotAffected` (inventory + `findings.PlatformRuledOut`); SPA trang CVE (`CvePage.tsx`) chỉ thấy danh sách ngắn hơn, không đổi hợp đồng.
 
 ## Modifying: feeds `epss-all`, `nvd-recent`, `ParseEPSSCSV`, `RecentPageURL`, `ParseNVD`, tables `feeds_epss`, `feeds_epss_baseline`, `feeds_nvd_cursor`
-- **findings**: the plan's tiers read `feeds_epss` (EPSS at or above `EPSSLikely`, CVEs published in the last 12 months by `feeds_cve.published`) and the NVD entries of `feeds_cve_range` (origin `nvd`); both feeds are in `Store.MatchStamp` and `Store.TierStamp`, and a pull that changes exploited-list ranges publishes `feeds.ranges.updated`.
+- **findings** no longer reads the tiers (its plan was removed: every catalogue CVE that matches a device is a finding, through `Feeds.MatchSet`); both feeds are in `Store.MatchStamp`, and a pull that changes exploited-list ranges publishes `feeds.ranges.updated`.
 - **nvd-kev**: shares `nvdPage` and the gate `nvdSlot` (every NVD request of the two feeds is spaced by at least `nvdPause`); `nvd-recent` stops while `nvd-kev` is pulling (`Service.busy`) or waiting out NVD (`nvdResumeAt`).
 - **core** (`modules/core/export_policy.go`): `feeds_epss`, `feeds_epss_baseline`, `feeds_nvd_cursor` are `skipAll` (public data, pulled again); `cmd/vedette` `TestExport_PolicyClassifiesEveryColumn` pins the list.
 - **PRIVACY.md** flow 1 + Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (FIRST EPSS, NVD rows), `sourcesMock.ts` + `conformance.test.ts`, `sources_test.go` (host `epss.empiricalsecurity.com`): both feeds are on by default, so every box calls them and fills 12 months of NVD on first start (about 105 requests; more than an hour when NVD answers 503).
@@ -177,7 +177,7 @@
 - `Deps.Zone` (the organization's time zone, `core/orgtime`) writes the times of the CISA list alerts (`kevStaleNotice`, `kevFreshNotice`, `orgtime.StampZone`: with the zone's abbreviation, "UTC" when it cannot be read). `feeds_epss_baseline.score_date` holds FIRST's day of the scores; `TierStatus.EPSSDate` reads it, so findings (`epss_date` of the plan page) and the feed note name the same day.
 
 ## Modifying: ngày công bố KEV và dữ liệu tầng cho trang (INV-25)
-- **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (luật tuổi: KEV công bố hơn 12 tháng không thành finding khi chỉ khớp tên sản phẩm; finding mở loại đó đóng) và `KevInfo.published`; `Store.TierStatus` → `findings.Feeds.TierStatus` cho `GET /findings/plan`. Đổi ý nghĩa ngày (ví dụ dùng `dateAdded`) là đổi finding của mọi hộp; thiếu ngày luôn phải nghĩa là "gần đây". Ngày là `feeds_cve.published` (bản ghi NVD trước, CVE.org khi NVD chưa cho ngày).
+- **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (luật tuổi: KEV công bố hơn 12 tháng không thành finding khi chỉ khớp tên sản phẩm; finding mở loại đó đóng) và `KevInfo.published`. Đổi ý nghĩa ngày (ví dụ dùng `dateAdded`) là đổi finding của mọi hộp; thiếu ngày luôn phải nghĩa là "gần đây". Ngày là `feeds_cve.published` (bản ghi NVD trước, CVE.org khi NVD chưa cho ngày).
 - **nvd-kev**: lượt kéo đầy đủ (`buildNVD`, ~18 trang) chạy khi chưa có CVE nào của danh sách khai thác mà NVD đã trả lời (`kevNVDCount`) hoặc lần tốt cuối cũ hơn `nvdIncrementalDays`. Trong lúc NVD trả 503 lượt kéo đầy đủ tạm dừng và đi tiếp ở lượt sau (chỉ trong bộ nhớ: khởi động lại thì bắt đầu lại), và trong lúc đó không có lượt cập nhật, nên khoảng của mục KEV mới chờ tới khi lượt đầy đủ xong. Test fixture NVD phải mang `published`.
 - **exposure** (`cmd/vedette/exposurematch.go`): CVE KEV cũ chỉ khớp tên sản phẩm thành dòng "ruled out" kèm lý do thay vì dòng CVE.
 - **core export** (`export_policy.go`): `feeds_cve` là `skipAll` (dữ liệu công khai kéo lại được).
@@ -185,7 +185,7 @@
 - **SPA**: `CveDetail.published`, `TierCve` (`web/src/features/feeds/contract.ts`, `CvePage.tsx`, `TierCvePage.tsx`, mock `web/src/mocks/tiers.ts`).
 
 ## Modifying: dữ liệu tầng (`Store.TierRecords`, `Store.TierStamp`, `Store.MatchStamp`)
-- **findings** đọc `Store.TierRecords` qua `cmd/vedette` `findingsFeeds.TierVulns` (trả rỗng khi module feeds tắt) và `Store.MatchStamp` qua `findingsFeeds.MatchStamp`; `MatchStamp` gồm `epss-all` và `nvd-recent` (một lượt kéo của chúng cũng làm mới bộ nhớ đệm danh sách KEV của findings/exposure: một lần đọc lại, không đổi kết quả). `Store.TierStamp` cho job `plan` của findings.
+- **findings** reads `Store.MatchStamp` through `findingsFeeds.MatchStamp` (`Store.TierRecords` and `Store.TierStamp` have no reader outside feeds since findings' plan was removed); `MatchStamp` gồm `epss-all` và `nvd-recent` (một lượt kéo của chúng cũng làm mới bộ nhớ đệm danh sách KEV của findings/exposure: một lần đọc lại, không đổi kết quả).
 - **Feed tầng bật mặc định**: hộp mới gọi `epss.empiricalsecurity.com` mỗi ngày và nạp 12 tháng NVD; `PRIVACY.md` luồng 1 và Settings → Privacy (`web/src/locales/en/core.json`) nói "on by default"; mock `web/src/features/feeds/sourcesMock.ts`.
 
 
@@ -200,9 +200,8 @@
 - **Chi phí đọc**: một feed bản phân phối đếm mọi hàng của nó (~0,1 s mỗi 100 000 hàng); đếm lại chỉ khi `last_fetch`/`rev` của một feed trong `heldFrom` đổi. Thêm nguồn ghi vào các bảng đó (ngoài lượt kéo hay sửa feed) thì phải thêm feed ấy vào `heldFrom` hoặc đổi khoá đệm (`TestHeldNotes_FollowTheData`).
 
 ## Modifying: hàng `open`, hàng tầng Alpine, `TierDistroRecords`/`TierDistro` (INV-27)
-- **findings** (cmd/vedette `findingsFeeds.TierDistro` → `Feeds.TierDistro`, `plandistro.go`): `Records` có hàng fixed, not affected, open; `Known` (gói có dữ liệu) và `Loading` quyết định ba câu của mục bản phân phối (bản vá / "No fix from … yet" / "Check …'s security updates"); đổi chữ ký hay ý nghĩa `TierDistro` hay `DistroOpen` ⇒ sửa `distroWords`/`distroItems`, `cmd/vedette/distro_test.go` và các cài đặt giả `findings.Feeds.TierDistro` (`modules/findings/service_test.go`, `modules/mitigation/mitigation_test.go`). Bộ khớp KEV không đọc `open`: `Store.DistroFixes` lọc `fixed|not_affected`.
+- **findings** no longer reads `TierDistroRecords` (its plan was removed). The KEV matcher does not read `open`: `Store.DistroFixes` filters `fixed|not_affected`.
 - **Bảng**: `feeds_distro_fix` (CHECK `status`, `fixed_version`).
-- **`TierStamp`** gồm `alpine-osv`: lượt kéo của nó chạy lại lượt so đầy đủ của job `plan`.
 - **Bộ nhớ/thời gian của lượt kéo Alpine** tăng vì giữ hàng tầng; đo lại bằng log `feeds: distribution pull parsed` khi đổi tập gói giữ.
 
 ## Modifying: `DeviceMerged`, `DeviceDeleted` (`devicelifecycle.go`, INV-33)

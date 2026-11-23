@@ -97,7 +97,6 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `allow_required` | 400 | Add at least one entry to the allow-list. Only hosts, addresses or commands on this list. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `approvals_unsupported` | 400 | This channel cannot take approvals. It sends a link that opens Vedette instead. | module notify (shared validator) |
 | `approvers_required` | 400 | Add at least one approver, or turn off "Approve actions from this channel". | module notify (shared validator) |
-| `bad_action` | 400 | Choose one of: patched, mitigated, false positive, not relevant, accept risk, or reopen. | `POST /findings/{id}/status`; `POST /findings/status` |
 | `bad_active` | 400 | Active scan settings are missing. | `PUT /inventory/settings` |
 | `bad_answer` | 400 | answer must be have or not_relevant. | `POST /feeds/weekly/{id}` |
 | `bad_app_id` | 400 | App ID is the number of your Zalo app, shown in Zalo Developers next to the app name. | module notify (Zalo OA) |
@@ -163,7 +162,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (shared validator); `GET /findings/handled` (`to` not a UTC time) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (shared validator) |
 | `bad_type` | 400 | Choose a token type: decoy file, fake credentials or URL. | `POST /honeypot/tokens` |
-| `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/{id}/status`; `POST /findings/status`; `POST /findings/handle` |
+| `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/handle` |
 | `bad_target` | 400 | Choose the findings: up to 500 ids, or a device and one of its fixes. | `POST /findings/handle` |
 | `many_devices` | 400 | Mark findings of one device at a time. | `POST /findings/handle` |
 | `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  Also: the address pasted after a Google sign-in is not this sign-in's loopback address, or has no code (`POST /notify/email-signin/{id}`). | module inventory, logs, notify (shared validator) |
@@ -289,9 +288,9 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `not_manual` | 400/409 | Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan. | `DELETE /inventory/devices/{id}/software/{sid}`; `POST /response/rules/{id}/manual` |
 | `not_public` | 400 | The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it coul | `POST /exposure/box-ip/verify` |
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
-| `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/{id}/status`; `POST /findings/handle`; `POST /findings/questions/{id}/answer` (not affected) |
-| `confirm_note_required` | 400 | Write what makes you sure (at least 3 characters) so the next person understands. | `POST /findings/{id}/confirm`; `POST /findings/{id}/verify` |
-| `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}`; `POST /findings/{id}/status` |
+| `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/handle`; `POST /findings/questions/{id}/answer` (not affected) |
+| `confirm_note_required` | 400 | Write what makes you sure (at least 3 characters) so the next person understands. | `POST /findings/{id}/verify` |
+| `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}` |
 | `oidc_off` | 400 | SSO sign-in is not set up. Sign in with your email and password, or ask an administrator. | `POST /auth/oidc/start`; `POST /auth/oidc/callback` |
 | `out_of_scope` | 400 | The target is outside the approved scope. | `POST /scans/credentialed`; `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run`; `POST /exposure/targets/{id}/scan` (on the exclusion list of the shared safety block, exposure INV-31) |
 | `outside_window` | 400 | The chosen reboot time is outside the maintenance window. | `POST /core/updates/os/reboot` |
@@ -400,11 +399,11 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai`; `POST /ai/cve/{id}/explain` and every AI job call: only when AI is **not usable yet** (module off, no profile, not assigned, privacy rule, skill off, profile does not accept tools). A blocking hook, a truncated answer, a bad format and a provider error have their own codes |
 | `blocked_by_hook` | 409 | The AI was not asked: a hook stopped the question. The text contains an ID number. It was not sent to the AI. Remove the number and ask again. Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks. | `POST /findings/{id}/ai`, `POST /ai/cve/{id}/explain`, `POST /ai/cve/{id}/news`, `POST /ai/ask`, `POST /ai/logs/digest`, `POST /reports/weekly/ai-summary`, `POST /reports/pdpl/ai-summary`: a `before_ai` hook blocks the question or the data that goes with it (the message says which part) or an `after_ai` hook blocks the answer; `POST /ai/ask` returns 200 with the hook in `hooks[].step` instead of this code |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
-| `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status`; `POST /findings/{id}/reopen` |
+| `already_open` | 409 | This finding is already open. | `POST /findings/{id}/reopen` |
 | `already_verified` | 409 | This finding is already confirmed. | `POST /findings/{id}/verify` |
 | `not_one_cve` | 409 | This question decides several CVEs: correct the software on the device (its version) instead. | `POST /findings/questions/{id}/answer` |
-| `not_suspected` | 409 | Only a suspected finding can be confirmed. | `POST /findings/{id}/confirm` |
-| `not_confirmed_by_person` | 409 | Only a finding a person confirmed can be returned to suspected; a scan confirmed this one. | `POST /findings/{id}/unconfirm` |
+| `not_suspected` | 409 | Only a suspected finding can be confirmed. | `POST /findings/{id}/verify` |
+| `not_confirmed_by_person` | 409 | Only a finding a person confirmed can be returned to suspected; a scan confirmed this one. | `POST /findings/{id}/unverify` |
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run` |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |

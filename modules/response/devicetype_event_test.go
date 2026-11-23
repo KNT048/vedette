@@ -13,8 +13,8 @@ import (
 func TestUnknownDeviceKindFieldHonoursNoAutoIsolate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.dir.devices["a-phone"] = response.DeviceInfo{ID: "a-phone", IP: "192.168.18.109", MAC: "00:0b:82:e1:cf:26", Kind: "ip_phone", Seen: e.clock.Now()}
-	e.dir.devices["a-pbx"] = response.DeviceInfo{ID: "a-pbx", IP: "192.168.18.110", MAC: "00:0b:82:e1:cf:27", Kind: "pbx", Seen: e.clock.Now()}
+	e.dir.devices["a-phone"] = response.DeviceInfo{ID: "a-phone", IP: "192.168.142.109", MAC: "00:0b:82:e1:cf:26", Kind: "ip_phone", Seen: e.clock.Now()}
+	e.dir.devices["a-pbx"] = response.DeviceInfo{ID: "a-pbx", IP: "192.168.142.110", MAC: "00:0b:82:e1:cf:27", Kind: "pbx", Seen: e.clock.Now()}
 	unsub := e.svc.Subscribe(e.bus)
 	defer unsub()
 	for _, id := range []string{"a-phone", "a-pbx"} {

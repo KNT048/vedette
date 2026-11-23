@@ -537,7 +537,7 @@ ORDER BY r.queued_at DESC, r.rowid DESC LIMIT ?`, ModuleID, RunCheck, RunAllPort
 	return out, nil
 }
 
-// targetsHave tells whether a probe's compact target list ("192.168.18.1-192.168.18.4,192.168.18.9", compactTargets) names addr.
+// targetsHave tells whether a probe's compact target list ("192.168.142.1-192.168.142.4,192.168.142.9", compactTargets) names addr.
 func targetsHave(list string, addr netip.Addr) bool {
 	for part := range strings.SplitSeq(list, ",") {
 		lo, hi, isRange := strings.Cut(part, "-")

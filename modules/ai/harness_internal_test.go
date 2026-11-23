@@ -61,27 +61,27 @@ func TestClipSentenceEdges(t *testing.T) {
 	}
 }
 
-// #897 r2 H1/M2: which literals a config names for checking. Trusted: the device 192.168.18.20 and a firewall 192.168.18.1.
+// #897 r2 H1/M2: which literals a config names for checking. Trusted: the device 192.168.142.20 and a firewall 192.168.142.1.
 func TestBriefConfig_R2_AddressesToCheck(t *testing.T) {
-	trusted := []netip.Addr{netip.MustParseAddr("192.168.18.20"), netip.MustParseAddr("192.168.18.1")}
+	trusted := []netip.Addr{netip.MustParseAddr("192.168.142.20"), netip.MustParseAddr("192.168.142.1")}
 	for _, c := range []struct {
 		line string
 		want []string
 	}{
-		{"set subnet 192.168.18.20 255.255.255.255", nil},
-		{"set subnet 203.0.113.9 255.255.255.255", []string{"203.0.113.9"}},      // FortiOS address object
-		{"access-list 101 deny tcp any 192.168.18.0 0.0.0.255 eq 443", nil},      // Cisco wildcard
-		{"ip daddr 192.168.18.20/32 drop; ip saddr 192.168.18.0/24 accept", nil}, // prefixes holding a trusted address
-		{"ip saddr 0.0.0.0/0 drop; ip6 saddr ::/0 drop", nil},                    // any
-		{"set gateway 192.168.18.1", nil},                                        // a sent firewall
-		{"Junos 15.1R7.9 and Windows 10.0.19045.6456", nil},                      // versions, not addresses
-		{"ip saddr 0.0.0.0/1 accept", []string{"0.0.0.0/1"}},                     // too wide
-		{"dnat to 8.8.8.8:53", []string{"8.8.8.8"}},                              // with a port
-		{"ip daddr ::ffff:8.8.8.8 accept", []string{"::ffff:8.8.8.8"}},           // 4-in-6
-		{"ping 010.010.010.010", []string{"010.010.010.010"}},                    // octal form
-		{"host ab8.8.8.8", []string{"8.8.8.8"}},                                  // glued to letters
-		{"ip6 daddr 2001:db8::1 drop", []string{"2001:db8::1"}},                  // IPv6
-		{"set system syslog host 10.66.6.6; at 12:30:00", []string{"10.66.6.6"}}, // a banner's address is not trusted
+		{"set subnet 192.168.142.20 255.255.255.255", nil},
+		{"set subnet 203.0.113.9 255.255.255.255", []string{"203.0.113.9"}},        // FortiOS address object
+		{"access-list 101 deny tcp any 192.168.142.0 0.0.0.255 eq 443", nil},       // Cisco wildcard
+		{"ip daddr 192.168.142.20/32 drop; ip saddr 192.168.142.0/24 accept", nil}, // prefixes holding a trusted address
+		{"ip saddr 0.0.0.0/0 drop; ip6 saddr ::/0 drop", nil},                      // any
+		{"set gateway 192.168.142.1", nil},                                         // a sent firewall
+		{"Junos 15.1R7.9 and Windows 10.0.19045.6456", nil},                        // versions, not addresses
+		{"ip saddr 0.0.0.0/1 accept", []string{"0.0.0.0/1"}},                       // too wide
+		{"dnat to 8.8.8.8:53", []string{"8.8.8.8"}},                                // with a port
+		{"ip daddr ::ffff:8.8.8.8 accept", []string{"::ffff:8.8.8.8"}},             // 4-in-6
+		{"ping 010.010.010.010", []string{"010.010.010.010"}},                      // octal form
+		{"host ab8.8.8.8", []string{"8.8.8.8"}},                                    // glued to letters
+		{"ip6 daddr 2001:db8::1 drop", []string{"2001:db8::1"}},                    // IPv6
+		{"set system syslog host 10.66.6.6; at 12:30:00", []string{"10.66.6.6"}},   // a banner's address is not trusted
 	} {
 		if got := untrustedAddrs(c.line, trusted); !slices.Equal(got, c.want) {
 			t.Errorf("%q: got %v, want %v", c.line, got, c.want)

@@ -86,22 +86,22 @@ func TestOwnAddress_MachineAddressRefusedOnVedettePortsOnly(t *testing.T) {
 func TestOwnAddress_LoopbackAndOwnInterfacesOnEveryPort(t *testing.T) {
 	t.Parallel()
 	g := &destGuard{}
-	own := ownAddrs{self: []netip.Addr{netip.MustParseAddr("10.89.0.5")}, machine: []netip.Addr{netip.MustParseAddr("192.168.18.141")}}
+	own := ownAddrs{self: []netip.Addr{netip.MustParseAddr("10.89.0.5")}, machine: []netip.Addr{netip.MustParseAddr("192.168.142.141")}}
 	for _, c := range []struct {
 		ip   string
 		port uint16
 		want bool
 	}{
 		{"127.0.0.1", 11434, true}, {"::1", 80, true}, {"10.89.0.5", 18070, true}, {"::ffff:10.89.0.5", 443, true}, {"64:ff9b::a59:5", 80, true},
-		{"192.168.18.141", 8443, true}, {"192.168.18.141", 514, true}, {"192.168.18.141", 18070, false}, {"192.168.18.142", 8443, false},
+		{"192.168.142.141", 8443, true}, {"192.168.142.141", 514, true}, {"192.168.142.141", 18070, false}, {"192.168.142.142", 8443, false},
 	} {
 		if got := g.refused(netip.MustParseAddr(c.ip), c.port, own); got != c.want {
 			t.Errorf("refused(%s, %d) = %v, want %v", c.ip, c.port, got, c.want)
 		}
 	}
 	for raw, want := range map[string]string{
-		"http://192.168.18.141:18070/ioc.txt": "", "http://192.168.18.141:8443/x": ownText, "https://192.168.18.141:8444/": ownText,
-		"http://localhost:18070/": ownText, "http://10.89.0.5/": ownText, "http://169.254.169.254/": blockedText, "https://192.168.18.141/": "",
+		"http://192.168.142.141:18070/ioc.txt": "", "http://192.168.142.141:8443/x": ownText, "https://192.168.142.141:8444/": ownText,
+		"http://localhost:18070/": ownText, "http://10.89.0.5/": ownText, "http://169.254.169.254/": blockedText, "https://192.168.142.141/": "",
 	} {
 		err := CheckDest(raw, own)
 		var fe *Error

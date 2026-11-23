@@ -525,14 +525,14 @@ func TestSuspectedNoteSaysWhatWasUsed(t *testing.T) {
 // to over TLS only, and plain HTTP stays http.
 func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
 	t.Parallel()
-	d := Device{IP: "192.168.18.20", Services: []OpenPort{
+	d := Device{IP: "192.168.142.20", Services: []OpenPort{
 		{Port: 4443, Name: "ssl/http"}, {Port: 4443, Name: "http"}, {Port: 8080, Name: "http"}, {Port: 5986, Name: "winrm-https"}, {Port: 22, Name: "ssh"},
 	}}
 	var got []string
 	for _, tg := range endpoints(d) {
 		got = append(got, tg.Input())
 	}
-	want := []string{"https://192.168.18.20:4443", "http://192.168.18.20:8080", "https://192.168.18.20:5986", "192.168.18.20:22"}
+	want := []string{"https://192.168.142.20:4443", "http://192.168.142.20:8080", "https://192.168.142.20:5986", "192.168.142.20:22"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("targets = %q, want %q", got, want)
 	}

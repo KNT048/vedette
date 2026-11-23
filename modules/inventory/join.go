@@ -269,6 +269,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	if err != nil {
 		return "", err
 	}
+	if err := shareMergedReadings(ctx, tx, from, into); err != nil {
+		return "", err
+	}
 	software, err := foldSoftware(ctx, tx, s, from, into)
 	if err != nil {
 		return "", err

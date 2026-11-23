@@ -208,6 +208,17 @@ func rememberMerged(ctx context.Context, tx *sql.Tx, into, from, now string) err
 	return nil
 }
 
+// shareMergedReadings marks shared the readings that earlier merges into from brought and that into reads too, before from joins into:
+// the join folds them into into's own reading, so the split of such a merge copies the reading back and into keeps its own.
+func shareMergedReadings(ctx context.Context, tx *sql.Tx, from, into string) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_merged_reading SET shared = 1 WHERE asset_id = ?1 AND shared = 0 AND EXISTS (SELECT 1 FROM inv_software k
+		JOIN inv_software_reading kr ON kr.software_id = k.id WHERE k.asset_id = ?2 AND k.product_key = inv_merged_reading.product_key
+		AND k.line = inv_merged_reading.line AND kr.source = inv_merged_reading.source AND kr.instance = inv_merged_reading.instance)`, from, into); err != nil {
+		return fmt.Errorf("inventory: keep the merged devices' software: %w", err)
+	}
+	return nil
+}
+
 // cutFacts is facts cut to fit maxMergedFacts: of each observation series (field and source) the one that counts most (the highest
 // confidence, then the newest), so the device given back still states its maker, model, host name, type and OS, and the series into
 // held none of, whose other observations the split takes from into by series (Series).
@@ -355,11 +366,12 @@ type mergedReading struct {
 }
 
 // giveBackSoftware moves the software readings a merge kept of the device back from id to the device split off as newID, before the
-// interface moves (moveInterface takes what a scan read at it). A line the merged device brought whole, that nothing else reads now,
-// goes back whole: its id, its history and a person's "not installed" mark with it, so its findings are the device's own again when
-// both devices are matched. Else each reading goes to newID's line of that product and train (a reading into read too is copied, the
-// others leave id); a scan's readings are the interface's, and the OS a device states is a line its observations make again.
-func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID string, m *mergedFrom) error {
+// interface moves (moveInterface takes what a scan read at it; addr is that interface's address row, "" for id's main address). A line
+// the merged device brought whole, that nothing else reads now but a scan at that interface, goes back whole: its id, its history and a
+// person's "not installed" mark with it, so its findings are the device's own again when both devices are matched. Else each reading
+// goes to newID's line of that product and train (a reading into read too is copied, the others leave id); a scan's readings are the
+// interface's, and the OS a device states is a line its observations make again.
+func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID, addr string, m *mergedFrom) error {
 	if m == nil {
 		return nil
 	}
@@ -430,6 +442,9 @@ func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID st
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
 		whole := cur == sid && len(list) > 0 && !slices.ContainsFunc(list, func(x reading) bool {
+			if x.r.Addr != "" || x.r.Source == "nmap" || x.r.Source == "scan" { // a scan's reading goes with the interface it was read at
+				return x.r.Addr != addr
+			}
 			b, ok := brought(x.r.Source, x.r.Instance)
 			return !ok || b.shared
 		})

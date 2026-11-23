@@ -670,7 +670,7 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 			VALUES (?, ?, ?, ?, 'unknown', ?, ?, ?, 0, ?, ?)`, newID, moved.ip, moved.mac, confirmed, gone.origin(), approved, at, first, max(first, last)); err != nil {
 			return fmt.Errorf("inventory: split an address: %w", err)
 		}
-		if err := s.giveBackSoftware(ctx, tx, id, newID, gone); err != nil {
+		if err := s.giveBackSoftware(ctx, tx, id, newID, moved.id, gone); err != nil {
 			return err
 		}
 		if err := s.moveInterface(ctx, tx, id, newID, moved.id, moved.mac); err != nil {

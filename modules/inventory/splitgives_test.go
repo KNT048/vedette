@@ -1,12 +1,16 @@
 package inventory_test
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -265,5 +269,114 @@ func TestSplit_GivesBackTheSoftwareAfterTheKeptDeviceJoinedAnother(t *testing.T)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_merged_reading`) + e.count(`SELECT count(*) FROM inv_merged_from`); n != 0 {
 		t.Errorf("%d merge records left after both splits", n)
+	}
+}
+
+// lineOn is the id of device id's present line of product, "" when none.
+func (e *env) lineOn(id, product string) string {
+	e.t.Helper()
+	var line string
+	err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM inv_software WHERE asset_id = ? AND lower(product) = ? AND state = 'present'`, id, product).Scan(&line)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		e.t.Fatal(err)
+	}
+	return line
+}
+
+// sshAt records a scan of ip that read OpenSSH on port 22.
+func (e *env) sshAt(ip string) {
+	e.t.Helper()
+	sw := []observe.Software{{Display: "OpenSSH 9.6p1", Vendor: "openbsd", Product: "openssh", Version: "9.6p1", CPE: "cpe:2.3:a:openbsd:openssh:9.6p1:*:*:*:*:*:*:*", Confidence: 0.9, Instance: "tcp/22"}}
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap, nil, sw); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// A line the merged device brought that a scan then also read at the kept device's own address is not the merged device's alone: the
+// split gives the merged device its reading and the kept device keeps the one taken at its address.
+func TestSplit_ALineAlsoReadAtTheKeptDevicesAddressStaysWithIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(vmCard(vmCard2, "192.0.2.130", "")...)
+	e.sshAt("192.0.2.130")
+	e.tick(time.Minute)
+	e.record(vmCard(vmCard1, "192.0.2.131", "")...)
+	gone, kept := e.idOf("192.0.2.130"), e.idOf("192.0.2.131")
+	if err := e.svc.Merge(e.ctx(), admin, kept, gone); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	e.sshAt("192.0.2.131")
+	back, err := e.svc.Split(e.ctx(), admin, kept, "192.0.2.130")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := e.presentLines(back)["openssh"]; !slices.Equal(got, []string{"nmap"}) {
+		t.Errorf("readings given back: %v, want the scan of the merged device's address", got)
+	}
+	if got := e.presentLines(kept)["openssh"]; !slices.Equal(got, []string{"nmap"}) {
+		t.Errorf("readings the kept device kept: %v, want the scan of its own address", got)
+	}
+}
+
+// A scan of the merged device's address after the merge reads at that interface, which the split gives back: the line the merged device
+// brought goes back whole, with its id, and the kept device holds no removed copy of it.
+func TestSplit_ALineReadAgainAtTheSplitAddressGoesBackWhole(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	hand := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "8.0.3 build 24022510", Name: "esxi-01", IP: "192.0.2.90"})
+	line := e.lineOn(hand, "esxi")
+	e.tick(time.Minute)
+	e.record(vmCard(vmCard1, "192.0.2.131", "")...)
+	vm := e.idOf("192.0.2.131")
+	if err := e.svc.Merge(e.ctx(), admin, vm, hand); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	sw := []observe.Software{{Display: esxiBanner, Vendor: "vmware", Product: "esxi", Version: "8.0", CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.9, Instance: "tcp/443"}}
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.0.2.90")}, observe.Nmap, nil, sw); err != nil {
+		t.Fatal(err)
+	}
+	back, err := e.svc.Split(e.ctx(), admin, vm, "192.0.2.90")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := e.lineOn(back, "esxi"); got != line {
+		t.Errorf("ESXi line given back: %q, want the device's own %q", got, line)
+	}
+	if got := e.presentLines(back)["esxi"]; !slices.Equal(got, []string{"manual", "nmap"}) {
+		t.Errorf("readings given back: %v", got)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software WHERE asset_id = ? AND lower(product) = 'esxi'`, vm); n != 0 {
+		t.Errorf("the VM holds %d ESXi lines", n)
+	}
+}
+
+// A merge record that follows the kept device into a later merge is weighed against the device it joins: a reading that device held
+// too is a copy the split gives back, so the third device keeps its own entry.
+func TestSplit_AfterALaterMergeTheThirdDeviceKeepsItsOwnEntry(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "8.0.3 build 24022510", Name: "esxi-01", IP: "192.0.2.90"})
+	e.tick(time.Minute)
+	e.record(vmCard(vmCard1, "192.0.2.131", "")...)
+	b := e.idOf("192.0.2.131")
+	e.tick(time.Minute)
+	c := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "8.0.3 build 24022510", Name: "esxi-02", IP: "192.0.2.91"})
+	if err := e.svc.Merge(e.ctx(), admin, b, a); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(e.ctx(), admin, c, b); err != nil {
+		t.Fatal(err)
+	}
+	back, err := e.svc.Split(e.ctx(), admin, c, "192.0.2.90")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := e.presentLines(back)["esxi"]; !slices.Equal(got, []string{"manual"}) {
+		t.Errorf("readings given back: %v, want the person's entry", got)
+	}
+	if got := e.presentLines(c)["esxi"]; !slices.Equal(got, []string{"manual"}) {
+		t.Errorf("the third device's own entry: %v, want it kept", got)
 	}
 }

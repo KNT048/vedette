@@ -228,13 +228,6 @@ func (s mcpSource) Finding(ctx context.Context, id string) (mcpserver.Finding, b
 	return mcpFinding(c), true, nil
 }
 
-func optStr(v oas.NilString) *string {
-	if x, ok := v.Get(); ok {
-		return &x
-	}
-	return nil
-}
-
 func optNum(v oas.NilFloat64) *float64 {
 	if x, ok := v.Get(); ok {
 		return &x

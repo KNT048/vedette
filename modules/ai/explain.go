@@ -121,11 +121,6 @@ const explainSchema = `{"type":"object","properties":{` + briefAnswersSchema + `
 
 const explainTask = `Answer four questions about one vulnerability for this company's network. Use only the facts in the data blocks: the CVE brief and the list of matching devices (each device line says how it was found, who confirmed it and the fix for it). The box has already decided the affected status (given in the question); do not contradict it. In "answers" give exactly four answers, in this order, each with its "key": "affected" (Am I affected? Yes, no or needs a check, with the evidence: the devices and their versions, who or what confirmed them as the device lines say, and any condition the CVE brief names, such as a CPU feature or an enabled option), "fix" (How do I fix it? The exact release the device lines name as the fix, or, when no device matches, the fixed releases the CVE brief states per release train), "workaround" (What if I cannot patch yet? The workaround of the CVE brief, or its sentence that none is published), "urgency" (How urgent? Whether attackers use it and which list says so, the attack conditions and the privileges required). Each answer is one to three short sentences of plain English. Its "refs" are the numbers of the references of the CVE brief it rests on: every claim a reference supports carries its number, and no number that is not listed. Name no version number, product or link that is not in the data. Never work out a fixed release from an affected version, and never call the "before" end of an affected range a fix. Write what is true; never write a paragraph that explains why something is absent. Give firewall or gateway rules, and back-up and roll-back steps, only when the attack is over the network and a matching device has an open port for the product. Reply with one JSON object only.`
 
-const (
-	maxListItems = 8
-	maxItemChars = 500
-)
-
 var cveRE = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 
 // cleanText removes control characters and invisible format characters (bidi controls, zero-width spaces: what is shown must be what
@@ -146,17 +141,6 @@ func cleanText(s string) string {
 
 // cleanLine is cleanText cut to n characters.
 func cleanLine(s string, n int) string { return clipRunes(cleanText(s), n) }
-
-// cleanList cleans a list item by item, each cut at a sentence end (clipSentence, never mid-sentence), and keeps at most maxListItems.
-func cleanList(in []string) []string {
-	out := []string{}
-	for _, s := range in {
-		if s, _ = clipSentence(cleanText(s), maxItemChars); s != "" && len(out) < maxListItems {
-			out = append(out, s)
-		}
-	}
-	return out
-}
 
 // parseExplain reads the model's answer strictly: one JSON object with the four answers, once each, none empty.
 func parseExplain(text string) (explainAnswer, error) {
@@ -446,7 +430,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 			for _, k := range kept {
 				x := ExplainAnswer{Key: k.Key, Text: k.Text, Links: []ExplainLink{}}
 				for _, l := range k.Links {
-					x.Links = append(x.Links, ExplainLink{Title: l.Title, URL: l.URL})
+					x.Links = append(x.Links, ExplainLink(l))
 				}
 				body.Answers = append(body.Answers, x)
 			}

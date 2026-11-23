@@ -24,7 +24,7 @@ func (e *httpEnv) get(path string) (int, []byte) {
 
 // Rows made by the scan writer reach the API in the shape of the contract: the stored scans of a test network (targets, hosts,
 // addresses, services, issues and scans) are served by the real handlers, and every body is decoded by the generated types of
-// api/openapi.json, which refuse a missing or unknown field, a wrong enum value and a malformed time.
+// api/openapi.json, which refuse a missing or unknown field and a malformed time, and then checked with their Validate methods, which refuse a value outside an enum.
 func TestRowsSeam_WriterRowsServeInTheContractShape(t *testing.T) {
 	t.Parallel()
 	f := loadReplay(t)
@@ -33,7 +33,10 @@ func TestRowsSeam_WriterRowsServeInTheContractShape(t *testing.T) {
 		e.replay(s.Target, s.StartedAt, s.Content.content())
 	}
 
-	decode := func(path string, into json.Unmarshaler) {
+	decode := func(path string, into interface {
+		json.Unmarshaler
+		Validate() error
+	}) {
 		t.Helper()
 		code, body := e.get(path)
 		if code != http.StatusOK {
@@ -41,6 +44,9 @@ func TestRowsSeam_WriterRowsServeInTheContractShape(t *testing.T) {
 		}
 		if err := into.UnmarshalJSON(body); err != nil {
 			t.Fatalf("GET %s does not fit the contract: %v\n%s", path, err, body)
+		}
+		if err := into.Validate(); err != nil { // the decoder accepts any string for an enum; Validate checks the values
+			t.Fatalf("GET %s has a value outside the contract: %v\n%s", path, err, body)
 		}
 	}
 

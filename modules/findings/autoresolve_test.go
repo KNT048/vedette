@@ -121,3 +121,34 @@ func TestAutoResolve_APlatformQuestionLeavesAPersonConfirmedFindingOpen(t *testi
 		}
 	}
 }
+
+// A person who answers a question "affected" makes a finding they confirmed; the next match, which still cannot decide the CVE, leaves
+// it open (it used to close it as data corrected an hour after the answer).
+func TestAutoResolve_AnAffectedAnswerSurvivesTheNextMatch(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	sw := sshRow("9.0p1", "protocol 2.0", "nmap")
+	sw.SeenAt = t0
+	a := Asset{ID: "a-1", Name: "gw-alpine", Software: []Software{sw}} // nothing names the platform: the CVE is asked
+	vulns := []Vuln{sshhole()}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), a, vulns); err != nil {
+		t.Fatal(err)
+	}
+	qs, err := e.svc.Questions(t.Context(), "a-1")
+	if err != nil || len(qs) != 1 || qs[0].Kind != QuestionPlatform {
+		t.Fatalf("questions %+v %v, want the platform question", qs, err)
+	}
+	if _, err := e.svc.AnswerQuestion(t.Context(), qs[0].ID, AnswerAffected, "the vendor's advisory names this build", "anna@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.only(t); f.State != StateOpen || f.Verified != VerifiedPerson {
+		t.Fatalf("after the answer: %+v", f)
+	}
+	e.advance(time.Hour)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), a, vulns); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.only(t); f.State != StateOpen || f.Verified != VerifiedPerson {
+		t.Fatalf("after the next match: %+v, want open and confirmed by the person", f)
+	}
+}

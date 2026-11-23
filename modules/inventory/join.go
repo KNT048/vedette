@@ -113,8 +113,8 @@ const statedPassiveOS = 0.5
 // is the OS family a DHCP request hints at).
 func facts(ctx context.Context, tx *sql.Tx, id string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
-		AND (field IN ('kind', 'hostname') OR (field IN ('model', 'os') AND source NOT IN ('nmap', 'scan')
-		AND NOT (field = 'os' AND source = 'passive' AND confidence < ?))) AND NOT `+declaredObsSQL, id, statedPassiveOS)
+		AND (field IN ('kind', 'hostname') OR (field IN ('model', 'os') AND source NOT IN ('nmap', 'scan', 'declared')
+		AND NOT (field = 'os' AND source = 'passive' AND confidence < ?)))`, id, statedPassiveOS)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read observations: %w", err)
 	}
@@ -213,12 +213,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	case fromIgnored && !intoIgnored:
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
 	}
-	// The kept device's stored declared-OS decision shares its key with a person's typed OS (device, field, source, value): it goes before
-	// the observations move, so a typed OS never folds into it; the recompute after the join decides it again.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND `+declaredObsSQL, into); err != nil {
-		return "", fmt.Errorf("inventory: drop the declared OS before a join: %w", err)
-	}
-	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, from)
+	// The stored declared-OS decision (source declared) belongs to its device's software lines and stays out of the move: a person's typed
+	// OS (manual) never folds into it, and the recompute after the join decides it again.
+	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ? AND source <> 'declared'`, from)
 	if err != nil {
 		return "", fmt.Errorf("inventory: read observations: %w", err)
 	}

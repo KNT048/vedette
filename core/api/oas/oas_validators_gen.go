@@ -64434,6 +64434,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetKindSource) Validate() error {
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -64529,6 +64531,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetModelBasis) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKAssetModelSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -64744,6 +64748,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Validat
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -64762,6 +64768,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Validat
 func (s InventoryGetInventoryDevicesIDOKAssetOsSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -64892,6 +64900,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetServicesItemProto) Validate() error
 func (s InventoryGetInventoryDevicesIDOKAssetServicesItemSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -65065,6 +65075,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) Val
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -65152,6 +65164,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourc
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -65170,6 +65184,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourc
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -65266,6 +65282,8 @@ func (s InventoryGetInventoryDevicesIDOKAssetVendorBasis) Validate() error {
 func (s InventoryGetInventoryDevicesIDOKAssetVendorSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -65369,6 +65387,8 @@ func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) Validate() err
 func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -65680,6 +65700,8 @@ func (s InventoryGetInventoryDevicesIDOKObservationsItemField) Validate() error 
 func (s InventoryGetInventoryDevicesIDOKObservationsItemSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -67232,6 +67254,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemKindSource) Validate() error {
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -67327,6 +67351,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemModelBasis) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemModelSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -67434,6 +67460,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemOsBasis) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemOsSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -67641,6 +67669,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemServicesItemSource) Validate() er
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -67759,6 +67789,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) Validate() er
 	switch s {
 	case "manual":
 		return nil
+	case "declared":
+		return nil
 	case "agent":
 		return nil
 	case "snmp":
@@ -67840,6 +67872,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummary) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemSummarySource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil
@@ -67936,6 +67970,8 @@ func (s InventoryGetInventoryDevicesOKItemsItemVendorBasis) Validate() error {
 func (s InventoryGetInventoryDevicesOKItemsItemVendorSource) Validate() error {
 	switch s {
 	case "manual":
+		return nil
+	case "declared":
 		return nil
 	case "agent":
 		return nil

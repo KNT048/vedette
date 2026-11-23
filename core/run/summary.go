@@ -24,6 +24,10 @@ func (m *Manager) summary(ctx context.Context, r Run) string {
 	case Queued:
 		switch {
 		case r.BlockedBy != nil:
+			// how long the run in its way has left, when its kind can tell: the queued one starts roughly then
+			if left := m.blockerLeft(ctx, r.BlockedBy.ID); left != "" {
+				return "Queued behind " + quote(r.BlockedBy.Title) + ", which has " + left + "; it starts when that run ends"
+			}
 			return "Queued behind " + quote(r.BlockedBy.Title) + "; it starts when that run ends"
 		case m.cfg.Gate != nil && !m.cfg.Gate.Enabled(r.Module):
 			return "Queued; it starts when its module is turned on again"
@@ -64,6 +68,24 @@ func (m *Manager) summary(ctx context.Context, r Run) string {
 		return s
 	}
 	return string(r.Status)
+}
+
+// blockerLeft is the estimate of the run that holds a queued run's lane ("about 12 minutes left at 100 packets/s"), "" when its kind
+// gives none or it cannot be read. The holder is running, so its own summary never reads another run in turn.
+func (m *Manager) blockerLeft(ctx context.Context, id string) string {
+	var module, kind string
+	if err := m.cfg.DB.Reader().QueryRowContext(ctx, `SELECT module, kind FROM core_run WHERE id = ?`, id).Scan(&module, &kind); err != nil {
+		return ""
+	}
+	if k, ok := m.kind(module, kind); !ok || k.Estimate == nil {
+		return ""
+	}
+	b, err := m.Read(ctx, id)
+	if err != nil || (b.Status != Running && b.Status != Stopping) {
+		return ""
+	}
+	k, _ := m.kind(module, kind)
+	return k.Estimate(ctx, b)
 }
 
 // Count is "6,272 of 65,792 addresses": done of total, with the unit when there is one.

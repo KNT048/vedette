@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
 )
 
@@ -67,8 +68,9 @@ func (s *Service) registerKinds() error {
 	kinds := []run.Kind{
 		{Module: ModuleID, Name: RunSweep, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitAddresses, Estimate: s.sweepEstimate,
 			Run: s.runOf(s.runSweep)},
-		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Run: s.runOf(s.runCheck)},
-		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Run: s.runOf(s.runAllPorts)},
+		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Estimate: s.workerEstimate,
+			Run: s.runOf(s.runCheck)},
+		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Estimate: s.allPortsEstimate, Run: s.runOf(s.runAllPorts)},
 		{Module: ModuleID, Name: RunSNMP, Lane: laneSNMP, Unit: unitDevices, Run: s.runOf(s.runSNMP)},
 		{Module: ModuleID, Name: RunService, Lane: laneNmap, Run: s.runOf(nil)},
 	}
@@ -107,6 +109,10 @@ func (s *Service) runOf(self workFunc) func(ctx context.Context, x *run.Exec) (r
 			defer stop()
 			defer cancel(nil)
 			ctx = wctx //nolint:contextcheck // the caller's values, cancelled with the run's context by the AfterFunc above
+		}
+		if progress.SinkFrom(ctx) == nil { // what the worker reports of its nmap goes to the run's estimate (workerEstimate)
+			ctx = progress.WithSink(ctx, s.runSink(x.ID()))
+			defer s.dropProgress(x.ID())
 		}
 		res, err = work(context.WithValue(ctx, execKey{}, x), x)
 		if ctx.Err() != nil && err == nil && (res.Status == "" || res.Status == run.Done) {
@@ -204,8 +210,8 @@ func (s *Service) submitTx(ctx context.Context, tx *sql.Tx, spec run.Spec, work 
 			return id, err
 		}
 	}
-	if spec.Kind == RunCheck || spec.Kind == RunService {
-		s.stopWeekly() // the weekly scan of every port gives the lane up to any other work
+	if spec.Kind != RunAllPorts && spec.Kind != RunSNMP && spec.WaitingFor == "" {
+		s.stopWeekly() // the weekly scan of every port gives the lane up to any other work queued in it
 	}
 	if work != nil { // before the commit: the dispatcher cannot start the run before it, and then finds its work and its caller
 		s.mu.Lock()

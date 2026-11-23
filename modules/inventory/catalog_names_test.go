@@ -59,7 +59,7 @@ func foreignNames(t *testing.T) (rows int, foreign map[string][]string) {
 	return rows, foreign
 }
 
-// filesNames are the exploited-list keys (kev and kev_shared) each product of the product files lists for itself, by product key.
+// filesNames are the names (kev, kev_shared and its other names, also) each product of the product files lists for itself, by product key.
 func filesNames(t *testing.T) map[string][]string {
 	t.Helper()
 	out := map[string][]string{}
@@ -77,6 +77,7 @@ func filesNames(t *testing.T) map[string][]string {
 				Vendor, Product string
 				KEV             []string `json:"kev"`
 				KEVShared       []string `json:"kev_shared"`
+				Also            []string `json:"also"`
 			} `json:"products"`
 		}
 		if err := json.Unmarshal(raw, &doc); err != nil {
@@ -86,6 +87,9 @@ func filesNames(t *testing.T) map[string][]string {
 			key := productid.Key(p.Vendor, p.Product)
 			out[key] = append(out[key], p.KEV...)
 			out[key] = append(out[key], p.KEVShared...)
+			for _, a := range p.Also {
+				out[key] = append(out[key], productid.NormalizeKey(a))
+			}
 		}
 	}
 	return out

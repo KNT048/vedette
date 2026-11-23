@@ -196,12 +196,13 @@ func readingsOfList(ident identifier, items []SoftwareItem, source, seenAt strin
 	out := make([]listed, 0, len(items))
 	for _, it := range items {
 		id, version := ident(it, source)
+		version, display := statedRelease(id.productKey, version, it.Display)
 		pv, ps := pkgOf(it, source)
 		inst := it.Instance
 		if it.Guess && inst == "" {
 			inst = instanceOSGuess
 		}
-		out = append(out, listed{id: id, reading: Reading{Source: source, Instance: inst, Display: it.Display, Version: version, PkgVersion: pv, PkgSource: ps,
+		out = append(out, listed{id: id, reading: Reading{Source: source, Instance: inst, Display: display, Version: version, PkgVersion: pv, PkgSource: ps,
 			CPE: it.CPE, Packaged: packaged(it, source), Confidence: it.Confidence, FirstSeen: seenAt, SeenAt: seenAt}, ev: evidenceOf(it, inst)})
 	}
 	type slot struct{ key, line, inst string }

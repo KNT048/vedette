@@ -308,3 +308,28 @@ func TestAlertsCarryTheVerificationLine(t *testing.T) {
 		}
 	}
 }
+
+// A digest line longer than a channel keeps is cut in its reasons, never in its verification line: the second line of every screen
+// stays whole at the end of the line.
+func TestDigestLineCutKeepsTheVerificationLine(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	for i, id := range []string{"f-1", "f-2"} {
+		f := finding("Example Hypervisor", fmt.Sprintf("CVE-2025-2222%d", i), "hypervisor-cluster-node-001.datacenter-east.corp.example", notify.High)
+		f.Reasons = "Exploited in the wild: " + strings.Repeat("Rapid7, Mandiant, Google Threat Intelligence, ", 8) + "CISA KEV (4 Mar); fix by 25 Mar 2025"
+		f.Verification = "Not confirmed yet: based on a version someone entered"
+		dir.at(id, 2, f)
+		pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: id, CVE: "CVE-x", Severity: findings.SeverityHigh})
+	}
+	e.flush()
+	msgs := sentMessages(e)
+	if len(msgs) != 1 || len(msgs[0].Items) != 2 {
+		t.Fatalf("messages = %+v", msgs)
+	}
+	for _, it := range msgs[0].Items {
+		if !strings.HasSuffix(it, "… · Not confirmed yet: based on a version someone entered") || !strings.Contains(it, "— Exploited in the wild: Rapid7") ||
+			len([]rune(it)) > channel.MaxItemRunes {
+			t.Errorf("digest line %q (%d runes)", it, len([]rune(it)))
+		}
+	}
+}

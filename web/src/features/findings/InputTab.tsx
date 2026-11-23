@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
@@ -247,19 +248,24 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
   const raw = useListParams('input')
   const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
   const size = list.size ?? PAGE_DEFAULT
-  const q = useInputList({ device }, { offset: list.page * size, limit: size })
+  const q = useInputList({ q: raw.q, device }, { offset: list.page * size, limit: size })
   const links = useMemo(() => deviceLinks(q.data?.items ?? []), [q.data])
   const columns: ColumnDef<InputItem>[] = [
     { id: 'item', header: t('queue.col'), cell: ({ row: { original: i } }) => <QueueItem i={i} linkDevice={links.has(i.id)} /> },
   ]
   const named = q.data?.items.find((x) => x.device.id === device)?.device.name
+  const filtered = !!(device || raw.q)
+  const clear = () => { raw.set({ q: '', page: 0 }); onDevice('') }
   return (
     <div className="grid gap-3">
-      {device ? <Button size="sm" className="w-fit" onClick={() => onDevice('')}><X />{t('byDevice.clearDevice', { device: named ?? t('byDevice.thisDevice') })}</Button> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('queue.search')} />
+        {device ? <Button size="sm" onClick={() => onDevice('')}><X />{t('byDevice.clearDevice', { device: named ?? t('byDevice.thisDevice') })}</Button> : null}
+      </div>
       <QueryState query={q}>
-        {(d) => d.total === 0 && !device ? <EmptyState title={t('queue.empty')}>{t('queue.emptyBody')}</EmptyState> : (
+        {(d) => d.total === 0 && !filtered ? <EmptyState title={t('queue.empty')}>{t('queue.emptyBody')}</EmptyState> : (
           <DataTable urlKey="input" caption={t('queue.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list, max: PAGE_MAX }} filtered={!!device} onClearFilters={() => onDevice('')} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
+            server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
         )}
       </QueryState>
       <Answered device={device} />

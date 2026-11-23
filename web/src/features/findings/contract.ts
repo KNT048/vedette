@@ -478,7 +478,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/findings/fixes', summary: 'By fix: one card per fix across devices (ignored devices left out), the most urgent first, each with the devices it applies to', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
     query: z.object({ q, status: statusFilter, offset, limit }), response: FixCards, example: { query: {} } },
   { method: 'get', path: '/findings/input', summary: 'Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and questions only a person can answer; one queue', stories: ['S-MIT-1', 'S-INV-3'], role: 'viewer',
-    query: z.object({ device: deviceFilter, offset, limit }), response: InputList, example: { query: {} } },
+    query: z.object({ q, device: deviceFilter, offset, limit }), response: InputList, example: { query: {} } },
   { method: 'get', path: '/findings/answered', summary: 'The questions a person answered "not affected" (ignored devices left out), the newest first: each can be asked again', stories: ['S-MIT-1'], role: 'viewer',
     query: z.object({ device: deviceFilter, offset, limit }), response: AnsweredList, example: { query: {} } },
   { method: 'get', path: '/findings/handled', summary: 'Handled: findings by handling, the newest first, each with who and how', stories: ['S-MIT-1'], role: 'viewer',

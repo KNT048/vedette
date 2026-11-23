@@ -113,9 +113,13 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			}
 		}
 	}
+	// each closed finding takes the proof of its own (CVE, software line): a device with two lines of one product for a CVE has a
+	// sentence per line, and one line's sentence ("this device has 9.6p1") is never the other line's closing note
 	proofs := map[string]Match{}
 	for _, p := range m.NotAffected {
-		proofs[p.CVE] = p
+		for _, x := range append([]Match{p}, p.each...) {
+			proofs[lineKey(x.CVE, storedLine(x.SoftwareID))] = x
+		}
 	}
 	for _, f := range existing {
 		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
@@ -123,7 +127,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
 		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by, Corrected: corrected,
-			Note: proofReason(via, proofs[f.CVE])}, emit)
+			Note: proofReason(via, proofs[lineKey(f.CVE, f.SoftwareID)])}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)
 		}
@@ -254,7 +258,7 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		}
 		return ViaVersionMoved, f.MatchedVersion, cur, "", false
 	}
-	if p, ok := proofs[f.CVE]; ok && p.pkgFixed {
+	if p, ok := proofs[lineKey(f.CVE, f.SoftwareID)]; ok && p.pkgFixed {
 		return ViaDistroFixed, "", "", "", false
 	}
 	return ViaDataCorrected, "", "", "", false

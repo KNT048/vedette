@@ -12,6 +12,7 @@ import (
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/versionscheme"
 )
 
@@ -214,9 +215,12 @@ ssvc_exploitation, ssvc_automatable, ssvc_impact FROM feeds_cve WHERE cve = ?`, 
 	b.Ranges, b.RangesFrom, b.RangesComplete = briefRanges(rows)
 	b.Fixes = briefFixes(b.Ranges)
 	b.Products = rangeProducts(b.Ranges)
-	if len(b.Lists) > 0 {
+	switch {
+	case len(b.Lists) > 0:
 		b.Display = b.Lists[0].Display
-	} else if len(b.Products) > 0 {
+	case catalogueProduct(b.Ranges) != "":
+		b.Display = catalogueProduct(b.Ranges)
+	case len(b.Products) > 0:
 		b.Display = b.Products[0]
 	}
 
@@ -398,6 +402,34 @@ func briefFixes(rows []BriefRange) []BriefFix {
 		}
 	}
 	return out
+}
+
+// catalogueProduct names the CVE by the product of the product catalogue (core/productid) that most of the counted rows name: the
+// product a device would be matched as ("nginx" for F5's nginx_open_source rows, "Java" for Oracle's jdk, jre and openjdk rows), never
+// the first name in alphabetical order (F5's "dos" module of NGINX, Amazon's Corretto build). "" when no counted row names one.
+func catalogueProduct(rs []BriefRange) string {
+	count := map[string]int{}
+	var order []string
+	for _, r := range rs {
+		if !r.Counts {
+			continue
+		}
+		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+		if !ok || p.Display == "" {
+			continue
+		}
+		if count[p.Display] == 0 {
+			order = append(order, p.Display)
+		}
+		count[p.Display]++
+	}
+	best := ""
+	for _, d := range order {
+		if best == "" || count[d] > count[best] {
+			best = d
+		}
+	}
+	return best
 }
 
 // rangeProducts is the distinct "vendor product" of the rows that count.

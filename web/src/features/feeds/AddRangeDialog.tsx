@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -13,18 +14,23 @@ import type { z } from 'zod'
 import type { Safety, SafetySaved } from '@/features/scanning/contract'
 import { fmtDateTime } from '@/lib/format'
 
+/** The one editor of the scan scope. */
+const SCOPE_EDITOR = '/settings/scanning?tab=safety#scope'
+
 type Scope = z.infer<typeof Safety>['scope']
 type Saved = z.infer<typeof SafetySaved>
 
 /**
  * Home's first-run "Set the network range", done where the customer is (docs/UI.md §0.1, #825, #860): one range and the scope
- * commitment (the same words as Devices › Scope), sent with `POST /scanning/safety/ranges`. The dialog shows the ranges already in
+ * commitment (the same words as the scope editor of Settings › Scanning › Safety), sent with `POST /scanning/safety/ranges`. The dialog shows the ranges already in
  * the scope and whether they are confirmed, and sends both back: the tick confirms exactly those and the new one. Read only when
  * opened (or by the step, for an administrator), under the step's key. The toast says when the range is scanned: the step then offers
- * "Scan the LAN now". The whole scope stays editable under Devices › Scope and sensors.
+ * "Scan the LAN now". The whole scope (every range, the window, the exclusions) has one editor, Settings › Scanning › Safety: the
+ * dialog links to it.
  */
 export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { t } = useTranslation('feeds')
+  // the commitment's words are the inventory's: its namespace loads with the dialog, or the label shows its raw key
+  const { t } = useTranslation(['feeds', 'inventory'])
   const qc = useQueryClient()
   const read = useScanning(open)
   // After a 409 scope_changed the box sends the current block: the dialog shows it and asks for the tick again.
@@ -90,6 +96,7 @@ export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               {error?.field === 'confirm' ? <p id="home-range-confirm-error" className="text-meta text-danger">{error.text}</p> : null}
               <p id="home-range-asis" className="text-meta text-muted">{t('inventory:scope.asIs')}</p>
             </div>
+            <Link to={SCOPE_EDITOR} className="w-fit text-meta font-medium text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('range.editAll')}</Link>
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
               <Button type="submit" variant="primary" busy={add.isPending} busyLabel={t('common:busy.adding')}>{t('range.submit')}</Button>

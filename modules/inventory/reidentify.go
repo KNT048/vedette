@@ -42,7 +42,7 @@ type identifier func(it SoftwareItem, source string) (lineIdentity, string)
 // identifyRules is the generation of the identification code (identify and core/productid's rules). Raise it with a change of that
 // code that can give a stored reading another product or train: the next start identifies the stored lines again, as after a change
 // of the catalogue's data. TestIdentifyRulesFollowTheIdentificationCode fails on any change of that code until the change is weighed.
-const identifyRules = "1"
+const identifyRules = "2"
 
 // catalogueRevision is the revision of the product catalogue this build identifies with: a hash of the identification rules'
 // generation and of the catalogue files core/productid loads (products/*.json, curated.json, kev-products.json).
@@ -331,6 +331,10 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 				p.to.line = ""
 			}
 		}
+		for i := range mine { // a version written as its product's scheme reads it ("8.0 U3" is ESXi 8.0.3 with its build), as a new read would
+			p := &mine[i]
+			p.r.Version, p.r.Display = statedRelease(p.to.productKey, p.r.Version, p.r.Display)
+		}
 		// the line keeps its id on the identity of what it shows (the resolver's reading) when none of its readings stays where it is
 		cur := identityKey{l.key, l.train}
 		if !slices.ContainsFunc(mine, func(p placed) bool { return keyOf(p.to) == cur }) {
@@ -394,7 +398,7 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 		p := &plan.all[i]
 		p.drop = newest[pk{keyOf(p.to), p.r.Source, p.r.Instance, p.r.Addr}] != i
 		line := held[keyOf(p.to)] // "": a line the device does not have yet
-		if p.drop || line != p.from || p.r.Instance != p.old.Instance || p.r.Version != p.old.Version {
+		if p.drop || line != p.from || p.r.Instance != p.old.Instance || p.r.Version != p.old.Version || p.r.Display != p.old.Display {
 			plan.moves = append(plan.moves, *p)
 		}
 	}

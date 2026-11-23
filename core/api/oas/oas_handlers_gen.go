@@ -26739,6 +26739,10 @@ func (s *Server) handleFindingsGetFindingsInputRequest(args [0]string, argsEscap
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
 					Name: "device",
 					In:   "query",
 				}: params.Device,

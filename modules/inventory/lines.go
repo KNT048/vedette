@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // A software line (inv_software) is one installed software of a device: one product (core/productid), or one release train of a
@@ -28,10 +29,12 @@ type lineIdentity struct {
 // match key is a product of its own. Any other item is core/productid's product when the catalogue knows its name or CPE (its key,
 // its train rule; a version the name states replaces one that is not the product's own release, ".NET Runtime - 6.0.25 (x64)" read
 // as 48.100.4028) when its exploited-list names hold the item's first match key; else the product that first key belongs to
-// (productid.ByKEV), else that key; else the key of its vendor and product.
+// (productid.ByKEV), else that key; else the key of its vendor and product. A person's entry whose own names the catalogue knows is
+// that product unless its keys name another product of the catalogue (personNamed): "Red Hat" "OpenJDK" is Java whatever keys an
+// older build gave it (every exploited product of the vendor), and "Eclipse Adoptium" "Temurin" is Java, not a product of its own.
 func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	id := lineIdentity{vendor: it.Vendor, product: it.Product}
-	version := it.Version
+	version := reallyRelease(it.Version)
 	var p productid.Product
 	ok := false
 	if !agentSource(source) || len(it.KevKeys) > 0 {
@@ -44,7 +47,13 @@ func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	switch {
 	case ok && p.Key != "" && (p.ID != "" || first == "") && (first == "" || slices.Contains(p.KEV, first)):
 		id.productKey = p.Key
-		if p.VersionNotOwn {
+		if p.VersionNotOwn && source != sourceManual { // a person gives the product's own release ("Eclipse Temurin (OpenJDK)" 21.0.7)
+			version = p.Version
+		}
+		id.line = p.Line(version)
+	case ok && p.ID != "" && source == sourceManual && personNamed(it.KevKeys, p):
+		id.productKey = p.Key
+		if p.VersionNotOwn && source != sourceManual { // a person gives the product's own release ("Eclipse Temurin (OpenJDK)" 21.0.7)
 			version = p.Version
 		}
 		id.line = p.Line(version)
@@ -66,16 +75,67 @@ func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	return id, version
 }
 
-// matchKeys are the exploited-list keys a line is matched by: the catalogue's keys of its product, else its own key. A guess has
-// none: it raises no finding until a person adds the software with its version.
+// statedRelease is the version and name a source or a person gave a line of productKey, written as every reader compares them: a
+// Debian upstream version "X+reallyY" is the release Y it really is ("4.16.0-2+really2.41.3" is util-linux 2.41.3); a product with a
+// version scheme takes the scheme's form (core/versionscheme Stated: ESXi "8.0 U3" or "8.0.3 build 24022510" is version "8.0.3" named
+// "VMware ESXi 8.0 Update 3 (build 24022510)", as the host states itself; DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5"). Anything
+// else is kept as given.
+func statedRelease(productKey, version, display string) (string, string) {
+	version = reallyRelease(version)
+	p, ok := productid.ByKey(productKey)
+	if !ok || p.Scheme == "" {
+		return version, display
+	}
+	sc, ok := versionscheme.Lookup(p.Scheme)
+	if !ok {
+		return version, display
+	}
+	v, d, ok := sc.Stated(version, display)
+	switch {
+	case !ok:
+		return version, display
+	case d == "":
+		return v, display
+	}
+	return v, d
+}
+
+// reallyRelease is the release a Debian upstream version "X+reallyY" really is: Y (the package went back to an older upstream release
+// under a higher number, "4.16.0-2+really2.41.3"). Any other version is returned as it is.
+func reallyRelease(version string) string {
+	const really = "+really"
+	if i := strings.Index(version, really); i > 0 && len(version) > i+len(really) && isDigit(version[i+len(really)]) {
+		return version[i+len(really):]
+	}
+	return version
+}
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+
+// personNamed says a person's entry that the catalogue resolves to p is p: none of its match keys is an exploited-list name of another
+// catalogue product (a person who picked the list's "Microsoft" "Edge and Internet Explorer" row named that list entry).
+func personNamed(keys []string, p productid.Product) bool {
+	for _, k := range keys {
+		if q, ok := productid.ByKEV(k); ok && q.Key != p.Key {
+			return false
+		}
+	}
+	return true
+}
+
+// matchKeys are the exploited-list keys a line is matched by: the catalogue's keys of its product and its other names (an exploited
+// list may name it so: "Synology" "DiskStation Manager (DSM)"), else its own key. A guess has none: it raises no finding until a
+// person adds the software with its version.
 func matchKeys(productKey string, guess bool) []string {
 	if guess {
 		return []string{}
 	}
 	if p, ok := productid.ByKey(productKey); ok && len(p.KEV) > 0 {
 		out := slices.Clone(p.KEV)
-		if !slices.Contains(out, productKey) {
-			out = append(out, productKey)
+		for _, k := range append(slices.Clone(p.Also), productKey) {
+			if k = productid.NormalizeKey(k); !slices.Contains(out, k) {
+				out = append(out, k)
+			}
 		}
 		return out
 	}

@@ -2,7 +2,7 @@
  "search": [
   {
    "q": "",
-   "total": 885,
+   "total": 646,
    "items": [
     {
      "id": "fortigate",
@@ -287,7 +287,7 @@
   },
   {
    "q": "forti",
-   "total": 13,
+   "total": 3,
    "items": [
     {
      "id": "fortigate",
@@ -316,76 +316,6 @@
       "fortinet|fortimanager",
       "fortinet|fortisandbox",
       "fortinet|forticlient ems"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortios",
-     "kev_count": 9,
-     "kev": [
-      "fortinet|fortios"
-     ]
-    },
-    {
-     "id": "kev:fortinet:multiple-products",
-     "kev_count": 7,
-     "kev": [
-      "fortinet|multiple products"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortios-and-fortiproxy",
-     "kev_count": 4,
-     "kev": [
-      "fortinet|fortios and fortiproxy"
-     ]
-    },
-    {
-     "id": "kev:fortinet:forticlient-ems",
-     "kev_count": 3,
-     "kev": [
-      "fortinet|forticlient ems"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortiweb",
-     "kev_count": 3,
-     "kev": [
-      "fortinet|fortiweb"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortisandbox",
-     "kev_count": 2,
-     "kev": [
-      "fortinet|fortisandbox"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortimail",
-     "kev_count": 1,
-     "kev": [
-      "fortinet|fortimail"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortimanager",
-     "kev_count": 1,
-     "kev": [
-      "fortinet|fortimanager"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortios-and-fortiadc",
-     "kev_count": 1,
-     "kev": [
-      "fortinet|fortios and fortiadc"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortios-and-fortiproxy-ssl-vpn",
-     "kev_count": 1,
-     "kev": [
-      "fortinet|fortios and fortiproxy ssl-vpn"
      ]
     }
    ]
@@ -548,7 +478,7 @@
   },
   {
    "q": "cisco asa",
-   "total": 5,
+   "total": 1,
    "items": [
     {
      "id": "cisco-asa-firepower-ftd",
@@ -561,40 +491,12 @@
       "cisco|secure firewall adaptive security appliance and secure firewall threat defense",
       "cisco|secure firewall asa software and cisco secure ftd software"
      ]
-    },
-    {
-     "id": "kev:cisco:adaptive-security-appliance-asa-and-firepower-threat-defense-ftd",
-     "kev_count": 6,
-     "kev": [
-      "cisco|adaptive security appliance (asa) and firepower threat defense (ftd)"
-     ]
-    },
-    {
-     "id": "kev:cisco:adaptive-security-appliance-asa",
-     "kev_count": 4,
-     "kev": [
-      "cisco|adaptive security appliance (asa)"
-     ]
-    },
-    {
-     "id": "kev:cisco:secure-firewall-adaptive-security-appliance-asa-and-secure-firewall-threat-defense-ftd",
-     "kev_count": 1,
-     "kev": [
-      "cisco|secure firewall adaptive security appliance (asa) and secure firewall threat defense (ftd)"
-     ]
-    },
-    {
-     "id": "kev:cisco:secure-firewall-asa-software-and-cisco-secure-ftd-software",
-     "kev_count": 1,
-     "kev": [
-      "cisco|secure firewall asa software and cisco secure ftd software"
-     ]
     }
    ]
   },
   {
    "q": "wordpress",
-   "total": 8,
+   "total": 6,
    "items": [
     {
      "id": "wordpress",
@@ -602,13 +504,6 @@
      "kev": [
       "wordpress|core",
       "wordpress|wordpress core"
-     ]
-    },
-    {
-     "id": "kev:wordpress:core",
-     "kev_count": 3,
-     "kev": [
-      "wordpress|core"
      ]
     },
     {
@@ -633,13 +528,6 @@
      ]
     },
     {
-     "id": "kev:wordpress:wordpress-core",
-     "kev_count": 1,
-     "kev": [
-      "wordpress|wordpress core"
-     ]
-    },
-    {
      "id": "kev:webpros:cpanel-whm-and-wp2-wordpress-squared",
      "kev_count": 1,
      "kev": [
@@ -657,7 +545,7 @@
   },
   {
    "q": "office",
-   "total": 11,
+   "total": 8,
    "items": [
     {
      "id": "microsoft-office-desktop",
@@ -670,31 +558,10 @@
      ]
     },
     {
-     "id": "kev:microsoft:office",
-     "kev_count": 29,
-     "kev": [
-      "microsoft|office"
-     ]
-    },
-    {
      "id": "kev:kingsoft:wps-office",
      "kev_count": 1,
      "kev": [
       "kingsoft|wps office"
-     ]
-    },
-    {
-     "id": "kev:microsoft:office-and-wordpad",
-     "kev_count": 1,
-     "kev": [
-      "microsoft|office and wordpad"
-     ]
-    },
-    {
-     "id": "kev:microsoft:office-outlook",
-     "kev_count": 1,
-     "kev": [
-      "microsoft|office outlook"
      ]
     },
     {
@@ -743,7 +610,7 @@
   },
   {
    "q": "qnap",
-   "total": 9,
+   "total": 4,
    "items": [
     {
      "id": "qnap-nas-qts-quts-hero",
@@ -769,41 +636,6 @@
      ]
     },
     {
-     "id": "kev:qnap:network-attached-storage-nas",
-     "kev_count": 4,
-     "kev": [
-      "qnap|network attached storage (nas)"
-     ]
-    },
-    {
-     "id": "kev:qnap:photo-station",
-     "kev_count": 4,
-     "kev": [
-      "qnap|photo station"
-     ]
-    },
-    {
-     "id": "kev:qnap:qnap-network-attached-storage-nas",
-     "kev_count": 1,
-     "kev": [
-      "qnap|qnap network-attached storage (nas)"
-     ]
-    },
-    {
-     "id": "kev:qnap:qts",
-     "kev_count": 1,
-     "kev": [
-      "qnap|qts"
-     ]
-    },
-    {
-     "id": "kev:qnap:viostor-nvr",
-     "kev_count": 1,
-     "kev": [
-      "qnap|viostor nvr"
-     ]
-    },
-    {
      "id": "kev:qnap-systems:helpdesk",
      "kev_count": 1,
      "kev": [
@@ -819,7 +651,7 @@
   },
   {
    "q": "microsoft",
-   "total": 90,
+   "total": 62,
    "items": [
     {
      "id": "kev:microsoft:microsoft",
@@ -898,24 +730,13 @@
      ]
     },
     {
-     "id": "kev:microsoft:windows",
-     "kev_count": 175,
+     "id": "microsoft-build-of-openjdk",
+     "kev_count": 13,
      "kev": [
-      "microsoft|windows"
-     ]
-    },
-    {
-     "id": "kev:microsoft:internet-explorer",
-     "kev_count": 36,
-     "kev": [
-      "microsoft|internet explorer"
-     ]
-    },
-    {
-     "id": "kev:microsoft:office",
-     "kev_count": 29,
-     "kev": [
-      "microsoft|office"
+      "oracle|java runtime environment (jre)",
+      "oracle|java se",
+      "oracle|java se and jrockit",
+      "oracle|java se jdk and jre"
      ]
     },
     {
@@ -926,39 +747,11 @@
      ]
     },
     {
-     "id": "kev:microsoft:exchange-server",
-     "kev_count": 17,
-     "kev": [
-      "microsoft|exchange server"
-     ]
-    },
-    {
      "id": "microsoft-defender-antivirus",
      "kev_count": 6,
      "kev": [
       "microsoft|defender",
       "microsoft|malware protection engine"
-     ]
-    },
-    {
-     "id": "kev:microsoft:sharepoint",
-     "kev_count": 10,
-     "kev": [
-      "microsoft|sharepoint"
-     ]
-    },
-    {
-     "id": "kev:microsoft:defender",
-     "kev_count": 5,
-     "kev": [
-      "microsoft|defender"
-     ]
-    },
-    {
-     "id": "kev:microsoft:sharepoint-server",
-     "kev_count": 5,
-     "kev": [
-      "microsoft|sharepoint server"
      ]
     },
     {
@@ -983,20 +776,6 @@
      ]
     },
     {
-     "id": "kev:microsoft:active-directory",
-     "kev_count": 3,
-     "kev": [
-      "microsoft|active directory"
-     ]
-    },
-    {
-     "id": "kev:microsoft:excel",
-     "kev_count": 3,
-     "kev": [
-      "microsoft|excel"
-     ]
-    },
-    {
      "id": "kev:microsoft:silverlight",
      "kev_count": 3,
      "kev": [
@@ -1008,20 +787,6 @@
      "kev_count": 2,
      "kev": [
       "microsoft|directx graphics kernel (dxgkrnl)"
-     ]
-    },
-    {
-     "id": "kev:microsoft:edge",
-     "kev_count": 2,
-     "kev": [
-      "microsoft|edge"
-     ]
-    },
-    {
-     "id": "kev:microsoft:edge-and-internet-explorer",
-     "kev_count": 2,
-     "kev": [
-      "microsoft|edge and internet explorer"
      ]
     },
     {
@@ -1044,12 +809,82 @@
      "kev": [
       "microsoft|mshtml"
      ]
+    },
+    {
+     "id": "kev:microsoft:powerpoint",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|powerpoint"
+     ]
+    },
+    {
+     "id": "kev:microsoft:smbv1",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|smbv1"
+     ]
+    },
+    {
+     "id": "kev:microsoft:smbv1-server",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|smbv1 server"
+     ]
+    },
+    {
+     "id": "kev:microsoft:xml-core-services",
+     "kev_count": 2,
+     "kev": [
+      "microsoft|xml core services"
+     ]
+    },
+    {
+     "id": "kev:microsoft:net-core-and-visual-studio",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|.net core and visual studio"
+     ]
+    },
+    {
+     "id": "kev:microsoft:active-directory-federation-services",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|active directory federation services"
+     ]
+    },
+    {
+     "id": "kev:microsoft:ancillary-function-driver-afd-sys",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|ancillary function driver (afd.sys)"
+     ]
+    },
+    {
+     "id": "kev:microsoft:atm-font-driver",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|atm font driver"
+     ]
+    },
+    {
+     "id": "kev:microsoft:client-server-run-time-subsystem-csrss",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|client-server run-time subsystem (csrss)"
+     ]
+    },
+    {
+     "id": "kev:microsoft:configuration-manager",
+     "kev_count": 1,
+     "kev": [
+      "microsoft|configuration manager"
+     ]
     }
    ]
   },
   {
    "q": "apache",
-   "total": 24,
+   "total": 19,
    "items": [
     {
      "id": "kev:apache:apache",
@@ -1082,27 +917,6 @@
      ]
     },
     {
-     "id": "kev:apache:struts",
-     "kev_count": 6,
-     "kev": [
-      "apache|struts"
-     ]
-    },
-    {
-     "id": "kev:apache:tomcat",
-     "kev_count": 6,
-     "kev": [
-      "apache|tomcat"
-     ]
-    },
-    {
-     "id": "kev:apache:http-server",
-     "kev_count": 4,
-     "kev": [
-      "apache|http server"
-     ]
-    },
-    {
      "id": "kev:apache:activemq",
      "kev_count": 3,
      "kev": [
@@ -1128,13 +942,6 @@
      "kev_count": 2,
      "kev": [
       "apache|solr"
-     ]
-    },
-    {
-     "id": "kev:apache:struts-1",
-     "kev_count": 2,
-     "kev": [
-      "apache|struts 1"
      ]
     },
     {
@@ -1208,13 +1015,6 @@
      ]
     },
     {
-     "id": "kev:apache:struts-2",
-     "kev_count": 1,
-     "kev": [
-      "apache|struts 2"
-     ]
-    },
-    {
      "id": "kev:apache:superset",
      "kev_count": 1,
      "kev": [
@@ -1225,7 +1025,7 @@
   },
   {
    "q": "hikvision",
-   "total": 3,
+   "total": 1,
    "items": [
     {
      "id": "hikvision-camera-nvr",
@@ -1234,26 +1034,12 @@
       "hikvision|multiple products",
       "hikvision|security cameras web server"
      ]
-    },
-    {
-     "id": "kev:hikvision:multiple-products",
-     "kev_count": 1,
-     "kev": [
-      "hikvision|multiple products"
-     ]
-    },
-    {
-     "id": "kev:hikvision:security-cameras-web-server",
-     "kev_count": 1,
-     "kev": [
-      "hikvision|security cameras web server"
-     ]
     }
    ]
   },
   {
    "q": "camera",
-   "total": 17,
+   "total": 15,
    "items": [
     {
      "id": "d-link-router-nas-or-camera",
@@ -1341,13 +1127,6 @@
      ]
     },
     {
-     "id": "kev:dahua:ip-camera-firmware",
-     "kev_count": 2,
-     "kev": [
-      "dahua|ip camera firmware"
-     ]
-    },
-    {
      "id": "kev:edimax:ic-7100-ip-camera",
      "kev_count": 1,
      "kev": [
@@ -1376,13 +1155,6 @@
      ]
     },
     {
-     "id": "kev:hikvision:security-cameras-web-server",
-     "kev_count": 1,
-     "kev": [
-      "hikvision|security cameras web server"
-     ]
-    },
-    {
      "id": "kev:reolink:multiple-ip-cameras",
      "kev_count": 1,
      "kev": [
@@ -1400,7 +1172,7 @@
   },
   {
    "q": "nas",
-   "total": 14,
+   "total": 10,
    "items": [
     {
      "id": "d-link-router-nas-or-camera",
@@ -1482,38 +1254,10 @@
      ]
     },
     {
-     "id": "kev:qnap:network-attached-storage-nas",
-     "kev_count": 4,
-     "kev": [
-      "qnap|network attached storage (nas)"
-     ]
-    },
-    {
-     "id": "kev:d-link:multiple-nas-devices",
-     "kev_count": 2,
-     "kev": [
-      "d-link|multiple nas devices"
-     ]
-    },
-    {
-     "id": "kev:zyxel:multiple-network-attached-storage-nas-devices",
-     "kev_count": 2,
-     "kev": [
-      "zyxel|multiple network-attached storage (nas) devices"
-     ]
-    },
-    {
      "id": "kev:lg:n1a1-nas",
      "kev_count": 1,
      "kev": [
       "lg|n1a1 nas"
-     ]
-    },
-    {
-     "id": "kev:qnap:qnap-network-attached-storage-nas",
-     "kev_count": 1,
-     "kev": [
-      "qnap|qnap network-attached storage (nas)"
      ]
     },
     {
@@ -1527,7 +1271,7 @@
   },
   {
    "q": "vpn",
-   "total": 16,
+   "total": 13,
    "items": [
     {
      "id": "ivanti-connect-secure-pulse-secure-vpn",
@@ -1607,24 +1351,10 @@
      ]
     },
     {
-     "id": "kev:cisco:small-business-rv320-and-rv325-dual-gigabit-wan-vpn-routers",
-     "kev_count": 1,
-     "kev": [
-      "cisco|small business rv320 and rv325 dual gigabit wan vpn routers"
-     ]
-    },
-    {
      "id": "kev:cisco:vpn-routers",
      "kev_count": 1,
      "kev": [
       "cisco|vpn routers"
-     ]
-    },
-    {
-     "id": "kev:fortinet:fortios-and-fortiproxy-ssl-vpn",
-     "kev_count": 1,
-     "kev": [
-      "fortinet|fortios and fortiproxy ssl-vpn"
      ]
     },
     {
@@ -1659,19 +1389,12 @@
      "kev": [
       "fatpipe|warp, ipvpn, and mpvpn software"
      ]
-    },
-    {
-     "id": "kev:sonicwall:sslvpn-sma100",
-     "kev_count": 1,
-     "kev": [
-      "sonicwall|sslvpn sma100"
-     ]
     }
    ]
   },
   {
    "q": "ivanti",
-   "total": 16,
+   "total": 10,
    "items": [
     {
      "id": "ivanti-connect-secure-pulse-secure-vpn",
@@ -1694,13 +1417,6 @@
      ]
     },
     {
-     "id": "kev:ivanti:pulse-connect-secure",
-     "kev_count": 7,
-     "kev": [
-      "ivanti|pulse connect secure"
-     ]
-    },
-    {
      "id": "kev:ivanti:endpoint-manager-epm",
      "kev_count": 5,
      "kev": [
@@ -1715,27 +1431,6 @@
      ]
     },
     {
-     "id": "kev:ivanti:connect-secure",
-     "kev_count": 3,
-     "kev": [
-      "ivanti|connect secure"
-     ]
-    },
-    {
-     "id": "kev:ivanti:connect-secure-and-policy-secure",
-     "kev_count": 2,
-     "kev": [
-      "ivanti|connect secure and policy secure"
-     ]
-    },
-    {
-     "id": "kev:ivanti:connect-secure-policy-secure-and-zta-gateways",
-     "kev_count": 2,
-     "kev": [
-      "ivanti|connect secure, policy secure, and zta gateways"
-     ]
-    },
-    {
      "id": "kev:ivanti:sentry",
      "kev_count": 2,
      "kev": [
@@ -1747,13 +1442,6 @@
      "kev_count": 1,
      "kev": [
       "ivanti|cloud services appliance"
-     ]
-    },
-    {
-     "id": "kev:ivanti:connect-secure-policy-secure-and-neurons",
-     "kev_count": 1,
-     "kev": [
-      "ivanti|connect secure, policy secure, and neurons"
      ]
     },
     {
@@ -1778,13 +1466,6 @@
      ]
     },
     {
-     "id": "kev:ivanti:pulse-connect-secure-and-pulse-policy-secure",
-     "kev_count": 1,
-     "kev": [
-      "ivanti|pulse connect secure and pulse policy secure"
-     ]
-    },
-    {
      "id": "kev:ivanti:virtual-traffic-manager",
      "kev_count": 1,
      "kev": [
@@ -1795,7 +1476,7 @@
   },
   {
    "q": "sophos",
-   "total": 7,
+   "total": 3,
    "items": [
     {
      "id": "sophos-xg-xgs-firewall",
@@ -1805,27 +1486,6 @@
       "sophos|xg firewall",
       "sophos|firewall",
       "sophos|cyberoamos"
-     ]
-    },
-    {
-     "id": "kev:sophos:firewall",
-     "kev_count": 2,
-     "kev": [
-      "sophos|firewall"
-     ]
-    },
-    {
-     "id": "kev:sophos:cyberoamos",
-     "kev_count": 1,
-     "kev": [
-      "sophos|cyberoamos"
-     ]
-    },
-    {
-     "id": "kev:sophos:sfos",
-     "kev_count": 1,
-     "kev": [
-      "sophos|sfos"
      ]
     },
     {
@@ -1840,13 +1500,6 @@
      "kev_count": 1,
      "kev": [
       "sophos|web appliance"
-     ]
-    },
-    {
-     "id": "kev:sophos:xg-firewall",
-     "kev_count": 1,
-     "kev": [
-      "sophos|xg firewall"
      ]
     }
    ]
@@ -1928,7 +1581,7 @@
   },
   {
    "q": "a",
-   "total": 359,
+   "total": 268,
    "items": [
     {
      "id": "aruba-hpe-procurve-switch",
@@ -1989,6 +1642,26 @@
      ]
     },
     {
+     "id": "amazon-corretto-openjdk",
+     "kev_count": 13,
+     "kev": [
+      "oracle|java runtime environment (jre)",
+      "oracle|java se",
+      "oracle|java se and jrockit",
+      "oracle|java se jdk and jre"
+     ]
+    },
+    {
+     "id": "azul-zulu-openjdk",
+     "kev_count": 13,
+     "kev": [
+      "oracle|java runtime environment (jre)",
+      "oracle|java se",
+      "oracle|java se and jrockit",
+      "oracle|java se jdk and jre"
+     ]
+    },
+    {
      "id": "atlassian-jira",
      "kev_count": 2,
      "kev": [
@@ -2025,17 +1698,17 @@
      ]
     },
     {
-     "id": "axis-camera",
-     "kev_count": 0,
-     "kev": [
-      "axis|network camera"
-     ]
-    },
-    {
      "id": "kev:adobe:flash-player",
      "kev_count": 33,
      "kev": [
       "adobe|flash player"
+     ]
+    },
+    {
+     "id": "axis-camera",
+     "kev_count": 0,
+     "kev": [
+      "axis|network camera"
      ]
     },
     {
@@ -2064,66 +1737,10 @@
      ]
     },
     {
-     "id": "kev:adobe:coldfusion",
-     "kev_count": 16,
-     "kev": [
-      "adobe|coldfusion"
-     ]
-    },
-    {
-     "id": "kev:adobe:acrobat-and-reader",
-     "kev_count": 13,
-     "kev": [
-      "adobe|acrobat and reader"
-     ]
-    },
-    {
-     "id": "kev:apple:ios-ipados-and-macos",
-     "kev_count": 11,
-     "kev": [
-      "apple|ios, ipados, and macos"
-     ]
-    },
-    {
-     "id": "kev:adobe:reader-and-acrobat",
-     "kev_count": 8,
-     "kev": [
-      "adobe|reader and acrobat"
-     ]
-    },
-    {
-     "id": "kev:apple:ios",
-     "kev_count": 8,
-     "kev": [
-      "apple|ios"
-     ]
-    },
-    {
      "id": "kev:android:framework",
      "kev_count": 6,
      "kev": [
       "android|framework"
-     ]
-    },
-    {
-     "id": "kev:apache:struts",
-     "kev_count": 6,
-     "kev": [
-      "apache|struts"
-     ]
-    },
-    {
-     "id": "kev:apache:tomcat",
-     "kev_count": 6,
-     "kev": [
-      "apache|tomcat"
-     ]
-    },
-    {
-     "id": "kev:apple:macos",
-     "kev_count": 6,
-     "kev": [
-      "apple|macos"
      ]
     },
     {
@@ -2134,13 +1751,6 @@
      ]
     },
     {
-     "id": "kev:apple:ios-and-ipados",
-     "kev_count": 5,
-     "kev": [
-      "apple|ios and ipados"
-     ]
-    },
-    {
      "id": "kev:accellion:fta",
      "kev_count": 4,
      "kev": [
@@ -2148,11 +1758,59 @@
      ]
     },
     {
-     "id": "kev:adobe:commerce-and-magento",
+     "id": "kev:android:pixel",
      "kev_count": 4,
      "kev": [
-      "adobe|commerce and magento",
-      "adobe|commerce and magento"
+      "android|pixel"
+     ]
+    },
+    {
+     "id": "kev:android:kernel",
+     "kev_count": 3,
+     "kev": [
+      "android|kernel"
+     ]
+    },
+    {
+     "id": "kev:apache:activemq",
+     "kev_count": 3,
+     "kev": [
+      "apache|activemq"
+     ]
+    },
+    {
+     "id": "kev:apache:ofbiz",
+     "kev_count": 3,
+     "kev": [
+      "apache|ofbiz"
+     ]
+    },
+    {
+     "id": "kev:arista:velocloud-orchestrator",
+     "kev_count": 3,
+     "kev": [
+      "arista|velocloud orchestrator"
+     ]
+    },
+    {
+     "id": "kev:adobe:flash-player-and-air",
+     "kev_count": 2,
+     "kev": [
+      "adobe|flash player and air"
+     ]
+    },
+    {
+     "id": "kev:advantive:veracore",
+     "kev_count": 2,
+     "kev": [
+      "advantive|veracore"
+     ]
+    },
+    {
+     "id": "kev:ahsay:ahsaycbs",
+     "kev_count": 2,
+     "kev": [
+      "ahsay|ahsaycbs"
      ]
     }
    ]
@@ -2190,7 +1848,7 @@
   },
   {
    "text": "kev:fortinet:fortios",
-   "id": "kev:fortinet:fortios"
+   "id": null
   },
   {
    "text": "nothing like this",

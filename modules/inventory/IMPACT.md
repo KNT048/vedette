@@ -21,7 +21,8 @@ What else to check when you change part of this module. Signatures and behaviour
 | `AddManualDevice`, `Settle`, `DevicesRunning` | feeds "I have this" and the hot table (`cmd/vedette/wiring.go`). |
 | `SetupScope` | core's first-run setup (`modules/core/handlers_setup.go`). |
 | Device kinds (`content/devicetypes/types.json`, `rules.json`) | fragility, scanning templates, the kind picker in the web UI. |
-| Catalogue (`content/catalog/curated.json`, `kev-products.json`, `Catalog.Curated`) | the Add software picker, the reach audit (`cmd/vedette/reach.go`). |
+| Catalogue (`content/catalog/curated.json`, `kev-products.json`, `Catalog.Curated`, `custom`) | the Add software picker (a KEV pair a curated product covers is that product's entry; a typed product is never every product of its vendor), the reach audit (`cmd/vedette/reach.go`), `web/src/features/inventory/catalog.ts` and `content/catalog/search-golden.json`. |
+| The stored version form (`statedRelease`: Debian "+really", `core/versionscheme` `Stated`) | what every reader compares (findings' generic comparison and version schemes, the fix lines); the catalogue pass (a changed form moves stored readings). |
 | Event names or payloads (`types.go`) | the subscribers listed in `CONTRACT.md` (notify, scan, sensor-active, findings, feeds). |
 | A table or column (`migrations/sqlite/`: a new numbered file, never an edit of an applied one) | `make schema` (`docs/SCHEMA.sql`), the export policy (`modules/core/export_policy.go`), the schema allow-lists (`cmd/vedette/schema_rules_test.go`). |
 

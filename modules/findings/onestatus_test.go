@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -230,5 +231,54 @@ func TestReconcile_ADistroProofSaysWhyItClosed(t *testing.T) {
 	}
 	if got := proofReason(ViaVersionMoved, proof); got != "" {
 		t.Errorf("a version move took a proof's note: %q", got)
+	}
+}
+
+// Two software lines of one product with one CVE each close with their own line's proof: the closing note of one line never says
+// the other line's package release. The matcher hands the proof of every line, and the reconcile keys them by CVE and line.
+func TestReconcile_EachLineClosesWithItsOwnProof(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+	pkg := func(id, full string) Software {
+		return Software{ID: id, Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"},
+			Source: "agent", Packaged: true, PkgVersion: full, PkgSource: "openssh"}
+	}
+	v := Vuln{CVE: "CVE-2026-10001", Vendor: "OpenBSD", Product: "OpenSSH",
+		Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6p2"}}},
+		Distro:   []DistroFix{{Distro: "ubuntu", Release: "24.04", Package: "openssh", Status: "fixed", Fixed: "1:9.6p1-3ubuntu13.5"}}}
+	r := MatchAsset(Asset{ID: "a", Name: "web-01", OS: "Ubuntu 24.04.1 LTS", Software: []Software{pkg("s-a", "1:9.6p1-3ubuntu13.5"), pkg("s-b", "1:9.6p1-3ubuntu13.14")}},
+		[]Vuln{v}, map[string]bool{v.CVE: true}, now)
+	if len(r.NotAffected) != 1 || len(r.NotAffected[0].each) != 2 {
+		t.Fatalf("not affected %+v, want one proof per line", r.NotAffected)
+	}
+	for _, p := range r.NotAffected[0].each {
+		want := map[string]string{"s-a": "this device has 1:9.6p1-3ubuntu13.5 ", "s-b": "this device has 1:9.6p1-3ubuntu13.14 "}[p.SoftwareID]
+		if want == "" || !strings.Contains(p.Evidence.Summary, want) {
+			t.Errorf("proof of %s: %q, want it to say %q", p.SoftwareID, p.Evidence.Summary, want)
+		}
+	}
+
+	e := newEnv(t)
+	swA := Software{ID: "s-a", Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", Source: "agent", SeenAt: t0}
+	swB := Software{ID: "s-b", Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", Source: "agent", SeenAt: t0}
+	a := Asset{ID: "a-1", Name: "host-1", Software: []Software{swA, swB}}
+	e.matchPass(t, a, MatchResult{New: []Match{versionMatch(swA), versionMatch(swB)}})
+	proof := func(id, has string) Match {
+		return Match{CVE: "CVE-2026-1001", SoftwareID: id, Evidence: Evidence{CheckedAt: t0, Summary: "Not affected: Ubuntu 24.04 fixed CVE-2026-1001 in openssh 1:9.6p1-3ubuntu13.5, and this device has " +
+			has + " (Ubuntu security data). Vedette closed this by itself and reopens it if a later match says the device is affected."}}
+	}
+	pa, pb := proof("s-a", "1:9.6p1-3ubuntu13.5"), proof("s-b", "1:9.6p1-3ubuntu13.14")
+	carried := pa
+	carried.each = []Match{pa, pb}
+	e.matchPass(t, a, MatchResult{NotAffected: []Match{carried}})
+	fs, err := e.svc.Findings(t.Context(), "a-1")
+	if err != nil || len(fs) != 2 {
+		t.Fatalf("findings %+v %v", fs, err)
+	}
+	for _, f := range fs {
+		want := map[string]string{"s-a": "and this device has 1:9.6p1-3ubuntu13.5 (", "s-b": "and this device has 1:9.6p1-3ubuntu13.14 ("}[f.SoftwareID]
+		if f.State != StateHandled || !strings.Contains(f.Note, want) {
+			t.Errorf("%s: state %s, note %q, want its own line's %q", f.SoftwareID, f.State, f.Note, want)
+		}
 	}
 }

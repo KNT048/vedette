@@ -87,10 +87,17 @@ const KIND_HINT: [RegExp, K][] = [
   [/printer|mfp|laserjet/i, 'printer'], [/wordpress|joomla|drupal|cms|plugin|wiki|webmail|\bphp\b|struts|laravel|magento/i, 'web'],
   [/windows|macos|ios|chrome|firefox|office|reader|acrobat|winrar|7-zip|desktop|client/i, 'pc'], [/phone|mobile|android|\biot\b/i, 'iot'],
 ]
+// An exploited-list name a curated product already covers (its kev keys) is that product: one entry, not a second one a person cannot
+// tell apart ("Synology NAS (DSM)" and "Synology DiskStation Manager (DSM)"); the list's id still finds it (findById).
+const coveredBy = new Map<string, CatalogEntry>()
+for (const e of curated) for (const k of e.kev) if (!coveredBy.has(k)) coveredBy.set(k, e)
+const folded = new Map<string, CatalogEntry>()
 const autoById = new Map<string, CatalogEntry>()
 for (const [i, r] of KEV.entries()) {
   const key = kevKey(r)
   const id = `kev:${slug(r.vendor)}:${slug(r.product)}`
+  const owner = coveredBy.get(key)
+  if (owner) { if (!folded.has(id)) folded.set(id, owner); continue }
   const dup = autoById.get(id)
   // Two KEV rows that differ only in an odd space (for example "Commerce and Magento") are the same product: one entry, keeping both match keys.
   if (dup) { dup.kev.push(key); dup.kev_count += r.kev_count; continue }
@@ -104,7 +111,7 @@ for (const [i, r] of KEV.entries()) {
 const auto = [...autoById.values()]
 
 export const CATALOG: CatalogEntry[] = [...curated, ...auto]
-export const findById = (id: string | undefined) => (id ? CATALOG.find((e) => e.id === id) : undefined)
+export const findById = (id: string | undefined) => (id ? CATALOG.find((e) => e.id === id) ?? folded.get(id) : undefined)
 
 const HAY = new Map(CATALOG.map((e) => [e.id, {
   name: fold(e.display), vendor: fold(e.vendor), product: fold(e.product), cat: fold(e.category), al: e.aliases.map(fold),
@@ -165,13 +172,15 @@ export function findCatalog(text: string): CatalogEntry | undefined {
   return hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined
 }
 
-/** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, otherwise every product of the vendor. */
+/** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, else the curated product of that name, else
+ * its own key. Never every product of the vendor: a product nobody listed is not "exploited". */
 export function customEntry(vendor: string, product: string): CatalogEntry {
   const v = fold(vendor)
   const p = fold(product)
   const exact = KEV.filter((r) => fold(r.vendor) === v && fold(r.product) === p).map(kevKey)
-  const byVendor = KEV.filter((r) => fold(r.vendor) === v).map(kevKey)
-  const kev = exact.length ? exact : byVendor.length ? byVendor : [`${vendor}|${product}`.toLowerCase()]
+  const byName = findCatalog(product)
+  const named = curated.find((e) => fold(e.vendor) === v && fold(e.product) === p) ?? (byName?.curated && fold(byName.vendor) === v ? byName : undefined)
+  const kev = exact.length ? exact : named ? [...named.kev] : [`${vendor}|${product}`.toLowerCase()]
   return {
     id: '', display: `${vendor} ${product}`.trim(), category: OTHER, hint: `${vendor}, ${product}`, vendor, product, kind: 'unknown', kev, aliases: [],
     version_hint: '', kev_count: sumKev(kev), curated: false, order: 9999,

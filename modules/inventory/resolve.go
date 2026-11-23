@@ -14,9 +14,11 @@ import (
 // selfcheck and the tests recompute it and compare.
 //
 // The rules, in order:
-//  1. A person's entry (source manual) is the line until a reading first seen after the entry was set reads a newer release; then
-//     the entry lapses: it is deleted and the history says so. A reading that is older, the same release, or one that was already
-//     there when the person set the entry never lapses it, nor does a pair of versions that cannot be ordered.
+//  1. A person's entry (source manual) is the line until a reading first seen after the entry was set reads a newer release, or an
+//     agent reports a newer release after it (the agent reads the package database: what it reports now is installed now, as the
+//     version dialog promises); then the entry lapses: it is deleted and the history says so. A reading that is older, the same
+//     release, or another source's that was already there when the person set the entry never lapses it (a banner the person
+//     corrected says the same again at every scan), nor does a pair of versions that cannot be ordered.
 //  2. While the entry holds, an agent that reads the very release the person gave (with more or less detail, core/pkgrel) confirms
 //     it: the agent's reading is the line's value, with the package release and the packaged flag the agent read. Any other source
 //     that agrees leaves the person's value as it is.
@@ -148,7 +150,8 @@ func Resolve(line LineState, readings []Reading) Resolution {
 		var by *Reading
 		for i := range rs {
 			r := &rs[i]
-			if r.entry() || r.guess() || r.FirstSeen <= entry.FirstSeen || !newerRelease(r.Version, r.PkgVersion, entry.Version, entry.PkgVersion) {
+			after := r.FirstSeen > entry.FirstSeen || agentSource(r.Source) && r.SeenAt > entry.FirstSeen
+			if r.entry() || r.guess() || !after || !newerRelease(r.Version, r.PkgVersion, entry.Version, entry.PkgVersion) {
 				continue
 			}
 			if by == nil || newerRelease(r.Version, r.PkgVersion, by.Version, by.PkgVersion) {

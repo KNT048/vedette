@@ -269,6 +269,7 @@ var operationRolesSession = map[string][]string{
 	InventoryPostInventoryAgentsTokensRemoveUnusedOperation:  []string{},
 	InventoryPostInventoryAgentsWazuhSampleDataOperation:     []string{},
 	InventoryPostInventoryAgentsWazuhTestOperation:           []string{},
+	InventoryPostInventoryBoxCheckOperation:                  []string{},
 	InventoryPostInventoryDevicesOperation:                   []string{},
 	InventoryPostInventoryDevicesIDApproveOperation:          []string{},
 	InventoryPostInventoryDevicesIDDiffersFieldKeepOperation: []string{},

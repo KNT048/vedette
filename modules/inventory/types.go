@@ -81,7 +81,8 @@ type AssetEvent struct {
 	// (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
 	// NoAddress is set on inventory.asset.discovered when the device has no IPv4 address when the write commits (a switch an LLDP
-	// frame named, a device added by hand without one): nothing can be sent to it, so no check of it is queued until it gets one.
+	// frame named, a device added by hand without one): nothing can be sent to it. It is published for the network-check side to
+	// skip such a device until it gets an address; the inventory itself queues nothing.
 	NoAddress bool `json:"no_address,omitempty"`
 }
 

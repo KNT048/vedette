@@ -32,7 +32,7 @@ const noHScroll = async (page: Page) => expect(await page.evaluate(() => documen
 /** All displayed text is English: no Vietnamese diacritics in the content. */
 const expectEnglishOnly = async (page: Page, label: string) => expect(await page.locator('body').innerText(), `${label}: Vietnamese text on the page`).not.toMatch(DIACRITICS)
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 })
-// the small "N devices, M not yet approved" line of the list's toolbar (the title is just "Devices")
+// the small "N devices, M not added yet" line of the list's toolbar (the title is just "Devices")
 const countLine = (page: Page) => page.getByText(/^\d+ devices?, /)
 const countOf = async (page: Page) => { await expect(countLine(page)).toHaveText(/^\d+ devices?,/); return Number((await countLine(page).innerText()).match(/^(\d+)/)![1]) }
 
@@ -255,14 +255,14 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await expect(page.getByRole('button', { name: /^Remove WordPress from the device$/ })).toHaveCount(0)
   })
 
-  test('not approved: approve, flag as unknown; removing a device with findings says so; Escape and Cancel keep it', async ({ page }) => {
+  test('not added yet: add, flag as unknown; removing a device with findings says so; Escape and Cancel keep it', async ({ page }) => {
     await page.goto('/devices?tab=review') // #849: devices found but not approved are the To review list
-    const pending = page.getByRole('list', { name: /new devices not approved/ })
+    const pending = page.getByRole('list', { name: /new devices not added yet/ })
     await expect(pending.getByRole('listitem')).toHaveCount(2)
     await pending.getByRole('button', { name: 'Mark unknown' }).first().click()
     await expect(pending.getByText('Marked unknown').first()).toBeVisible()
-    await pending.getByRole('button', { name: 'Approve' }).first().click()
-    await expect(countLine(page)).toContainText('1 not yet approved')
+    await pending.getByRole('button', { name: /^Add .+ to your devices$/ }).first().click()
+    await expect(countLine(page)).toContainText('1 not added yet')
     await page.goto('/devices/a-nas02')
     await page.getByRole('button', { name: 'Remove from list' }).click()
     const dlg = page.getByRole('dialog')

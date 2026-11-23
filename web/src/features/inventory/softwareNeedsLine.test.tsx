@@ -122,6 +122,8 @@ describe('Software tab: every line can be corrected', () => {
     await user.click(within(dlg).getByRole('button', { name: 'Save version' }))
     await waitFor(() => expect(patches).toContain('/api/v1/inventory/devices/a-fw01/software/s-fw01-ssh-agent'), T)
     server.events.removeAllListeners()
+    // the row shows the corrected version once saved, without a reload
+    await waitFor(async () => expect(within(await line('OpenSSH')).getByText('10.3p1')).toBeInTheDocument(), T)
   })
 
   it('a line that shows a person\'s correction says who set it and can be undone', async () => {

@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
@@ -89,6 +91,10 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 	return id, nil
 }
 
+// BoxEvery is how often the box reads its own packages and ports again (cmd/vedette's inventory job "box"); its agent row says when
+// the next read is from it.
+const BoxEvery = time.Hour
+
 // RefreshBoxPackages stores the packages installed on the box as its software (agent, confidence 1.0; INV-3). It
 // does nothing without a BoxPackages (a container-only install) or when it gives no list (nil: an older host that does not report the list): what
 // is stored stays. A failed read changes nothing either.
@@ -110,7 +116,40 @@ func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE is_box = 1`).Scan(&id); err != nil {
 		return fmt.Errorf("inventory: find the box: %w", err)
 	}
-	return s.UpsertSoftware(ctx, id, items, string(observe.Box))
+	if err := s.UpsertSoftware(ctx, id, items, string(observe.Box)); err != nil {
+		return err
+	}
+	s.boxRead.Store(s.clock().UnixMilli())
+	return nil
+}
+
+// CheckBox is a person's "Check now" on the box's own agent row (POST /inventory/box/check): the box reads its packages and the
+// ports it listens on now, as its hourly job does, and the page shows the result at once. 409 not_appliance on a container-only
+// install (it has no packages of its own to read); a read that fails is the error (502 box_read_failed), what is stored stays. One
+// audit row inventory.box_check. It returns the box's source rows.
+func (s *Service) CheckBox(ctx context.Context, actor string) (DeviceSourcesView, error) {
+	if s.box == nil {
+		return DeviceSourcesView{}, conflict("not_appliance", "This is a container-only install: the box has no packages of its own to read. Its software list comes from the host it runs on.")
+	}
+	var id, name string
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE is_box = 1`).Scan(&id); err != nil {
+		return DeviceSourcesView{}, fmt.Errorf("inventory: find the box: %w", err)
+	}
+	if err := errors.Join(s.RefreshBoxPackages(ctx), s.RefreshBoxServices(ctx)); err != nil {
+		s.log.WarnContext(ctx, "inventory: the box could not read its own packages or ports", "error", err.Error())
+		return DeviceSourcesView{}, apierr.New(502, "box_read_failed", "The box could not read its own packages just now. What it read last stays; it tries again at its next hourly read.")
+	}
+	name = deviceName(ctx, s.db.Reader(), id)
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_software WHERE asset_id = ? AND state = 'present'`, id).Scan(&n); err != nil {
+		return DeviceSourcesView{}, fmt.Errorf("inventory: read software: %w", err)
+	}
+	if err := s.write(ctx, func(tx *sql.Tx, _ *outbox) error {
+		return s.auditTx(ctx, tx, actor, "inventory.box_check", name, fmt.Sprintf("read its own packages and ports now: %d software lines", n))
+	}); err != nil {
+		return DeviceSourcesView{}, err
+	}
+	return s.DeviceSources(ctx, id)
 }
 
 // RefreshBoxServices stores the ports the box listens on from outside as its open services (source agent, confidence 1.0; INV-3,

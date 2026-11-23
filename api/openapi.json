@@ -60016,6 +60016,310 @@
         }
       }
     },
+    "/inventory/box/check": {
+      "post": {
+        "operationId": "inventory_post_inventory_box_check",
+        "summary": "The box's own agent reads the packages installed on the box and the ports it listens on now, as its hourly read does; answers the box's source rows. One audit row inventory.box_check. 409 not_appliance: a container-only install (no packages of its own). 502 box_read_failed: the read failed, what was read last stays",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1",
+          "S-INV-4"
+        ],
+        "x-min-role": "operator",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "scan",
+                              "snmp",
+                              "agent"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "module_off",
+                              "no_address",
+                              "off",
+                              "waiting",
+                              "working",
+                              "not_approved",
+                              "not_set_up",
+                              "not_answering",
+                              "none",
+                              "reporting",
+                              "quiet",
+                              "never_reported",
+                              "replaced",
+                              "unavailable",
+                              "box",
+                              "ignored"
+                            ],
+                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting = a token was made for this device and no agent reads it yet; off = a person turned the agent off for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
+                          },
+                          "dot": {
+                            "type": "string",
+                            "enum": [
+                              "green",
+                              "amber",
+                              "red",
+                              "grey"
+                            ],
+                            "description": "green: working or reporting; amber: quiet or never reported; red: SNMP not answering; grey: everything else (off, not set up, waiting, module off)"
+                          },
+                          "last_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When the source last read the device: the newest scan result (observation, open port, software banner); SNMP's last answer; the agent's last call (osquery) or its newest data (Wazuh, the box). null when never"
+                          },
+                          "switch": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "off"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box itself and an ignored device"
+                          },
+                          "action": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "turn_on_module",
+                                  "scan_now",
+                                  "approve",
+                                  "set_up",
+                                  "check_now",
+                                  "create_token",
+                                  "show_setup",
+                                  "check",
+                                  "box_check"
+                                ],
+                                "description": "The one button of the row. box_check: the box's own agent reads its packages and ports now (POST /inventory/box/check). turn_on_module: the module is off. scan_now: check the device now instead of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a token was made for this device and no agent reads it yet, or its agent enrolled and never reported: show the token (the row's token) and the install command again. check: the agent reported at least once: the troubleshooting steps"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null when the row offers no button"
+                          },
+                          "agent": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "osquery",
+                                  "wazuh",
+                                  "box",
+                                  "none"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Agent row: which agent of this box reads the device (box = the Vedette box itself, which reads its own packages); null on the other rows"
+                          },
+                          "next_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When the source reads the device next by itself: the box's own agent row (its hourly read of its packages and ports); null on the other rows and before the box's first read since it started"
+                          },
+                          "token": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "osquery"
+                                    ]
+                                  },
+                                  "last4": {
+                                    "type": "string"
+                                  },
+                                  "created_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "created_by": {
+                                    "description": "Who made it (null for a token made before this was kept)",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "last_received": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "hosts": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "expires_at": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "When it stops enrolling machines. null = never; default 7 days once a machine has enrolled; a token no machine enrolled with expires 24 hours after it was made. The token only enrolls osquery (it can read nothing) and can be revoked"
+                                  },
+                                  "device_id": {
+                                    "description": "The device it was made for (its agent row offers Show setup); null = any machine",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "kind",
+                                  "last4",
+                                  "created_at",
+                                  "created_by",
+                                  "last_received",
+                                  "hosts",
+                                  "expires_at",
+                                  "device_id"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Agent row: the token Show setup shows: the token its osquery agent enrolled with, else the newest token made for this device that still enrolls machines (the secret is never here: it is shown once, when the token is made); administrators only (the tokens list is theirs): null for the other roles, and on the other rows"
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "state",
+                          "dot",
+                          "last_at",
+                          "switch",
+                          "action",
+                          "agent",
+                          "next_at",
+                          "token"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Always three rows: scan, snmp, agent, in this order"
+                    },
+                    "only": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "passive",
+                            "manual"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "What feeds the device when none of the rows does: passive = only heard on the network (\"Seen passively\"), manual = only what a person entered (\"Added by hand\"); null otherwise"
+                    },
+                    "manual_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When a person last entered or changed something on the device (as DeviceDetail.manual_at)"
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "only",
+                    "manual_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/inventory/catalog": {
       "get": {
         "operationId": "inventory_get_inventory_catalog",
@@ -64782,9 +65086,10 @@
                                   "check_now",
                                   "create_token",
                                   "show_setup",
-                                  "check"
+                                  "check",
+                                  "box_check"
                                 ],
-                                "description": "The one button of the row. turn_on_module: the module is off. scan_now: check the device now instead of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a token was made for this device and no agent reads it yet, or its agent enrolled and never reported: show the token (the row's token) and the install command again. check: the agent reported at least once: the troubleshooting steps"
+                                "description": "The one button of the row. box_check: the box's own agent reads its packages and ports now (POST /inventory/box/check). turn_on_module: the module is off. scan_now: check the device now instead of at the next window. approve: approve the device (SNMP reads approved devices only). set_up: set up SNMP for this device (PUT /inventory/snmp/devices/{id}). check_now: SNMP Check now (POST /inventory/snmp/devices/{id}/check). create_token: no agent reads the device and no token was made for it: create an agent token for it (POST /inventory/agents/tokens with device_id). show_setup: a token was made for this device and no agent reads it yet, or its agent enrolled and never reported: show the token (the row's token) and the install command again. check: the agent reported at least once: the troubleshooting steps"
                               },
                               {
                                 "type": "null"
@@ -64808,6 +65113,19 @@
                               }
                             ],
                             "description": "Agent row: which agent of this box reads the device (box = the Vedette box itself, which reads its own packages); null on the other rows"
+                          },
+                          "next_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When the source reads the device next by itself: the box's own agent row (its hourly read of its packages and ports); null on the other rows and before the box's first read since it started"
                           },
                           "token": {
                             "anyOf": [
@@ -64908,6 +65226,7 @@
                           "switch",
                           "action",
                           "agent",
+                          "next_at",
                           "token"
                         ],
                         "additionalProperties": false

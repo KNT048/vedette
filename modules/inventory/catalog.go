@@ -448,27 +448,100 @@ func (c *Catalog) find(text string) *catEntry {
 	}
 	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND, "php"
 	// belongs to two vendors): the first (most popular) is taken only when they all have the same vendor, so the
-	// make is never a guess. A bare vendor name is taken only when the vendor has one curated product.
-	hits := aliasHits
-	if len(hits) == 0 {
-		hits = productHits
+	// make is never a guess. An alias several makers share is taken only when every product of it is the same exploited
+	// product ("jdk", "jre": every Java build is matched as Java), so a file's common word still finds its product; it is
+	// then read as a product name first ("openjdk" is the OpenJDK package). A word several makers use for different
+	// products ("iOS" is Apple's and Cisco's, "NAS" many makers' devices) is refused even when one product has that
+	// name, and so is a word for several makers' operating systems ("linux"). A bare vendor name is taken only when the vendor has one curated product.
+	if e := oneVendor(aliasHits); e != nil {
+		return e
 	}
-	if len(hits) == 0 && len(vendorHits) == 1 {
-		hits = vendorHits
+	if len(aliasHits) > 0 {
+		if !sameKEV(aliasHits) || osOfSeveralMakers(aliasHits) != nil {
+			return nil
+		}
+		if e := oneVendor(productHits); e != nil {
+			return e
+		}
+		return aliasHits[0]
+	}
+	if e := oneVendor(productHits); e != nil {
+		return e
+	}
+	if len(productHits) == 0 && len(vendorHits) == 1 {
+		return vendorHits[0]
+	}
+	return nil
+}
+
+// oneVendor is the first of hits when they all have one vendor, else nil.
+func oneVendor(hits []*catEntry) *catEntry {
+	if len(hits) == 0 {
+		return nil
 	}
 	for _, e := range hits {
 		if e.hVendor != hits[0].hVendor {
 			return nil
 		}
 	}
-	if len(hits) == 0 {
-		return nil
-	}
 	return hits[0]
 }
 
+// osCategory is the catalogue's category of operating systems.
+const osCategory = "Operating system"
+
+// osOfSeveralMakers is hits when they are operating systems of more than one maker ("linux" is Ubuntu, Debian, Red Hat Enterprise
+// Linux and the kernel itself), else nil. They may share one exploited-product key, but each distribution has its own fixes and its
+// own version numbers ("12" is a Debian release, not a kernel), so a file's word for all of them is not one of them.
+func osOfSeveralMakers(hits []*catEntry) []*catEntry {
+	if len(hits) == 0 || oneVendor(hits) != nil {
+		return nil
+	}
+	for _, e := range hits {
+		if e.category != osCategory {
+			return nil
+		}
+	}
+	return hits
+}
+
+// operatingSystems is the operating systems of several makers a CSV cell names (see osOfSeveralMakers), for the message that asks
+// which one it is.
+func (c *Catalog) operatingSystems(text string) []string {
+	n := fold(text)
+	if n == "" {
+		return nil
+	}
+	var hits []*catEntry
+	for _, e := range c.entries {
+		if indexOf(e.hAlias, n) {
+			hits = append(hits, e)
+		}
+	}
+	var names []string
+	for _, e := range osOfSeveralMakers(hits) {
+		names = append(names, e.display)
+	}
+	return names
+}
+
+// sameKEV reports hits that all name the same exploited products (one non-empty key set).
+func sameKEV(hits []*catEntry) bool {
+	first := slices.Sorted(slices.Values(hits[0].kev))
+	if len(first) == 0 {
+		return false
+	}
+	for _, e := range hits[1:] {
+		if !slices.Equal(slices.Sorted(slices.Values(e.kev)), first) {
+			return false
+		}
+	}
+	return true
+}
+
 // custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one, else to the curated product
-// of that name and vendor, else to the catalogue's product of that name (its exploited-list keys: "Red Hat" "OpenJDK" is Java), else to the plain key. Never to the vendor's other
+// of that name and vendor, else to the vendor's curated product known by that word when it names the same exploited products as the
+// word alone ("Amazon" "OpenJDK" is Java), else to the product identity tables ("Red Hat" "OpenJDK" is Java), else to the plain key. Never to the vendor's other
 // products: a product nobody listed is not "exploited", and its line keeps the name the person gave (findings compares its version with
 // the ranges that name it).
 func (c *Catalog) custom(vendor, product string) *catEntry {
@@ -479,8 +552,12 @@ func (c *Catalog) custom(vendor, product string) *catEntry {
 			keys = append(keys, productid.Key(r.Vendor, r.Product))
 		}
 	}
-	if e := c.find(product); len(keys) == 0 && e != nil && e.curated && e.hVendor == v { // "Fortinet" "FortiGate": the curated FortiGate
-		keys = slices.Clone(e.kev)
+	if e := c.find(product); len(keys) == 0 && e != nil && e.curated {
+		if e.hVendor == v { // "Fortinet" "FortiGate": the curated FortiGate
+			keys = slices.Clone(e.kev)
+		} else if c.vendorKnowsWordAs(v, p, e) { // "Amazon" "OpenJDK": Corretto, the same exploited product (Java) as the word alone
+			keys = slices.Clone(e.kev)
+		}
 	}
 	if len(keys) == 0 {
 		if q, ok := productid.ResolveStored(vendor, product, strings.TrimSpace(vendor+" "+product), ""); ok && q.ID != "" {
@@ -492,6 +569,19 @@ func (c *Catalog) custom(vendor, product string) *catEntry {
 	}
 	return &catEntry{display: strings.TrimSpace(vendor + " " + product), category: otherCategory, hint: vendor + ", " + product, vendor: vendor, product: product,
 		kind: "unknown", kev: keys, kevCount: c.sum(keys), order: 9999}
+}
+
+// vendorKnowsWordAs reports a curated product of the vendor known by the word (an alias) that names the same exploited products as
+// the product the word alone is. A vendor's generic word ("Cisco" "switch", "Apache" "web") is no product of its own, and a word that
+// is another product ("Automattic" "WordPress" is not WooCommerce) is not read as the vendor's product.
+func (c *Catalog) vendorKnowsWordAs(vendor, word string, as *catEntry) bool {
+	want := slices.Sorted(slices.Values(as.kev))
+	for _, e := range c.entries {
+		if e.curated && e.hVendor == vendor && indexOf(e.hAlias, word) && slices.Equal(slices.Sorted(slices.Values(e.kev)), want) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- the KEV data behind it ----

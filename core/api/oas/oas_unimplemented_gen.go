@@ -2595,6 +2595,18 @@ func (UnimplementedHandler) InventoryPostInventoryAgentsWazuhTest(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPostInventoryBoxCheck implements inventory_post_inventory_box_check operation.
+//
+// The box's own agent reads the packages installed on the box and the ports it listens on now, as its
+// hourly read does; answers the box's source rows. One audit row inventory.box_check. 409
+// not_appliance: a container-only install (no packages of its own). 502 box_read_failed: the read
+// failed, what was read last stays.
+//
+// POST /inventory/box/check
+func (UnimplementedHandler) InventoryPostInventoryBoxCheck(ctx context.Context) (r *InventoryPostInventoryBoxCheckOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPostInventoryDevices implements inventory_post_inventory_devices operation.
 //
 // Declare a device manually using a product from the suggestion list.

@@ -5,15 +5,18 @@
 import { describe, expect, it } from 'vitest'
 import curatedData from '../../../../content/catalog/curated.json'
 import kevProducts from '../../../../content/catalog/kev-products.json'
-import { findCatalog, fragmentMatch, searchCatalog } from './catalog'
+import { customEntry, findCatalog, fragmentMatch, searchCatalog } from './catalog'
 
 const QUERIES = ['', 'forti', 'fortigate 60f', 'synology', 'windows server 2019', 'tuong lua', 'cisco asa', 'wordpress', 'office', 'qnap', 'zzzzqq', 'microsoft', 'apache', 'hikvision', 'camera', 'nas', 'vpn', 'ivanti', 'sophos', 'tường lửa', 'ms exchange', '  FortiGate  ', 'a', 'juniper ex']
-const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server']
+const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server', 'jdk', 'JRE', 'java', 'openjdk', 'iOS', 'NAS', 'USG', 'Backup', 'Web Server', 'Linux', 'linux', 'Ubuntu', 'rhel']
+// A product a person typed (maker, product): the exploited products it is matched by, as the server's custom entry gives them.
+const CUSTOM: [string, string][] = [['Red Hat', 'OpenJDK'], ['Fortinet', 'FortiGate'], ['Eclipse Adoptium', 'Temurin'], ['Acme', 'Widget Server'], ['Acme', 'FortiOS'], ['Cisco', 'PAN-OS'], ['Automattic', 'WordPress'], ['Cisco', 'switch'], ['Apache', 'web'], ['Amazon', 'openjdk'], ['Red Hat', 'jdk']]
 
 function compute() {
   return {
     search: QUERIES.map((q) => { const r = searchCatalog(q, 30); return { q, total: r.total, items: r.items.map((e) => ({ id: e.id, kev_count: e.kev_count, kev: e.kev })) } }),
     find: FINDS.map((text) => ({ text, id: findCatalog(text)?.id ?? null })),
+    custom: CUSTOM.map(([vendor, product]) => { const e = customEntry(vendor, product); return { vendor, product, kev: [...e.kev].sort(), kev_count: e.kev_count } }),
   }
 }
 

@@ -49,9 +49,9 @@ func init() {
 
 // storedLine is a software line as stored, with its readings: what the line rules are checked on.
 type storedLine struct {
-	id, state, marked, source, version, pkg, key, line string
-	differs                                            bool
-	readings                                           []Reading
+	id, asset, state, marked, source, version, pkg, key, line string
+	differs                                                   bool
+	readings                                                  []Reading
 }
 
 // resolveBreak says how a line that is not removed differs from what Resolve says of its readings; "" when it agrees. A removed
@@ -124,7 +124,7 @@ func eachStoredLineBy(ctx context.Context, db *sql.DB, size int, fn func(storedL
 
 // storedLinePage reads the next page of at most size lines after id after, with their readings.
 func storedLinePage(ctx context.Context, tx *sql.Tx, after string, size int) ([]storedLine, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, state, ifnull(not_installed_at, ''), source, ifnull(version, ''), ifnull(pkg_version, ''), differs <> 0,
+	rows, err := tx.QueryContext(ctx, `SELECT id, asset_id, state, ifnull(not_installed_at, ''), source, ifnull(version, ''), ifnull(pkg_version, ''), differs <> 0,
 		product_key, line FROM inv_software WHERE id > ? ORDER BY id LIMIT ?`, after, size)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: check software lines: %w", err)
@@ -133,7 +133,7 @@ func storedLinePage(ctx context.Context, tx *sql.Tx, after string, size int) ([]
 	at := map[string]int{}
 	for rows.Next() {
 		var l storedLine
-		if err := rows.Scan(&l.id, &l.state, &l.marked, &l.source, &l.version, &l.pkg, &l.differs, &l.key, &l.line); err != nil {
+		if err := rows.Scan(&l.id, &l.asset, &l.state, &l.marked, &l.source, &l.version, &l.pkg, &l.differs, &l.key, &l.line); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: check software lines: %w", err)
 		}

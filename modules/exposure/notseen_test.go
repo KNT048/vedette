@@ -243,3 +243,27 @@ func TestNotSeen_TopPortClosedOnlyByScansThatProbedIt(t *testing.T) {
 		}
 	}
 }
+
+// A default scan some of whose -sV batches did not finish says how many ports were not identified and that the next scan reads
+// them first; those ports are not in Probed, so outside the runner's fixed list they are never missed or closed by that scan.
+func TestNotSeen_UnfinishedBatchPortsAreSaidAndNotCounted(t *testing.T) {
+	t.Parallel()
+	n := newNS(t)
+	n.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 2, Probed: []int{22, 80}, Unfinished: []int{10022, 18443}}}
+	n.scan(day, ports(80, 18443))
+	s := n.scan(day, ports(80))
+	if !slices.Contains(notChecked(s), "Service identification of 2 ports did not finish this time (nmap's time limit for each batch of ports, or too little time left); the next scan reads them first.") {
+		t.Fatalf("not checked = %q", notChecked(s))
+	}
+	for range 2 {
+		s = n.scan(day, ports(80))
+	}
+	for _, p := range s.Ports {
+		if p.Port == 18443 && (p.Misses != 0 || !p.Unchecked) {
+			t.Fatalf("an unfinished port was counted as checked: %+v", p)
+		}
+	}
+	if !slices.ContainsFunc(s.Ports, func(p PortRow) bool { return p.Port == 18443 }) {
+		t.Fatalf("an unfinished port was closed: %+v", s.Ports)
+	}
+}

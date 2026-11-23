@@ -95,11 +95,14 @@ type ServiceScan struct {
 	// Probed are the TCP ports the default scan probed, ascending: nmap's own most common ports (as nmap said it probed them) and
 	// the fixed list. nil when the scanner does not say (a deep scan, which probes every port).
 	Probed []int
-	// DiscoveryCut: nmap's search of its most common ports did not finish, so Probed is only the fixed list the -sV run read.
+	// DiscoveryCut: nmap's search of its most common ports did not finish, so Probed is only the fixed list's finished -sV batches.
 	DiscoveryCut bool
 	// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy); Services holds only the ports of the fixed
 	// list where -sV named a real service.
 	AnswersEverywhere bool
+	// Unfinished are the ports whose -sV batch timed out, printed nothing usable or was not started this run: not in Probed (this
+	// run never calls them closed), and the scanner reads them first next time.
+	Unfinished []int
 	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
 	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
@@ -187,6 +190,8 @@ const (
 	// notAnswersEverywhereKept is the line of a default scan of an address that answers on almost every port: service
 	// identification still read the fixed list, and only the ports where a service named itself were kept ("40":
 	// commonports.MaxBelievableOpen).
+	// notServicesUnfinished is the line of a default scan some of whose -sV batches did not finish (%s: "25 ports").
+	notServicesUnfinished    = "Service identification of %s did not finish this time (nmap's time limit for each batch of ports, or too little time left); the next scan reads them first."
 	notAnswersEverywhereKept = "More than 40 ports answered, more than a normal box exposes: a router or firewall that answers for every port looks like this. Only the ports of the fixed list where a service named itself were kept; the other ports may be the firewall answering."
 	notOtherPortsDom         = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
 	notNonExploited          = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
@@ -195,10 +200,10 @@ const (
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
 	notServicesSlow  = "Service identification (nmap -sV) did not finish within 8 minutes, so no service versions were read."
-	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "2 minutes" and "3 minutes" are nmapargv's host timeouts of the
-	// external shape's two runs (ExternalDiscoveryTimeout, ExternalVersionsTimeout; cmd/vedette holds them in a test); "40" is
+	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "2 minutes" and "up to 2" are nmapargv's host timeouts of the
+	// external shape's runs (ExternalDiscoveryTimeout, BatchMaxTimeout; cmd/vedette holds them in a test); "40" is
 	// commonports.MaxBelievableOpen: change them together. The second line serves the surface scan's count and nmap's alike.
-	notServicesGaveUp    = "Service identification (nmap) did not finish within nmap's limit for one address (2 minutes to find the open ports, 3 to identify them), so no service versions were read. Services may still be open there; scan again later."
+	notServicesGaveUp    = "Service identification (nmap) did not finish within nmap's limit for one address (2 minutes to find the open ports, up to 2 for each batch of ports it identifies), so no service versions were read. Services may still be open there; scan again later."
 	notAnswersEverywhere = "More than 40 of the ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
 	notMatcher           = "Comparison with exploited vulnerabilities is not set up on this box yet."
 	notMatchFail         = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
@@ -357,6 +362,9 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 					c.NotChecked[i].Text = line
 				}
 			}
+		}
+		if n := len(sanitizeProbed(res.Unfinished)); n > 0 && !st.Mode.Full {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})
 		}
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		read := servicesRead(got)

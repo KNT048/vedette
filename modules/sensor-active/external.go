@@ -1,11 +1,14 @@
 package sensoractive
 
 import (
+	"cmp"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -113,11 +116,15 @@ type ScriptFinding struct {
 
 // External is the result of ScanExternal: the open ports with what -sV read, how many TCP ports were probed, which ones, and
 // the script results of a full run (nil for the External shape). Probed are the TCP ports the run probed, ascending: for the External
-// shape the ports nmap's discovery says it probed (its <scaninfo>, nmap's own top ports) and those of the -sV run; nil for a full
+// shape the ports nmap's discovery says it probed (its <scaninfo>, nmap's own top ports) and those of the finished -sV batches; nil for a full
 // shape, which probed every port 1..65535. Ports is their count (65535 for a full shape). DiscoveryCut: the External shape's
-// discovery hit its host timeout or its output was not usable, so only the -sV run's fixed list was probed (Probed is that list).
-// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy), so the -sV run read the fixed list only
+// discovery hit its host timeout or its output was not usable, so only the fixed list's -sV batches were read.
+// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy), so the -sV batches read the fixed list only
 // and Services keeps only the ports where -sV named a real service.
+//
+// Unfinished are the ports of the -sV batches that hit their host timeout, printed nothing usable or were not started for want
+// of time, ascending: they are not in Probed (a scan that did not read them never calls them closed), and the next scan of the
+// address reads them first (rotation from this run's probe rows).
 type External struct {
 	Services          []ExternalService
 	Ports             int
@@ -125,6 +132,7 @@ type External struct {
 	Scripts           []ExternalScript
 	DiscoveryCut      bool
 	AnswersEverywhere bool
+	Unfinished        []int
 }
 
 // externalRun bounds an external run whose context has no deadline (exposure gives it ServicesTimeout there, 8 minutes); fullRun
@@ -136,19 +144,27 @@ const (
 
 // externalStep is what one nmap job of an external shape needs on top of nmap's own --host-timeout once it has the nmap slot and
 // core's fence said yes (#723 review L5): the worker's fence (at most 5 rounds of 5 s) and the pickup and the result (15 s).
-// externalNeed is the least time an External run needs: its two jobs (the discovery and the -sV run); versionsNeed what the -sV
-// run alone needs, checked again before it is sent. With less left of the caller's deadline the run is skipped (ErrNoTime) rather
-// than cut by it halfway; the wait for the slot is shortened to leave it, plus coreFenceTime for core's own check. fullNeed is the
-// same with the full shapes' host timeout. externalNeed also holds core's own-IP check between the two jobs (coreFenceTime), so a
-// run whose discovery took its whole host timeout is never cut before its -sV job. Worst case of an External run: 2 + 3 minutes
-// of nmap, 6 min 50 s with the steps.
+// externalNeed is the least time an External run needs: the discovery, the batches' inner margin, and one -sV batch with core's
+// own-IP check before it at nmapargv.BatchMinTimeout (each later batch's host timeout comes from what is left: batchTimeout). With less left of the caller's
+// deadline the run is skipped (ErrNoTime) rather than cut by it halfway; the wait for the slot is shortened to leave it, plus
+// coreFenceTime for core's own check. fullNeed is the same with the full shapes' host timeout.
 const (
 	coreFenceTime = 30 * time.Second
 	externalStep  = 25*time.Second + 15*time.Second
-	versionsNeed  = externalStep + nmapargv.ExternalVersionsTimeout
-	externalNeed  = externalStep + nmapargv.ExternalDiscoveryTimeout + coreFenceTime + versionsNeed
+	externalNeed  = externalStep + nmapargv.ExternalDiscoveryTimeout + innerMargin + batchNeed
 	fullNeed      = externalStep + nmapargv.FullHostTimeout
+	// batchNeed is the least time left before the inner deadline in which an -sV batch is still tried: core's own-IP check, the
+	// job's overhead and the shortest host timeout.
+	batchNeed = coreFenceTime + externalStep + nmapargv.BatchMinTimeout
 )
+
+// batchTimeout is the host timeout of the next -sV batch when left is what remains of the run after core's own-IP check: what is
+// left once the batch's job overhead (externalStep) is set aside, in whole seconds, at most nmapargv.BatchMaxTimeout. Below
+// nmapargv.BatchMinTimeout the batch is not started (false): its ports wait for the next scan, which reads them first.
+func batchTimeout(left time.Duration) (time.Duration, bool) {
+	h := min(left-externalStep, nmapargv.BatchMaxTimeout).Truncate(time.Second)
+	return h, h >= nmapargv.BatchMinTimeout
+}
 
 // boundsOf is the time a run of kind needs and its bound without a deadline.
 func boundsOf(kind nmapargv.Kind) (need, run time.Duration) {
@@ -325,7 +341,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		return s.probeDefault(ctx, jobID, ip, own)
 	}
 	var ext External
-	err := s.externalJob(ctx, jobID, ip, kind, nil, note, dom, run, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{}, note, dom, run, func(hosts []host) (string, error) {
 		var err error
 		if ext, err = externalOf(hosts, ip, kind); err != nil {
 			return "", err
@@ -338,20 +354,36 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	return ext, nil
 }
 
-// probeDefault is the External shape on the box's own public IP, two nmap jobs under the one job row, each with its probe row
-// (INV-9): the discovery (SYN only, nmap's own top ports), core's own-IP fence again, then the -sV run. The fixed list always gets
-// its -sV run, whatever the discovery said:
-//   - discovery ok, at most commonports.MaxBelievableOpen open: -sV over ExternalVersionPorts(open), Probed is both runs' ports;
-//   - more open than that (a router or SYN proxy answering for every port): -sV over the fixed list only, and only the ports where
+// probeDefault is the External shape on the box's own public IP, under the one job row and the one nmap slot, each nmap job with
+// its probe row (INV-9) and core's own-IP fence right before it: the discovery (SYN only, nmap's own top ports), then -sV in
+// batches (nmapargv.ExternalBatches: the surface scan's list, the reviewed admin ports, then the open ports found outside both).
+// nmap's --host-timeout drops every result of a host it gives up on, so each batch is its own job with its own host timeout
+// (batchTimeout, from the time left before the batches' inner deadline): a batch that times out, prints nothing usable or runs past
+// its own bound loses only its own ports, and a batch that no longer gets nmapargv.BatchMinTimeout is not started (its probe row
+// says so). Those ports are Unfinished, not Probed. The order is a queue kept in the probe log (lastRun, planBatches): the next scan
+// of the address reads the batches not started first, then those that failed, then the rest. The fixed list always gets its -sV
+// batches, whatever the discovery said:
+//   - discovery ok, at most commonports.MaxBelievableOpen open: every batch, Probed is the discovery's ports and the finished
+//     batches' (an open port that got no -sV is still listed, named by its port number, and is Unfinished);
+//   - more open than that (a router or SYN proxy answering for every port): the fixed list's batches only, and only the ports where
 //     -sV named a real service are kept (AnswersEverywhere);
-//   - the discovery hit its host timeout or its output was not usable (nmap failed, a wrong <scaninfo>): -sV over the fixed list,
-//     Probed is that list only (DiscoveryCut).
+//   - the discovery hit its host timeout or its output was not usable (nmap failed, a wrong <scaninfo>): the fixed list's batches,
+//     Probed is their finished ports only (DiscoveryCut).
 //
-// A refusal of either fence, a stop, a missing worker or an older worker ends the run as before: nothing more is sent.
+// A refusal of either fence or a stop ends the run as before: nothing more is sent and nothing is kept. A worker lost in the
+// middle keeps the finished batches. A run in which no batch finished says why: ErrHostTimedOut, the batch's error, or ErrNoTime
+// when none started.
 func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, own OwnEgress) (External, error) {
+	if _, ok := ctx.Deadline(); !ok { // the step's bound when the caller gave none (exposure gives ServicesTimeout)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, externalRun)
+		defer cancel()
+	}
+	last := s.lastRun(ctx, ip) // read before this run writes its own rows
 	var scanned, open []int
+	var found []portInfo // the discovery's open ports, as nmap's port table named them
 	everywhere := false
-	err := s.externalJob(ctx, jobID, ip, nmapargv.External, nil, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{}, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
 		var err error
 		scanned, open, err = discoveryOf(hosts, ip)
 		if errors.Is(err, ErrAnswersEverywhere) {
@@ -361,6 +393,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 		if err != nil {
 			return "", err
 		}
+		found = slices.Clone(hosts[0].ports)
 		return fmt.Sprintf("ok: %d of %d ports open", len(open), len(scanned)), nil
 	})
 	cut := false
@@ -372,65 +405,392 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 		return External{}, err
 	}
 	if cut || everywhere {
-		scanned, open = nil, nil
+		scanned, open, found = nil, nil, nil
 	}
-	ports, err := nmapargv.ExternalVersionPorts(open)
-	if err != nil { // never reached: discoveryOf bounds open
+	batches, err := planBatches(open, scanned, last, everywhere)
+	if err != nil { // never reached: discoveryOf and planBatches bound the ports
 		return External{}, fmt.Errorf("sensoractive: %w", err)
 	}
-	ok, err := own.OwnEgress(ctx, ip) // the discovery took up to its host timeout: ask again before the next job leaves
-	switch {
-	case ctx.Err() != nil:
-		return External{}, ErrStopped
-	case err != nil:
-		return External{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
-	case !ok:
-		s.log.WarnContext(ctx, "sensoractive: external scan stopped after its port discovery, the address is not the box's own public IP now; no -sV sent", "ip", ip.String())
-		return External{}, ErrNotOwnIP
-	}
-	if left(ctx, externalRun) < versionsNeed {
-		return External{}, ErrNoTime
-	}
-	var ext External
-	err = s.externalJob(ctx, jobID, ip, nmapargv.External, ports, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
-		var err error
-		if ext, err = versionsOf(hosts, ip, ports, everywhere); err != nil {
-			return "", err
-		}
-		if ext.AnswersEverywhere {
-			return fmt.Sprintf("ok: %d open ports named a service; the address answers on almost every port, the others were dropped", len(ext.Services)), nil
-		}
-		return fmt.Sprintf("ok: %d open ports", len(ext.Services)), nil
+	// The batches run against an inner deadline a little before the step's, so the last one, cut at its own bound, never takes
+	// the finished ones with it.
+	deadline, _ := ctx.Deadline()
+	inner, cancel := context.WithDeadline(ctx, deadline.Add(-innerMargin))
+	defer cancel()
+	res, err := runBatches(inner, batches, batchRunner{
+		fence: func(ctx context.Context) error { return s.fenceAgain(ctx, ip, own) },
+		run: func(ctx context.Context, b []int, h time.Duration, label string) ([]ExternalService, error) {
+			var got []ExternalService
+			err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{ports: b, host: h, label: label}, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+				x, err := versionsOf(hosts, ip, b, false)
+				if err != nil {
+					return "", err
+				}
+				got = x.Services
+				return fmt.Sprintf("ok: %d open ports", len(got)), nil
+			})
+			return got, err
+		},
+		notStarted: func(b []int, label, why string) { s.notStarted(ctx, jobID, ip, b, label, why) },
 	})
+	if ctx.Err() != nil {
+		return External{}, ErrStopped
+	}
 	if err != nil {
 		return External{}, err
 	}
-	ext.Probed = unionPorts(scanned, ports)
+	ext := External{Services: res.services}
+	// Every open port the discovery saw that got no -sV this run (its batch did not finish) is still open: listed, named by its
+	// port number, and Unfinished, never counted as probed.
+	unfinished := unionPorts(res.unfinished, unreadOpen(open, res.done))
+	for _, p := range found {
+		if _, ok := slices.BinarySearch(unfinished, p.number); ok {
+			ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Method: "table", Conf: p.conf})
+		}
+	}
+	slices.SortFunc(ext.Services, func(a, b ExternalService) int { return a.Port - b.Port })
+	if everywhere || len(ext.Services) > commonports.MaxBelievableOpen {
+		ext.Services = slices.DeleteFunc(ext.Services, func(x ExternalService) bool { return !identifiedService(x) })
+		ext.AnswersEverywhere = true
+	}
+	probed := slices.DeleteFunc(slices.Clone(scanned), func(p int) bool { _, ok := slices.BinarySearch(unfinished, p); return ok })
+	ext.Probed = unionPorts(probed, res.done)
 	ext.Ports = len(ext.Probed)
 	ext.DiscoveryCut = cut
+	ext.Unfinished = unfinished
 	return ext, nil
 }
 
+// innerMargin is how long before the step's deadline the -sV batches must be done: the room for the last batch's probe row and
+// the result to reach the caller.
+const innerMargin = 15 * time.Second
+
+// fenceAgain is core's own-IP check right before an -sV batch's job leaves.
+func (s *Service) fenceAgain(ctx context.Context, ip netip.Addr, own OwnEgress) error {
+	ok, err := own.OwnEgress(ctx, ip)
+	switch {
+	case ctx.Err() != nil:
+		return ErrStopped
+	case err != nil:
+		return fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
+	case !ok:
+		s.log.WarnContext(ctx, "sensoractive: external scan stopped before an -sV batch, the address is not the box's own public IP now; nothing more sent", "ip", ip.String())
+		return ErrNotOwnIP
+	}
+	return nil
+}
+
+// unreadOpen are the ports of open that are not in done, ascending.
+func unreadOpen(open, done []int) []int {
+	d := slices.Clone(done)
+	slices.Sort(d)
+	var out []int
+	for _, p := range open {
+		if _, ok := slices.BinarySearch(d, p); !ok {
+			out = append(out, p)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// batchRunner is what runBatches does for each batch: core's own-IP check, the batch's job, and the probe row of a batch it does not
+// start.
+type batchRunner struct {
+	fence      func(ctx context.Context) error
+	run        func(ctx context.Context, ports []int, host time.Duration, label string) ([]ExternalService, error)
+	notStarted func(ports []int, label, why string)
+}
+
+// batchResults is what the batches of a run read: the services of the finished batches, their ports, and the ports of the batches
+// that did not finish or did not start.
+type batchResults struct {
+	services         []ExternalService
+	done, unfinished []int
+}
+
+// The reasons a batch is not started, in its probe row.
+const (
+	whyNoTime     = "too little time left in this scan"
+	whyWorkerLost = "the scan worker was lost during this scan"
+)
+
+// runBatches runs the -sV batches in order until ctx's deadline (the inner one): before each, the fence; its host timeout from
+// the time left (batchTimeout); its job bound at that timeout plus the job's overhead. A batch whose results are lost (nmap gave up,
+// output not usable, cut at its own bound while ctx is alive) is unfinished and the next one runs; a batch that no longer fits, and
+// every one after it, is not started; a lost worker ends the loop with the rest not started. The finished batches are kept in each of
+// these cases. A stop or a fence refusal returns its error. No batch finished: ErrNoTime when none ran, else the last batch's error.
+func runBatches(ctx context.Context, batches [][]int, r batchRunner) (batchResults, error) {
+	var res batchResults
+	var lost error
+	stopRest := func(from int, why string) {
+		for j, rest := range batches[from:] {
+			r.notStarted(rest, fmt.Sprintf("batch %d of %d", from+j+1, len(batches)), why)
+			res.unfinished = append(res.unfinished, rest...)
+		}
+	}
+	for i, b := range batches {
+		// Too little left for the own-IP check, the job and a sane batch (or the inner deadline passed): this one and the rest wait
+		// for the next scan, and the finished ones are kept.
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || left(ctx, externalRun) < batchNeed {
+			stopRest(i, whyNoTime)
+			break
+		}
+		if err := r.fence(ctx); err != nil {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) { // the check ran into the inner deadline, not a stop of the run
+				stopRest(i, whyNoTime)
+				break
+			}
+			return batchResults{}, err
+		}
+		h, fits := batchTimeout(left(ctx, externalRun))
+		if !fits {
+			stopRest(i, whyNoTime)
+			break
+		}
+		bctx, cancel := context.WithTimeout(ctx, h+externalStep)
+		got, err := r.run(bctx, b, h, fmt.Sprintf("batch %d of %d", i+1, len(batches)))
+		// cut at its own bound (or at the inner deadline), not by a stop of the run
+		ownBound := err != nil && bctx.Err() != nil && !errors.Is(ctx.Err(), context.Canceled)
+		cancel()
+		switch {
+		case err == nil:
+			res.services = append(res.services, got...)
+			res.done = append(res.done, b...)
+			continue
+		case ownBound || batchLost(err): // this batch's results are gone; the finished ones are kept
+			res.unfinished = append(res.unfinished, b...)
+			if ownBound || errors.Is(err, ErrHostTimedOut) {
+				lost = ErrHostTimedOut
+			} else if lost == nil {
+				lost = err
+			}
+			continue
+		case errors.Is(err, ErrWorkerLost) || errors.Is(err, ErrWorkerUnavailable):
+			res.unfinished = append(res.unfinished, b...)
+			lost = err
+			stopRest(i+1, whyWorkerLost)
+		default:
+			return batchResults{}, err
+		}
+		break
+	}
+	slices.Sort(res.done)
+	slices.Sort(res.unfinished)
+	res.unfinished = slices.Compact(res.unfinished)
+	switch {
+	case len(res.done) > 0:
+		return res, nil
+	case lost == nil:
+		return batchResults{}, ErrNoTime
+	}
+	return batchResults{}, lost
+}
+
+// batchState is what the last run's probe row says of an -sV batch, in queue order: not started first, then failed, then done.
+type batchState int
+
+const (
+	batchNotStarted batchState = iota
+	batchFailed
+	batchDone
+)
+
+// lastBatch is one -sV batch of the last External run on an address, from its probe row: its ports and what became of it.
+type lastBatch struct {
+	ports []int
+	state batchState
+}
+
+// planBatches is the ordered -sV batches of a run, a queue rebuilt from the last run (last, in that run's order):
+//   - the extras: the open ports the discovery found outside the fixed list first, then the last run's unfinished extras the
+//     discovery did not see closed (still open, or not among the ports it probed), at most commonports.MaxBelievableOpen in all;
+//     none when the address answers everywhere (the fixed list's batches only);
+//   - order: the batches not started last run (in that run's order; a fixed port the last run never wrote a row for counts as not
+//     started, after those, and a batch only of ports the last run never planned after that), then the batches that failed last run
+//     (in that run's order), then the others in their usual order.
+//
+// Every batch is read at least once every ceil(n/k) runs when k batches fit a run, and a batch that always fails cannot block the
+// others: it queues behind the ones not started.
+func planBatches(open, scanned []int, last []lastBatch, everywhere bool) ([][]int, error) {
+	var extra []int
+	if !everywhere {
+		seen := map[int]bool{}
+		add := func(p int) {
+			if !slices.Contains(nmapargv.ExtraPortNumbers, p) && !seen[p] && len(extra) < commonports.MaxBelievableOpen {
+				seen[p] = true
+				extra = append(extra, p)
+			}
+		}
+		for _, p := range open {
+			add(p)
+		}
+		for _, l := range last {
+			if l.state == batchDone {
+				continue
+			}
+			for _, p := range l.ports {
+				if !slices.Contains(scanned, p) || slices.Contains(open, p) { // the discovery did not see it closed
+					add(p)
+				}
+			}
+		}
+	}
+	batches, err := nmapargv.ExternalBatches(extra)
+	if err != nil {
+		return nil, err
+	}
+	type rank struct {
+		state batchState
+		index int
+	}
+	ranks := map[int]rank{}
+	for i, l := range last {
+		for _, p := range l.ports {
+			if r, ok := ranks[p]; !ok || l.state < r.state || (l.state == r.state && i < r.index) {
+				ranks[p] = rank{l.state, i}
+			}
+		}
+	}
+	if len(last) > 0 { // a fixed port with no row (the last run stopped before its batch): not started, after the ones that say so
+		for _, p := range nmapargv.ExtraPortNumbers {
+			if _, ok := ranks[p]; !ok {
+				ranks[p] = rank{batchNotStarted, len(last)}
+			}
+		}
+	}
+	rankOf := func(b []int) rank {
+		best, known := rank{batchDone, 0}, false
+		for _, p := range b {
+			r, ok := ranks[p]
+			known = known || ok
+			if ok && r.state != batchDone && (best.state == batchDone || r.state < best.state || (r.state == best.state && r.index < best.index)) {
+				best = r
+			}
+		}
+		if !known && len(last) > 0 { // only ports the last run never planned (newly found extras): not started, after the others
+			return rank{batchNotStarted, len(last) + 1}
+		}
+		return best
+	}
+	slices.SortStableFunc(batches, func(a, b []int) int {
+		ra, rb := rankOf(a), rankOf(b)
+		if ra.state != rb.state {
+			return int(ra.state) - int(rb.state)
+		}
+		if ra.state == batchDone {
+			return 0 // the usual order
+		}
+		return ra.index - rb.index
+	})
+	return batches, nil
+}
+
+// batchLost says an -sV batch's job ran but its results are lost to this run: nmap gave up on the host at the batch's host timeout,
+// exited with an error, printed too much or something not believed. The run goes on with the next batch.
+func batchLost(err error) bool {
+	var ee *exec.ExitError
+	return errors.Is(err, ErrHostTimedOut) || errors.Is(err, errXMLInvalid) || errors.Is(err, errXMLTooBig) || errors.As(err, &ee)
+}
+
+// notStarted writes the probe row of an -sV batch that is not started (nothing is sent): the flags it would have had at the
+// shortest host timeout and why, so the next scan of the address can queue it first (lastRun).
+func (s *Service) notStarted(ctx context.Context, jobID string, ip netip.Addr, ports []int, label, why string) {
+	flags, err := nmapargv.BatchFlags(nmapargv.ExternalRate, ports, nmapargv.BatchMinTimeout)
+	if err != nil {
+		return
+	}
+	note := probeNote{label: label}
+	id, err := s.insertProbeFlags(context.WithoutCancel(ctx), jobID, nmapargv.External, nmapargv.ExternalRate, []netip.Addr{ip}, note, flags)
+	if err == nil {
+		s.finishProbe(ctx, id, note.with("not started: "+why+"; the next scan starts with these ports"))
+	}
+}
+
+// lastRun is the -sV batches of the last External run on ip, in its order (its probe rows by id), with what became of each: "ok"
+// is done, "not started" is not started, anything else failed. Derived from the probe log (sa_probe) alone; nil when there is no such
+// run or the log cannot be read (the run then keeps the usual order).
+func (s *Service) lastRun(ctx context.Context, ip netip.Addr) []lastBatch {
+	r := s.db.Reader()
+	var run sql.NullString
+	// the most recent run that wrote -sV rows: a run stopped during or right after its discovery says nothing of the batches, so
+	// the queue is taken from the one before it
+	if err := r.QueryRowContext(ctx, `SELECT run_id FROM sa_probe WHERE shape = ? AND targets = ? AND run_id IS NOT NULL AND flags LIKE '% -sV %' ORDER BY id DESC LIMIT 1`,
+		nmapargv.External.Name(), ip.String()).Scan(&run); err != nil || !run.Valid {
+		return nil
+	}
+	rows, err := r.QueryContext(ctx, `SELECT flags, result FROM sa_probe WHERE run_id = ? AND shape = ? AND targets = ? ORDER BY id`,
+		run.String, nmapargv.External.Name(), ip.String())
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	var out []lastBatch
+	for rows.Next() {
+		var flags, result string
+		if rows.Scan(&flags, &result) != nil {
+			return nil
+		}
+		f := strings.Fields(flags)
+		i := slices.Index(f, "-p")
+		if !slices.Contains(f, "-sV") || i < 0 || i+1 >= len(f) {
+			continue
+		}
+		b := lastBatch{state: batchFailed}
+		switch {
+		case strings.Contains(result, ": ok: ") || strings.HasPrefix(result, "ok: "):
+			b.state = batchDone
+		case strings.Contains(result, "not started"):
+			b.state = batchNotStarted
+		}
+		for _, p := range strings.Split(f[i+1], ",") {
+			if n, err := strconv.Atoi(p); err == nil && n >= 1 && n <= 65535 {
+				b.ports = append(b.ports, n)
+			}
+		}
+		out = append(out, b)
+	}
+	if rows.Err() != nil {
+		return nil
+	}
+	return out
+}
+
 // discoveryUnusable says the discovery's nmap ran and its output says nothing usable about the top ports: it gave up at its host
-// timeout, exited with an error, printed too much or something not believed (a wrong <scaninfo>, a port outside it). The -sV run of
-// the fixed list still follows. An older worker's earlier line (errOlderShape) is not one: its -sV job would be refused too.
+// timeout, exited with an error, printed too much or something not believed (a wrong <scaninfo>, a port outside it). The -sV batches of
+// the fixed list still follow. An older worker's earlier line (errOlderShape) is not one: its -sV job would be refused too.
 func discoveryUnusable(err error) bool {
 	var ee *exec.ExitError
 	return !errors.Is(err, errOlderShape) &&
 		(errors.Is(err, ErrHostTimedOut) || errors.Is(err, errXMLInvalid) || errors.Is(err, errXMLTooBig) || errors.As(err, &ee))
 }
 
-// externalJob runs one nmap job of an external shape (ports: the -sV run of the External shape, nil otherwise) with its probe row,
+// batchSpec is an external -sV batch of the External shape: its ports, its host timeout and the label its probe row starts with
+// ("batch 2 of 5"). The zero value is any other external job (the discovery, a full run).
+type batchSpec struct {
+	ports []int
+	host  time.Duration
+	label string
+}
+
+// externalJob runs one nmap job of an external shape (b: an -sV batch of the External shape, zero otherwise) with its probe row,
 // bounded by what is left of run: read turns the hosts of its XML into the row's "ok" text, or an error the row names.
-func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, ports []int, note probeNote, dom *DomainIP, run time.Duration,
+func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, b batchSpec, note probeNote, dom *DomainIP, run time.Duration,
 	read func([]host) (string, error)) error {
 	targets := []netip.Addr{ip}
 	rate := nmapargv.ExternalRateOf(kind)
-	args, err := nmapargv.BuildFor(kind, rate, ports, targets)
-	if err != nil {
+	args, err := nmapargv.Build(kind, rate, targets)
+	flags, ferr := nmapargv.Flags(kind, rate)
+	if b.ports != nil {
+		args, err = nmapargv.BuildBatch(rate, b.ports, b.host, targets)
+		flags, ferr = nmapargv.BatchFlags(rate, b.ports, b.host)
+	}
+	if err = cmp.Or(err, ferr); err != nil {
 		return fmt.Errorf("sensoractive: %w", err)
 	}
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, note, ports...)
+	if b.label != "" {
+		note.label = b.label
+	}
+	probeID, err := s.insertProbeFlags(ctx, jobID, kind, rate, targets, note, flags)
 	if err != nil {
 		return err
 	}
@@ -457,6 +817,9 @@ func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, 
 		return runErr
 	}
 	hosts, result, err := runOutcome(ctx, rctx, out, runErr)
+	if b.ports != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) { // an -sV batch cut at its own bound, not a stop
+		result = "failed: the batch ran past its time bound; the next scan starts with these ports"
+	}
 	if err == nil {
 		if result, err = read(hosts); err != nil {
 			result = "failed: output not valid, discarded"
@@ -525,7 +888,7 @@ var errOlderShape = fmt.Errorf("%w: the worker ran the earlier fixed-list line",
 
 // discoveryOf reads the External shape's discovery: the TCP ports nmap says it probed (its <scaninfo services>, which must be
 // exactly nmapargv.ExternalTopPorts ports, as --top-ports asked: anything else is not the run that was asked for) and the open ones
-// among them, ascending. More than commonports.MaxBelievableOpen open is ErrAnswersEverywhere: the -sV run then reads the fixed list alone.
+// among them, ascending. More than commonports.MaxBelievableOpen open is ErrAnswersEverywhere: the -sV batches then read the fixed list alone.
 func discoveryOf(hosts []host, ip netip.Addr) (scanned, open []int, err error) {
 	if len(hosts) == 1 {
 		scanned = expandRanges(hosts[0].scanned, 65535)
@@ -565,7 +928,7 @@ func expandRanges(rs []observe.PortRange, limit int) []int {
 	return slices.Compact(out)
 }
 
-// versionsOf reads the services of the External shape's -sV run, which probed exactly ports. With everywhere (the discovery saw
+// versionsOf reads the services of one -sV batch of the External shape, which probed exactly ports. With everywhere (the discovery saw
 // the address answer on almost every port), or with more than commonports.MaxBelievableOpen open ports here, the address is a router
 // or SYN proxy answering for every port: only the ports where -sV named a real service (identifiedService) are kept, and
 // AnswersEverywhere says the others were dropped.
@@ -669,12 +1032,18 @@ const maxProbeResult = 200
 
 // probeNote is the front of a domain_ip probe row's result: why the address was chosen, with the CNAME chain of
 // the name as core saw it. The zero value (no domain) adds nothing.
-type probeNote struct{ d *DomainIP }
+type probeNote struct {
+	d     *DomainIP
+	label string // an external -sV batch's "batch 2 of 5", in front of its result
+}
 
 // with is the row's result: the note, then result, always within maxProbeResult (review r2 H3: a long name or CDN CNAME must never fail
 // the insert or the update). The result is kept whole; the note shrinks first to "domain_ip <domain> -> <final name>: ", then each of
 // the two names keeps its end (the registrable part of a name is at its end).
 func (n probeNote) with(result string) string {
+	if n.label != "" {
+		result = n.label + ": " + result
+	}
 	result = clipRunes(result, maxProbeResult)
 	if n.d == nil {
 		return result

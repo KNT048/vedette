@@ -66,12 +66,9 @@ func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}
 	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
-	ports, err := nmapargv.ExternalVersionPorts([]int{666}) // the -sV run after the discovery: its job carries its ports
-	if err != nil {
-		t.Fatal(err)
-	}
+	ports := []int{22, 443, 666} // an -sV batch after the discovery: its job carries its ports and its host timeout
 	second := externalJob(id2, "8.8.8.8")
-	second.Ports = ports
+	second.Ports, second.HostTimeoutS = ports, 75
 	r.core.push(second)
 	if got := r.core.next(t); got.res.Status != "done" || eg.count() != 3 {
 		t.Fatalf("second job: %+v after %d rounds", got.res, eg.count())
@@ -80,7 +77,7 @@ func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 	for i, p := range ports {
 		list[i] = strconv.Itoa(p)
 	}
-	if wantV := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(list, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n"); !strings.HasSuffix(nm.argvLog(), wantV) {
+	if wantV := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "75s", "-p", strings.Join(list, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n"); !strings.HasSuffix(nm.argvLog(), wantV) {
 		t.Fatalf("argv:\n%s\nwant at the end:\n%s", nm.argvLog(), wantV)
 	}
 	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
@@ -128,18 +125,25 @@ func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 	}
 }
 
-// An external job whose ports are not the -sV run's (a fixed port missing, too many others, a port twice) is invalid_job before the
-// fence is asked or nmap starts.
+// An external job that is not a valid -sV batch (more than 40 ports, ports twice or descending, no host timeout or one outside
+// 60..120 seconds, a host timeout on the discovery) is invalid_job before the fence is asked or nmap starts.
 func TestExternalJobWithOtherPortsIsInvalid(t *testing.T) {
 	t.Parallel()
-	tooMany := slices.Clone(nmapargv.ExtraPortNumbers)
+	var fortyOne []int
 	for p := range 41 {
-		tooMany = append(tooMany, 50000+p)
+		fortyOne = append(fortyOne, 50000+p)
 	}
-	for name, ports := range map[string][]int{
-		"a fixed port missing": nmapargv.ExtraPortNumbers[1:],
-		"41 others":            tooMany,
-		"one port":             {22},
+	for name, c := range map[string]struct {
+		ports []int
+		host  int
+	}{
+		"41 ports":                {fortyOne, 90},
+		"a port twice":            {[]int{22, 22}, 90},
+		"descending":              {[]int{443, 22}, 90},
+		"no host timeout":         {[]int{22}, 0},
+		"a host timeout of 30 s":  {[]int{22}, 30},
+		"a host timeout of 180 s": {[]int{22}, 180},
+		"the discovery with one":  {nil, 90},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -147,7 +151,7 @@ func TestExternalJobWithOtherPortsIsInvalid(t *testing.T) {
 			eg := &fakeEgress{answers: []string{"8.8.8.8"}}
 			r := start(t, nm, func(c *worker.Config) { c.Egress = eg })
 			j := externalJob(id1, "8.8.8.8")
-			j.Ports = ports
+			j.Ports, j.HostTimeoutS = c.ports, c.host
 			r.core.push(j)
 			if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != "invalid_job" {
 				t.Fatalf("result = %+v", got.res)

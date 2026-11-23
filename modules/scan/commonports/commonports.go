@@ -1,6 +1,6 @@
 // Package commonports is the fixed list of TCP ports Vedette always probes on the box's own public IP: the scan module's
 // surface scan connects to each of them (and reads web titles and certificates there), and sensor-active's external nmap shape
-// names all of them in its -sV run, next to nmap's own most common ports its discovery probed (nmapargv.External). It is a leaf
+// reads all of them in its first -sV batches, next to nmap's own most common ports its discovery probed (nmapargv.External). It is a leaf
 // with no import at all: the sensor binary links it through nmapargv (TestBinaryDependencies).
 package commonports
 
@@ -58,8 +58,8 @@ var List = []Port{
 //   - a real small office exposes a handful of services (internet-wide scans such as Shodan's and Censys' find one to three open
 //     ports on a typical host); one with more than 40 open among the 1,000 most common ports is not a configuration to identify
 //     port by port, it is a device answering for everything, or one to fix first;
-//   - it bounds the -sV run: nmap reads about 20 ports at a time at the default timing, so 40 identifications fit the external
-//     shape's 3-minute host timeout.
+//   - it bounds the -sV work: nmap reads about 20 ports at a time at the default timing, and the external shape's -sV batches
+//     hold at most 40 ports each, about two rounds within a batch's host timeout.
 //
 // With more open than this, the default scan of the public IP still runs -sV over the fixed list (never skipped: real services sit
 // behind SYN proxies too) and keeps only the ports where -sV named a real service, dropping the tcpwrapped rows of the proxy, and

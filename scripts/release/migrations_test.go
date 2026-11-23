@@ -191,6 +191,66 @@ func TestCheckMigrations(t *testing.T) {
 	}
 }
 
+// Within one epoch a box updates in place, so whatever rollback.safe says the history is forward-only: an applied migration is
+// never removed or edited and nothing new is numbered below it. Whether a new migration is add-only does not matter here; a new
+// epoch is a new history and is not compared file by file.
+func TestCheckHistory(t *testing.T) {
+	t.Parallel()
+	p1, b1 := mig("0001_a.sql", "a", "CREATE TABLE a (id INT);")
+	p2, b2 := mig("0002_a.sql", "a", "ALTER TABLE a ADD COLUMN x INT;")
+	q1, c1 := mig("0001_b.sql", "b", "CREATE TABLE b (id INT);")
+	epoch := func(n string, kv ...any) Tree { t := tree(kv...); t[EpochPath] = []byte(n + "\n"); return t }
+	prev := epoch("2", p1, b1, q1, c1)
+	cases := []struct {
+		name      string
+		prev, cur Tree
+		want      string // "" = continues the history
+	}{
+		{"nothing new", prev, epoch("2", p1, b1, q1, c1), ""},
+		{"an add-only migration", prev, epoch("2", p1, b1, p2, b2, q1, c1), ""},
+		{"a new migration that is not add-only", prev, epoch("2", p1, b1, p2, up("DROP TABLE a;"), q1, c1), ""},
+		{"an applied migration edited", prev, epoch("2", p1, up("CREATE TABLE a (id INT, extra INT);"), q1, c1), "0001_a.sql: was edited"},
+		{"an applied migration removed", prev, epoch("2", p1, b1), "0001_b.sql: was removed"},
+		{"a new migration below an applied number", prev, epoch("2", p1, b1, q1, c1, "modules/a/migrations/sqlite/0000_late.sql", up("CREATE TABLE late (id INT);")), "not above the highest"},
+		{"a new epoch starts a new history", prev, epoch("3", "modules/a/migrations/sqlite/0001_all.sql", up("CREATE TABLE a (id INT, x INT);")), ""},
+		{"from a release without an epoch file (epoch 1)", tree(p1, b1, p2, b2), epoch("2", "modules/a/migrations/sqlite/0001_all.sql", up("CREATE TABLE a (id INT, x INT);")), ""},
+		{"the epoch went down", prev, epoch("1", p1, b1, q1, c1), "went down from 2 to 1"},
+		{"an unreadable epoch", prev, epoch("two", p1, b1, q1, c1), "does not hold"},
+	}
+	for _, c := range cases {
+		joined := ""
+		for _, f := range CheckHistory(c.prev, c.cur) {
+			joined += f.String() + "\n"
+		}
+		if c.want == "" && joined != "" || c.want != "" && !strings.Contains(joined, c.want) {
+			t.Errorf("%s: want %q, got %q", c.name, c.want, joined)
+		}
+	}
+}
+
+// The first release of schema epoch 2 after the published beta (epoch 1, its tag in this clone when it has the tags) starts a new
+// history: no history finding, and never add-only.
+func TestHistoryFromThePublishedBeta(t *testing.T) {
+	t.Parallel()
+	cur, err := DirTree(os.DirFS("../.."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := GitTree(t.Context(), "../..", "v0.1.0-beta.1")
+	if err != nil {
+		t.Skipf("no tag v0.1.0-beta.1 in this clone: %v", err)
+	}
+	if beta.Epoch() >= cur.Epoch() {
+		t.Fatalf("the beta has epoch %d, this tree %d", beta.Epoch(), cur.Epoch())
+	}
+	if f := CheckHistory(beta, cur); len(f) != 0 {
+		t.Fatalf("a new epoch was compared file by file: %v", f)
+	}
+	if f := CheckMigrations(beta, cur); len(f) != 1 || !strings.Contains(f[0].String(), "epoch went up") {
+		t.Fatalf("the epoch bump is not a rollback finding: %v", f)
+	}
+}
+
 func TestDirTreeReadsOnlyMigrationFiles(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

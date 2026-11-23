@@ -173,7 +173,7 @@ func TestSchemaTablesUseTheirModulePrefix(t *testing.T) {
 	owner, tables := moduleTables(t)
 	infos := manifestInfos(t)
 	for _, tb := range tables {
-		if strings.HasPrefix(tb.Name, "core_migration_") || tb.Name == "core_schema_epoch" {
+		if store.IsBookkeeping(tb.Name) {
 			continue
 		}
 		mod := owner[tb.Name]

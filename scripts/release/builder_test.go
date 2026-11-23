@@ -102,6 +102,7 @@ type buildOpts struct {
 	minUpgrade       string // min_upgrade_from
 	prevDir          string
 	baseline, cur    Tree // migrations at rollback.min_version, and at this release
+	earlier          []ReleaseTree
 	services         []string
 	mutateIndex      func(*release.Index)
 	revoke           []string // key ids the index revokes
@@ -132,7 +133,7 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 		Bundled: []release.Bundled{{Service: "honeypot", Name: "opencanary", Version: "0.9.4"}},
 		SBOM:    &SBOMIn{URL: "https://github.com/knt048/vedette/releases/download/v" + o.version + "/sbom.json", File: sbom},
 	}
-	env := Env{Now: t1, CosignDir: cdir, CurTree: o.cur, Baseline: o.baseline}
+	env := Env{Now: t1, CosignDir: cdir, CurTree: o.cur, Baseline: o.baseline, Earlier: o.earlier}
 	var prevIdx *release.Index
 	if o.prevDir != "" {
 		prevIdx, err = LoadPrevIndex(o.prevDir, r.trust)
@@ -340,6 +341,69 @@ func TestRollbackGuard(t *testing.T) {
 	if code := run([]string{"verify", "-dir", t.TempDir(), "-keys-dir", t.TempDir()}, nil, &out, &errb); code != 1 {
 		t.Errorf("exit code %d", code)
 	}
+}
+
+// Every release is checked against the migrations of every earlier release, whatever it says about rollback: a box updates in
+// place from any of them. A release that starts a new schema epoch must say rollback.safe=false.
+func TestHistoryGuard(t *testing.T) {
+	r := newRig(t)
+	prev, err := r.build(buildOpts{version: "1.0.0", channel: "stable", cur: epochTree("2", addOnlyTree)})
+	must(t, err)
+	a1 := "modules/a/migrations/sqlite/0001_a.sql"
+	v1 := epochTree("2", addOnlyTree)
+	edited := epochTree("2", Tree{a1: up("CREATE TABLE a (id INT, z INT);")})
+	addOnly := epochTree("2", Tree{a1: addOnlyTree[a1], "modules/a/migrations/sqlite/0002_a.sql": up("ALTER TABLE a ADD COLUMN z INT;")})
+	epoch1 := Tree{"modules/a/migrations/sqlite/0001_old.sql": up("CREATE TABLE old (id INT);"), "modules/a/migrations/sqlite/0002_old.sql": up("CREATE TABLE a (id INT);")}
+	earlier := []ReleaseTree{{Version: "0.9.0", Tree: v1}, {Version: "1.0.0", Tree: v1}, {Version: "1.5.0", Tree: edited}} // 1.5.0 is not below 1.1.0
+	cases := []struct {
+		name        string
+		o           buildOpts
+		wantHistory string
+		wantErr     string
+	}{
+		{"an edited applied migration, safe=false", buildOpts{version: "1.1.0", cur: edited, earlier: earlier}, "0001_a.sql: was edited", ""},
+		{"a removed applied migration, safe=false", buildOpts{version: "1.1.0", cur: epochTree("2", Tree{"modules/a/migrations/sqlite/0002_a.sql": up("CREATE TABLE b (id INT);")}), earlier: earlier}, "was removed", ""},
+		{"an add-only migration, safe=false", buildOpts{version: "1.1.0", cur: addOnly, earlier: earlier}, "", ""},
+		{"an add-only migration, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "1.0.0", baseline: v1, cur: addOnly, earlier: earlier}, "", ""},
+		{"an epoch below an earlier release's", buildOpts{version: "1.1.0", cur: epochTree("1", addOnly), earlier: earlier}, "went down from 2 to 1", ""},
+		{"a new epoch, safe=false", buildOpts{version: "1.1.0", cur: epochTree("3", addOnly), earlier: earlier}, "", ""},
+		{"a new epoch, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "1.0.0", baseline: v1, cur: epochTree("3", addOnly), earlier: earlier}, "", "starts schema epoch 3 after release 1.0.0 (epoch 2)"},
+		{"the first release of epoch 2 after an epoch 1 beta, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "0.1.0-beta.1", baseline: epoch1, cur: v1, earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}}, "", "starts schema epoch 2 after release 0.1.0-beta.1 (epoch 1)"},
+		{"the first release of epoch 2 after an epoch 1 beta, safe=false", buildOpts{version: "1.1.0", cur: v1, earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}}, "", ""},
+	}
+	for _, c := range cases {
+		c.o.channel, c.o.prevDir = "stable", prev
+		_, err := r.build(c.o)
+		var he *HistoryError
+		switch {
+		case c.wantHistory != "":
+			if !errors.As(err, &he) || !strings.Contains(err.Error(), c.wantHistory) {
+				t.Errorf("%s: want a history refusal naming %q, got %v", c.name, c.wantHistory, err)
+			}
+		case c.wantErr != "":
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("%s: want error %q, got %v", c.name, c.wantErr, err)
+			}
+		case err != nil:
+			t.Errorf("%s: %v", c.name, err)
+		}
+	}
+	// the builder says which release the new epoch follows, for the note to the maintainer
+	in := Inputs{Version: "1.1.0", Channel: "stable", InstallModes: []string{"appliance"}}
+	res, _ := BuildManifest(in, Env{Now: t1, CurTree: v1, Earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}})
+	if res.Epoch == nil || *res.Epoch != (EpochStart{Since: "0.1.0-beta.1", From: 1, To: 2}) {
+		t.Errorf("epoch start %+v", res.Epoch)
+	}
+}
+
+func epochTree(n string, t Tree) Tree {
+	out := Tree{EpochPath: []byte(n + "\n")}
+	for k, v := range t {
+		if k != EpochPath {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 func TestBuildManifestRefusals(t *testing.T) {

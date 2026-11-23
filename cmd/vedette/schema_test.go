@@ -45,11 +45,7 @@ func TestSchemaFileIsCurrent(t *testing.T) {
 func writeSchema(t *testing.T, b *strings.Builder, file string, sets []store.MigrationSet) {
 	t.Helper()
 	db := storetest.New(t)
-	rev, err := store.SchemaRev(sets)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := store.CheckEpoch(t.Context(), db, rev); err != nil {
+	if err := store.CheckSchema(t.Context(), db, sets); err != nil {
 		t.Fatal(err)
 	}
 	b.WriteString("\n-- ======== " + file + " ========\n")

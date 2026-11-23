@@ -27,17 +27,48 @@ func TestSelfcheck_FixtureReplayHoldsEveryInvariant(t *testing.T) {
 	s := newStack(t)
 	devices, _ := replaySoftwareLines(t, s) // before the catalogue: the hourly pass below matches every device once
 	vulns := loadReachFixture(t)
-	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // as seedKEVRow, seedNVD and seedRange write them, through prepared statements
+		now := store.FormatTS(time.Now().UTC())
+		var stmts []*sql.Stmt
+		prep := func(q string) *sql.Stmt {
+			st, perr := tx.PrepareContext(ctx, q)
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			stmts = append(stmts, st)
+			return st
+		}
+		defer func() {
+			for _, st := range stmts {
+				_ = st.Close()
+			}
+		}()
+		cve := prep(`INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES (?, ?, ?, 'Analyzed', ?, ?)`)
+		kev := prep(`INSERT INTO feeds_kev (cve, list, source_id, vendor, product, name, date_added, ransomware, updated_at) VALUES (?, 'cisa', 'cisa-kev', ?, ?, ?, ?, 0, ?)`)
+		signal := prep(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES (?, 'exploited', 'cisa-kev', ?, ?, ?, 1)`)
+		metric := prep(`INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES (?, 'nvd', '3.1', 9.8, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')`)
+		rng := prep(`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, '[]')`)
 		for _, v := range vulns {
-			if err := seedKEVRow(ctx, tx, v.CVE, v.Vendor, v.Product, v.Name, v.DateAdded, false, false); err != nil {
+			added := v.DateAdded.Format(time.DateOnly)
+			if _, err := cve.ExecContext(ctx, v.CVE, store.FormatTS(v.DateAdded.AddDate(0, 0, -7)), now, now, now); err != nil {
 				return err
 			}
-			if err := seedNVD(ctx, tx, v.CVE, v.DateAdded.AddDate(0, 0, -7), 9.8); err != nil {
+			if _, err := kev.ExecContext(ctx, v.CVE, v.Vendor, v.Product, v.Name, added, now); err != nil {
+				return err
+			}
+			if _, err := signal.ExecContext(ctx, v.CVE, added+"T00:00:00.000Z", now, now); err != nil {
+				return err
+			}
+			if _, err := metric.ExecContext(ctx, v.CVE); err != nil {
 				return err
 			}
 			for _, a := range v.Affected {
+				f := strings.SplitN(strings.TrimPrefix(a.CPE, "cpe:2.3:"), ":", 4)
+				for len(f) < 3 {
+					f = append(f, "")
+				}
 				r := a.Range
-				if err := seedRange(ctx, tx, v.CVE, a.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
+				if _, err := rng.ExecContext(ctx, v.CVE, f[0], strings.ToLower(f[1]), strings.ToLower(f[2]), a.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl); err != nil {
 					return err
 				}
 			}

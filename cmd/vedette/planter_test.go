@@ -117,12 +117,8 @@ func (p *planter) end(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
-// insert writes one row of tbl: the columns of set as given (nil is NULL), every other column its planted default. The rows its
-// foreign keys reference are written first when they are not there.
-func (p *planter) insert(ctx context.Context, tx *sql.Tx, tbl string, set map[string]any) error {
-	return p.write(ctx, tx, tbl, set, "INSERT", 0)
-}
-
+// write writes one row of tbl with verb (INSERT, INSERT OR IGNORE): the columns of set as given (nil is NULL), every other column
+// its planted default. The rows its foreign keys reference are written first when they are not there.
 func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[string]any, verb string, depth int) error {
 	if _, ok := p.tables[tbl]; !ok {
 		return fmt.Errorf("no table %s", tbl)
@@ -169,8 +165,8 @@ func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[str
 			}
 		}
 	}
-	q := verb + ` INTO "` + tbl + `" (` + strings.Join(cols, ", ") + `) VALUES (` + strings.Join(marks, ", ") + `)`
-	if _, err := tx.ExecContext(ctx, q, args...); err != nil { //nolint:gosec // names read from sqlite_master, quoted
+	q := verb + ` INTO "` + tbl + `" (` + strings.Join(cols, ", ") + `) VALUES (` + strings.Join(marks, ", ") + `)` //nolint:gosec // names read from sqlite_master, quoted
+	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 		return fmt.Errorf("plant a row in %s: %w", tbl, err)
 	}
 	return nil

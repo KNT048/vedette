@@ -1394,10 +1394,10 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(tls).getByText('certificate for nas01.acme.example, backup.acme.example')).toBeInTheDocument()
     expect(within(services).queryByText(/^ssl\/unknown$|^sip$/)).toBeNull()
     const checked = screen.getByRole('list', { name: 'Checked' })
-    expect(within(checked).getByText(/Service identification \(nmap -sV\) on 99 TCP ports: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
+    expect(within(checked).getByText(/Service identification \(nmap -sV\) on 1052 TCP ports: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
     expect(within(checked).getByText(/2 of 5 services compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
     const not = screen.getByRole('list', { name: 'Not checked' })
-    for (const line of ['UDP ports: the scan connects over TCP only.', 'TCP ports outside the fixed list of commonly exposed ports.', /only the CISA list of exploited vulnerabilities \(KEV\) is compared/]) expect(within(not).getByText(line)).toBeInTheDocument()
+    for (const line of ['UDP ports: the scan connects over TCP only.', "TCP ports other than the 1052 ports this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports.", /only the CISA list of exploited vulnerabilities \(KEV\) is compared/]) expect(within(not).getByText(line)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -2051,7 +2051,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2)', () => {
     expect((await call('DELETE', '/exposure/targets/xt-2/terms')).status).toBe(200) // the sample IP has them accepted
     const view = renderApp('/exposure/xt-2')
     expect(await screen.findByText('Scan now scope (testing terms not accepted): non-intrusive, no exploitation, no disruption. Aimed only at this target.')).toBeInTheDocument()
-    expect(await screen.findByText(/^Ports are scanned only on this box's own verified public IPs; a domain's names get one check/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Ports are scanned only on this box's own verified public IPs: nmap's 1,000 most common TCP ports and a fixed list of commonly exposed ones, then the service behind each open port\. A domain's names get one check/)).toBeInTheDocument()
     view.unmount()
     const v = (await call('GET', '/exposure/targets/xt-2')).json as { terms_notice: { version: string } }
     expect((await call('PUT', '/exposure/targets/xt-2/terms', { version: v.terms_notice.version, disruptive: true })).status).toBe(200)

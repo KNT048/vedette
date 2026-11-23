@@ -4,13 +4,13 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, isOn, recordAiRun, type AiJob } from '@/mocks/stores'
-import { liveSoftware, usableVersion, versionNeeded } from '@/mocks/match'
-import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
+import { liveSoftware } from '@/mocks/match'
+import { kevPublished as published } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
+import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
@@ -26,12 +26,9 @@ const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => (
 // Accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
 // the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
 export const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
-// The update that fixes a finding with others (FindingRow.fix), finding id → fix. The box computes it from NVD's ranges, which
-// the mock does not have, so it is empty unless a test or a sample sets it.
-export const fixes = collection<Record<string, RowFix>>('fnd_fixes', () => ({}))
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
-const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen']
+const RESOLUTIONS = ['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive']
 
 const DISPLAY: Record<string, string> = {
   'qnap|photo station': 'Photo Station app on a QNAP NAS',
@@ -71,57 +68,6 @@ export function deviceRisk(assetId: string): Risk | null {
   return deviceStatus(assetId)
 }
 
-/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. Nothing is
- *  marked done: a recommended update a person installed is Patched on its findings. */
-function plan(tier: string, asset: string | null, done = false): Plan {
-  const n = (t: string) => (done ? 0 : tierPlan(t, asset).items.length) // every tab's number in one answer, as the box gives it
-  const base = tierPlan(tier, asset)
-  // Each item carries its device's badge, so the page needs no device list
-  return { ...base, items: done ? [] : base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id), done: null })), counts: { likely: n('likely'), recent: n('recent'), all: n('all'), done: 0 } }
-}
-
-function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
-  const feedsOn = isOn('feeds')
-  const st = feedsOn ? tierState.get() : { ...tierState.get(), epss: 'module_off' as const, recent: 'module_off' as const }
-  const ready = st.epss === 'ready' || st.recent === 'ready'
-  const assets = assetsStore.get()
-  const readable = assets.filter((a) => a.software.some((s) => !!s.version))
-  const items: PlanItem[] = []
-  let old = 0
-  if (ready && st.compared) {
-    for (const p of planSeed.get()) {
-      const a = assets.find((x) => x.id === p.asset_id)
-      if (!a || (asset && a.id !== asset)) continue
-      const cves: PlanCve[] = []
-      for (const c of p.cves) {
-        const f = tierFact(c.cve)
-        if (!f || (!withinYear(f) && c.basis !== 'scan')) continue // Older only when a scan engine found it
-        const t = tierOf(f)
-        if (t === 'likely' ? st.epss !== 'ready' : st.recent !== 'ready') continue
-        if (tier !== 'all' && t !== tier) continue
-        if (!withinYear(f)) old++
-        cves.push({ cve: f.cve, tier: t, basis: c.basis, severity: f.severity, score: f.score, published: f.published, epss: f.epss, percentile: f.percentile })
-      }
-      if (cves.length === 0) continue
-      // Likely first by EPSS, then the recent ones by CVSS score, then EPSS, then newest (findings' sortPlanCVEs)
-      cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
-        || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
-        || y.published.localeCompare(x.published))
-      // As the box: an agent row's version is the last list an agent sent once no agent reports the device (agent-intake off, or no
-      // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
-      const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false, distro: p.distro ?? '', nvd_lag: p.nvd_lag ?? false, kb: p.kb ?? '',
-        distro_data: p.kind === 'distro' ? (p.fixed ? 'fixed' : 'none') : '', done: null,
-        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
-        agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
-    }
-  }
-  const top = (i: PlanItem) => Math.max(-1, ...i.cves.map((c) => c.epss ?? -1))
-  items.sort((x, y) => y.likely - x.likely || top(y) - top(x) || y.cves.length - x.cves.length)
-  return { items, compared: st.compared, compared_devices: readable.length, unchecked_devices: assets.length - readable.length, old_evidence: old,
-    data: { epss: st.epss, recent: st.recent, epss_date: st.epss === 'ready' ? epssDate() : null, recent_since: st.recent === 'ready' ? recentSince() : null } }
-}
-
 /** Tên như trang Devices (`displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
 function nameOf(a: Asset): string {
   return displayName(a) || a.software[0]?.display || a.kind
@@ -138,8 +84,7 @@ function row(f: Finding): FindingRow {
   const confirmedBy = f.basis === 'scan' || f.basis === 'person' || (f.basis === 'version' && f.status === 'confirmed')
   const confidence = confirmedBy ? Math.max(f.confidence, 0.95) : f.confidence
   const urgency = kevInfo(f.cve) ? 2 : 5 // a CVE on an exploited list is layer 2; any other catalogue CVE is an update to recommend
-  return { ...f, status, confidence, urgency, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
-    fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
+  return { ...f, status, confidence, urgency, accepted_until: until, resolution_reason: null, proved_version: null, software_id: '', asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve) }
 }
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -267,7 +212,7 @@ function whySuspected(f: Finding, kv: KnownVersion | null, k: KevInfo | null): s
     : "Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range."
   const device = byDevice ? '' : ' It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it.'
   const check = !k ? '' : !k.has_template ? ' No safe vulnerability check exists for this CVE.' : ' A safe vulnerability check exists for this CVE: run the check to confirm it.'
-  return `${head}${device}${check} Last, confirm it yourself.`
+  return `${head}${device}${check}`
 }
 
 function detail(f: Finding): FindingDetail {
@@ -380,34 +325,6 @@ function askAnswers(f: Finding, k: KevInfo | null, dev: string): AiAnswer[] {
 
 
 const cveOf = (cve: string, name: string, added: string, ransomware: boolean, advisory: string | null) => ({ cve, name, date_added: added, ransomware, advisory })
-const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['reason']; action: UncheckedItem['action']; cves: UncheckedItem['cves'] }[] = [
-  { asset: 'a-srvacc', software: 'Windows Server 2022', reason: 'no_nvd_data', action: 'none', cves: [
-    cveOf('CVE-2026-20001', 'Windows Kernel Privilege Escalation', '2026-11-12', true, 'https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-20001'),
-    cveOf('CVE-2026-20002', 'Windows SMB Remote Code Execution', '2026-11-10', false, null)] },
-  { asset: 'a-web01', software: 'WordPress website', reason: 'no_nvd_versions', action: 'none', cves: [
-    cveOf('CVE-2026-20003', 'WordPress Core Authentication Bypass', '2026-11-05', false, 'https://wordpress.org/news/category/security/')] },
-  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'none', cves: [
-    cveOf('CVE-2026-20004', 'Synology DSM Command Injection', '2026-10-28', true, 'https://www.synology.com/en-global/security/advisory/Synology_SA_26_10'),
-    cveOf('CVE-2026-20005', 'Synology DSM Path Traversal', '2026-10-20', false, null),
-    cveOf('CVE-2026-20006', 'Synology DSM Authentication Bypass', '2026-10-02', false, null),
-    cveOf('CVE-2026-20007', 'Synology DSM Buffer Overflow', '2026-09-18', false, null)] },
-  { asset: 'a-rt02', software: 'MikroTik router', reason: 'not_named', action: 'none', cves: [
-    cveOf('CVE-2026-20008', 'MikroTik RouterOS Memory Corruption', '2026-09-01', false, 'https://mikrotik.com/supportsec')] },
-]
-/** Mock: SQL Server added by hand without a version on SRV-FILE, and a camera seen only in traffic. Their
- *  exploited CVEs are not in the KEV fixture, so the items are seeded here; it leaves once the row has a usable version, as the real box re-matches. */
-const VERSION_SEED: { asset: string; software: string; cves: number }[] = [
-  { asset: 'a-srvfile', software: 'Microsoft SQL Server', cves: 6 },
-  { asset: 'a-cam01', software: 'Hikvision camera', cves: 4 }, // seen in traffic, no version: a scan reads it
-]
-function versionSeed(asset?: string | null) {
-  return VERSION_SEED.flatMap((v) => {
-    const a = assetsStore.get().find((x) => x.id === v.asset)
-    const sw = a ? liveSoftware(a).find((x) => x.display === v.software) : undefined
-    return a && sw && (!asset || a.id === asset) && !usableVersion(sw.version) ? [{ asset: a, software: sw, cves: v.cves }] : []
-  })
-}
-const seedVersions = new Map<string, string | null>()
 /** GET /findings?asset=: the software row each finding rests on, as the box stored it when it matched (here: the row keyed to the entry). */
 function withSoftware(r: FindingRow): FindingRow {
   if (r.software_id) return r
@@ -429,159 +346,23 @@ function enteredClosed(asset: string): FindingRow[] {
   return [{ ...row(f), resolution_reason: 'not_affected_version', proved_version: sw.pkg_version, software_id: sw.id }]
 }
 
-/** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks), a person's
- *  correction included (INV-41: the rows matching reads). */
-export function unchecked(asset?: string | null): UncheckedItem[] {
-  const out: UncheckedItem[] = []
-  for (const u of UNCHECKED_SEED) {
-    const a = assetsStore.get().find((x) => x.id === u.asset)
-    const sw = a ? liveSoftware(a).find((x) => x.display === u.software) : undefined
-    if (!a || !sw || (asset && a.id !== asset)) continue
-    const key = `${a.id}/${u.software}`
-    if (!seedVersions.has(key)) seedVersions.set(key, sw.version || null)
-    if (seedVersions.get(key) !== (sw.version || null)) continue
-    out.push({ asset: assetView(a), asset_id: a.id, software_id: sw.id, software: sw.display, version: sw.version || null, reason: u.reason, cves: u.cves, action: u.action })
-  }
-  const q = platformItem()
-  if (q && (!asset || q.asset_id === asset)) out.push(q)
-  return out
-}
-
 /** Mock, BN340 (an Alpine router): CVE-2026-123158 affects only OpenSSH built with musl and without PAM (Alpine's openssh-server).
  *  The scan reads OpenSSH 10.2 and an OS guess, so the platform is the question; once a person sets Alpine Linux, the package release
  *  is; a release Vedette reads settles it (the item leaves; the real box closes the CVE with Alpine's reason), one it cannot read comes
  *  back as question.error. As findings.platformQuestion words it. */
 const BN340 = { asset: 'a-bn340', software: 'OpenSSH', cve: cveOf('CVE-2026-123158', 'OpenSSH Remote Code Execution', '2026-11-12', false, 'https://security.alpinelinux.org/vuln/CVE-2026-123158') }
-const APK = 'apk info -e -v openssh-server'
 /** The release of what a person typed: the bare release, or the line apk prints ("openssh-server-10.2_p1-r1"); null when unreadable. */
 const releaseOf = (v: string) => { const m = /^(?:[a-z][a-z0-9+._-]*?-(?=\d))?(\d[\w.:~+-]*)$/.exec(v.trim()); return m ? m[1]! : null }
-function platformItem(): UncheckedItem | null {
-  const a = assetsStore.get().find((x) => x.id === BN340.asset)
-  const sw = a ? liveSoftware(a).find((x) => x.display === BN340.software) : undefined
-  if (!a || !sw) return null
-  const pkg = sw.pkg_version ?? ''
-  if (pkg && releaseOf(pkg)) return null // settled
-  const device = assetView(a)?.name ?? 'this device'
-  const base = { asset: assetView(a), asset_id: a.id, software_id: sw.id, software: sw.display, version: sw.version || null, cves: [BN340.cve], action: 'answer_platform' as const }
-  const alpine = a.os?.source === 'manual' && /alpine/i.test(a.os.value)
-  if (alpine || pkg) {
-    return { ...base, reason: 'package_unknown', question: {
-      text: `Which openssh-server package release does ${device} have? Alpine Linux fixed CVE-2026-123158 in 10.2_p1-r1 (3.23) and 10.0_p1-r10 (3.22).`, command: APK,
-      answers: [{ label: 'Enter the package release', ask: ['pkg_version'] }],
-      ...(pkg ? { error: `Vedette could not read the release you entered ("${pkg}"): enter it as ${APK} prints it, for example openssh-server-10.2_p1-r1 or 10.2_p1-r1.` } : {}),
-    } }
-  }
-  return { ...base, reason: 'platform_unknown', question: {
-    text: `Is the OpenSSH on ${device} Alpine Linux's openssh-server package, or another build? CVE-2026-123158 affects only OpenSSH built with musl libc and without PAM, such as Alpine Linux's openssh-server package. Choose the Alpine Linux release it runs (cat /etc/alpine-release prints it), or Another system to give its OS and the OpenSSH package release (that settles it).`,
-    command: 'cat /etc/alpine-release',
-    answers: [{ label: 'Alpine Linux 3.22', os: 'Alpine Linux 3.22' }, { label: 'Alpine Linux 3.23', os: 'Alpine Linux 3.23' }, { label: 'Another system', ask: ['os', 'pkg_version'] }],
-  } }
-}
-
-const SEV = ['info', 'low', 'medium', 'high', 'critical']
-const sevRank = (s: string) => SEV.indexOf(s.toLowerCase())
-const buildOf = (v: string) => v.replace(/^10\.0\./, '')
-/** As findings updateSentence (updates.go): what to install, in the words the box writes. */
-function sentence(u: Pick<ToFixAction, 'kind' | 'software' | 'version' | 'fixed' | 'windows' | 'distro' | 'pro' | 'kb'>): string {
-  const sw = u.software || 'the software'
-  const fixed = u.windows ? buildOf(u.fixed) : u.fixed
-  const build = `${u.windows && u.version ? `from build ${buildOf(u.version)} to ${fixed}` : `build ${fixed}`} or later${u.kb ? `; ${u.kb}` : ''}`
-  switch (u.kind) {
-    case 'none': return `No update is named that fixes these: follow the vendor's advice for ${sw}`
-    case 'distro':
-      if (fixed) return `Upgrade the ${sw} package from ${u.version} to ${fixed} or later${u.pro ? ' (Ubuntu Pro)' : ''}`
-      return u.distro ? `Install ${u.distro}'s security updates for ${sw}` : `Install the distribution's security updates for ${sw}`
-    case 'feature_update': return `Upgrade ${sw} to ${fixed}: some of these get no update for this release`
-    case 'esu': return `Install the Extended Security Update for ${sw} (${build}; it needs an ESU subscription)`
-    case 'windows': return `Install the latest cumulative update for ${sw} (${build})`
-  }
-  return u.windows ? `Install the latest cumulative update for ${sw} (${build})` : `Upgrade ${sw} from ${u.version} to ${fixed} or later`
-}
-
-/** GET /findings/to-fix, as findings.ToFix builds it: per device, the open findings grouped by their fix (or by product when
- *  no update is named), then the device's plan items; the most urgent device first. */
-function toFix(asset: string | null): ToFix {
-  const rows = findingsStore.get().filter((f) => !asset || f.asset_id === asset).map(row).filter((r) => r.status === 'confirmed' || r.status === 'suspected')
-  const assets = assetsStore.get()
-  const feedsOn = isOn('feeds')
-  const planItems = feedsOn ? tierPlan('all', asset).items : []
-  const ids = [...new Set([...rows.map((r) => r.asset_id), ...planItems.map((i) => i.asset.id)])]
-  const devices: ToFixDevice[] = []
-  for (const id of ids) {
-    const a = assets.find((x) => x.id === id)
-    const view = assetView(a)
-    if (!a || !view) continue
-    const groups = new Map<string, ToFixAction>()
-    for (const r of rows.filter((x) => x.asset_id === id).sort((x, y) => sevRank(y.severity) - sevRank(x.severity) || x.cve.localeCompare(y.cve))) {
-      const f = r.basis === 'product' ? null : r.fix
-      const kevKey = r.kev ? `${r.kev.vendor}|${r.kev.product}`.toLowerCase() : ''
-      const swRow = a.software.find((x) => x.kev.includes(kevKey))
-      const sw = f?.software ?? swRow?.display ?? r.kev?.display ?? ''
-      const key = f ? `fix:${f.group}` : `row:${swRow?.id ?? sw}`
-      let g = groups.get(key)
-      if (!g) {
-        g = f
-          ? { group: f.group, software_id: '', software: f.software, version: f.version, product: kevKey, source: a.software.find((x) => `${id}/${x.id}` === f.group)?.source ?? '', fixed: f.fixed, kind: f.kind, windows: f.windows, distro: f.distro, pro: f.pro, distro_data: '', action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
-          : { group: `${id}/${swRow?.id ?? ''}`, software_id: swRow?.id ?? '', software: sw, version: swRow?.version ?? '', product: swRow ? `${swRow.vendor}|${swRow.product}`.toLowerCase() : '', source: swRow?.source ?? '', fixed: '', kind: 'none', windows: false, distro: '', pro: false, distro_data: '', action: '', cves: [], finding_ids: [], worst: '', ransomware: 0, likely: 0, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '' }
-        if (f) g.software_id = a.software.find((s) => `${id}/${s.id}` === f.group)?.id ?? ''
-        groups.set(key, g)
-      }
-      g.cves.push(r.cve); g.finding_ids.push(r.id)
-      if (!g.worst) g.worst = r.severity
-      if (r.kev?.ransomware) g.ransomware++
-      if (r.kev?.has_template) g.checkable++
-      if (r.status === 'confirmed') g.confirmed++ // a scan, a person or the version the device reports (findings proofOf)
-      else if (r.basis === 'version') g.detected++
-      else g.reported++
-    }
-    const acts = [...groups.values()].map((g) => ({ ...g, action: sentence(g) }))
-    const order = (x: ToFixAction, y: ToFixAction) => sevRank(y.worst) - sevRank(x.worst) || y.cves.length - x.cves.length || y.ransomware - x.ransomware || x.software.localeCompare(y.software)
-    const planned: ToFixAction[] = planItems.filter((i) => i.asset.id === id).map((i) => {
-      const worst = i.cves.reduce((w, c) => (c.severity && sevRank(c.severity) > sevRank(w) ? c.severity : w), '')
-      const row = a.software.find((x) => x.id === (i.group.split('/')[1] ?? ''))
-      const u = { group: i.group, software_id: i.group.split('/')[1] ?? '', software: i.software, version: i.version, product: row ? `${row.vendor}|${row.product}`.toLowerCase() : '', source: row?.source ?? '', fixed: i.fixed, kind: i.kind, windows: i.kind === 'windows' || i.kind === 'esu', distro: i.distro, pro: i.pro, distro_data: i.distro_data, action: '', cves: i.cves.map((c) => c.cve), finding_ids: [], worst, ransomware: 0, likely: i.likely, confirmed: 0, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: i.nvd_lag, kb: i.kb }
-      return { ...u, action: sentence(u) }
-    })
-    const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
-    devices.push({ ...card, risk: deviceRisk(id) })
-  }
-  const urgency = (d: ToFixDevice) => {
-    const act = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)]
-    return [act.length ? 1 : 0, Math.max(-1, ...act.map((x) => sevRank(x.worst))), act.reduce((n, x) => n + x.ransomware, 0), act.reduce((n, x) => n + x.confirmed + x.detected, 0), act.reduce((n, x) => n + x.cves.length, 0),
-      Math.max(-1, ...d.planned.map((x) => sevRank(x.worst))), d.planned.reduce((n, x) => n + x.likely, 0), d.planned.reduce((n, x) => n + x.cves.length, 0)]
-  }
-  devices.sort((x, y) => { const a = urgency(x); const b = urgency(y); for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return b[i]! - a[i]!; return x.asset.id.localeCompare(y.asset.id) })
-  const risks = asset ? {} : Object.fromEntries(devices.flatMap((d) => (d.risk ? [[d.asset.id, d.risk]] : [])))
-  return { devices, truncated: false, plan_ran: feedsOn, plan_off: !feedsOn, risks }
-}
-
 export const handlers = [
   ...modelHandlers, // first: /findings/devices and the other new paths must not be read as /findings/:id
+  // One device's findings in every state (asset is required: the box's validator refuses a request without it).
   http.get(`${API}/findings`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
     expireAccepted()
     const asset = new URL(request.url).searchParams.get('asset')
-    const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
-    const version_needed = [...versionNeeded(asset), ...versionSeed(asset)].map(({ asset: a, software: s, cves }) => ({
-      asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
-    }))
-    return HttpResponse.json({ items: [...list.map(row), ...(asset ? enteredClosed(asset) : [])].map((r) => (asset ? withSoftware(r) : r)), version_needed, unchecked: unchecked(asset) })
-  }),
-
-  // Before /findings/:id: "to-fix" is not a finding id.
-  http.get(`${API}/findings/to-fix`, ({ request }) => {
-    const denied = guard('viewer'); if (denied) return denied
-    expireAccepted()
-    return HttpResponse.json(toFix(new URL(request.url).searchParams.get('asset')))
-  }),
-
-  // Before /findings/:id: "plan" is not a finding id.
-  http.get(`${API}/findings/plan`, ({ request }) => {
-    const denied = guard('viewer'); if (denied) return denied
-    const q = new URL(request.url).searchParams
-    const tier = q.get('tier') ?? 'all'
-    if (!['likely', 'recent', 'all'].includes(tier)) return fail(400, 'invalid', 'tier must be likely, recent or all.')
-    return HttpResponse.json(plan(tier, q.get('asset'), q.get('done') === 'true'))
+    if (!asset) return fail(400, 'invalid', 'asset is required.')
+    const list = findingsStore.get().filter((f) => f.asset_id === asset)
+    return HttpResponse.json({ items: [...list.map(row), ...enteredClosed(asset)].map(withSoftware) })
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {
@@ -591,61 +372,76 @@ export const handlers = [
     return f ? HttpResponse.json(detail(f)) : fail(404, 'not_found', 'No such finding. It may have been removed when the sample data was restored.')
   }),
 
-  // Đổi trạng thái kèm ghi chú (S-MIT-1). false_positive / not_relevant bắt buộc ghi chú để lần sau biết vì sao.
-  http.post(`${API}/findings/:id/status`, async ({ params, request }) => {
+  // The finding page's writes on findingsStore ids (modelMocks passes them through): Mark as handled, Reopen, Confirm vulnerability
+  // and its Undo, with the rules of modelMocks.
+  http.post(`${API}/findings/handle`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
-    const f = find(params.id)
-    if (!f) return fail(404, 'not_found', 'No such finding.')
-    const b = await body<{ action: StatusAction; note: string; until?: string }>(request)
-    if (!b.action || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, not relevant, accept risk, or reopen.')
+    const b = await body<{ ids?: string[]; resolution: string; note?: string; until?: string }>(request)
+    const found = (b.ids ?? []).map((id) => find(id))
+    if (!found.length || found.some((f) => !f)) return fail(404, 'not_found', 'A finding in the list does not exist.')
+    const resolution = String(b.resolution ?? '')
+    if (!RESOLUTIONS.includes(resolution)) return fail(400, 'invalid', 'The request is not valid.')
     const note = typeof b.note === 'string' ? b.note.trim() : ''
-    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    if ((b.action === 'false_positive' || b.action === 'not_relevant' || b.action === 'accept_risk') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
-    if (b.action === 'accept_risk' ? !untilOk(String(b.until ?? '')) : b.until !== undefined) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
+    if (note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    if (['false_positive', 'not_relevant', 'accepted'].includes(resolution) && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    if (resolution === 'accepted' ? !untilOk(String(b.until ?? '')) : b.until !== undefined) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
     const ts = nowIso()
     const user = who()
-    clearAccepted(f.id)
-    if (b.action === 'accept_risk') {
-      const until = String(b.until)
-      patch(f.id, (x) => ({ ...x, status: 'not_relevant', resolved_by: user, resolved_at: ts, resolution_note: note, history: [...x.history, { ts, user, action: 'risk_accepted', note: `${note} (until ${fmtDate(until)})` }] }))
-      accepted.update((m) => ({ ...m, [f.id]: until }))
-    } else if (b.action === 'reopen') {
-      if (f.status === 'confirmed' || f.status === 'suspected') return fail(409, 'already_open', 'This finding is already open.')
-      patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
-    } else {
-      patch(f.id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
+    for (const f of found as Finding[]) {
+      clearAccepted(f.id)
+      if (resolution === 'accepted') {
+        const until = String(b.until)
+        patch(f.id, (x) => ({ ...x, status: 'not_relevant', resolved_by: user, resolved_at: ts, resolution_note: note, history: [...x.history, { ts, user, action: 'risk_accepted', note: `${note} (until ${fmtDate(until)})` }] }))
+        accepted.update((m) => ({ ...m, [f.id]: until }))
+      } else {
+        patch(f.id, (x) => ({ ...x, status: resolution as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: resolution, note: note || undefined }] }))
+      }
+      audit('findings.status', f.id, `${f.cve} ${resolution}${note ? `: ${note}` : ''}`)
     }
-    audit('findings.status', f.id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
-    return HttpResponse.json(detail(find(f.id)!))
+    return HttpResponse.json({ handled: found.length, skipped: 0 })
+  }),
+
+  http.post(`${API}/findings/:id/reopen`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const f = find(params.id)
+    if (!f) return fail(404, 'not_found', 'This finding does not exist.')
+    const b = await body<{ note?: string }>(request)
+    const note = typeof b.note === 'string' ? b.note.trim() : ''
+    if ((f.status === 'confirmed' || f.status === 'suspected') && !accepted.get()[f.id]) return fail(409, 'already_open', 'This finding is already open.')
+    clearAccepted(f.id)
+    const ts = nowIso()
+    patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' || x.basis === 'person' || (x.basis === 'version' && !!x.evidence?.source) ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user: who(), action: 'reopened', note: note || undefined }] }))
+    audit('findings.status', f.id, `${f.cve}${note ? `: ${note}` : ''}`)
+    return HttpResponse.json({})
   }),
 
   // A person confirms a suspected finding (admin): basis person, the note in the history; Undo goes back to the basis it had.
-  http.post(`${API}/findings/:id/confirm`, async ({ params, request }) => {
+  http.post(`${API}/findings/:id/verify`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const f = find(params.id)
-    if (!f) return fail(404, 'not_found', 'No such finding.')
+    if (!f) return fail(404, 'not_found', 'This finding does not exist.')
     const b = await body<{ note: string }>(request)
     const note = typeof b.note === 'string' ? b.note.trim() : ''
-    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    if (f.status !== 'suspected') return fail(409, 'not_suspected', 'Only a suspected finding can be confirmed.')
+    if (note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    if (f.status !== 'suspected') return fail(409, 'already_verified', 'This finding is already confirmed.')
     if (note.length < 3) return fail(400, 'confirm_note_required', 'Write what makes you sure (at least 3 characters) so the next person understands.')
     const user = who()
     priorBasis.set(f.id, f.basis)
     patch(f.id, (x) => ({ ...x, status: 'confirmed', basis: 'person', history: [...x.history, { ts: nowIso(), user, action: 'confirmed', note: `Confirmed by ${user}: ${note}` }] }))
     audit('findings.confirm', f.id, `${f.cve}: confirmed by ${user}: ${note}`)
-    return HttpResponse.json(detail(find(f.id)!))
+    return HttpResponse.json({})
   }),
 
-  http.post(`${API}/findings/:id/unconfirm`, ({ params }) => {
+  http.post(`${API}/findings/:id/unverify`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const f = find(params.id)
-    if (!f) return fail(404, 'not_found', 'No such finding.')
-    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a finding a person confirmed can be returned to suspected; a scan or the version the device reports confirmed this one.')
+    if (!f) return fail(404, 'not_found', 'This finding does not exist.')
+    if (f.status !== 'confirmed' || f.basis !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a confirmation a person made can be undone; a scan or the device itself confirmed this one.')
     const user = who()
     const was = priorBasis.get(f.id) ?? 'version'
     patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'confirm_undone', note: `Confirmation undone by ${user}: back to suspected.` }] }))
     audit('findings.unconfirm', f.id, `${f.cve}: confirmation undone by ${user}`)
-    return HttpResponse.json(detail(find(f.id)!))
+    return HttpResponse.json({})
   }),
 
   // "Đã áp dụng": ghi nhật ký, không tự đổi trạng thái; chỉ quét lại mới xác nhận đã hết.

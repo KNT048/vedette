@@ -8,7 +8,7 @@ import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
-import { accepted, fixes } from './mocks'
+import { accepted } from './mocks'
 import { AiOutput, FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
 import { SeverityBadge, bandOf as cvssBand, fromCvss } from '@/components/common/status'
@@ -324,7 +324,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Mark as handled' })
     await userEvent.click(within(dlg).getByRole('radio', { name: /Patched/ }))
     await userEvent.type(within(dlg).getByLabelText('Note (optional)'), 'Đã lên Photo Station 6.1.2')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
     expect(await screen.findByRole('heading', { level: 1, name: /CVE-2022-27593 is patched/ })).toBeInTheDocument()
     const f = findingsStore.get().find((x) => x.id === 'f-1')!
     expect(f.status).toBe('patched')
@@ -340,11 +340,11 @@ describe('findings: đổi trạng thái và quyền', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog')
     await userEvent.click(within(dlg).getByRole('radio', { name: /False positive/ }))
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
-    expect(await within(dlg).findByText(/Say why this is a false positive/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
+    expect(await within(dlg).findByText(/^Say why \(at least 3 characters\)/)).toBeInTheDocument()
     expect(findingsStore.get().find((x) => x.id === 'f-2')!.status).toBe('suspected')
     await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'WordPress đã là 7.2')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
     await waitFor(() => expect(findingsStore.get().find((x) => x.id === 'f-2')!.status).toBe('false_positive'))
   })
 
@@ -361,20 +361,18 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect(await screen.findByRole('button', { name: 'Mark as handled' })).toBeDisabled()
     for (const b of screen.getAllByRole('button', { name: 'Applied' })) expect(b).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
-    const res = await fetch(`${location.origin}/api/v1/findings/f-1/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'patched' }) })
+    const res = await fetch(`${location.origin}/api/v1/findings/handle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ['f-1'], resolution: 'patched', note: '' }) })
     expect(res.status).toBe(403)
   })
 
   it('API kiểm tra ở biên: hành động lạ, ghi chú quá dài, mở lại phát hiện đang mở', async () => {
-    renderApp('/findings?tab=open')
-    await screen.findByRole('table')
+    renderApp('/findings/f-1')
+    await screen.findByRole('heading', { name: 'Evidence' })
     const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1/findings/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
-    const bad = await post('f-1/status', { action: 'xoa' })
-    expect(bad.status).toBe(400)
-    expect((await bad.json()).error.message).toMatch(/Choose one of/)
-    expect((await post('f-1/status', { action: 'patched', note: 'x'.repeat(501) })).status).toBe(400)
-    expect((await post('f-1/status', { action: 'reopen' })).status).toBe(409)
-    expect((await post('f-9/status', { action: 'patched' })).status).toBe(404)
+    expect((await post('handle', { ids: ['f-1'], resolution: 'xoa', note: '' })).status).toBe(400)
+    expect((await post('handle', { ids: ['f-1'], resolution: 'patched', note: 'x'.repeat(501) })).status).toBe(400)
+    expect((await post('f-1/reopen', { note: '' })).status).toBe(409)
+    expect((await post('handle', { ids: ['f-9'], resolution: 'patched', note: '' })).status).toBe(404)
     expect((await post('f-2/applied', { item: 'patch' })).status).toBe(400)
     expect((await post('f-1/applied', { item: 'rm -rf' })).status).toBe(400)
   })
@@ -492,9 +490,9 @@ describe('findings: accept risk until a day (S-MIT-1)', () => {
     renderApp('/findings/f-2')
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog', { name: 'Mark as handled' })
-    await userEvent.click(within(dlg).getByRole('radio', { name: /Accept risk until/ }))
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
-    expect(await within(dlg).findByText('Say why you accept the risk (at least 3 characters).')).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Accept the risk until/ }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
+    expect(await within(dlg).findByText(/^Say why \(at least 3 characters\)/)).toBeInTheDocument()
     expect(within(dlg).getByText('Choose a date from tomorrow up to one year from today.')).toBeInTheDocument()
     const date = within(dlg).getByLabelText('Accept until')
     expect(date).toHaveAttribute('min', untilBounds().min)
@@ -502,7 +500,7 @@ describe('findings: accept risk until a day (S-MIT-1)', () => {
     await userEvent.click(within(dlg).getByRole('button', { name: '90 days' }))
     expect(date).toHaveValue(dayAfter(new Date(), 90))
     await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'No patch window before March')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
     expect(await screen.findByRole('heading', { level: 1, name: /risk accepted until/ })).toBeInTheDocument()
     expect(screen.getByText(/^Risk accepted until .* by admin@acme\.example\. No patch window before March$/)).toBeInTheDocument()
     expect(findingsStore.get().find((x) => x.id === 'f-2')!.history.at(-1)?.action).toBe('risk_accepted')
@@ -777,12 +775,10 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1)', ()
 })
 
 describe('findings: one update, one item; the agent\'s build is a detection (TUNE-5b W-1/W-3)', () => {
-  const fix = { group: 'a-srvad/s-win', kind: 'fixed' as const, windows: true, software: 'Windows Server 2025', version: '10.0.26100.1742', fixed: '10.0.26100.2314', distro: '', pro: false }
   const agentWindows = () => {
     const ev = (cve: string) => ({ summary: `The agent on SRV-AD reports Windows Server 2025 build 26100.1742. Microsoft fixed ${cve} in build 26100.2314.`, checked_at: new Date().toISOString(), agent: true })
     findingsStore.update((l) => [...l.map((f) => (f.id === 'f-3' ? { ...f, evidence: ev(f.cve) } : f)),
       { ...l.find((f) => f.id === 'f-3')!, id: 'f-9', cve: 'CVE-2024-43451', evidence: ev('CVE-2024-43451') }])
-    fixes.set({ 'f-3': fix, 'f-9': fix })
   }
 
   it('the finding says the agent detected it and asks nothing to look up', async () => {

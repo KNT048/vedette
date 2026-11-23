@@ -23,19 +23,6 @@ func linuxDistro(osName string) string {
 	return ""
 }
 
-// distroLabel names a distribution in "Install <name>'s security updates"; "" for one the page calls "the distribution".
-func distroLabel(id string) string {
-	switch id {
-	case "alpine":
-		return "Alpine Linux"
-	case "ubuntu":
-		return "Ubuntu"
-	case "debian":
-		return "Debian"
-	}
-	return ""
-}
-
 var (
 	debEpoch   = regexp.MustCompile(`^[0-9]+:`)
 	debPkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]+$`)
@@ -50,12 +37,12 @@ func personDeb(p string) bool {
 	return debver.Valid(p) && debver.Revision(p) != ""
 }
 
-// debPkg is the full Debian version and source package of a row the Ubuntu or Debian data can decide on the plan: an agent's deb row
+// debPkg is the full Debian version and source package of a row the Ubuntu or Debian data can decide: an agent's deb row
 // (both read from the package database), or a Debian release a person gave (Needs your input, a correction), which the
 // distribution's word decides like an agent's row: its source package is the row's when inventory kept one, else the product's own
 // name as Debian and Ubuntu name many sources ("openssh"; guessed true). A guessed name is only a key to ask the feeds for: many
-// sources are named otherwise (postgresql-16, bind9, exim4, php8.3), so the plan reads the distribution's data for such a row only
-// when the feeds hold rows under that name, and otherwise compares its upstream version with NVD (tierIndex.byDistroData).
+// sources are named otherwise (postgresql-16, bind9, exim4, php8.3), so the feeds are asked for such a row's data only by that
+// name, and a name they hold no rows under leaves the row to NVD's ranges.
 func debPkg(s Software) (version, source string, guessed, ok bool) {
 	switch {
 	case s.Packaged && s.builtBy() == "agent" && s.PkgVersion != "" && s.PkgSource != "":
@@ -148,9 +135,9 @@ func DeviceDistro(a Asset) string {
 }
 
 // DevicePackages is DeviceDistro with the release as the distribution's data is asked for it ("24.04", "12"; "" for a distribution
-// whose rows of every release are read, Alpine: the plan picks the branch, distroData.anyRelease) and the source packages of the
+// whose rows of every release are read, Alpine: the branch is chosen per row, distroData.anyRelease) and the source packages of the
 // device's package rows as the security data names them (securitySource: "linux" for linux-signed), sorted, each once (the
-// distribution feeds keep the tier CVEs' rows for these packages only). A kernel's packages count only for the running kernel
+// distribution feeds keep their rows for these packages only). A kernel's packages count only for the running kernel
 // (distroRows). "" and nil when DeviceDistro is "".
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
 	d, rel, rows := distroRows(a)
@@ -167,7 +154,7 @@ func DevicePackages(a Asset) (distro, release string, pkgs []string) {
 	return d.id, rel, slices.Compact(pkgs)
 }
 
-// distroPkgRow is a row the distribution's word may decide on the plan: its swInfo, its package release and its source package as the
+// distroPkgRow is a row the distribution's word may decide: its swInfo, its package release and its source package as the
 // security data names it.
 type distroPkgRow struct {
 	s   Software
@@ -176,12 +163,12 @@ type distroPkgRow struct {
 	pkg string
 }
 
-// distroRows are the device's package rows the plan compares with its distribution's data (distroData.pkgOf: an agent's package row
+// distroRows are the device's package rows compared with their distribution's data (distroData.pkgOf: an agent's package row
 // with its release and source package, or a package release a person gave), with that distribution and the device's release ("" when
 // the OS names none: no row, unless the distribution's rows of every release are read, Alpine). Packages of a kernel source count only
 // when they are the running kernel's (review r1 #1 of #808, distroData.kernelRule): apt keeps the previous kernel's linux-modules-*,
-// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would plan
-// "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running image (its
+// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would
+// name "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running image (its
 // source and version); a device without one compares no kernel package (drop when unsure).
 func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 	d = distroOfDevice(a)

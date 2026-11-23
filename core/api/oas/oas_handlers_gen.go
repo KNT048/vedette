@@ -25589,7 +25589,8 @@ func (s *Server) handleFeedsPutFeedsSourcesIDRequest(args [1]string, argsEscaped
 
 // handleFindingsGetFindingsRequest handles findings_get_findings operation.
 //
-// List findings (CVE x device), optionally for one device.
+// The findings of one device in every state, newest first, each with its history: what a version
+// entry, "I updated it" or "Not installed" changed on the device.
 //
 // GET /findings
 func (s *Server) handleFindingsGetFindingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25668,7 +25669,7 @@ func (s *Server) handleFindingsGetFindingsRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsGetFindingsOperation,
-			OperationSummary: "List findings (CVE x device), optionally for one device",
+			OperationSummary: "The findings of one device in every state, newest first, each with its history: what a version entry, \"I updated it\" or \"Not installed\" changed on the device",
 			OperationID:      "findings_get_findings",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25827,6 +25828,14 @@ func (s *Server) handleFindingsGetFindingsDevicesRequest(args [0]string, argsEsc
 					Name: "device",
 					In:   "query",
 				}: params.Device,
+				{
+					Name: "devices",
+					In:   "query",
+				}: params.Devices,
+				{
+					Name: "cve",
+					In:   "query",
+				}: params.Cve,
 				{
 					Name: "ignored",
 					In:   "query",
@@ -26769,298 +26778,6 @@ func (s *Server) handleFindingsGetFindingsOverviewRequest(args [0]string, argsEs
 	}
 }
 
-// handleFindingsGetFindingsPlanRequest handles findings_get_findings_plan operation.
-//
-// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
-// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
-//
-// GET /findings/plan
-func (s *Server) handleFindingsGetFindingsPlanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: FindingsGetFindingsPlanOperation,
-			ID:   "findings_get_findings_plan",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, FindingsGetFindingsPlanOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeFindingsGetFindingsPlanParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-
-	var response *FindingsGetFindingsPlanOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    FindingsGetFindingsPlanOperation,
-			OperationSummary: "Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts",
-			OperationID:      "findings_get_findings_plan",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "tier",
-					In:   "query",
-				}: params.Tier,
-				{
-					Name: "asset",
-					In:   "query",
-				}: params.Asset,
-				{
-					Name: "done",
-					In:   "query",
-				}: params.Done,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = FindingsGetFindingsPlanParams
-			Response = *FindingsGetFindingsPlanOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackFindingsGetFindingsPlanParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.FindingsGetFindingsPlan(ctx, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.FindingsGetFindingsPlan(ctx, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeFindingsGetFindingsPlanResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleFindingsGetFindingsToFixRequest handles findings_get_findings_to_fix operation.
-//
-// To fix: every device that needs an update or an action, the most urgent first, each with its actions
-// in plain sentences (findings.DeviceUpdates), at most 500 devices.
-//
-// GET /findings/to-fix
-func (s *Server) handleFindingsGetFindingsToFixRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: FindingsGetFindingsToFixOperation,
-			ID:   "findings_get_findings_to_fix",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, FindingsGetFindingsToFixOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeFindingsGetFindingsToFixParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-
-	var response *FindingsGetFindingsToFixOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    FindingsGetFindingsToFixOperation,
-			OperationSummary: "To fix: every device that needs an update or an action, the most urgent first, each with its actions in plain sentences (findings.DeviceUpdates), at most 500 devices",
-			OperationID:      "findings_get_findings_to_fix",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "asset",
-					In:   "query",
-				}: params.Asset,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = FindingsGetFindingsToFixParams
-			Response = *FindingsGetFindingsToFixOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackFindingsGetFindingsToFixParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.FindingsGetFindingsToFix(ctx, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.FindingsGetFindingsToFix(ctx, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeFindingsGetFindingsToFixResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleFindingsPostFindingsHandleRequest handles findings_post_findings_handle operation.
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -27516,163 +27233,6 @@ func (s *Server) handleFindingsPostFindingsIDAppliedRequest(args [1]string, args
 	}
 }
 
-// handleFindingsPostFindingsIDConfirmRequest handles findings_post_findings_id_confirm operation.
-//
-// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
-// required and goes into the history as "Confirmed by : ".
-//
-// POST /findings/{id}/confirm
-func (s *Server) handleFindingsPostFindingsIDConfirmRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: FindingsPostFindingsIDConfirmOperation,
-			ID:   "findings_post_findings_id_confirm",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsIDConfirmOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeFindingsPostFindingsIDConfirmParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeFindingsPostFindingsIDConfirmRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *FindingsPostFindingsIDConfirmOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    FindingsPostFindingsIDConfirmOperation,
-			OperationSummary: "Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is required and goes into the history as \"Confirmed by <user>: <note>\"",
-			OperationID:      "findings_post_findings_id_confirm",
-			Body:             request,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = *FindingsPostFindingsIDConfirmReq
-			Params   = FindingsPostFindingsIDConfirmParams
-			Response = *FindingsPostFindingsIDConfirmOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackFindingsPostFindingsIDConfirmParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.FindingsPostFindingsIDConfirm(ctx, request, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.FindingsPostFindingsIDConfirm(ctx, request, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeFindingsPostFindingsIDConfirmResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleFindingsPostFindingsIDReopenRequest handles findings_post_findings_id_reopen operation.
 //
 // Open a handled finding again (a person's handling was a mistake); history and audit.
@@ -27829,13 +27389,13 @@ func (s *Server) handleFindingsPostFindingsIDReopenRequest(args [1]string, argsE
 	}
 }
 
-// handleFindingsPostFindingsIDStatusRequest handles findings_post_findings_id_status operation.
+// handleFindingsPostFindingsIDUnverifyRequest handles findings_post_findings_id_unverify operation.
 //
-// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
-// with a note.
+// Undo Confirm vulnerability: a finding a person confirmed is not confirmed again (one a scan or the
+// device confirmed is refused, 409 not_confirmed_by_person); history and audit.
 //
-// POST /findings/{id}/status
-func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// POST /findings/{id}/unverify
+func (s *Server) handleFindingsPostFindingsIDUnverifyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -27843,15 +27403,15 @@ func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsE
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: FindingsPostFindingsIDStatusOperation,
-			ID:   "findings_post_findings_id_status",
+			Name: FindingsPostFindingsIDUnverifyOperation,
+			ID:   "findings_post_findings_id_unverify",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsIDStatusOperation, r)
+			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsIDUnverifyOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -27893,164 +27453,7 @@ func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsE
 			return
 		}
 	}
-	params, err := decodeFindingsPostFindingsIDStatusParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeFindingsPostFindingsIDStatusRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *FindingsPostFindingsIDStatusOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    FindingsPostFindingsIDStatusOperation,
-			OperationSummary: "Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note",
-			OperationID:      "findings_post_findings_id_status",
-			Body:             request,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = *FindingsPostFindingsIDStatusReq
-			Params   = FindingsPostFindingsIDStatusParams
-			Response = *FindingsPostFindingsIDStatusOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackFindingsPostFindingsIDStatusParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.FindingsPostFindingsIDStatus(ctx, request, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.FindingsPostFindingsIDStatus(ctx, request, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeFindingsPostFindingsIDStatusResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleFindingsPostFindingsIDUnconfirmRequest handles findings_post_findings_id_unconfirm operation.
-//
-// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
-// confirmed is refused.
-//
-// POST /findings/{id}/unconfirm
-func (s *Server) handleFindingsPostFindingsIDUnconfirmRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: FindingsPostFindingsIDUnconfirmOperation,
-			ID:   "findings_post_findings_id_unconfirm",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsIDUnconfirmOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeFindingsPostFindingsIDUnconfirmParams(args, argsEscaped, r)
+	params, err := decodeFindingsPostFindingsIDUnverifyParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -28063,13 +27466,13 @@ func (s *Server) handleFindingsPostFindingsIDUnconfirmRequest(args [1]string, ar
 
 	var rawBody []byte
 
-	var response *FindingsPostFindingsIDUnconfirmOK
+	var response *FindingsPostFindingsIDUnverifyOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    FindingsPostFindingsIDUnconfirmOperation,
-			OperationSummary: "Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan confirmed is refused",
-			OperationID:      "findings_post_findings_id_unconfirm",
+			OperationName:    FindingsPostFindingsIDUnverifyOperation,
+			OperationSummary: "Undo Confirm vulnerability: a finding a person confirmed is not confirmed again (one a scan or the device confirmed is refused, 409 not_confirmed_by_person); history and audit",
+			OperationID:      "findings_post_findings_id_unverify",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -28083,8 +27486,8 @@ func (s *Server) handleFindingsPostFindingsIDUnconfirmRequest(args [1]string, ar
 
 		type (
 			Request  = struct{}
-			Params   = FindingsPostFindingsIDUnconfirmParams
-			Response = *FindingsPostFindingsIDUnconfirmOK
+			Params   = FindingsPostFindingsIDUnverifyParams
+			Response = *FindingsPostFindingsIDUnverifyOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -28093,14 +27496,14 @@ func (s *Server) handleFindingsPostFindingsIDUnconfirmRequest(args [1]string, ar
 		](
 			m,
 			mreq,
-			unpackFindingsPostFindingsIDUnconfirmParams,
+			unpackFindingsPostFindingsIDUnverifyParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.FindingsPostFindingsIDUnconfirm(ctx, params)
+				response, err = s.h.FindingsPostFindingsIDUnverify(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.FindingsPostFindingsIDUnconfirm(ctx, params)
+		response, err = s.h.FindingsPostFindingsIDUnverify(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -28119,7 +27522,7 @@ func (s *Server) handleFindingsPostFindingsIDUnconfirmRequest(args [1]string, ar
 		return
 	}
 
-	if err := encodeFindingsPostFindingsIDUnconfirmResponse(response, w); err != nil {
+	if err := encodeFindingsPostFindingsIDUnverifyResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

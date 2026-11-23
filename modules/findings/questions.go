@@ -1,13 +1,8 @@
 package findings
 
 import (
-	"cmp"
-	"context"
-	"fmt"
-	"net/url"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/knt048/vedette/core/productid"
 )
@@ -187,137 +182,6 @@ func uncheckedOf(s Software, v Vuln, r UncheckedReason) Unchecked {
 		NVDPending: r == UncheckedNoNVDData && !v.NVDAnswered}
 }
 
-// UncheckedRow is one stored unchecked (device, software, CVE).
-type UncheckedRow struct {
-	AssetID string
-	Unchecked
-}
-
-// ListUnchecked returns the CVEs of one device, or of every device when assetID is empty, that Vedette could not check (its questions
-// about one CVE), without those the device has a finding for.
-func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]UncheckedRow, error) {
-	q := s.cfg.DB.Reader()
-	qs, err := questionsOf(ctx, q, assetID)
-	if err != nil {
-		return nil, err
-	}
-	fs, err := findingsOf(ctx, q, assetID)
-	if err != nil {
-		return nil, err
-	}
-	has := map[string]bool{}
-	for _, f := range fs {
-		has[f.AssetID+"\x1f"+f.CVE] = true
-	}
-	out := []UncheckedRow{}
-	for _, x := range qs {
-		if x.CVE == "" || has[x.AssetID+"\x1f"+x.CVE] {
-			continue
-		}
-		sw := x.SoftwareID
-		if sw == "" {
-			sw = osSoftwareID(x.AssetID)
-		}
-		out = append(out, UncheckedRow{AssetID: x.AssetID, Unchecked: Unchecked{CVE: x.CVE, SoftwareID: sw, Software: x.Detail.Software,
-			Version: x.Detail.Version, Source: x.Detail.Source, Reason: UncheckedReason(x.Detail.Reason), Answer: x.Detail.Choice, NVDPending: x.Detail.NVDPending}})
-	}
-	return out, nil
-}
-
-// NeedVersionRow is a software line without a version Vedette can read, with how many exploited CVEs wait on it.
-type NeedVersionRow struct {
-	AssetID, SoftwareID, Software, Version string
-	CVEs                                   int
-	UpdatedAt                              time.Time
-}
-
-// ListVersionNeeded returns the software lines of one device, or of every device when assetID is empty, that need a version.
-func (s *Service) ListVersionNeeded(ctx context.Context, assetID string) ([]NeedVersionRow, error) {
-	qs, err := questionsOf(ctx, s.cfg.DB.Reader(), assetID)
-	if err != nil {
-		return nil, err
-	}
-	var out []NeedVersionRow
-	for _, x := range qs {
-		if x.Kind != QuestionVersionNeeded {
-			continue
-		}
-		out = append(out, NeedVersionRow{AssetID: x.AssetID, SoftwareID: x.SoftwareID, Software: x.Detail.Software, Version: x.Detail.Version, CVEs: x.Cves, UpdatedAt: x.AskedAt})
-	}
-	return out, nil
-}
-
-// unchecked is GET /findings `unchecked` of one device, or of every device when assetID is empty (UncheckedItems).
-func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]UncheckedItem, error) {
-	rows, err := h.svc.ListUnchecked(ctx, assetID)
-	if err != nil || len(rows) == 0 {
-		return []UncheckedItem{}, err
-	}
-	var cves, ids []string
-	seen := map[string]bool{}
-	for _, r := range rows {
-		for _, k := range []string{"c" + r.CVE, "a" + r.AssetID} {
-			if !seen[k] {
-				seen[k] = true
-				if k[0] == 'c' {
-					cves = append(cves, r.CVE)
-				} else {
-					ids = append(ids, r.AssetID)
-				}
-			}
-		}
-	}
-	kev, err := h.feed.KevInfo(ctx, cves)
-	if err != nil {
-		return nil, fmt.Errorf("findings: reading KEV entries: %w", err)
-	}
-	assets, err := h.inv.Assets(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("findings: reading devices: %w", err)
-	}
-	var distro map[string][]DistroFix // the fixed releases a question names come from the distribution's feed
-	if slices.ContainsFunc(rows, func(r UncheckedRow) bool {
-		return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown
-	}) {
-		// the list the matcher reads (cached per feeds stamp in cmd/vedette); unreadable, the questions go without releases
-		vulns, err := h.feed.Vulns(ctx)
-		if err != nil {
-			h.svc.cfg.Log.WarnContext(ctx, "reading the exploited list for the questions failed; they name no fixed release", "error", err)
-		}
-		distro = map[string][]DistroFix{}
-		for _, v := range vulns {
-			if HasPlatformLimit(v.CVE) {
-				distro[v.CVE] = v.Distro
-			}
-		}
-	}
-	return UncheckedItems(rows, kev, assets, distro), nil
-}
-
-// UncheckedCVE is contract.ts UncheckedCve.
-type UncheckedCVE struct {
-	CVE        string  `json:"cve"`
-	Name       string  `json:"name"`
-	DateAdded  string  `json:"date_added"`
-	Ransomware bool    `json:"ransomware"`
-	Advisory   *string `json:"advisory"`
-	NVDPending bool    `json:"nvd_pending,omitempty"` // review r2 M1 of #939: no_nvd_data because NVD has not answered yet
-}
-
-// UncheckedItem is contract.ts UncheckedItem: one device × software × reason.
-type UncheckedItem struct {
-	Asset      *AssetView      `json:"asset"`
-	AssetID    string          `json:"asset_id"`
-	SoftwareID *string         `json:"software_id"` // nil: the network OS the device states, which has no software row
-	Software   string          `json:"software"`
-	Version    *string         `json:"version"`
-	Reason     UncheckedReason `json:"reason"`
-	CVEs       []UncheckedCVE  `json:"cves"`
-	Action     string          `json:"action"` // "add_version", "answer_platform" (Question) or "none"
-	// Question is what a person answers for reasons platform_unknown and package_unknown, nil otherwise.
-	Question *UncheckedQuestion `json:"question,omitempty"`
-}
-
 // UncheckedQuestion is contract.ts UncheckedQuestion: the question of a platform-limited CVE and the answers that settle it.
 // Every answer is a correction of inventory (INV-41), so the next match decides.
 type UncheckedQuestion struct {
@@ -337,94 +201,6 @@ type UncheckedAnswer struct {
 	Ask   []string `json:"ask,omitempty"` // "os", "pkg_version": what the person types (both for "Another system")
 }
 
-// UncheckedItems groups rows into items, with the CISA name, date and advisory (its first link, a web address) of each CVE (kev)
-// and the device (assets): devices by name, then software by display, then CVEs newest first (date_added, then id). A CVE the
-// exploited list no longer has is left out (KEV entries only), so no item is empty.
-// distro is the distributions' word by CVE (Vuln.Distro) for the questions of platform-limited CVEs (the fixed releases they
-// name); nil when none is asked.
-func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[string]AssetView, distro map[string][]DistroFix) []UncheckedItem {
-	type key struct {
-		asset, sw string
-		reason    UncheckedReason
-		cve       string // One item per question (a platform-limited CVE), "" otherwise
-	}
-	idx := map[key]int{}
-	out := []UncheckedItem{}
-	for _, r := range rows {
-		k, ok := kev[r.CVE]
-		if _, err := time.Parse(time.DateOnly, k.DateAdded); !ok || err != nil {
-			continue // the exploited list no longer has it (or no date to show)
-		}
-		c := UncheckedCVE{CVE: r.CVE, Name: k.Name, DateAdded: k.DateAdded, Ransomware: k.Ransomware, NVDPending: r.NVDPending}
-		if len(k.Links) > 0 {
-			if u, err := url.Parse(strings.TrimSpace(k.Links[0])); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" {
-				l := u.String()
-				c.Advisory = &l
-			}
-		}
-		kk := key{r.AssetID, r.SoftwareID, r.Reason, ""}
-		asks := r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown
-		if asks {
-			kk.cve = r.CVE
-		}
-		i, seen := idx[kk]
-		if !seen {
-			i = len(out)
-			idx[kk] = i
-			it := UncheckedItem{AssetID: r.AssetID, Software: r.Software, Reason: r.Reason, Action: "none"}
-			if a, ok := assets[r.AssetID]; ok {
-				it.Asset = &a
-			}
-			if !strings.HasPrefix(r.SoftwareID, "os:") {
-				id := r.SoftwareID
-				it.SoftwareID = &id
-			}
-			if r.Version != "" {
-				v := r.Version
-				it.Version = &v
-			}
-			if r.Reason == UncheckedNotComparable && r.Source == "manual" {
-				it.Action = "add_version"
-			}
-			if asks && it.SoftwareID != nil {
-				name := r.AssetID
-				if it.Asset != nil {
-					name = it.Asset.Name
-				}
-				if q := platformQuestion(r.CVE, name, r.Reason, r.Answer, distro[r.CVE]); q != nil {
-					it.Question, it.Action = q, "answer_platform"
-				}
-			}
-			out = append(out, it)
-		}
-		if !slices.ContainsFunc(out[i].CVEs, func(x UncheckedCVE) bool { return x.CVE == c.CVE }) {
-			out[i].CVEs = append(out[i].CVEs, c)
-		}
-	}
-	for i := range out {
-		slices.SortFunc(out[i].CVEs, func(a, b UncheckedCVE) int {
-			return cmp.Or(cmp.Compare(b.DateAdded, a.DateAdded), cmp.Compare(b.CVE, a.CVE))
-		})
-	}
-	name := func(it UncheckedItem) string {
-		if it.Asset != nil {
-			return strings.ToLower(it.Asset.Name)
-		}
-		return ""
-	}
-	slices.SortStableFunc(out, func(a, b UncheckedItem) int {
-		return cmp.Or(cmp.Compare(boolRank(a.Asset == nil), boolRank(b.Asset == nil)), // a device gone last (r1 L6)
-			cmp.Compare(name(a), name(b)), cmp.Compare(a.AssetID, b.AssetID),
-			cmp.Compare(strings.ToLower(a.Software), strings.ToLower(b.Software)), cmp.Compare(a.Software, b.Software),
-			cmp.Compare(reasonRank(a.Reason), reasonRank(b.Reason)))
-	})
-	return out
-}
-
-func reasonRank(r UncheckedReason) int {
-	return slices.Index([]UncheckedReason{UncheckedPlatformUnknown, UncheckedPackageUnknown, UncheckedNoNVDData, UncheckedNoNVDVersions, UncheckedNotNamed, UncheckedNotComparable}, r)
-}
-
 // edgeLegacyOf says an NVD entry is about Edge Legacy (rowEntries).
 func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	if edgeLegacyEntry(c, af.Range) {
@@ -433,11 +209,4 @@ func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	p, _ := c.Product.Literal()
 	pre := !v.Published.IsZero() && v.Published.Before(chromiumEdgeGA) || v.Published.IsZero() && cveYear(v.CVE) > 0 && cveYear(v.CVE) < 2020
 	return productid.Norm(p) == "edge" && !versionEvidence(af) && pre
-}
-
-func boolRank(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

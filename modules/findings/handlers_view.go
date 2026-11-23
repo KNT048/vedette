@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -21,12 +22,28 @@ func (h *FindingHandlers) FindingsGetFindingsDevices(ctx context.Context, p oas.
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
-	f := ListFilter{Layers: layers, Device: p.Device.Or(""), Ignored: string(p.Ignored.Or("")) == "true", Q: p.Q.Or("")}
+	devices, err := parseDevices(p.Devices.Or(""))
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	f := ListFilter{Layers: layers, Device: p.Device.Or(""), Devices: devices, Ignored: string(p.Ignored.Or("")) == "true", Q: p.Q.Or(""), CVE: p.Cve.Or("")}
 	out, err := h.svc.ByDevice(ctx, f, ParsePage(p.Offset.Or(""), p.Limit.Or("")))
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
 	return Into[oas.FindingsGetFindingsDevicesOK](out)
+}
+
+// parseDevices reads the devices filter of By device: comma-separated device ids, at most PageMax (more: bad_filter); nil when absent.
+func parseDevices(v string) ([]string, error) {
+	if v == "" {
+		return nil, nil
+	}
+	ids := strings.Split(v, ",")
+	if len(ids) > PageMax || slices.Contains(ids, "") {
+		return nil, ErrBadFilter
+	}
+	return ids, nil
 }
 
 // FindingsGetFindingsFixes implements findings_get_findings_fixes (By fix).
@@ -171,6 +188,23 @@ func (h *FindingHandlers) FindingsPostFindingsIDVerify(ctx context.Context, req 
 		return nil, ToAPIError(err)
 	}
 	return Into[oas.FindingsPostFindingsIDVerifyOK](v.JSON())
+}
+
+// FindingsPostFindingsIDUnverify implements findings_post_findings_id_unverify (admin): Undo of a person's Confirm vulnerability. A
+// finding a scan or the device itself confirmed is refused (409 not_confirmed_by_person).
+func (h *FindingHandlers) FindingsPostFindingsIDUnverify(ctx context.Context, params oas.FindingsPostFindingsIDUnverifyParams) (*oas.FindingsPostFindingsIDUnverifyOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if _, err := h.svc.Unverify(ctx, params.ID, p.Email); err != nil {
+		return nil, ToAPIError(err)
+	}
+	v, err := h.svc.View(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsPostFindingsIDUnverifyOK](v.JSON())
 }
 
 // FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer: not affected (operator) closes the

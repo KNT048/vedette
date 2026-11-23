@@ -21,7 +21,7 @@ const (
 	BasisScan    Basis = "scan"    // a safe scan template confirmed it
 	BasisVersion Basis = "version" // the known version is inside the affected range
 	BasisProduct Basis = "product" // only the product matches; version unknown or not checked
-	BasisPerson  Basis = "person"  // a person confirmed it (Finding.ConfirmByPerson): evidence beyond a version match, like a scan
+	BasisPerson  Basis = "person"  // a person confirmed it (Service.Verify): evidence beyond a version match, like a scan
 )
 
 // Confidence by basis. product/vendor-only values are the mock's (match.ts).
@@ -79,7 +79,7 @@ type Software struct {
 	MarkedAt time.Time
 	MarkedBy string // on a row of Asset.NotInstalled: who said it is not installed ("" when unknown)
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
-	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
+	// comes from, which the finding page names once no agent reports the device.
 	SeenAt time.Time
 	// Guess: a sensor only guessed the row (inventory's os_guess reading: an OS fingerprint, an ESXi build the build table does not
 	// list); it is never matched until a person gives the software with its version.
@@ -139,7 +139,7 @@ type Asset struct {
 type Affected struct {
 	CPE   string // CPE 2.3 criteria; a malformed one is ignored
 	Range VersionRange
-	// parsed is CPE already parsed (the plan's index sets it once, #804); nil: parse when read.
+	// parsed is CPE already parsed; nil: parse when read.
 	parsed *CPE
 }
 
@@ -414,8 +414,7 @@ type MatchResult struct {
 	NameOnly []Match
 	// Unchecked lists, per software row, the exploited CVEs of software the device has that gave no finding, no NeedVersion
 	// item and no proof (#910 phase 1, uncheckedRow): a row CISA's key or NVD's list names that Vedette could not compare, a
-	// product match the age rule drops, and NotComparable. Independent of have: the list leaves out at read time the CVEs
-	// the device has a finding for (ListUnchecked).
+	// product match the age rule drops, and NotComparable. Independent of have.
 	Unchecked []Unchecked
 	// Asked lists, whatever the device already has, the platform-limited CVEs no row decides until a person answers: the
 	// platform is not known, or it is the distribution of the fixed list and the package release is not. No finding; each is in
@@ -1555,7 +1554,7 @@ type swInfo struct {
 	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list.
 	winNamed bool
 	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds
-	// (winBuildMonth); zero when not known or not computed (FixedInFor, the plan pass), and then the month rule never closes.
+	// (winBuildMonth); zero when not known or not computed (FixedInFor), and then the month rule never closes.
 	winBuild winBuild
 	// edgeHost: what the device's own Windows says about Edge Legacy still being on it (edgeHostOf); the same for every row.
 	edgeHost edgeHost
@@ -1575,7 +1574,7 @@ type swInfo struct {
 // package release (personPkg) that is one: the device runs a Linux distribution, or the text is a distribution's release format
 // (pkgReleaseText: apk "10.2_p1-r1", Debian "1:10.2p1-2ubuntu3.8", RPM "8.7p1-38.el9"). A FortiGate's "v7.2.13" or a Windows build a
 // person corrected is not one and keeps its upstream wording. The distribution's own updates fix a package, under its own release
-// numbers, so an upstream release is never the update to name for it (fixedInSoftware, groupFixOf, the plan). It does not change how
+// numbers, so an upstream release is never the update to name for it (fixedInSoftware, FixOf). It does not change how
 // the matcher compares the row: a person's release still goes by NVD's range unless the distribution's data decides.
 func (in swInfo) pkgBuilt() bool {
 	return in.packaged || in.personPkg != "" && (linuxDistro(in.osName) != "" || pkgReleaseText(in.personPkg))

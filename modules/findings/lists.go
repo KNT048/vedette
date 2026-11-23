@@ -21,12 +21,15 @@ import (
 // different releases do not split it ("Update OpenSSH 10.2p1 → 10.6: fixes 25 CVEs"). Both lists, and the handling of one fix on one
 // device, read the same combination.
 
-// ListFilter is what a list of findings shows: open statuses (layers), one device, the ignored devices only or none of them, a search.
+// ListFilter is what a list of findings shows: open statuses (layers), one device or a set of devices, the ignored devices only or
+// none of them, a search, one CVE.
 type ListFilter struct {
 	Layers  []int
 	Device  string
-	Ignored bool // true: only the devices a person ignored; false: none of them
+	Devices []string // nil: every device; else only these (an empty set selects nothing)
+	Ignored bool     // true: only the devices a person ignored; false: none of them
 	Q       string
+	CVE     string // "": every CVE; else only the findings of exactly this CVE (the blocks stay the ones the list shows without it)
 }
 
 // Page is one page of a list.
@@ -98,11 +101,18 @@ func (s *Service) where(ctx context.Context, state State, f ListFilter) (rows st
 	if f.Device != "" {
 		conds, rowArgs = append(conds, `asset_id = ?`), append(rowArgs, f.Device)
 	}
+	if f.Devices != nil {
+		ds, _ := json.Marshal(nonNilStrings(f.Devices))
+		conds, rowArgs = append(conds, `asset_id IN (SELECT value FROM json_each(?))`), append(rowArgs, string(ds))
+	}
 	rows = strings.Join(conds, " AND ")
 	var sc []string
 	if len(f.Layers) > 0 {
 		ls, _ := json.Marshal(f.Layers)
 		sc, statusArgs = append(sc, `urgency IN (SELECT value FROM json_each(?))`), append(statusArgs, string(ls))
+	}
+	if f.CVE != "" { // like the search: it selects rows inside the blocks, it does not change how they are combined
+		sc, statusArgs = append(sc, `cve = ?`), append(statusArgs, f.CVE)
 	}
 	if q := strings.TrimSpace(f.Q); q != "" {
 		cond, args, err := s.search(ctx, rows, rowArgs, q)

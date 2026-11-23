@@ -83,33 +83,6 @@ func TestMatchAsset_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	}
 }
 
-// GET /findings/plan (S-TIER-1, S-TIER-2) answers before the plan job's first run: no item, compared false, and the
-// state of each tier feed, so the page says what is missing instead of "no update to plan"; "plan" is never a finding id.
-func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
-	t.Parallel()
-	e := newHTTPEnv(t)
-	c, b := e.call("GET", "/findings/plan", "viewer", "")
-	if c != 200 || b["compared"] != false || len(b["items"].([]any)) != 0 {
-		t.Fatalf("%d %v", c, b)
-	}
-	if d := b["data"].(map[string]any); d["epss"] != "off" || d["recent"] != "off" || d["epss_date"] != nil {
-		t.Fatalf("data %v", d)
-	}
-	e.feeds.tier = TierStatus{EPSS: "ready", Recent: "loading", EPSSDate: t0}
-	c, b = e.call("GET", "/findings/plan?tier=likely&asset=a-1", "viewer", "")
-	if d := b["data"].(map[string]any); c != 200 || d["epss"] != "ready" || d["recent"] != "loading" || d["epss_date"] != "2026-11-09" || d["recent_since"] != nil {
-		t.Fatalf("%d %v", c, b)
-	}
-	e.gate.Set("feeds", false) // modules.md: the data is missing because the module is off, and its tables are not read
-	c, b = e.call("GET", "/findings/plan", "viewer", "")
-	if d := b["data"].(map[string]any); c != 200 || d["epss"] != "module_off" || d["recent"] != "module_off" || d["epss_date"] != nil {
-		t.Fatalf("feeds module off: %d %v", c, b)
-	}
-	if c, _ = e.call("GET", "/findings/plan?tier=bogus", "viewer", ""); c != 400 {
-		t.Fatalf("bad tier: %d", c)
-	}
-}
-
 // The age rule measured on the real fixtures: the KEV entries and NVD ranges of the golden set, the Juniper set and the
 // Office set, with each CVE's real published day (testdata/kev-published.json), on the devices the golden tests use. Each
 // device starts with the flood the old matcher left (a finding for every KEV CVE of its products) and is matched again:

@@ -44,7 +44,7 @@ export function useNotAddedActions(asset: FindingAsset | null | undefined, findi
   }
 }
 
-/** Add device and Ignore as buttons, once per device: the finding page's notice and the device blocks of To fix and Needs your
+/** Add device and Ignore as buttons, once per device: the finding page's notice and the device blocks of By device and Needs your
  *  input. Only the actions: the heading or the chip next to the device name says "not added yet". Nothing for an approved or an
  *  ignored device. */
 export function NotAdded({ asset, findings = 1 }: { asset: FindingAsset | null | undefined; findings?: number }) {

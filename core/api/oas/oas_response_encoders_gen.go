@@ -2460,32 +2460,6 @@ func encodeFindingsGetFindingsOverviewResponse(response *FindingsGetFindingsOver
 	return nil
 }
 
-func encodeFindingsGetFindingsPlanResponse(response *FindingsGetFindingsPlanOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeFindingsGetFindingsToFixResponse(response *FindingsGetFindingsToFixOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeFindingsPostFindingsHandleResponse(response *FindingsPostFindingsHandleOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2525,19 +2499,6 @@ func encodeFindingsPostFindingsIDAppliedResponse(response *FindingsPostFindingsI
 	return nil
 }
 
-func encodeFindingsPostFindingsIDConfirmResponse(response *FindingsPostFindingsIDConfirmOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeFindingsPostFindingsIDReopenResponse(response *FindingsPostFindingsIDReopenOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2551,20 +2512,7 @@ func encodeFindingsPostFindingsIDReopenResponse(response *FindingsPostFindingsID
 	return nil
 }
 
-func encodeFindingsPostFindingsIDStatusResponse(response *FindingsPostFindingsIDStatusOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeFindingsPostFindingsIDUnconfirmResponse(response *FindingsPostFindingsIDUnconfirmOK, w http.ResponseWriter) error {
+func encodeFindingsPostFindingsIDUnverifyResponse(response *FindingsPostFindingsIDUnverifyOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

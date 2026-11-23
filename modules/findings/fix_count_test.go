@@ -62,9 +62,10 @@ func esxiHost(version, build string) Asset {
 		CPE: "cpe:2.3:o:vmware:esxi:8.0:update_2:*:*:*:*:*:*"}}} // the CPE the host's own statement is given (its build's update)
 }
 
-// fixPaths is the fixed version each reader of the fix names for one finding: the stored fix (FixOf, written by the match pass), the
-// finding page (FixedInFor) and the list row, To fix and the assistant (RowFixes). "" when a reader names none.
-type fixPaths struct{ stored, page, row string }
+// fixPaths is the fixed version each reader of the fix names for one finding: the stored fix (FixOf, written by the match pass, which
+// every list, Home, the report and the assistant read) and the finding page (FixedInFor). "" when a reader names none. The third
+// path, the older list row's grouped release (RowFixes: GET /findings, To fix, the assistant before it read By device), is gone.
+type fixPaths struct{ stored, page string }
 
 func pathsOf(a Asset, vulns []Vuln) map[string]fixPaths {
 	res := MatchAsset(a, vulns, nil, t0)
@@ -72,11 +73,6 @@ func pathsOf(a Asset, vulns []Vuln) map[string]fixPaths {
 	for _, v := range vulns {
 		byCVE[v.CVE] = v
 	}
-	var mine []Vuln
-	for _, m := range res.New {
-		mine = append(mine, byCVE[m.CVE])
-	}
-	rows := RowFixes(a, mine)
 	lines := deviceLines(a)
 	out := map[string]fixPaths{}
 	for _, m := range res.New {
@@ -95,9 +91,6 @@ func pathsOf(a Asset, vulns []Vuln) map[string]fixPaths {
 					p.page = f.Fixed
 				}
 			}
-			if r := rows[x.CVE]; r != nil {
-				p.row = r.Fixed
-			}
 			out[x.CVE+"|"+x.SoftwareID] = p
 		}
 	}
@@ -108,16 +101,15 @@ func pathsOf(a Asset, vulns []Vuln) map[string]fixPaths {
 // name one. Before the match pass stored the fix, the stored fix was unknown for every finding, so every finding a reader named a fix
 // for differed from it (storedUnknown), and the ESXi host on 8.0 Update 2 had no fix on any surface while the CVE brief named
 // VMware's per-train builds. The stored fix now agrees with the finding page on every finding but the ESXi one, where it is VMware's
-// fixed build of the host's train (the page reads NVD's exact versions only). The list row's grouped release (one release for every
-// CVE of the software) still differs where a later CVE of the same software needs a later release: the page and the list move to the
-// stored fix with the view of the finding.
+// fixed build of the host's train (the page reads NVD's exact versions only). The older list row's grouped release (one release for
+// every CVE of the software), which differed from the page on 84 findings of this fixture, is removed with GET /findings' fix field.
 func TestFixCount_FindingsWithTwoFixedVersions(t *testing.T) {
 	t.Parallel()
-	var findings, storedUnknown, storedVsPage, pageVsRow int
+	var findings, storedUnknown, storedVsPage int
 	for _, d := range fixDevices(t) {
 		for k, p := range pathsOf(d.a, d.vulns) {
 			findings++
-			if p.page != "" || p.row != "" {
+			if p.page != "" {
 				storedUnknown++
 			}
 			if p.stored != p.page {
@@ -127,13 +119,9 @@ func TestFixCount_FindingsWithTwoFixedVersions(t *testing.T) {
 			if d.a.ID == "esxi" && p.stored != "8.0 U2d (build 24585300)" {
 				t.Errorf("ESXi 8.0 Update 2: stored fix %q, want VMware's fixed build of its train", p.stored)
 			}
-			if p.page != "" && p.row != "" && p.page != p.row {
-				pageVsRow++
-			}
 		}
 	}
-	t.Logf("findings %d; differing with the stored fix unknown (before): %d; stored vs page: %d; page vs list row: %d",
-		findings, storedUnknown, storedVsPage, pageVsRow)
+	t.Logf("findings %d; differing with the stored fix unknown (before): %d; stored vs page: %d", findings, storedUnknown, storedVsPage)
 	if findings == 0 || storedUnknown == 0 {
 		t.Fatal("the fixture makes no finding with a fix")
 	}
@@ -145,8 +133,8 @@ func TestFixCount_FindingsWithTwoFixedVersions(t *testing.T) {
 // The count of the same class through the new endpoints: the fixture's findings stored by the match pass, then read as By device and
 // the finding's view (GET /findings/{id}/view) read them. Both name the stored fix, so the view and a list row agree by construction;
 // what this measures is that every combined block names a release that reaches each of its findings' own fix, and that the lists
-// count every open finding once. The older finding page (GET /findings/{id}) still names FixedInFor's release: the older paths
-// differed on 84 findings of this fixture (TestFixCount_FindingsWithTwoFixedVersions), and stay so until that page reads the view.
+// count every open finding once. The finding page (GET /findings/{id}) still names FixedInFor's release beside the stored fix
+// (TestFixCount_FindingsWithTwoFixedVersions: one finding of this fixture, the ESXi one, differs).
 func TestFixCount_ListAndPageReadTheStoredFix(t *testing.T) {
 	e := newEnv(t)
 	ctx := t.Context()

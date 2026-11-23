@@ -115,7 +115,7 @@ func TestContract_INV8_KevComesFromFeeds(t *testing.T) {
 	e := newHTTPEnv(t)
 	e.seed()
 	delete(e.feeds.kev, "CVE-2022-27593") // the CVE left the list: finding stays, kev is null
-	_, b := e.call("GET", "/findings", "viewer", "")
+	_, b := e.call("GET", "/findings?asset=a-1", "viewer", "")
 	items, _ := b["items"].([]any)
 	if len(items) != 1 || items[0].(map[string]any)["kev"] != nil {
 		t.Fatalf("items = %v", b)
@@ -146,20 +146,20 @@ func TestContract_INV22_CvssComesFromFeeds(t *testing.T) {
 		}
 		return v
 	}
-	for _, p := range []string{"/findings", "/findings/" + id} {
+	for _, p := range []string{"/findings?asset=a-1", "/findings/" + id} {
 		if v := cvssOf(p); v != nil {
 			t.Fatalf("%s without a score: cvss = %v", p, v)
 		}
 	}
 	ver, src, vec := "3.1", "nvd", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 9.8, Version: ver, Source: src, Vector: vec}}
-	for _, p := range []string{"/findings", "/findings/" + id} {
+	for _, p := range []string{"/findings?asset=a-1", "/findings/" + id} {
 		if c, _ := cvssOf(p).(map[string]any); c["score"] != 9.8 || c["version"] != "3.1" || c["source"] != "nvd" || c["vector"] != vec {
 			t.Fatalf("%s: cvss = %v", p, c)
 		}
 	}
 	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 0, Version: "3.1", Source: "cna", Vector: "CVSS:3.1/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:N"}}
-	if c, _ := cvssOf("/findings").(map[string]any); c == nil || c["score"] != 0.0 || c["version"] != "3.1" || c["source"] != "cna" {
+	if c, _ := cvssOf("/findings?asset=a-1").(map[string]any); c == nil || c["score"] != 0.0 || c["version"] != "3.1" || c["source"] != "cna" {
 		t.Fatalf("a real 0.0: cvss = %v", c)
 	}
 }
@@ -184,22 +184,22 @@ func TestListFilterAndOrder(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	e.seed()
-	e.advance(1000000000) // 1s later a second device is matched: newest first
+	e.advance(1000000000) // 1s later a second device is matched
 	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "weird", Display: "x"}
 	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-2", Name: "b", Software: nas("6.1.1").Software}, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
-	_, b := e.call("GET", "/findings", "viewer", "")
+	// the list is one device's: without a device it is refused (the lists of every device are By device and By fix)
+	if code, b := e.call("GET", "/findings", "viewer", ""); code != 400 || errCode(b) != "invalid" {
+		t.Fatalf("no device: %d %v", code, b)
+	}
+	_, b := e.call("GET", "/findings?asset=a-2", "viewer", "")
 	items := b["items"].([]any)
-	if len(items) != 2 || items[0].(map[string]any)["asset_id"] != "a-2" || items[1].(map[string]any)["asset_id"] != "a-1" {
-		t.Fatalf("order = %v", b)
+	if len(items) != 1 || items[0].(map[string]any)["asset_id"] != "a-2" {
+		t.Fatalf("filter = %v", b)
 	}
 	if k := items[0].(map[string]any)["asset"].(map[string]any)["kind"]; k != "unknown" {
 		t.Fatalf("unknown kind shown as %v", k)
-	}
-	_, b = e.call("GET", "/findings?asset=a-1", "viewer", "")
-	if items = b["items"].([]any); len(items) != 1 || items[0].(map[string]any)["asset_id"] != "a-1" {
-		t.Fatalf("filter = %v", b)
 	}
 	_, b = e.call("GET", "/findings?asset=nobody", "viewer", "")
 	if items, ok := b["items"].([]any); !ok || len(items) != 0 {
@@ -207,22 +207,27 @@ func TestListFilterAndOrder(t *testing.T) {
 	}
 }
 
-func TestContract_POST4_StatusEndpoint(t *testing.T) {
+// The finding page's writes: Mark as handled (POST /findings/handle with its id) and Reopen, refused at the edge, and read back on the
+// page (GET /findings/{id}).
+func TestContract_POST4_FindingPageWrites(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	id := e.seed()
+	handle := func(resolution, note string) string {
+		return `{"ids":["` + id + `"],"resolution":"` + resolution + `","note":"` + note + `"}`
+	}
 	for _, c := range []struct {
 		name, user, path, body string
 		status                 int
 		code                   string
 	}{
-		{"viewer refused", "viewer", "/findings/" + id + "/status", `{"action":"patched","note":""}`, 403, "forbidden"},
-		{"no session", "", "/findings/" + id + "/status", `{"action":"patched","note":""}`, 401, ""},
-		{"unknown id", "operator", "/findings/f-nope/status", `{"action":"patched","note":""}`, 404, "not_found"},
-		{"note required", "operator", "/findings/" + id + "/status", `{"action":"false_positive","note":"ab"}`, 400, "note_required"},
-		{"already open", "operator", "/findings/" + id + "/status", `{"action":"reopen","note":""}`, 409, "already_open"},
-		{"nul in note", "operator", "/findings/" + id + "/status", `{"action":"patched","note":"a\u0000b"}`, 400, "invalid"},
-		{"bad action stays out", "operator", "/findings/" + id + "/status", `{"action":"explode","note":""}`, 400, ""},
+		{"viewer refused", "viewer", "/findings/handle", handle("patched", ""), 403, "forbidden"},
+		{"no session", "", "/findings/handle", handle("patched", ""), 401, ""},
+		{"unknown id", "operator", "/findings/handle", `{"ids":["f-nope"],"resolution":"patched","note":""}`, 404, "not_found"},
+		{"note required", "operator", "/findings/handle", handle("false_positive", "ab"), 400, "note_required"},
+		{"already open", "operator", "/findings/" + id + "/reopen", `{"note":""}`, 409, "already_open"},
+		{"nul in note", "operator", "/findings/handle", handle("patched", `a\u0000b`), 400, "invalid"},
+		{"bad resolution stays out", "operator", "/findings/handle", handle("explode", ""), 400, ""},
 	} {
 		code, b := e.call("POST", c.path, c.user, c.body)
 		if code != c.status || (c.code != "" && errCode(b) != c.code) {
@@ -232,12 +237,48 @@ func TestContract_POST4_StatusEndpoint(t *testing.T) {
 	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected {
 		t.Fatalf("a refused request changed the finding: %+v", r)
 	}
-	code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"mitigated","note":" proxy in front "}`)
-	if code != 200 || b["status"] != "mitigated" || b["resolved_by"] != "it@acme.example" || b["resolution_note"] != "proxy in front" {
+	if code, b := e.call("POST", "/findings/handle", "operator", handle("mitigated", " proxy in front ")); code != 200 || b["handled"] != 1.0 {
 		t.Fatalf("%d %v", code, b)
+	}
+	_, b := e.call("GET", "/findings/"+id, "viewer", "")
+	if b["status"] != "mitigated" || b["resolved_by"] != "it@acme.example" || b["resolution_note"] != "proxy in front" {
+		t.Fatalf("detail = %v", b)
 	}
 	if h := b["history"].([]any); len(h) != 2 || h[1].(map[string]any)["action"] != "mitigated" {
 		t.Fatalf("history = %v", b["history"])
+	}
+	if code, b := e.call("POST", "/findings/"+id+"/reopen", "operator", `{"note":"it came back"}`); code != 200 || b["status"] == "mitigated" {
+		t.Fatalf("reopen: %d %v", code, b)
+	}
+}
+
+// Undo of Confirm vulnerability (POST /findings/{id}/unverify): admin only; a person's confirmation goes back to not confirmed, one a
+// scan made is refused; history and audit.
+func TestContract_UnverifyEndpoint(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	if code, b := e.call("POST", "/findings/"+id+"/unverify", "admin", ""); code != 409 || errCode(b) != "not_confirmed_by_person" {
+		t.Fatalf("not confirmed: %d %v", code, b)
+	}
+	if code, b := e.call("POST", "/findings/"+id+"/verify", "admin", `{"note":"logged in, it runs 6.1.1"}`); code != 200 {
+		t.Fatalf("verify: %d %v", code, b)
+	}
+	if code, b := e.call("POST", "/findings/"+id+"/unverify", "operator", ""); code != 403 || errCode(b) != "forbidden" {
+		t.Fatalf("operator: %d %v", code, b)
+	}
+	code, b := e.call("POST", "/findings/"+id+"/unverify", "admin", "")
+	if v, _ := b["verification"].(map[string]any); code != 200 || v["verified"] != "no" {
+		t.Fatalf("undo: %d %v", code, b)
+	}
+	if got := e.auditActions(); got[len(got)-1] != "findings.unconfirm" {
+		t.Fatalf("audit = %v", got)
+	}
+	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected || r.Basis == BasisPerson {
+		t.Fatalf("after undo: %+v", r)
+	}
+	if code, _ := e.call("POST", "/findings/f-nope/unverify", "admin", ""); code != 404 {
+		t.Fatalf("unknown id: %d", code)
 	}
 }
 
@@ -246,7 +287,7 @@ func TestModuleOffMeansNoRoutes(t *testing.T) {
 	e := newHTTPEnv(t)
 	id := e.seed()
 	e.gate.Set("findings", false)
-	for _, p := range []string{"/findings", "/findings/" + id} {
+	for _, p := range []string{"/findings?asset=a-1", "/findings/" + id} {
 		if code, _ := e.call("GET", p, "viewer", ""); code != 404 {
 			t.Errorf("GET %s = %d", p, code)
 		}
@@ -272,22 +313,25 @@ func TestFindingDetail_FixedIn(t *testing.T) {
 	}
 }
 
-// accept_risk goes through the API with its day: a bad day is 400 bad_until, a good one answers the finding with
+// Accepting a risk goes through the API with its day: a bad day is 400 bad_until, a good one shows on the finding's page with
 // accepted_until.
 func TestAcceptRiskEndpoint(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	id := e.seed()
 	day := func(d int) string { return dayOf(t0).AddDate(0, 0, d).Format(time.DateOnly) }
-	if code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(-1)+`"}`); code != 400 || errCode(b) != "bad_until" {
+	if code, b := e.call("POST", "/findings/handle", "operator", `{"ids":["`+id+`"],"resolution":"accepted","note":"March window","until":"`+day(-1)+`"}`); code != 400 || errCode(b) != "bad_until" {
 		t.Fatalf("yesterday: %d %v", code, b)
 	}
 	if code, b := e.call("POST", "/findings/handle", "operator", `{"ids":["`+id+`"],"resolution":"accepted","note":"March window"}`); code != 400 || errCode(b) != "bad_until" {
 		t.Fatalf("handle without a day: %d %v", code, b)
 	}
-	code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(90)+`"}`)
-	if code != 200 || b["status"] != "risk_accepted" || b["accepted_until"] != day(90) || b["resolution_note"] != "March window" {
+	if code, b := e.call("POST", "/findings/handle", "operator", `{"ids":["`+id+`"],"resolution":"accepted","note":"March window","until":"`+day(90)+`"}`); code != 200 || b["handled"] != 1.0 {
 		t.Fatalf("accept: %d %v", code, b)
+	}
+	_, b := e.call("GET", "/findings/"+id, "viewer", "")
+	if b["status"] != "risk_accepted" || b["accepted_until"] != day(90) || b["resolution_note"] != "March window" {
+		t.Fatalf("accepted: %v", b)
 	}
 }
 
@@ -328,11 +372,8 @@ func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE kind = 'handled'`); n != 1 {
 		t.Fatalf("history rows %d", n)
 	}
-	// the same row on the all-devices list and on the single finding: one stored column, one answer
-	if r := row("/findings"); r["software_id"] != "s-1" {
-		t.Fatalf("all-devices row = %v", r)
-	}
-	id := row("/findings")["id"].(string)
+	// the same row on the single finding: one stored column, one answer
+	id := row("/findings?asset=a-1")["id"].(string)
 	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.2.0" {
 		t.Fatalf("detail = %v", b)
 	}

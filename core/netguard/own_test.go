@@ -17,7 +17,7 @@ func TestOwnRefuses(t *testing.T) {
 	}{
 		{"192.168.142.141", 8443, true}, {"192.168.142.141", 514, true}, {"192.168.142.141", 6514, true},
 		{"192.168.142.141", 11434, false}, {"192.168.142.141", 443, false}, // another program on the machine
-		{"::ffff:192.168.142.141", 8444, true}, {"64:ff9b::c0a8:128d", 8765, true}, // a transition form of the machine
+		{"::ffff:192.168.142.141", 8444, true}, {"64:ff9b::c0a8:8e8d", 8765, true}, // a transition form of the machine
 		{"10.88.0.5", 443, true}, {"192.168.142.200", 80, true}, // core's container, a decoy: every port
 		{"127.0.0.1", 11434, true}, {"::1", 443, true}, {"64:ff9b::7f00:1", 443, true},
 		{"192.168.142.50", 8443, false},
@@ -40,7 +40,7 @@ func TestOwnRefusesThroughALearnedNAT64Prefix(t *testing.T) {
 	old := nat64Prefixes
 	t.Cleanup(func() { nat64Prefixes = old })
 	o := Own{Machine: []netip.Addr{netip.MustParseAddr("192.168.142.141")}, Known: true}
-	a := netip.MustParseAddr("64:ff9b:1:a00::c0a8:128d") // 192.168.142.141 in the /96 layout of 64:ff9b:1:a00::/96
+	a := netip.MustParseAddr("64:ff9b:1:a00::c0a8:8e8d") // 192.168.142.141 in the /96 layout of 64:ff9b:1:a00::/96
 	for _, learned := range [][]netip.Prefix{nil, {netip.MustParsePrefix("64:ff9b:1:a00::/96")}} {
 		nat64Prefixes = func() []netip.Prefix { return learned }
 		if !o.Refuses(a, 8443, false) || o.Refuses(a, 5678, false) {

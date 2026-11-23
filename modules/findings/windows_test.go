@@ -139,9 +139,6 @@ func TestMatchAsset_OutOfServiceRelease(t *testing.T) {
 		len(f.Branches) != 1 || f.Branches[0].Branch != "Windows 11 23H2" {
 		t.Errorf("fixed_in of a sibling: %+v", f)
 	}
-	if g := FixedInForAll(winPC(22621, false, "6060", "x64"), []Vuln{cve62215, cve29824})[cve62215.CVE]; g == nil || g.Kind != "feature_update" || g.Fixed != "Windows 11 23H2" {
-		t.Errorf("weekly line of a sibling: %+v", g)
-	}
 	w, m = oneMatch(t, winPC(22000, false, "3260", "x64"), cve62215, true)
 	// review r2 H2 of #939: 21H2 is out of service and NVD lists the releases before (Windows 10) and after (22H2 on): it has the flaw
 	wantMatch(t, "11 21H2", w, m, "existing", BasisProduct, SeverityMedium, "Microsoft no longer updates Windows 11 21H2", "move to a serviced release")
@@ -262,24 +259,12 @@ func TestMatchAsset_ManualWindowsRowIsCovered(t *testing.T) {
 	}
 }
 
-// One monthly update closes every flaw the PC is affected by: the latest end.
-func TestFixedInForAll_Windows(t *testing.T) {
-	g := FixedInForAll(winPC(22631, false, "4460", "x64"), []Vuln{cve29824, cve62215, cve36884})
-	f := g[cve29824.CVE]
-	if f == nil || f.Kind != "fixed" || f.Fixed != "10.0.22631.6199" || !f.Closed[cve62215.CVE] || f.Closed[cve36884.CVE] {
-		t.Fatalf("group: %+v", f)
-	}
-}
-
 // Review r1 M2: a fix above the last revision Windows 10 22H2 gets without Extended Security Updates says so; one below it is a
 // plain monthly update.
 func TestFixedIn_ExtendedSecurityUpdates(t *testing.T) {
 	pc := winPC(19045, false, "6456", "x64") // October 2025, the last free update
 	if f := FixedInFor(pc, cve62215); f == nil || f.Kind != "esu" || f.Fixed != "10.0.19045.6575" {
 		t.Errorf("fix after the end of free updates: %+v", f)
-	}
-	if g := FixedInForAll(pc, []Vuln{cve62215})[cve62215.CVE]; g == nil || g.Kind != "esu" || g.Fixed != "10.0.19045.6575" {
-		t.Errorf("weekly line: %+v", g)
 	}
 	if f := FixedInFor(winPC(19045, false, "5000", "x64"), cve33073); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.19045.5965" {
 		t.Errorf("a free monthly update: %+v", f)
@@ -327,9 +312,6 @@ func TestFixedIn_FeatureUpdateOnlyForEndedReleases(t *testing.T) {
 	only25 := nvdWindows("CVE-2099-0013", "2026-10-01", nvdRow{"windows_11_25h2", "*", "*", "10.0.26200.7092"})
 	if f := FixedInFor(winPC(26100, false, "6899", "x64"), only25); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.26100.7092" {
 		t.Errorf("serviced 24H2 through 25H2: %+v", f)
-	}
-	if g := FixedInForAll(winPC(26100, false, "6899", "x64"), []Vuln{only25})[only25.CVE]; g == nil || g.Kind != "fixed" || g.Fixed != "10.0.26100.7092" {
-		t.Errorf("weekly line of a serviced 24H2: %+v", g)
 	}
 	pro := winPC(19044, false, "6000", "x64")
 	pro.OS = "Microsoft Windows 10 Pro 10.0.19044.6000"

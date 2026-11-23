@@ -8,37 +8,6 @@ import (
 	"unicode/utf8"
 )
 
-// Action is what a person can do from the finding page (POST /findings/{id}/status): the older form of a handling (Resolution) or a
-// reopen. ActionResolution maps it.
-type Action string
-
-// The actions of POST /findings/{id}/status.
-const (
-	ActionPatched       Action = "patched"
-	ActionMitigated     Action = "mitigated"
-	ActionFalsePositive Action = "false_positive"
-	ActionNotRelevant   Action = "not_relevant"
-	ActionReopen        Action = "reopen"
-	ActionAcceptRisk    Action = "accept_risk" // needs a note and a last day
-)
-
-// ActionResolution is the resolution an action sets; ok is false for reopen and for an unknown action.
-func ActionResolution(a Action) (Resolution, bool) {
-	switch a {
-	case ActionPatched:
-		return ResolutionPatched, true
-	case ActionMitigated:
-		return ResolutionMitigated, true
-	case ActionFalsePositive:
-		return ResolutionFalsePositive, true
-	case ActionNotRelevant:
-		return ResolutionNotRelevant, true
-	case ActionAcceptRisk:
-		return ResolutionAccepted, true
-	}
-	return "", false
-}
-
 const (
 	// MaxNote is the longest note, counted in UTF-16 code units like the GUI.
 	MaxNote = 500

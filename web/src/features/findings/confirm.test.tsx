@@ -56,6 +56,19 @@ describe('a person confirms a suspected finding', () => {
     expect(!!check).toBe(items.length === 3)
   })
 
+  it('an operator or a viewer, who cannot confirm, is not told to confirm it: no "confirm it yourself" and no Confirm step', async () => {
+    for (const role of ['operator', 'viewer'] as const) {
+      const { unmount } = renderApp('/findings/f-2', { role })
+      const why = await screen.findByTestId('suspected-why', undefined, T)
+      expect(why).toHaveTextContent(/only/)
+      expect(why).not.toHaveTextContent(/confirm it yourself/)
+      const ways = screen.getByTestId('confirm-ways')
+      expect(within(ways).queryByText(/if you checked the device yourself/)).toBeNull()
+      expect(within(ways).queryByRole('button', { name: 'Confirm vulnerability' })).toBeNull()
+      unmount()
+    }
+  })
+
 })
 
 describe('a version the device itself reports', () => {

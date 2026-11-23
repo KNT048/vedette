@@ -45,8 +45,9 @@ func deviceStatedSource(src string) bool { return src == VersionByAgent || src =
 // WhySuspected is the sentence under a suspected finding that says why it is not confirmed and what would confirm it, built only from
 // facts the box has: the version and who gave it, whether a check exists for the CVE (checkKnown, hasCheck) and how the scan
 // stands to the device (reach, "" = not known). A fact that is not known is left out, never guessed. The ways to confirm come in
-// order: first the automatic ones (the device reports its version itself over SNMP or through the agent; a safe vulnerability
-// check, named only when one exists for the CVE), last a person. now dates an SNMP answer that is too old to confirm (SNMPFresh).
+// order: the device reports its version itself over SNMP or through the agent, then a safe vulnerability check (named only when one
+// exists for the CVE). A person's own confirmation is not in the sentence: only an admin can make it, so the finding page adds it for
+// an admin. now dates an SNMP answer that is too old to confirm (SNMPFresh).
 func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, reach string, now time.Time) string {
 	var b strings.Builder
 	byDevice := known != nil && deviceStatedSource(known.Source)
@@ -87,6 +88,5 @@ func WhySuspected(basis Basis, known *KnownVersion, checkKnown, hasCheck bool, r
 	case checkKnown:
 		b.WriteString(" A safe vulnerability check exists for this CVE: run the check to confirm it.")
 	}
-	b.WriteString(" Last, confirm it yourself.")
-	return b.String()
+	return b.String() // the last way, a person's confirmation, is the page's to offer: only to the role that can confirm
 }

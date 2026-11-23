@@ -8,8 +8,6 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
 import { useScheduleDraft } from '@/components/schedule/useScheduleDraft'
-import { useFindings } from '@/features/findings/api'
-import { isOpen } from '@/features/findings/basis'
 import { blockedFeedHost, checkFeedUrl, defaultParser, FORMATS } from './defaults'
 import { useDeleteCustomFeed, usePatchFeed, useSaveCustomFeed } from './api'
 import { ParserEditor } from './ParserEditor'
@@ -44,9 +42,6 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   const [key, setKey] = useState('')
   const [keyErr, setKeyErr] = useState<string>()
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const found = useFindings()
-  // open findings whose CVE only VulnCheck KEV lists: what removing the key leaves without a source (review M2)
-  const onlyVulnCheck = byok ? (found.data?.items ?? []).filter((r) => isOpen(r.status) && r.kev?.source === 'vulncheck-kev').length : 0
   const urlErr = err ?? (serverField(patch.error) === 'url' ? (patch.error as Error).message : undefined)
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -78,7 +73,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
               {last4 && !confirmRemove ? <Button type="button" size="sm" onClick={() => setConfirmRemove(true)}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
               {last4 && confirmRemove ? (
                 <div role="alert" className="grid gap-2 rounded-md border border-warn/50 bg-warn-soft p-3 text-sm">
-                  <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo', { count: onlyVulnCheck, n: onlyVulnCheck })}</InfoTip></div>
+                  <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody')}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo')}</InfoTip></div>
                   <span className="flex gap-2">
                     <Button type="button" size="sm" variant="primary" busy={patch.isPending && patch.variables?.api_key === ''} busyLabel={t('common:busy.removing')} disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
                     <Button type="button" size="sm" onClick={() => setConfirmRemove(false)}>{t('common:cancel')}</Button>

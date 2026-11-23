@@ -52,60 +52,6 @@ func TestPerfMatchPerDevice(t *testing.T) {
 		len(assets), len(vulns), len(set.listed))
 }
 
-// TestPerfFixAnswersExport writes every fix reader's answer on the export's devices to VEDETTE_EQUIV_OUT (before/after comparison) and
-// times RowFixes the way the findings list calls it. Measurement only.
-func TestPerfFixAnswersExport(t *testing.T) {
-	path, out := os.Getenv("VEDETTE_PASS_TIME"), os.Getenv("VEDETTE_EQUIV_OUT")
-	if path == "" || out == "" {
-		t.Skip("set VEDETTE_PASS_TIME and VEDETTE_EQUIV_OUT")
-	}
-	assets := exportAssets(t, path)
-	vulns := goldenVulns(t)
-	for _, f := range []string{"testdata/kev-nvd-junos-n23.json", "testdata/kev-nvd-office-n22.json", "testdata/kev-nvd-winlab01-n55.json"} {
-		vulns = append(vulns, loadGolden(t, f)...)
-	}
-	vulns = append(vulns, syntheticCatalogue(assets, 100_000)...)
-	set := newMatchSet(vulns)
-	var got []fixAnswers
-	var spent time.Duration
-	for _, a := range assets {
-		dev := set.forDevice(a)
-		r := MatchAsset(a, dev, nil, t0)
-		byCVE := map[string]Vuln{}
-		for _, v := range dev {
-			if _, ok := byCVE[v.CVE]; !ok {
-				byCVE[v.CVE] = v
-			}
-		}
-		var open []Vuln
-		ans := fixAnswers{Device: a.ID, Groups: map[string]groupShown{}, Pages: map[string]*FixedIn{}}
-		for _, m := range append(r.New, r.Existing...) {
-			if _, ok := ans.Pages[m.CVE]; ok {
-				continue
-			}
-			ans.CVEs = append(ans.CVEs, m.CVE)
-			open = append(open, byCVE[m.CVE])
-			ans.Pages[m.CVE] = nil
-		}
-		start := time.Now()
-		ans.Rows = RowFixes(a, open)
-		spent += time.Since(start)
-		for cve, g := range FixedInForAll(a, open) {
-			ans.Groups[cve] = groupShown{Kind: g.Kind, Software: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, KB: g.KB,
-				Closed: sortedKeys(g.Closed), Ranged: sortedKeys(g.Ranged), NVDLag: g.NVDLag}
-		}
-		for _, v := range open {
-			ans.Pages[v.CVE] = FixedInFor(a, v)
-		}
-		got = append(got, ans)
-	}
-	b, _ := json.MarshalIndent(got, "", " ")
-	if err := os.WriteFile(out, b, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("RowFixes over %d devices: %v", len(assets), spent.Round(time.Millisecond))
-}
-
 // TestPerfPassRowsExport writes what two match passes leave in the database for the export's devices to VEDETTE_EQUIV_OUT (before/after
 // comparison), with the backlog hook, and times the passes. Measurement only.
 func TestPerfPassRowsExport(t *testing.T) {

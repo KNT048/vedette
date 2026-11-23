@@ -51,13 +51,14 @@ function Body() {
   const q = useDevices()
   const can = useCan('operator')
   const findingsOn = useModuleEnabled('findings')
-  // The link opens the device's open findings, so it counts those (findings_count counts every status)
-  const openBy = useOpenFindingsByAsset(findingsOn === true)
-  const openOf = (r: Row) => openBy?.get(r.d.id) ?? 0
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Row | null>(null)
   const [removing, setRemoving] = useState<Row | null>(null)
   const rows = useMemo<Row[]>(() => (q.data?.items ?? []).filter(declaredSoftwareOnly).map((d) => ({ d, sw: d.product ?? undefined })), [q.data])
+  // The link opens the device's open findings, so it counts those (findings_count counts every status)
+  const ids = useMemo(() => rows.map((r) => r.d.id), [rows])
+  const openBy = useOpenFindingsByAsset(ids, findingsOn === true)
+  const openOf = (r: Row) => openBy?.get(r.d.id) ?? 0
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const columns: ColumnDef<Row>[] = [
     { id: 'name', header: t('declaredPage.col.product'), accessorFn: (r) => r.sw?.display ?? '', cell: ({ row }) => {

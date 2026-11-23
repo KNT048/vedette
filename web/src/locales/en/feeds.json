@@ -268,10 +268,8 @@
     "vulncheckKeyRemove": "Remove key",
     "vulncheckNoMirror": "Fixed address: api.vulncheck.com.",
     "vulncheckNoMirrorInfo": "This feed has one address (api.vulncheck.com); it cannot be changed, so your key never goes to another host.",
-    "vulncheckRemoveBody_one": "Turns the feed off and deletes its list. {{n}} open finding came only from it.",
-    "vulncheckRemoveInfo_one": "{{n}} open finding came only from VulnCheck KEV. Removing the key turns the feed off and deletes the list it loaded. That finding stays open, as when CISA drops a CVE: it keeps its text, but its source information is no longer available. Close it yourself if it does not apply.",
-    "vulncheckRemoveBody_other": "Turns the feed off and deletes its list. {{n}} open findings came only from it.",
-    "vulncheckRemoveInfo_other": "{{n}} open findings came only from VulnCheck KEV. Removing the key turns the feed off and deletes the list it loaded. They stay open, as when CISA drops a CVE: they keep their text, but their source information is no longer available. Close them yourself if they do not apply.",
+    "vulncheckRemoveBody": "Turns the feed off and deletes its list. A CVE only VulnCheck KEV reports as exploited is no longer marked exploited on your devices.",
+    "vulncheckRemoveInfo": "Removing the key turns the feed off and deletes the list it loaded. Your findings stay; the status of each one then follows the exploitation reports of the other sources (CISA KEV and the rest).",
     "vulncheckRemoveConfirm": "Remove key and delete the list",
     "vulncheckKeyRemoved": "{{name}}: key removed, feed off",
     "addConfirm": "Add feed",
@@ -381,7 +379,7 @@
       "recent": "Recent",
       "old": "Older than 12 months"
     },
-    "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists the devices it confirmed under Recommended updates, grouped by the update that fixes it; it is never a finding and never alerts.",
+    "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists it as a finding on each device whose exact version is inside its affected versions, with the update that fixes it.",
     "introOld": "This CVE is on no exploited list and was published more than 12 months ago, or this box has no NVD record of it. Vedette lists such a CVE on a device only when a scan engine finds it there.",
     "products": "Products (NVD)",
     "productsNone": "NVD names none yet",
@@ -394,8 +392,9 @@
     "ranges": "Affected versions",
     "rangesYes": "NVD lists them, so Vedette can compare a device's exact version",
     "rangesNo": "NVD has not listed them yet, so Vedette cannot compare a version (it never lists a CVE by the product name alone)",
-    "noDevice": "No device of yours is listed for it: Vedette found no confirmed version inside its affected versions.",
-    "toPlan": "See every recommended update"
+    "noDevice": "No device of yours has it: Vedette found no version inside its affected versions.",
+    "toFindings_one": "See the finding",
+    "toFindings_other": "See the {{count}} findings"
   },
   "dash": {
     "label": "Today at a glance",

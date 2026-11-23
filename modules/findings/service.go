@@ -52,14 +52,6 @@ type ServiceConfig struct {
 	Urgency UrgencySources
 }
 
-// safeCheck is ServiceConfig.SafeCheck for v, else v's own flag.
-func (s *Service) safeCheck(v Vuln) bool {
-	if s.cfg.SafeCheck != nil {
-		return s.cfg.SafeCheck(v.CVE)
-	}
-	return v.HasTemplate
-}
-
 // Have is the scope of one device declared by "I have this" (INV-11): its software of KEV key Key that has no version
 // matches only the CISA entries added on or after Since.
 type Have struct {
@@ -72,13 +64,11 @@ type Have struct {
 type Service struct {
 	// rematched counts the writes whose device read differently inside the write than when its match was computed (the match was
 	// computed again): a measure that a device read twice compares equal, so the hourly pass stays on its fast path.
-	rematched  atomic.Int64
-	cfg        ServiceConfig
-	now        func() time.Time
-	plan       planState       // "Updates to plan": in memory, see planpass.go
-	gen        atomic.Uint64   // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
-	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
-	stamps     stamps          // each device's match stamp of its last full match (matchstamp.go)
+	rematched atomic.Int64
+	cfg       ServiceConfig
+	now       func() time.Time
+	gen       atomic.Uint64 // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
+	stamps    stamps        // each device's match stamp of its last full match (matchstamp.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -288,75 +278,6 @@ func (s *Service) ignoredDevices(ctx context.Context) (map[string]bool, error) {
 	return out, nil
 }
 
-// AssetRisk is what a device's risk marker reads (inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
-// #949: one rule, never a cheaper test of its own).
-type AssetRisk struct{ Exploited, Updates int }
-
-// Level is the risk marker's level (inventory's Risk.level): "exploited" when the device has exploited findings To fix lists,
-// else "update" when it has such recommended updates, else "" (clean).
-func (r AssetRisk) Level() string {
-	switch {
-	case r.Exploited > 0:
-		return "exploited"
-	case r.Updates > 0:
-		return "update"
-	}
-	return ""
-}
-
-// RiskOf is the marker of device d as To fix shows it: Exploited = the CVEs of the actions To fix lists to fix (actionable: an
-// update is named for them, or the row's group is proved; the card's "N exploited CVEs to fix"), Updates = its recommended updates
-// with a likely CVE or of High or Critical severity (riskyUpdate). Findings only in Needs your input count for neither.
-func RiskOf(d DeviceUpdates) AssetRisk {
-	var r AssetRisk
-	for _, a := range d.actionable() {
-		r.Exploited += len(a.CVEs)
-	}
-	for _, u := range d.Planned {
-		if riskyUpdate(u) {
-			r.Updates++
-		}
-	}
-	return r
-}
-
-// riskyUpdate says whether a recommended update puts a device on amber: a likely CVE, or the worst severity High or Critical.
-func riskyUpdate(u UpdateAction) bool {
-	return u.Likely > 0 || sevRank(Severity(u.Worst)) >= sevRank(SeverityHigh)
-}
-
-// sevRank orders severities (unknown values lowest).
-func sevRank(s Severity) int {
-	switch s {
-	case SeverityCritical:
-		return 5
-	case SeverityHigh:
-		return 4
-	case SeverityMedium:
-		return 3
-	case "low":
-		return 2
-	case "info":
-		return 1
-	}
-	return 0
-}
-
-// riskTTL bounds how long the classification of every device (classified) is kept when nothing it reads changed: a backstop for the
-// 12-month line of the plan's CVEs, which moves with time alone.
-const riskTTL = time.Minute
-
-// RiskMap is the risk of every device To fix classifies (no display cap), read from the cached classification (classified), so the
-// marker on Devices, the device page, Findings and Recommended updates is what To fix shows. A device with none is absent. feedsOn
-// false: no recommended update counts. The map is shared: read it, never change it.
-func (s *Service) RiskMap(ctx context.Context, feedsOn bool) (map[string]AssetRisk, error) {
-	c, err := s.classified(ctx, feedsOn)
-	if err != nil {
-		return nil, fmt.Errorf("findings: risk: %w", err)
-	}
-	return c.risk, nil
-}
-
 // CountByAsset returns how many findings each device has, every state included: the number inventory shows as findings_count, which
 // is also what deleting the device deletes (DeviceDeleted). One grouped read; a device with none is absent.
 func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {
@@ -395,7 +316,6 @@ type UpsertResult struct {
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
-	s.markPlan(assetID) // its "Updates to plan" too, at the next plan run
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)
@@ -886,49 +806,6 @@ func (s *Service) personStep(ctx context.Context, id string, t Trigger) (Finding
 		return err
 	})
 	return out, err
-}
-
-// SetStatus applies a person's action from the finding page: a handling (ActionResolution) or a reopen. On any error nothing is
-// written.
-func (s *Service) SetStatus(ctx context.Context, id string, action Action, note, user string) (Record, error) {
-	return s.setStatus(ctx, id, action, note, user, time.Time{})
-}
-
-// setStatus is SetStatus with the last day of accept_risk (zero for every other action).
-func (s *Service) setStatus(ctx context.Context, id string, action Action, note, user string, until time.Time) (Record, error) {
-	if action == ActionReopen {
-		if !until.IsZero() {
-			return Record{}, fmt.Errorf("findings: reopening with a date: %w", ErrBadUntil)
-		}
-		if _, err := s.Reopen(ctx, id, note, user); err != nil {
-			return Record{}, err
-		}
-		return s.Get(ctx, id)
-	}
-	res, ok := ActionResolution(action)
-	if !ok {
-		return Record{}, fmt.Errorf("findings: applying action %q: %w", action, ErrBadAction)
-	}
-	if _, _, err := s.Handle(ctx, []string{id}, res, note, until, user); err != nil {
-		return Record{}, err
-	}
-	return s.Get(ctx, id)
-}
-
-// ConfirmByPerson is Verify in the older read model.
-func (s *Service) ConfirmByPerson(ctx context.Context, id, note, user string) (Record, error) {
-	if _, err := s.Verify(ctx, id, note, user); err != nil {
-		return Record{}, err
-	}
-	return s.Get(ctx, id)
-}
-
-// UnconfirmByPerson is Unverify in the older read model.
-func (s *Service) UnconfirmByPerson(ctx context.Context, id, user string) (Record, error) {
-	if _, err := s.Unverify(ctx, id, user); err != nil {
-		return Record{}, err
-	}
-	return s.Get(ctx, id)
 }
 
 // MaxBulk is how many findings one handle request may touch: a filtered list of a few hundred findings fits, and the one write

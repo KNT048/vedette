@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { collection } from '@/mocks/db'
-import { findingsStore } from '@/mocks/stores'
+import { records } from '@/features/findings/modelMocks'
 import { BOX_ID, ensureBox } from './mocks'
 
 // The box page offered "Fix by updating the operating system" with nothing to install. The fix line is shown only when an
@@ -14,12 +14,16 @@ type Pkg = { name: string; current: string; new: string; security: boolean; cves
 const os = collection<{ pending: Pkg[] }>('core_os', () => ({ pending: [] }))
 const setPending = (pending: Pkg[]) => os.update((o) => ({ ...o, pending }))
 const pkg = (name: string, cves: string[]): Pkg => ({ name, current: '1', new: '2', security: true, cves })
-/** The box's findings: the first `open` stay open (suspected), the rest are closed by Vedette as not relevant. */
+/** The box's findings in the findings model: the first `open` stay open (not confirmed yet), the rest are closed by Vedette as not
+ *  relevant. */
 function boxFindings(open: string[], notRelevant: string[]) {
-  findingsStore.update((all) => {
-    const tpl = all.find((f) => f.asset_id !== BOX_ID) ?? all[0]!
-    const mk = (cve: string, i: number, status: 'suspected' | 'not_relevant') => ({ ...tpl, id: `f-box-${status}-${i}`, asset_id: BOX_ID, cve, status })
-    return [...all.filter((f) => f.asset_id !== BOX_ID), ...open.map((c, i) => mk(c, i, 'suspected')), ...notRelevant.map((c, i) => mk(c, i, 'not_relevant'))]
+  records.update((all) => {
+    const tpl = all.find((r) => r.asset_id !== BOX_ID) ?? all[0]!
+    const mk = (cve: string, i: number, handled: boolean) => ({ ...tpl, id: `fv-box-${handled ? 'nr' : 'open'}-${i}`, asset_id: BOX_ID, cve, software: null,
+      verified: 'no' as const, layer: 5 as const, fix: { ...tpl.fix, key: `box|${cve}` }, reopened: null,
+      ...(handled ? { state: 'handled' as const, resolution: 'not_relevant' as const, via: 'data_corrected' as const, resolved_by: 'system', resolved_at: tpl.first_seen }
+        : { state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null }) })
+    return [...all.filter((r) => r.asset_id !== BOX_ID), ...open.map((c, i) => mk(c, i, false)), ...notRelevant.map((c, i) => mk(c, i, true))]
   })
 }
 

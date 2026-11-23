@@ -49,7 +49,7 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 	if err != nil || len(recs) != len(layers) {
 		t.Fatalf("findings: %d %v", len(recs), err)
 	}
-	// the urgency pass is not the subject: store the layers by hand, and make each finding proved, so To fix lists every one
+	// the urgency pass is not the subject: store the layers by hand, and make each finding proved, so every reader lists every one
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
 		for cve, layer := range layers {
 			if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET urgency = ?, verified = 'scan' WHERE asset_id = ? AND cve = ?`, layer, id, cve); err != nil {
@@ -138,16 +138,16 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 	}
 	counts["exposure open exploited"] = max(0, got["fortigate"].Devices[0].OpenExploited-exploitedCount)
 
-	// To fix: the CVEs its risk marker counts as exploited
-	tf, err := s.d.Findings.ToFix(ctx, false, "")
+	// the device badge (Devices, the device page, Home): the CVEs it counts as exploited
+	badges, err := s.d.Findings.DeviceStatuses(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	marked := 0
-	for _, d := range tf.Devices {
-		marked += findings.RiskOf(d).Exploited
+	if b, ok := badges[id]; ok && (b.Code == findings.CodeExploited || b.Code == findings.CodeUnderAttack) {
+		marked = b.Count
 	}
-	counts["to fix risk marker"] = max(0, marked-exploitedCount)
+	counts["device badge"] = max(0, marked-exploitedCount)
 
 	// reports, MCP, AI context: what each carries of the finding
 	rf, err := reportsViews{s.d.Findings}.Views(ctx)
@@ -173,7 +173,7 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 	}
 
 	total := 0
-	for _, k := range []string{"notify notice", "notify digest", "ids alert link", "response kev flag", "exposure open exploited", "to fix risk marker", "reports", "mcp", "ai context"} {
+	for _, k := range []string{"notify notice", "notify digest", "ids alert link", "response kev flag", "exposure open exploited", "device badge", "reports", "mcp", "ai context"} {
 		t.Logf("%-24s %d", k, counts[k])
 		total += counts[k]
 	}

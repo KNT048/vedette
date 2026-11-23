@@ -162,8 +162,8 @@ func addSSHDevice(t *testing.T, s *stack, ip string, r sshRows) string {
 // 10.2p1 / 10.2_p1-r1, a CPE on that row only, vendor and product in other case), SNMP, a person's version or package release, and an
 // agent's apk/deb/rpm/Wazuh/upstream row, on Alpine, Ubuntu and Rocky devices, written through inventory's entry points and read by
 // findings through MatchInput. Every surface must describe OpenSSH by the strongest source's row (agent > a person > SNMP > banner):
-// the exploited finding, To fix, the finding page, the plan and the assistant's device context; a distribution's package never gets
-// an upstream "upgrade to 10.6", and an upstream build does.
+// the exploited finding, its stored fix (every list), the finding page and the assistant's device context; a distribution's package
+// never gets an upstream "upgrade to 10.6", and an upstream build does.
 func TestStrongestRow_EveryCombination(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -178,7 +178,6 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 	type want struct {
 		name, id, source string
 		pkg              bool // the strongest row is a distribution's package
-		planItems        int  // 1: an item on the strongest row; its Fixed is "10.6" for an upstream build, "" for a package
 	}
 	var cases []want
 	n := 0
@@ -205,7 +204,7 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 							continue
 						}
 						n++
-						w := want{name: o.name + ": " + strings.Join(names, "+"), planItems: 1}
+						w := want{name: o.name + ": " + strings.Join(names, "+")}
 						switch {
 						case agent != "":
 							w.source, w.pkg = "agent", agent != "upstream"
@@ -216,9 +215,6 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 						default:
 							w.source = "nmap"
 						}
-						if w.source == "nmap" {
-							w.planItems = 0 // a banner's version is never planned
-						}
 						w.id = addSSHDevice(t, s, fmt.Sprintf("10.77.%d.%d", n/200, n%200+1), r)
 						cases = append(cases, w)
 					}
@@ -226,10 +222,6 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 			}
 		}
 	}
-	if err := findingsJobs(*s.d)[1].Run(ctx); err != nil { // the plan pass
-		t.Fatal(err)
-	}
-	plan := s.d.Findings.Plan()
 	failed := 0
 	for _, w := range cases {
 		var bad []string
@@ -258,27 +250,15 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 		if len(res.New)+len(res.Existing) != 1 {
 			bad = append(bad, fmt.Sprintf("%d findings, want 1", len(res.New)+len(res.Existing)))
 		}
-		f := findings.RowFixes(a, []findings.Vuln{sshKEVVuln})[sshKEVCVE]
-		wantKind, wantFixed := "fixed", "10.6"
+		wantKind, wantFix, wantPage := findings.FixUpdate, "10.6", "fixed"
 		if w.pkg {
-			wantKind, wantFixed = "distro", ""
+			wantKind, wantFix, wantPage = findings.FixDistroUpdate, "", "distro"
 		}
-		if f == nil || f.SoftwareID != eff.ID || f.Kind != wantKind || !w.pkg && f.Fixed != wantFixed {
-			bad = append(bad, fmt.Sprintf("to-fix %+v, want %s %s on %s", f, wantKind, wantFixed, eff.ID))
+		if f := findings.FixOf(a, eff, sshKEVVuln); f.Kind != wantKind || f.Version != wantFix {
+			bad = append(bad, fmt.Sprintf("stored fix %+v, want %s %q", f, wantKind, wantFix))
 		}
-		if p := findings.FixedInFor(a, sshKEVVuln); p == nil || p.Kind != wantKind {
-			bad = append(bad, fmt.Sprintf("finding-page %+v, want %s", p, wantKind))
-		}
-		var items []findings.PlanItem
-		for _, it := range plan.Items {
-			if it.AssetID == w.id {
-				items = append(items, it)
-			}
-		}
-		if len(items) != w.planItems {
-			bad = append(bad, fmt.Sprintf("plan %d items, want %d: %+v", len(items), w.planItems, items))
-		} else if len(items) == 1 && (items[0].SoftwareID != eff.ID || items[0].Fixed != wantFixed || w.pkg && items[0].Kind != "distro") {
-			bad = append(bad, fmt.Sprintf("plan item %+v, want %q on %s", items[0], wantFixed, eff.ID))
+		if p := findings.FixedInFor(a, sshKEVVuln); p == nil || p.Kind != wantPage {
+			bad = append(bad, fmt.Sprintf("finding-page %+v, want %s", p, wantPage))
 		}
 		dev, err := s.d.Inventory.Device(ctx, w.id)
 		if err != nil {
@@ -302,8 +282,8 @@ func TestStrongestRow_EveryCombination(t *testing.T) {
 }
 
 // The router's three rows as a box held them: the scan's banner "OpenSSH 10.2", the package release a person gave on Needs your input
-// (a correction of the banner row) and the agent's apk row. Through inventory, findings, To fix and the plan, OpenSSH is the agent's
-// row everywhere and the update is Alpine's: never "Upgrade OpenSSH from 10.2 to 10.6".
+// (a correction of the banner row) and the agent's apk row. Through inventory, findings, the device's By device card and the finding
+// page, OpenSSH is the agent's row everywhere and the update is Alpine's: never "Upgrade OpenSSH from 10.2 to 10.6".
 func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -311,10 +291,8 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 	sshFeeds(t, s)
 	id := addSSHDevice(t, s, "192.168.142.40", sshRows{os: "Alpine Linux 3.23", banner: "10.2", manual: "pkg", manualPkg: "10.2_p1-r1", agent: "packaged",
 		agentVersion: "10.2p1", agentPkg: "10.2_p1-r1"})
-	for _, j := range findingsJobs(*s.d)[:2] { // reconcile (the exploited finding), then the plan pass
-		if err := j.Run(ctx); err != nil {
-			t.Fatal(err)
-		}
+	if err := findingsJobs(*s.d)[0].Run(ctx); err != nil { // reconcile: the exploited finding
+		t.Fatal(err)
 	}
 	a, _, err := findingsInventory{s.d.Inventory}.MatchInput(ctx, id)
 	if err != nil {
@@ -324,21 +302,13 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 		t.Fatalf("MatchInput gives %+v, want the agent's row alone", a.Software)
 	}
 	agentRow := a.Software[0].ID
-	tf, err := s.d.Findings.ToFix(ctx, true, id)
-	if err != nil || len(tf.Devices) != 1 {
-		t.Fatal(len(tf.Devices), err)
+	cards, err := s.d.Findings.ByDevice(ctx, findings.ListFilter{Device: id}, findings.Page{Limit: 1})
+	if err != nil || len(cards.Items) != 1 {
+		t.Fatal(len(cards.Items), err)
 	}
-	u := tf.Devices[0]
-	if len(u.Exploited) != 1 || u.Exploited[0].SoftwareID != agentRow || u.Exploited[0].Kind != "distro" ||
-		u.Exploited[0].Action != "Install the distribution's security updates for OpenSSH" {
-		t.Errorf("To fix, exploited: %+v", u.Exploited)
-	}
-	if len(u.Planned) != 1 || u.Planned[0].SoftwareID != agentRow || u.Planned[0].Action != "Check Alpine Linux's security updates for OpenSSH" {
-		t.Errorf("To fix, recommended: %+v", u.Planned)
-	}
-	for _, x := range append(u.Exploited, u.Planned...) {
-		if strings.Contains(x.Action, "10.6") {
-			t.Errorf("an upstream upgrade for a package: %q", x.Action)
+	for _, b := range cards.Items[0].Blocks {
+		if b.Software == nil || b.Software.ID != agentRow || b.Fix.Kind != string(findings.FixDistroUpdate) || b.Fix.Version != nil && strings.Contains(*b.Fix.Version, "10.6") {
+			t.Errorf("By device block %+v (software %+v), want Alpine's update on the agent's row", b.Fix, b.Software)
 		}
 	}
 	if f := findings.FixedInFor(a, sshKEVVuln); f == nil || f.Kind != "distro" {
@@ -351,10 +321,9 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 }
 
 // A Debian release a person gave on an Ubuntu host that has no agent (Needs your input, a correction of the scan's row): the feeds
-// are asked for its source package by the product's name (feedsInventory.Distros reads the row's vendor and product), and Ubuntu's own
-// data decides the plan item ("Upgrade the openssh package … to 1:10.2p1-2ubuntu3.9"). On a release whose Ubuntu rows hold none of
-// that package, Ubuntu's data lists no CVE for it: the device is compared and has no item.
-func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
+// are asked for its source package by the product's name (feedsInventory.Distros reads the row's vendor and product), so the
+// distribution's own data is pulled for it.
+func TestWiringPersonsUbuntuReleaseAsksForItsSourcePackage(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
@@ -388,29 +357,16 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+<<<<<<< HEAD
 	noble := addSSHDevice(t, s, "192.168.142.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
 	jammy := addSSHDevice(t, s, "192.168.142.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+=======
+	addSSHDevice(t, s, "192.168.142.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+	addSSHDevice(t, s, "192.168.142.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+>>>>>>> origin/main
 	dist, err := feedsInventory{inv: s.d.Inventory}.Distros(ctx)
 	if err != nil || !dist["ubuntu"]["openssh"] {
 		t.Fatalf("Distros = %v %v, want ubuntu openssh (the person's row names its source by its product)", dist, err)
-	}
-	if err := findingsJobs(*s.d)[1].Run(ctx); err != nil {
-		t.Fatal(err)
-	}
-	plan := s.d.Findings.Plan()
-	byDevice := map[string][]findings.PlanItem{}
-	for _, it := range plan.Items {
-		byDevice[it.AssetID] = append(byDevice[it.AssetID], it)
-	}
-	if its := byDevice[noble]; len(its) != 1 || its[0].Kind != "distro" || its[0].Fixed != "1:10.2p1-2ubuntu3.9" || its[0].Software != "openssh" ||
-		len(its[0].CVEs) != 1 || its[0].CVEs[0].CVE != ubuntuCVE {
-		t.Errorf("24.04, Ubuntu's data: %+v", its)
-	}
-	if its := byDevice[jammy]; len(its) != 0 {
-		t.Errorf("22.04, Ubuntu's data holds rows for the release and none of openssh: %+v, want no item", its)
-	}
-	if plan.Unchecked != 0 {
-		t.Errorf("a device was left not compared: %+v", plan)
 	}
 }
 

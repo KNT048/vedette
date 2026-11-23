@@ -6691,7 +6691,7 @@ func decodeFeedsPutFeedsSourcesIDParams(args [1]string, argsEscaped bool, r *htt
 
 // FindingsGetFindingsParams is parameters of findings_get_findings operation.
 type FindingsGetFindingsParams struct {
-	Asset OptString `json:",omitempty,omitzero"`
+	Asset string
 }
 
 func unpackFindingsGetFindingsParams(packed middleware.Parameters) (params FindingsGetFindingsParams) {
@@ -6700,9 +6700,7 @@ func unpackFindingsGetFindingsParams(packed middleware.Parameters) (params Findi
 			Name: "asset",
 			In:   "query",
 		}
-		if v, ok := packed[key]; ok {
-			params.Asset = v.(OptString)
-		}
+		params.Asset = packed[key].(string)
 	}
 	return params
 }
@@ -6719,28 +6717,43 @@ func decodeFindingsGetFindingsParams(args [0]string, argsEscaped bool, r *http.R
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotAssetVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotAssetVal = c
-					return nil
-				}(); err != nil {
+				val, err := d.DecodeValue()
+				if err != nil {
 					return err
 				}
-				params.Asset.SetTo(paramsDotAssetVal)
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Asset = c
 				return nil
 			}); err != nil {
 				return err
 			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.Asset)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -6758,6 +6771,8 @@ type FindingsGetFindingsDevicesParams struct {
 	Q       OptString                            `json:",omitempty,omitzero"`
 	Status  OptString                            `json:",omitempty,omitzero"`
 	Device  OptString                            `json:",omitempty,omitzero"`
+	Devices OptString                            `json:",omitempty,omitzero"`
+	Cve     OptString                            `json:",omitempty,omitzero"`
 	Ignored OptFindingsGetFindingsDevicesIgnored `json:",omitempty,omitzero"`
 	Offset  OptString                            `json:",omitempty,omitzero"`
 	Limit   OptString                            `json:",omitempty,omitzero"`
@@ -6789,6 +6804,24 @@ func unpackFindingsGetFindingsDevicesParams(packed middleware.Parameters) (param
 		}
 		if v, ok := packed[key]; ok {
 			params.Device = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "devices",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Devices = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "cve",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Cve = v.(OptString)
 		}
 	}
 	{
@@ -7023,6 +7056,142 @@ func decodeFindingsGetFindingsDevicesParams(args [0]string, argsEscaped bool, r 
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "device",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: devices.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "devices",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotDevicesVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotDevicesVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Devices.SetTo(paramsDotDevicesVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Devices.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     9700,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         regexMap["^[^,]{1,96}(,[^,]{1,96})*$"],
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "devices",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: cve.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "cve",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotCveVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCveVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Cve.SetTo(paramsDotCveVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Cve.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     0,
+							MaxLengthSet:  false,
+							Email:         false,
+							Hostname:      false,
+							Regex:         regexMap["^CVE-\\d{4}-\\d{4,}$"],
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "cve",
 			In:   "query",
 			Err:  err,
 		}
@@ -8469,293 +8638,6 @@ func decodeFindingsGetFindingsInputParams(args [0]string, argsEscaped bool, r *h
 	return params, nil
 }
 
-// FindingsGetFindingsPlanParams is parameters of findings_get_findings_plan operation.
-type FindingsGetFindingsPlanParams struct {
-	Tier  OptFindingsGetFindingsPlanTier `json:",omitempty,omitzero"`
-	Asset OptString                      `json:",omitempty,omitzero"`
-	Done  OptFindingsGetFindingsPlanDone `json:",omitempty,omitzero"`
-}
-
-func unpackFindingsGetFindingsPlanParams(packed middleware.Parameters) (params FindingsGetFindingsPlanParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "tier",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.Tier = v.(OptFindingsGetFindingsPlanTier)
-		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "asset",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.Asset = v.(OptString)
-		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "done",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.Done = v.(OptFindingsGetFindingsPlanDone)
-		}
-	}
-	return params
-}
-
-func decodeFindingsGetFindingsPlanParams(args [0]string, argsEscaped bool, r *http.Request) (params FindingsGetFindingsPlanParams, _ error) {
-	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode query: tier.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "tier",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotTierVal FindingsGetFindingsPlanTier
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotTierVal = FindingsGetFindingsPlanTier(c)
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Tier.SetTo(paramsDotTierVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.Tier.Get(); ok {
-					if err := func() error {
-						if err := value.Validate(); err != nil {
-							return err
-						}
-						return nil
-					}(); err != nil {
-						return err
-					}
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "tier",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: asset.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "asset",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotAssetVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotAssetVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Asset.SetTo(paramsDotAssetVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.Asset.Get(); ok {
-					if err := func() error {
-						if err := (validate.String{
-							MinLength:     0,
-							MinLengthSet:  false,
-							MaxLength:     64,
-							MaxLengthSet:  true,
-							Email:         false,
-							Hostname:      false,
-							Regex:         nil,
-							MinNumeric:    0,
-							MinNumericSet: false,
-							MaxNumeric:    0,
-							MaxNumericSet: false,
-						}).Validate(string(value)); err != nil {
-							return errors.Wrap(err, "string")
-						}
-						return nil
-					}(); err != nil {
-						return err
-					}
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "asset",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: done.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "done",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotDoneVal FindingsGetFindingsPlanDone
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotDoneVal = FindingsGetFindingsPlanDone(c)
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Done.SetTo(paramsDotDoneVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.Done.Get(); ok {
-					if err := func() error {
-						if err := value.Validate(); err != nil {
-							return err
-						}
-						return nil
-					}(); err != nil {
-						return err
-					}
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "done",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
-// FindingsGetFindingsToFixParams is parameters of findings_get_findings_to_fix operation.
-type FindingsGetFindingsToFixParams struct {
-	Asset OptString `json:",omitempty,omitzero"`
-}
-
-func unpackFindingsGetFindingsToFixParams(packed middleware.Parameters) (params FindingsGetFindingsToFixParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "asset",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.Asset = v.(OptString)
-		}
-	}
-	return params
-}
-
-func decodeFindingsGetFindingsToFixParams(args [0]string, argsEscaped bool, r *http.Request) (params FindingsGetFindingsToFixParams, _ error) {
-	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode query: asset.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "asset",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotAssetVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotAssetVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Asset.SetTo(paramsDotAssetVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "asset",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // FindingsPostFindingsIDAiParams is parameters of findings_post_findings_id_ai operation.
 type FindingsPostFindingsIDAiParams struct {
 	ID string
@@ -8926,91 +8808,6 @@ func decodeFindingsPostFindingsIDAppliedParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
-// FindingsPostFindingsIDConfirmParams is parameters of findings_post_findings_id_confirm operation.
-type FindingsPostFindingsIDConfirmParams struct {
-	ID string
-}
-
-func unpackFindingsPostFindingsIDConfirmParams(packed middleware.Parameters) (params FindingsPostFindingsIDConfirmParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeFindingsPostFindingsIDConfirmParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDConfirmParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.ID)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // FindingsPostFindingsIDReopenParams is parameters of findings_post_findings_id_reopen operation.
 type FindingsPostFindingsIDReopenParams struct {
 	ID string
@@ -9096,12 +8893,12 @@ func decodeFindingsPostFindingsIDReopenParams(args [1]string, argsEscaped bool, 
 	return params, nil
 }
 
-// FindingsPostFindingsIDStatusParams is parameters of findings_post_findings_id_status operation.
-type FindingsPostFindingsIDStatusParams struct {
+// FindingsPostFindingsIDUnverifyParams is parameters of findings_post_findings_id_unverify operation.
+type FindingsPostFindingsIDUnverifyParams struct {
 	ID string
 }
 
-func unpackFindingsPostFindingsIDStatusParams(packed middleware.Parameters) (params FindingsPostFindingsIDStatusParams) {
+func unpackFindingsPostFindingsIDUnverifyParams(packed middleware.Parameters) (params FindingsPostFindingsIDUnverifyParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -9112,92 +8909,7 @@ func unpackFindingsPostFindingsIDStatusParams(packed middleware.Parameters) (par
 	return params
 }
 
-func decodeFindingsPostFindingsIDStatusParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDStatusParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(params.ID)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
-// FindingsPostFindingsIDUnconfirmParams is parameters of findings_post_findings_id_unconfirm operation.
-type FindingsPostFindingsIDUnconfirmParams struct {
-	ID string
-}
-
-func unpackFindingsPostFindingsIDUnconfirmParams(packed middleware.Parameters) (params FindingsPostFindingsIDUnconfirmParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeFindingsPostFindingsIDUnconfirmParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDUnconfirmParams, _ error) {
+func decodeFindingsPostFindingsIDUnverifyParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDUnverifyParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

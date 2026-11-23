@@ -1920,7 +1920,8 @@ func (UnimplementedHandler) FeedsPutFeedsSourcesID(ctx context.Context, req *Fee
 
 // FindingsGetFindings implements findings_get_findings operation.
 //
-// List findings (CVE x device), optionally for one device.
+// The findings of one device in every state, newest first, each with its history: what a version
+// entry, "I updated it" or "Not installed" changed on the device.
 //
 // GET /findings
 func (UnimplementedHandler) FindingsGetFindings(ctx context.Context, params FindingsGetFindingsParams) (r *FindingsGetFindingsOK, _ error) {
@@ -1995,26 +1996,6 @@ func (UnimplementedHandler) FindingsGetFindingsOverview(ctx context.Context) (r 
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsGetFindingsPlan implements findings_get_findings_plan operation.
-//
-// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
-// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
-//
-// GET /findings/plan
-func (UnimplementedHandler) FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (r *FindingsGetFindingsPlanOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
-//
-// To fix: every device that needs an update or an action, the most urgent first, each with its actions
-// in plain sentences (findings.DeviceUpdates), at most 500 devices.
-//
-// GET /findings/to-fix
-func (UnimplementedHandler) FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (r *FindingsGetFindingsToFixOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsPostFindingsHandle implements findings_post_findings_handle operation.
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -2044,16 +2025,6 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
-//
-// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
-// required and goes into the history as "Confirmed by : ".
-//
-// POST /findings/{id}/confirm
-func (UnimplementedHandler) FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (r *FindingsPostFindingsIDConfirmOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsPostFindingsIDReopen implements findings_post_findings_id_reopen operation.
 //
 // Open a handled finding again (a person's handling was a mistake); history and audit.
@@ -2063,23 +2034,13 @@ func (UnimplementedHandler) FindingsPostFindingsIDReopen(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
+// FindingsPostFindingsIDUnverify implements findings_post_findings_id_unverify operation.
 //
-// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
-// with a note.
+// Undo Confirm vulnerability: a finding a person confirmed is not confirmed again (one a scan or the
+// device confirmed is refused, 409 not_confirmed_by_person); history and audit.
 //
-// POST /findings/{id}/status
-func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (r *FindingsPostFindingsIDStatusOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
-//
-// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
-// confirmed is refused.
-//
-// POST /findings/{id}/unconfirm
-func (UnimplementedHandler) FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (r *FindingsPostFindingsIDUnconfirmOK, _ error) {
+// POST /findings/{id}/unverify
+func (UnimplementedHandler) FindingsPostFindingsIDUnverify(ctx context.Context, params FindingsPostFindingsIDUnverifyParams) (r *FindingsPostFindingsIDUnverifyOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

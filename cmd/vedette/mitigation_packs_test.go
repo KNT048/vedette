@@ -72,8 +72,8 @@ func TestWiringSignedPacksLoadAndShowOnTheFinding(t *testing.T) {
 	dir := writePackDir(t, k, "2026.11.12.1", map[string][]byte{"CVE-2026-1001.json": pack})
 	s := newStackWith(t, func(d *deps) { d.PackDir, d.PackTrust = dir, k.trust })
 	s.kev("CVE-2026-1001", "Fortinet", "FortiOS")
-	s.addFortiGate()
-	_, list := s.do("GET", "/findings", "viewer", "")
+	id := s.addFortiGate()
+	_, list := s.do("GET", "/findings?asset="+id, "viewer", "")
 	fid := at(list, "items", 0, "id").(string)
 	if _, b := s.do("GET", "/findings/"+fid, "viewer", ""); at(b, "pack") != nil {
 		t.Fatalf("a pack before any was loaded: %v", at(b, "pack"))

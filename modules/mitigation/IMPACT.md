@@ -34,3 +34,7 @@
 
 ## Modifying: `FindingFolded(ctx, tx, lifecycle.FindingFold)` (INV-9)
 - **findings** calls it through `core/lifecycle` (registered in `cmd/vedette/devicelifecycle.go`) inside the inventory's merge transaction, right before it deletes the folded finding: a new table keyed by finding id must be moved here too, or the FK cascade drops its rows on a merge. Write only through `tx`; an error rolls the merge back.
+
+## Modifying: `AIRequest` (finding id, skill, pack flag, user), `AIOutput.Answers`
+- `AIRequest` no longer carries the finding row or `FixedIn`: the AI door (`cmd/vedette` `aiMitigation`) reads the view of the finding and the brief of its CVE by id, the same sources every other reader uses, so the fixed release the AI names is the stored fix the page shows. `sanitizeAI` keeps at most four answers (text 1200 characters, eight http(s) links each) in `findings.AIResult.Answers`.
+- Left as it was: `Provider.Guidance` still reads `findings.Row` (the finding page's "What to do" text); it moves with the finding page.

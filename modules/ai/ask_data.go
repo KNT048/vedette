@@ -57,6 +57,9 @@ type FindingRow struct {
 	LastSeen   string
 	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted; "" otherwise.
 	AcceptedUntil string
+	// Fix is the fix of this device in one sentence, the one the finding page shows; Confirmation says who or what confirmed the finding,
+	// or that nobody has; Workaround (get_finding only) is the CVE record's workaround, or "No workaround is published: install the fix."
+	Fix, Confirmation, Workaround string
 }
 
 // IOCFact is an indicator (an IP address or a domain) that feeds list.
@@ -88,36 +91,26 @@ type ConnReader interface {
 	CallRead(ctx context.Context, connID, tool string, args map[string]any) (string, error)
 }
 
-// UpdateRow is one update of a device as device_updates shows it (findings.UpdateAction): what to install and what it clears.
+// UpdateRow is one update of a device as device_updates shows it (a fix block of the By device list): what to install and what it clears.
 type UpdateRow struct {
-	Action     string // the sentence of the Findings page: "Upgrade Mozilla Firefox from 115.0 to 128.1 or later"
-	Software   string
-	Version    string   // installed
-	Fixed      string   // the release or build to install; "" when none is named
-	CVEs       []string // worst first
-	Worst      string   // highest severity among them; "" when none is scored
-	Ransomware int      // exploited: CVEs known to be used in ransomware
-	Likely     int      // planned: CVEs likely to be exploited soon (EPSS)
-	// How each exploited finding is known: confirmed (a scan proved it), detected (the device's agent or another trusted source
-	// reported the version and it is inside the affected range), reported (the agent reported the version, Vedette could not compare
-	// it), suspected (a network guess: a banner, a fingerprint, the product name only).
-	Confirmed, Detected, Reported, Suspected int
-	// NVDLag (a recommended Windows update): the update is Microsoft's newest, newer than every fix NVD names, so it fixes at least
-	// the CVEs listed; the newest update's CVEs are not analysed by NVD yet.
-	NVDLag bool
+	Action   string // the sentence of the Findings page: "Upgrade Mozilla Firefox from 115.0 to 128.1 or later"
+	Software string
+	Version  string   // installed
+	Fixed    string   // the release or build to install; "" when none is named
+	CVEs     []string // worst first
+	Worst    string   // highest severity among them; "" when none is scored
+	// How the findings of the update are known: confirmed (a safe check or a person confirmed it), detected (the device itself reports a
+	// version inside the affected range), suspected (a network guess: a banner, a fingerprint, the product name only).
+	Confirmed, Detected, Suspected int
 }
 
-// DeviceUpdates is what to install on one device to clear its CVEs (findings.DeviceUpdates).
+// DeviceUpdates is what to install on one device to clear its CVEs (the By device card of the device).
 type DeviceUpdates struct {
 	Open      int         // open urgent findings of the device (urgency under_attack to critical_edge)
 	Exploited []UpdateRow // open urgent findings a named update fixes, one row per update
 	NoUpdate  []UpdateRow // open urgent findings no update is named for, one row per software
-	Planned   []UpdateRow // recommended updates: CVEs on no exploited list ("Recommended updates")
-	PlanRan   bool        // false: the recommended updates are not compared yet
-	// PlanCompared: the last comparison included this device; false: it has no version the comparison trusts (or is newer than
-	// the last comparison), so no recommended update is known, which is not "none".
-	PlanCompared bool
-	PlanOff      bool // the feeds module is off: recommended updates are not listed
+	Planned   []UpdateRow // recommended updates: CVEs on no exploited list; empty while PlanOff
+	PlanOff   bool        // the feeds module is off: recommended updates are not listed
 }
 
 // Updates is the door of the device_updates tool. A nil Updates in Config leaves the tool out.

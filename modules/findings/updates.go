@@ -2,7 +2,6 @@ package findings
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -103,44 +102,6 @@ type DeviceUpdates struct {
 	PlanCompared bool
 	// PlanOff: the feeds module is off, so, as on GET /findings/plan, no recommended update is listed.
 	PlanOff bool
-}
-
-// DeviceUpdates returns what to install on one device to clear its CVEs. ok is false when the device does not exist. feedsOn says the
-// feeds module is on: while it is off the recommended updates are not listed, as GET /findings/plan lists none.
-func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn bool) (DeviceUpdates, bool, error) {
-	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
-	if err != nil {
-		return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the device: %w", err)
-	}
-	if !ok {
-		return DeviceUpdates{}, false, nil
-	}
-	recs, err := s.List(ctx, assetID)
-	if err != nil {
-		return DeviceUpdates{}, false, err
-	}
-	out := DeviceUpdates{AssetID: assetID}
-	var open []Record
-	for _, r := range recs {
-		if r.Status.Open() && Announced(r.Row) { // a finding of a CVE on no list is a recommended update (Planned), never exploited
-			open = append(open, r)
-		}
-	}
-	out.Open = len(open)
-	if len(open) > 0 {
-		vulns, err := s.cfg.Feeds.Vulns(ctx)
-		if err != nil {
-			return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the exploited list: %w", err)
-		}
-		out.Exploited, out.NoUpdate = exploitedUpdates(a, open, vulns, s.now(), s.safeCheck)
-	}
-	if feedsOn {
-		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
-		withRows(a, out.Planned)
-	} else {
-		out.PlanOff = true
-	}
-	return out, true, nil
 }
 
 // exploitedUpdates groups the open findings of a device by the update that fixes them, as GET /findings does (addFixes: RowFixes on

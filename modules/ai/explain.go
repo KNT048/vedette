@@ -32,7 +32,19 @@ type CVEFacts struct {
 	Ransomware     bool
 	HasTemplate    bool
 	Source         string // "cisa-kev" or "vulncheck-kev": who says it is exploited
+	// Brief is everything the box holds about the CVE as the text of a data block (the CVE brief: its weakness, scores, affected versions,
+	// fixed releases, solution, workaround, references numbered from 1); Refs are those references. Empty Brief: the box writes the block
+	// from the exploited-list entry above.
+	Brief string
+	// BriefKey is Brief without the numbers that change every day: the saved answer is keyed on it, so the next day's score is no reason
+	// to ask (and pay) again. Empty: Brief is used.
+	BriefKey string
+	Refs     []BriefRef
 }
+
+// Listed reports whether an exploited list has the CVE: only then does Source name the list. A CVE the catalogue holds that no list has
+// is no claim that attackers use it.
+func (f CVEFacts) Listed() bool { return f.Source != "" }
 
 // ListLabel names the exploited list an entry is on, for prompts and texts: VulnCheck's entries are never CISA's.
 func ListLabel(source string) string {
@@ -48,7 +60,9 @@ type AssetFact struct {
 	IP     string
 	Kind   string
 	Basis  string // version, product, scan or person
-	Status string // open, confirmed, ...
+	Status string // confirmed or suspected
+	// Fix is this device's fix in one sentence and Confirmation says who or what confirmed the finding, both as the finding page shows them.
+	Fix, Confirmation string
 	// IsBox marks the Vedette box itself: the citation names it apart, as Devices and Reports do. Not sent to the model.
 	IsBox bool
 }
@@ -67,54 +81,52 @@ type Citation struct {
 	URL   string `json:"url,omitempty"`
 }
 
-// ExplainResult is what explaining a CVE for this box produced (S-AI-2). It always carries model, profile and tokens: the page
-// shows it as AI-generated and never as a confirmed recommendation (INV-5, S-AI-6).
+// ExplainResult is what asking the AI about a CVE for this box produced (S-AI-2): the four answers of "Ask my AI". It always carries
+// model, profile and tokens: the page shows it as AI-generated and never as a confirmed recommendation (INV-5, S-AI-6).
 type ExplainResult struct {
-	CVE             string     `json:"cve"`
-	GeneratedAt     string     `json:"generated_at"`
-	Cached          bool       `json:"cached"`
-	Affected        string     `json:"affected"`
-	Why             string     `json:"why"`
-	PatchSteps      []string   `json:"patch_steps"`
-	TempMitigations []string   `json:"temp_mitigations"`
-	DetectionHints  []string   `json:"detection_hints"`
-	Citations       []Citation `json:"citations"`
-	Model           string     `json:"model"`
-	Profile         string     `json:"profile"`
-	Tokens          struct {
+	CVE         string          `json:"cve"`
+	GeneratedAt string          `json:"generated_at"`
+	Cached      bool            `json:"cached"`
+	Affected    string          `json:"affected"`
+	Answers     []ExplainAnswer `json:"answers"`
+	Citations   []Citation      `json:"citations"`
+	Model       string          `json:"model"`
+	Profile     string          `json:"profile"`
+	Tokens      struct {
 		Input  int `json:"input"`
 		Output int `json:"output"`
 	} `json:"tokens"`
 }
 
+// ExplainAnswer is one of the four answers: its key (AnswerKeys), a few sentences, and the references it rests on (the box's own).
+type ExplainAnswer struct {
+	Key   string        `json:"key"`
+	Text  string        `json:"text"`
+	Links []ExplainLink `json:"links"`
+}
+
+// ExplainLink is a reference an answer cites.
+type ExplainLink struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
 // explainBody is what is stored in ai_result.payload: the result without what the row columns hold.
 type explainBody struct {
-	Affected        string     `json:"affected"`
-	Why             string     `json:"why"`
-	PatchSteps      []string   `json:"patch_steps"`
-	TempMitigations []string   `json:"temp_mitigations"`
-	DetectionHints  []string   `json:"detection_hints"`
-	Citations       []Citation `json:"citations"`
+	Affected  string          `json:"affected"`
+	Answers   []ExplainAnswer `json:"answers"`
+	Citations []Citation      `json:"citations"`
 }
 
 // explainAnswer is the schema the model must follow. The affected status is decided by the box from the matches and the scan
 // result (as the mock does), so the model cannot claim "yes" for a device nobody checked.
 type explainAnswer struct {
-	Why             string   `json:"why"`
-	PatchSteps      []string `json:"patch_steps"`
-	TempMitigations []string `json:"temp_mitigations"`
-	DetectionHints  []string `json:"detection_hints"`
+	Answers []briefAnswerIn `json:"answers"`
 }
 
-const explainSchema = `{"type":"object","properties":{"why":{"type":"string"},"patch_steps":{"type":"array","items":{"type":"string"}},"temp_mitigations":{"type":"array","items":{"type":"string"}},"detection_hints":{"type":"array","items":{"type":"string"}}},"required":["why","patch_steps","temp_mitigations","detection_hints"],"additionalProperties":false}`
+const explainSchema = `{"type":"object","properties":{` + briefAnswersSchema + `},"required":["answers"],"additionalProperties":false}`
 
-const explainTask = `Explain one exploited vulnerability for this company's network. Use only the facts in the data blocks: the feed entry and the list of matching devices. Say in "why" whether and how it touches these devices, in plain English for a small-company IT person, in at most 6 sentences. The box has already decided the affected status (given in the question); do not contradict it. In "patch_steps" give the steps to update to a fixed version, in "temp_mitigations" what to do until it is patched, in "detection_hints" signs of exploitation to look for. Leave a list empty when the status is "no". Do not invent version numbers, product names or links that are not in the data. Never work out a fixed version from an affected range: the "before" end of a range in the entry is not a fix, since the vendor may list releases of it as affected too; name a fixed version only when the data names one as fixed, else point to the vendor advisory in the links. Reply with one JSON object only.`
-
-const (
-	maxWhy       = 1200
-	maxListItems = 8
-	maxItemChars = 500
-)
+const explainTask = `Answer four questions about one vulnerability for this company's network. Use only the facts in the data blocks: the CVE brief and the list of matching devices (each device line says how it was found, who confirmed it and the fix for it). The box has already decided the affected status (given in the question); do not contradict it. In "answers" give exactly four answers, in this order, each with its "key": "affected" (Am I affected? Yes, no or needs a check, with the evidence: the devices and their versions, who or what confirmed them as the device lines say, and any condition the CVE brief names, such as a CPU feature or an enabled option), "fix" (How do I fix it? The exact release the device lines name as the fix, or, when no device matches, the fixed releases the CVE brief states per release train), "workaround" (What if I cannot patch yet? The workaround of the CVE brief, or its sentence that none is published), "urgency" (How urgent? Whether attackers use it and which list says so, the attack conditions and the privileges required). Each answer is one to three short sentences of plain English. Its "refs" are the numbers of the references of the CVE brief it rests on: every claim a reference supports carries its number, and no number that is not listed. Name no version number, product or link that is not in the data. Never work out a fixed release from an affected version, and never call the "before" end of an affected range a fix. Write what is true; never write a paragraph that explains why something is absent. Give firewall or gateway rules, and back-up and roll-back steps, only when the attack is over the network and a matching device has an open port for the product. Reply with one JSON object only.`
 
 var cveRE = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 
@@ -137,33 +149,14 @@ func cleanText(s string) string {
 // cleanLine is cleanText cut to n characters.
 func cleanLine(s string, n int) string { return clipRunes(cleanText(s), n) }
 
-// cleanList cleans a list item by item, each cut at a sentence end (clipSentence, never mid-sentence), and keeps at most maxListItems.
-func cleanList(in []string) []string {
-	out := []string{}
-	for _, s := range in {
-		if s, _ = clipSentence(cleanText(s), maxItemChars); s != "" && len(out) < maxListItems {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// parseExplain reads the model's answer strictly: one JSON object with exactly the schema's fields, and a non-empty "why".
+// parseExplain reads the model's answer strictly: one JSON object with the four answers, once each, none empty.
 func parseExplain(text string) (explainAnswer, error) {
 	var a explainAnswer
 	dec := json.NewDecoder(bytes.NewReader([]byte(strings.TrimSpace(text))))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&a); err != nil || dec.More() {
+	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "answers") || !validAnswers(a.Answers) {
 		return explainAnswer{}, ErrBadOutput
 	}
-	if !hasKeys(text, "why", "patch_steps", "temp_mitigations", "detection_hints") { // the schema says all four are required
-		return explainAnswer{}, ErrBadOutput
-	}
-	a.Why = cleanLine(a.Why, maxWhy)
-	if a.Why == "" {
-		return explainAnswer{}, ErrBadOutput
-	}
-	a.PatchSteps, a.TempMitigations, a.DetectionHints = cleanList(a.PatchSteps), cleanList(a.TempMitigations), cleanList(a.DetectionHints)
 	return a, nil
 }
 
@@ -200,6 +193,9 @@ func affectedOf(assets []AssetFact) string {
 // pages of CVE news do: valid UTF-8, no control or format characters (bidi overrides, zero-width), blank runs collapsed. A link is
 // cleaned and then kept only when it is still one http(s) token.
 func feedBlock(f CVEFacts) DataBlock {
+	if f.Brief != "" { // the caller wrote the block from the CVE brief: its own text, already one line per fact
+		return DataBlock{Kind: DataFeed, Source: "CVE brief " + f.CVE, Text: f.Brief}
+	}
 	links := make([]string, 0, len(f.Links))
 	for _, l := range f.Links {
 		if l = sanitizeWeb(l); l != "" && !strings.ContainsAny(l, " \n") {
@@ -228,7 +224,14 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 		b.WriteString("No device in the inventory matches this product.\n")
 	}
 	for _, a := range assets {
-		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s\n", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name
+		fmt.Fprintf(&b, "- %s, IP %s, kind %s, matched by %s, finding status %s", a.Name, a.IP, a.Kind, a.Basis, a.Status) // IP apart from the name
+		if a.Confirmation != "" {
+			fmt.Fprintf(&b, "; %s", a.Confirmation)
+		}
+		if a.Fix != "" {
+			fmt.Fprintf(&b, "; %s", a.Fix)
+		}
+		b.WriteString("\n")
 	}
 	return DataBlock{Kind: "inventory", Source: "devices on this box matching the product", Text: b.String()}
 }
@@ -237,7 +240,17 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 // devices, the Vedette box named apart. Only the box makes citations, so a model cannot slip in a link.
 func citationsFor(f CVEFacts, assets []AssetFact) []Citation {
 	out := []Citation{}
+	for _, r := range f.Refs { // the brief's references, the vendor's own first
+		u, err := url.Parse(r.URL)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || len(r.URL) > 2000 || len(out) == 2 {
+			continue
+		}
+		out = append(out, Citation{Title: cleanLine(r.Title, 80), URL: r.URL})
+	}
 	for _, l := range f.Links {
+		if len(f.Refs) > 0 {
+			break
+		}
 		u, err := url.Parse(l)
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || len(l) > 2000 || len(out) == 2 {
 			continue
@@ -256,8 +269,10 @@ func citationsFor(f CVEFacts, assets []AssetFact) []Citation {
 }
 
 func (s *Service) explainView(row explainBody, cve string, at time.Time, cached bool, model, profile string, tin, tout int) ExplainResult {
-	r := ExplainResult{CVE: cve, GeneratedAt: FormatTS(at), Cached: cached, Affected: row.Affected, Why: row.Why, PatchSteps: row.PatchSteps,
-		TempMitigations: row.TempMitigations, DetectionHints: row.DetectionHints, Citations: row.Citations, Model: model, Profile: profile}
+	r := ExplainResult{CVE: cve, GeneratedAt: FormatTS(at), Cached: cached, Affected: row.Affected, Answers: row.Answers, Citations: row.Citations, Model: model, Profile: profile}
+	if r.Answers == nil {
+		r.Answers = []ExplainAnswer{}
+	}
 	r.Tokens.Input, r.Tokens.Output = tin, tout
 	return r
 }
@@ -342,7 +357,11 @@ func (s *Service) explainInputs(ctx context.Context, cve string) (explainInputs,
 			rules = append(rules, r.Text)
 		}
 	}
-	hash := HashContent("explain-v2\n" + feed.Text + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
+	keyText := feed.Text
+	if facts.BriefKey != "" {
+		keyText = facts.BriefKey
+	}
+	hash := HashContent("explain-v3\n" + keyText + "\n" + inv.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
 	return explainInputs{facts: facts, assets: assets, feed: feed, inv: inv, hash: hash, know: know}, true, nil
 }
 
@@ -387,7 +406,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		return ExplainResult{}, err
 	}
 	if !found {
-		return ExplainResult{}, apierr.New(http.StatusNotFound, "unknown_cve", "This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for.")
+		return ExplainResult{}, apierr.New(http.StatusNotFound, "unknown_cve", "The box's catalogue has no record of this CVE. The AI only answers about CVEs the box has data for.")
 	}
 	facts, assets, feed, inv, hash := in.facts, in.assets, in.feed, in.inv, in.hash
 	know := in.know
@@ -417,10 +436,14 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		},
 		// The result is stored in the same transaction as the activity row of the call.
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
-			body = explainBody{Affected: affected, Why: answer.Why, PatchSteps: answer.PatchSteps, TempMitigations: answer.TempMitigations,
-				DetectionHints: answer.DetectionHints, Citations: append(citationsFor(facts, assets), documentsCite(r.Documents)...)}
-			if affected == "no" { // nothing to patch or look for: the lists stay empty whatever the model wrote
-				body.PatchSteps, body.TempMitigations, body.DetectionHints = []string{}, []string{}, []string{}
+			kept, _ := keepAnswers(answer.Answers, facts.Refs)
+			body = explainBody{Affected: affected, Answers: make([]ExplainAnswer, 0, len(kept)), Citations: append(citationsFor(facts, assets), documentsCite(r.Documents)...)}
+			for _, k := range kept {
+				x := ExplainAnswer{Key: k.Key, Text: k.Text, Links: []ExplainLink{}}
+				for _, l := range k.Links {
+					x.Links = append(x.Links, ExplainLink(l))
+				}
+				body.Answers = append(body.Answers, x)
 			}
 			payload, err := json.Marshal(body)
 			if err != nil {

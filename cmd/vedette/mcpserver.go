@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
-	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -34,7 +34,7 @@ func mcpService(d deps) (*mcpserver.Service, error) {
 		return s, nil
 	}
 	s, err := mcpserver.New(mcpserver.Config{DB: d.DB, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Modules: d.Reg, Listen: d.MCPListen, InContainer: d.MCPInContainer, Version: version,
-		Source: mcpSource{reg: d.Reg, inv: d.Inventory, findings: d.Findings, feeds: feedsHandlers(d)}})
+		Source: mcpSource{reg: d.Reg, inv: d.Inventory, findings: d.Findings, cases: caseSource{findings: d.Findings, feeds: feedsStore(d)}, feeds: feedsHandlers(d)}})
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +86,7 @@ type mcpSource struct {
 	reg      *modreg.Registry
 	inv      *inventory.Service
 	findings *findings.Service
+	cases    caseSource
 	feeds    *feeds.FeedHandlers
 }
 
@@ -163,42 +164,56 @@ func (s mcpSource) Asset(ctx context.Context, id string) (mcpserver.Asset, bool,
 
 const mcpTS = "2006-01-02T15:04:05.000Z"
 
-func mcpFinding(r findings.Record) mcpserver.Finding {
-	f := mcpserver.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Confidence: r.ShownConfidence(),
-		Basis: string(r.Basis), Urgency: findings.LayerCode(r.Row.Urgency), FirstSeen: r.FirstSeen.UTC().Format(mcpTS), LastSeen: r.LastSeen.UTC().Format(mcpTS), History: []mcpserver.HistoryStep{}}
-	if !r.ResolvedAt.IsZero() {
-		at := r.ResolvedAt.UTC().Format(mcpTS)
-		f.ResolvedAt = &at
+func mcpFinding(c findingCase) mcpserver.Finding {
+	f := c.View.Finding
+	out := mcpserver.Finding{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Status: aiStatusWord(f), Severity: aiSeverityWord(c.View.Severity), Confidence: aiConfidence(f),
+		Basis: aiBasisWord(f), Urgency: findings.LayerCode(f.Urgency), FirstSeen: f.FirstSeen.UTC().Format(mcpTS), LastSeen: f.LastSeen.UTC().Format(mcpTS),
+		Fix: c.FixText(), Verification: c.ConfirmText(), History: []mcpserver.HistoryStep{}}
+	if !f.ResolvedAt.IsZero() {
+		at := f.ResolvedAt.UTC().Format(mcpTS)
+		out.ResolvedAt = &at
 	}
-	if !r.AcceptedUntil.IsZero() {
-		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)
+	if !f.AcceptedUntil.IsZero() {
+		out.AcceptedUntil = f.AcceptedUntil.UTC().Format(time.DateOnly)
 	}
-	if e := r.Evidence; e != nil { // which check and when: the summary names the device, the request and response stay on the box
-		f.Evidence = &mcpserver.Evidence{Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
+	if e := f.Evidence; e != nil && e.Template != "" { // which check and when: the summary names the device, the request and response stay on the box
+		out.Evidence = &mcpserver.Evidence{Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
 	}
-	for _, h := range r.History { // when and what, never who or their note
-		f.History = append(f.History, mcpserver.HistoryStep{At: h.TS.UTC().Format(mcpTS), Action: h.Action})
+	for _, e := range c.View.Events { // when and what, never who or their note
+		out.History = append(out.History, mcpserver.HistoryStep{At: e.TS.UTC().Format(mcpTS), Action: mcpAction(e)})
 	}
-	return f
+	return out
+}
+
+// mcpAction is what an event of a finding did, in a word: its kind, and for a handling the resolution.
+func mcpAction(e findings.Event) string {
+	if e.Kind == findings.EvHandled && e.Detail.Resolution.Valid() {
+		return string(e.Detail.Resolution)
+	}
+	return string(e.Kind)
 }
 
 func (s mcpSource) Findings(ctx context.Context) ([]mcpserver.Finding, error) {
 	if err := s.need("findings"); err != nil {
 		return nil, err
 	}
-	recs, err := s.findings.List(ctx, "")
+	vs, err := s.cases.findings.Views(ctx, findings.ViewFilter{}) // no brief: a finding's words need none
 	if err != nil {
 		return nil, err
 	}
-	slices.SortStableFunc(recs, func(a, b findings.Record) int {
-		if c := b.FirstSeen.Compare(a.FirstSeen); c != 0 {
+	cs := make([]findingCase, len(vs))
+	for i, v := range vs {
+		cs[i] = findingCase{View: v}
+	}
+	slices.SortStableFunc(cs, func(a, b findingCase) int {
+		if c := b.View.Finding.FirstSeen.Compare(a.View.Finding.FirstSeen); c != 0 {
 			return c
 		}
-		return strings.Compare(a.ID, b.ID)
+		return strings.Compare(a.View.Finding.ID, b.View.Finding.ID)
 	})
-	out := make([]mcpserver.Finding, 0, len(recs))
-	for _, r := range recs {
-		out = append(out, mcpFinding(r))
+	out := make([]mcpserver.Finding, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, mcpFinding(c))
 	}
 	return out, nil
 }
@@ -207,21 +222,14 @@ func (s mcpSource) Finding(ctx context.Context, id string) (mcpserver.Finding, b
 	if err := s.need("findings"); err != nil {
 		return mcpserver.Finding{}, false, err
 	}
-	r, err := s.findings.Get(ctx, id)
+	c, err := s.cases.One(ctx, id)
 	if errors.Is(err, findings.ErrNotFound) {
 		return mcpserver.Finding{}, false, nil
 	}
 	if err != nil {
 		return mcpserver.Finding{}, false, err
 	}
-	return mcpFinding(r), true, nil
-}
-
-func optStr(v oas.NilString) *string {
-	if x, ok := v.Get(); ok {
-		return &x
-	}
-	return nil
+	return mcpFinding(c), true, nil
 }
 
 func optNum(v oas.NilFloat64) *float64 {
@@ -231,31 +239,66 @@ func optNum(v oas.NilFloat64) *float64 {
 	return nil
 }
 
+// CVE answers from the brief of the CVE: any CVE the catalogue holds, with the exploited-list entry when a list has it. The devices
+// that run the product are inventory data: a feeds token does not get them (INV-2).
 func (s mcpSource) CVE(ctx context.Context, cve string) (mcpserver.CVEEntry, bool, error) {
 	if err := s.need("feeds"); err != nil {
 		return mcpserver.CVEEntry{}, false, err
 	}
-	v, err := s.feeds.FeedsGetFeedsCveID(ctx, oas.FeedsGetFeedsCveIDParams{ID: cve})
-	if e, ok := apierr.As(err); ok && e.Status == 404 {
+	if s.cases.feeds == nil {
 		return mcpserver.CVEEntry{}, false, nil
 	}
-	if err != nil {
+	b, ok, err := s.cases.feeds.Brief(ctx, cve)
+	if err != nil || !ok {
 		return mcpserver.CVEEntry{}, false, err
 	}
-	if len(v.Lists) == 0 { // the tool answers for a CVE on an exploited list, in that list's words
-		return mcpserver.CVEEntry{}, false, nil
+	return mcpEntry(b), true, nil
+}
+
+// mcpEntry is a brief as the lookup_cve tool shows it.
+func mcpEntry(b feeds.Brief) mcpserver.CVEEntry {
+	e := mcpserver.CVEEntry{CVE: b.CVE, Vendor: "", Product: b.Display, Name: b.Title, Description: b.Description, Links: []string{}, Title: b.Title, NVDStatus: b.NVDStatus,
+		Solution: b.Solution, Workaround: briefWorkaround(b), NVDURL: b.NVDURL, RecordURL: b.RecordURL}
+	if b.Published != nil {
+		e.Published = b.Published.UTC().Format(time.DateOnly)
 	}
-	k := v.Lists[0]
-	var epss *float64
-	if e, ok := v.Epss.Get(); ok {
-		epss = &e.Score
+	if len(b.Lists) > 0 {
+		l := b.Lists[0] // the owner entry: its words
+		e.Vendor, e.Product, e.Name, e.Description = l.Vendor, cmp.Or(l.Display, l.Product), cmp.Or(l.Name, b.Title), cmp.Or(l.Description, b.Description)
+		e.RequiredAction, e.Source, e.DateAdded, e.Ransomware = l.RequiredAction, l.Source, l.DateAdded, l.Ransomware
+		if l.DueDate != "" {
+			d := l.DueDate
+			e.DueDate = &d
+		}
+		e.Links = slices.Clone(l.Links)
 	}
-	tpl := slices.ContainsFunc(v.Signals, func(g oas.FeedsGetFeedsCveIDOKSignalsItem) bool {
-		return g.Kind == "public_exploit" && g.Source == "nuclei-templates"
-	})
-	// v.Matched (the devices that run the product) is inventory data: a feeds token does not get it (INV-2)
-	return mcpserver.CVEEntry{CVE: v.Cve, Vendor: k.Vendor, Product: k.Product, Name: k.Name, Description: k.Description, RequiredAction: k.RequiredAction, Source: k.Source,
-		DateAdded: k.DateAdded, DueDate: optStr(k.DueDate), Ransomware: k.Ransomware, EPSS: epss, HasScanTemplate: tpl, Links: slices.Clone(k.Links)}, true, nil
+	if b.EPSS != nil {
+		e.EPSS = &b.EPSS.Score
+	}
+	e.HasScanTemplate = slices.ContainsFunc(b.Signals, func(g feeds.BriefSignal) bool { return g.Kind == "public_exploit" && g.Source == "nuclei-templates" })
+	for _, w := range b.CWE {
+		e.Weaknesses = append(e.Weaknesses, mcpserver.Weakness{ID: w.ID, Name: w.Name})
+	}
+	if c := b.CVSS; c != nil {
+		x := &mcpserver.CVSS{Score: c.Score, Severity: strings.ToLower(c.Severity), Version: c.Version, Vector: c.Vector}
+		if r := c.Reading; r != nil {
+			x.AttackVector, x.PrivilegesRequired, x.UserInteraction = r.AttackVector, r.PrivilegesRequired, r.UserInteraction
+		}
+		e.CVSS = x
+	}
+	for _, r := range b.Ranges {
+		if r.Counts && r.Versions != "" {
+			e.AffectedVersions = append(e.AffectedVersions, r.Versions)
+		}
+	}
+	e.AffectedFrom = b.RangesFrom
+	for _, f := range b.Fixes {
+		e.FixedReleases = append(e.FixedReleases, mcpserver.FixedTrain{Train: f.Train, Release: f.Release})
+	}
+	for _, r := range b.References {
+		e.References = append(e.References, mcpserver.Reference{URL: r.URL, Group: r.Group})
+	}
+	return e
 }
 
 func (s mcpSource) IOC(ctx context.Context, value string) (mcpserver.IOCAnswer, error) {

@@ -32,7 +32,7 @@
 - `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).
 
 ## Modifying: `device_updates` (`ask_updates.go`, `Config.Updates`, `Updates`/`DeviceUpdates`/`UpdateRow`; INV-22c)
-- Người cấp dữ liệu là `findings.Service.DeviceUpdates` qua `aiAsk.DeviceUpdates` (cmd/vedette/ai.go); đổi hình dạng ở findings thì sửa adapter. Đổi lời `status` (confirmed/detected/suspected) phải giữ đúng luật của findings (`proofOf`), không tự đặt luật mới.
+- The data comes from the By device fix blocks of `findings.Service.ByDevice` through `aiAsk.DeviceUpdates` (cmd/vedette/ai.go); when the block shape changes in findings, change the adapter. The `status` words (confirmed, detected, suspected) come from each finding's verification; do not invent a rule here. `Ransomware`, `Likely`, `Reported`, `NVDLag`, `PlanRan` and `PlanCompared` were removed because nothing sets them any more.
 - Mô tả và schema đi trong mọi lượt: dài thêm thì `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000) hỏng trước.
 - Kết quả là dữ liệu rời hộp tới nhà cung cấp AI: PRIVACY.md luồng 3 "Ask your data" và `privacy.flow.3.items` của `core.json` nêu "the updates of one device"; thêm trường thì sửa cả hai cùng commit.
 
@@ -151,3 +151,8 @@
 - **audit**: nhãn `ai.models` trong `core.json`.
 
 - `FindingRow.Urgency` (status code of findings' layer) is in the finding tools' rows (`list_findings` leaves it out for `exploited`, the common case, to keep the question inside its token budget) and in the explain/config/plan data blocks as an "Urgency:" line (`aiUrgencyText`, `cmd/vedette/ai.go`); the task texts say "known vulnerability" and call it exploited only when that line does. The response plan job (`responseCritical`) takes the critical findings of layer 1 to 4 only.
+
+## Modifying: the four answers, `BriefRequest.Refs`, `CVEFacts.Brief`, `AssetFact.Fix/Confirmation` (INV-23, INV-24)
+- Callers: `cmd/vedette` `aiMitigation.Run` (finding page: data from `findingCase`, the view of the finding and the brief of its CVE), `aiFacts` (CVE page), `responsePlanner.factsOf` (response plan, the brief as text). Readers of the stored result: mitigation (`findings.AIResult.Answers`), the finding page and `web/src/features/ai/CvePanels.tsx`.
+- `device_updates` no longer reads `findings.Service.DeviceUpdates`; `aiAsk.DeviceUpdates` reads `Service.ByDevice` for the device and maps each fix block to a row (named release and urgent: update; named release and recommended: recommended update; urgent with no release: no named update). Ransomware and EPSS counts of a row are no longer given.
+- `ExplainResult` lost `why`, `patch_steps`, `temp_mitigations`, `detection_hints`; the cache key version is `explain-v3`, so an explanation stored before is never served.

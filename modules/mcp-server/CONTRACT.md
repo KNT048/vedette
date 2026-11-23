@@ -60,3 +60,6 @@ The port is closed, no `/core/mcp*` routes (404), no jobs. Tokens are kept but u
 2. ~~Page and rate limits~~ Settled.
 3. ~~Scan evidence in `get_finding`~~ Settled: only the summary, the template and the time of the check; raw request/response stays on the box.
 4. ~~Table name~~ `mcp_tokens`.
+
+## Findings view and CVE brief
+- **INV-12** `list_findings` and `get_finding` rows carry `fix` (the fix of the device in one sentence, the stored fix the finding page shows) and `verification` (confirmed by a person, a safe check or the device, or not confirmed; a person is never named, INV-7: the same words the assistant gets). `lookup_cve` answers for any CVE the catalogue holds from the CVE brief: title, weaknesses, score read into words, affected versions and their origin, fixed release per release train, solution, workaround (or the sentence that none is published), references by group. `listed` is true only when an exploited list has the CVE; `entry` is null only for a CVE the catalogue does not hold. Test: `TestMCPEntryOfABriefWithAndWithoutAList`.

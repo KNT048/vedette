@@ -545,3 +545,61 @@ func (v View) JSON() ViewJS {
 	}
 	return out
 }
+
+// ViewFilter selects the findings Views reads: the findings of one device and of one CVE; an empty field selects all.
+type ViewFilter struct {
+	AssetID, CVE string
+	OpenOnly     bool
+}
+
+// Views reads findings as every place shows them, newest first, each with its history (the confirming person and day are read from it).
+// The urgency reasons and the other findings of the CVE are only on Service.View. The readers that talk about findings (the assistant,
+// the MCP tools, response) read this, never the columns of fnd_finding.
+func (s *Service) Views(ctx context.Context, f ViewFilter) ([]View, error) {
+	q := s.cfg.DB.Reader()
+	where := `(?1 = '' OR asset_id = ?1) AND (?2 = '' OR cve = ?2)`
+	if f.OpenOnly {
+		where += ` AND state = 'open'`
+	}
+	fs, err := queryFindings(ctx, q, where, f.AssetID, f.CVE)
+	if err != nil || len(fs) == 0 {
+		return nil, err
+	}
+	evs, err := eventsOf(ctx, q, strings.ReplaceAll(where, "asset_id", "f.asset_id"), f.AssetID, f.CVE)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the history: %w", err)
+	}
+	vs, err := s.views(ctx, fs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range vs {
+		vs[i].Events = evs[vs[i].Finding.ID]
+	}
+	return vs, nil
+}
+
+// Confirmation is how sure Vedette is that the device is affected, and who or what said so: the one answer every reader gives to
+// "who confirmed it" (the view's Verification on the API is the same fact).
+type Confirmation struct {
+	Verified Verified
+	Basis    DetectionBasis
+	By       string    // the person, for Verified person; "" otherwise
+	At       time.Time // zero when the finding is not confirmed
+}
+
+// Confirmation reads the confirmation of the finding from its row and its history.
+func (v View) Confirmation() Confirmation {
+	j := verificationOf(v.Finding, v.Events)
+	c := Confirmation{Verified: v.Finding.Verified, Basis: DetectionBasis(j.Basis)}
+	if j.By != nil {
+		c.By = *j.By
+	}
+	if j.At != nil {
+		c.At, _ = parseTS(*j.At)
+	}
+	return c
+}
+
+// FixProduct is the product the finding's fix is for, as people name it: the catalogue's name, else the software line's, else the key.
+func (v View) FixProduct() string { return productName(v.Finding, v.Line) }

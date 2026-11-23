@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -84,36 +83,42 @@ var testNewsNetwork func(*ai.Service)
 
 // aiFacts implements ai.Facts: the exploited-list entry from feeds, the devices a CVE matches from findings and the inventory.
 type aiFacts struct {
-	feeds    *feeds.Store
-	findings *findings.Service
-	inv      findings.Inventory
-	boxID    func(context.Context) (string, error) // the id of the box's own device row, "" when there is none
+	feeds *feeds.Store
+	cases caseSource
+	inv   findings.Inventory
+	boxID func(context.Context) (string, error) // the id of the box's own device row, "" when there is none
 }
 
+// CVE reads the brief of the CVE, any CVE the catalogue holds: the exploited-list entry's words when a list has it, the brief as the text
+// of the data block with its references numbered from 1.
 func (f aiFacts) CVE(ctx context.Context, id string) (ai.CVEFacts, bool, error) {
-	v, ok, err := f.feeds.VulnByCVE(ctx, id)
+	b, ok, err := f.feeds.Brief(ctx, id)
 	if err != nil || !ok {
 		return ai.CVEFacts{}, false, err
 	}
-	return ai.CVEFacts{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Description: v.Description, RequiredAction: v.RequiredAction,
-		DateAdded: v.DateAdded, Links: v.Links, Ransomware: v.Ransomware, HasTemplate: v.HasTemplate, Source: v.SourceID}, true, nil
+	c := findingCase{Brief: b, Known: true}
+	links := c.Links()
+	out := ai.CVEFacts{CVE: b.CVE, Product: b.Display, Name: b.Title, Description: b.Description, Brief: c.briefFeedText(links), BriefKey: c.briefKeyText(links)}
+	for _, l := range links {
+		out.Refs = append(out.Refs, ai.BriefRef{Title: l.Title, URL: l.URL})
+	}
+	if len(b.Lists) > 0 {
+		l := b.Lists[0]
+		out.Vendor, out.Product, out.Name, out.Description = l.Vendor, cmp.Or(l.Display, l.Product), cmp.Or(l.Name, b.Title), cmp.Or(l.Description, b.Description)
+		out.RequiredAction, out.DateAdded, out.Links, out.Ransomware, out.Source = l.RequiredAction, l.DateAdded, l.Links, l.Ransomware, l.Source
+	}
+	out.HasTemplate = slices.ContainsFunc(b.Signals, func(g feeds.BriefSignal) bool { return g.Kind == "public_exploit" && g.Source == "nuclei-templates" })
+	return out, true, nil
 }
 
 func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact, error) {
-	recs, err := f.findings.List(ctx, "")
-	if err != nil {
+	open, err := f.cases.Many(ctx, findings.ViewFilter{CVE: cve, OpenOnly: true})
+	if err != nil || len(open) == 0 {
 		return nil, err
 	}
-	var open []findings.Record
-	var ids []string
-	for _, r := range recs {
-		if r.CVE == cve && r.Status.Open() {
-			open = append(open, r)
-			ids = append(ids, r.AssetID)
-		}
-	}
-	if len(open) == 0 {
-		return nil, nil
+	ids := make([]string, len(open))
+	for i, c := range open {
+		ids[i] = c.View.Finding.AssetID
 	}
 	assets, err := f.inv.Assets(ctx, ids)
 	if err != nil {
@@ -126,8 +131,8 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 		}
 	}
 	out := make([]ai.AssetFact, 0, len(open))
-	for _, r := range open {
-		a, ok := assets[r.AssetID]
+	for _, c := range open {
+		a, ok := assets[c.View.Finding.AssetID]
 		if !ok || a.Ignored { // a device a person ignored is left out, as on every list
 			continue
 		}
@@ -135,9 +140,32 @@ func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact
 		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
-		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: string(r.Basis), Status: string(r.Status), IsBox: a.ID == box && box != ""})
+		out = append(out, ai.AssetFact{Name: name, IP: a.IP, Kind: a.Kind, Basis: aiBasisWord(c.View.Finding), Status: aiOpenWord(c.View.Finding),
+			Fix: c.FixText(), Confirmation: c.ConfirmText(), IsBox: a.ID == box && box != ""})
 	}
 	return out, nil
+}
+
+// aiOpenWord is "confirmed" for an open finding a safe check, the device itself or a person confirmed, else "suspected": the words the
+// assistant's tools filter by.
+func aiOpenWord(f findings.Finding) string {
+	if f.Confirmed() {
+		return "confirmed"
+	}
+	return "suspected"
+}
+
+// aiBasisWord is how the finding was found, in the assistant's words: scan, person, device (its own report) or version.
+func aiBasisWord(f findings.Finding) string {
+	switch {
+	case f.Verified == findings.VerifiedScan || f.Basis == findings.DetectScan:
+		return "scan"
+	case f.Verified == findings.VerifiedPerson:
+		return "person"
+	case f.Verified == findings.VerifiedDevice:
+		return "device"
+	}
+	return "version"
 }
 
 // aiBoxID finds the box's own device row for the explanation's citation. ponytail: reads every device (AllDevices) once per
@@ -164,6 +192,8 @@ func aiBoxID(inv *inventory.Service) func(context.Context) (string, error) {
 // answer back into text. The AI never gets a write tool here (SYS-8); mitigation stores the answer as an AI result.
 type aiMitigation struct {
 	svc *ai.Service
+	// cases reads the finding as every place reads it: its view and the brief of its CVE.
+	cases caseSource
 	// inv gives the device's own facts (vendor, model, OS, software, open ports) and the firewalls and routers of the network, so the
 	// AI writes config for what is there; nil = the facts of the finding row only.
 	inv *inventory.Service
@@ -189,14 +219,22 @@ func (m aiMitigation) Available(_ context.Context, s mitigation.Skill) bool {
 const aiMaxFirewalls = 6
 
 func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitigation.AIOutput, error) {
-	row := req.Finding
-	dev, walls := m.facts(ctx, req)
-	data := aiFindingData(req, dev, walls)
-	q := "Explain this finding."
-	if req.Skill == mitigation.SkillConfig {
-		q = "Write the configuration for this finding: the device's own workaround and a rule for each firewall the network block says is on the device's path."
+	fc, err := m.cases.One(ctx, req.FindingID)
+	if err != nil {
+		return mitigation.AIOutput{}, fmt.Errorf("ai mitigation: reading the finding: %w", err)
 	}
-	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data, Trusted: aiTrusted(row, dev, walls)})
+	row := fc.subject()
+	dev, walls := m.facts(ctx, req.Skill, fc)
+	data, links := aiFindingData(req, fc, dev, walls)
+	q := "Answer the four questions for this finding."
+	if req.Skill == mitigation.SkillConfig {
+		q = "Answer the four questions for this finding, then write the configuration: the device's own workaround and a rule for each firewall the network block says is on the device's path."
+	}
+	refs := make([]ai.BriefRef, len(links))
+	for i, l := range links {
+		refs[i] = ai.BriefRef{Title: l.Title, URL: l.URL}
+	}
+	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data, Refs: refs, Trusted: aiTrusted(row, dev, walls)})
 	if err != nil {
 		// the ai module's own error (not set up, cut off, wrong format, a hook, the provider, the cap) goes to the page as it is: the
 		// handler answers with it, so the person reads what really happened (beta 0.1.0-beta.1: a cut answer read "No AI profile is
@@ -205,6 +243,13 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	}
 	out := mitigation.AIOutput{Model: ans.Model, Profile: ans.Profile, InputTok: ans.TokensIn, OutputTok: ans.TokensOut, Paragraphs: ans.Paragraphs, Steps: ans.Steps,
 		Shortened: ans.Shortened, NoConfigReason: ans.NoConfigReason, ActivityID: ans.ActivityID}
+	for _, x := range ans.Answers {
+		a := findings.AIAnswer{Key: x.Key, Text: x.Text}
+		for _, l := range x.Links {
+			a.Links = append(a.Links, findings.AILink{Title: l.Title, URL: l.URL})
+		}
+		out.Answers = append(out.Answers, a)
+	}
 	for _, c := range ans.Configs {
 		note := ""
 		if c.BasedOn != "" {
@@ -213,12 +258,8 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check})
 	}
 	aiMarkAssumed(out.Configs, walls, aiDeviceNames(row, dev))
-	if k := row.Kev; k != nil {
-		for _, l := range k.Links { // the box builds the sources from the feed entry; a model never supplies a link
-			if u, err := url.Parse(l); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" && len(out.Citations) < 2 {
-				out.Citations = append(out.Citations, findings.Citation{Title: strings.TrimPrefix(u.Hostname(), "www."), URL: l})
-			}
-		}
+	for _, l := range links[:min(len(links), 2)] { // the box builds the sources from the brief's own references; a model never supplies a link
+		out.Citations = append(out.Citations, findings.Citation{Title: l.Title, URL: l.URL})
 	}
 	return out, nil
 }
@@ -226,7 +267,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 // facts reads the device of the finding and, for the config skill, the firewalls and routers of the inventory (the kinds
 // mitigation.Vendors reads, INV-5) that are on the device's path (aiPickWalls). A device deleted meanwhile is left out; a read that
 // fails is logged and left out too, so the AI still answers from the row's own facts instead of the page getting a bare 500 (#897).
-func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev *inventory.Device, walls aiFirewalls) {
+func (m aiMitigation) facts(ctx context.Context, skill mitigation.Skill, fc findingCase) (dev *inventory.Device, walls aiFirewalls) {
 	if m.inv == nil {
 		return nil, walls
 	}
@@ -235,12 +276,12 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 			m.log.WarnContext(ctx, "ai mitigation: reading the inventory failed; the AI gets the finding's own facts", "what", what, "err", err)
 		}
 	}
-	if d, err := m.inv.Device(ctx, req.Finding.AssetID); err == nil {
+	if d, err := m.inv.Device(ctx, fc.View.Finding.AssetID); err == nil {
 		dev = &d
 	} else {
 		failed("device", err)
 	}
-	if req.Skill != mitigation.SkillConfig {
+	if skill != mitigation.SkillConfig {
 		return dev, walls
 	}
 	kd, err := m.inv.DevicesOfKind(ctx, []string{"firewall", "router"})
@@ -252,14 +293,14 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 	if m.net != nil {
 		n = m.net(ctx)
 	}
-	target := aiTarget{ID: req.Finding.AssetID}
+	target := aiTarget{ID: fc.View.Finding.AssetID}
 	if dev != nil {
 		target.IP = dev.IP
 		if dev.MAC != nil {
 			target.MAC = *dev.MAC
 		}
-	} else if req.Finding.Asset != nil {
-		target.IP = req.Finding.Asset.IP
+	} else if fc.View.Device.HasIP() {
+		target.IP = fc.View.Device.IP
 	}
 	ids, sel := aiPickWalls(n, target, kd)
 	paths := sel.Paths
@@ -278,10 +319,10 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 const aiMaxPorts = 30
 
 // aiDeviceNames are the names the finding's device goes by in a config block's title.
-func aiDeviceNames(row findings.Row, dev *inventory.Device) []string {
+func aiDeviceNames(row aiSubject, dev *inventory.Device) []string {
 	var out []string
-	if row.Asset != nil {
-		out = append(out, row.Asset.Name, row.Asset.IP)
+	if row.AssetName != "" {
+		out = append(out, row.AssetName, row.AssetIP)
 	}
 	if dev != nil {
 		out = append(out, aiName(*dev), aiObserved(dev.Model), aiObserved(dev.Vendor), dev.IP)
@@ -295,16 +336,14 @@ func aiDeviceNames(row findings.Row, dev *inventory.Device) []string {
 // aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP, the IPs of the firewalls a rule
 // may be written for and the device's gateway, never a banner, a name or the Evidence text. A config naming any other address (a
 // firewall that is not on the device's path among them) is flagged on the page (#897).
-func aiTrusted(row findings.Row, dev *inventory.Device, walls aiFirewalls) []netip.Addr {
+func aiTrusted(row aiSubject, dev *inventory.Device, walls aiFirewalls) []netip.Addr {
 	var out []netip.Addr
 	add := func(ip string) {
 		if a, err := netip.ParseAddr(ip); err == nil && a.Zone() == "" && !slices.Contains(out, a.Unmap()) {
 			out = append(out, a.Unmap())
 		}
 	}
-	if row.Asset != nil {
-		add(row.Asset.IP)
-	}
+	add(row.AssetIP)
 	if dev != nil {
 		add(dev.IP)
 	}
@@ -364,28 +403,41 @@ func aiName(d inventory.Device) string {
 	return aiIP(d.IP)
 }
 
-// aiFindingData is what the AI gets for a finding: the same facts the finding page shows (an answer once said "the data does not
-// list affected versions" while the Evidence named "before 20.4"). The exploited-list entry; the device with its vendor, model, OS,
-// software and open ports, the Evidence sentence (the installed version and the affected range), the fixed release or the fix of each
-// release line, the basis and confidence; and for the config skill the firewalls and routers on the device's path (aiNetworkBlock), whose
-// vendor decides the syntax of the firewall rule. Device data is the customer's own network data, as before: the job carries internal data (INV-3 of ai)
-// and goes through the privacy rule and the before_ai hooks like every call.
-func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFirewalls) []ai.DataBlock {
-	row := req.Finding
-	var feed, d strings.Builder
-	links := 0
-	if k := row.Kev; k != nil {
-		links = len(k.Links)
-		fmt.Fprintf(&feed, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
-			row.CVE, aiVal(k.Vendor, 100), aiVal(k.Product, 100), aiVal(k.Name, 200), ai.ListLabel(k.Source), aiVal(k.RequiredAction, 400), aiVal(k.DateAdded, 20), k.Ransomware, k.HasTemplate, aiVal(strings.Join(k.Links, " "), 1000))
-	} else {
-		fmt.Fprintf(&feed, "CVE: %s\n", row.CVE)
+// aiSubject is what the port and software helpers need to know about the finding: the CVE, the software line it is on, the evidence
+// sentence, the product of the exploited-list entry (empty when the CVE is on no list) and the device's name and address.
+type aiSubject struct {
+	CVE, SoftwareID, Evidence string
+	Vendor, Product           string
+	AssetName, AssetIP        string
+}
+
+func (c findingCase) subject() aiSubject {
+	f := c.View.Finding
+	s := aiSubject{CVE: f.CVE, SoftwareID: f.SoftwareID, AssetName: c.View.Device.Name}
+	if c.View.Device.HasIP() {
+		s.AssetIP = c.View.Device.IP
 	}
-	if c := row.CVSS; c != nil {
-		fmt.Fprintf(&feed, "CVSS %s base score: %.1f (%s)\n", c.Version, c.Score, aiVal(c.Vector, 200))
+	if f.Evidence != nil {
+		s.Evidence = f.Evidence.Summary
 	}
-	fmt.Fprintf(&feed, "%s\n", aiAttack(row.CVSS))
-	if a := row.Asset; a != nil {
+	if len(c.Brief.Lists) > 0 {
+		s.Vendor, s.Product = c.Brief.Lists[0].Vendor, c.Brief.Lists[0].Product
+	}
+	return s
+}
+
+// aiFindingData is what the AI gets for a finding, from the one source every place reads (findingCase): the CVE brief (title,
+// weakness, scores, the exploited lists, the affected versions and the fixed release of each train, the record's solution and
+// workaround, the references it may cite by number), then the device with its vendor, model, OS, software and open ports, the fix of
+// this device (the stored fix the finding page shows) and who confirmed the finding; and for the config skill the firewalls and
+// routers on the device's path (aiNetworkBlock), whose vendor decides the syntax of the firewall rule. The numbered references are
+// returned too: the model names a reference by its number and the box writes the link. Device data is the customer's own network
+// data, as before: the job carries internal data (INV-3 of ai) and goes through the privacy rule and the before_ai hooks like every call.
+func aiFindingData(req mitigation.AIRequest, fc findingCase, dev *inventory.Device, walls aiFirewalls) ([]ai.DataBlock, []caseLink) {
+	row := fc.subject()
+	links := fc.Links()
+	var d strings.Builder
+	if a := fc.View.Device; a.Name != "" {
 		fmt.Fprintf(&d, "Device: %s, IP %s, kind %s\n", aiVal(a.Name, 100), aiIP(a.IP), aiVal(a.Kind, 30))
 	}
 	if dev != nil {
@@ -405,43 +457,13 @@ func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls aiFire
 			}
 		}
 	}
-	if e := row.Evidence; e != nil && e.Summary != "" {
-		fmt.Fprintf(&d, "Evidence (installed version and affected range): %s\n", aiVal(e.Summary, 600))
-	}
-	fmt.Fprintf(&d, "%s\n", aiFixedIn(req.FixedIn, links > 0))
-	fmt.Fprintf(&d, "Urgency: %s\n", aiUrgencyText(findings.LayerCode(row.Urgency)))
-	fmt.Fprintf(&d, "Finding status: %s, severity %s, matched by %s, confidence %.2f\nA confirmed recommendation pack exists: %t\n", row.Status, row.Severity, row.Basis, row.Confidence, req.HasPack)
-	blocks := []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + row.CVE, Text: feed.String()}, {Kind: "inventory", Source: "the device of the finding", Text: d.String()}}
+	d.WriteString(fc.deviceFactsText())
+	fmt.Fprintf(&d, "A confirmed recommendation pack exists: %t\n", req.HasPack)
+	blocks := []ai.DataBlock{{Kind: ai.DataFeed, Source: "CVE brief " + fc.View.Finding.CVE, Text: fc.briefFeedText(links)}, {Kind: "inventory", Source: "the device of the finding", Text: d.String()}}
 	if req.Skill != mitigation.SkillConfig {
-		return blocks
+		return blocks, links
 	}
-	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: aiNetworkBlock(walls)})
-}
-
-// aiAttack says how the vulnerability is reached, from the CVSS vector: the config skill writes a firewall rule only for a flaw
-// reached over the network (#897: a local Windows flaw got rules for ports 135-445).
-func aiAttack(c *findings.CVSS) string {
-	if c == nil {
-		return "Attack vector: not known (no CVSS score)."
-	}
-	m := map[string]string{}
-	for _, part := range strings.Split(c.Vector, "/") {
-		if k, v, ok := strings.Cut(part, ":"); ok {
-			m[k] = v
-		}
-	}
-	av := map[string]string{"N": "network", "A": "adjacent network", "L": "local (an account or code on the device)", "P": "physical access"}[m["AV"]]
-	if av == "" {
-		return "Attack vector: not known."
-	}
-	ui := "not stated"
-	switch m["UI"] {
-	case "N":
-		ui = "not needed"
-	case "R", "P", "A":
-		ui = "needed (a user must open or click something)"
-	}
-	return "Attack vector (CVSS): " + av + "; user interaction: " + ui + "."
+	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: aiNetworkBlock(walls)}), links
 }
 
 // aiMatched is the software row the finding is about, with its version: the row the matcher matched it on (findings stores its id,
@@ -449,7 +471,7 @@ func aiAttack(c *findings.CVSS) string {
 // states (the matcher writes it so), else the row whose product is the exploited entry's product. Only that row goes, not the
 // device's whole software list (#897); a short name that happens to be inside the Evidence ("Go", "R") does not count. d holds one
 // row per software line (inventory's one line), so a weaker source's reading of the same software ("OpenSSH 10.2" from a banner) is never it.
-func aiMatched(row findings.Row, d inventory.Device) string {
+func aiMatched(row aiSubject, d inventory.Device) string {
 	if row.SoftwareID != "" {
 		for _, s := range d.Software {
 			if s.ID == row.SoftwareID && !s.NotInstalled {
@@ -463,9 +485,9 @@ func aiMatched(row findings.Row, d inventory.Device) string {
 			continue
 		}
 		v := aiStr(s.Version)
-		hit := v != "" && s.Display != "" && row.Evidence != nil && strings.Contains(strings.ToLower(row.Evidence.Summary), strings.ToLower(s.Display+" "+v))
-		if k := row.Kev; !hit && k != nil && k.Product != "" && s.Product != "" {
-			hit = strings.EqualFold(strings.ReplaceAll(s.Product, "_", " "), k.Product)
+		hit := v != "" && s.Display != "" && row.Evidence != "" && strings.Contains(strings.ToLower(row.Evidence), strings.ToLower(s.Display+" "+v))
+		if !hit && row.Product != "" && s.Product != "" {
+			hit = strings.EqualFold(strings.ReplaceAll(s.Product, "_", " "), row.Product)
 		}
 		if hit && len(out) < 3 {
 			out = append(out, strings.TrimSpace(aiVal(s.Display, 100)+" "+aiVal(v, 60)))
@@ -574,10 +596,10 @@ func aiWords(s string) []string {
 // ("Apache" of "Apache Tomcat" names Apache httpd too), else the device's software rows the finding matched. vendor: the entry
 // vendor's words. A port runs the product only when every one of these words is on it ("Windows Server Update Service" is not
 // "Microsoft Windows RPC").
-func aiProductWords(row findings.Row, d inventory.Device) (product, vendor []string) {
-	if k := row.Kev; k != nil {
-		vendor = aiWords(k.Vendor)
-		for _, w := range aiWords(strings.ReplaceAll(k.Product, "_", " ")) {
+func aiProductWords(row aiSubject, d inventory.Device) (product, vendor []string) {
+	if row.Product != "" {
+		vendor = aiWords(row.Vendor)
+		for _, w := range aiWords(strings.ReplaceAll(row.Product, "_", " ")) {
 			if !slices.Contains(vendor, w) {
 				product = append(product, w)
 			}
@@ -632,8 +654,8 @@ func aiPortLabel(sv inventory.ServiceRow) string {
 //     "Windows Server Update Service" there; or
 //   - the device is the entry vendor's own and the entry's product is an operating system or firmware: a word "os", "ios", "eos",
 //     "firmware" or one ending in "os" (Junos, FortiOS, PAN-OS, SonicOS), never a word of the vendor's name (Sophos).
-func aiPlatform(row findings.Row, d inventory.Device, product, vendor []string) bool {
-	if row.Kev == nil || len(product) == 0 {
+func aiPlatform(row aiSubject, d inventory.Device, product, vendor []string) bool {
+	if row.Product == "" || len(product) == 0 {
 		return false
 	}
 	osWords := aiWords(aiObserved(d.OS))
@@ -643,7 +665,7 @@ func aiPlatform(row findings.Row, d inventory.Device, product, vendor []string) 
 	if !slices.ContainsFunc(aiWords(aiObserved(d.Vendor)), func(w string) bool { return slices.Contains(vendor, w) }) {
 		return false
 	}
-	for _, w := range strings.FieldsFunc(strings.ToLower(row.Kev.Product), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+	for _, w := range strings.FieldsFunc(strings.ToLower(row.Product), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
 		if slices.Contains(vendor, w) {
 			continue
 		}
@@ -680,7 +702,7 @@ func aiTitle(detail string) string {
 //     says IIS). When no port names the product, every port is a candidate, listed by service.
 //
 // "" when the scan read no named port.
-func aiVulnPorts(row findings.Row, d inventory.Device) string {
+func aiVulnPorts(row aiSubject, d inventory.Device) string {
 	svcs := aiScanned(d.Services)
 	svcs = svcs[:min(len(svcs), aiMaxPorts)]
 	product, vendor := aiProductWords(row, d)
@@ -841,75 +863,6 @@ func aiSafeApply(d inventory.Device) string {
 	return ""
 }
 
-// aiFixedIn is the page's "Fixed version" fact in one line, with what the page says about it (Ubuntu Pro, the distribution's own
-// updates, #897). links: the exploited entry has links (a vendor advisory may name the fix).
-func aiFixedIn(f *findings.FixedIn, links bool) string {
-	if f == nil {
-		if links {
-			return "Fixed version: not known on this box (NVD's affected versions name none); the vendor advisory in the links may name it."
-		}
-		return "Fixed version: not known on this box (NVD's affected versions name none)."
-	}
-	var b strings.Builder
-	b.WriteString("Fixed version (" + aiVal(f.Source, 80) + "): ")
-	switch {
-	case f.Kind == "branches" && f.Version != "": // the page: "Vedette cannot read the version ... Correct the version"
-		b.WriteString("installed version \"" + aiVal(f.Version, 60) + "\" cannot be read by Vedette, so which release line applies to this device is not known; ")
-	case f.Kind == "branches":
-		b.WriteString("the device has no version in Vedette, so which release line applies to this device is not known; ")
-	case f.Version != "":
-		b.WriteString("installed " + aiVal(f.Version, 60) + "; ")
-	}
-	switch f.Kind {
-	case "fixed":
-		b.WriteString("fixed in " + aiVal(f.Fixed, 60))
-	case "up_to":
-		b.WriteString("affected up to and including " + aiVal(f.Fixed, 60) + ", no fixed release named")
-	case "end_listed": // The AI called 20.4 "the fixed release" from the Evidence's "before 20.4"; the page says it is not
-		b.WriteString("inside the range NVD lists as before " + aiVal(f.Fixed, 60) + ", but " + aiVal(f.Fixed, 60) +
-			" is not a fix: NVD lists it, or releases of it, as affected too, and names no fixed release for this version; the vendor advisory lists the releases that fix it")
-	case "distro":
-		b.WriteString("install the security updates of " + cmp.Or(aiVal(f.Distro, 40), "the distribution") + " (its packages carry the fix under their own numbers)")
-		if f.DistroFixed != "" {
-			b.WriteString(", fixed package " + aiVal(f.DistroFixed, 80) + " for release " + aiVal(f.DistroRelease, 20))
-		}
-		if f.DistroPro {
-			b.WriteString(", only in Ubuntu Pro (ESM)")
-		}
-		if f.Fixed != "" { // the page: the package's number may stay below the upstream release
-			b.WriteString(", upstream fixed release " + aiVal(f.Fixed, 60) + " (the package's own version number may stay below " + aiVal(f.Fixed, 60) +
-				" once fixed: install the distribution's updates, not " + aiVal(f.Fixed, 60) + " by hand)")
-		}
-	case "feature_update":
-		b.WriteString("no update of this release fixes it; move to a later release from build " + aiVal(f.Fixed, 60))
-	case "esu":
-		b.WriteString("fixed in build " + aiVal(f.Fixed, 60) + ", which comes only with Extended Security Updates")
-	}
-	var br []string
-	for _, x := range f.Branches {
-		br = append(br, cmp.Or(aiVal(x.Branch, 40), "a release line")+" fixed in "+aiVal(x.Fixed, 60))
-	}
-	if len(br) > 0 {
-		if !strings.HasSuffix(b.String(), ": ") && !strings.HasSuffix(b.String(), "; ") {
-			b.WriteString("; ")
-		}
-		b.WriteString("fix per release line: " + strings.Join(br, ", "))
-	}
-	if f.More > 0 {
-		fmt.Fprintf(&b, "; %d more release lines have a fix", f.More)
-	}
-	if f.NoFix > 0 {
-		fmt.Fprintf(&b, "; %d release lines have no fixed release", f.NoFix)
-	}
-	if f.Kind != "distro" && f.Distro != "" {
-		b.WriteString("; if it was installed from " + aiVal(f.Distro, 40) + "'s packages, install " + aiVal(f.Distro, 40) + "'s security updates instead")
-	}
-	if s := strings.TrimSuffix(b.String(), "; "); strings.HasSuffix(s, ": ") {
-		return s + "not named; not known on this box."
-	}
-	return strings.TrimSuffix(b.String(), "; ")
-}
-
 // aiChainPruner hands the retention prune of the activity log to core's chainhead.Prune, which moves the anchor and lowers the head in
 // the prune's own transaction: the ai module never writes those core tables.
 type aiChainPruner struct{}
@@ -926,8 +879,9 @@ func aiJobs(d deps) []jobs.Job { return d.AI.Jobs() }
 type aiAsk struct {
 	feeds    *feeds.Store
 	findings *findings.Service
+	cases    caseSource
 	inv      *inventory.Service
-	gate     server.ModuleGate // the feeds switch for device_updates' recommended updates (as GET /findings/plan); nil = on
+	gate     server.ModuleGate // the feeds switch for device_updates' recommended updates; nil = on
 }
 
 func aiStr(p *string) string {
@@ -1005,23 +959,54 @@ func aiUrgencyText(code string) string {
 	return "update recommended: no sign that this flaw is exploited"
 }
 
-func aiFindingRow(r findings.Record, devs map[string]inventory.Device) ai.FindingRow {
-	f := ai.FindingRow{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Basis: string(r.Basis), Confidence: r.ShownConfidence(), Urgency: findings.LayerCode(r.Row.Urgency),
-		FirstSeen: r.FirstSeen.UTC().Format(time.RFC3339), LastSeen: r.LastSeen.UTC().Format(time.RFC3339)}
-	if !r.AcceptedUntil.IsZero() {
-		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)
+// aiFindingRow is a finding as the tools show it, from its view: the status words the tools filter by (confirmed or suspected while
+// open, the resolution once handled), how it was found, why it matters now, the fix of this device and who confirmed it.
+func aiFindingRow(c findingCase, devs map[string]inventory.Device) ai.FindingRow {
+	f := c.View.Finding
+	row := ai.FindingRow{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Status: aiStatusWord(f), Severity: aiSeverityWord(c.View.Severity), Basis: aiBasisWord(f),
+		Confidence: aiConfidence(f), Urgency: findings.LayerCode(f.Urgency), FirstSeen: f.FirstSeen.UTC().Format(time.RFC3339), LastSeen: f.LastSeen.UTC().Format(time.RFC3339),
+		Fix: c.FixText(), Confirmation: c.ConfirmText()}
+	if !f.AcceptedUntil.IsZero() {
+		row.AcceptedUntil = f.AcceptedUntil.UTC().Format(time.DateOnly)
 	}
-	if d, ok := devs[r.AssetID]; ok {
-		f.Asset, f.AssetIP = aiDeviceName(d), d.IP
+	if d, ok := devs[f.AssetID]; ok {
+		row.Asset, row.AssetIP = aiDeviceName(d), d.IP
 	}
-	if r.Evidence != nil {
-		f.Evidence = r.Evidence.Summary
+	if f.Evidence != nil {
+		row.Evidence = f.Evidence.Summary
 	}
-	return f
+	return row
+}
+
+// aiStatusWord is the status of a finding in the tools' words: confirmed or suspected while open, else how it was handled.
+func aiStatusWord(f findings.Finding) string {
+	switch {
+	case f.State == findings.StateOpen:
+		return aiOpenWord(f)
+	case f.Resolution == findings.ResolutionAccepted:
+		return "risk_accepted"
+	}
+	return string(f.Resolution)
+}
+
+// aiSeverityWord is the CVSS band of the CVE, "medium" while it has no score (the tools rank an unscored finding there).
+func aiSeverityWord(c *findings.CVSS) string {
+	if c == nil {
+		return "medium"
+	}
+	return findings.SeverityBand(*c)
+}
+
+// aiConfidence is how sure the box is, for the tools' ranking: a safe check's for a confirmed finding, the version match's otherwise.
+func aiConfidence(f findings.Finding) float64 {
+	if f.Confirmed() {
+		return findings.ConfScan
+	}
+	return findings.ConfVersion
 }
 
 func (a aiAsk) Findings(ctx context.Context) ([]ai.FindingRow, error) {
-	recs, err := a.findings.List(ctx, "")
+	vs, err := a.findings.Views(ctx, findings.ViewFilter{})
 	if err != nil {
 		return nil, fmt.Errorf("ai ask: findings: %w", err)
 	}
@@ -1029,15 +1014,15 @@ func (a aiAsk) Findings(ctx context.Context) ([]ai.FindingRow, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]ai.FindingRow, len(recs))
-	for i, r := range recs {
-		out[i] = aiFindingRow(r, devs)
+	out := make([]ai.FindingRow, len(vs))
+	for i, v := range vs {
+		out[i] = aiFindingRow(findingCase{View: v}, devs)
 	}
 	return out, nil
 }
 
 func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, error) {
-	r, err := a.findings.Get(ctx, id)
+	c, err := a.cases.One(ctx, id)
 	if errors.Is(err, findings.ErrNotFound) {
 		return ai.FindingRow{}, false, nil
 	}
@@ -1045,28 +1030,90 @@ func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, err
 		return ai.FindingRow{}, false, fmt.Errorf("ai ask: finding: %w", err)
 	}
 	devs := map[string]inventory.Device{}
-	if d, err := a.inv.Device(ctx, r.AssetID); err == nil {
-		devs[r.AssetID] = d
+	if d, err := a.inv.Device(ctx, c.View.Finding.AssetID); err == nil {
+		devs[c.View.Finding.AssetID] = d
 	}
-	return aiFindingRow(r, devs), true, nil
+	row := aiFindingRow(c, devs)
+	row.Workaround = c.WorkaroundText()
+	return row, true, nil
 }
 
-// DeviceUpdates is findings.DeviceUpdates for device_updates: the same updates the Findings page and "Recommended updates" show.
+// DeviceUpdates is the By device card of one device for device_updates: its fix blocks, the same ones the Findings page shows. A block
+// that names a release to install is an update (urgent when its status is one of the four urgent ones, else a recommended update); a
+// block of an urgent status with no release to name is a software with no named update; a recommended block with no release has nothing
+// to install and is left out.
 func (a aiAsk) DeviceUpdates(ctx context.Context, assetID string) (ai.DeviceUpdates, bool, error) {
-	u, ok, err := a.findings.DeviceUpdates(ctx, assetID, a.gate == nil || a.gate.Enabled(findings.FeedsModule))
-	if err != nil || !ok {
-		return ai.DeviceUpdates{}, ok, err
+	if _, err := a.inv.Device(ctx, assetID); errors.Is(err, inventory.ErrNotFound) {
+		return ai.DeviceUpdates{}, false, nil
+	} else if err != nil {
+		return ai.DeviceUpdates{}, false, err
 	}
-	rows := func(us []findings.UpdateAction) []ai.UpdateRow {
-		out := make([]ai.UpdateRow, len(us))
-		for i, x := range us {
-			out[i] = ai.UpdateRow{Action: x.Action, Software: x.Software, Version: x.Version, Fixed: x.Fixed, CVEs: x.CVEs, Worst: x.Worst, Ransomware: x.Ransomware,
-				Likely: x.Likely, Confirmed: x.Confirmed, Detected: x.Detected, Reported: x.Reported, Suspected: x.Suspected, NVDLag: x.NVDLag}
+	cards, err := a.findings.ByDevice(ctx, findings.ListFilter{Device: assetID}, findings.Page{Limit: 1})
+	if err != nil {
+		return ai.DeviceUpdates{}, false, err
+	}
+	out := ai.DeviceUpdates{PlanOff: a.gate != nil && !a.gate.Enabled(findings.FeedsModule)}
+	if len(cards.Items) == 0 {
+		return out, true, nil
+	}
+	card := cards.Items[0]
+	out.Open = card.Counts.UnderAttack + card.Counts.Exploited + card.Counts.PublicExploit + card.Counts.CriticalEdge
+	for _, b := range card.Blocks {
+		urgent := b.Status != findings.CodeUpdateRecommended
+		row, named := aiUpdateRow(b)
+		switch {
+		case named && urgent:
+			out.Exploited = append(out.Exploited, row)
+		case named && !out.PlanOff: // with the feeds module off recommended updates are not listed, as planNote tells the model
+			out.Planned = append(out.Planned, row)
+		case urgent:
+			out.NoUpdate = append(out.NoUpdate, row)
 		}
-		return out
 	}
-	return ai.DeviceUpdates{Open: u.Open, Exploited: rows(u.Exploited), NoUpdate: rows(u.NoUpdate), Planned: rows(u.Planned), PlanRan: u.PlanRan,
-		PlanCompared: u.PlanCompared, PlanOff: u.PlanOff}, true, nil
+	return out, true, nil
+}
+
+// aiUpdateRow is a fix block as device_updates shows it: the update in words, what it clears (worst first), how the findings are known.
+func aiUpdateRow(b findings.FixBlockJS) (row ai.UpdateRow, named bool) {
+	fx := b.Fix
+	row = ai.UpdateRow{Fixed: aiStr(fx.Version)}
+	installed := ""
+	if b.Software != nil {
+		row.Software, installed = b.Software.Name, aiStr(b.Software.Version)
+		row.Version = installed
+	}
+	for _, f := range b.Findings {
+		row.CVEs = append(row.CVEs, f.CVE)
+		switch f.Verified {
+		case string(findings.VerifiedScan), string(findings.VerifiedPerson):
+			row.Confirmed++
+		case string(findings.VerifiedDevice):
+			row.Detected++
+		default:
+			row.Suspected++
+		}
+	}
+	switch {
+	case b.Severity.Critical > 0:
+		row.Worst = "critical"
+	case b.Severity.High > 0:
+		row.Worst = "high"
+	case b.Severity.Medium > 0:
+		row.Worst = "medium"
+	case b.Severity.Low > 0:
+		row.Worst = "low"
+	}
+	action := capitalFirst(findings.FixWords(findings.FixKind(fx.Kind), fx.Product, installed, row.Fixed, aiStr(fx.Ref)))
+	row.Action = cmp.Or(action, "No fixed release is named for "+cmp.Or(row.Software, "this software"))
+	return row, action != ""
+}
+
+func capitalFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	return strings.ToUpper(string(r[0])) + string(r[1:])
 }
 
 func (a aiAsk) IOC(ctx context.Context, kind, value string) (ai.IOCFact, bool, error) {

@@ -1801,28 +1801,61 @@
                                 "yes",
                                 "no",
                                 "unknown"
-                              ]
+                              ],
+                              "description": "Decided by the box from the matching findings, never by the model: yes when a safe check, the device or a person confirmed one, unknown when matches are unconfirmed, no when no device matches"
                             },
-                            "why": {
-                              "type": "string"
-                            },
-                            "patch_steps": {
+                            "answers": {
                               "type": "array",
                               "items": {
-                                "type": "string"
-                              }
-                            },
-                            "temp_mitigations": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "detection_hints": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "enum": [
+                                      "affected",
+                                      "fix",
+                                      "workaround",
+                                      "urgency"
+                                    ],
+                                    "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges)"
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "maxLength": 1200,
+                                    "description": "One to three short sentences; no heading"
+                                  },
+                                  "links": {
+                                    "maxItems": 8,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string",
+                                          "maxLength": 200
+                                        },
+                                        "url": {
+                                          "type": "string",
+                                          "pattern": "^https?:\\/\\/"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "url"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "description": "The references of the CVE brief the answer rests on: the box writes each link from a reference it offered, never the model; http(s) only"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "text",
+                                  "links"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The four answers of \"Ask my AI\", in the order of AnswerKey, each rephrasing only the CVE brief and the matching findings; the page gives each its heading"
                             },
                             "citations": {
                               "type": "array",
@@ -1874,10 +1907,7 @@
                             "generated_at",
                             "cached",
                             "affected",
-                            "why",
-                            "patch_steps",
-                            "temp_mitigations",
-                            "detection_hints",
+                            "answers",
                             "citations",
                             "model",
                             "profile",
@@ -2037,7 +2067,7 @@
     "/ai/cve/{id}/explain": {
       "post": {
         "operationId": "ai_post_ai_cve_id_explain",
-        "summary": "AI explains a CVE in terms of my devices",
+        "summary": "Ask my AI: four answers about a CVE in terms of my devices",
         "tags": [
           "ai"
         ],
@@ -2081,28 +2111,61 @@
                         "yes",
                         "no",
                         "unknown"
-                      ]
+                      ],
+                      "description": "Decided by the box from the matching findings, never by the model: yes when a safe check, the device or a person confirmed one, unknown when matches are unconfirmed, no when no device matches"
                     },
-                    "why": {
-                      "type": "string"
-                    },
-                    "patch_steps": {
+                    "answers": {
                       "type": "array",
                       "items": {
-                        "type": "string"
-                      }
-                    },
-                    "temp_mitigations": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "detection_hints": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "enum": [
+                              "affected",
+                              "fix",
+                              "workaround",
+                              "urgency"
+                            ],
+                            "description": "affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or \"none published\"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges)"
+                          },
+                          "text": {
+                            "type": "string",
+                            "maxLength": 1200,
+                            "description": "One to three short sentences; no heading"
+                          },
+                          "links": {
+                            "maxItems": 8,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "pattern": "^https?:\\/\\/"
+                                }
+                              },
+                              "required": [
+                                "title",
+                                "url"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The references of the CVE brief the answer rests on: the box writes each link from a reference it offered, never the model; http(s) only"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "text",
+                          "links"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The four answers of \"Ask my AI\", in the order of AnswerKey, each rephrasing only the CVE brief and the matching findings; the page gives each its heading"
                     },
                     "citations": {
                       "type": "array",
@@ -2154,10 +2217,7 @@
                     "generated_at",
                     "cached",
                     "affected",
-                    "why",
-                    "patch_steps",
-                    "temp_mitigations",
-                    "detection_hints",
+                    "answers",
                     "citations",
                     "model",
                     "profile",
@@ -38953,7 +39013,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -39136,7 +39196,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -40695,7 +40755,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -40878,7 +40938,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -42439,7 +42499,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -42622,7 +42682,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -44177,7 +44237,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -44360,7 +44420,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -46792,7 +46852,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -46975,7 +47035,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -48510,7 +48570,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {
@@ -48693,7 +48753,7 @@
                                   "type": "boolean"
                                 },
                                 "answers": {
-                                  "description": "mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
+                                  "description": "explain and mitigation-config: the four short answers, in the order of AiAnswerKey, each rephrasing only the CVE brief and the finding, every claim that has a reference with its link; the page gives each its heading. When present, the page shows them instead of paragraphs and steps. Absent for answers stored before",
                                   "maxItems": 4,
                                   "type": "array",
                                   "items": {

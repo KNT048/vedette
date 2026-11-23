@@ -918,12 +918,13 @@ func buildServices(ctx context.Context, d *deps) error {
 	d.FindingHandlers.SetScanReach(scanReach(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
-	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
-	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, inv: d.Inventory, gate: gate}
+	cases := caseSource{findings: d.Findings, feeds: fs.Store()}
+	d.AIFacts = aiFacts{feeds: fs.Store(), cases: cases, inv: inv, boxID: aiBoxID(d.Inventory)}
+	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, cases: cases, inv: d.Inventory, gate: gate}
 	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed (#935)
 		return fmt.Errorf("ai: %w", err)
 	}
-	aiDoor := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log}
+	aiDoor := aiMitigation{svc: d.AI, cases: cases, inv: d.Inventory, log: d.Log}
 	if d.HostSocket != "" { // the box's subnets and gateways decide which firewalls are on a device's path; no host, not known
 		aiDoor.net = aiNetReader(hostclient.New(d.HostSocket))
 	}

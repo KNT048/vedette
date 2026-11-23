@@ -223,7 +223,7 @@ func (UnimplementedHandler) AiPostAiAsk(ctx context.Context, req *AiPostAiAskReq
 
 // AiPostAiCveIDExplain implements ai_post_ai_cve_id_explain operation.
 //
-// AI explains a CVE in terms of my devices.
+// Ask my AI: four answers about a CVE in terms of my devices.
 //
 // POST /ai/cve/{id}/explain
 func (UnimplementedHandler) AiPostAiCveIDExplain(ctx context.Context, params AiPostAiCveIDExplainParams) (r *AiPostAiCveIDExplainOK, _ error) {

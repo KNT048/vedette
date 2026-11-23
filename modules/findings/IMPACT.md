@@ -254,3 +254,7 @@
   finding only: a consumer that acts on a finding becoming exploited (response, the SIEM export, To review) listens to `urgency_raised`
   with `to` ≤ 2 too.
 - **Readers of the urgency layer**: `Row.urgency` (the finding's layer, 1..5) and `SummaryItem.urgency` are in the API (`contract.ts` FindingRow, SummaryItem); the "Fix first" list ranks the most urgent layer first. To fix (`classify`, `DeviceUpdates`) lists layers 1 to 4 only (`Announced`); the risk marker (`RiskOf`) and the card's "exploited CVEs to fix" count the CVEs of layer 1 and 2 (`UpdateAction.Layers`, `DeviceUpdates.actionable`). Outside this module the notice texts, alert links, response `kev` flag, exposure counts, reports, MCP and AI context read the layer too; `TestReadersNeverCallAFindingAboveLayerTwoExploited` (cmd/vedette) counts any reader still treating a finding above layer 2 as exploited.
+
+## Modifying: `Service.Views`, `View.FixText`, `View.ConfirmText`, `FixWords` (`view_text.go`)
+- Readers outside the finding page say a fix and who confirmed it with these functions only: `cmd/vedette` `findingCase` (the assistant's context and tools, the MCP tools, response triggers). Count test: `TestFixCount_TheWordsOfAViewNameTheStoredFixAndWhoConfirmed`.
+- Removed: `Service.DeviceUpdates` (its only caller was the assistant's `device_updates`); `UpdateAction`, `DeviceUpdates` (the type), `ToFix` and the plan code stay for `GET /findings/to-fix` and `/findings/plan`. `FixedInFor`, `RowFixes` and `groupFixOf` stay for the finding page, the list rows and the reports.

@@ -18,7 +18,7 @@ type Source interface {
 	Findings(ctx context.Context) ([]Finding, error)
 	// Finding returns one finding; ok is false when there is no such finding.
 	Finding(ctx context.Context, id string) (f Finding, ok bool, err error)
-	// CVE returns the exploited-list entry of an upper-case CVE id; ok is false when no feed on the box lists it.
+	// CVE returns what the catalogue holds about an upper-case CVE id (its brief); ok is false when it holds nothing.
 	// ErrSourceOff when the feeds module is off.
 	CVE(ctx context.Context, cve string) (e CVEEntry, ok bool, err error)
 	// IOC looks an IP address or a domain up in the indicator feeds. ErrNotIOC when the value is neither.
@@ -88,9 +88,13 @@ type Finding struct {
 	AcceptedUntil string `json:"accepted_until,omitempty"`
 	// Urgency is the status code of the finding's urgency layer: under_attack, exploited, public_exploit, critical_edge or
 	// update_recommended.
-	Urgency  string        `json:"urgency,omitempty"`
-	Evidence *Evidence     `json:"evidence"`
-	History  []HistoryStep `json:"history"`
+	Urgency string `json:"urgency,omitempty"`
+	// Fix is the fix of the finding in one sentence and Verification says that a person, a safe check or the device confirmed it, or
+	// that nobody has: the words the finding page and the assistant use, without the name of the person (users are not returned, INV-7).
+	Fix          string        `json:"fix,omitempty"`
+	Verification string        `json:"verification,omitempty"`
+	Evidence     *Evidence     `json:"evidence"`
+	History      []HistoryStep `json:"history"`
 }
 
 // Evidence names the scan check that confirmed a finding. Its summary is not included: it names the device, its address and
@@ -106,7 +110,9 @@ type HistoryStep struct {
 	Action string `json:"action"`
 }
 
-// CVEEntry is an exploited-list entry.
+// CVEEntry is what the box's catalogue holds about one CVE (feeds' brief): the CVE record's own words, the scores, the exploited-list
+// entry when a list has it, the affected versions with the fixed releases, the record's solution and workaround and the references by
+// tag. The exploited-list fields are empty for a CVE no list has.
 type CVEEntry struct {
 	CVE             string   `json:"cve"`
 	Vendor          string   `json:"vendor"`
@@ -115,12 +121,55 @@ type CVEEntry struct {
 	Description     string   `json:"description"`
 	RequiredAction  string   `json:"required_action"`
 	Source          string   `json:"source"` // the list that has it: "cisa-kev", "vulncheck-kev" (VulnCheck KEV) or a custom feed's id
-	DateAdded       string   `json:"date_added"`
+	DateAdded       string   `json:"date_added,omitempty"`
 	DueDate         *string  `json:"due_date"`
 	Ransomware      bool     `json:"ransomware"`
 	EPSS            *float64 `json:"epss"`
 	HasScanTemplate bool     `json:"has_scan_template"`
 	Links           []string `json:"links"`
+
+	Title            string       `json:"title,omitempty"`
+	Published        string       `json:"published,omitempty"`
+	NVDStatus        string       `json:"nvd_status,omitempty"` // NVD's own word ("Analyzed", "Deferred"); empty until NVD answered
+	Weaknesses       []Weakness   `json:"weaknesses,omitempty"`
+	CVSS             *CVSS        `json:"cvss,omitempty"`
+	AffectedVersions []string     `json:"affected_versions,omitempty"`
+	AffectedFrom     string       `json:"affected_versions_from,omitempty"` // nvd, cna (the CVE record's own list) or adp
+	FixedReleases    []FixedTrain `json:"fixed_releases,omitempty"`
+	Solution         string       `json:"solution,omitempty"`
+	Workaround       string       `json:"workaround,omitempty"`
+	References       []Reference  `json:"references,omitempty"`
+	NVDURL           string       `json:"nvd_url,omitempty"`
+	RecordURL        string       `json:"record_url,omitempty"`
+}
+
+// Weakness is a CWE of the CVE with its name.
+type Weakness struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// CVSS is the CVE's base score with its vector read into words.
+type CVSS struct {
+	Score              float64 `json:"score"`
+	Severity           string  `json:"severity"`
+	Version            string  `json:"version"`
+	Vector             string  `json:"vector"`
+	AttackVector       string  `json:"attack_vector"`
+	PrivilegesRequired string  `json:"privileges_required"`
+	UserInteraction    string  `json:"user_interaction"`
+}
+
+// FixedTrain is the fixed release a vendor states for one release train of a product.
+type FixedTrain struct {
+	Train   string `json:"train"`
+	Release string `json:"release"`
+}
+
+// Reference is one reference of the CVE with the group its tags put it in ("vendor-advisory", "patch", "mitigation", "exploit" …).
+type Reference struct {
+	URL   string `json:"url"`
+	Group string `json:"group"`
 }
 
 // IOCAnswer is what the indicator feeds say about a value. Listed is false when no feed lists it (or it can never be an

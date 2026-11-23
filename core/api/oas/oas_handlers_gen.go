@@ -3076,7 +3076,7 @@ func (s *Server) handleAiPostAiAskRequest(args [0]string, argsEscaped bool, w ht
 
 // handleAiPostAiCveIDExplainRequest handles ai_post_ai_cve_id_explain operation.
 //
-// AI explains a CVE in terms of my devices.
+// Ask my AI: four answers about a CVE in terms of my devices.
 //
 // POST /ai/cve/{id}/explain
 func (s *Server) handleAiPostAiCveIDExplainRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3155,7 +3155,7 @@ func (s *Server) handleAiPostAiCveIDExplainRequest(args [1]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPostAiCveIDExplainOperation,
-			OperationSummary: "AI explains a CVE in terms of my devices",
+			OperationSummary: "Ask my AI: four answers about a CVE in terms of my devices",
 			OperationID:      "ai_post_ai_cve_id_explain",
 			Body:             nil,
 			RawBody:          rawBody,

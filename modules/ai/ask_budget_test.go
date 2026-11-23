@@ -263,6 +263,21 @@ func TestAskLookupCVEGivesTheDeviceTotal(t *testing.T) {
 	}
 }
 
+// A CVE the catalogue holds that no exploited list has is not called exploited: the tool says so, names no list as its source and gives no
+// "added to the list" date.
+func TestAskLookupCVEOfACatalogueOnlyCVEIsNotOnAList(t *testing.T) {
+	a := newAskAPI(t)
+	a.facts.mu.Lock()
+	a.facts.cves["CVE-2026-50001"] = ai.CVEFacts{CVE: "CVE-2026-50001", Product: "Photo Station", Name: "A flaw only the catalogue knows", Description: "Described by NVD."}
+	a.facts.mu.Unlock()
+	a.fake.play(turn{calls: []provider.ToolCall{call("lookup_cve", `{"cve":"CVE-2026-50001"}`)}}, turn{text: "No list has it."})
+	a.ask("Is CVE-2026-50001 exploited?", 200, "")
+	res := toolResults(a.fake.askRequests()[1])
+	if len(res) != 1 || !strings.Contains(res[0].Content, `"on_exploited_list":false`) || strings.Contains(res[0].Content, "Exploited list") {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
 // Closed findings (status=any) come after the open ones, whatever their severity.
 func TestAskListFindingsPutsOpenOnesFirst(t *testing.T) {
 	a := newAskAPI(t)

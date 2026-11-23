@@ -568,7 +568,7 @@ func TestContract_INV12_EachFieldFailureHasItsOwnCode(t *testing.T) {
 	a.want("POST", "/ai/hooks/test", "admin", `{"text":"x","when":"before_ai","hook":`+hookJSON("D", "before_ai", "regex", `foo(?=x)`, "block", "abc")+`}`, 400, "invalid_match")
 }
 
-const structuredAnswer = `{"why":"The password: hunter2 was in the log, so the NAS-PHOTOS port forward is open.","patch_steps":["Update to the fixed build."],"temp_mitigations":["Remove the port forward."],"detection_hints":["Check the access log."]}`
+const structuredAnswer = `{"answers":[{"key":"affected","text":"The password: hunter2 was in the log, so the NAS-PHOTOS port forward is open.","refs":[]},{"key":"fix","text":"Update to the fixed build.","refs":[]},{"key":"workaround","text":"Remove the port forward.","refs":[]},{"key":"urgency","text":"Check the access log.","refs":[]}]}`
 
 func TestContract_INV12_AfterAIMasksTheFieldsOfAStructuredAnswer(t *testing.T) {
 	a := newAPI(t)
@@ -578,14 +578,15 @@ func TestContract_INV12_AfterAIMasksTheFieldsOfAStructuredAnswer(t *testing.T) {
 	// this pattern ends at white space, which compact JSON does not have: on the raw text it would eat the closing quote
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Forward", "after_ai", "regex", `forward\S*`, "mask", "A word was removed."), 200, "")
 	got := a.explain("CVE-2022-27593", 200, "")
-	if why := got["why"].(string); strings.Contains(why, "hunter2") || strings.Contains(why, "forward") || !strings.Contains(why, "The [masked] was in the log") {
-		t.Fatalf("why = %q", why)
+	text := func(i int) string { return got["answers"].([]any)[i].(map[string]any)["text"].(string) }
+	if why := text(0); strings.Contains(why, "hunter2") || strings.Contains(why, "forward") || !strings.Contains(why, "The [masked] was in the log") {
+		t.Fatalf("affected = %q", why)
 	}
-	if tm := got["temp_mitigations"].([]any); len(tm) != 1 || tm[0] != "Remove the port [masked]" {
-		t.Fatalf("temp_mitigations = %v", tm)
+	if tm := text(2); tm != "Remove the port [masked]" {
+		t.Fatalf("workaround = %q", tm)
 	}
-	if h := got["detection_hints"].([]any); len(h) != 1 || h[0] != "Check the access log." {
-		t.Fatalf("detection_hints = %v", h)
+	if h := text(3); h != "Check the access log." {
+		t.Fatalf("urgency = %q", h)
 	}
 	cached := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")["explain"].(map[string]any)
 	if strings.Contains(fmt.Sprint(cached), "hunter2") || !strings.Contains(fmt.Sprint(cached), "[masked]") {
@@ -618,7 +619,7 @@ func TestContract_INV12_AManyMatchHookIsABlockAndTheRowIsStillWritten(t *testing
 	a := &api{env: e, h: e.handler(servertest.NewGate())}
 	a.withProfile()
 	// leftmost-first alternation: the scan restarts after every match and reads to the end each time, so the number of matches is capped
-	a.fake.setAnswer(`{"why":"` + strings.Repeat("a ", 1500) + `","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`)
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"` + strings.Repeat("a ", 1100) + `","refs":[]},{"key":"fix","text":"Update to the fixed build.","refs":[]},{"key":"workaround","text":"Remove the port forward.","refs":[]},{"key":"urgency","text":"Check the access log.","refs":[]}]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Slow", "after_ai", "regex", `.*z|a`, "mask", "A is removed."), 200, "")
 	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	rows := a.activity()
@@ -678,7 +679,7 @@ func TestContract_INV12_AfterAISeesWhatIsStored(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
 	// the format check later removes the control character and turns the line break into a space: the hooks must see that form
-	a.fake.setAnswer(`{"why":"The secret is hunt\u0001er2 and the access\nlog.","patch_steps":["x"],"temp_mitigations":["y"],"detection_hints":["z"]}`)
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"The secret is hunt\u0001er2 and the access\nlog.","refs":[]},{"key":"fix","text":"x","refs":[]},{"key":"workaround","text":"y","refs":[]},{"key":"urgency","text":"z","refs":[]}]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Secret", "after_ai", "keywords", "hunter2", "block", "A secret was in the answer."), 200, "")
 	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
@@ -691,8 +692,8 @@ func TestContract_INV12_AfterAISeesWhatIsStored(t *testing.T) {
 	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Mask", "after_ai", "keywords", "hunter2", "mask", "A secret was removed."), 200, "")
 	got := a.explain("CVE-2022-27593", 200, "")
-	if why := got["why"].(string); strings.Contains(why, "hunter2") || !strings.Contains(why, "The secret is [masked] and the access log.") {
-		t.Fatalf("why = %q", why)
+	if why := got["answers"].([]any)[0].(map[string]any)["text"].(string); strings.Contains(why, "hunter2") || !strings.Contains(why, "The secret is [masked] and the access log.") {
+		t.Fatalf("affected = %q", why)
 	}
 }
 

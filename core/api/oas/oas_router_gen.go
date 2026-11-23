@@ -11619,7 +11619,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = AiPostAiCveIDExplainOperation
-											r.summary = "AI explains a CVE in terms of my devices"
+											r.summary = "Ask my AI: four answers about a CVE in terms of my devices"
 											r.operationID = "ai_post_ai_cve_id_explain"
 											r.operationGroup = ""
 											r.pathPattern = "/ai/cve/{id}/explain"

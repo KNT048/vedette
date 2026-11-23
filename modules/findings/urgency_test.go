@@ -647,7 +647,7 @@ func TestConfirmFromScan_AFailedUrgencyPassKeepsTheRecord(t *testing.T) {
 		return nil, errors.New("feeds unreadable")
 	}
 	rec, err := e.svc.ConfirmFromScan(t.Context(), "a-1", offList, Evidence{Summary: "hit", Template: "t", CheckedAt: t0})
-	if err != nil || rec.ID == "" || rec.CVE != offList || !rec.Confirmed() {
+	if err != nil || rec.ID == "" || rec.CVE != offList || !rec.Row.Confirmed() {
 		t.Fatalf("record %+v, error %v", rec, err)
 	}
 	if f := e.finding(offList); f.ID != rec.ID {

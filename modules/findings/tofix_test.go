@@ -62,7 +62,7 @@ func TestToFix_MostUrgentDeviceFirst(t *testing.T) {
 	if p := tf.Devices[1].Planned[0].Product; p != "f5|nginx" {
 		t.Errorf("planned product %q", p)
 	}
-	if u, _, _ := e.svc.DeviceUpdates(t.Context(), "a-3", true); len(u.Planned) != 1 || u.Planned[0].Product != "f5|nginx" {
+	if u, _, _ := deviceUpdates(t, e, "a-3", true); len(u.Planned) != 1 || u.Planned[0].Product != "f5|nginx" {
 		t.Errorf("DeviceUpdates planned product: %+v", u.Planned)
 	}
 	// one device only (its Software tab)

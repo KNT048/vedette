@@ -3770,6 +3770,14 @@ func (s *AiGetAiCveIDCachedOKExplain) encodeFields(e *jx.Encoder) {
 		s.Affected.Encode(e)
 	}
 	{
+		e.FieldStart("answers")
+		e.ArrStart()
+		for _, elem := range s.Answers {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("cached")
 		e.Bool(s.Cached)
 	}
@@ -3786,14 +3794,6 @@ func (s *AiGetAiCveIDCachedOKExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cve)
 	}
 	{
-		e.FieldStart("detection_hints")
-		e.ArrStart()
-		for _, elem := range s.DetectionHints {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-	{
 		e.FieldStart("generated_at")
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
@@ -3802,48 +3802,25 @@ func (s *AiGetAiCveIDCachedOKExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
-		e.FieldStart("patch_steps")
-		e.ArrStart()
-		for _, elem := range s.PatchSteps {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-	{
 		e.FieldStart("profile")
 		e.Str(s.Profile)
-	}
-	{
-		e.FieldStart("temp_mitigations")
-		e.ArrStart()
-		for _, elem := range s.TempMitigations {
-			e.Str(elem)
-		}
-		e.ArrEnd()
 	}
 	{
 		e.FieldStart("tokens")
 		s.Tokens.Encode(e)
 	}
-	{
-		e.FieldStart("why")
-		e.Str(s.Why)
-	}
 }
 
-var jsonFieldsNameOfAiGetAiCveIDCachedOKExplain = [12]string{
-	0:  "affected",
-	1:  "cached",
-	2:  "citations",
-	3:  "cve",
-	4:  "detection_hints",
-	5:  "generated_at",
-	6:  "model",
-	7:  "patch_steps",
-	8:  "profile",
-	9:  "temp_mitigations",
-	10: "tokens",
-	11: "why",
+var jsonFieldsNameOfAiGetAiCveIDCachedOKExplain = [9]string{
+	0: "affected",
+	1: "answers",
+	2: "cached",
+	3: "citations",
+	4: "cve",
+	5: "generated_at",
+	6: "model",
+	7: "profile",
+	8: "tokens",
 }
 
 // Decode decodes AiGetAiCveIDCachedOKExplain from json.
@@ -3865,8 +3842,26 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"affected\"")
 			}
-		case "cached":
+		case "answers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Answers = make([]AiGetAiCveIDCachedOKExplainAnswersItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem AiGetAiCveIDCachedOKExplainAnswersItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Answers = append(s.Answers, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answers\"")
+			}
+		case "cached":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Cached = bool(v)
@@ -3878,7 +3873,7 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"cached\"")
 			}
 		case "citations":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Citations = make([]AiGetAiCveIDCachedOKExplainCitationsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -3896,7 +3891,7 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"citations\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -3906,26 +3901,6 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cve\"")
-			}
-		case "detection_hints":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				s.DetectionHints = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.DetectionHints = append(s.DetectionHints, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"detection_hints\"")
 			}
 		case "generated_at":
 			requiredBitSet[0] |= 1 << 5
@@ -3951,28 +3926,8 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
-		case "patch_steps":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				s.PatchSteps = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.PatchSteps = append(s.PatchSteps, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"patch_steps\"")
-			}
 		case "profile":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -3983,28 +3938,8 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
-		case "temp_mitigations":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				s.TempMitigations = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.TempMitigations = append(s.TempMitigations, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"temp_mitigations\"")
-			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -4012,18 +3947,6 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tokens\"")
-			}
-		case "why":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.Why = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"why\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -4036,7 +3959,7 @@ func (s *AiGetAiCveIDCachedOKExplain) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -4120,6 +4043,301 @@ func (s AiGetAiCveIDCachedOKExplainAffected) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiGetAiCveIDCachedOKExplainAffected) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("key")
+		s.Key.Encode(e)
+	}
+	{
+		e.FieldStart("links")
+		e.ArrStart()
+		for _, elem := range s.Links {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("text")
+		e.Str(s.Text)
+	}
+}
+
+var jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItem = [3]string{
+	0: "key",
+	1: "links",
+	2: "text",
+}
+
+// Decode decodes AiGetAiCveIDCachedOKExplainAnswersItem from json.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiGetAiCveIDCachedOKExplainAnswersItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "key":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Key.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "links":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Links = make([]AiGetAiCveIDCachedOKExplainAnswersItemLinksItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem AiGetAiCveIDCachedOKExplainAnswersItemLinksItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Links = append(s.Links, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"links\"")
+			}
+		case "text":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Text = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiGetAiCveIDCachedOKExplainAnswersItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItem) {
+					name = jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiGetAiCveIDCachedOKExplainAnswersItemKey as json.
+func (s AiGetAiCveIDCachedOKExplainAnswersItemKey) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiGetAiCveIDCachedOKExplainAnswersItemKey from json.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemKey) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiGetAiCveIDCachedOKExplainAnswersItemKey to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiGetAiCveIDCachedOKExplainAnswersItemKey(v) {
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyFix:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyFix
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency
+	default:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKey(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiGetAiCveIDCachedOKExplainAnswersItemKey) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemKey) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("title")
+		e.Str(s.Title)
+	}
+	{
+		e.FieldStart("url")
+		e.Str(s.URL)
+	}
+}
+
+var jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItemLinksItem = [2]string{
+	0: "title",
+	1: "url",
+}
+
+// Decode decodes AiGetAiCveIDCachedOKExplainAnswersItemLinksItem from json.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiGetAiCveIDCachedOKExplainAnswersItemLinksItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "title":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Title = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"title\"")
+			}
+		case "url":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.URL = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiGetAiCveIDCachedOKExplainAnswersItemLinksItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItemLinksItem) {
+					name = jsonFieldsNameOfAiGetAiCveIDCachedOKExplainAnswersItemLinksItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -11744,6 +11962,14 @@ func (s *AiPostAiCveIDExplainOK) encodeFields(e *jx.Encoder) {
 		s.Affected.Encode(e)
 	}
 	{
+		e.FieldStart("answers")
+		e.ArrStart()
+		for _, elem := range s.Answers {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("cached")
 		e.Bool(s.Cached)
 	}
@@ -11760,14 +11986,6 @@ func (s *AiPostAiCveIDExplainOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Cve)
 	}
 	{
-		e.FieldStart("detection_hints")
-		e.ArrStart()
-		for _, elem := range s.DetectionHints {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-	{
 		e.FieldStart("generated_at")
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
@@ -11776,48 +11994,25 @@ func (s *AiPostAiCveIDExplainOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
-		e.FieldStart("patch_steps")
-		e.ArrStart()
-		for _, elem := range s.PatchSteps {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-	{
 		e.FieldStart("profile")
 		e.Str(s.Profile)
-	}
-	{
-		e.FieldStart("temp_mitigations")
-		e.ArrStart()
-		for _, elem := range s.TempMitigations {
-			e.Str(elem)
-		}
-		e.ArrEnd()
 	}
 	{
 		e.FieldStart("tokens")
 		s.Tokens.Encode(e)
 	}
-	{
-		e.FieldStart("why")
-		e.Str(s.Why)
-	}
 }
 
-var jsonFieldsNameOfAiPostAiCveIDExplainOK = [12]string{
-	0:  "affected",
-	1:  "cached",
-	2:  "citations",
-	3:  "cve",
-	4:  "detection_hints",
-	5:  "generated_at",
-	6:  "model",
-	7:  "patch_steps",
-	8:  "profile",
-	9:  "temp_mitigations",
-	10: "tokens",
-	11: "why",
+var jsonFieldsNameOfAiPostAiCveIDExplainOK = [9]string{
+	0: "affected",
+	1: "answers",
+	2: "cached",
+	3: "citations",
+	4: "cve",
+	5: "generated_at",
+	6: "model",
+	7: "profile",
+	8: "tokens",
 }
 
 // Decode decodes AiPostAiCveIDExplainOK from json.
@@ -11839,8 +12034,26 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"affected\"")
 			}
-		case "cached":
+		case "answers":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Answers = make([]AiPostAiCveIDExplainOKAnswersItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem AiPostAiCveIDExplainOKAnswersItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Answers = append(s.Answers, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answers\"")
+			}
+		case "cached":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Cached = bool(v)
@@ -11852,7 +12065,7 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"cached\"")
 			}
 		case "citations":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Citations = make([]AiPostAiCveIDExplainOKCitationsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -11870,7 +12083,7 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"citations\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -11880,26 +12093,6 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cve\"")
-			}
-		case "detection_hints":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				s.DetectionHints = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.DetectionHints = append(s.DetectionHints, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"detection_hints\"")
 			}
 		case "generated_at":
 			requiredBitSet[0] |= 1 << 5
@@ -11925,28 +12118,8 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
-		case "patch_steps":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				s.PatchSteps = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.PatchSteps = append(s.PatchSteps, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"patch_steps\"")
-			}
 		case "profile":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -11957,28 +12130,8 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
-		case "temp_mitigations":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				s.TempMitigations = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.TempMitigations = append(s.TempMitigations, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"temp_mitigations\"")
-			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -11986,18 +12139,6 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tokens\"")
-			}
-		case "why":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.Why = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"why\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -12010,7 +12151,7 @@ func (s *AiPostAiCveIDExplainOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -12094,6 +12235,301 @@ func (s AiPostAiCveIDExplainOKAffected) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiPostAiCveIDExplainOKAffected) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiPostAiCveIDExplainOKAnswersItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("key")
+		s.Key.Encode(e)
+	}
+	{
+		e.FieldStart("links")
+		e.ArrStart()
+		for _, elem := range s.Links {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("text")
+		e.Str(s.Text)
+	}
+}
+
+var jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItem = [3]string{
+	0: "key",
+	1: "links",
+	2: "text",
+}
+
+// Decode decodes AiPostAiCveIDExplainOKAnswersItem from json.
+func (s *AiPostAiCveIDExplainOKAnswersItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiCveIDExplainOKAnswersItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "key":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Key.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "links":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Links = make([]AiPostAiCveIDExplainOKAnswersItemLinksItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem AiPostAiCveIDExplainOKAnswersItemLinksItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Links = append(s.Links, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"links\"")
+			}
+		case "text":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Text = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiPostAiCveIDExplainOKAnswersItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItem) {
+					name = jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiPostAiCveIDExplainOKAnswersItemKey as json.
+func (s AiPostAiCveIDExplainOKAnswersItemKey) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiPostAiCveIDExplainOKAnswersItemKey from json.
+func (s *AiPostAiCveIDExplainOKAnswersItemKey) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiCveIDExplainOKAnswersItemKey to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiPostAiCveIDExplainOKAnswersItemKey(v) {
+	case AiPostAiCveIDExplainOKAnswersItemKeyAffected:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyAffected
+	case AiPostAiCveIDExplainOKAnswersItemKeyFix:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyFix
+	case AiPostAiCveIDExplainOKAnswersItemKeyWorkaround:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyWorkaround
+	case AiPostAiCveIDExplainOKAnswersItemKeyUrgency:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyUrgency
+	default:
+		*s = AiPostAiCveIDExplainOKAnswersItemKey(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiPostAiCveIDExplainOKAnswersItemKey) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItemKey) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("title")
+		e.Str(s.Title)
+	}
+	{
+		e.FieldStart("url")
+		e.Str(s.URL)
+	}
+}
+
+var jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItemLinksItem = [2]string{
+	0: "title",
+	1: "url",
+}
+
+// Decode decodes AiPostAiCveIDExplainOKAnswersItemLinksItem from json.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiCveIDExplainOKAnswersItemLinksItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "title":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Title = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"title\"")
+			}
+		case "url":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.URL = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiPostAiCveIDExplainOKAnswersItemLinksItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItemLinksItem) {
+					name = jsonFieldsNameOfAiPostAiCveIDExplainOKAnswersItemLinksItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

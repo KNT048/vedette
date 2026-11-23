@@ -507,7 +507,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 # WP-08k step 6: one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
 # (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
-# the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The attest lines upload to ghcr with
+# the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The sign and attest lines upload to ghcr with
 # podman's ghcr login: run the plan as `scripts/release/cosign-auth.sh sh -eu <plan>` (cosign reads only the Docker config when one exists).
 release-cosign-plan:
 	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }

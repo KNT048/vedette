@@ -434,12 +434,14 @@ func readSmall(p string, limit int64) ([]byte, error) {
 	return b, nil
 }
 
-// CosignArgv is the exact argv that signs one image (legacy format, signature kept next to the payload, nothing
-// uploaded here, identity = the repository without tag or digest), the flags of internal/release/testdata/README.md plus
-// --tlog-upload=false (verification is offline, so nothing goes to Rekor). Read in the cosign docs on 2026-11-11:
-// these flags exist in cosign v2.6.1 and are gone from `cosign sign` in v3.1.4 (which has --bundle and --signing-config), so the
-// cosign WP-08k pins must be a v2 release; whether v2 still contacts the registry with --upload=false is for 08k to measure.
-// The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.
+// CosignArgv is the exact argv that signs one image (legacy format, identity = the repository without tag or digest), the flags
+// of internal/release/testdata/README.md plus --tlog-upload=false (verification is offline, so nothing goes to Rekor). One run
+// does both jobs: it writes the payload and the signature into outDir for the release manifest (the box verifies those offline)
+// and uploads the same signature to the registry as the <digest>.sig tag, so `cosign verify --key cosign.pub
+// --insecure-ignore-tlog=true <image>@<digest>` (docs/INSTALL-CONTAINER.md) works for anyone. Measured with the pinned v2.6.5
+// against a local registry: both files are written while uploading, the uploaded layer is byte for byte the written payload and
+// its signature annotation equals the written signature. These flags are gone from `cosign sign` in v3, so the pin is a v2
+// release. The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.
 func CosignArgv(cosignBin, keyPath, outDir, service, digest string) ([]string, error) {
 	if _, err := release.PullRef(service, digest); err != nil || !serviceDigestRE.MatchString(digest) {
 		return nil, fmt.Errorf("image %q: unknown service or malformed digest", service)
@@ -449,7 +451,7 @@ func CosignArgv(cosignBin, keyPath, outDir, service, digest string) ([]string, e
 	}
 	return []string{
 		cosignBin, "sign", "--key", keyPath,
-		"--new-bundle-format=false", "--use-signing-config=false", "--upload=false", "--tlog-upload=false",
+		"--new-bundle-format=false", "--use-signing-config=false", "--upload=true", "--tlog-upload=false",
 		"--output-payload", filepath.Join(outDir, service+".payload.json"),
 		"--output-signature", filepath.Join(outDir, service+".sig"),
 		release.RegistryPrefix + service + "@" + digest,

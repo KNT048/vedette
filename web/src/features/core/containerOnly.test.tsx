@@ -98,7 +98,7 @@ describe('container-only install', () => {
     // one line per image this install runs (not the honeypot), by the digest of the release information
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
-    for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
+    for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub --insecure-ignore-tlog=true ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
     const grep = screen.getByText(/^grep -cF/).textContent!
     for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
     expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()

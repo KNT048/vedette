@@ -748,7 +748,7 @@ func TestCosignPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"cosign", "sign", "--key", "/keys/cosign.key", "--new-bundle-format=false", "--use-signing-config=false", "--upload=false", "--tlog-upload=false",
+	want := []string{"cosign", "sign", "--key", "/keys/cosign.key", "--new-bundle-format=false", "--use-signing-config=false", "--upload=true", "--tlog-upload=false",
 		"--output-payload", "dist/release/cosign/core.payload.json", "--output-signature", "dist/release/cosign/core.sig", "ghcr.io/knt048/vedette-core@" + d}
 	if strings.Join(argv, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("%q", argv)

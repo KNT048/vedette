@@ -27,7 +27,7 @@
 - **PRE-2** `POST /reports/*/ai-summary`: the `ai` module is on and the corresponding task has an allowed profile (409 `ai_unavailable`).
 - **PRE-3** `POST /reports/pdpl/generate`: valid organisation information has been saved (409 `org_required`). `POST /reports/pdpl/ai-summary` needs a generated report (409 `report_required`); if the report is regenerated while the AI is writing, 409 `report_changed` and the commentary is not saved.
 
-## Postconditions (sau khi xong)
+## Postconditions (after completion)
 - **POST-1** After sending: one `rep_history` entry (`sent`/`failed`), and the email goes to exactly the recipient list at the time of sending.
 - **POST-2** Schedule on: at `next_run` it is generated and sent automatically, recording `trigger=scheduled`; each hour slot is handled at most once (marked before sending); a miss caused by the box/module being off → exactly one catch-up send if it is ≤ 24 hours late, beyond that the slot is dropped; saving the schedule resets the mark, and a slot already past is not caught up.
 - **POST-3** PDPL `generate`: produces a `PdplReport` from the device store, findings and module state; it has `generated_at`; the entries "key_systems", "by_kind", "sources" match the store at generation time.

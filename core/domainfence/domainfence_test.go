@@ -490,3 +490,25 @@ func TestCheckNameUnderProofAtOutsideTheDomain(t *testing.T) {
 		t.Fatalf("CNAME inside the proof name: %+v", o)
 	}
 }
+
+// A record of the token that does not count (reached through a CNAME, answered by a wildcard) is told apart by a field, not by the
+// words of Detail: the Ownership tab shows it as "Not counted".
+func TestOwnedSaysARecordWasRefused(t *testing.T) {
+	t.Parallel()
+	tok := Token(key1, "acme.example")
+	rec := []string{"vedette-verify=" + tok}
+	for name, c := range map[string]struct {
+		dns                *fakeDNS
+		refused, unchecked bool
+	}{
+		"through a CNAME":    {dns: &fakeDNS{txt: map[string][]string{"acme.example": rec}, cname: map[string]string{"acme.example": "tenant.vendor.example"}}, refused: true},
+		"through a wildcard": {dns: &fakeDNS{wild: map[string][]string{"acme.example": rec}}, refused: true},
+		"no record":          {dns: &fakeDNS{}},
+		"a lookup fails":     {dns: &fakeDNS{fail: map[string]bool{"acme.example": true}}, unchecked: true},
+	} {
+		p := Owned(t.Context(), c.dns, "acme.example", tok, time.Second)
+		if p.At != "" || p.Refused != c.refused || p.Unchecked != c.unchecked || p.Detail == "" {
+			t.Errorf("%s: %+v, want refused %v, unchecked %v", name, p, c.refused, c.unchecked)
+		}
+	}
+}

@@ -41,8 +41,7 @@ func (s *Service) Jobs() []jobs.Job {
 }
 
 // RunPull is one tick of the pull job: every enabled feed that is due (INV-8, INV-9: State.Due with the feed's
-// interval and its back-off after errors; nvd-recent with an unfinished pull, and a feed whose stored data this code reads again
-// (INV-32), only its back-off) is pulled in turn,
+// interval and its back-off after errors; nvd-recent with an unfinished pull, only its back-off) is pulled in turn,
 // vulnerabilities first. A failed pull is recorded on
 // the feed and never fails the job; only a cancelled context or a database failure does.
 func (s *Service) RunPull(ctx context.Context) error {

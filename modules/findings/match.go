@@ -25,8 +25,7 @@ const (
 )
 
 // Confidence by basis. product/vendor-only values are the mock's (match.ts).
-// ConfVersion is a proposal: DATA_MODEL 5.2 says "at least 0.7" for version;
-// it sits between a bare product match (0.5) and a scan confirmation (>= 0.95).
+// ConfVersion sits between a bare product match (0.5) and a scan confirmation (>= 0.95).
 const (
 	ConfVendorOnly = 0.3
 	ConfProduct    = 0.5

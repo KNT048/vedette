@@ -127,7 +127,7 @@ export const DevicesQuery = z.object({
   type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (type=server finds a hypervisor). Unknown id: 400 bad_filter'),
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
-  has_findings: z.enum(['true', 'false']).optional().describe('true: the device has open findings (a status of one of the five layers; needs_input alone is none). findings_count counts every state and is not used. Statuses unreadable: 503 risk_unavailable'),
+  has_findings: z.enum(['true', 'false']).optional().describe('true: the device has open findings (a status of one of the five layers; needs_input alone is none). findings_count counts every state and is not used. The Vedette box is never marked, so never under true. Statuses unreadable: 503 risk_unavailable'),
   risk: z.string().max(120).optional().describe(`Comma-separated device statuses: ${DEVICE_STATUSES.join(', ')}, or none (no badge). Unknown value: 400 bad_filter`),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
   software: z.string().max(400).optional().describe('Comma-separated words, case-insensitive: keeps the devices with a software line whose "name vendor product" holds one of them; each row then lists those lines in matched_software'),

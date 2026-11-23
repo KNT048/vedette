@@ -202,11 +202,12 @@ func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk)
 				ids = append(ids, id)
 			}
 		}
-		op := "IN"
-		if !*f.HasFindings {
-			op = "NOT IN"
+		// the box is never marked, so it has none here either (the Devices page's chip reads the same status)
+		if *f.HasFindings {
+			add("(a.is_box = 0 AND a.id IN (SELECT value FROM json_each(?)))", jsonList(ids))
+		} else {
+			add("(a.is_box = 1 OR a.id NOT IN (SELECT value FROM json_each(?)))", jsonList(ids))
 		}
-		add("a.id "+op+" (SELECT value FROM json_each(?))", jsonList(ids))
 	}
 	if len(f.Risks) > 0 { // none is every device without a marker, so it is the complement of the marked ones not asked
 		var in, out []string

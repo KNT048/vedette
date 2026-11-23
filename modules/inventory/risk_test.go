@@ -309,3 +309,30 @@ func TestContract_HasFindingsIsOpenFindings(t *testing.T) {
 		t.Errorf("has_findings while the statuses fail: %v, want 503 risk_unavailable", err)
 	}
 }
+
+// The box is never marked, so it has no open findings for has_findings either (its own updates stay in To fix): the same answer
+// as the Devices page's "Has findings" chip, which reads the row's status.
+func TestContract_HasFindingsLeavesTheBoxOut(t *testing.T) {
+	t.Parallel()
+	src := fakeRisk{}
+	e := newEnv(t, withRisk(src))
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "192.0.2.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src[box] = inventory.Risk{Code: "exploited", Count: 1}
+	e.findg[box] = 1
+	for v, want := range map[string]int{"true": 0, "false": 1} {
+		f, err := inventory.ParseDeviceSearch("", "", v, "", "", "", "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		l, err := e.svc.DevicesPage(e.ctx(), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(l.Items) != want || (want == 1 && !l.Items[0].IsBox) {
+			t.Errorf("has_findings=%s: %d rows %+v, want %d (the box only with false)", v, len(l.Items), l.Items, want)
+		}
+	}
+}

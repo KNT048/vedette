@@ -226,7 +226,7 @@ Check in this order, from cheap to expensive:
 - **Verify:** "Send test" is received; a real approval request reaches the channel and the decision appears in Settings → Audit log.
 - not yet: a real personal Zalo sign-in (the QR button in the GUI is simulated, the real API returns 400 `bad_secret`; how to do it is still to be chosen). Slack and Telegram use Approve/Reject buttons (the box opens an outbound connection and opens no inbound port).
 
-### 8.4 CPU cao
+### 8.4 High CPU
 1. Which container: `podman stats --no-stream` (default limits: `core` 2 CPU, `sensor` 1, `honeypot` 0.5, `scan` 2 with a low weight); `top` for `vedette-host` and processes outside containers.
 2. `scan` (nuclei/nmap) is running: the "Vulnerability scans" page (`/scans`) → "Stop now"; reduce "Speed" (the "Schedule and safety" tab); move it into a time window.
 3. `sensor` on a SPAN with heavy traffic: add "Exclusions", remove items from "What Vedette reads" (Box network).

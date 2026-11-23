@@ -77,7 +77,7 @@ func fill(v reflect.Value, depth int) reflect.Value {
 		if v.IsNil() {
 			return v
 		}
-		inner := fill(v.Elem(), depth+1)
+		inner := fillElem(v.Elem(), depth+1) // a nil list held in an interface is written as null too
 		out := reflect.New(t).Elem()
 		out.Set(inner)
 		return out
@@ -137,9 +137,10 @@ func fillFields(sv reflect.Value, depth int) {
 			}
 			continue
 		}
+		keepNil := f.Tag.Get("nullable") == "true" || omitEmpty(f)
 		switch {
 		case (fv.Kind() == reflect.Slice || fv.Kind() == reflect.Map) && fv.IsNil():
-			if f.Tag.Get("nullable") == "true" || omitEmpty(f) || isBytes(fv.Type()) {
+			if keepNil || isBytes(fv.Type()) {
 				continue
 			}
 			if fv.Kind() == reflect.Slice {
@@ -147,10 +148,17 @@ func fillFields(sv reflect.Value, depth int) {
 			} else {
 				fv.Set(reflect.MakeMap(fv.Type()))
 			}
+		case keepNil && fv.Kind() == reflect.Interface && !fv.IsNil() && nilList(fv.Elem()):
+			continue // an interface field marked nullable or omitempty keeps the nil list it holds
 		default:
 			fv.Set(fill(fv, depth+1))
 		}
 	}
+}
+
+// nilList says v is a nil slice or map.
+func nilList(v reflect.Value) bool {
+	return (v.Kind() == reflect.Slice || v.Kind() == reflect.Map) && v.IsNil()
 }
 
 // fillElem is fill of an element of a list or a map: a nil slice or map there is written empty too.

@@ -104,3 +104,23 @@ func TestNilListsOfAnEmbeddedViewAreWrittenEmpty(t *testing.T) {
 		t.Fatal("the value given was changed")
 	}
 }
+
+// A list held in an interface (a response built as map[string]any{"items": items}) is written empty too when it is nil; a field
+// marked nullable keeps its null.
+func TestNilListsInAnInterfaceAreWrittenEmpty(t *testing.T) {
+	t.Parallel()
+	b, err := json.Marshal(apijson.Filled(map[string]any{"items": []leaf(nil), "by_key": map[string]int(nil), "n": 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"by_key":{},"items":[],"n":1}`; string(b) != want {
+		t.Fatalf("got  %s\nwant %s", b, want)
+	}
+	in := struct {
+		Any     any `json:"any"`
+		Unknown any `json:"unknown" nullable:"true"`
+	}{Any: []string(nil), Unknown: []string(nil)}
+	if b, _ := json.Marshal(apijson.Filled(in)); string(b) != `{"any":[],"unknown":null}` {
+		t.Fatalf("interface fields: %s", b)
+	}
+}

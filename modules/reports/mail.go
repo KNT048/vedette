@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // maxMailHandled is how many handled lines the email lists; the page has them all.
@@ -20,17 +22,26 @@ var howLabels = map[string]string{
 	"data_corrected": "the match was corrected", "not_installed": "the software is not installed",
 }
 
-func dayMonth(at string) string {
+func dayMonth(at string, loc *time.Location) string {
 	t := parseTS(at)
 	if t.IsZero() {
 		return ""
 	}
-	return t.UTC().Format("2 Jan")
+	return orgtime.Short(t, loc)
+}
+
+// zoneOf is the zone a document was made in (its period's tz), UTC when it cannot be loaded.
+func zoneOf(d Document) *time.Location {
+	if l, err := time.LoadLocation(d.Period.TZ); err == nil && d.Period.TZ != "" {
+		return l
+	}
+	return time.UTC
 }
 
 // HandledLine is who handled a finding and how, from the stored fields, in the words the pages use: "Patched by Vedette: version moved
 // 6.24 → 7.23 (18 Nov)", "Patched by Vedette: WinRAR was removed (18 Nov)", "Mitigated by ana@example.com (17 Nov): firewall rule".
-func HandledLine(h Handled, software string) string {
+// The day is written in loc, the organisation's zone.
+func HandledLine(h Handled, software string, loc *time.Location) string {
 	status := statusLabels[h.Resolution]
 	if h.Resolution == "accepted" && h.AcceptedUntil != nil {
 		status = "Risk accepted until " + *h.AcceptedUntil
@@ -52,9 +63,9 @@ func HandledLine(h Handled, software string) string {
 	default:
 		how = howLabels[h.Via]
 	}
-	line := fmt.Sprintf("%s by %s (%s)", status, by, dayMonth(h.At))
+	line := fmt.Sprintf("%s by %s (%s)", status, by, dayMonth(h.At, loc))
 	if how != "" {
-		line = fmt.Sprintf("%s by %s: %s (%s)", status, by, how, dayMonth(h.At))
+		line = fmt.Sprintf("%s by %s: %s (%s)", status, by, how, dayMonth(h.At, loc))
 	}
 	if h.Note != nil && *h.Note != "" {
 		line += ": " + clip(*h.Note, 200)
@@ -101,8 +112,8 @@ func firstLine(f FirstThing) string {
 // sent document. Names come from the network; buildDocument cleaned them and notify cleans them again.
 func digest(d Document, sentID string) Mail {
 	m := Mail{Path: "/reports/sent/" + sentID}
-	from, to := parseTS(d.Period.From), parseTS(d.Period.To)
-	period := fmt.Sprintf("%s to %s", from.UTC().Format("2 Jan"), to.Add(-time.Millisecond).UTC().Format("2 Jan 2006"))
+	from, to, loc := parseTS(d.Period.From), parseTS(d.Period.To), zoneOf(d)
+	period := fmt.Sprintf("%s to %s", orgtime.Short(from, loc), orgtime.Day(to.Add(-time.Millisecond), loc))
 	m.Title = fmt.Sprintf("%s, %s", d.Title, period)
 	var what, items []string
 	if s := d.Summary; s != nil {
@@ -130,7 +141,7 @@ func digest(d Document, sentID string) Mail {
 				if n == maxMailHandled {
 					break
 				}
-				items = append(items, fmt.Sprintf("%s on %s: %s", it.Product, dev.Device.Name, HandledLine(it.Handled, it.Product)))
+				items = append(items, fmt.Sprintf("%s on %s: %s", it.Product, dev.Device.Name, HandledLine(it.Handled, it.Product, loc)))
 				n++
 			}
 		}

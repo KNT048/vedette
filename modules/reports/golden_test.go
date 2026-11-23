@@ -76,7 +76,7 @@ func TestDocumentWinRARIsPatchedByVedette(t *testing.T) {
 		if h.Resolution != "patched" || h.Via != "version_moved" || h.By != "system" || *h.FromVersion != "6.24" || *h.ToVersion != "7.23" {
 			t.Fatalf("%s handled = %+v", it.CVE, h)
 		}
-		if line := HandledLine(h, it.Product); !strings.HasPrefix(line, "Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)") {
+		if line := HandledLine(h, it.Product, time.UTC); !strings.HasPrefix(line, "Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)") {
 			t.Fatalf("handled line = %q", line)
 		}
 	}
@@ -208,5 +208,25 @@ func TestDocumentReopenedAfterACorrectionStaysOpen(t *testing.T) {
 	}
 	if doc.Summary.Handled != 0 || len(doc.Handled.Devices) != 0 {
 		t.Fatalf("a not-relevant handling is listed with include not relevant off: %+v", doc.Handled)
+	}
+}
+
+// The email writes its dates in the organisation's zone, as the pages do: the last calendar month in Ho Chi Minh City is 1 to 31
+// October, and a handling at 20:00 UTC on 8 Nov is on 9 Nov there.
+func TestDigestWritesDatesInTheOrganisationZone(t *testing.T) {
+	t.Parallel()
+	loc, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+	mustNoErr(t, err)
+	def := defaultDefinition()
+	def.Options.Period = PeriodMonth
+	f := FindingView{ID: "f", CVE: "CVE-2024-0002", Device: devWS, Product: "WinRAR", Status: "patched", Urgency: 2, FirstSeen: at("2026-10-02T09:00:00Z"),
+		Events: []FindingEvent{created("2026-10-02T09:00:00Z"),
+			handledEv("2026-10-08T20:00:00Z", "patched", "version_moved", "system", nil, sp("6.24"), sp("7.23"), nil)}}
+	m := digest(buildDocument(docInput{def: def, now: t0, loc: loc, findings: []FindingView{f}}), "rep-1")
+	if !strings.Contains(m.Title, "(1 Oct to 31 Oct 2026)") {
+		t.Fatalf("mail title = %q", m.Title)
+	}
+	if !slices.Contains(m.Items, "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Oct)") {
+		t.Fatalf("mail items = %q", m.Items)
 	}
 }

@@ -475,10 +475,11 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 }
 
 // SchemeRangesOf returns the ranges of these CVEs a product's version scheme reads (RangeScheme): the rows kept in their vendor's
-// notation (Range.Generic false), and the CVE records' rows of a product that has a scheme (SchemeProduct: the vendor's own word,
-// read per release train, never by the generic comparison). Sorted by CVE, then as stored.
+// notation (Range.Generic false), the CVE records' rows of a product that has a scheme (SchemeProduct: the vendor's own word, read per
+// release train, never by the generic comparison), and for a product whose vendor states its releases in the description (Described)
+// the rows the description gives (describedRows, statedUnaffected). Sorted by CVE, then as stored.
 func (s *Store) SchemeRangesOf(ctx context.Context, cves []string) ([]Range, error) {
-	var out []Range
+	var out, worded []Range // worded: record rows of a Described product, whose description may say more
 	nvdNamed, err := json.Marshal(nvdNotationCPEs())
 	if err != nil {
 		return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
@@ -493,26 +494,44 @@ OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each
 		if err != nil {
 			return nil, err
 		}
-		var silent []Range // record rows of a scheme product that state no version: the record's description may
 		for _, r := range rows {
 			if !r.Generic() || SchemeProduct(r) {
 				out = append(out, r)
 			}
-			if r.Origin != OriginNVD && !recordBounded(r) && SchemeProduct(r) {
-				silent = append(silent, r)
+			if r.Origin != OriginNVD && describedProduct(r) {
+				worded = append(worded, r)
 			}
 		}
-		if len(silent) == 0 {
+	}
+	if len(worded) == 0 {
+		return out, nil
+	}
+	desc, err := s.descriptionsOf(ctx, worded)
+	if err != nil {
+		return nil, err
+	}
+	var fixes map[string]lineFixes // read once, when a row states no version
+	stated := map[string]bool{}    // CVE and product whose stated lines are added
+	for _, r := range worded {
+		if recordBounded(r) {
+			if k := r.CVE + "|" + r.Part + ":" + r.Vendor + ":" + r.Product; !stated[k] {
+				stated[k] = true
+				out = append(out, statedUnaffected(r, desc[r.CVE])...)
+			}
 			continue
 		}
-		desc, err := s.descriptionsOf(ctx, silent)
-		if err != nil {
-			return nil, err
+		if fixes == nil {
+			if fixes, err = s.describedFixes(ctx); err != nil {
+				return nil, err
+			}
 		}
-		for _, r := range silent {
-			out = append(out, describedRows(r, desc[r.CVE])...)
+		var patched []versionscheme.Version
+		if p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product); ok {
+			patched = fixes[p.Key].patchedWith(r.CVE)
 		}
+		out = append(out, describedRows(r, desc[r.CVE], patched)...)
 	}
+	slices.SortStableFunc(out, func(a, b Range) int { return strings.Compare(a.CVE, b.CVE) })
 	return out, nil
 }
 

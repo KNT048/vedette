@@ -325,6 +325,9 @@ type UrgencySources struct {
 	Attacks func(ctx context.Context, since time.Time) ([]Attack, error)
 	// Loads returns the first loads a rise may come from (the box's install, the catalogue's first load). nil: none known.
 	Loads func(ctx context.Context) (Loads, error)
+	// Names returns the signal sources' names by id (feeds), for the reasons a finding's view lists. nil: reasons of signals are left
+	// out (a source is never shown by its id).
+	Names SourceNames
 }
 
 // Device is what the urgency of a device's findings reads of the device.

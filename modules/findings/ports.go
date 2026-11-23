@@ -173,6 +173,15 @@ type Inventory interface {
 	// agent > a person's entry > SNMP > a scan banner, a weaker less precise form of the same release being the same release. Every
 	// reader that says what version a device runs reads this, never a single source's row.
 	EffectiveSoftware(ctx context.Context, assetID string) ([]EffectiveSoftware, error)
+	// Lines returns the software lines with these ids, in any state (a finding keeps naming a line that was removed); unknown ids are
+	// absent. The lists name each finding's line with it and search it by name.
+	Lines(ctx context.Context, ids []string) (map[string]Line, error)
+}
+
+// Line is a software line as the lists of findings name it (inventory.LineRef).
+type Line struct {
+	ID, AssetID, Display, ProductKey string
+	Version                          string // "" when the line has no version
 }
 
 // EffectiveSoftware is one software of a device as inventory's effective row gives it (inventory.EffectiveSoftware).

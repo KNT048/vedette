@@ -47,6 +47,7 @@ func (h *FindingHandlers) SetHome(src HomeSources) {
 	defer h.mu.Unlock()
 	h.home = src
 	h.sum.val = nil
+	h.ov.val = nil
 }
 
 // Summary is contract.ts HomeSummary.
@@ -423,5 +424,6 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 type summaryState struct {
 	sumMu sync.Mutex
 	sum   summaryCache
+	ov    overviewCache
 	home  HomeSources
 }

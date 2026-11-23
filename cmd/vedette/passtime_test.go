@@ -235,6 +235,8 @@ func (p *passInv) AssetIDs(context.Context) ([]string, error) {
 
 func (p *passInv) IgnoredIDs(context.Context) ([]string, error) { return nil, nil }
 
+func (p *passInv) Lines(context.Context, []string) (map[string]findings.Line, error) { return nil, nil }
+
 func (p *passInv) IsIgnored(context.Context, string) (bool, error) { return false, nil }
 
 func (p *passInv) EffectiveSoftware(context.Context, string) ([]findings.EffectiveSoftware, error) {

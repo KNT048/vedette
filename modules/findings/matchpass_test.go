@@ -127,14 +127,6 @@ func TestMatchPass_ScopeAndIndex(t *testing.T) {
 	}
 }
 
-func keysOf(m map[string]Finding) []string {
-	var out []string
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
-}
-
 func vulnCVEs(vs []Vuln) []string {
 	out := make([]string, len(vs))
 	for i, v := range vs {

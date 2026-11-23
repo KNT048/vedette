@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -31,6 +32,7 @@ type fakeInv struct {
 	onMatch func(id string)
 	// matchErr makes MatchInput of a device fail (a device that cannot be read).
 	matchErr map[string]error
+	lines    map[string]Line // Lines: named lines, before the match input's
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -78,6 +80,27 @@ func (f *fakeInv) IsIgnored(_ context.Context, id string) (bool, error) {
 
 func (f *fakeInv) EffectiveSoftware(context.Context, string) ([]EffectiveSoftware, error) {
 	return []EffectiveSoftware{}, nil
+}
+
+// Lines names the lines of lines, else a line of the device's match input with that id.
+func (f *fakeInv) Lines(_ context.Context, ids []string) (map[string]Line, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := map[string]Line{}
+	for _, id := range ids {
+		if l, ok := f.lines[id]; ok {
+			out[id] = l
+			continue
+		}
+		for aid, a := range f.match {
+			for _, sw := range a.Software {
+				if sw.ID == id {
+					out[id] = Line{ID: id, AssetID: aid, Display: sw.Display, ProductKey: productid.Key(sw.Vendor, sw.Product), Version: sw.Version}
+				}
+			}
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {

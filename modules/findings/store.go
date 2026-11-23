@@ -191,7 +191,12 @@ func loadFinding(ctx context.Context, q querier, id string) (Finding, error) {
 
 // queryFindings returns the findings a WHERE clause selects, newest first (findings of one match keep their order).
 func queryFindings(ctx context.Context, q querier, where string, args ...any) ([]Finding, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE `+where+` ORDER BY first_seen DESC, rowid ASC`, args...)
+	return selectFindings(ctx, q, where+` ORDER BY first_seen DESC, rowid ASC`, args...)
+}
+
+// selectFindings returns the findings of a WHERE clause with its own order (and limit).
+func selectFindings(ctx context.Context, q querier, whereOrder string, args ...any) ([]Finding, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE `+whereOrder, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading findings: %w", err)
 	}

@@ -221,6 +221,19 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
+// Lines names software lines for findings' lists (inventory.LineRefs).
+func (a findingsInventory) Lines(ctx context.Context, ids []string) (map[string]findings.Line, error) {
+	refs, err := a.inv.LineRefs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]findings.Line, len(refs))
+	for id, r := range refs {
+		out[id] = findings.Line{ID: r.ID, AssetID: r.AssetID, Display: r.Display, ProductKey: r.ProductKey, Version: r.Version}
+	}
+	return out, nil
+}
+
 // IgnoredIDs and IsIgnored are the devices a person ignored, for findings' reconcile and its write-time check.
 func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return a.inv.IgnoredIDs(ctx)

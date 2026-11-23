@@ -55,14 +55,14 @@ func sensorProtoAt(ctx context.Context, repo, ref string, prev bool) (cur, accep
 	return cur, accepts, nil
 }
 
-// earlierProtos reads the sensor protocol of every release tag of repo below version: v<SemVer>, never a -test. one (those are
-// the test channel), oldest first.
-func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, error) {
+// earlierReleases is the version of every release tag of repo below version: v<SemVer>, never a -test. one (those are the
+// test channel), oldest first.
+func earlierReleases(ctx context.Context, repo, version string) ([]string, error) {
 	out, err := gitRun(ctx, repo, "tag", "--list", "v*")
 	if err != nil {
 		return nil, err
 	}
-	var res []releaseProto
+	var res []string
 	for _, tag := range strings.Fields(string(out)) {
 		v := strings.TrimPrefix(tag, "v")
 		if _, err := release.CompareVersions(v, v); err != nil || refuseTestVersion(v) != nil {
@@ -71,13 +71,22 @@ func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, e
 		if c, _ := release.CompareVersions(v, version); c >= 0 {
 			continue
 		}
-		p, _, err := sensorProtoAt(ctx, repo, tag, false)
+		res = append(res, v)
+	}
+	slices.SortFunc(res, func(a, b string) int { c, _ := release.CompareVersions(a, b); return c })
+	return res, nil
+}
+
+// earlierProtos reads the sensor protocol of every earlier release (earlierReleases), oldest first.
+func earlierProtos(ctx context.Context, repo string, earlier []string) ([]releaseProto, error) {
+	res := make([]releaseProto, 0, len(earlier))
+	for _, v := range earlier {
+		p, _, err := sensorProtoAt(ctx, repo, "v"+v, false)
 		if err != nil {
 			return nil, err
 		}
 		res = append(res, releaseProto{Version: v, Proto: p})
 	}
-	slices.SortFunc(res, func(a, b releaseProto) int { c, _ := release.CompareVersions(a.Version, b.Version); return c })
 	return res, nil
 }
 

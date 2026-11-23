@@ -260,11 +260,14 @@ type inspection struct {
 	opened           int // of those, how many key opens; 0 without a key
 }
 
-// liveSchema is what a backup is compared with: the live database's migration versions and its schema epoch row.
+// liveSchema is what a backup is compared with: the live database's migration versions, its schema epoch and the migration
+// files it applied (every database this build started on has both: they are this build's files).
 type liveSchema struct {
-	versions string      // "module=version,..."
-	epoch    store.Epoch // the row of store.EpochTable
-	stamped  bool        // the live database has that row (every database this build started on has)
+	versions string                   // "module=version,..."
+	epoch    int64                    // the row of store.EpochTable
+	stamped  bool                     // the live database has that row
+	files    map[store.FileKey]string // store.FilesTable
+	recorded bool                     // the live database has that table
 }
 
 func (h *OSHandlers) liveSchema(ctx context.Context) (liveSchema, error) {
@@ -273,14 +276,17 @@ func (h *OSHandlers) liveSchema(ctx context.Context) (liveSchema, error) {
 	if l.versions, err = h.db.SchemaVersions(ctx); err != nil {
 		return l, err //nolint:wrapcheck // store's error names what failed
 	}
-	l.epoch, l.stamped, err = store.EpochOf(ctx, h.db.Reader())
+	if l.epoch, l.stamped, err = store.EpochOf(ctx, h.db.Reader()); err != nil {
+		return l, err //nolint:wrapcheck // store's error names what failed
+	}
+	l.files, l.recorded, err = store.AppliedFilesOf(ctx, h.db.Reader())
 	return l, err //nolint:wrapcheck // store's error names what failed
 }
 
 // inspectBackup opens the staged database read-only (immutable: SQLite writes nothing, not even a -wal; trusted_schema off:
 // nothing in the file's schema runs a function) and checks it is a Vedette database this software can run: SQLite's
-// quick_check, the schema epoch and migration files of live (a backup of a pre-release build is refused: this build would
-// not start on it), no module newer than live (409 schema_newer), an organization that finished setup. With key it counts
+// quick_check, the schema epoch and the applied migration files of live (a backup of a pre-release build is refused: this
+// build would not start on it), no module newer than live (409 schema_newer), an organization that finished setup. With key it counts
 // the secrets the key opens. The file is untrusted: only counts and the organization name come out of it.
 func inspectBackup(ctx context.Context, path string, live liveSchema, key []byte, reference func(context.Context, string) (map[string]string, error)) (inspection, error) {
 	var ins inspection
@@ -313,10 +319,27 @@ func inspectBackup(ctx context.Context, path string, live liveSchema, key []byte
 	if ins.schema, err = store.SchemaVersionsOf(ctx, db); err != nil || !strings.Contains(","+ins.schema, ",core=") || !archive.ValidSchema(ins.schema) {
 		return ins, notABackup("This file is not a Vedette backup.")
 	}
+	preRelease := notABackup("This backup was made by a pre-release build of Vedette, which this version cannot restore. Choose a backup made by this version.")
 	if e, ok, err := store.EpochOf(ctx, db); err != nil {
 		return ins, damaged
 	} else if ok != live.stamped || e != live.epoch {
-		return ins, notABackup("This backup was made by a pre-release build of Vedette, which this version cannot restore. Choose a backup made by this version.")
+		return ins, preRelease
+	}
+	// A backup of an earlier release of the same epoch applied fewer files, each the same as this build's; core migrates it up
+	// after the restore. A file that differs (or a backup from before the files were recorded) is one core would refuse to start on.
+	if live.recorded {
+		files, ok, err := store.AppliedFilesOf(ctx, db)
+		if err != nil {
+			return ins, damaged
+		}
+		if !ok {
+			return ins, preRelease
+		}
+		for k, sum := range files {
+			if mine, there := live.files[k]; there && mine != sum {
+				return ins, preRelease
+			}
+		}
 	}
 	if schemaNewer(ins.schema, live.versions) {
 		return ins, apierr.New(409, api.CodeSchemaNewer, "This backup was made by a newer Vedette. Install that version (or a later one) on this box first, then restore.")

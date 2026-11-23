@@ -729,6 +729,13 @@ func ReadIgnoredIDs(ctx context.Context, q *sql.DB) ([]string, error) {
 	return readIDs(ctx, q, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 }
 
+// ReadDeviceIDs lists every device, ordered by id, no cap, on a handle of the box's database, for a reader without the service:
+// the selfcheck counts the rows of other modules that name a device that is gone, through this list instead of reading inv_asset
+// (FORBID-4). A read error is an error, never a short list.
+func ReadDeviceIDs(ctx context.Context, q *sql.DB) ([]string, error) {
+	return readIDs(ctx, q, `SELECT id FROM inv_asset`)
+}
+
 // IsIgnored says whether a person ignored the device; false for a device that does not exist. findings asks it inside its
 // write, so a match or a scan result that raced an Ignore never opens a finding on the ignored device (#945).
 func (s *Service) IsIgnored(ctx context.Context, id string) (bool, error) {

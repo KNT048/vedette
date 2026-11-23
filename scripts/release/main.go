@@ -105,7 +105,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		say(stderr, "release: %v", err)
 		var ge *GuardError
-		if errors.As(err, &ge) {
+		var he *HistoryError
+		if errors.As(err, &ge) || errors.As(err, &he) {
 			return 3
 		}
 		return 1
@@ -246,9 +247,22 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	if err != nil {
 		return err
 	}
-	earlier, err := earlierProtos(ctx, *repo, inputs.Version)
+	versions, err := earlierReleases(ctx, *repo, inputs.Version)
 	if err != nil {
 		return err
+	}
+	earlier, err := earlierProtos(ctx, *repo, versions)
+	if err != nil {
+		return err
+	}
+	// The history guard reads the migrations of every earlier release from its tag (checkTagsCover below makes sure the clone
+	// has the tags of what the published index names).
+	for _, v := range versions {
+		t, err := GitTree(ctx, *repo, "v"+v)
+		if err != nil {
+			return fmt.Errorf("migrations of release %s: %w", v, err)
+		}
+		env.Earlier = append(env.Earlier, ReleaseTree{Version: v, Tree: t})
 	}
 	if err := checkTagsCover(inputs.Version, earlier, env.PrevIndex); err != nil {
 		return err
@@ -283,6 +297,11 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 		return err
 	}
 	say(stdout, "wrote %s (version %s, db_schema %d, rollback.safe=%t)", p, inputs.Version, res.DBSchema, inputs.Rollback.Safe)
+	if e := res.Epoch; e != nil {
+		say(stderr, "note: this release starts schema epoch %d (release %s has %d). Core refuses a database of an earlier epoch, so a box "+
+			"running %s or earlier cannot update to it in place: the update fails its health check and the host puts the previous "+
+			"release and its database back. Say so in the notes: such a box installs this release fresh.", e.To, e.Since, e.From, e.Since)
+	}
 	if !inputs.Rollback.Safe && len(res.Findings) > 0 {
 		say(stderr, "rollback.safe=false is right: the migrations since rollback.min_version are not add-only:")
 		for _, f := range res.Findings {

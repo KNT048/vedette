@@ -72,7 +72,9 @@ func TestEarlierProtosFromGit(t *testing.T) {
 		gitT(t, repo, "commit", "-q", "-m", r[0])
 		gitT(t, repo, "tag", "v"+r[0])
 	}
-	got, err := earlierProtos(context.Background(), repo, "2.0.0")
+	versions, err := earlierReleases(context.Background(), repo, "2.0.0")
+	must(t, err)
+	got, err := earlierProtos(context.Background(), repo, versions)
 	must(t, err)
 	if len(got) != 2 || got[0] != (releaseProto{"1.0.0", 3}) || got[1] != (releaseProto{"1.1.0", 4}) {
 		t.Errorf("earlier releases: %v", got)

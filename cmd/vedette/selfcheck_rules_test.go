@@ -57,9 +57,10 @@ type selfcheckCase struct {
 }
 
 const (
-	tsA = "2026-01-01T00:00:00.000Z"
-	tsB = "2026-01-02T00:00:00.000Z"
-	tsC = "2026-01-03T00:00:00.000Z"
+	tsEarly = "2025-12-01T00:00:00.000Z"
+	tsA     = "2026-01-01T00:00:00.000Z"
+	tsB     = "2026-01-02T00:00:00.000Z"
+	tsC     = "2026-01-03T00:00:00.000Z"
 )
 
 // validColumns are the values a planted row of the selfcheck cases takes where the case does not give one (the rows a foreign key
@@ -82,11 +83,13 @@ var validColumns = map[string]map[string]any{
 	"exp_issue":     {"state": "open", "service_id": nil, "resolution": nil, "resolved_by": nil, "resolved_at": nil, "accepted_until": nil},
 	"inv_asset": {"ip": nil, "mac": nil, "is_box": 0, "kind_obs_id": nil, "hostname_obs_id": nil, "mac_obs_id": nil, "vendor_obs_id": nil,
 		"model_obs_id": nil, "os_obs_id": nil},
-	"inv_software":         {"state": "removed", "line": "", "version": nil, "pkg_version": nil, "cpe": nil},
-	"inv_software_reading": {"addr_id": "", "instance": "", "version": nil, "pkg_version": nil},
-	"inv_service":          {"addr_id": ""},
-	"feeds_cve":            {"published": nil},
-	"feeds_signal":         {"qualifies": 1},
+	"inv_software": {"state": "removed", "line": "", "version": nil, "pkg_version": nil, "cpe": nil, "differs": 0, "not_installed_at": nil,
+		"removed_at": nil},
+	"inv_software_reading": {"addr_id": "", "instance": "", "version": nil, "pkg_version": nil, "packaged": 0, "set_by": nil,
+		"first_seen": tsA, "seen_at": tsA},
+	"inv_service":  {"addr_id": ""},
+	"feeds_cve":    {"published": nil},
+	"feeds_signal": {"qualifies": 1},
 }
 
 // selfcheckCases has a case for every registered invariant (TestSelfcheck_EveryInvariantHasACase).
@@ -172,13 +175,22 @@ var selfcheckCases = map[string]selfcheckCase{
 			{"inv_software", map[string]any{"id": "s2", "asset_id": "a1", "product_key": "acme|box", "line": "2"}}},
 		breaks:   []edit{{1: {"line": ""}}},
 		alsoHold: []edit{{1: {"line": "", "asset_id": "a2"}}, {1: {"line": "", "product_key": "acme|other"}}}},
-	"inventory.line_value_is_the_resolvers": {rule: "a line's stored value is one of its readings, the strongest one",
-		holds: []row{{"inv_software", map[string]any{"id": "s1", "state": "present", "source": "nmap", "version": "2.0"}},
-			{"inv_software_reading", map[string]any{"software_id": "s1", "source": "nmap", "version": "2.0"}},
-			{"inv_software_reading", map[string]any{"software_id": "s1", "source": "passive", "instance": "x", "version": "3.0"}}},
-		breaks: []edit{{1: {"version": "1.0"}}, {0: {"source": "snmp"}}, {2: {"source": "agent"}}},
-		alsoHold: []edit{{0: {"state": "removed"}, 1: {"version": "1.0"}}, {2: {"source": "agent", "instance": "os_guess"}},
-			{2: {"source": "manual"}}}},
+	"inventory.line_value_is_the_resolvers": {rule: "a line's stored value, state and differs flag are what the resolver says of its readings",
+		holds: []row{plantLine("s1", "acme|box", "", "1.0"), plantReading("s1", "osquery", "1.0"), plantReading("s1", "nmap", "1.0")},
+		breaks: []edit{{0: {"version": "2.0"}}, {0: {"source": "nmap"}}, {0: {"pkg_version": "1.0-1"}}, {0: {"state": "not_installed"}},
+			{2: {"version": "3.0"}}, // another release read by a weaker source: the line differs
+			{1: nil},                // the agent's reading gone: the scan's is the line
+			{1: nil, 2: nil},        // no reading: the resolver removes the line
+			{2: {"source": "manual", "version": "0.9", "first_seen": tsEarly}}}, // a person's entry an agent outgrew has lapsed
+		alsoHold: []edit{{0: {"state": "removed", "version": "2.0"}}, // a removed line keeps the value it had
+			{0: {"state": "not_installed", "not_installed_at": tsB}}, // marked after the readings were first seen
+			{0: {"differs": 1}, 2: {"version": "3.0"}},
+			{2: {"source": "manual", "first_seen": tsEarly}}}}, // a person's entry an agent confirms
+	"inventory.line_is_the_train_of_its_readings": {rule: "every reading of a line with a release is of the line's release train",
+		holds: []row{plantLine("s1", "oracle|java se", "21", "21.0.7"), plantReading("s1", "osquery", "21.0.7"),
+			plantLine("s3", "acme|box", "", "1.0"), plantReading("s3", "osquery", "1.0")}, // a product without trains
+		breaks:   []edit{{0: {"line": "8"}}, {1: {"version": "17.0.2"}}},
+		alsoHold: []edit{{1: {"version": nil}}, {3: {"version": "9.9"}}}}, // a reading with no release; any release of a product without trains
 	"inventory.removed_line_has_no_reading": {rule: "a removed line has no reading",
 		holds:    []row{{"inv_software", map[string]any{"id": "s1", "state": "present"}}, {"inv_software_reading", map[string]any{"software_id": "s1"}}},
 		breaks:   []edit{{0: {"state": "removed"}}},
@@ -195,6 +207,14 @@ var selfcheckCases = map[string]selfcheckCase{
 		holds:    []row{{"inv_software", map[string]any{"id": "s1", "state": "present"}}, {"inv_software_reading", map[string]any{"software_id": "s1"}}},
 		breaks:   []edit{{1: nil}},
 		alsoHold: []edit{{0: {"state": "removed"}, 1: nil}}},
+
+	"sensor-active.no_pending_run_about_a_deleted_device": {rule: "no queued or waiting check is about a device that was deleted",
+		holds: []row{{"inv_asset", map[string]any{"id": "a1"}}, {"core_run", deviceRun("r1", "lane-1", "waiting", "a1")},
+			{"core_run", deviceRun("r2", "lane-2", "stopped", "a-gone")}}, // a finished run stays as a log of the device it ran on
+		breaks: []edit{{1: {"subject_id": "a-gone"}}, {1: {"subject_id": "a-gone", "status": "queued", "waiting_for": nil}},
+			{2: {"status": "queued", "ended_at": nil}}},
+		alsoHold: []edit{{1: {"subject_id": "a-gone", "status": "running", "waiting_for": nil}}, // it holds its lane until its work ends
+			{1: {"subject_id": "a-gone", "module": "exposure"}}, {1: {"subject_id": "a-gone", "subject_kind": "target"}}}},
 
 	"findings.handled_complete": {rule: "a finding is open exactly when it has no resolution; a handled one says how, by whom and when",
 		holds: []row{{"fnd_finding", map[string]any{"state": "handled", "resolution": string(findings.ResolutionPatched),
@@ -249,6 +269,30 @@ var selfcheckCases = map[string]selfcheckCase{
 				"cpe": "cpe:2.3:a:citrix:netscaler_gateway:14.1-12.30:*:*:*:*:*:*:*"}, 2: {"range_origin": "cna"}}}},
 	"findings.urgency_recomputed": {rule: "a finding's stored urgency is the urgency rule recomputed",
 		provedBy: "cmd/vedette/urgency_wiring_test.go:TestUrgencyWiring_StoresTheLayersAndTheSelfcheckAgrees", counts: "urgencyMismatches"},
+}
+
+// plantLine is a present software line of device a1 whose stored value is an agent's reading of version, with no package release
+// and no "differs".
+func plantLine(id, productKey, train, version string) row {
+	return row{"inv_software", map[string]any{"id": id, "asset_id": "a1", "product_key": productKey, "line": train, "state": "present",
+		"source": "osquery", "version": version}}
+}
+
+// plantReading is what source reads of line id: version, with no package release, at the device's main address.
+func plantReading(id, source, version string) row {
+	return row{"inv_software_reading", map[string]any{"software_id": id, "source": source, "version": version}}
+}
+
+// deviceRun is a sensor-active check of a device in a lane, in status (a waiting one says what it waits for, an ended one when).
+func deviceRun(id, lane, status, device string) map[string]any {
+	r := map[string]any{"id": id, "module": "sensor-active", "lane": lane, "status": status, "subject_kind": "device", "subject_id": device}
+	switch status {
+	case "waiting":
+		r["waiting_for"] = "a sensor"
+	case "done", "partial", "failed", "stopped":
+		r["ended_at"] = tsB
+	}
+	return r
 }
 
 // liveRun is a run in a lane that is going (status).

@@ -8,9 +8,15 @@
 
 CREATE TABLE core_schema_epoch (
     id    INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    epoch INTEGER NOT NULL CHECK (epoch >= 1),
-    rev   TEXT    NOT NULL CHECK (length(rev) = 64)
+    epoch INTEGER NOT NULL CHECK (epoch >= 1)
 );
+
+CREATE TABLE core_schema_file (
+    module  TEXT    NOT NULL CHECK (length(module) BETWEEN 1 AND 32),
+    version INTEGER NOT NULL CHECK (version >= 1),
+    sha256  TEXT    NOT NULL CHECK (length(sha256) = 64),
+    PRIMARY KEY (module, version)
+) WITHOUT ROWID;
 
 -- module core
 
@@ -2178,9 +2184,15 @@ CREATE TABLE mcp_tokens (
 
 CREATE TABLE core_schema_epoch (
     id    INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    epoch INTEGER NOT NULL CHECK (epoch >= 1),
-    rev   TEXT    NOT NULL CHECK (length(rev) = 64)
+    epoch INTEGER NOT NULL CHECK (epoch >= 1)
 );
+
+CREATE TABLE core_schema_file (
+    module  TEXT    NOT NULL CHECK (length(module) BETWEEN 1 AND 32),
+    version INTEGER NOT NULL CHECK (version >= 1),
+    sha256  TEXT    NOT NULL CHECK (length(sha256) = 64),
+    PRIMARY KEY (module, version)
+) WITHOUT ROWID;
 
 -- module logs
 

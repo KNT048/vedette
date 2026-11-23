@@ -80,6 +80,22 @@ type Env struct {
 	// Baseline is the migrations of release rollback.min_version, the oldest release a box may roll back to; nil when unknown.
 	Baseline Tree
 	CurTree  Tree // migrations of the revision being released
+	// Earlier is the migrations of every earlier release (read from its git tag). A box running any of them may update to this
+	// release in place, so the history guard compares each one of the same schema epoch, and the newest one says whether this
+	// release starts a new epoch.
+	Earlier []ReleaseTree
+}
+
+// ReleaseTree is the migrations of one earlier release.
+type ReleaseTree struct {
+	Version string
+	Tree    Tree
+}
+
+// EpochStart says that a release starts a new schema epoch: the newest earlier release (Since) has epoch From.
+type EpochStart struct {
+	Since    string
+	From, To int
 }
 
 // Result is the built manifest and what the guard found.
@@ -88,6 +104,7 @@ type Result struct {
 	DBSchema int
 	Findings []Finding         // reasons rollback.safe=true is not allowed (empty when the migrations are add-only)
 	Host     *release.HostPart // the packages as the manifest names them (the sha256 and size it hashed)
+	Epoch    *EpochStart       // set when the release starts a new schema epoch
 }
 
 const maxHashedFile = 1 << 30
@@ -96,6 +113,9 @@ var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // BuildManifest builds release-manifest.json (unsigned). It refuses, with the reason:
 //   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest;
+//   - migrations that do not continue the history of an earlier release of the same schema epoch (one removed, edited or numbered
+//     below, CheckHistory), whatever rollback.safe says, and a schema epoch below an earlier release's (HistoryError);
+//   - rollback.safe=true for a release whose schema epoch is above the newest earlier release's (a new migration history);
 //   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
 //     migration since that release is add-only (the whole span a box may roll back across, not one step);
 //   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file;
@@ -143,8 +163,32 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		released = t.UTC()
 	}
 
-	// The rollback guard.
+	// The history guard: a box on any earlier release updates in place.
 	res.DBSchema = env.CurTree.Count()
+	var newest *ReleaseTree
+	for i := range env.Earlier {
+		r := &env.Earlier[i]
+		if c, err := release.CompareVersions(r.Version, in.Version); err != nil || c >= 0 {
+			continue
+		}
+		if f := CheckHistory(r.Tree, env.CurTree); len(f) > 0 {
+			return res, &HistoryError{Since: r.Version, Findings: f}
+		}
+		if newest == nil {
+			newest = r
+		} else if c, _ := release.CompareVersions(r.Version, newest.Version); c > 0 {
+			newest = r
+		}
+	}
+	if newest != nil && env.CurTree.Epoch() > newest.Tree.Epoch() {
+		res.Epoch = &EpochStart{Since: newest.Version, From: newest.Tree.Epoch(), To: env.CurTree.Epoch()}
+		if in.Rollback.Safe {
+			return res, fmt.Errorf("rollback.safe=true refused: this release starts schema epoch %d after release %s (epoch %d), a new migration history that no box can roll back across with its database; say safe=false (the host then restores the database on rollback)",
+				res.Epoch.To, res.Epoch.Since, res.Epoch.From)
+		}
+	}
+
+	// The rollback guard.
 	if env.Baseline != nil {
 		res.Findings = CheckMigrations(env.Baseline, env.CurTree)
 	}
@@ -268,6 +312,21 @@ type GuardError struct{ Findings []Finding }
 func (e *GuardError) Error() string {
 	var b strings.Builder
 	b.WriteString("rollback.safe=true refused: the migrations since the previous release are not add-only; say safe=false (the host then restores the database on rollback)\n")
+	for _, f := range e.Findings {
+		b.WriteString("  - " + f.String() + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// HistoryError is the history guard's refusal: the reasons the migrations do not continue those of release Since.
+type HistoryError struct {
+	Since    string
+	Findings []Finding
+}
+
+func (e *HistoryError) Error() string {
+	var b strings.Builder
+	b.WriteString("the migrations do not continue those of release " + e.Since + ": a box running it updates in place, and goose never runs an applied file again (add a new migration instead)\n")
 	for _, f := range e.Findings {
 		b.WriteString("  - " + f.String() + "\n")
 	}

@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -44,11 +45,12 @@ func (s *Service) followLines(ctx context.Context, tx *sql.Tx, a Asset) error {
 	}
 	// a's lines named by another device's rows
 	if len(mine) > 0 {
-		ids := slices.Sorted(maps.Keys(mine))
-		in, args := inList(ids)
-		rows, err := tx.QueryContext(ctx, `SELECT asset_id, software_id FROM fnd_finding WHERE software_id IN (`+in+`) AND asset_id <> ?
-			UNION SELECT asset_id, software_id FROM fnd_question WHERE software_id IN (`+in+`) AND asset_id <> ?`,
-			append(append(append(args, a.ID), args...), a.ID)...)
+		ids, err := json.Marshal(slices.Sorted(maps.Keys(mine)))
+		if err != nil {
+			return fmt.Errorf("findings: reading the findings of a device's lines: %w", err)
+		}
+		rows, err := tx.QueryContext(ctx, `SELECT asset_id, software_id FROM fnd_finding WHERE software_id IN (SELECT value FROM json_each(?1)) AND asset_id <> ?2
+			UNION SELECT asset_id, software_id FROM fnd_question WHERE software_id IN (SELECT value FROM json_each(?1)) AND asset_id <> ?2`, string(ids), a.ID)
 		if err != nil {
 			return fmt.Errorf("findings: reading the findings of a device's lines: %w", err)
 		}
@@ -189,13 +191,4 @@ func lineSet(a Asset) map[string]bool {
 		}
 	}
 	return out
-}
-
-// inList is "?, ?, …" for ids and the ids as arguments.
-func inList(ids []string) (string, []any) {
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-	return strings.TrimSuffix(strings.Repeat("?, ", len(ids)), ", "), args
 }

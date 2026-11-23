@@ -1104,6 +1104,7 @@
     "pending": "{{count}} not yet approved",
     "clear": "Clear filters",
     "none": "No devices match.",
+    "softwareWaiting": "Looking for this software…",
     "key": {
       "type": "Device type or category",
       "source": "What reports on it",

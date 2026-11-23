@@ -11,6 +11,13 @@ import type {
 } from './types'
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
+/** The software lines of each device that the Devices search's `software:` words hold (GET /inventory/devices?software=): the
+ *  list itself carries no lines, so the server matches them. Read only while the search has such words; the last answer stays while the
+ *  next is read, so typing does not empty the list. */
+export const useSoftwareMatches = (words: string[]) => useQuery({
+  queryKey: ['inventory', 'devices', 'software', words], enabled: words.length > 0, placeholderData: (prev) => prev,
+  queryFn: () => api.get<DevicesResponse>(`/inventory/devices?software=${encodeURIComponent(words.join(','))}`),
+})
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '' })

@@ -32,37 +32,6 @@ func hasControl(s string) bool {
 	return strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) })
 }
 
-// checkSchedule validates the body of PUT /reports/schedule at the boundary (INV-3) and returns it normalised: addresses
-// trimmed, lower-cased, without duplicates.
-func checkSchedule(in ScheduleInput) (ScheduleInput, *apierr.Error) {
-	if in.Day < 1 || in.Day > 7 {
-		return in, bad("invalid_day", "Pick a day of the week.")
-	}
-	if in.Hour < 0 || in.Hour > 23 {
-		return in, bad("invalid_hour", "The send hour must be 0 to 23.")
-	}
-	if len(in.Recipients) > MaxRecipients {
-		return in, bad("invalid_recipients", "The recipient list holds %d emails at most.", MaxRecipients)
-	}
-	seen := map[string]bool{}
-	out := make([]string, 0, len(in.Recipients))
-	for _, e := range in.Recipients {
-		e = strings.TrimSpace(e)
-		if !validEmail(e) {
-			return in, bad("invalid_email", "The email %q is not valid. Use the form name@company.com.", clipRunes(e, 60))
-		}
-		if e = strings.ToLower(e); !seen[e] {
-			seen[e] = true
-			out = append(out, e)
-		}
-	}
-	if in.Enabled && len(out) == 0 {
-		return in, bad("no_recipients", "Automatic sending needs at least one recipient. Add an email, then save.")
-	}
-	in.Recipients = out
-	return in, nil
-}
-
 func clipRunes(s string, n int) string {
 	if utf8.RuneCountInString(s) <= n {
 		return s

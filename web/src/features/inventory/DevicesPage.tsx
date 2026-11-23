@@ -22,8 +22,8 @@ import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { categoryLabel, categoryOf, kindLabel } from '@/lib/deviceTypes'
 import { AddDialog, METHODS, type Method } from './AddDialog'
-import { usePossibleSame, useDevices, useSettings } from './api'
-import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues, type SameIds } from './deviceQuery'
+import { usePossibleSame, useDevices, useSettings, useSoftwareMatches } from './api'
+import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareMatches, softwareValues, type SameIds, type SoftwareMatches } from './deviceQuery'
 import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf, neverSeen } from './nameOf'
 import { RiskMarker, riskRank } from './RiskMarker'
@@ -31,7 +31,7 @@ import { PendingPanel } from './PendingPanel'
 import { IgnoredPanel } from './IgnoreDevice'
 import { SameChip } from './SameDevice'
 import { SnmpNotices } from './SnmpCard'
-import type { DeviceRow } from './types'
+import type { DeviceRow, ListSoftware, SoftwareName } from './types'
 
 /** Where the scan feature (#850) plugs "Scan selected" / "Scan the LAN now" into the Devices list: a component registered as
  *  `slots['devices.actions']` gets `{ selectedIds: string[]; selected: DeviceRow[]; clearSelection: () => void }` (selected: the rows
@@ -174,9 +174,9 @@ type Query = ReturnType<typeof useDeviceQuery>
 /** What Body puts in the toolbar of both lists: the count line and the page's buttons. */
 type Bar = { all: number; pending: number; actions: React.ReactNode }
 
-function DeviceSearch({ rows, now, query, same, bar, shown }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds; bar: Bar; shown: number }) {
+function DeviceSearch({ rows, top, now, query, same, bar, shown }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; query: Query; same: SameIds; bar: Bar; shown: number }) {
   const { t } = useTranslation('inventory')
-  const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
+  const keys = useMemo(() => deviceKeys(rows, now, same, top), [rows, now, same, top])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
   const chips: TokenChip[] = [
     // The devices that carry risk first, as Defender's exposure filter does
@@ -205,14 +205,49 @@ function CountLine({ q, shown, total, bar }: { q: string; shown: number; total: 
   return <span role="status" aria-live="polite" className="text-meta text-muted tabular-nums">{text}</span>
 }
 
+/** How long the search's `software:` words must stay the same before the server is asked: each answer reads every device's lines. */
+const SOFTWARE_SETTLE_MS = 300
+
+/** `v` once it has stayed the same for `ms` (the first value at once, so a link with software: in it asks at once). */
+function useSettled(v: string, ms: number): string {
+  const [settled, setSettled] = useState(v)
+  useEffect(() => {
+    const id = setTimeout(() => setSettled(v), ms)
+    return () => clearTimeout(id)
+  }, [v, ms])
+  return settled
+}
+
+/** The server's answer for the search's `software:` words (the list carries no software lines): `matches` is undefined while there
+ *  are none or before the first answer; `waiting` while the answer for the words typed now is not in yet (an empty list then means
+ *  "not known yet", not "no device runs it"); `error` when that answer failed. */
+function useMatches(swWanted: string[]): { matches: SoftwareMatches | undefined; waiting: boolean; error: unknown } {
+  const key = swWanted.join(',')
+  const settled = useSettled(key, SOFTWARE_SETTLE_MS)
+  const r = useSoftwareMatches(useMemo(() => (settled ? settled.split(',') : []), [settled]))
+  const on = swWanted.length > 0
+  const matches = useMemo(() => (on && r.data ? softwareMatches(r.data.items) : undefined), [on, r.data])
+  const error = on && settled === key && r.isError ? r.error : null
+  return { matches, waiting: on && !error && (settled !== key || r.isPlaceholderData || !r.data), error }
+}
+
+/** What an empty list says while the `software:` answer is not in, or when it failed; undefined: the usual "no match". */
+function SoftwareNote({ waiting, error }: { waiting: boolean; error: unknown }) {
+  const { t } = useTranslation('inventory')
+  if (error) return <span role="alert">{errMsg(error)}</span>
+  return waiting ? <span>{t('search.softwareWaiting')}</span> : null
+}
+
 /** Devices: the approved list (#849). */
-function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy; bar: Bar }) {
+function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; query: Query; same: SamePairsBy; bar: Bar }) {
   const { t } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
   const deferred = useDeferredValue(q)
-  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
+  const sw = useMatches(swWanted)
+  const { matches } = sw
+  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
   const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
   const [sel, ops] = useRowSelection()
   const shownIds = shown.map((d) => d.id)
@@ -245,11 +280,11 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
     // M2: with software: in the search the list answers "which devices run it, at which version" (the old Software tab), as runZero does.
     ...(swWanted.length ? [{
-      id: 'matched', header: t('col.matched'), accessorFn: (d: DeviceRow) => matchSoftware(d, swWanted).map((x) => x.display).join(' '),
+      id: 'matched', header: t('col.matched'), accessorFn: (d: DeviceRow) => matchSoftware(d, swWanted, matches).map((x) => x.display).join(' '),
       cell: ({ row }: { row: { original: DeviceRow } }) => {
-        const m = matchSoftware(row.original, swWanted)
+        const m = matchSoftware(row.original, swWanted, matches)
         if (!m.length) return dash
-        const line = (x: DeviceRow['software'][number]) => `${x.display} ${x.version ?? t('software.noVersion')}`
+        const line = (x: ListSoftware) => `${x.display} ${x.version ?? t('software.noVersion')}`
         return (
           <span className="flex items-center gap-1.5 whitespace-nowrap" title={m.map((x) => `${line(x)} (${t(`common:source.${x.source}`, { defaultValue: x.source })})`).join('\n')}>
             <span className="font-medium">{m[0]!.display}</span><span className="tabular-nums">{m[0]!.version ?? <span className="text-muted">{t('software.noVersion')}</span>}</span>
@@ -264,12 +299,13 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
+      <DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
         search={false} urlKey="devices" resetPageOn={deferred}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
         empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}
+        emptyFiltered={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined}
         mobileRow={(d) => {
           const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
           return (
@@ -287,7 +323,7 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
               </div>
               {swWanted.length ? (() => {
                 // the phone's Matched software line (#849): what software: found on this device, with its version
-                const m = matchSoftware(d, swWanted)
+                const m = matchSoftware(d, swWanted, matches)
                 return m.length ? <p className="text-meta">{m.map((x) => `${x.display} ${x.version ?? t('software.noVersion')}`).join(', ')}</p> : null
               })() : null}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
@@ -302,14 +338,18 @@ function DevicesList({ rows, now, query, same, bar }: { rows: DeviceRow[]; now: 
 }
 
 /** To review: found by a scan or by listening, not approved yet (S-INV-3). Same search box. */
-function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same, bar }: { rows: DeviceRow[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy; bar: Bar }) {
+function ReviewList({ rows, top, now, notifyNew, notifyAvailable, query, same, bar }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy; bar: Bar }) {
   const { q, clear } = query
   const deferred = useDeferredValue(q)
-  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
+  const swWanted = useMemo(() => softwareValues(deferred), [deferred])
+  const sw = useMatches(swWanted)
+  const { matches } = sw
+  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
-        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear} />
+        search={<><DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear}
+        none={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined} />
     </section>
   )
 }
@@ -401,8 +441,8 @@ function Body() {
               {/* #949: findings could not answer; the list still shows, quietly without risk marks */}
               {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
-                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} bar={bar} /> },
-                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} bar={bar} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
+                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} top={d.top_software.devices} now={now} query={query} same={same} bar={bar} /> },
+                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} top={d.top_software.review} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} bar={bar} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
                 // The devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
                 ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />

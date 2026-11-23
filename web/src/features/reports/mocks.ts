@@ -1,53 +1,18 @@
-// Mock API module reports (S-REP-1, S-REP-2). Bảng riêng: rep_schedule, rep_history, rep_weekly_ai, rep_pdpl,
-// and for the periodic report rep_definition, rep_sent (the sent documents).
+// Mock API of the reports module (S-REP-1, S-REP-2). Tables: rep_definition, rep_sent (the sent documents; the server keeps
+// them in rep_history) and rep_pdpl.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, EMAIL_RE, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, isOn, orgStore, recordAiRun } from '@/mocks/stores'
 import { buildDocument, DEFAULT_OPTIONS } from './document'
 import { buildPdpl } from './pdpl'
-import { buildWeekly } from './weekly'
-import type { AiSummary, DataVolume, HistoryEntry, OrgSize, PdplOrg, PdplReport, ReportDefinition, ReportDefinitionInput, ReportOptions, Schedule, SentReport, WeeklyReport } from './types'
+import type { AiSummary, DataVolume, OrgSize, PdplOrg, PdplReport, ReportDefinition, ReportDefinitionInput, ReportOptions, SentReport } from './types'
 
 const VOLUMES: DataVolume[] = ['lt1k', '1k_10k', '10k_100k', 'gte100k']
 const SIZES: OrgSize[] = ['household', 'micro', 'small', 'startup', 'other']
 
-type StoredSchedule = Omit<Schedule, 'next_run'>
-// Cài sạch: chưa có người nhận nào, chưa gửi gì, nên tắt gửi tự động cho tới khi người dùng thêm email.
-const schedule = collection<StoredSchedule>('rep_schedule', () => ({ enabled: true, day: 1, hour: 8, recipients: ['director@acme.example', 'it@acme.example'] }), () => ({ enabled: false, day: 1, hour: 8, recipients: [] }))
-const history = collection<HistoryEntry[]>('rep_history', () =>
-  [1, 2, 3].map((k): HistoryEntry => {
-    const at = Date.now() - k * 7 * 864e5
-    const failed = k === 3
-    return { id: `h-${k}`, ts: new Date(at).toISOString(), trigger: 'scheduled', recipients: ['director@acme.example', 'it@acme.example'], status: failed ? 'failed' : 'sent', error: failed ? 'The email channel has no valid SMTP settings. Check Settings, Alert channels, then send again.' : undefined, report: buildWeekly(at) }
-  }), () => [])
-const weeklyAi = collection<AiSummary | null>('rep_weekly_ai', () => null)
 const pdpl = collection<{ org: PdplOrg | null; report: PdplReport | null }>('rep_pdpl', () => ({ org: null, report: null }))
 
-/** Lần gửi kế tiếp theo ngày/giờ đã đặt (giờ địa phương của trình duyệt chạy mock). */
-function nextRun(s: StoredSchedule): string | null {
-  if (!s.enabled) return null
-  const d = new Date()
-  d.setHours(s.hour, 0, 0, 0)
-  const want = s.day % 7 // 1 = Monday … 7 = Sunday; JS getDay: 0 = Sunday
-  let add = (want - d.getDay() + 7) % 7
-  if (add === 0 && d.getTime() <= Date.now()) add = 7
-  d.setDate(d.getDate() + add)
-  return d.toISOString()
-}
-const withNext = (s: StoredSchedule): Schedule => ({ ...s, next_run: nextRun(s) })
-
-function weeklyNow(): WeeklyReport { return { ...buildWeekly(), ai_summary: weeklyAi.get() } }
-
-function aiWeekly(r: WeeklyReport): string[] {
-  const c = r.counts
-  const first = `Last week had ${c.new_findings} new findings and ${c.resolved} resolved; ${c.open_confirmed + c.open_suspected} remain open, ${c.open_confirmed} of them confirmed.`
-  const top = r.open.find((x) => x.status === 'confirmed')
-  const second = top
-    ? `Do first: ${top.cve} on ${top.device} was confirmed by a scan; patch it or apply a temporary fix this week.`
-    : 'No finding is confirmed; check the suspected ones to rule them out or confirm them.'
-  return [first, second, `${c.devices_unapproved} devices are still waiting for approval.`]
-}
 function aiPdpl(r: PdplReport): string[] {
   const att = r.measures.filter((m) => m.status === 'attention').length
   const unk = r.measures.filter((m) => m.status === 'unknown').length
@@ -56,17 +21,6 @@ function aiPdpl(r: PdplReport): string[] {
     `${r.risks.length} findings of exploited vulnerabilities are still open. These technical weaknesses should be closed before filing any dossier.`,
     'Obligations about dossiers, procedures and contracts are outside what Vedette can see; the responsible person must confirm each one.',
   ]
-}
-
-function checkSchedule(b: Partial<StoredSchedule>) {
-  if (!Number.isInteger(b.day) || (b.day as number) < 1 || (b.day as number) > 7) return fail(400, 'invalid_day', 'Pick a day of the week.')
-  if (!Number.isInteger(b.hour) || (b.hour as number) < 0 || (b.hour as number) > 23) return fail(400, 'invalid_hour', 'The send hour must be 0 to 23.')
-  const rec = b.recipients
-  if (!Array.isArray(rec) || rec.length > 20) return fail(400, 'invalid_recipients', 'The recipient list holds 20 emails at most.')
-  const bad = rec.find((e) => typeof e !== 'string' || e.length > 120 || !EMAIL_RE.test(e))
-  if (bad !== undefined) return fail(400, 'invalid_email', `The email "${String(bad).slice(0, 60)}" is not valid. Use the form name@company.com.`)
-  if (b.enabled === true && rec.length === 0) return fail(400, 'no_recipients', 'Automatic sending needs at least one recipient. Add an email, then save.')
-  return null
 }
 
 function checkOrg(b: Partial<PdplOrg>): Response | PdplOrg {
@@ -169,49 +123,6 @@ const aiNotReady = () => fail(409, 'ai_unavailable', isOn('ai')
 
 export const handlers = [
   ...reportHandlers,
-  http.get(`${API}/reports/weekly/preview`, () => guard('viewer') ?? HttpResponse.json({ report: weeklyNow(), ai_available: aiAvailable('weekly-report') })),
-
-  http.post(`${API}/reports/weekly/ai-summary`, () => {
-    const denied = guard('operator'); if (denied) return denied
-    if (!aiAvailable('weekly-report')) return aiNotReady()
-    const r = buildWeekly()
-    const tin = 3900, tout = 1500
-    const prof = aiCandidates('weekly-report')[0]!
-    recordAiRun('weekly-report', tin, tout, 'weekly report', prof)
-    const s: AiSummary = { paragraphs: aiWeekly(r), model: prof.model, profile: prof.name, tokens: { input: tin, output: tout }, generated_at: nowIso() }
-    weeklyAi.set(s)
-    audit('report.weekly.ai', 'weekly')
-    return HttpResponse.json(s)
-  }),
-
-  http.get(`${API}/reports/schedule`, () => guard('viewer') ?? HttpResponse.json(withNext(schedule.get()))),
-  http.put(`${API}/reports/schedule`, async ({ request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const b = await body<StoredSchedule>(request)
-    const bad = checkSchedule(b); if (bad) return bad
-    const next: StoredSchedule = { enabled: b.enabled === true, day: b.day!, hour: b.hour!, recipients: [...new Set(b.recipients!.map((e) => e.trim().toLowerCase()))] }
-    schedule.set(next)
-    audit('report.schedule', 'weekly', `${next.enabled ? 'on' : 'off'}, ${next.day} ${next.hour}:00, ${next.recipients.length} recipients`)
-    return HttpResponse.json(withNext(next))
-  }),
-
-  http.get(`${API}/reports/weekly/history`, () => guard('viewer') ?? HttpResponse.json({ items: history.get().map(({ report: _r, ...h }) => h) })),
-  http.get(`${API}/reports/weekly/history/:id`, ({ params }) => {
-    const denied = guard('viewer'); if (denied) return denied
-    const h = history.get().find((x) => x.id === params.id)
-    return h ? HttpResponse.json(h) : fail(404, 'not_found', 'This report is not in the history.')
-  }),
-  http.post(`${API}/reports/weekly/send`, () => {
-    const denied = guard('operator'); if (denied) return denied
-    const to = schedule.get().recipients
-    if (to.length === 0) return fail(400, 'no_recipients', 'There is no recipient. Add an email under Schedule and recipients, then send again.')
-    const e: HistoryEntry = { id: newId('h'), ts: nowIso(), trigger: 'manual', recipients: to, status: 'sent', report: weeklyNow() }
-    history.update((l) => [e, ...l].slice(0, 50))
-    audit('report.weekly.send', 'weekly', `${to.length} recipients`)
-    const { report: _r, ...entry } = e
-    return HttpResponse.json(entry)
-  }),
-
   http.get(`${API}/reports/pdpl`, () => {
     const denied = guard('viewer'); if (denied) return denied
     return HttpResponse.json({ ...pdpl.get(), defaults: { name: orgStore.get().name }, ai_available: aiAvailable('pdpl-assessment') })

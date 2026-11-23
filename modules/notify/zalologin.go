@@ -218,24 +218,29 @@ func (s *Service) driveZaloLogin(base context.Context, stop context.CancelFunc, 
 	if base.Err() != nil { // cancelled: not a result
 		return
 	}
-	note := ""
-	ok := set(func() {
-		switch {
-		case err == nil:
+	var note string
+	var apply func()
+	switch {
+	case err == nil:
+		note = "signed in as " + signed.Name
+		apply = func() {
 			run.state, run.name, run.signed, run.ends = "signed_in", signed.Name, signed, time.Now().Add(zaloLoginKeep)
-			note = "signed in as " + signed.Name
-		case errors.Is(err, channel.ErrZaloQRExpired):
-			run.state, note = "expired", "the QR code expired"
-		case errors.Is(err, channel.ErrZaloQRDeclined):
-			run.state, note = "declined", "declined in the Zalo app"
-		default:
-			run.state, run.errText = "failed", userText(err)
-			note = "failed: " + run.errText
 		}
-	})
-	if ok {
-		s.noteZaloLogin(base, run.owner, note)
+	case errors.Is(err, channel.ErrZaloQRExpired):
+		note, apply = "the QR code expired", func() { run.state = "expired" }
+	case errors.Is(err, channel.ErrZaloQRDeclined):
+		note, apply = "declined in the Zalo app", func() { run.state = "declined" }
+	default:
+		text := userText(err)
+		note, apply = "failed: "+text, func() { run.state, run.errText = "failed", text }
 	}
+	// The audit row is written before the administrator can see the result: whoever sees "signed in" and saves finds the
+	// sign-in already in the audit log, before the save. A run already replaced or cancelled records nothing.
+	if !set(func() {}) {
+		return
+	}
+	s.noteZaloLogin(base, run.owner, note)
+	set(apply)
 }
 
 func (s *Service) noteZaloLogin(ctx context.Context, who, detail string) {

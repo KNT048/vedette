@@ -59,8 +59,11 @@ func mapError(err error) (*apierr.Error, bool) {
 			if errors.As(err, &reqErr) {
 				op = reqErr.ID
 			}
-			if msg, ok := fieldRule[op+" "+path]; ok {
-				return apierr.Invalid(msg).With("field", path), false
+			if r, ok := fieldRule[op+" "+arrayIndex.ReplaceAllString(path, "[]")]; ok {
+				if r.code == "" {
+					return apierr.Invalid(r.msg).With("field", path), false
+				}
+				return apierr.New(http.StatusBadRequest, r.code, r.msg).With("field", path), false
 			}
 			return apierr.Invalid(fmt.Sprintf("The field %q is missing or has a value that is not allowed. Fix it and try again.", path)).With("field", path), false
 		}
@@ -85,14 +88,23 @@ func mapError(err error) (*apierr.Error, bool) {
 	return apierr.Internal(), true
 }
 
-// fieldRule names the rule of a field whose contract pattern refuses a value before any handler runs, so the user is told what is
-// allowed (the same sentence the handler's own check and the mock use). Keyed by operation id and field: other endpoints have their
-// own `username` pattern (the credentialed scan's differs).
-var fieldRule = map[string]string{
-	"core_post_core_connections username":      connUserRule,
-	"core_put_core_connections_id username":    connUserRule,
-	"exposure_patch_exposure_tree_id selected": selectedNamesRule,
+// fieldRule names the rule of a field whose contract schema refuses a value before any handler runs, so the user is told what is
+// allowed (the same sentence the handler's own check and the mock use), and, where the contract answers with its own error code,
+// that code (empty = "invalid"). Keyed by operation id and field, an array index written "[]": other endpoints have their own
+// `username` pattern (the credentialed scan's differs).
+var fieldRule = map[string]struct{ code, msg string }{
+	"core_post_core_connections username":             {"", connUserRule},
+	"core_put_core_connections_id username":           {"", connUserRule},
+	"exposure_patch_exposure_tree_id selected":        {"", selectedNamesRule},
+	"reports_put_reports_definition name":             {"invalid_name", "The report name must be 1 to 80 characters."},
+	"reports_put_reports_definition options.period":   {"invalid_period", "Pick the period: the last 7 days, the last 30 days or the last calendar month."},
+	"reports_put_reports_definition options.grouping": {"invalid_grouping", "Group the open findings by device or by CVE."},
+	"reports_put_reports_definition recipients":       {"invalid_recipients", "The recipient list holds 20 emails at most."},
+	"reports_put_reports_definition recipients[]":     {"invalid_email", "An email is not valid. Use the form name@company.com."},
 }
+
+// arrayIndex is an array index in a field path ("recipients[3]"), written "[]" in the keys of fieldRule.
+var arrayIndex = regexp.MustCompile(`\[[0-9]+\]`)
 
 // selectedNamesRule is why a target chooses at most 299 of its names (exposure.MaxSelected; contract.ts SELECTED_LIMIT_WHY).
 const selectedNamesRule = "Choose at most 299 names: one scan reads at most 300 names, this one included. For more, add a subdomain as its own target."

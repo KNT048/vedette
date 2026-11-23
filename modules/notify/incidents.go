@@ -214,73 +214,74 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 	return err
 }
 
-// incidentClass is the kind a weekly report names an incident by, read in SQL so a busy week is counted whole. The two log
-// anomalies of the failed-login rule (modules/logs/authfail.go) are told apart by their title (GLOB: anchored and case-sensitive, so a log line that merely says "accepted" is not one); a "failed logins" one of severity
-// high had a login accepted in it, so it counts as accepted. A new-device incident has no class: Devices counts those.
-const incidentClass = `CASE kind WHEN 'trap' THEN 'trap' WHEN 'bad_address' THEN 'bad_connection' WHEN 'log_anomaly' THEN
-	CASE WHEN title GLOB 'A login from * was ACCEPTED after *' OR (title GLOB '[0-9]* failed logins from * on *' AND severity = 'high') THEN 'login_accepted'
-	WHEN title GLOB '[0-9]* failed logins from * on *' THEN 'failed_logins' ELSE 'anomaly' END END`
-
-// IncidentBrief is one incident of an IncidentWindow.
-type IncidentBrief struct {
-	Class    string // login_accepted, trap, failed_logins, bad_connection or anomaly
-	Severity Severity
-	Title    string
-	Count    int
-	LastSeen time.Time
+// IncidentTop is one incident of an IncidentPeriod: its kind, severity, title, the newest activity and its first device ("" = none).
+type IncidentTop struct {
+	Kind       IncidentKind
+	Severity   Severity
+	Title      string
+	LastSeen   time.Time
+	DeviceID   string
+	DeviceName string
 }
 
-// IncidentWindow is the incidents last seen since a time: how many of each class (all of them, however many there are) and the
-// first few that matter most: accepted logins, traps, failed logins, bad connections, then by severity and recency.
-type IncidentWindow struct {
-	Counts map[string]int
-	Top    []IncidentBrief
+// IncidentPeriod is the incidents with activity in a period: how many of each kind (all of them, however many there are, with the
+// newest activity) and the first few that matter most, by severity then recency.
+type IncidentPeriod struct {
+	Kinds []KindCount
+	Top   []IncidentTop
 }
 
-// IncidentsSince reads the window for the weekly report; top is how many incidents to name.
-func (s *Service) IncidentsSince(ctx context.Context, since time.Time, top int) (IncidentWindow, error) {
+// IncidentsIn reads the incidents with activity in the period (from, to]: first seen before its end and last seen after its start,
+// for the periodic report; top is how many incidents to name.
+func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) (IncidentPeriod, error) {
 	db := s.cfg.DB.Reader()
-	w := IncidentWindow{Counts: map[string]int{}}
-	from := store.FormatTS(since)
-	rows, err := db.QueryContext(ctx, `SELECT c, COUNT(*) FROM (SELECT `+incidentClass+` AS c FROM notify_incident WHERE last_seen > ?) WHERE c IS NOT NULL GROUP BY c`, from)
+	var p IncidentPeriod
+	f, t := store.FormatTS(from), store.FormatTS(to)
+	rows, err := db.QueryContext(ctx, `SELECT kind, count(*), sum(status = 'new'), max(last_seen) FROM notify_incident WHERE last_seen > ? AND first_seen <= ?
+		GROUP BY kind ORDER BY kind`, f, t)
 	if err != nil {
-		return w, fmt.Errorf("notify: count incidents: %w", err)
+		return p, fmt.Errorf("notify: count incidents: %w", err)
 	}
 	for rows.Next() {
-		var c string
-		var n int
-		if err := rows.Scan(&c, &n); err != nil {
+		var c KindCount
+		var k, last string
+		if err := rows.Scan(&k, &c.Incidents, &c.New, &last); err != nil {
 			_ = rows.Close()
-			return w, fmt.Errorf("notify: count incidents: %w", err)
+			return p, fmt.Errorf("notify: count incidents: %w", err)
 		}
-		w.Counts[c] = n
+		c.Kind = IncidentKind(k)
+		c.LastSeenAt, _ = time.Parse(time.RFC3339Nano, last)
+		p.Kinds = append(p.Kinds, c)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return w, fmt.Errorf("notify: count incidents: %w", err)
+		return p, fmt.Errorf("notify: count incidents: %w", err)
 	}
-	rows, err = db.QueryContext(ctx, `SELECT c, severity, title, count, last_seen FROM (SELECT `+incidentClass+` AS c, severity, title, count, last_seen FROM notify_incident WHERE last_seen > ?)
-		WHERE c IS NOT NULL ORDER BY CASE c WHEN 'login_accepted' THEN 0 WHEN 'trap' THEN 1 WHEN 'failed_logins' THEN 2 WHEN 'bad_connection' THEN 3 ELSE 4 END,
-		CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, last_seen DESC LIMIT ?`, from, top)
+	rows, err = db.QueryContext(ctx, `SELECT i.kind, i.severity, i.title, i.last_seen,
+			ifnull((SELECT d.asset_id FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), ''),
+			ifnull((SELECT d.name FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), '')
+		FROM notify_incident i WHERE i.last_seen > ? AND i.first_seen <= ?
+		ORDER BY CASE i.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, i.last_seen DESC, i.id LIMIT ?`, f, t, top)
 	if err != nil {
-		return w, fmt.Errorf("notify: top incidents: %w", err)
+		return p, fmt.Errorf("notify: top incidents: %w", err)
 	}
 	for rows.Next() {
-		var b IncidentBrief
-		var at string
-		if err := rows.Scan(&b.Class, &b.Severity, &b.Title, &b.Count, &at); err != nil {
+		var x IncidentTop
+		var k, sev, at string
+		if err := rows.Scan(&k, &sev, &x.Title, &at, &x.DeviceID, &x.DeviceName); err != nil {
 			_ = rows.Close()
-			return w, fmt.Errorf("notify: top incidents: %w", err)
+			return p, fmt.Errorf("notify: top incidents: %w", err)
 		}
-		if b.LastSeen, err = time.Parse(time.RFC3339, at); err != nil {
+		x.Kind, x.Severity = IncidentKind(k), Severity(sev)
+		if x.LastSeen, err = time.Parse(time.RFC3339Nano, at); err != nil {
 			_ = rows.Close()
-			return w, fmt.Errorf("notify: top incidents: %w", err)
+			return p, fmt.Errorf("notify: top incidents: %w", err)
 		}
-		w.Top = append(w.Top, b)
+		p.Top = append(p.Top, x)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return w, fmt.Errorf("notify: top incidents: %w", err)
+		return p, fmt.Errorf("notify: top incidents: %w", err)
 	}
-	return w, nil
+	return p, nil
 }
 
 // Incidents lists the incidents for GET /notify/incidents: every open one (new or acknowledged) first, then the resolved ones, each

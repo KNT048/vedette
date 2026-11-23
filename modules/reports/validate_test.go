@@ -1,52 +1,42 @@
 package reports
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
 
-func TestCheckScheduleRejects(t *testing.T) {
+func TestCheckDefinition(t *testing.T) {
 	t.Parallel()
-	many := make([]string, 21)
+	ok := DefinitionInput{Name: "Security report", Options: DefaultOptions, Recipients: []string{}}
+	if _, err := checkDefinition(ok); err != nil {
+		t.Fatalf("the default was refused: %v", err)
+	}
+	many := make([]string, MaxRecipients+1)
 	for i := range many {
-		many[i] = strings.Repeat("a", i+1) + "@x.example"
+		many[i] = fmt.Sprintf("u%d@acme.example", i)
 	}
 	for _, c := range []struct {
-		name string
-		in   ScheduleInput
-		code string
+		name        string
+		edit        func(*DefinitionInput)
+		code, field string
 	}{
-		{"day 0", ScheduleInput{Day: 0, Hour: 8}, "invalid_day"},
-		{"day 8", ScheduleInput{Day: 8, Hour: 8}, "invalid_day"},
-		{"hour 24", ScheduleInput{Day: 1, Hour: 24}, "invalid_hour"},
-		{"hour -1", ScheduleInput{Day: 1, Hour: -1}, "invalid_hour"},
-		{"21 recipients", ScheduleInput{Day: 1, Hour: 8, Recipients: many}, "invalid_recipients"},
-		{"no at", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{"nobody"}}, "invalid_email"},
-		{"header injection", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{"a@x.example\r\nBcc: b@y.example"}}, "invalid_email"},
-		{"semicolon", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{"a;b@x.example"}}, "invalid_email"},
-		{"comma", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{"a,b@x.example"}}, "invalid_email"},
-		{"space inside", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{"a b@x.example"}}, "invalid_email"},
-		{"too long", ScheduleInput{Day: 1, Hour: 8, Recipients: []string{strings.Repeat("a", 120) + "@x.example"}}, "invalid_email"},
-		{"on without recipients", ScheduleInput{Enabled: true, Day: 1, Hour: 8}, "no_recipients"},
+		{"blank name", func(d *DefinitionInput) { d.Name = " " }, "invalid_name", "name"},
+		{"long name", func(d *DefinitionInput) { d.Name = strings.Repeat("x", 81) }, "invalid_name", "name"},
+		{"control in name", func(d *DefinitionInput) { d.Name = "a\nb" }, "invalid_name", "name"},
+		{"period", func(d *DefinitionInput) { d.Options.Period = "yearly" }, "invalid_period", "options.period"},
+		{"grouping", func(d *DefinitionInput) { d.Options.Grouping = "site" }, "invalid_grouping", "options.grouping"},
+		{"no section", func(d *DefinitionInput) { d.Options.Sections = Sections{} }, "no_sections", "options.sections"},
+		{"too many", func(d *DefinitionInput) { d.Recipients = many }, "invalid_recipients", "recipients"},
+		{"bad email", func(d *DefinitionInput) { d.Recipients = []string{"ok@acme.example", "not-an-email"} }, "invalid_email", "recipients[1]"},
+		{"crlf email", func(d *DefinitionInput) { d.Recipients = []string{"a@acme.example\r\nBcc: x@y.example"} }, "invalid_email", "recipients[0]"},
 	} {
-		_, err := checkSchedule(c.in)
-		if err == nil || err.Code != c.code {
-			t.Errorf("%s: err = %v, want %s", c.name, err, c.code)
+		d := ok
+		c.edit(&d)
+		_, err := checkDefinition(d)
+		if err == nil || err.Code != c.code || err.Extra["field"] != c.field {
+			t.Errorf("%s: err = %v %v, want %s on %s", c.name, err, err, c.code, c.field)
 		}
-	}
-}
-
-func TestCheckScheduleNormalises(t *testing.T) {
-	t.Parallel()
-	got, err := checkSchedule(ScheduleInput{Enabled: true, Day: 7, Hour: 23, Recipients: []string{" Boss@Acme.Example ", "boss@acme.example", "it@acme.example"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Recipients) != 2 || got.Recipients[0] != "boss@acme.example" {
-		t.Fatalf("recipients = %v", got.Recipients)
-	}
-	if _, err := checkSchedule(ScheduleInput{Day: 1, Hour: 8}); err != nil {
-		t.Fatalf("an off schedule with no recipients is fine: %v", err)
 	}
 }
 

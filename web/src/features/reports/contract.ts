@@ -1,67 +1,18 @@
-// Hợp đồng API module reports. Kiểu UI suy ra từ schema ở đây (types.ts).
+// API contract of the reports module. The UI types are inferred from the schemas here (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
 const iso = z.iso.datetime()
 const email = z.string().max(120)
+// One open finding of the assessment's risks.
 export const FindingRow = z.object({
   id: z.string(), cve: z.string(), device: z.string(), asset_id: z.string(), product: z.string(),
   status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted']),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
-  by: z.string().optional().describe('Who closed it (rows of what was done)'),
   agent: z.boolean().optional().describe("The version compared is the one the device's own agent reports (findings evidence.agent): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it"),
   device_approved: z.boolean().optional().describe('False when the device is still to review, not in the Devices list yet; absent in reports made before it (read as approved)'),
 })
-export const TopRisk = z.object({
-  product: z.string().describe('The product as Findings names it'), device: z.string().describe('The device, or the first names and how many more'),
-  devices: z.number().int(), open: z.number().int(), confirmed: z.number().int().describe('Open findings a scan confirmed'),
-  severity: z.enum(['critical', 'high', 'medium', 'low', 'info']).describe('The worst severity'), cve: z.string(), finding_id: z.string().describe('Its worst finding'),
-  action: z.string().optional().describe('What to do this week, one sentence naming the device(s) and the fixed version when NVD says; absent in reports sent before it'),
-})
-export const ActionItem = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('fix'), cve: z.string(), device: z.string(), finding_id: z.string(), product: z.string().optional(), count: z.number().int().optional(), text: z.string().optional().describe('The sentence of the top risk action') }).describe('One top risk: product and count (its open findings) are set; cve and finding_id are its worst finding'),
-  z.object({ kind: z.literal('verify'), cve: z.string(), device: z.string(), finding_id: z.string(), product: z.string().optional(), count: z.number().int().optional(), text: z.string().optional() }),
-  z.object({ kind: z.literal('review_devices'), count: z.number().int() }),
-  z.object({ kind: z.literal('plan_os'), count: z.number().int() }),
-])
-export const Happened = z.object({
-  traps: z.number().int(), failed_logins: z.number().int(), accepted_logins: z.number().int(), bad_connections: z.number().int(), other: z.number().int(),
-  summary: z.string().describe('The one sentence the page and the email say'),
-  top: z.array(z.object({
-    kind: z.enum(['login_accepted', 'trap', 'failed_logins', 'bad_connection', 'anomaly']), title: z.string(), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']),
-    at: iso.describe('Last seen'),
-  })).max(3),
-}).describe('Incidents of the week from notify: counts per kind and the few that matter')
 export const AiSummary = z.object({ paragraphs: z.array(z.string()), model: z.string(), profile: z.string().optional().describe('AI profile that answered'), tokens: z.object({ input: z.number(), output: z.number() }), generated_at: iso })
-export const WeeklyCounts = z.object({
-  new_findings: z.number(), resolved: z.number().describe('Closed this week; accepted risks are counted in accepted'), open_confirmed: z.number(), open_suspected: z.number(),
-  accepted: z.number().optional().describe('Risks accepted this week; absent when none or in reports sent before it'),
-  accepted_until: z.iso.date().optional().describe('The earliest day one of those acceptances ends'),
-  devices: z.number().describe('Devices as the Devices page counts them, this box included'), devices_unapproved: z.number(), devices_new: z.number(),
-  kev_new: z.number().describe('Vulnerabilities newly exploited in the last 7 days, as Home counts them'),
-  kev_matched: z.number().describe('Products you use among them, as Home counts them (earlier reports: their CVEs on a device)'),
-  not_relevant: z.number().optional().describe('Different findings closed as not relevant among the figures; absent in reports sent before it'),
-  not_relevant_new: z.number().optional().describe('Of new_findings, the ones closed as not relevant'),
-  not_relevant_resolved: z.number().optional().describe('Of resolved, the ones closed as not relevant'),
-})
-export const WeeklyReport = z.object({
-  period: z.object({ from: iso, to: iso }), generated_at: iso,
-  counts: WeeklyCounts,
-  top_risks: z.array(TopRisk).max(3).optional().describe('The three biggest open risks, by product; absent in reports sent before it'),
-  new_findings: z.array(FindingRow), resolved: z.array(FindingRow), open: z.array(FindingRow), actions: z.array(ActionItem),
-  happened: Happened.nullable().optional().describe('Absent or null when notify is off, or in reports sent by an older version'),
-  sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev', 'vulncheck-kev', 'incidents']), at: iso })).describe('Sources of the figures in the report; incidents only when notify is on'),
-  ai_summary: AiSummary.nullable(),
-  approved_only: z.object({ counts: WeeklyCounts, top_risks: z.array(TopRisk).max(3), actions: z.array(ActionItem) }).optional()
-    .describe('The counts, top risks and actions again without the devices not in the Devices list (not approved yet) and their findings; the lists are filtered by device_approved. Absent in reports sent before it'),
-})
-export const WeeklyPreview = z.object({ report: WeeklyReport, ai_available: z.boolean() })
-export const Weekday = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday')
-export const Schedule = z.object({ enabled: z.boolean(), day: Weekday, hour: z.number().int().min(0).max(23), recipients: z.array(email).max(20), next_run: iso.nullable() })
-export const ScheduleInput = Schedule.omit({ next_run: true })
-const HistoryBase = { id: z.string(), ts: iso, trigger: z.enum(['manual', 'scheduled']), recipients: z.array(email), status: z.enum(['sent', 'failed']), error: z.string().optional() }
-export const HistoryItem = z.object(HistoryBase)
-export const HistoryEntry = z.object({ ...HistoryBase, report: WeeklyReport })
 
 export const DataVolume = z.enum(['lt1k', '1k_10k', '10k_100k', 'gte100k'])
 export const OrgSize = z.enum(['household', 'micro', 'small', 'startup', 'other'])
@@ -286,13 +237,6 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/reports/send', summary: 'Make the report now and send it to the saved recipients; the sent document is kept', stories: ['S-REP-1'], role: 'operator', response: SentReportItem },
   { method: 'get', path: '/reports/history', summary: 'Reports sent, newest first', stories: ['S-REP-1'], role: 'viewer', response: z.object({ items: z.array(SentReportItem) }) },
   { method: 'get', path: '/reports/history/{id}', summary: 'One sent report, the document exactly as it was sent', stories: ['S-REP-1'], role: 'viewer', params: z.object({ id: z.string() }), response: SentReport, example: { params: { id: 'rh-1' } } },
-  { method: 'get', path: '/reports/weekly/preview', summary: 'One-page weekly report, figures computed when opened', stories: ['S-REP-1'], role: 'viewer', response: WeeklyPreview },
-  { method: 'post', path: '/reports/weekly/ai-summary', summary: 'Draft a commentary for the weekly report with the customer AI', stories: ['S-REP-1', 'S-AI-6'], role: 'operator', response: AiSummary },
-  { method: 'get', path: '/reports/schedule', summary: 'Weekly report schedule and recipients', stories: ['S-REP-1'], role: 'viewer', response: Schedule },
-  { method: 'put', path: '/reports/schedule', summary: 'Save schedule and recipients (emails validated, max 20)', stories: ['S-REP-1'], role: 'admin', body: ScheduleInput, response: Schedule },
-  { method: 'get', path: '/reports/weekly/history', summary: 'History of sent weekly reports', stories: ['S-REP-1'], role: 'viewer', response: z.object({ items: z.array(HistoryItem) }) },
-  { method: 'get', path: '/reports/weekly/history/{id}', summary: 'One sent report with the original figures of that week, for reprinting', stories: ['S-REP-1'], role: 'viewer', params: z.object({ id: z.string() }), response: HistoryEntry, example: { params: { id: 'h-1' } } },
-  { method: 'post', path: '/reports/weekly/send', summary: 'Send the weekly report now to the scheduled recipients', stories: ['S-REP-1'], role: 'operator', response: HistoryItem },
   { method: 'get', path: '/reports/pdpl', summary: 'Organization details and the generated assessment report', stories: ['S-REP-2'], role: 'viewer', response: PdplState },
   { method: 'put', path: '/reports/pdpl/org', summary: 'Save organization details for the assessment report (each field validated)', stories: ['S-REP-2'], role: 'operator', body: PdplOrg, response: PdplOrg },
   { method: 'post', path: '/reports/pdpl/generate', summary: 'Generate the assessment report from inventory, findings and module status', stories: ['S-REP-2'], role: 'operator', response: PdplReport },

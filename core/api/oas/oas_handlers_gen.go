@@ -36614,7 +36614,9 @@ func (s *Server) handleInventoryPostInventoryDevicesIDSoftwareRequest(args [1]st
 // one was (no new-device alert), and the pair is kept separate: never offered as possibly the same
 // device again. Findings follow the software (matched again on both). One audit row. Returns the new
 // device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one
-// of this device's addresses. 409 box_device; 409 only_address: the device has no other address.
+// of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409
+// agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with
+// the agent's machine: split off the other addresses.
 //
 // POST /inventory/devices/{id}/split
 func (s *Server) handleInventoryPostInventoryDevicesIDSplitRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36708,7 +36710,7 @@ func (s *Server) handleInventoryPostInventoryDevicesIDSplitRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventoryDevicesIDSplitOperation,
-			OperationSummary: "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address",
+			OperationSummary: "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409 agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with the agent's machine: split off the other addresses",
 			OperationID:      "inventory_post_inventory_devices_id_split",
 			Body:             request,
 			RawBody:          rawBody,

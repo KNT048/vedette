@@ -300,3 +300,80 @@ func TestAddresses_ARowsAddressBecomesTheMainOne(t *testing.T) {
 		t.Errorf("%d scan readings, %d of them the old version; want the new reading only", n, old)
 	}
 }
+
+// A split never takes the address a device's agent reports from (409 agent_address): the agent's next report would follow that
+// address to the new device while its earlier software and findings stay on the old one. The other addresses split off as usual,
+// and the device page marks the agent's address so the page offers no split for it. Both agents are checked: an osquery node bound by
+// its key (the address it last reported from) and a Wazuh agent (an address or MAC the Wazuh connection delivered).
+func TestAddresses_SplitKeepsTheAgentsAddress(t *testing.T) {
+	t.Parallel()
+	agentSoftware := []observe.Software{{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.2", Confidence: 0.9}}
+	for _, tc := range []struct {
+		name   string
+		opts   []opt
+		report func(e *env) // the agent's report from 10.0.18.20 (card burnt1), with its software
+	}{
+		{name: "osquery", report: func(e *env) {
+			e.record(osq("10.0.18.20")...)
+			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), Agent: "osquery:node-a"}, observe.Osquery, nil, agentSoftware); err != nil {
+				e.t.Fatal(err)
+			}
+		}},
+		{name: "wazuh", opts: []opt{withWazuh([]string{"10.0.18.20"}, []string{burnt1})}, report: func(e *env) {
+			h := observe.AssetHint{IP: netip.MustParseAddr("10.0.18.20"), MAC: burnt1}
+			e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9},
+				observe.Observation{AssetHint: h, Field: observe.MAC, Value: burnt1, Source: observe.Agent, Confidence: 0.9})
+			if err := e.svc.ReplaceSoftware(e.ctx(), h, observe.Wazuh, nil, agentSoftware); err != nil {
+				e.t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t, tc.opts...)
+			tc.report(e)
+			e.tick(time.Minute)
+			e.record(dhcp(burnt2, "10.0.18.21", "")...) // the server's second card, seen last: it keeps the main address
+			id, other := e.idOf("10.0.18.20"), e.idOf("10.0.18.21")
+			if err := e.svc.Merge(e.ctx(), admin, id, other); err != nil {
+				t.Fatal(err)
+			}
+			before, n := e.addresses(id), e.devices()
+			d, err := e.svc.Detail(e.ctx(), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var marked []string
+			for _, a := range d.Addresses {
+				if a.Agent {
+					marked = append(marked, *a.IP)
+				}
+			}
+			if !slices.Equal(marked, []string{"10.0.18.20"}) {
+				t.Errorf("addresses marked as the agent's: %v", marked)
+			}
+			for _, addr := range []string{"10.0.18.20", strings.ToUpper(burnt1)} {
+				_, err := e.svc.Split(e.ctx(), admin, id, addr)
+				wantAPIError(t, err, 409, "agent_address")
+				if got := e.addresses(id); e.devices() != n || !slices.Equal(got, before) {
+					t.Fatalf("a refused split of %s changed the devices: %d devices, %v (was %v)", addr, e.devices(), got, before)
+				}
+			}
+			nw, err := e.svc.Split(e.ctx(), admin, id, "10.0.18.21") // the other card splits off
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.tick(time.Minute)
+			tc.report(e)
+			if got := e.addresses(nw); !slices.Equal(got, []string{"10.0.18.21 " + burnt2 + " main"}) {
+				t.Errorf("the split card: %v", got)
+			}
+			if got := e.addresses(id); len(got) != 1 || !strings.HasPrefix(got[0], "10.0.18.20 "+burnt1) {
+				t.Errorf("the agent's machine after its next report: %v", got)
+			}
+			if lines := e.count(`SELECT count(*) FROM inv_software WHERE asset_id = ? AND state = 'present'`, id); lines != 1 || e.devices() != n+1 {
+				t.Errorf("the agent's machine has %d software lines, %d devices", lines, e.devices())
+			}
+		})
+	}
+}

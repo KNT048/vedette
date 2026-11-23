@@ -2726,7 +2726,9 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDSoftware(ctx context.
 // one was (no new-device alert), and the pair is kept separate: never offered as possibly the same
 // device again. Findings follow the software (matched again on both). One audit row. Returns the new
 // device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one
-// of this device's addresses. 409 box_device; 409 only_address: the device has no other address.
+// of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409
+// agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with
+// the agent's machine: split off the other addresses.
 //
 // POST /inventory/devices/{id}/split
 func (UnimplementedHandler) InventoryPostInventoryDevicesIDSplit(ctx context.Context, req *InventoryPostInventoryDevicesIDSplitReq, params InventoryPostInventoryDevicesIDSplitParams) (r *InventoryPostInventoryDevicesIDSplitOK, _ error) {

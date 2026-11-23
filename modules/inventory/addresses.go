@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -47,6 +49,69 @@ type Address struct {
 	Source    string `json:"source"`
 	FirstSeen string `json:"first_seen"`
 	LastSeen  string `json:"last_seen"`
+	// Agent marks the address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it cannot be
+	// split off (409 agent_address), the agent's machine keeps it.
+	Agent bool `json:"agent"`
+}
+
+// wazuhSet is what the saved Wazuh connection delivered (Config.WazuhAgents): the agents' addresses and MACs. A read error is logged
+// and leaves the sets empty, as the Devices search does.
+func (s *Service) wazuhSet(ctx context.Context) (ips, macs map[string]bool) {
+	ips, macs = map[string]bool{}, map[string]bool{}
+	if s.wazuh == nil {
+		return ips, macs
+	}
+	list, ms, err := s.wazuh(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "inventory: the Wazuh agents could not be read; no device shows the source wazuh", "error", err.Error())
+	}
+	for _, ip := range list {
+		ips[ip] = true
+	}
+	for _, m := range ms {
+		if n, ok := normMAC(m); ok {
+			macs[n] = true
+		}
+	}
+	return ips, macs
+}
+
+// agentIface tells which interface (IP and MAC) of a device its agent reports from: the address an osquery node bound to the device
+// last reported from (agent_ip; the main address while it has none), and an address or MAC the Wazuh connection delivered for a device
+// a Wazuh agent reported. A split never takes that interface (409 agent_address): the agent's next report would follow it to the new
+// device while what the agent reported before stays on this one.
+type agentIface struct{ ips, macs map[string]bool }
+
+func (a agentIface) has(ip, mac sql.NullString) bool {
+	return ip.Valid && a.ips[ip.String] || mac.Valid && a.macs[mac.String]
+}
+
+// agentIfaceOf reads agentIface of device id; wIPs and wMACs are wazuhSet's.
+func agentIfaceOf(ctx context.Context, q querier, id string, wIPs, wMACs map[string]bool) (agentIface, error) {
+	a := agentIface{ips: map[string]bool{}, macs: map[string]bool{}}
+	var keyIP sql.NullString
+	var bound, fed bool
+	err := q.QueryRowContext(ctx, `SELECT agent_key IS NOT NULL, coalesce(agent_ip, ip), EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND source = 'agent')
+		FROM inv_asset a WHERE a.id = ?`, id).Scan(&bound, &keyIP, &fed)
+	if errors.Is(err, sql.ErrNoRows) {
+		return a, nil
+	}
+	if err != nil {
+		return a, fmt.Errorf("inventory: read the device's agent: %w", err)
+	}
+	if !fed && (len(wIPs) > 0 || len(wMACs) > 0) {
+		if fed, err = fedBy(ctx, q, id, string(observe.Wazuh)); err != nil {
+			return a, err
+		}
+	}
+	if bound && keyIP.Valid {
+		a.ips[keyIP.String] = true
+	}
+	if fed { // an agent reported the device: the Wazuh agents' addresses are its agent's
+		maps.Copy(a.ips, wIPs)
+		maps.Copy(a.macs, wMACs)
+	}
+	return a, nil
 }
 
 // extraAddr is one row of inv_asset_address.
@@ -322,6 +387,11 @@ func (s *Service) addresses(ctx context.Context, q querier, id string) ([]Addres
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read device: %w", err)
 	}
+	wIPs, wMACs := s.wazuhSet(ctx)
+	agent, err := agentIfaceOf(ctx, q, id, wIPs, wMACs)
+	if err != nil {
+		return nil, err
+	}
 	out := []Address{}
 	if ip.Valid || mac.Valid {
 		src := macSrc.String
@@ -340,14 +410,16 @@ func (s *Service) addresses(ctx context.Context, q querier, id string) ([]Addres
 		if confirmed.Valid && !mac.Valid {
 			seen = confirmed.String
 		}
-		out = append(out, Address{IP: nullPtr(ip), MAC: nullPtr(mac), Main: true, Source: src, FirstSeen: first.String, LastSeen: seen})
+		out = append(out, Address{IP: nullPtr(ip), MAC: nullPtr(mac), Main: true, Source: src, FirstSeen: first.String, LastSeen: seen,
+			Agent: agent.has(ip, mac)})
 	}
 	extras, err := extrasOf(ctx, q, id)
 	if err != nil {
 		return nil, err
 	}
 	for _, x := range extras {
-		out = append(out, Address{IP: nullPtr(x.ip), MAC: nullPtr(x.mac), Source: x.source, FirstSeen: x.firstSeen, LastSeen: x.lastS})
+		out = append(out, Address{IP: nullPtr(x.ip), MAC: nullPtr(x.mac), Source: x.source, FirstSeen: x.firstSeen, LastSeen: x.lastS,
+			Agent: agent.has(x.ip, x.mac)})
 	}
 	return out, nil
 }

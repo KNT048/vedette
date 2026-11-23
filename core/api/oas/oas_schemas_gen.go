@@ -151457,6 +151457,10 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetSoftware(val i
 }
 
 type InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem struct {
+	// The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it
+	// cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other
+	// addresses only.
+	Agent     bool      `json:"agent"`
 	FirstSeen time.Time `json:"first_seen"`
 	IP        NilString `json:"ip"`
 	LastSeen  time.Time `json:"last_seen"`
@@ -151468,6 +151472,11 @@ type InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem struct {
 	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
 	// nothing has seen since.
 	Source string `json:"source"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetAgent() bool {
+	return s.Agent
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -151498,6 +151507,11 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetM
 // GetSource returns the value of Source.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetSource() string {
 	return s.Source
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetAgent(val bool) {
+	s.Agent = val
 }
 
 // SetFirstSeen sets the value of FirstSeen.
@@ -151756,6 +151770,10 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetSoftware(val int) 
 }
 
 type InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem struct {
+	// The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it
+	// cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other
+	// addresses only.
+	Agent     bool      `json:"agent"`
 	FirstSeen time.Time `json:"first_seen"`
 	IP        NilString `json:"ip"`
 	LastSeen  time.Time `json:"last_seen"`
@@ -151767,6 +151785,11 @@ type InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem struct {
 	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
 	// nothing has seen since.
 	Source string `json:"source"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetAgent() bool {
+	return s.Agent
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -151797,6 +151820,11 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetMain(
 // GetSource returns the value of Source.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetSource() string {
 	return s.Source
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetAgent(val bool) {
+	s.Agent = val
 }
 
 // SetFirstSeen sets the value of FirstSeen.
@@ -152222,6 +152250,10 @@ func (s *InventoryGetInventoryDevicesIDOK) SetSuspicious(val bool) {
 }
 
 type InventoryGetInventoryDevicesIDOKAddressesItem struct {
+	// The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it
+	// cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other
+	// addresses only.
+	Agent     bool      `json:"agent"`
 	FirstSeen time.Time `json:"first_seen"`
 	IP        NilString `json:"ip"`
 	LastSeen  time.Time `json:"last_seen"`
@@ -152233,6 +152265,11 @@ type InventoryGetInventoryDevicesIDOKAddressesItem struct {
 	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
 	// nothing has seen since.
 	Source string `json:"source"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetAgent() bool {
+	return s.Agent
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -152263,6 +152300,11 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetMain() bool {
 // GetSource returns the value of Source.
 func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetSource() string {
 	return s.Source
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetAgent(val bool) {
+	s.Agent = val
 }
 
 // SetFirstSeen sets the value of FirstSeen.

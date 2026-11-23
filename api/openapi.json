@@ -68726,6 +68726,10 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "agent": {
+                            "type": "boolean",
+                            "description": "The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other addresses only"
                           }
                         },
                         "required": [
@@ -68734,7 +68738,8 @@
                           "main",
                           "source",
                           "first_seen",
-                          "last_seen"
+                          "last_seen",
+                          "agent"
                         ],
                         "additionalProperties": false
                       },
@@ -69635,6 +69640,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "agent": {
+                                "type": "boolean",
+                                "description": "The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other addresses only"
                               }
                             },
                             "required": [
@@ -69643,7 +69652,8 @@
                               "main",
                               "source",
                               "first_seen",
-                              "last_seen"
+                              "last_seen",
+                              "agent"
                             ],
                             "additionalProperties": false
                           }
@@ -69776,6 +69786,10 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "agent": {
+                                  "type": "boolean",
+                                  "description": "The address the device's agent reports from (an osquery node bound to the device, a Wazuh agent): it cannot be split off (409 agent_address), the agent's machine keeps it. Offer Split off on the other addresses only"
                                 }
                               },
                               "required": [
@@ -69784,7 +69798,8 @@
                                 "main",
                                 "source",
                                 "first_seen",
-                                "last_seen"
+                                "last_seen",
+                                "agent"
                               ],
                               "additionalProperties": false
                             }
@@ -70675,7 +70690,7 @@
     "/inventory/devices/{id}/split": {
       "post": {
         "operationId": "inventory_post_inventory_devices_id_split",
-        "summary": "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address",
+        "summary": "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409 agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with the agent's machine: split off the other addresses",
         "tags": [
           "inventory"
         ],

@@ -529,6 +529,7 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 	} else if !macRE.MatchString(addr) {
 		return "", badRequest("bad_address", "Give one IPv4 address or MAC address of this device.")
 	}
+	wIPs, wMACs := s.wazuhSet(ctx) // read before the write: it is agent-intake's table
 	var newID string
 	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var box, approved bool
@@ -561,6 +562,12 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 		}
 		if n := len(extras); n == 0 || n == 1 && !mainIP.Valid && !mainMAC.Valid {
 			return conflict("only_address", "This is the device's only address, so there is nothing to split off. Delete the device when it is not there.")
+		}
+		switch agent, err := agentIfaceOf(ctx, tx, id, wIPs, wMACs); {
+		case err != nil:
+			return err
+		case agent.has(moved.ip, moved.mac):
+			return conflict("agent_address", "This device's agent reports from this address, so it stays with the agent's machine. Split off the device's other addresses instead.")
 		}
 		name := deviceName(ctx, tx, id)
 		first, last := moved.firstSeen, moved.lastS

@@ -265684,6 +265684,10 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Enco
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("agent")
+		e.Bool(s.Agent)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -265709,13 +265713,14 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) enco
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem = [6]string{
-	0: "first_seen",
-	1: "ip",
-	2: "last_seen",
-	3: "mac",
-	4: "main",
-	5: "source",
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem = [7]string{
+	0: "agent",
+	1: "first_seen",
+	2: "ip",
+	3: "last_seen",
+	4: "mac",
+	5: "main",
+	6: "source",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem from json.
@@ -265727,8 +265732,20 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "first_seen":
+		case "agent":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Agent = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -265740,7 +265757,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.IP.Decode(d); err != nil {
 					return err
@@ -265750,7 +265767,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "last_seen":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -265762,7 +265779,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -265772,7 +265789,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "main":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Main = bool(v)
@@ -265784,7 +265801,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 				return errors.Wrap(err, "decode field \"main\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -265805,7 +265822,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -266295,6 +266312,10 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Encode(e
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("agent")
+		e.Bool(s.Agent)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -266320,13 +266341,14 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) encodeFi
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem = [6]string{
-	0: "first_seen",
-	1: "ip",
-	2: "last_seen",
-	3: "mac",
-	4: "main",
-	5: "source",
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem = [7]string{
+	0: "agent",
+	1: "first_seen",
+	2: "ip",
+	3: "last_seen",
+	4: "mac",
+	5: "main",
+	6: "source",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem from json.
@@ -266338,8 +266360,20 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "first_seen":
+		case "agent":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Agent = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -266351,7 +266385,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.IP.Decode(d); err != nil {
 					return err
@@ -266361,7 +266395,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "last_seen":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -266373,7 +266407,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -266383,7 +266417,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "main":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Main = bool(v)
@@ -266395,7 +266429,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 				return errors.Wrap(err, "decode field \"main\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -266416,7 +266450,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) Decode(d
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -267291,6 +267325,10 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesIDOKAddressesItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("agent")
+		e.Bool(s.Agent)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -267316,13 +267354,14 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAddressesItem = [6]string{
-	0: "first_seen",
-	1: "ip",
-	2: "last_seen",
-	3: "mac",
-	4: "main",
-	5: "source",
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAddressesItem = [7]string{
+	0: "agent",
+	1: "first_seen",
+	2: "ip",
+	3: "last_seen",
+	4: "mac",
+	5: "main",
+	6: "source",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAddressesItem from json.
@@ -267334,8 +267373,20 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "first_seen":
+		case "agent":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Agent = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -267347,7 +267398,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.IP.Decode(d); err != nil {
 					return err
@@ -267357,7 +267408,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "last_seen":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -267369,7 +267420,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -267379,7 +267430,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "main":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Main = bool(v)
@@ -267391,7 +267442,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"main\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -267412,7 +267463,7 @@ func (s *InventoryGetInventoryDevicesIDOKAddressesItem) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

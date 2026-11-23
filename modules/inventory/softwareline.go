@@ -250,6 +250,16 @@ func (s *Service) SoftwareLines(ctx context.Context, assetID string) ([]Software
 	return softwareLines(ctx, q, assetID)
 }
 
+// fedBy says whether source has a reading on a line device id still has (a Wazuh agent that sent only its software list).
+func fedBy(ctx context.Context, q querier, id, source string) (bool, error) {
+	var ok bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id
+		WHERE w.asset_id = ? AND w.state <> 'removed' AND r.source = ?)`, id, source).Scan(&ok); err != nil {
+		return false, fmt.Errorf("inventory: read the device's sources: %w", err)
+	}
+	return ok, nil
+}
+
 // readingSourcesSQL selects (asset_id, source class) for every source with a reading on a line a device still has: the agents as
 // "agent" (deviceSources).
 const readingSourcesSQL = `SELECT DISTINCT w.asset_id, CASE WHEN r.source IN ('osquery', 'wazuh', 'box') THEN 'agent' ELSE r.source END

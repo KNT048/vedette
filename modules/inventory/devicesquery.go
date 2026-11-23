@@ -289,21 +289,7 @@ func (s *Service) deviceSources(ctx context.Context, q querier) (map[string][]st
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("inventory: read sources: %w", err)
 	}
-	wIPs, wMACs := map[string]bool{}, map[string]bool{}
-	if s.wazuh != nil {
-		ips, macs, err := s.wazuh(ctx)
-		if err != nil {
-			s.log.WarnContext(ctx, "inventory: the Wazuh agents could not be read; no device shows the source wazuh", "error", err.Error())
-		}
-		for _, ip := range ips {
-			wIPs[ip] = true
-		}
-		for _, m := range macs {
-			if n, ok := normMAC(m); ok {
-				wMACs[n] = true
-			}
-		}
-	}
+	wIPs, wMACs := s.wazuhSet(ctx)
 	rows, err = q.QueryContext(ctx, `SELECT id, origin, coalesce(agent_key, ''), coalesce(ip, ''), coalesce(mac, '') FROM inv_asset`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read sources: %w", err)

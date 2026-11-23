@@ -515,7 +515,7 @@ const addrStore = collection<Record<string, DeviceAddress[]>>('inv_addresses', (
 /** Every address of a device as the box lists them: the main one first, then the others. */
 function addressesOf(a: Asset): DeviceAddress[] {
   const ip = a.ip && a.ip !== '—' ? a.ip : null
-  const main: DeviceAddress[] = ip || a.mac ? [{ ip, mac: a.mac ?? null, main: true, source: a.origin === 'manual' ? 'manual' : 'passive', first_seen: a.first_seen, last_seen: a.last_seen }] : []
+  const main: DeviceAddress[] = ip || a.mac ? [{ ip, mac: a.mac ?? null, main: true, source: a.origin === 'manual' ? 'manual' : 'passive', first_seen: a.first_seen, last_seen: a.last_seen, agent: false }] : []
   return [...main, ...(addrStore.get()[a.id] ?? [])]
 }
 

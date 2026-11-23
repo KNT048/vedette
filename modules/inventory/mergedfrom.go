@@ -371,7 +371,7 @@ type mergedReading struct {
 // person's "not installed" mark with it, so its findings are the device's own again when both devices are matched. Else each reading
 // goes to newID's line of that product and train (a reading into read too is copied, the others leave id); a scan's readings are the
 // interface's, and the OS a device states is a line its observations make again.
-func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID, addr string, m *mergedFrom) error {
+func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID, addr string, m *mergedFrom, moved map[string]string) error {
 	if m == nil {
 		return nil
 	}
@@ -479,6 +479,9 @@ func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID, a
 				}
 			}
 			touched[cur], touched[target] = true, true
+			if target != cur {
+				moved[cur] = target
+			}
 		}
 	}
 	for _, l := range slices.Sorted(maps.Keys(touched)) {

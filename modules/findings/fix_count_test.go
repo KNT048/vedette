@@ -141,3 +141,88 @@ func TestFixCount_FindingsWithTwoFixedVersions(t *testing.T) {
 		t.Errorf("%d findings store another fix than the finding page names, want only the ESXi one", storedVsPage)
 	}
 }
+
+// The count of the same class through the readers of the findings model: the fixture's findings stored by the match pass, then read
+// as the lists and the finding's view read them. A list row and the finding's page both name the stored fix (one path), and a fix
+// block that combines the CVEs of one software names a release that reaches every finding in it. Before the readers moved to the
+// stored fix, the list row and the page differed on 84 findings of this fixture (TestFixCount_FindingsWithTwoFixedVersions).
+func TestFixCount_ListAndPageReadTheStoredFix(t *testing.T) {
+	e := newEnv(t)
+	ctx := t.Context()
+	e.inv.mu.Lock()
+	e.inv.assets, e.inv.match = map[string]AssetView{}, map[string]Asset{}
+	devices := fixDevices(t)
+	for _, d := range devices {
+		e.inv.match[d.a.ID] = d.a
+		e.inv.assets[d.a.ID] = AssetView{ID: d.a.ID, Name: d.a.Name + "-" + d.a.ID, IP: NoIP, Kind: "server", Approved: true}
+	}
+	e.inv.mu.Unlock()
+	for _, d := range devices {
+		if _, err := e.svc.UpsertFromMatch(ctx, d.a, d.vulns); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var open, keys, cards, byDevice, byFix, rows, pageVsRow, blockShort int
+	if err := e.db.Reader().QueryRowContext(ctx, `SELECT count(*), count(DISTINCT fix_key) FROM fnd_finding WHERE state = 'open'`).Scan(&open, &keys); err != nil {
+		t.Fatal(err)
+	}
+	for off := 0; ; off += PageMax {
+		cards, err := e.svc.ByDevice(ctx, ListFilter{}, Page{Offset: off, Limit: PageMax})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range cards.Items {
+			byDevice += c.Findings
+			for _, b := range c.Blocks {
+				for _, r := range b.Findings {
+					rows++
+					v, err := e.svc.View(ctx, r.ID)
+					if err != nil {
+						t.Fatal(err)
+					}
+					stored, page := v.Finding.Fix, v.JSON().Fix
+					if page.Key != v.Finding.FixKey || page.Kind != string(stored.Kind) || ptrOr(page.Version) != stored.Version {
+						pageVsRow++
+					}
+					if bv := ptrOr(b.Fix.Version); b.Fix.Key != v.Finding.FixKey {
+						if c, ok := compareFix(stored.Kind, stored.Version, bv); !ok || c > 0 {
+							blockShort++
+							t.Logf("block %q does not reach %s's own fix %q", bv, r.CVE, stored.Version)
+						}
+					}
+				}
+			}
+		}
+		if off+PageMax >= cards.Total {
+			break
+		}
+	}
+	for off := 0; ; off += PageMax {
+		fixes, err := e.svc.ByFix(ctx, ListFilter{}, Page{Offset: off, Limit: PageMax})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cards = fixes.Total
+		for _, c := range fixes.Items {
+			byFix += c.Findings
+		}
+		if off+PageMax >= fixes.Total {
+			break
+		}
+	}
+	t.Logf("open %d; by device %d; by fix %d; rows read %d; list row vs page fix: %d (before: 84); blocks short of a finding's fix: %d; By fix cards %d for %d stored fix keys",
+		open, byDevice, byFix, rows, pageVsRow, blockShort, cards, keys)
+	if open == 0 || open != byDevice || open != byFix || rows != open {
+		t.Errorf("open %d, by device %d, by fix %d, rows %d: want all equal", open, byDevice, byFix, rows)
+	}
+	if pageVsRow != 0 || blockShort != 0 {
+		t.Errorf("list row vs page %d, blocks short %d: want 0", pageVsRow, blockShort)
+	}
+}
+
+func ptrOr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}

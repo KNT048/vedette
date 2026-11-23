@@ -4,9 +4,9 @@ summary: { en: "Identifies devices and their services with nmap and SNMP, only i
 tier: standard
 default: true
 depends: [core, inventory]
-permissions: [net_raw, "exec:nmap"]   # nmap từ kho gói OS, cài vào image `scan` do vedette-host dựng trên hộp, không ship; -O cần raw socket
+permissions: [net_raw, "exec:nmap"]   # nmap comes from the OS package repository and is installed into the `scan` image that vedette-host builds on the box, not shipped; -O needs a raw socket
 ports: []
-container: scan                       # Worker nmap trong `scan` (vai mTLS active); chính sách, phạm vi, sa_* ở `core`; tới SP-3 nmap còn chạy qua core/exec từ core
-tables_prefix: sa_                    # sa_; MODULES.md đã sửa
-stories: [S-INV-1, S-SCAN-4]          # S-SCAN-4 phần cửa sổ giờ/tốc độ của khám phá
+container: scan                       # the nmap worker inside `scan` (the active mTLS role); policy, scope and sa_* live in `core`; for now nmap also runs from core through core/exec
+tables_prefix: sa_                    # sa_; MODULES.md has been corrected
+stories: [S-INV-1, S-SCAN-4]          # S-SCAN-4: the time-window/speed part of discovery
 milestone: M3

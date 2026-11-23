@@ -1,5 +1,5 @@
-// QA inventory (S-INV-1..4) như người dùng thật, giao diện chỉ tiếng Anh.
-// Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/inventory.spec.ts --workers=1
+// Inventory QA (S-INV-1..4) as a real user, English-only UI.
+// Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/inventory.spec.ts --workers=1
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, sampleStart } from './clean'
@@ -7,8 +7,8 @@ import { DIACRITICS, sampleStart } from './clean'
 const DB = 'vedette-mock-db-v4'
 type UserId = 'u-admin' | 'u-op' | 'u-view'
 /**
- * Ghi kho mock TRƯỚC khi trang tải (init script chạy một lần cho mỗi lần gọi), vì trang đang mở có thể ghi đè localStorage khi tải lại.
- * `patch` trộn vào bảng hiện có (hoặc `fallback` nếu bảng chưa được tạo).
+ * Write the mock store BEFORE the page loads (the init script runs once per call), because the open page may overwrite localStorage when it reloads.
+ * `patch` merges into the existing table (or `fallback` if the table has not been created).
  */
 async function patchDb(page: Page, table: string, patch: Record<string, unknown>, fallback: Record<string, unknown> = {}) {
   const token = `${table}-${Date.now()}-${Math.random()}`
@@ -21,7 +21,7 @@ async function patchDb(page: Page, table: string, patch: Record<string, unknown>
   }, [DB, table, patch, fallback, token] as const)
   await page.reload()
 }
-/** Đổi người dùng đăng nhập. */
+/** Switch the signed-in user. */
 const loginAs = (page: Page, userId: UserId) => patchDb(page, 'core_session', { userId })
 const SETTINGS_FALLBACK = { active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] }, fragile_kinds: ['printer'], regular_scan_kinds: [] }
 async function setTheme(page: Page, theme: 'light' | 'dark') {
@@ -29,14 +29,14 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.reload()
 }
 const noHScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'page must not scroll sideways').toBeLessThanOrEqual(1)
-/** Mọi chữ hiển thị là tiếng Anh: không dấu tiếng Việt trong phần nội dung. */
+/** All displayed text is English: no Vietnamese diacritics in the content. */
 const expectEnglishOnly = async (page: Page, label: string) => expect(await page.locator('body').innerText(), `${label}: Vietnamese text on the page`).not.toMatch(DIACRITICS)
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 })
 // the small "N devices, M not yet approved" line of the list's toolbar (the title is just "Devices")
 const countLine = (page: Page) => page.getByText(/^\d+ devices?, /)
 const countOf = async (page: Page) => { await expect(countLine(page)).toHaveText(/^\d+ devices?,/); return Number((await countLine(page).innerText()).match(/^(\d+)/)![1]) }
 
-/** Bật module trong kho mock (agent-intake mặc định tắt ở dữ liệu mẫu), ghi trước khi trang tải. */
+/** Turn a module on in the mock store (agent-intake is off by default in the sample data), written before the page loads. */
 async function enableModule(page: Page, id: string) {
   await page.goto('/devices')
   await expect(countLine(page)).toHaveText(/^\d+ devices?,/) // the module table exists in the mock db once the app has loaded
@@ -51,7 +51,7 @@ async function enableModule(page: Page, id: string) {
   await page.reload()
 }
 
-/** Cài sạch qua trình hướng dẫn với dải mạng người dùng gõ (không dữ liệu mẫu), rồi vào hộp. */
+/** Clean install through the wizard with the network range the user types (no sample data), then enter the box. */
 async function cleanInstall(page: Page, lan: string) {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())

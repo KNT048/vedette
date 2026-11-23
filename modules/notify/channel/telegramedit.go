@@ -7,7 +7,7 @@ import (
 	"regexp"
 )
 
-// Removing the buttons of a sent approval message (slice 2, spec approval-tokens.md 6: "sửa tin để bỏ nút").
+// Removing the buttons of a sent approval message (slice 2, spec approval-tokens.md 6: edit the message to remove the buttons).
 
 // maxMessageID bounds a Telegram message_id: Telegram documents ids as fitting a 53-bit integer.
 const maxMessageID = 1 << 53

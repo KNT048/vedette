@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-// The files the network commands write (spec 18, "Tệp hệ thống host ghi"): the netplan file in
+// The files the network commands write (spec 18, files the host writes): the netplan file in
 // /etc and its overlay in /run, and chrony's vedette.sources. Every write goes through an os.Root
 // on the directory (temp file O_CREATE|O_EXCL|O_NOFOLLOW, fsync, rename inside the root, fsync of
 // the directory), so a link planted at the file name or at the temp name is never followed. The

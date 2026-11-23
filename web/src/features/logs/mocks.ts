@@ -1,5 +1,5 @@
-// Mock API module logs (S-LOG-1/2/3). Nguồn log, digest "mới / tăng đột biến / kết nối xấu", tìm sự kiện, lưu giữ, chuyển tiếp SIEM.
-// Dòng log và digest là dữ liệu mẫu cố định; thiết bị nguồn tra theo IP trong assetsStore (kiểm kê). Mọi văn bản người dùng thấy bằng tiếng Anh.
+// Mock API of the logs module (S-LOG-1/2/3). Log sources, the digest "new / spike / bad connections", event search, retention, SIEM forwarding.
+// The log lines and digest are fixed sample data; the source device is looked up by IP in assetsStore (inventory). All text the user sees is English.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard, IPV4_RE, NAME_RE } from '@/mocks/http'
 import { assetsStore, boxInfo, modulesStore } from '@/mocks/stores'
@@ -110,7 +110,7 @@ const toSource = (s: Stored): LogSource => {
 }
 const nameOf = (id: string) => sources.get().find((s) => s.id === id)?.name ?? id
 
-// Sự kiện mẫu: sinh một lần (giả ngẫu nhiên có hạt giống) rồi lưu, nên tải lại trang vẫn thấy cùng dòng.
+// Sample events: generated once (seeded pseudo-random) and then stored, so a reload still shows the same lines.
 type StoredEvent = Omit<LogEvent, 'host' | 'app' | 'message'>
 
 function seedEvents(): StoredEvent[] {
@@ -136,7 +136,7 @@ function seedEvents(): StoredEvent[] {
       ]))
     }
   }
-  // Các dòng khớp digest, để tìm theo IP trong digest thấy đúng dòng.
+  // The lines that match the digest, so a search by IP in the digest finds exactly those lines.
   add('ls-1', 12, 'type="traffic" subtype="forward" level="warning" srcip=192.168.10.105 dstip=185.220.101.47 dstport=443 action="accept" policyid=3')
   add('ls-1', 95, 'type="traffic" subtype="forward" level="warning" srcip=192.168.10.20 dstip=104.21.55.9 dstport=443 hostname="update-dsm-synology.com" action="accept" policyid=3')
   add('ls-1', 180, 'type="traffic" subtype="forward" level="warning" srcip=192.168.10.157 dstip=45.148.10.95 dstport=8080 action="accept" policyid=3')
@@ -154,7 +154,7 @@ function digest(): Digest {
   const history = Math.min(7, Math.max(0, ...sources.get().filter((s) => s.last_received).map((s) => Math.floor((Date.now() - new Date(s.created_at).getTime()) / 86400e3))))
   const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false // PRE-3: with Feeds off the list is empty (the page says why)
   const matching = !feedsOff && iocListed() // like the box: false when no switched-on feed lists an indicator
-  // Cài sạch: chưa có log thật nên digest rỗng (digest mẫu nhắc IP và thiết bị không tồn tại trong cài đặt này).
+  // A clean install: no real logs yet so the digest is empty (the sample digest mentions IPs and devices that do not exist in this install).
   if (dataMode() === 'clean') return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, history_days: history, new: [], spikes: [], bad_connections: [], ioc_matching: matching }
   const fresh: NewItem[] = [
     { id: 'n-1', signature: 'Blocked access to port 3389 (Remote Desktop) from the Internet', source_id: 'ls-1', source_name: nameOf('ls-1'), count: 212, first_seen: daysAgo(0, 6), sample: 'type="traffic" level="warning" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action="deny"' },

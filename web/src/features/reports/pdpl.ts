@@ -1,7 +1,7 @@
-// Dựng báo cáo đánh giá an toàn (S-REP-2) từ kiểm kê, phát hiện và trạng thái module. Chỉ nêu cái hộp THẤY ĐƯỢC;
-// nghĩa vụ pháp lý cần người thực hiện (hồ sơ đánh giá tác động, thông báo vi phạm…) chỉ liệt kê, không khẳng định đã đạt.
-// Căn cứ đã đối chiếu văn bản gốc (2026-11-06): Luật BVDLCN 91/2025/QH15 (hiệu lực 01/01/2026) và Nghị định 356/2025/NĐ-CP
-// (Công báo số 18, 18/01/2026): Điều 41 NĐ 356 quyết định doanh nghiệp nào được miễn / được chọn thực hiện Điều 21, 22, khoản 2 Điều 33 của Luật.
+// Builds the safety assessment report (S-REP-2) from the inventory, findings and module state. It states only what the box CAN SEE;
+// legal duties that need a person to carry them out (an impact assessment file, a breach notice...) are only listed, never claimed as met.
+// Basis checked against the original texts (2026-11-06): the Personal Data Protection Law 91/2025/QH15 (in force 01/01/2026) and Decree 356/2025/NĐ-CP
+// (Official Gazette No. 18, 18/01/2026): Article 41 of Decree 356 decides which enterprises are exempt from, or may choose to do, Articles 21, 22 and clause 2 of Article 33 of the Law.
 
 import type { ModuleId } from '@/lib/modules'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
@@ -10,7 +10,7 @@ import { EOL_OS, rowOf } from './weekly'
 import type { Measure, Obligation, PdplOrg, PdplReport } from './types'
 import { actsAs } from '@/lib/deviceTypes'
 
-/** Điều 41 Nghị định 356/2025/NĐ-CP. Mất miễn/chọn khi: kinh doanh dịch vụ xử lý dữ liệu cá nhân, trực tiếp xử lý dữ liệu nhạy cảm, hoặc tích lũy từ 100.000 chủ thể dữ liệu trở lên. */
+/** Article 41 of Decree 356/2025/NĐ-CP. The exemption/choice is lost when: it does business in personal data processing services, directly processes sensitive data, or accumulates 100,000 data subjects or more. */
 export function regimeOf(o: Pick<PdplOrg, 'size' | 'processing_service' | 'sensitive' | 'data_volume'>): 'required' | 'optional' | 'exempt' {
   if (o.processing_service || o.sensitive || o.data_volume === 'gte100k') return 'required'
   if (o.size === 'household' || o.size === 'micro') return 'exempt'

@@ -19,7 +19,7 @@ const WHENS: HookWhen[] = ['before_ai', 'after_ai', 'before_tool']
 const ACTIONS: HookAction[] = ['block', 'mask', 'approve']
 const tone = (a: HookAction) => (a === 'block' ? 'danger' : a === 'mask' ? 'warn' : 'accent')
 
-/** Hook: kiểm tra chạy trước và sau mỗi lần gọi AI. Có sẵn 3 hook; khách thêm hook theo từ khoá hoặc biểu thức. */
+/** Hooks: checks that run before and after every AI call. 3 are built in; the customer adds hooks by keyword or expression. */
 export default function HooksTab() {
   const { t } = useTranslation('ai')
   const hooks = useHooks()
@@ -72,7 +72,7 @@ export default function HooksTab() {
   )
 }
 
-/** Ô thử: gõ một đoạn văn bản, xem hook nào chạy. Có `hook` thì chỉ thử hook nháp đó, không thì chạy mọi hook đang bật. */
+/** A try box: type some text and see which hook runs. With `hook` only that draft hook is tried, otherwise every enabled hook runs. */
 function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
   const { t } = useTranslation('ai')
   const test = useTestHook()
@@ -118,7 +118,7 @@ function HookDialog({ hook, onClose }: { hook: CustomHook | null; onClose: () =>
   const [errs, setErrs] = useState<Partial<Record<'name' | 'pattern' | 'message', string>>>({})
   const draft: HookInput = { name: name.trim() || 'Draft', when, match: { type, pattern: pattern.trim() }, action, message: message.trim(), enabled }
   const clear = (k: keyof typeof errs) => setErrs((e) => ({ ...e, [k]: undefined }))
-  // Lỗi do máy chủ chỉ ra ô nào sai (biểu thức hỏng, tên trùng…)
+  // The error from the server points at the wrong field (a broken expression, a duplicate name...)
   const code = save.error instanceof ApiError ? save.error.code : ''
   const serverFor = (k: 'name' | 'pattern' | 'message') => ((code === 'invalid_match' && k === 'pattern') || ((code === 'invalid_name' || code === 'duplicate_name') && k === 'name') || (code === 'invalid_message' && k === 'message') ? (save.error as Error).message : undefined)
   const err = (k: 'name' | 'pattern' | 'message') => errs[k] ?? serverFor(k)

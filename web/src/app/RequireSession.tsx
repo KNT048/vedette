@@ -13,7 +13,7 @@ export function useSetup() {
   return useQuery({ queryKey: ['setup'], queryFn: () => api.get<{ complete: boolean; org: string; data_mode?: 'sample' | 'clean' }>('/setup'), staleTime: 60_000 })
 }
 
-/** Chưa cài đặt ban đầu → /setup; chưa đăng nhập → /login?next=… */
+/** Initial setup not done → /setup; not signed in → /login?next=... */
 export function RequireSession({ children }: { children: ReactNode }) {
   const loc = useLocation()
   // The shell's own words (sidebar, tabs, page titles) load while the session is being checked, not after it.

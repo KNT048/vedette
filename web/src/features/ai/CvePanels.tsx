@@ -11,7 +11,7 @@ import { useCveCached, useExplain, useNews } from './api'
 import { ActionError, ToSettings, useAiGate } from './parts'
 import type { ExplainResult, FetchedSource, NewsResult } from './types'
 
-/** Slot `cve.panels` (S-AI-2/S-AI-3): giải thích tiếng Việt và tin mới. Nguồn tin do hộp tự tải; AI không tự duyệt web. */
+/** Slot `cve.panels` (S-AI-2/S-AI-3): explanation and news. The box fetches the news sources itself; the AI does not browse the web. */
 export default function CvePanels({ cve }: Record<string, unknown>) {
   const id = String(cve ?? '')
   const gate = useAiGate('operator')

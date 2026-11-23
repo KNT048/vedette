@@ -1,5 +1,5 @@
-// Hợp đồng giữa khung ứng dụng và module FE (docs/FRONTEND.md §7). Mỗi features/<m>/index.tsx export `feature`.
-// Khung tự gom bằng import.meta.glob — thêm module KHÔNG cần sửa file trong src/app.
+// The contract between the app shell and the FE modules (docs/FRONTEND.md §7). Each features/<m>/index.tsx exports `feature`.
+// The shell gathers them with import.meta.glob: adding a module does NOT need a change to any file in src/app.
 import type { ComponentType, ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
 import type { LucideIcon } from 'lucide-react'
@@ -11,16 +11,16 @@ export type NavGroup = 'monitor' | 'assets' | 'detect' | 'assist'
 
 export interface NavItem {
   to: string
-  label: string // khoá i18n dạng "ns:key"
+  label: string // i18n key in the form "ns:key"
   icon: LucideIcon
-  module: ModuleId // module tắt → ẩn khỏi thanh bên (route vẫn hiện ModuleOff)
+  module: ModuleId // module off → hidden from the sidebar (the route still shows ModuleOff)
   group: NavGroup
   order: number
   end?: boolean
 }
 
 export interface SettingsSection {
-  id: string // đường dẫn /settings/<id>
+  id: string // path /settings/<id>
   label: string // khoá i18n "ns:key"
   module: ModuleId
   /** The module whose own switch this section holds while the section stays under `module` (MCP under core): the
@@ -35,11 +35,11 @@ export interface Feature {
   id: string
   /** Locale namespaces the routes need, loaded with the route chunk. Default: the feature's own id. */
   namespaces?: string[]
-  routes: RouteObject[] // con của layout đã đăng nhập
-  publicRoutes?: RouteObject[] // ngoài layout, không cần đăng nhập (đăng nhập, cài đặt ban đầu)
+  routes: RouteObject[] // children of the signed-in layout
+  publicRoutes?: RouteObject[] // outside the layout, no sign-in needed (sign-in, initial setup)
   nav?: NavItem[]
   settings?: SettingsSection[]
-  /** Điểm cắm UI vào trang của module khác (ví dụ AI gắn khung vào trang CVE). */
+  /** UI plug-in points on another module's page (for example the AI panel on the CVE page). */
   slots?: Record<string, ComponentType<Record<string, unknown>>>
 }
 
@@ -64,7 +64,7 @@ export const features: Feature[] = Object.values(mods).map((m) => {
 export const navItems = features.flatMap((f) => f.nav ?? []).sort((a, b) => a.order - b.order)
 export const settingsSections = features.flatMap((f) => f.settings ?? []).sort((a, b) => a.order - b.order)
 
-/** Mọi component đã đăng ký cho một slot, theo thứ tự module. */
+/** Every component registered for a slot, in module order. */
 export function slotComponents(name: string) {
   return features.flatMap((f) => (f.slots?.[name] ? [f.slots[name]] : []))
 }

@@ -1,12 +1,12 @@
-id: mcp-server         # trùng tên thư mục
-name: { vi: "Máy chủ MCP (chỉ đọc)", en: "MCP server (read-only)" }
-summary: { vi: "MCP chỉ-đọc cho agent/SIEM ngoài tra tài sản, phát hiện, feed bằng token theo phạm vi.", en: "A read-only MCP endpoint for external agents and SIEMs to query assets, findings and feeds with scoped tokens." }
+id: mcp-server         # same as the folder name
+name: { en: "MCP server (read-only)" }
+summary: { en: "A read-only MCP endpoint for external agents and SIEMs to query assets, findings and feeds with scoped tokens." }
 tier: optional
 default: off
 depends: [core]
-soft_depends: [inventory, findings, feeds]    # công cụ của phạm vi `assets`/`findings`/`feeds` báo lỗi "module tắt" khi module nguồn tắt
+soft_depends: [inventory, findings, feeds]    # the tools of the `assets`/`findings`/`feeds` scopes report "module off" when the source module is off
 permissions: []
-ports: ["tcp/8765"]                 # chỉ loopback (-mcp-listen, mặc định 127.0.0.1:8765, endpoint /mcp)
+ports: ["tcp/8765"]                 # loopback only (-mcp-listen, default 127.0.0.1:8765, endpoint /mcp)
 container: core
 tables_prefix: mcp_
 tables: [mcp_tokens]

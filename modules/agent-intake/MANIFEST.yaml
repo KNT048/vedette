@@ -1,14 +1,14 @@
-id: agent-intake       # trùng tên thư mục
-name: { vi: "Nhận dữ liệu agent", en: "Agent intake" }
-summary: { vi: "Nhận danh sách gói từ osquery (Vedette là máy chủ TLS) hoặc kéo từ Wazuh API; không ship agent.", en: "Receives package lists from osquery (Vedette is the TLS server) or pulls them from the Wazuh API; ships no agent." }
+id: agent-intake       # same as the folder name
+name: { en: "Agent intake" }
+summary: { en: "Receives package lists from osquery (Vedette is the TLS server) or pulls them from the Wazuh API; ships no agent." }
 tier: optional
 default: off
 depends: [core, inventory]
-permissions: ["outbound:https"]       # kéo Wazuh API tới địa chỉ khách khai
-ports: ["tcp/8443"]                   # cùng cổng HTTPS của core; osquery TLS + trang script cài
+permissions: ["outbound:https"]       # pulls the Wazuh API at the address the customer declares
+ports: ["tcp/8443"]                   # the same HTTPS port as core; osquery TLS + the install script page
 container: core
 tables_prefix: intake_
-tables: [intake_agent_tokens, intake_osquery_nodes, intake_wazuh, intake_prune_clock]   # intake_wazuh: WP-26 lát 4; intake_prune_clock: lát 3 (đồng hồ của job node-prune)
+tables: [intake_agent_tokens, intake_osquery_nodes, intake_wazuh, intake_prune_clock]   # intake_wazuh: the Wazuh pull; intake_prune_clock: the clock of the node-prune job
 stories: [S-INV-4]
 milestone: M7
-gui_under: inventory   # màn hình ở Inventory → Agents (web/features/inventory)
+gui_under: inventory   # the screen is in Inventory > Agents (web/features/inventory)

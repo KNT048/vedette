@@ -1,4 +1,4 @@
-// Harness AI (S-AI-7): bộ máy hook, "Ask your data" áp hook, và vài thao tác trên giao diện.
+// AI harness (S-AI-7): the hook engine, "Ask your data" applying hooks, and a few actions in the UI.
 import { describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

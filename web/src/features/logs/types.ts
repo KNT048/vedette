@@ -1,4 +1,4 @@
-// Kiểu API module logs — suy ra từ hợp đồng Zod (contract.ts), không khai tay. Hằng số UI (danh sách loại, giao thức) ở dưới.
+// API types of the logs module, derived from the Zod contract (contract.ts), not declared by hand. UI constants (the type list, protocols) are below.
 import type { z } from 'zod'
 import type * as C from './contract'
 

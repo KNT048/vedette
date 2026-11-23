@@ -1,9 +1,9 @@
-// Danh mục nguồn log (S-LOG-1): mỗi loại thiết bị có nhóm, giao thức gửi được, mức Vedette đọc được, các bước và đoạn dán.
-// Cấu hình hiển thị cho người dùng bằng tiếng Anh. Mỗi mục ghi nguồn tài liệu hãng trong comment `Nguồn:`.
-// Quy ước trung thực: `reads: 'parsed'` chỉ cho loại có profile thật (modules/logs/data/profiles, Go kiểm bằng TestCatalogReadsMatchProfiles); còn lại `stored` = lưu, tìm kiếm và digest đọc bằng bộ tìm mẫu chung, chưa đọc trường riêng của thiết bị.
-// Cú pháp đã đối chiếu (2026-11) với tài liệu hãng cho: FortiOS, PAN-OS, Sophos Firewall, Check Point Log Exporter, Meraki, Synology,
-// NetScaler, Wazuh, Suricata, NXLog, MikroTik, pfSense, OPNsense. Mục còn lại theo cú pháp ổn định đã công bố; phần menu có thể đổi theo phiên bản
-// nên mỗi mục có ghi chú "đối chiếu tài liệu của hãng cho phiên bản của bạn" khi cần.
+// The log source catalogue (S-LOG-1): each device type has a group, the protocols it can send, the level Vedette can read, the steps and the paste-in snippets.
+// The configuration is shown to the user in English. Each entry records its vendor documentation source in a `Source:` comment.
+// An honest convention: `reads: 'parsed'` only for a type with a real profile (modules/logs/data/profiles, checked in Go by TestCatalogReadsMatchProfiles); the rest are `stored` = stored, and search and the digest read them with the common pattern finder, not yet the device's own fields.
+// The syntax was checked (2026-11) against the vendor documentation for: FortiOS, PAN-OS, Sophos Firewall, Check Point Log Exporter, Meraki, Synology,
+// NetScaler, Wazuh, Suricata, NXLog, MikroTik, pfSense, OPNsense. The other entries follow published stable syntax; the menu parts may change by version,
+// so each entry carries a note "check the vendor's documentation for your version" where needed.
 import type { KindId } from './kinds'
 import type { Proto } from './types'
 
@@ -26,14 +26,14 @@ export interface CatalogEntry {
   id: KindId
   group: GroupId
   name: string
-  /** Từ khoá tìm kiếm thêm (tên cũ, model, tên gọi thông dụng). */
+  /** Extra search keywords (old names, models, common names). */
   keywords: string
-  /** Giao thức thiết bị thật sự gửi được; phần tử đầu là mặc định. */
+  /** The protocols the device can actually send; the first one is the default. */
   protos: Proto[]
   reads: 'parsed' | 'stored'
   /** Failed SSH/PAM logins are read: shown with the parsed kinds. */
   logins?: true
-  /** Vedette đọc gì từ nguồn này (parsed) hoặc vì sao chỉ lưu (stored). */
+  /** What Vedette reads from this source (parsed) or why it is only stored (stored). */
   readsNote: string
   intro: string
   steps: (c: Ctx) => string[]
@@ -62,7 +62,7 @@ const ciosSteps = (_c: Ctx) => ['Open the CLI (console or SSH) and enter configu
 const E: CatalogEntry[] = [
   // ───────── Firewalls and routers ─────────
   {
-    // Nguồn: FortiOS CLI Reference, "config log syslogd setting" và "config log syslogd filter" (docs.fortinet.com, 7.4).
+    // Source: FortiOS CLI Reference, "config log syslogd setting" và "config log syslogd filter" (docs.fortinet.com, 7.4).
     id: 'fortigate', group: 'firewall', name: 'FortiGate (FortiOS)', keywords: 'fortinet fortios fgt', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
     readsNote: 'Reads traffic logs (source, destination, port, action) for the digest and bad-connection checks.',
     intro: 'Paste into the FortiGate CLI (the CLI Console button in the web UI, or SSH).',
@@ -78,7 +78,7 @@ const E: CatalogEntry[] = [
     ],
   },
   {
-    // Nguồn: Sophos Firewall Help, "Add a syslog server" (Configure > System services > Log settings); API SyslogServers (docs.sophos.com).
+    // Source: Sophos Firewall Help, "Add a syslog server" (Configure > System services > Log settings); API SyslogServers (docs.sophos.com).
     id: 'sophos', group: 'firewall', name: 'Sophos Firewall (XG / XGS)', keywords: 'sophos xg xgs sfos', protos: ['udp'], reads: 'parsed',
     readsNote: 'Reads firewall rule and web filter lines (source, destination, domain, allowed or denied) for the digest and bad-connection checks. Other log types are stored and read by the generic pattern finder.',
     intro: 'Sophos Firewall is set up in the web admin console; there is no command to paste.',
@@ -92,7 +92,7 @@ const E: CatalogEntry[] = [
     notes: ['Menu labels differ slightly between firmware versions (the secure log transmission option is for TLS: leave it off for plain UDP).', 'Check the Sophos Firewall help for your version.'],
   },
   {
-    // Nguồn: PAN-OS Administrator's Guide, "Configure Syslog Monitoring" (docs.paloaltonetworks.com).
+    // Source: PAN-OS Administrator's Guide, "Configure Syslog Monitoring" (docs.paloaltonetworks.com).
     id: 'paloalto', group: 'firewall', name: 'Palo Alto Networks (PAN-OS)', keywords: 'palo alto pan-os panos ngfw', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
     readsNote: 'Reads TRAFFIC logs (source, destination, action) in the default CSV format for the digest and bad-connection checks. Threat, URL and system logs are stored and read by the generic pattern finder.',
     intro: 'PAN-OS is set up in the web interface: a syslog server profile, then a log forwarding profile used by your security rules.',
@@ -107,7 +107,7 @@ const E: CatalogEntry[] = [
     notes: ['SSL needs a certificate trusted by the firewall and TLS 1.2 on the receiver.', 'Traffic logs are only produced for rules that have a log forwarding profile.'],
   },
   {
-    // Nguồn: Cisco ASA Series CLI Configuration Guide, "Logging" (cisco.com).
+    // Source: Cisco ASA Series CLI Configuration Guide, "Logging" (cisco.com).
     id: 'cisco-asa', group: 'firewall', name: 'Cisco ASA', keywords: 'cisco asa adaptive security appliance firepower asa', protos: ['udp', 'tcp'], reads: 'parsed',
     readsNote: 'Reads outbound connection messages (302013, 302015) and access-list denies (106023, 106100) for the digest and bad-connection checks. Other messages are stored and read by the generic pattern finder.',
     intro: 'Paste into the ASA CLI in global configuration mode. Replace inside with the interface that can reach the box.',
@@ -116,7 +116,7 @@ const E: CatalogEntry[] = [
     notes: ['With TCP the ASA stops passing traffic if the box is unreachable, unless you add logging permit-hostdown. UDP does not have this risk.'],
   },
   {
-    // Nguồn: Cisco Secure Firewall Management Center Administration Guide, "Configure Syslog" (Platform Settings).
+    // Source: Cisco Secure Firewall Management Center Administration Guide, "Configure Syslog" (Platform Settings).
     id: 'cisco-ftd', group: 'firewall', name: 'Cisco Secure Firewall (FTD / FMC)', keywords: 'cisco ftd fmc firepower threat defense secure firewall', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Firepower Threat Defense is set up in the Management Center, not on the device.',
     steps: (c) => [
@@ -135,7 +135,7 @@ const E: CatalogEntry[] = [
     notes: ['Add logging source-interface <interface> if the box only accepts logs from one address.'],
   },
   {
-    // Nguồn: Meraki documentation, "Syslog Server Overview and Configuration" (documentation.meraki.com).
+    // Source: Meraki documentation, "Syslog Server Overview and Configuration" (documentation.meraki.com).
     id: 'meraki', group: 'firewall', name: 'Cisco Meraki (MX / MR / MS)', keywords: 'meraki mx mr ms dashboard', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Meraki is set up in the Dashboard; there is no command to paste.',
     steps: (c) => [
@@ -148,7 +148,7 @@ const E: CatalogEntry[] = [
     notes: ['Meraki sends syslog over UDP. The Dashboard needs a path from the device to the box; the box must be reachable from the Meraki device, not from the cloud.'],
   },
   {
-    // Nguồn: MikroTik RouterOS manual, "Log" (manual.mikrotik.com): syslog luôn đi bằng UDP.
+    // Source: MikroTik RouterOS manual, "Log" (manual.mikrotik.com): syslog always goes over UDP.
     id: 'mikrotik', group: 'firewall', name: 'MikroTik (RouterOS)', keywords: 'mikrotik routeros winbox ccr rb hap', protos: ['udp'], reads: 'parsed',
     readsNote: 'Reads firewall log lines (source, destination, port) for the digest and bad-connection checks.',
     intro: 'Paste into the Terminal in WinBox, or SSH to the router.',
@@ -157,7 +157,7 @@ const E: CatalogEntry[] = [
     notes: ['RouterOS syslog always goes over UDP.', 'Firewall logs exist only for rules with logging on: add log=yes to the rules you want to watch.', 'The info topic is chatty. Remove the topics=info line if it is too noisy.', 'RouterOS 7: if lines reach the box in an odd shape, add remote-log-format=syslog to the action to send proper syslog format.'],
   },
   {
-    // Nguồn: Netgate pfSense documentation, "Remote Logging with Syslog": pfSense chỉ gửi UDP.
+    // Source: Netgate pfSense documentation, "Remote Logging with Syslog": pfSense sends UDP only.
     id: 'pfsense', group: 'firewall', name: 'pfSense', keywords: 'pfsense netgate', protos: ['udp'], reads: 'parsed',
     readsNote: 'Reads firewall log lines (filterlog: source, destination, pass or block) for the digest and bad-connection checks. System lines are stored and read by the generic pattern finder.',
     intro: 'pfSense is set up in the web interface; there is no command to paste.',
@@ -172,7 +172,7 @@ const E: CatalogEntry[] = [
     notes: ['pfSense sends syslog over UDP only. For TCP or TLS use OPNsense, or install the syslog-ng package on pfSense.', 'A firewall rule only logs when Log packets matched by this rule is ticked in that rule.'],
   },
   {
-    // Nguồn: OPNsense manual, "Settings, Logging, Remote" (docs.opnsense.org).
+    // Source: OPNsense manual, "Settings, Logging, Remote" (docs.opnsense.org).
     id: 'opnsense', group: 'firewall', name: 'OPNsense', keywords: 'opnsense deciso', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
     readsNote: 'Reads firewall log lines (filterlog: source, destination, pass or block) for the digest and bad-connection checks. System lines are stored and read by the generic pattern finder.',
     intro: 'OPNsense is set up in the web interface; there is no command to paste.',
@@ -186,7 +186,7 @@ const E: CatalogEntry[] = [
     notes: ['A firewall rule only logs when Log is ticked in that rule.', 'TLS needs a client certificate selected in the Certificate field and a TLS listener on the receiver.'],
   },
   {
-    // Nguồn: SonicWall SonicOS 7 Administration Guide, "Log > Syslog" (sonicwall.com/support).
+    // Source: SonicWall SonicOS 7 Administration Guide, "Log > Syslog" (sonicwall.com/support).
     id: 'sonicwall', group: 'firewall', name: 'SonicWall (SonicOS)', keywords: 'sonicwall tz nsa nsv sonicos', protos: ['udp'], reads: 'parsed',
     readsNote: 'Reads Connection Opened lines (source, destination) for the digest and bad-connection checks. Dropped packets and other messages are stored and read by the generic pattern finder.',
     intro: 'SonicWall is set up in the web interface; there is no command to paste.',
@@ -199,7 +199,7 @@ const E: CatalogEntry[] = [
     notes: ['Check the SonicOS administration guide for your version: menu names change between 6.5 and 7.'],
   },
   {
-    // Nguồn: WatchGuard Fireware Help, "Configure Logging and Notification" (watchguard.com).
+    // Source: WatchGuard Fireware Help, "Configure Logging and Notification" (watchguard.com).
     id: 'watchguard', group: 'firewall', name: 'WatchGuard (Fireware)', keywords: 'watchguard firebox fireware', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'WatchGuard is set up in Fireware Web UI; there is no command to paste.',
     steps: (c) => [
@@ -212,7 +212,7 @@ const E: CatalogEntry[] = [
     notes: ['Menu names differ in Policy Manager (Setup, Logging). Check the Fireware help for your version.'],
   },
   {
-    // Nguồn: Check Point R81 CLI Reference Guide, "cp_log_export" (sc1.checkpoint.com).
+    // Source: Check Point R81 CLI Reference Guide, "cp_log_export" (sc1.checkpoint.com).
     id: 'checkpoint', group: 'firewall', name: 'Check Point (Log Exporter)', keywords: 'check point checkpoint gaia smartconsole', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Run on the Check Point management server or log server (Gaia expert mode). Log Exporter sends the logs the server receives.',
     steps: () => ['Open an SSH session to the management or log server and enter expert mode.', 'Paste the block.', 'Check that it is running with cp_log_export show.'],
@@ -220,7 +220,7 @@ const E: CatalogEntry[] = [
     notes: ['Log Exporter is built into R81 and later; older versions need the Log Exporter package from Check Point.'],
   },
   {
-    // Nguồn: Juniper TechLibrary, "Configuring System Logging" và "Configure Security Log Stream" (juniper.net).
+    // Source: Juniper TechLibrary, "Configuring System Logging" and "Configure Security Log Stream" (juniper.net).
     id: 'juniper-srx', group: 'firewall', name: 'Juniper SRX (Junos)', keywords: 'juniper srx junos', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the Junos CLI in configuration mode. Replace <srx-interface-ip> with the SRX address the box should see.',
     steps: () => ['Open the CLI and enter configure.', 'Paste the first block for system logs and the second for traffic (security) logs.', 'Run commit.'],
@@ -231,7 +231,7 @@ const E: CatalogEntry[] = [
     notes: ['Security policies only produce logs when they have then log session-init or session-close.', 'Stream mode needs source-address; the device refuses the commit without it.'],
   },
   {
-    // Nguồn: Huawei USG / AR Configuration Guide, "Information Center" (info.support.huawei.com).
+    // Source: Huawei USG / AR Configuration Guide, "Information Center" (info.support.huawei.com).
     id: 'huawei', group: 'firewall', name: 'Huawei USG / AR', keywords: 'huawei usg ar vrp eudemon', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the device CLI in system view.',
     steps: () => ['Open the CLI and enter system-view.', 'Paste the block, then save with save.'],
@@ -239,7 +239,7 @@ const E: CatalogEntry[] = [
     notes: ['USG firewalls also need session logging turned on (policy logging) to produce traffic logs: see the Huawei documentation for your model.'],
   },
   {
-    // Nguồn: DrayTek Vigor manual, "System Maintenance > SysLog / Mail Alert Setup" (draytek.com).
+    // Source: DrayTek Vigor manual, "System Maintenance > SysLog / Mail Alert Setup" (draytek.com).
     id: 'draytek', group: 'firewall', name: 'DrayTek Vigor', keywords: 'draytek vigor 2865 2927 2962', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'DrayTek Vigor is set up in the web interface; there is no command to paste.',
     steps: (c) => [
@@ -252,7 +252,7 @@ const E: CatalogEntry[] = [
     notes: ['Firewall rules log only when Syslog is ticked in the rule (Firewall, Filter Setup).'],
   },
   {
-    // Nguồn: Ubiquiti Help Center (UniFi Network, "Remote Logging") và EdgeOS User Guide, "System, Syslog".
+    // Source: Ubiquiti Help Center (UniFi Network, "Remote Logging") và EdgeOS User Guide, "System, Syslog".
     id: 'ubiquiti', group: 'firewall', name: 'Ubiquiti UniFi gateway / EdgeRouter', keywords: 'ubiquiti unifi udm usg ucg edgerouter edgeos', protos: ['udp'], reads: 'parsed',
     readsNote: 'Reads firewall log lines of the kernel (source, destination, allowed or dropped, by the rule-set name in the log prefix) for the digest and bad-connection checks. Turn on logging in the firewall rules you want to see.',
     intro: 'A UniFi gateway sends logs through the UniFi Network application; an EdgeRouter has a CLI.',
@@ -265,7 +265,7 @@ const E: CatalogEntry[] = [
     notes: ['EdgeOS sends to the standard syslog port 514 only.', 'The menu name for remote logging changes between UniFi Network versions: check the Ubiquiti help center for yours.'],
   },
   {
-    // Nguồn: Zyxel USG FLEX / ATP User's Guide, "Log and Report > Log Settings" (zyxel.com).
+    // Source: Zyxel USG FLEX / ATP User's Guide, "Log and Report > Log Settings" (zyxel.com).
     id: 'zyxel', group: 'firewall', name: 'Zyxel USG / ATP', keywords: 'zyxel usg flex atp zywall', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Zyxel is set up in the web interface; there is no command to paste.',
     steps: (c) => [
@@ -278,7 +278,7 @@ const E: CatalogEntry[] = [
     notes: ['Choose Default format. CEF and VRPT formats are stored as text only.'],
   },
   {
-    // Nguồn: TP-Link Omada SDN Controller User Guide, "Log Settings / Remote Logging" (omadanetworks.com).
+    // Source: TP-Link Omada SDN Controller User Guide, "Log Settings / Remote Logging" (omadanetworks.com).
     id: 'omada', group: 'firewall', name: 'TP-Link Omada', keywords: 'tp-link omada tplink er605 oc200', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Omada is set up in the Omada controller; there is no command to paste.',
     steps: (c) => [
@@ -291,7 +291,7 @@ const E: CatalogEntry[] = [
 
   // ───────── VPN and remote access ─────────
   {
-    // Nguồn: Ivanti Connect Secure Administration Guide, "Configuring Syslog Servers" (System > Log/Monitoring).
+    // Source: Ivanti Connect Secure Administration Guide, "Configuring Syslog Servers" (System > Log/Monitoring).
     id: 'ivanti', group: 'vpn', name: 'Ivanti Connect Secure', keywords: 'ivanti pulse secure connect secure ics vpn', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Ivanti Connect Secure is set up in the admin console; there is no command to paste.',
     steps: (c) => [
@@ -303,7 +303,7 @@ const E: CatalogEntry[] = [
     notes: ['Edge VPN appliances are common targets for exploited vulnerabilities: keep these logs and patch quickly.', 'Check the Ivanti administration guide for your version.'],
   },
   {
-    // Nguồn: NetScaler documentation, "Configuring NetScaler appliance for audit logging" (docs.netscaler.com).
+    // Source: NetScaler documentation, "Configuring NetScaler appliance for audit logging" (docs.netscaler.com).
     id: 'netscaler', group: 'vpn', name: 'Citrix NetScaler (ADC / Gateway)', keywords: 'citrix netscaler adc gateway', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the NetScaler CLI (SSH as nsroot or another super user).',
     steps: () => ['Open the CLI.', 'Paste the block. The first line creates the destination, the second a policy that matches everything, the third turns it on globally.'],
@@ -311,7 +311,7 @@ const E: CatalogEntry[] = [
     notes: ['Releases that use the advanced policy framework bind the policy with bind audit syslogGlobal instead: see the NetScaler audit logging page for your release.'],
   },
   {
-    // Nguồn: OpenVPN Access Server System Administration Guide, "Logging" (openvpn.net): AS ghi log vào /var/log/openvpnas.log.
+    // Source: OpenVPN Access Server System Administration Guide, "Logging" (openvpn.net): AS writes its log to /var/log/openvpnas.log.
     id: 'openvpn-as', group: 'vpn', name: 'OpenVPN Access Server', keywords: 'openvpn access server openvpnas', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Access Server writes its log to a file on its own Linux host. rsyslog on that host forwards the file to the box.',
     steps: () => ['SSH to the Access Server host.', 'Create the rsyslog file below.', 'Restart rsyslog.'],
@@ -324,7 +324,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Servers and operating systems ─────────
   {
-    // Nguồn: NXLog Documentation, "Collecting logs from Windows Event Log" và "xm_syslog" (docs.nxlog.co).
+    // Source: NXLog Documentation, "Collecting logs from Windows Event Log" and "xm_syslog" (docs.nxlog.co).
     id: 'windows', group: 'server', name: 'Windows (via NXLog Community Edition)', keywords: 'windows server event log nxlog active directory domain controller', protos: ['udp', 'tcp'], reads: 'parsed',
     readsNote: 'Reads sign-in events (4624, 4625), account creation (4720), group changes (4732) and cleared logs (1102).',
     intro: 'Windows cannot send syslog by itself. Install NXLog Community Edition, a free tool that reads the Event Log and sends it to the box.',
@@ -343,7 +343,7 @@ const E: CatalogEntry[] = [
           '    Query   <QueryList><Query Id="0"><Select Path="Security">*[System[(EventID=4624 or EventID=4625 or EventID=4720 or EventID=4732 or EventID=1102)]]</Select><Select Path="System">*[System[(Level=1 or Level=2)]]</Select></Query></QueryList>',
           '</Input>', '',
           '<Output vedette>', `    Module  ${c.proto === 'tcp' ? 'om_tcp' : 'om_udp'}`, `    Host    ${c.ip}`, `    Port    ${c.port}`,
-          // Event Log có tab và xuống dòng trong $Message; syslog BSD không chứa được nên đổi thành dấu cách trước khi đóng gói.
+          // The Event Log has tabs and line breaks in $Message; BSD syslog cannot hold them, so they are changed to spaces before framing.
           '    Exec    $Message =~ s/(\\t|\\R)/ /g; to_syslog_bsd();',
           '</Output>', '',
           '<Route vedette_route>', '    Path    eventlog => vedette', '</Route>',
@@ -358,7 +358,7 @@ const E: CatalogEntry[] = [
     ],
   },
   {
-    // Nguồn: rsyslog documentation, "omfwd: syslog forwarding output module" (rsyslog.com/doc).
+    // Source: rsyslog documentation, "omfwd: syslog forwarding output module" (rsyslog.com/doc).
     id: 'linux-rsyslog', group: 'server', name: 'Linux (rsyslog)', keywords: 'linux ubuntu debian centos rhel rocky alma rsyslog server', protos: ['udp', 'tcp'], reads: 'parsed', logins: true, readsNote: LINUX,
     intro: 'Most Linux servers already run rsyslog. Add one forwarding rule and restart it.',
     steps: () => ['SSH to the server.', 'Create the file below.', 'Restart rsyslog, then send a test line.'],
@@ -366,7 +366,7 @@ const E: CatalogEntry[] = [
     notes: ['*.* forwards everything. To send only authentication logs use auth,authpriv.* instead.', 'TCP forwarding queues messages if the box is down; UDP drops them.'],
   },
   {
-    // Nguồn: systemd journald.conf(5) ForwardToSyslog và rsyslog imuxsock/imjournal.
+    // Source: systemd journald.conf(5) ForwardToSyslog and rsyslog imuxsock/imjournal.
     id: 'linux-journald', group: 'server', name: 'Linux (systemd-journald via rsyslog)', keywords: 'journald journalctl systemd', protos: ['udp', 'tcp'], reads: 'parsed', logins: true, readsNote: LINUX,
     intro: 'journald keeps logs in its own store. Forward them to rsyslog, and rsyslog sends them to the box.',
     steps: () => ['Install rsyslog if it is missing (sudo apt install rsyslog, or sudo dnf install rsyslog).', 'Create the two files below.', 'Restart journald and rsyslog.'],
@@ -378,7 +378,7 @@ const E: CatalogEntry[] = [
     notes: ['On Red Hat family systems rsyslog already reads the journal; you only need the second file.'],
   },
   {
-    // Nguồn: syslog-ng Open Source Edition Administration Guide, "network() destination" (syslog-ng.com).
+    // Source: syslog-ng Open Source Edition Administration Guide, "network() destination" (syslog-ng.com).
     id: 'syslog-ng', group: 'server', name: 'syslog-ng', keywords: 'syslog-ng syslogng balabit', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Add a network destination and a log path to syslog-ng.',
     steps: () => ['Create the file below (on many systems files in /etc/syslog-ng/conf.d are included).', 'Restart syslog-ng.'],
@@ -391,7 +391,7 @@ const E: CatalogEntry[] = [
 
   // ───────── NAS and virtualisation ─────────
   {
-    // Nguồn: Synology Knowledge Center, DSM Help, "Log Center > Log Sending" (kb.synology.com).
+    // Source: Synology Knowledge Center, DSM Help, "Log Center > Log Sending" (kb.synology.com).
     id: 'synology', group: 'nas', name: 'Synology DSM (Log Center)', keywords: 'synology dsm diskstation nas log center', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Synology is set up in DSM; there is no command to paste. Log Center must be installed from Package Center.',
     steps: (c) => [
@@ -403,7 +403,7 @@ const E: CatalogEntry[] = [
     notes: ['Synology NAS devices exposed to the Internet are common ransomware targets: keep these logs.'],
   },
   {
-    // Nguồn: QNAP, "QuLog Center" và FAQ "What kind of syslog format can QNAP NAS receive and send?" (qnap.com).
+    // Source: QNAP, "QuLog Center" và FAQ "What kind of syslog format can QNAP NAS receive and send?" (qnap.com).
     id: 'qnap', group: 'nas', name: 'QNAP (QuLog Center)', keywords: 'qnap qts quts qulog nas', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'QNAP is set up in QuLog Center; there is no command to paste.',
     steps: (c) => [
@@ -415,7 +415,7 @@ const E: CatalogEntry[] = [
     notes: ['Menu names differ between QTS and QuTS hero versions: check the QNAP documentation for yours.'],
   },
   {
-    // Nguồn: VMware ESXi documentation, "Configure Syslog on ESXi Hosts" (docs.vmware.com / techdocs.broadcom.com).
+    // Source: VMware ESXi documentation, "Configure Syslog on ESXi Hosts" (docs.vmware.com / techdocs.broadcom.com).
     id: 'esxi', group: 'nas', name: 'VMware ESXi', keywords: 'vmware esxi vsphere host hypervisor', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
     intro: 'Run on the ESXi host (SSH or the ESXi shell).',
     steps: () => ['Enable SSH on the host or open the shell from the console.', 'Paste the block.'],
@@ -423,7 +423,7 @@ const E: CatalogEntry[] = [
     notes: ['vCenter can set this for many hosts at once: Host, Configure, System, Advanced System Settings, Syslog.global.logHost.', 'ssl:// needs the box to present a certificate the host trusts.'],
   },
   {
-    // Nguồn: Proxmox VE Administration Guide, "System Software Updates / Logging": PVE ghi vào journald; chuyển tiếp bằng rsyslog.
+    // Source: Proxmox VE Administration Guide, "System Software Updates / Logging": PVE writes to journald; forwarded with rsyslog.
     id: 'proxmox', group: 'nas', name: 'Proxmox VE', keywords: 'proxmox pve virtualization', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Proxmox VE logs to journald and has no remote syslog setting in its interface. Install rsyslog on the host and forward from there.',
     steps: () => ['SSH to the Proxmox host as root.', 'Install rsyslog, create the file below and restart.'],
@@ -437,7 +437,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Security tools ─────────
   {
-    // Nguồn: Suricata documentation, "Eve JSON Output" (docs.suricata.io 7.0): filetype syslog, identity, facility, level.
+    // Source: Suricata documentation, "Eve JSON Output" (docs.suricata.io 7.0): filetype syslog, identity, facility, level.
     id: 'suricata', group: 'security', name: 'Suricata', keywords: 'suricata ids ips eve', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Suricata writes eve events to the local syslog of the machine running it. rsyslog on that machine forwards them to the box.',
     steps: () => ['Edit the eve-log section in suricata.yaml as in the first block.', 'Create the rsyslog file as in the second block to forward facility local5 to the box.', 'Run the restart command in the third block.'],
@@ -449,7 +449,7 @@ const E: CatalogEntry[] = [
     notes: [],
   },
   {
-    // Nguồn: Zeek documentation, "Log Files" và policy/tuning/json-logs; rsyslog imfile.
+    // Source: Zeek documentation, "Log Files" and policy/tuning/json-logs; rsyslog imfile.
     id: 'zeek', group: 'security', name: 'Zeek', keywords: 'zeek bro network monitor', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Zeek writes log files, not syslog. Switch them to JSON and let rsyslog on the same machine forward the files.',
     steps: () => ['Add the JSON policy to local.zeek and redeploy (zeekctl deploy).', 'Create the rsyslog file below. Add one input line per log you want (conn.log, dns.log, notice.log).', 'Restart rsyslog.'],
@@ -461,7 +461,7 @@ const E: CatalogEntry[] = [
     notes: ['The path /opt/zeek is the default for a source install; packages may use /var/log/zeek or /usr/local/zeek.', 'conn.log is large. Start with notice.log and dns.log.'],
   },
   {
-    // Nguồn: Wazuh documentation, "Alert management > Syslog output" (documentation.wazuh.com): khối <syslog_output> trong ossec.conf.
+    // Source: Wazuh documentation, "Alert management > Syslog output" (documentation.wazuh.com): the <syslog_output> block in ossec.conf.
     id: 'wazuh', group: 'security', name: 'Wazuh manager (forward alerts)', keywords: 'wazuh ossec siem manager', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Run on the Wazuh manager. It forwards the alerts it generates to the box.',
     steps: () => ['Open /var/ossec/etc/ossec.conf on the manager.', 'Add the block inside <ossec_config>.', 'Restart the manager.'],
@@ -472,7 +472,7 @@ const E: CatalogEntry[] = [
     notes: ['level is the minimum alert level forwarded (7 and above here). Without it every alert is sent.', 'Wazuh forwards over UDP.'],
   },
   {
-    // Nguồn: CrowdSec documentation: không có đầu ra syslog; ghi /var/log/crowdsec.log.
+    // Source: CrowdSec documentation: there is no syslog output; it writes /var/log/crowdsec.log.
     id: 'crowdsec', group: 'security', name: 'CrowdSec', keywords: 'crowdsec bouncer ids', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'CrowdSec has no syslog output. Forward its log file with rsyslog on the same machine.',
     steps: () => ['Create the rsyslog file below.', 'Restart rsyslog.'],
@@ -485,7 +485,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Web, proxy, DNS and mail ─────────
   {
-    // Nguồn: nginx documentation, "Configuring Logging" (nginx.org): access_log syslog:server=...; chỉ UDP.
+    // Source: nginx documentation, "Configuring Logging" (nginx.org): access_log syslog:server=...; UDP only.
     id: 'nginx', group: 'web', name: 'nginx', keywords: 'nginx web server reverse proxy', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Add syslog targets to the nginx config. nginx sends syslog over UDP only.',
     steps: () => ['Edit nginx.conf (or the site file) and add the two lines in the http block.', 'Test with nginx -t and reload.'],
@@ -496,7 +496,7 @@ const E: CatalogEntry[] = [
     notes: ['Replace existing access_log and error_log lines, or keep them to log to the local file as well.'],
   },
   {
-    // Nguồn: Apache HTTP Server documentation, "Log Files" (httpd.apache.org): ErrorLog syslog, CustomLog piped to logger.
+    // Source: Apache HTTP Server documentation, "Log Files" (httpd.apache.org): ErrorLog syslog, CustomLog piped to logger.
     id: 'apache', group: 'web', name: 'Apache httpd', keywords: 'apache httpd apache2 web server', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Apache logs to syslog locally; rsyslog on the same machine forwards to the box.',
     steps: () => ['Edit the Apache config (VirtualHost or apache2.conf) with the two lines.', 'Create the rsyslog file and restart both services.'],
@@ -508,7 +508,7 @@ const E: CatalogEntry[] = [
     notes: ['The service is called httpd on Red Hat family systems.'],
   },
   {
-    // Nguồn: Squid documentation, "access_log" (squid-cache.org): access_log syslog:facility.priority.
+    // Source: Squid documentation, "access_log" (squid-cache.org): access_log syslog:facility.priority.
     id: 'squid', group: 'web', name: 'Squid proxy', keywords: 'squid proxy cache', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Squid writes access logs to syslog locally; rsyslog on the same machine forwards them.',
     steps: () => ['Edit squid.conf and add the access_log line.', 'Create the rsyslog file and restart both services.'],
@@ -520,7 +520,7 @@ const E: CatalogEntry[] = [
     notes: [],
   },
   {
-    // Nguồn: Pi-hole documentation, "Log files" (/var/log/pihole/pihole.log) và dnsmasq log-facility.
+    // Source: Pi-hole documentation, "Log files" (/var/log/pihole/pihole.log) và dnsmasq log-facility.
     id: 'pihole', group: 'web', name: 'Pi-hole / dnsmasq', keywords: 'pihole pi-hole dnsmasq dns sinkhole', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Pi-hole writes its DNS query log to a file. rsyslog on the same machine forwards the file.',
     steps: () => ['Create the rsyslog file below.', 'Restart rsyslog.'],
@@ -531,7 +531,7 @@ const E: CatalogEntry[] = [
     notes: ['Plain dnsmasq: add log-queries and log-facility=local6 to dnsmasq.conf and forward local6.* with rsyslog instead of the imfile input.', 'Query logs are large on busy networks.'],
   },
   {
-    // Nguồn: BIND 9 Administrator Reference Manual, "logging statement" (bind9.readthedocs.io).
+    // Source: BIND 9 Administrator Reference Manual, "logging statement" (bind9.readthedocs.io).
     id: 'bind', group: 'web', name: 'BIND (named)', keywords: 'bind named dns server', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'BIND logs to local syslog with a channel; rsyslog on the same machine forwards it.',
     steps: () => ['Add the logging block to named.conf (or named.conf.options).', 'Create the rsyslog file, reload BIND and restart rsyslog.'],
@@ -543,7 +543,7 @@ const E: CatalogEntry[] = [
     notes: ['The queries category is very chatty; remove it if you only need errors and security events.'],
   },
   {
-    // Nguồn: Microsoft Learn, "DNS logging and diagnostics" (kênh Microsoft-Windows-DNSServer/Audit) và NXLog im_msvistalog.
+    // Source: Microsoft Learn, "DNS logging and diagnostics" (channel Microsoft-Windows-DNSServer/Audit) and NXLog im_msvistalog.
     id: 'windows-dns', group: 'web', name: 'Windows DNS Server (via NXLog)', keywords: 'windows dns server microsoft dns nxlog', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Use NXLog Community Edition on the DNS server to send the DNS audit events.',
     steps: () => ['Install NXLog Community Edition on the DNS server.', 'Append the block to nxlog.conf (keep the top of the file).', 'Restart the NXLog service.'],
@@ -554,7 +554,7 @@ const E: CatalogEntry[] = [
     notes: ['The audit channel records zone and record changes. Query logging needs DNS debug logging turned on in the DNS Manager, and the file is read with im_file.'],
   },
   {
-    // Nguồn: Postfix documentation, "Postfix logging": ghi qua syslog, facility mail.
+    // Source: Postfix documentation, "Postfix logging": logs through syslog, facility mail.
     id: 'postfix', group: 'web', name: 'Postfix', keywords: 'postfix mail smtp mta', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Postfix logs to the mail facility of local syslog. rsyslog on the same machine forwards it.',
     steps: () => ['Create the rsyslog file below.', 'Restart rsyslog.'],
@@ -568,7 +568,7 @@ const E: CatalogEntry[] = [
     intro: 'Paste into the switch CLI in configuration mode.', steps: ciosSteps, snippets: ciosSnippets, notes: [],
   },
   {
-    // Nguồn: Aruba AOS-CX Command-Line Interface Guide, "logging" (arubanetworks.com).
+    // Source: Aruba AOS-CX Command-Line Interface Guide, "logging" (arubanetworks.com).
     id: 'aruba-cx', group: 'switch', name: 'Aruba switch (AOS-CX)', keywords: 'aruba aos-cx cx 6000 6100 6300', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the AOS-CX CLI in configuration mode.',
     steps: () => ['Open the CLI and enter configure.', 'Paste the line, then save with write memory.'],
@@ -576,7 +576,7 @@ const E: CatalogEntry[] = [
     notes: ['If the box is reached through a VRF other than default, add vrf <name> to the line. Check the CLI guide for your version.'],
   },
   {
-    // Nguồn: HPE ArubaOS-Switch Management and Configuration Guide, "Event Log / Debug and Syslog".
+    // Source: HPE ArubaOS-Switch Management and Configuration Guide, "Event Log / Debug and Syslog".
     id: 'hpe-procurve', group: 'switch', name: 'HPE / Aruba switch (ArubaOS-Switch, ProCurve)', keywords: 'hpe procurve aruba 2530 2930 arubaos-switch', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the switch CLI in configuration mode.',
     steps: () => ['Open the CLI and enter configure.', 'Paste the block, then save with write memory.'],
@@ -584,7 +584,7 @@ const E: CatalogEntry[] = [
     notes: ['These switches send to port 514 only.'],
   },
   {
-    // Nguồn: HPE FlexNetwork Comware 7 Network Management and Monitoring Configuration Guide, "Information center".
+    // Source: HPE FlexNetwork Comware 7 Network Management and Monitoring Configuration Guide, "Information center".
     id: 'hpe-comware', group: 'switch', name: 'HPE Comware / H3C switch', keywords: 'hpe comware h3c 1910 1950 5130 5140', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'Paste into the switch CLI in system view.',
     steps: () => ['Open the CLI and enter system-view.', 'Paste the block, then save.'],
@@ -592,7 +592,7 @@ const E: CatalogEntry[] = [
     notes: [],
   },
   {
-    // Nguồn: Ubiquiti Help Center, "UniFi Network Settings: System, Remote Logging".
+    // Source: Ubiquiti Help Center, "UniFi Network Settings: System, Remote Logging".
     id: 'unifi', group: 'switch', name: 'UniFi switches and access points (controller)', keywords: 'unifi controller switch access point uap usw', protos: ['udp'], reads: 'stored', readsNote: STORED,
     intro: 'UniFi devices send syslog under the control of the UniFi Network application.',
     steps: (c) => [
@@ -624,7 +624,7 @@ const E: CatalogEntry[] = [
 export const CATALOG: Record<KindId, CatalogEntry> = Object.fromEntries(E.map((e) => [e.id, e])) as Record<KindId, CatalogEntry>
 export const ENTRIES: CatalogEntry[] = E
 
-/** Tìm theo tên, từ khoá, nhóm: mọi từ trong ô tìm phải khớp (không phân biệt hoa thường). */
+/** Search by name, keyword, group: every word in the search box must match (case-insensitive). */
 export function searchCatalog(q: string): CatalogEntry[] {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   if (!words.length) return E

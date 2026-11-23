@@ -4,9 +4,9 @@ summary: { en: "Proves you own a domain or the box's public IP, then lists subdo
 tier: optional
 default: false
 depends: [core, inventory]
-permissions: [outbound:https]   # tìm subdomain (CT, crt.sh), lượt quét của `scan`, ba dịch vụ "IP của tôi" công khai (AWS, Cloudflare, Google Cloud) để hộp tự thấy IP công cộng, và Shodan InternetDB khi admin bấm; Greenbone tuỳ chọn là container riêng, nói chuyện qua socket gvmd; không có máy chủ nào của dự án
+permissions: [outbound:https]   # subdomain discovery (CT, crt.sh), the runs of `scan`, three public "my IP" services (AWS, Cloudflare, Google Cloud) so the box sees its own public IP, and Shodan InternetDB when the admin clicks; Greenbone is an optional separate container that talks over the gvmd socket; no project-run server
 ports: []
-container: [core]               # API và dữ liệu ở `core`; máy quét bề mặt ngoài của `scan` (Go thuần, kết nối TCP) cũng chạy trong `core`
+container: [core]               # API and data live in `core`; the external-surface scanner of `scan` (pure Go, TCP connections) also runs inside `core`
 tables_prefix: exp_
 stories: [S-EXP-1, S-EXP-2]
 milestone: M4

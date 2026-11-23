@@ -12,7 +12,7 @@ const RANK: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 /** The module a section belongs to for the v1 scope: the one whose switch it holds (switchOf), else its own. */
 const ownerOf = (s: SettingsSection) => s.switchOf ?? s.module
 
-/** Mục cài đặt người này được xem: đủ vai, module của mục đang bật, và không thuộc module bản này không đưa ra. */
+/** The settings sections this person may see: the role is enough, the section's module is on, and it does not belong to a module this release does not offer. */
 function useAllowed() {
   const me = useMe()
   const mods = useModules()

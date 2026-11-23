@@ -24,7 +24,7 @@ import { errMsg } from './kinds'
 import { AGENT_COMMANDS, boxHostPort } from './AgentQuiet'
 import type { AgentNode, AgentToken, AgentsResponse, CreateTokenResult, OsqueryPackage, WazuhConnection } from './types'
 
-/** Chỉ bản xem thử có mock API: nút "Send sample data" giả lập một lần agent báo về (bản thật không có). */
+/** Only the preview build with the mock API: the "Send sample data" button simulates one agent report (the real build does not have it). */
 const MOCK_BUILD = import.meta.env.DEV || import.meta.env.VITE_API_MOCK !== 'off'
 
 function Steps({ items, ns }: { items: { key: string; file: string; code: string }[]; ns: string }) {
@@ -132,7 +132,7 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   )
 }
 
-/** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp, và cài tay ở mục "Advanced". */
+/** A one-line install and uninstall command for Linux or Windows Server, a readable script, a direct package download, and a manual install under "Advanced". */
 export function InstallPanel({ data, token, platform: fixed }: { data: AgentsResponse; token: string; platform?: Platform }) {
   const { t } = useTranslation('inventory')
   const [picked, setPlatform] = useState<Platform>('linux')
@@ -434,7 +434,7 @@ function MachinesTable({ nodes, box }: { nodes: AgentNode[]; box: string }) {
   )
 }
 
-/** S-INV-4: osquery (token + một dòng lệnh cài cho Linux và Windows Server) và Wazuh (Vedette kéo qua API). Cần module agent-intake. */
+/** S-INV-4: osquery (a token + a one-line install command for Linux and Windows Server) and Wazuh (Vedette pulls over the API). Needs the agent-intake module. */
 export function AgentsSection() {
   const { t } = useTranslation('inventory')
   const { revoke, sampleToken, removeUnused } = useAgentActions()

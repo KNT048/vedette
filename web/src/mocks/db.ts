@@ -1,7 +1,7 @@
-// Kho dữ liệu của mock API. Trình duyệt: lưu localStorage để dữ liệu người dùng nhập còn sau khi tải lại;
-// test: chỉ trong bộ nhớ. Nút "Khôi phục dữ liệu mẫu" trong Cài đặt gọi resetMockDb().
-// Đổi số khi cấu trúc dữ liệu lưu trong trình duyệt thay đổi không tương thích: mọi trình duyệt bắt đầu lại sạch.
-// v2: tiếng Anh. v3: phản ứng, Incidents, kênh có người duyệt (2026-11-09). v4: tên bảng theo tiền tố module (WP-06).
+// The data store of the mock API. Browser: kept in localStorage so what the user typed survives a reload;
+// tests: in memory only. The "Restore sample data" button in Settings calls resetMockDb().
+// Change the number when the data structure stored in the browser changes incompatibly: every browser starts clean again.
+// v2: English. v3: response, Incidents, channels with an approver (2026-11-09). v4: table names by module prefix.
 const KEY = 'vedette-mock-db-v4'
 const persist = typeof window !== 'undefined' && import.meta.env.MODE !== 'test'
 
@@ -16,22 +16,22 @@ function load(): Record<string, unknown> {
 }
 function save() {
   if (!persist || !cache) return
-  try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* đầy bộ nhớ: bỏ qua, dữ liệu vẫn trong phiên */ }
+  try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage full: ignore, the data stays in the session */ }
 }
 
 export interface Collection<T> { get(): T; set(v: T): void; update(fn: (v: T) => T): T }
 
-// Chế độ dữ liệu: 'sample' = bản xem thử có dữ liệu mẫu (mặc định); 'clean' = cài thật, mọi bảng bắt đầu rỗng
-// (người dùng tự khai thiết bị, cấu hình kênh…). Cài đặt ban đầu chọn chế độ; "Xoá toàn bộ dữ liệu" về lại chưa chọn.
+// Data mode: 'sample' = the preview with sample data (default); 'clean' = a real install, every table starts empty
+// (the user declares devices, configures channels...). Initial setup picks the mode; "Delete all data" goes back to unset.
 const MODE = '__mode'
 export type DataMode = 'sample' | 'clean'
 export const dataMode = (): DataMode => (load()[MODE] === 'clean' ? 'clean' : 'sample')
 export function setDataMode(m: DataMode) { load()[MODE] = m; save() }
 
 /**
- * Một "bảng" của mock. `seed` chỉ chạy khi chưa có dữ liệu. Tên = tiền tố module (rule modules.md).
- * `empty`: giá trị khi cài sạch. Bắt buộc với bảng chứa DỮ LIỆU MẪU (thiết bị, sự kiện, lịch sử…);
- * bỏ trống với bảng chỉ chứa cấu hình mặc định hợp lý cho người dùng thật.
+ * A mock "table". `seed` runs only when there is no data yet. Name = the module prefix (modules rule).
+ * `empty`: the value on a clean install. Required for a table that holds SAMPLE DATA (devices, events, history...);
+ * leave it out for a table that only holds defaults that make sense for a real user.
  */
 export function collection<T>(name: string, seed: () => T, empty?: () => T): Collection<T> {
   return {
@@ -45,14 +45,14 @@ export function collection<T>(name: string, seed: () => T, empty?: () => T): Col
   }
 }
 
-/** Đọc một bảng mà KHÔNG gieo dữ liệu (undefined nếu chưa có). Dùng khi đọc chéo module trong mock. */
+/** Read a table WITHOUT seeding data (undefined if absent). Used for cross-module reads in the mock. */
 export function peek<T>(name: string): T | undefined {
   return load()[name] as T | undefined
 }
 
 export function resetMockDb() {
   cache = {}
-  if (persist) { try { localStorage.removeItem(KEY) } catch { /* bỏ qua */ } }
+  if (persist) { try { localStorage.removeItem(KEY) } catch { /* ignore */ } }
 }
 
 let seq = 0

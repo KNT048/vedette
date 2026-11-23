@@ -1,7 +1,7 @@
 import { Globe } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 
-// Module exposure (S-EXP-1). Quét chỉ khi đã xác thực sở hữu và có văn bản đồng ý (LEGAL §3).
+// The exposure module (S-EXP-1). Scans only after ownership is verified and a consent text exists (LEGAL §3).
 export const feature: Feature = {
   id: 'exposure',
   routes: [

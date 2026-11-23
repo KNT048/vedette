@@ -256,7 +256,7 @@ func encode(b *pem.Block) []byte { return pem.EncodeToMemory(b) }
 // M1. Run must refuse every control character, not only \r and \n: the line goes to a PTY whose line editor acts on other control
 // characters: Ctrl-Z applies the line and ends config mode on IOS, Ctrl-O is accept-line in bash/readline, Ctrl-V quotes the next key
 // (a literal newline), Ctrl-U kills what the template put before a parameter, Ctrl-C/ESC/DEL/TAB edit or abort. A parameter that
-// carries one of them turns "one approved line" into another command, or two. INV-23 (3): "một dòng một lần".
+// carries one of them turns "one approved line" into another command, or two. INV-23 (3): "one line, once".
 func TestSSHRunRefusesControlCharacters(t *testing.T) {
 	t.Parallel()
 	f := conntest.NewSSH(t, conntest.SSHOpts{})

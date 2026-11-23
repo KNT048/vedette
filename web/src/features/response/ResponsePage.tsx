@@ -37,8 +37,8 @@ function Content() {
   const actions = useActions()
   const settings = useSettings(admin)
   const leaving = useLeaving() // On here but not offered in v1 → no new action, every way back stays (frozen.ts)
-  // Liên kết cũ /response#requests (trước khi có khung trang) → /response?tab=requests; #ai là tên cũ của Requests.
-  // Hash khác (ví dụ #main của liên kết "Skip to content") để nguyên.
+  // The old link /response#requests (before the page frame existed) → /response?tab=requests; #ai is the old name of Requests.
+  // Any other hash (for example #main of the "Skip to content" link) is left alone.
   const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
   if (OLD_HASH.includes(old)) {
     const p = new URLSearchParams(search)

@@ -24,7 +24,7 @@ function CustomFeedHosts() {
   return <span className="mt-1 block">{hosts.length ? t('privacy.flow.1.custom', { hosts: hosts.join(', ') }) : t('privacy.flow.1.customNone')}</span>
 }
 
-// Mười hai luồng dữ liệu rời hộp, đúng như PRIVACY.md. Thêm luồng mới = sửa PRIVACY.md + bảng này cùng commit (rule legal.md).
+// The twelve data flows that leave the box, exactly as in PRIVACY.md. A new flow = change PRIVACY.md + this table in the same commit (legal rule).
 function Body({ d }: { d: PrivacyState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')

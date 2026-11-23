@@ -2,19 +2,19 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
-// QA như người dùng thật cho module ai (S-AI-1..6): nhiều hồ sơ AI, phân việc, dự phòng, luật riêng tư. UI chỉ có tiếng Anh.
-// Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/ai.spec.ts
-// Máy dùng chung với nhiều agent nên chậm: nới thời gian mỗi test.
+// QA as a real user for the ai module (S-AI-1..6): several AI profiles, job assignments, fallback, privacy rules. The UI is English only.
+// Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/ai.spec.ts
+// The machine is shared and slow: relax each test's timeout.
 test.describe.configure({ timeout: 150_000 })
 
-/** Đổi phiên sang tài khoản khác: ép core_session trước mỗi lần tải trang (một lần ghi muộn của trang cũ không đè được). */
+/** Switch the session to another account: force core_session before every page load (one late write from the old page cannot overwrite it). */
 async function asUser(page: Page, userId: string) {
   await page.addInitScript((u) => {
     try {
       const k = 'vedette-mock-db-v4'
       const raw = localStorage.getItem(k)
       if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
-    } catch { /* bỏ qua */ }
+    } catch { /* ignore */ }
   }, userId)
   await page.reload()
 }
@@ -36,7 +36,7 @@ test.describe('ai: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('No AI profile yet')
     await expect(page.getByRole('button', { name: 'About No AI profile yet' }).first()).toHaveAccessibleDescription(/^Add an AI profile \(provider, model and key\) to use this\./) // #824: behind the empty state's ⓘ
     await expect(page.getByRole('link', { name: 'Open Settings, AI assistant' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Token meter' })).toHaveCount(0) // chưa nối và chưa chạy: không phô số 0
+    await expect(page.getByRole('heading', { name: 'Token meter' })).toHaveCount(0) // not connected and never run: no zero is shown
     await expect(page.getByText('claude-haiku')).toHaveCount(0)
     await shot(page, 'ai', `assistant-clean-${device(page)}`)
     await expectAccessible(page, 'assistant, clean')
@@ -58,13 +58,13 @@ test.describe('ai: clean install', () => {
     await expectAccessible(page, 'settings, clean')
     await addProfile(page)
     const dlg = page.getByRole('dialog', { name: 'Add AI profile' })
-    await expect(dlg.getByLabel('Model', { exact: true })).toHaveValue('claude-haiku-5-5') // không để trống model
-    await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeDisabled() // Anthropic chỉ chạy đám mây
+    await expect(dlg.getByLabel('Model', { exact: true })).toHaveValue('claude-haiku-5-5') // the model is never left empty
+    await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeDisabled() // Anthropic runs in the cloud only
     await dlg.getByLabel('Profile name', { exact: true }).fill('Claude Haiku')
     await dlg.getByRole('checkbox', { name: /I understand/ }).check()
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(dlg.getByText(/Enter the provider's API key/)).toBeVisible()
-    await expect(dlg.getByLabel('Profile name', { exact: true })).toHaveValue('Claude Haiku') // dữ liệu đã gõ không mất
+    await expect(dlg.getByLabel('Profile name', { exact: true })).toHaveValue('Claude Haiku') // typed data is not lost
     await dlg.getByLabel('API key', { exact: true }).fill('abc def')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByText(/too short or contains spaces/)).toBeVisible()
@@ -83,13 +83,13 @@ test.describe('ai: clean install', () => {
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(dlg.getByText(/The budget must be a whole number/)).toBeVisible()
     await dlg.getByLabel('Monthly budget for this profile (tokens)', { exact: true }).fill('20000')
-    await dlg.getByLabel('API key', { exact: true }).press('Enter') // Enter gửi form
+    await dlg.getByLabel('API key', { exact: true }).press('Enter') // Enter submits the form
     await expect(page.getByText('AI profile added').first()).toBeVisible()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText('Key ends in 9z9z')).toBeVisible()
     await page.reload()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText('Key ends in 9z9z')).toBeVisible()
-    await expect(page.getByText('sk-ant-demo-key')).toHaveCount(0) // khoá không bao giờ hiện lại
-    // việc chưa có hồ sơ chính tự lấy hồ sơ mới: dùng được ngay
+    await expect(page.getByText('sk-ant-demo-key')).toHaveCount(0) // the key is never shown again
+    // a job with no primary profile takes the new profile: usable at once
     await expect(page.getByLabel('Primary profile for Ask your data', { exact: true })).toHaveValue(/.+/)
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
@@ -99,11 +99,11 @@ test.describe('ai: clean install', () => {
     await expect(page.getByText('Sources: Inventory: only the Vedette box searched')).toBeVisible()
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await shot(page, 'ai', `assistant-clean-asked-${device(page)}`)
-    // trang Log chưa có nguồn log: không dựng khung AI (không có gì để tóm tắt)
+    // the Logs page has no log source yet: no AI panel is built (nothing to summarise)
     await page.goto('/logs')
     await expect(page.getByText('No log sources yet')).toBeVisible()
     await noVietnamese(page)
-    expect(errors.filter((e) => !/status of (401|502)/.test(e))).toEqual([]) // 401/502: lỗi thử kết nối cố ý
+    expect(errors.filter((e) => !/status of (401|502)/.test(e))).toEqual([]) // 401/502: deliberate connection-test failures
   })
 
   test('provider types fill the right address and model; Custom has an API style; a server inside the network may use http and needs no key', async ({ page }) => {
@@ -122,8 +122,8 @@ test.describe('ai: clean install', () => {
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('http://host.containers.internal:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
     await expect(dlg.getByRole('button', { name: 'About Where does it run?' })).toHaveAccessibleDescription(/may leave if it forwards to a cloud provider/) // #824: behind the field's ⓘ
-    await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài
-    await dlg.getByRole('button', { name: 'Test connection' }).click() // không cần khoá
+    await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // internal: no confirmation to send data out is needed
+    await dlg.getByRole('button', { name: 'Test connection' }).click() // no key needed
     await expect(dlg.getByText('Connected')).toBeVisible()
     await kind.selectOption({ label: 'Custom' })
     await expect(dlg.getByLabel('API style', { exact: true })).toBeVisible()
@@ -132,7 +132,7 @@ test.describe('ai: clean install', () => {
     await openAdvanced(dlg)
     await dlg.getByLabel('Server address', { exact: true }).fill('http://10.0.0.5:8080')
     await dlg.getByLabel('Model', { exact: true }).fill('my-model')
-    await dlg.getByRole('button', { name: 'Test connection' }).click() // đám mây + http: bị từ chối đúng ô
+    await dlg.getByRole('button', { name: 'Test connection' }).click() // cloud + http: rejected on the right field
     await expect(dlg.getByText(/must start with https:\/\//)).toBeVisible()
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveAttribute('aria-invalid', 'true')
     await dlg.getByRole('radio', { name: /Inside your network/ }).click()
@@ -174,7 +174,7 @@ test.describe('ai: sample data', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Remove profile' }).click()
     await expect(page.getByText('Claude Sonnet removed').first()).toBeVisible()
     await expect(table.getByText('Claude Sonnet')).toHaveCount(0)
-    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/) // dự phòng lên làm chính
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/) // the fallback becomes the primary
     await noVietnamese(page)
     expect(errors).toEqual([])
   })
@@ -186,7 +186,7 @@ test.describe('ai: sample data', () => {
     await expect(page.getByText('Logs and device data go only to profiles inside your network', { exact: true }).locator('xpath=..').getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription(/Tasks on public data \(CVE news, translating vendor advisories\) may still use cloud profiles/) // #824: behind the rule's ⓘ
     await rule.click()
     await expect(page.getByText(/cloud assignment\(s\) were cleared/)).toBeVisible()
-    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue('') // cả chính lẫn dự phòng đều đám mây
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue('') // both the primary and the fallback are cloud
     const optionsOf = (label: string) => page.getByLabel(label).locator('option')
     await expect(optionsOf('Primary profile for Ask your data').filter({ hasText: 'Claude Haiku' })).toBeDisabled()
     await expect(optionsOf('Primary profile for Ask your data').filter({ hasText: 'Claude Haiku' })).toContainText('cloud, not allowed for internal data')
@@ -201,11 +201,11 @@ test.describe('ai: sample data', () => {
     await page.reload()
     await expect(rule).toBeChecked()
     await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/)
-    // luật riêng tư chặn việc gửi dữ liệu nội bộ tới đám mây: câu hỏi vẫn chạy nhờ hồ sơ nội bộ
+    // the privacy rule blocks sending internal data to the cloud: the question still runs through the internal profile
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     await expect(page.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeVisible()
-    // bỏ hồ sơ chính: dự phòng cần hồ sơ chính
+    // remove the primary profile: the fallback needs a primary profile
     await page.goto('/settings/ai')
     await page.getByLabel('Primary profile for Weekly report comments', { exact: true }).selectOption({ label: 'None' })
     await expect(page.getByLabel('Fallback profile for Weekly report comments', { exact: true })).toBeDisabled()
@@ -214,7 +214,7 @@ test.describe('ai: sample data', () => {
   test('fallback: when the primary stops answering the fallback takes over and the run log and the answer say so', async ({ page }) => {
     await sampleStart(page)
     await page.goto('/settings/ai')
-    await page.getByRole('button', { name: 'Edit Claude Sonnet' }).click() // hồ sơ chính của "Ask your data"
+    await page.getByRole('button', { name: 'Edit Claude Sonnet' }).click() // the primary profile of "Ask your data"
     const dlg = page.getByRole('dialog', { name: 'Edit Claude Sonnet' })
     await openAdvanced(dlg)
     await dlg.getByLabel('Server address', { exact: true }).fill('https://timeout.example.com')
@@ -224,7 +224,7 @@ test.describe('ai: sample data', () => {
     await expect(page.getByText('AI profile saved').first()).toBeVisible()
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
-    await expect(page.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeVisible() // dự phòng của "Ask your data"
+    await expect(page.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeVisible() // the fallback of "Ask your data"
     await page.getByRole('tab', { name: 'Usage', exact: true }).click()
     const log = page.getByRole('table', { name: 'Log of AI calls' })
     await expect(log.getByText('Fallback used').first()).toBeVisible()
@@ -279,7 +279,7 @@ test.describe('ai: sample data', () => {
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1000')
     await shot(page, 'ai', `assistant-capped-${device(page)}`)
     await page.goto('/settings/ai')
-    await expect(page.getByRole('radio', { name: /Maximum/ })).toBeChecked() // ngân sách tháng không hạ mức
+    await expect(page.getByRole('radio', { name: /Maximum/ })).toBeChecked() // the monthly budget does not lower the level
     expect(errors).toEqual([])
   })
 
@@ -332,7 +332,7 @@ test.describe('ai: sample data', () => {
   test('viewer (director): sees the meter, cannot ask, cannot change profiles, and is told which role is needed', async ({ page }) => {
     await sampleStart(page)
     const s = page.getByRole('button', { name: 'Which machines still expose RDP?' })
-    // đổi phiên bằng cách sửa kho rồi tải lại; thử lại nếu một lần ghi muộn của trang cũ đè lên
+    // switch the session by editing the store and reloading; retry if a late write from the old page overwrites it
     await expect(async () => {
       await asUser(page, 'u-view')
       await page.goto('/assistant')
@@ -343,13 +343,13 @@ test.describe('ai: sample data', () => {
     await page.getByRole('tab', { name: 'Usage', exact: true }).click()
     await expect(page.getByRole('progressbar')).toBeVisible()
     await page.goto('/settings/ai')
-    await expect(page.getByText(/Admin/).first()).toBeVisible() // trang cài đặt AI chỉ dành cho quản trị: nói cần vai gì
+    await expect(page.getByText(/Admin/).first()).toBeVisible() // the AI settings page is admin only: it says which role is needed
     await expect(page.getByRole('button', { name: 'Add AI profile' })).toHaveCount(0)
   })
 
   test('AI module off: the page says so; saved data is kept', async ({ page }) => {
     await sampleStart(page)
-    // tắt module bằng cách ép core_modules trước mỗi lần tải trang (chờ kho mock có bảng module)
+    // turn the module off by forcing core_modules before every page load (wait until the mock store has the modules table)
     await page.waitForFunction(() => !!JSON.parse(localStorage.getItem('vedette-mock-db-v4') ?? '{}').core_modules)
     await page.addInitScript(() => {
       try {
@@ -358,14 +358,14 @@ test.describe('ai: sample data', () => {
         if (!raw) return
         const db = JSON.parse(raw)
         if (db.core_modules) { db.core_modules = db.core_modules.map((m: { id: string }) => (m.id === 'ai' ? { ...m, enabled: false } : m)); localStorage.setItem(k, JSON.stringify(db)) }
-      } catch { /* bỏ qua */ }
+      } catch { /* ignore */ }
     })
     await page.reload()
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('AI assistant is off')
     await page.goto('/cve/CVE-2022-27593')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('CVE-2022-27593')
-    await expect(page.getByRole('heading', { level: 2, name: 'Explain in plain English' })).toHaveCount(0) // khung AI không dựng khi module tắt
+    await expect(page.getByRole('heading', { level: 2, name: 'Explain in plain English' })).toHaveCount(0) // the AI panel is not built when the module is off
     await expect(page.getByText(/off/i).first()).toBeVisible({ timeout: 15_000 })
   })
 })

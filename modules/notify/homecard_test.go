@@ -1,6 +1,7 @@
 package notify_test
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -82,6 +83,26 @@ func TestHomeFirstRunSummaryWithoutAChannelSaysWhy(t *testing.T) {
 	if f.State != notify.SummaryNotSent || f.NotSent == nil || f.NotSent.Reason != notify.UnsentNoChannel ||
 		f.NotSent.Text != "Not sent: no alert channel was set up when it was made." || f.Load != "catalogue" ||
 		f.Title != "Patch first: 1 urgent finding on 1 device" || f.Link != "/findings?tab=device&status=exploited" || !f.SentAt.IsZero() {
+		t.Fatalf("summary = %+v (not sent: %+v)", f, f.NotSent)
+	}
+}
+
+// Home is read by every role, the alert history by administrators only: a summary every channel failed to deliver says which channel
+// failed, never the provider's or the network's error text (it can name the mail server or the webhook host; History has it).
+func TestHomeFirstRunSummaryFailedKeepsTheErrorInHistory(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	e.net.failTelegram(http.StatusBadRequest)
+	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	pub(notify.EventFirstRun, firstRun(e, "f-1"))
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	f, err := e.svc.FirstRunSummary(e.ctx(), e.clock.Now().Add(-7*24*time.Hour))
+	if err != nil || f == nil {
+		t.Fatalf("summary: %+v, %v", f, err)
+	}
+	if f.State != notify.SummaryNotSent || f.NotSent == nil || f.NotSent.Reason != notify.UnsentFailed || f.NotSent.Channel != channel.Telegram ||
+		f.NotSent.Text != "Not delivered. Telegram failed to deliver it." {
 		t.Fatalf("summary = %+v (not sent: %+v)", f, f.NotSent)
 	}
 }

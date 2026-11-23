@@ -193,11 +193,13 @@ func (s *Service) summaryState(ctx context.Context, q dbtx, out *FirstRunSummary
 	}
 	out.State = SummaryNotSent
 	loc := s.loc(ctx)
-	var fch, ferr sql.NullString
-	err = q.QueryRowContext(ctx, `SELECT d.channel, d.error `+sends+` AND d.ok = 0 AND d.delayed = 0 ORDER BY d.at DESC, d.rowid DESC LIMIT 1`, out.ID, out.ID).Scan(&fch, &ferr)
+	var fch sql.NullString
+	err = q.QueryRowContext(ctx, `SELECT d.channel `+sends+` AND d.ok = 0 AND d.delayed = 0 ORDER BY d.at DESC, d.rowid DESC LIMIT 1`, out.ID, out.ID).Scan(&fch)
 	switch {
 	case err == nil:
-		ns := noticeNotSent(UnsentFailed, Severity(sev), "", channel.Type(fch.String), ferr.String, loc)
+		// Home is read by every role: the failed channel only, never the error text (it can name the mail server or the webhook host);
+		// the alert history, an administrator's page, has it.
+		ns := noticeNotSent(UnsentFailed, Severity(sev), "", channel.Type(fch.String), "", loc)
 		out.NotSent = &ns
 		return nil
 	case !errors.Is(err, sql.ErrNoRows):

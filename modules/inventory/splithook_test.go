@@ -47,6 +47,11 @@ func TestSplit_TellsTheLifecycleWhereTheSoftwareWent(t *testing.T) {
 	if len(got) != 1 || got[0].From != host || got[0].Into != back || got[0].Actor != admin {
 		t.Fatalf("split hooks %+v, want one from %s into %s", got, host, back)
 	}
+	// The device split off is named and addressed in the hook: a participant inside the write cannot read it through the
+	// inventory's ordinary reads yet.
+	if got[0].IntoName != "esxi-01" || got[0].IntoIP != "192.0.2.90" {
+		t.Errorf("split hook names the device split off %q at %q, want esxi-01 at 192.0.2.90", got[0].IntoName, got[0].IntoIP)
+	}
 	line, ok := got[0].Software[folded]
 	if !ok || line.Gone || line.Into == "" || line.Into == folded {
 		t.Fatalf("the folded ESXi line %s: %+v (all %+v)", folded, line, got[0].Software)

@@ -25,7 +25,7 @@ const OWN_PAGING: { name: string; re: RegExp }[] = [
 /** Lists of the box's records drawn as a <ul> of their own that may stay so, with the reason (an entry that no longer matches fails). */
 const OWN_LIST_ALLOWED: { file: string; why: string }[] = [
   { file: 'features/ai/LogsPanel.tsx', why: 'the findings inside one AI answer, part of the answer text' },
-  { file: 'features/inventory/NetworkForm.tsx', why: 'the at most 16 ranges of the scan scope, edited in the form and saved together' },
+  { file: 'features/scanning/ScopeLists.tsx', why: 'the at most 16 ranges of the scan scope, edited in the form and saved together' },
   { file: 'features/honeypot/DevicePanel.tsx', why: 'the latest few hits of one device on its page, each a link to the hit; the full list is Internal traps › Hits' },
   { file: 'features/response/NeverTouch.tsx', why: 'the rows of one settings form being edited, saved together' },
   { file: 'features/response/RulesTab.tsx', why: 'the fixed catalogue of rule templates, as cards to pick from' },

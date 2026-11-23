@@ -3812,6 +3812,19 @@ func encodeNotifyPostNotifyIncidentsStatusResponse(response *NotifyPostNotifyInc
 	return nil
 }
 
+func encodeNotifyPostNotifyNoticesIDSendResponse(response *NotifyPostNotifyNoticesIDSendOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeNotifyPostNotifyTelegramApproversUserIDCodeResponse(response *NotifyPostNotifyTelegramApproversUserIDCodeOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)

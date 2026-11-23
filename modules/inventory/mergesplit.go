@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -670,10 +671,11 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 			VALUES (?, ?, ?, ?, 'unknown', ?, ?, ?, 0, ?, ?)`, newID, moved.ip, moved.mac, confirmed, gone.origin(), approved, at, first, max(first, last)); err != nil {
 			return fmt.Errorf("inventory: split an address: %w", err)
 		}
-		if err := s.giveBackSoftware(ctx, tx, id, newID, moved.id, gone); err != nil {
+		lines := map[string]string{} // id's lines whose readings went to a line of newID
+		if err := s.giveBackSoftware(ctx, tx, id, newID, moved.id, gone, lines); err != nil {
 			return err
 		}
-		if err := s.moveInterface(ctx, tx, id, newID, moved.id, moved.mac); err != nil {
+		if err := s.moveInterface(ctx, tx, id, newID, moved.id, moved.mac, lines); err != nil {
 			return err
 		}
 		if err := keepMACObs(ctx, tx, newID, moved.mac, moved.source, last); err != nil {
@@ -716,6 +718,13 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 				return err
 			}
 		}
+		sp, err := splitLines(ctx, tx, id, newID, actor, lines)
+		if err != nil {
+			return err
+		}
+		if err := s.lifecycle.DeviceSplit(ctx, tx, sp); err != nil { // the modules that keep rows by line follow the software now
+			return err
+		}
 		o.readdress(id)
 		o.add(EventAssetDiscovered, AssetEvent{AssetID: newID, Match: true})
 		if approved {
@@ -727,6 +736,22 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 		return s.auditTx(ctx, tx, actor, "inventory.split", name, addr+" split off as a device of its own: "+deviceName(ctx, tx, newID))
 	})
 	return newID, err
+}
+
+// splitLines is the lifecycle.Split of a split of device from into device into: every line of from whose readings went to a line of
+// into (lines: from's line -> into's; a line that went whole maps to itself), and whether from still reads that software (it still
+// holds the line, not removed).
+func splitLines(ctx context.Context, tx *sql.Tx, from, into, actor string, lines map[string]string) (lifecycle.Split, error) {
+	sp := lifecycle.Split{From: from, Into: into, Actor: actor, Software: make(map[string]lifecycle.SplitLine, len(lines))}
+	for old, to := range lines {
+		var state string
+		err := tx.QueryRowContext(ctx, `SELECT state FROM inv_software WHERE id = ? AND asset_id = ?`, old, from).Scan(&state)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return sp, fmt.Errorf("inventory: read software line: %w", err)
+		}
+		sp.Software[old] = lifecycle.SplitLine{Into: to, Gone: errors.Is(err, sql.ErrNoRows) || state == stateRemoved}
+	}
+	return sp, nil
 }
 
 // macRE is a normalised MAC, as the inventory stores it.
@@ -754,7 +779,7 @@ func keepMACObs(ctx context.Context, tx *sql.Tx, id string, mac sql.NullString, 
 // moveInterface moves to device to what device from holds of one interface: its MAC's observations (copied, the table is append-only,
 // then removed from from) and the readings and open ports a scan took at it (addr: the row's id, "" for from's main address). A reading
 // goes to to's line of the same product and train (made when to has none); the lines of both are settled again.
-func (s *Service) moveInterface(ctx context.Context, tx *sql.Tx, from, to, addr string, mac sql.NullString) error {
+func (s *Service) moveInterface(ctx context.Context, tx *sql.Tx, from, to, addr string, mac sql.NullString, moved map[string]string) error {
 	if mac.Valid {
 		rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence, ifnull(first_seen, seen_at) FROM inv_observation
 			WHERE asset_id = ? AND field = 'mac' AND value = ?`, from, mac.String)
@@ -828,6 +853,9 @@ func (s *Service) moveInterface(ctx context.Context, tx *sql.Tx, from, to, addr 
 			return fmt.Errorf("inventory: move a reading: %w", err)
 		}
 		touched[m.line], touched[target] = true, true
+		if target != m.line {
+			moved[m.line] = target
+		}
 	}
 	for _, l := range slices.Sorted(maps.Keys(touched)) {
 		if _, err := s.settleLine(ctx, tx, l, now, nil); err != nil {

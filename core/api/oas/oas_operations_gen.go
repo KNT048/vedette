@@ -310,6 +310,7 @@ const (
 	NotifyPostNotifyEmailSigninIDOperation                   OperationName = "NotifyPostNotifyEmailSigninID"
 	NotifyPostNotifyHistoryIDResendOperation                 OperationName = "NotifyPostNotifyHistoryIDResend"
 	NotifyPostNotifyIncidentsStatusOperation                 OperationName = "NotifyPostNotifyIncidentsStatus"
+	NotifyPostNotifyNoticesIDSendOperation                   OperationName = "NotifyPostNotifyNoticesIDSend"
 	NotifyPostNotifyTelegramApproversUserIDCodeOperation     OperationName = "NotifyPostNotifyTelegramApproversUserIDCode"
 	NotifyPostNotifyTelegramChatsOperation                   OperationName = "NotifyPostNotifyTelegramChats"
 	NotifyPostNotifyZaloApproversUserIDCodeOperation         OperationName = "NotifyPostNotifyZaloApproversUserIDCode"

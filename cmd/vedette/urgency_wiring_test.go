@@ -259,7 +259,7 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 	if len(sums) != 1 || len(alerts) != 0 || sums[0].Title != "Patch first: 2 urgent findings on 1 device" || len(sums[0].CVEs) != 2 || len(sums[0].Devices) != 1 {
 		t.Fatalf("summaries %+v, alerts %+v", sums, alerts)
 	}
-	// a second device added the first day: what it brings is told too, as "more", never dropped
+	// a second device added while that summary still waits in the queue: what it brings joins it (one message for one load), never dropped
 	if _, err := s.d.Inventory.AddDevice(t.Context(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.2"}); err != nil {
 		t.Fatal(err)
 	}
@@ -269,8 +269,13 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 			sums = append(sums, n)
 		}
 	}
-	if len(sums) != 2 || sums[1].Title != "2 more urgent findings on 1 device to patch first" {
+	if len(sums) != 1 || sums[0].Title != "Patch first: 4 urgent findings on 2 devices" || len(sums[0].FindingIDs) != 4 || len(sums[0].Lines) != 4 {
 		t.Fatalf("after a second device: %+v", sums)
+	}
+	for _, l := range sums[0].Lines { // each line says why and how Vedette knows, as the finding page does
+		if !strings.Contains(l, " — ") || !strings.Contains(l, "Not confirmed yet:") {
+			t.Errorf("summary line %q", l)
+		}
 	}
 }
 

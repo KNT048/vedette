@@ -65,6 +65,32 @@ func order(a, b Version) (int, bool) {
 	return cmpNums(a.Build, b.Build), true
 }
 
+// Compare compares two versions of one scheme in release order (line, train, place inside the train): -1, 0 or 1. ok is false for
+// two variants, which never compare.
+func Compare(a, b Version) (int, bool) { return order(a, b) }
+
+// LineStart is the start of v's release line, before every release of it ("7.2.1" for DSM 7.2.1-69057-5).
+func LineStart(v Version) Version {
+	return Version{Line: slices.Clone(v.Line), Variant: v.Variant, LineStart: true, Train: lineTrain(v), Label: lineTrain(v), Display: lineTrain(v)}
+}
+
+// LineFloor is the place of v's line before its first release: a release of the line's first train, after the line's start and
+// before every release ("7.2.1" lessThan "7.2.1" ends there). It is no release a vendor ships, and is never named as a fix.
+func LineFloor(v Version) Version {
+	return Version{Line: slices.Clone(v.Line), Variant: v.Variant, Train: lineTrain(v), Label: lineTrain(v), Display: lineTrain(v)}
+}
+
+// lineTrain names v's release line: the name a line's start has ("7.2.1", "14.1 FIPS").
+func lineTrain(v Version) string {
+	if v.LineStart {
+		return v.Train
+	}
+	if v.Variant != "" {
+		return lineName(v.Line) + " " + v.Variant
+	}
+	return lineName(v.Line)
+}
+
 // cmpNums compares two lists of numbers, a missing number being 0.
 func cmpNums(a, b []int) int {
 	for i := range max(len(a), len(b)) {
@@ -156,6 +182,9 @@ type Span struct {
 
 // Span reads a range's bounds as a CVE record or the catalogue writes them: start ("", "0", "*" and "n/a" are no start) and either
 // an excluded end (lessThan) or an included one (lessThanOrEqual); "" or "*" is no end. ok is false when a bound does not read.
+// A range from a line's start to that same start, excluded ("7.2.1" lessThan "7.2.1"), is empty: the vendor states that no release of
+// the line is affected. It reads as a span ending in the line's own train before its first release (LineFloor), so every release of
+// the line is outside it and judged by it.
 func (s *Scheme) Span(start, endExcl, endIncl string) (Span, bool) {
 	var sp Span
 	switch strings.ToLower(strings.TrimSpace(start)) {
@@ -181,6 +210,9 @@ func (s *Scheme) Span(start, endExcl, endIncl string) (Span, bool) {
 		}
 		if !ok {
 			v, ok = s.Parse(end)
+		}
+		if ok && v.LineStart && !sp.EndIncl && sp.Start != nil && sp.Start.LineStart && sp.Start.Variant == v.Variant && slices.Equal(sp.Start.Line, v.Line) {
+			v = LineFloor(v) // "7.2.1" lessThan "7.2.1": no release of the line
 		}
 		if !ok || v.LineStart {
 			return Span{}, false

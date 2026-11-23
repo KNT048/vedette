@@ -341,6 +341,16 @@ describe('notify: History names every vulnerability alert that was not sent', ()
     const skipped = within(table).getByText(/CVE-2026-41709/).closest('tr')!
     expect(within(skipped).getByText('Not sent')).toBeInTheDocument()
     expect(within(skipped).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels#channel-email')
+    // one that will not go out by itself can be sent now; a waiting one goes by itself
+    expect(within(waiting).queryByRole('button', { name: /^Send now/ })).toBeNull()
+    let posted = ''
+    server.use(http.post('*/api/v1/notify/notices/:id/send', ({ params }) => {
+      posted = String(params.id)
+      return HttpResponse.json({ ...notSent[1], not_sent: { reason: 'queued', text: 'Waiting to be sent: it goes out within a minute.' } })
+    }))
+    await userEvent.click(within(skipped).getByRole('button', { name: /^Send now: .*CVE-2026-41709/ }))
+    await waitFor(() => expect(posted).toBe('nt-f-2-created'))
+    expect(await screen.findByText(/Queued on your alert channels/)).toBeInTheDocument()
   })
 })
 

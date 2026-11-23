@@ -75,10 +75,10 @@ func (n Notice) validate() error {
 	if !n.Event.Valid() {
 		return bad("unknown event")
 	}
-	if len(n.CVEs) > maxNoticeItems || len(n.Devices) > maxNoticeItems || len(n.FindingIDs) > maxNoticeItems {
-		return bad("too many CVEs, devices or findings")
+	if len(n.CVEs) > maxNoticeItems || len(n.Devices) > maxNoticeItems || len(n.FindingIDs) > maxNoticeItems || len(n.Lines) > channel.MaxItems {
+		return bad("too many CVEs, devices, findings or lines")
 	}
-	for _, s := range append(append([]string{n.Title, n.What, n.Action, n.Product, n.Link}, n.CVEs...), append(n.Devices, n.FindingIDs...)...) {
+	for _, s := range append(append(append([]string{n.Title, n.What, n.Action, n.Product, n.Link}, n.CVEs...), append(n.Devices, n.FindingIDs...)...), n.Lines...) {
 		if utf8.RuneCountInString(s) > maxNoticeText {
 			return bad("a text field is too long")
 		}
@@ -240,6 +240,8 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			if unsent != UnsentQueued {
 				unsent, floor, lowest = UnsentQuietHours, "", ""
 			}
+		case n.Event == NoticeFirstRun: // waits for the next pass of the same load (firstrun.go)
+			reason, due = "settle", settleDue(now, n.At)
 		case rules.Grouping.Enabled && rules.Grouping.Validate() == nil && n.Kind == KindVuln && n.Severity != Critical && strings.TrimSpace(n.Product) != "":
 			reason, due = "group", n.At.Add(time.Duration(rules.Grouping.WindowMin)*time.Minute)
 		}
@@ -546,7 +548,12 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					fresh = append(fresh, b)
 				}
 			}
-			release = append(digest(retried, s.link(findingsList)), digest(fresh, s.link(findingsList))...)
+			release = append(digest(retried, s.link), digest(fresh, s.link)...)
+			for k, b := range release { // several findings of one product: the list of what the message names, not its first finding
+				if len(b.Notices) > 1 && b.link == "" && b.Notices[0].Kind == KindVuln {
+					release[k].link = s.link(findingsListOf(noticeLayers(b.Notices)))
+				}
+			}
 			// Critical first, then the order they were queued in; what does not fit in this run stays pending.
 			sort.SliceStable(release, func(i, j int) bool {
 				return release[i].Severity() == Critical && release[j].Severity() != Critical
@@ -584,16 +591,55 @@ func refOf(n Notice) (kind, ref, link string) {
 		id := incidentOfNotice(n.ID) // the notice of a raised intrusion incident (raiseIntrusion) is a send of that incident
 		return "incident", id, "/incidents/" + id
 	}
-	link = findingsList
-	if len(n.FindingIDs) > 0 {
+	switch {
+	case n.Event == NoticeFirstRun || len(n.FindingIDs) > 1: // a summary opens the list of what it told
+		link = findingsListOf(noticeLayers([]Notice{n}))
+	case len(n.FindingIDs) == 1:
 		link = "/findings/" + n.FindingIDs[0]
+	default:
+		link = findingsList
 	}
 	return "vuln", n.ID, link
 }
 
-// findingsList is where a digest or a notice that names no finding links: every open finding as rows (the All open tab), which also
-// lists new product-only matches; the Findings page opens on To fix, which leaves those to Needs your input.
-const findingsList = "/findings?tab=open"
+// findingsList is where a notice that names no finding links: every open finding, by device (the Findings page's first tab).
+const findingsList = "/findings?tab=device"
+
+// layerStatus is the code of the open status of each urgency layer 1-4, the words of the Findings page's status filter.
+var layerStatus = map[int]string{1: "under_attack", 2: "exploited", 3: "public_exploit", 4: "critical_edge"}
+
+// findingsListOf is where a message about several findings links (a digest, a first-run summary): the open findings by device, filtered
+// to the statuses of the findings it names, so the list opens on what the message told. A layer it cannot name leaves the list unfiltered.
+func findingsListOf(layers []int) string {
+	var on []string
+	for l := 1; l <= 4; l++ {
+		if slices.Contains(layers, l) {
+			on = append(on, layerStatus[l])
+		}
+	}
+	for _, l := range layers {
+		if layerStatus[l] == "" {
+			return findingsList
+		}
+	}
+	if len(on) == 0 {
+		return findingsList
+	}
+	return findingsList + "&status=" + strings.Join(on, ",")
+}
+
+// noticeLayers is the urgency layer of each finding the notices name (their findingLayers, else their Layer).
+func noticeLayers(ns []Notice) []int {
+	var out []int
+	for _, n := range ns {
+		if len(n.FindingIDs) == 0 {
+			out = append(out, n.Layer)
+			continue
+		}
+		out = append(out, n.findingLayers()...)
+	}
+	return out
+}
 
 // fallbackMessage is a single-notice message for a record of an attempt that never rendered one.
 func fallbackMessage(n Notice) channel.Message {

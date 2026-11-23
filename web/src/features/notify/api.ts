@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, LinkApprover, LinkApprovers, ZaloContacts, ZaloFound, ZaloLogin, TelegramChat } from './types'
+import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, LinkApprover, LinkApprovers, ZaloContacts, ZaloFound, ZaloLogin, TelegramChat, UnsentNotice } from './types'
 
 export const useIncidents = () => useQuery({ queryKey: ['notify', 'incidents'], queryFn: () => api.get<IncidentsResponse>('/notify/incidents') })
 export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'incident', id], queryFn: () => api.get<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`), retry: false })
@@ -20,6 +20,7 @@ export const useBulkIncidents = () => useInvalidating((v: { ids: string[]; statu
   api.post<{ updated: number; already_resolved: number; already_acknowledged: number }>('/notify/incidents/status', v))
 export const useSetStatus = () => useInvalidating(({ id, status, note }: { id: string; status: IncidentStatus; note?: string }) => api.patch<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`, { status, note }))
 export const useResend = () => useInvalidating((id: string) => api.post<HistoryItem>(`/notify/history/${encodeURIComponent(id)}/resend`))
+export const useSendNow = () => useInvalidating((id: string) => api.post<UnsentNotice>(`/notify/notices/${encodeURIComponent(id)}/send`))
 export const useSaveChannel = () => useInvalidating(({ type, ...v }: ChannelInput & { type: ChannelType }) => api.put<Channel>(`/notify/channels/${type}`, v))
 export const useRemoveChannel = () => useInvalidating((type: ChannelType) => api.del<void>(`/notify/channels/${type}`))
 export const useTestChannel = () => useInvalidating((type: ChannelType) => api.post<TestResult>(`/notify/channels/${type}/test`))

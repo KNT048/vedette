@@ -3,6 +3,12 @@
 ## Modifying: `notify.Service.Publish(ctx, Notice)`
 - **findings** (vulnerability messages), **honeypot/logs** (through `OpenIncident`, from events), **inventory** (new devices). System messages of the incident kind have no incident row and are sent through `cmd/vedette`: **exposure** (exposure alerts, `exposure.go`), **ai** (budget, activity log; `ai.go`), **response** (`response.go`), **feeds** (the CISA list failing to update: both copies failing two checks in a row or 6 checks, and "up to date again", `feeds.go`): changing `ErrModuleOff` or having `Publish` refuse a message with no `Link` silences those alerts. Changing `Notice` or the `min_severity`/grouping rules changes what users receive; the tests `INV2`, `INV4` must stay green. A finding's notice is judged at `AlertSeverity(cvss, layer)` (layers 1–2 critical, 3–4 at least high): lowering that floor makes a channel's minimum drop findings in layers 1–4 again, silently for the customer except on the History page's "Not sent" list.
 
+## Modifying: `findings.urgency.first_run` (the first-run summary, `firstrun.go`)
+- **findings** emits one event per write of an urgency pass (`publishFirstRun`), keyed by its load (`install`, `<source>-<day>`, `catalogue-<day>`). Notify folds the events of one key into one message while a summary of that key waits in the queue (`settle`, 2 to 10 minutes), so changing the key or the id prefix `nt-first-run-<key>-` splits one load into several messages again. The summary's lines are `FindingInfo.Reasons`/`Status`/`Verification` (the finding page's words): a change of those words in findings changes the mail.
+
+## Modifying: the findings list link (`findingsList`, `findingsListOf`)
+- **findings** web: `/findings?tab=device&status=<codes>` uses the Findings page's tab id and its status filter codes (`OPEN_FINDING_STATUSES`). Renaming the tab or a code makes the links of grouped alerts and summaries open an unfiltered or wrong list.
+
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (the Respond button at `/response?incident=<id>`). Changing the merge key = changing the number of incidents the user sees.
 

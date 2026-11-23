@@ -164,7 +164,12 @@ func TestFindingNoticesGolden(t *testing.T) {
 			if n.Title != c.title || n.What != c.what || n.Change != c.change {
 				t.Errorf("title %q\nwhat %q\nchange %q", n.Title, n.What, n.Change)
 			}
-			if n.Action != qnap.Action || n.Layer != c.layer || n.Severity != notify.High || n.Product != qnap.Product ||
+			// the alert severity is the CVSS band (high) raised to the floor of the layer: critical when attackers use the flaw
+			wantSev := notify.High
+			if c.layer <= 2 {
+				wantSev = notify.Critical
+			}
+			if n.Action != qnap.Action || n.Layer != c.layer || n.Severity != wantSev || n.Product != qnap.Product ||
 				fmt.Sprint(n.CVEs) != "[CVE-2026-100]" || fmt.Sprint(n.FindingIDs) != "[f-1]" || fmt.Sprint(n.Devices) != "[NAS-01]" {
 				t.Errorf("notice = %+v", n)
 			}
@@ -409,7 +414,7 @@ func TestFirstRunSummaryCountsTheKeptFindings(t *testing.T) {
 		t.Fatalf("summaries = %+v", got)
 	}
 	n := got[0]
-	if n.Title != "Patch first: 1 urgent finding on 1 device" || n.Layer != 4 || n.Severity != notify.Medium || fmt.Sprint(n.CVEs) != "[CVE-2026-100]" {
+	if n.Title != "Patch first: 1 urgent finding on 1 device" || n.Layer != 4 || n.Severity != notify.High || fmt.Sprint(n.CVEs) != "[CVE-2026-100]" {
 		t.Fatalf("title %q layer %d severity %q CVEs %v", n.Title, n.Layer, n.Severity, n.CVEs)
 	}
 }

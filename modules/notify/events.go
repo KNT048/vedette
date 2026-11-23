@@ -215,12 +215,9 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 	if !sev.Valid() {
 		sev = eventSeverity
 	}
-	if !sev.Valid() {
-		return nil
-	}
 	cve := cmp.Or(f.CVE, eventCVE)
-	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
-		Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
+	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: AlertSeverity(sev, f.Layer), Product: f.Product, FindingIDs: []string{id},
+		Devices: f.Devices, Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
 	if cve != "" {
 		n.CVEs = []string{cve}
 	}
@@ -228,6 +225,22 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 		frame(f, cve, &n)
 	}
 	return s.Publish(ctx, n)
+}
+
+// AlertSeverity is the severity a channel judges a finding's notice at (its min_severity, quiet hours, grouping): the finding's CVSS
+// band raised to the floor of its urgency layer. Layers 1–4 are the ones Vedette alerts for, so none of them is below High; a flaw
+// attackers use (under attack here, exploited in the wild) is Critical whatever its CVSS score, as the exploit-aware ratings of the
+// large scanners rate a flaw on CISA's list. So a channel on the default "Medium and above", or on "High and above", gets every finding
+// that enters layers 1–4; "Critical only" gets the exploited ones and the critical scores. An unknown band takes the floor.
+func AlertSeverity(cvss Severity, layer int) Severity {
+	floor := High
+	if exploitedLayer(layer) {
+		floor = Critical
+	}
+	if cvss.Valid() && cvss.rank() > floor.rank() {
+		return cvss
+	}
+	return floor
 }
 
 // titleOf is the title of a finding's notice: "FortiOS on fw01: public exploit available (CVE-2026-1)", lead being "now " for a rise.
@@ -341,10 +354,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		}
 	}
 	found = max(found, len(n.FindingIDs))
-	n.Severity = Medium
-	if n.Layer <= 2 {
-		n.Severity = High
-	}
+	n.Severity = AlertSeverity(Medium, n.Layer)
 	what := "Vedette has just loaded a source of exploitation news for the first time"
 	switch {
 	case e.Key == "install":

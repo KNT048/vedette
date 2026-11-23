@@ -63,12 +63,12 @@ export const IncidentKind = z.string().regex(/^[a-z0-9_]{1,40}$/).describe('What
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend') })
-export const NotSentReason = z.enum(['queued', 'quiet_hours', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
 export const NotSent = z.object({
-  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today\'s channels would take it'),
+  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today\'s channels would take it'),
   text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
   channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
-  until: iso.optional().describe('quiet_hours: when the held message goes out'),
+  until: iso.optional().describe('quiet_hours, grouped: when the held message goes out'),
 })
 /** Most incidents one bulk change may name (INV-25): the page shows at most 500. */
 export const MAX_BULK_INCIDENTS = 500
@@ -102,7 +102,15 @@ export const HistoryItem = z.object({
   delayed: z.boolean().describe('A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider asked for'),
   kind: z.enum(['incident', 'vuln', 'approval']), what: z.string(), link: z.string(),
 })
-export const HistoryResponse = z.object({ items: z.array(HistoryItem), suppressed: z.object({ count: z.number().int(), days: z.number().int() }) })
+export const UnsentNotice = z.object({
+  id: z.string(), at: iso.describe('When the notice was made'), what: z.string().describe('Its title: "<product> on <device>: <status> (<CVE>)"'),
+  link: z.string().describe('The finding it is about, or the findings list for a first-run summary'), not_sent: NotSent,
+})
+export const HistoryResponse = z.object({
+  items: z.array(HistoryItem),
+  not_sent: z.array(UnsentNotice).describe('The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the channels\' minimum, no channel or channels off when it was found'),
+  suppressed: z.object({ count: z.number().int(), days: z.number().int() }),
+})
 export const FindingNotices = z.object({ sends: z.array(SendRecord) })
 export const LegacyTarget = z.object({ to: z.string() })
 

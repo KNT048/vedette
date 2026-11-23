@@ -515,11 +515,11 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 
 // ---- history ----
 
-// History lists every message sent, newest first, and how many new vulnerabilities matched no device
-// recently (GET /notify/history). It returns at most historyLimit rows.
+// History lists every message sent, newest first, the vulnerability notices of the last historyDays days that no channel delivered with
+// why, and how many new vulnerabilities matched no device recently (GET /notify/history). Each list has at most historyLimit rows.
 func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	db := s.cfg.DB.Reader()
-	v := HistoryView{Items: []HistoryItem{}}
+	v := HistoryView{Items: []HistoryItem{}, NotSent: []UnsentNotice{}}
 	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
 	if err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
@@ -537,6 +537,9 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
+	}
+	if v.NotSent, err = s.notSentNotices(ctx, db, s.now().AddDate(0, 0, -historyDays)); err != nil {
+		return v, err
 	}
 	if s.cfg.Signals != nil {
 		n, err := s.cfg.Signals.UnmatchedExploited(ctx, s.now().AddDate(0, 0, -historyDays))

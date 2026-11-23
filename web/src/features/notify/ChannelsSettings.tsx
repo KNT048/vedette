@@ -507,7 +507,8 @@ function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
         {quiet.enabled && quiet.from && quiet.to && quiet.from !== quiet.to ? <p className="text-meta" role="status">{quiet.from > quiet.to ? t('rules.quiet.overnight', { from: quiet.from, to: quiet.to }) : t('rules.quiet.sameDay', { from: quiet.from, to: quiet.to })}</p> : null}
         <div className="flex items-center gap-2"><Checkbox id="q-crit" checked={quiet.allow_critical} onCheckedChange={(c) => setQuiet({ ...quiet, allow_critical: c === true })} /><Label htmlFor="q-crit" className="font-normal">{t('rules.quiet.allowCritical')}</Label></div>
       </fieldset>
-      <fieldset disabled={!isAdmin} className="grid gap-3 border-0 p-0">
+      {/* /settings/channels#grouping (NotSentFix of an alert waiting for its grouping window) lands here */}
+      <fieldset id="grouping" disabled={!isAdmin} className="grid gap-3 border-0 p-0">
         <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.grouping.title')}<InfoTip topic={t('rules.grouping.title')}>{t('rules.grouping.descriptionInfo')}</InfoTip></legend>
         <p className="text-meta text-muted">{t('rules.grouping.description')}</p>
         <div className="flex items-center gap-3"><Switch id="g-on" checked={grouping.enabled} onCheckedChange={(v) => setGrouping({ ...grouping, enabled: v })} /><Label htmlFor="g-on">{t('rules.grouping.enabled')}</Label></div>

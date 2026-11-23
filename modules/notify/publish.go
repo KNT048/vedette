@@ -169,8 +169,8 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		if err != nil {
 			return fmt.Errorf("notify: encode CVEs: %w", err)
 		}
-		r, err := tx.ExecContext(ctx, `INSERT INTO notify_notice (id, event, created_at, product, cves) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
-			n.ID, string(n.Event), store.FormatTS(n.At), n.Product, string(cves))
+		r, err := tx.ExecContext(ctx, `INSERT INTO notify_notice (id, event, created_at, product, cves, title, severity) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
+			n.ID, string(n.Event), store.FormatTS(n.At), n.Product, string(cves), nullable(clip(n.Title, 400)), string(n.Severity))
 		if err != nil {
 			return fmt.Errorf("notify: save notice: %w", err)
 		}
@@ -219,7 +219,8 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("notify: list channels: %w", err)
 	}
-	// The decision for an incident is kept on it (INV-24): the Incidents page says why it went nowhere from the same verdicts.
+	// The decision is kept on the incident or the notice (INV-24): the Incidents page and the History page say why it went nowhere from
+	// the same verdicts.
 	unsent, floor, lowest := UnsentNoChannel, Severity(""), channel.Type("")
 	if configured > 0 {
 		unsent = UnsentChannelsOff
@@ -246,23 +247,23 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			ON CONFLICT (channel, notice_id) DO NOTHING`, store.NewID("pq"), string(tg.t), n.ID, string(raw), reason, store.FormatTS(due), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: queue notice: %w", err)
 		}
-		if reason == "now" {
+		if reason != "quiet" { // a channel takes it now or at the end of its grouping window
 			unsent, floor, lowest = UnsentQueued, "", ""
 		}
 	}
-	if n.Kind == KindIncident {
-		return markUnsent(ctx, tx, n.ID, unsent, floor, lowest)
-	}
-	return nil
+	return markUnsent(ctx, tx, n.ID, unsent, floor, lowest)
 }
 
-// markUnsent keeps why an incident went to no channel, or that one took it (INV-24); ch is the channel to fix, if one. An id that is no
-// incident (a test notice) changes nothing.
+// markUnsent keeps why an incident or a vulnerability notice went to no channel, or that one took it (INV-24); ch is the channel to fix,
+// if one. An id that is neither (a test notice, a system message) changes nothing.
 func markUnsent(ctx context.Context, tx *sql.Tx, id string, why NotSentReason, floor Severity, ch channel.Type) error {
-	id = incidentOfNotice(id) // a raise's notice is the incident's
 	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = ?, unsent_channel = ? WHERE id = ?`,
-		string(why), nullable(string(floor)), nullable(string(ch)), id); err != nil {
+		string(why), nullable(string(floor)), nullable(string(ch)), incidentOfNotice(id)); err != nil { // a raise's notice is the incident's
 		return fmt.Errorf("notify: keep why an incident was not sent: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_notice SET unsent = ?, unsent_floor = ?, unsent_channel = ? WHERE id = ?`,
+		string(why), nullable(string(floor)), nullable(string(ch)), id); err != nil {
+		return fmt.Errorf("notify: keep why a notice was not sent: %w", err)
 	}
 	return nil
 }
@@ -371,9 +372,13 @@ const staleAfter = 24 * time.Hour
 func (s *Service) dropStale(ctx context.Context, now time.Time) error {
 	cut := store.FormatTS(now.Add(-staleAfter))
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = NULL, unsent_channel = NULL WHERE id IN (SELECT notice_id FROM notify_pending WHERE state = 'pending' AND created_at < ?)`,
-			string(UnsentDroppedStale), cut); err != nil {
-			return fmt.Errorf("notify: keep why incidents were not sent: %w", err)
+		for _, q := range []string{
+			`UPDATE notify_incident SET unsent = ?, unsent_floor = NULL, unsent_channel = NULL WHERE id IN (SELECT notice_id FROM notify_pending WHERE state = 'pending' AND created_at < ?)`,
+			`UPDATE notify_notice SET unsent = ?, unsent_floor = NULL, unsent_channel = NULL WHERE id IN (SELECT notice_id FROM notify_pending WHERE state = 'pending' AND created_at < ?)`,
+		} {
+			if _, err := tx.ExecContext(ctx, q, string(UnsentDroppedStale), cut); err != nil {
+				return fmt.Errorf("notify: keep why incidents and notices were not sent: %w", err)
+			}
 		}
 		r, err := tx.ExecContext(ctx, `DELETE FROM notify_pending WHERE state = 'pending' AND created_at < ?`, cut)
 		if err != nil {
@@ -474,10 +479,8 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				}
 				for _, r := range list {
 					drop = append(drop, r.id)
-					if r.notice.Kind == KindIncident {
-						if err := markUnsent(ctx, tx, r.notice.ID, why, "", t); err != nil {
-							return err
-						}
+					if err := markUnsent(ctx, tx, r.notice.ID, why, "", t); err != nil {
+						return err
 					}
 				}
 				continue
@@ -529,10 +532,8 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			for _, r := range list {
 				if !seen[r.notice.ID] {
 					drop = append(drop, r.id) // below the channel's minimum now: INV-4
-					if r.notice.Kind == KindIncident {
-						if err := markUnsent(ctx, tx, r.notice.ID, UnsentBelowMin, c.MinSeverity, t); err != nil {
-							return err
-						}
+					if err := markUnsent(ctx, tx, r.notice.ID, UnsentBelowMin, c.MinSeverity, t); err != nil {
+						return err
 					}
 				}
 			}

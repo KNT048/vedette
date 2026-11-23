@@ -12,7 +12,7 @@ import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
 import { hasOpenFindings } from './deviceQuery'
-import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
+import { customEntry, findById, findCatalog, operatingSystemsOf, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceAddress, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeField, MergeInput, MergePreview, MergeSide, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
@@ -1433,6 +1433,8 @@ export const handlers = [
       const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined
+      const systems = productText && !entry ? operatingSystemsOf(productText) : []
+      if (systems.length) return err(`Product "${productText.slice(0, 40)}" could be ${systems.slice(0, -1).join(', ')} or ${systems.at(-1)}. Name the distribution, for example ${systems[0]}.`)
       if (productText && !entry) return err(`Product "${productText.slice(0, 40)}" not recognised. Use a name from the product list of "Add device", for example FortiGate, Synology, WordPress.`)
       const userName = get('name_in_vedette')
       if (badUserName(userName)) return err('The name is at most 64 characters and cannot contain < or >, control characters or invisible characters.')

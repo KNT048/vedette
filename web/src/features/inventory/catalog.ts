@@ -168,7 +168,8 @@ export function findCatalog(text: string): CatalogEntry | undefined {
   // Several products with the same alias/vendor name: take the first (the most common) only when they are the same vendor ("synology"); different vendors ("dns": D-Link, BIND) are not guessed.
   // An alias several makers share is taken only when every product of it is the same exploited product ("jdk", "jre": every Java build
   // is matched as Java), read as a product name first ("openjdk" is the OpenJDK package); a word several makers use for different
-  // products ("iOS", "NAS") is refused even when one product has that name. As the Go catalog's find.
+  // products ("iOS", "NAS") is refused even when one product has that name, and so is a word for several makers' operating systems
+  // ("linux"). As the Go catalog's find.
   const oneVendor = (hits: CatalogEntry[]) => (hits.length && hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined)
   const keys = (e: CatalogEntry) => [...e.kev].sort().join('\n')
   const aliasHits = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
@@ -176,13 +177,27 @@ export function findCatalog(text: string): CatalogEntry | undefined {
   const byAlias = oneVendor(aliasHits)
   if (byAlias) return byAlias
   if (aliasHits.length) {
-    if (!aliasHits[0]!.kev.length || !aliasHits.every((e) => keys(e) === keys(aliasHits[0]!))) return undefined
+    if (!aliasHits[0]!.kev.length || !aliasHits.every((e) => keys(e) === keys(aliasHits[0]!)) || osOfSeveralMakers(aliasHits).length) return undefined
     return oneVendor(productHits) ?? aliasHits[0]
   }
   const byProduct = oneVendor(productHits)
   if (byProduct) return byProduct
   if (!productHits.length) { const v = CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n); if (v.length === 1) return v[0] } // a bare vendor name: only when the vendor has one curated product
   return undefined
+}
+
+/** Operating systems of more than one maker ("linux" is Ubuntu, Debian, Red Hat Enterprise Linux and the kernel itself), else none. They
+ * may share one exploited-product key, but each distribution has its own fixes and version numbers, so a word for all of them is not one
+ * of them. As the Go catalog's osOfSeveralMakers. */
+function osOfSeveralMakers(hits: CatalogEntry[]): CatalogEntry[] {
+  if (!hits.length || hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor)) return []
+  return hits.every((e) => e.category === 'Operating system') ? hits : []
+}
+
+/** The operating systems of several makers a CSV cell names, for the message that asks which one it is. */
+export function operatingSystemsOf(text: string): string[] {
+  const n = fold(text)
+  return n ? osOfSeveralMakers(CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))).map((e) => e.display) : []
 }
 
 /** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, else the curated product of that name and

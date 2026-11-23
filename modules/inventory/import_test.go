@@ -556,3 +556,20 @@ func TestCSVImport_AWordOfSeveralMakersIsNotTheProductOfThatName(t *testing.T) {
 		t.Fatalf("result = %+v", r)
 	}
 }
+
+// "Linux" is Ubuntu, Debian, Red Hat Enterprise Linux and the kernel itself. They share one exploited-product key, but each
+// distribution has its own fixes and its own version numbers, so a file's "Linux" is not one of them: the row is refused and the
+// message asks for the distribution. A named distribution imports.
+func TestCSVImport_LinuxAloneAsksForTheDistribution(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\nsrv-1,,Linux,12\r\nsrv-2,,linux,\r\nsrv-3,,Debian,12\r\nsrv-4,,rhel,9.4\r\n")
+	if r.Created != 2 || len(r.Errors) != 2 {
+		t.Fatalf("result = %+v", r)
+	}
+	for _, x := range r.Errors {
+		if !strings.Contains(x.Message, "Name the distribution") || !strings.Contains(x.Message, "Debian Linux") {
+			t.Errorf("line %d: %q", x.Line, x.Message)
+		}
+	}
+}

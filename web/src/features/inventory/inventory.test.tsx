@@ -780,6 +780,14 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect((await call('POST', '/import', { text: 'name,ip,product\n' })).json?.error.code).toBe('no_rows')
   })
 
+  it('a bare "Linux" is several distributions: the row asks for the distribution, a named one imports', async () => {
+    asAdmin()
+    const r = (await call('POST', '/import', { text: 'name,ip,product,version\nsrv-1,,Linux,12\nsrv-2,,Debian,12\n' })).json!
+    expect(r).toMatchObject({ created: 1, skipped: 1 })
+    expect(r.errors[0].message).toContain('Name the distribution')
+    expect(r.errors[0].message).toContain('Debian Linux')
+  })
+
   it('a public IP or an IP outside the saved ranges is added with a note', async () => {
     asAdmin()
     const r = (await call('POST', '/import', { text: 'name,ip\npub,8.8.8.8\nfar,10.99.99.9\n' })).json!

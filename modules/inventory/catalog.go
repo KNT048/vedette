@@ -452,12 +452,12 @@ func (c *Catalog) find(text string) *catEntry {
 	// product ("jdk", "jre": every Java build is matched as Java), so a file's common word still finds its product; it is
 	// then read as a product name first ("openjdk" is the OpenJDK package). A word several makers use for different
 	// products ("iOS" is Apple's and Cisco's, "NAS" many makers' devices) is refused even when one product has that
-	// name. A bare vendor name is taken only when the vendor has one curated product.
+	// name, and so is a word for several makers' operating systems ("linux"). A bare vendor name is taken only when the vendor has one curated product.
 	if e := oneVendor(aliasHits); e != nil {
 		return e
 	}
 	if len(aliasHits) > 0 {
-		if !sameKEV(aliasHits) {
+		if !sameKEV(aliasHits) || osOfSeveralMakers(aliasHits) != nil {
 			return nil
 		}
 		if e := oneVendor(productHits); e != nil {
@@ -485,6 +485,44 @@ func oneVendor(hits []*catEntry) *catEntry {
 		}
 	}
 	return hits[0]
+}
+
+// osCategory is the catalogue's category of operating systems.
+const osCategory = "Operating system"
+
+// osOfSeveralMakers is hits when they are operating systems of more than one maker ("linux" is Ubuntu, Debian, Red Hat Enterprise
+// Linux and the kernel itself), else nil. They may share one exploited-product key, but each distribution has its own fixes and its
+// own version numbers ("12" is a Debian release, not a kernel), so a file's word for all of them is not one of them.
+func osOfSeveralMakers(hits []*catEntry) []*catEntry {
+	if len(hits) == 0 || oneVendor(hits) != nil {
+		return nil
+	}
+	for _, e := range hits {
+		if e.category != osCategory {
+			return nil
+		}
+	}
+	return hits
+}
+
+// operatingSystems is the operating systems of several makers a CSV cell names (see osOfSeveralMakers), for the message that asks
+// which one it is.
+func (c *Catalog) operatingSystems(text string) []string {
+	n := fold(text)
+	if n == "" {
+		return nil
+	}
+	var hits []*catEntry
+	for _, e := range c.entries {
+		if indexOf(e.hAlias, n) {
+			hits = append(hits, e)
+		}
+	}
+	var names []string
+	for _, e := range osOfSeveralMakers(hits) {
+		names = append(names, e.display)
+	}
+	return names
 }
 
 // sameKEV reports hits that all name the same exploited products (one non-empty key set).

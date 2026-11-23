@@ -1913,6 +1913,22 @@
   {
    "text": "Web Server",
    "id": null
+  },
+  {
+   "text": "Linux",
+   "id": null
+  },
+  {
+   "text": "linux",
+   "id": null
+  },
+  {
+   "text": "Ubuntu",
+   "id": "ubuntu-linux"
+  },
+  {
+   "text": "rhel",
+   "id": "centos-rocky-almalinux-rhel"
   }
  ],
  "custom": [

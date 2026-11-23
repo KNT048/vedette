@@ -64,7 +64,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var d Device
 		var ip, mac, host, userName, scan, approvedAt, notes, kindSrc, ignoredAt sql.NullString
 		var v, m, o, h, x obsCols
-		var osEvidence sql.NullString // where the stored OS came from when a declared row decided it (declaredEvidence)
+		var osEvidence sql.NullString // where the stored OS came from when a declared row decided it (sourceDeclared)
 		var frameOS sql.NullString    // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
 		var approved, fragile, suspicious, box, quiet bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
@@ -351,7 +351,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 			current[c.String] = true
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT `+declaredObsSQL, id) // the declared decision is the software row's, not an observation a source made
+	rows, err := db.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?`, id)
 	if err != nil {
 		return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
 	}

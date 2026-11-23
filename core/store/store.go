@@ -123,10 +123,38 @@ func openPool(abs string, writer bool) (*sql.DB, error) {
 	} else {
 		q.Set("mode", "ro") // read-only at the file level: even PRAGMA query_only=0 cannot enable writes
 		q.Add("_pragma", "query_only(1)")
+		// Readers do the big scans (catalogue, findings), so each connection gets a bigger page cache than SQLite's 2 MB default,
+		// memory-mapped reads (the mapped pages are the OS file cache, shared by all connections and reclaimable) and in-memory
+		// temp b-trees for sorts and group-bys.
+		q.Add("_pragma", fmt.Sprintf("cache_size(-%d)", readerCacheKiB))
+		q.Add("_pragma", fmt.Sprintf("mmap_size(%d)", readerMmapBytes))
+		q.Add("_pragma", "temp_store(2)")
 	}
 	u := url.URL{Scheme: "file", Path: abs, RawQuery: q.Encode()}
-	return sql.Open("sqlite", u.String())
+	db, err := sql.Open("sqlite", u.String())
+	if err != nil {
+		return nil, err
+	}
+	if !writer {
+		// A closed connection takes its page cache with it, so keep a few open (database/sql keeps 2 by default and closes the
+		// rest as soon as they are returned) and let them go after a quiet spell. There is deliberately no open-connection cap:
+		// some read paths hold a reader connection while asking the pool for a second one, and a cap could deadlock them.
+		db.SetMaxIdleConns(readerIdleConns)
+		db.SetConnMaxIdleTime(readerIdleTime)
+	}
+	return db, nil
 }
+
+// Reader pool sizing. Page cache = readerCacheKiB per open connection (a connection only fills it with pages it has read, so it is
+// also capped by the database size); connections beyond readerIdleConns close when returned. The mmap window is shared file cache,
+// not per-connection memory; note that a disk I/O error or an outside truncation of the file under a mapping is a SIGBUS (the
+// process dies and the service manager restarts it) instead of an SQLite error.
+const (
+	readerCacheKiB  = 16 * 1024
+	readerMmapBytes = 256 << 20
+	readerIdleConns = 4
+	readerIdleTime  = 5 * time.Minute
+)
 
 // verifyWAL reads the journal mode back: a DSN pragma that the driver ignored must not go unnoticed.
 func verifyWAL(ctx context.Context, w *sql.DB) error {

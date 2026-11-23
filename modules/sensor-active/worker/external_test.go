@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -60,14 +61,27 @@ func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 	if n := eg.count(); n != 3 {
 		t.Fatalf("%d rounds, want 3 (stop at the first that names the address)", n)
 	}
-	want := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n")
+	want := strings.Join(append([]string{"--privileged", "-sS", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "2m", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n")
 	if nm.argvLog() != want {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}
 	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
-	r.core.push(externalJob(id2, "8.8.8.8"))
+	ports, err := nmapargv.ExternalVersionPorts([]int{666}) // the -sV run after the discovery: its job carries its ports
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := externalJob(id2, "8.8.8.8")
+	second.Ports = ports
+	r.core.push(second)
 	if got := r.core.next(t); got.res.Status != "done" || eg.count() != 3 {
 		t.Fatalf("second job: %+v after %d rounds", got.res, eg.count())
+	}
+	list := make([]string, len(ports))
+	for i, p := range ports {
+		list[i] = strconv.Itoa(p)
+	}
+	if wantV := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(list, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n"); !strings.HasSuffix(nm.argvLog(), wantV) {
+		t.Fatalf("argv:\n%s\nwant at the end:\n%s", nm.argvLog(), wantV)
 	}
 	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
 	r.clock.Advance(worker.EgressFresh) // the yes is stale: the next job asks again (the last answer, 8.8.8.8, repeats)
@@ -109,6 +123,37 @@ func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 			}
 			if eg != nil && eg.count() != worker.EgressRounds {
 				t.Fatalf("%d rounds, want %d", eg.count(), worker.EgressRounds)
+			}
+		})
+	}
+}
+
+// An external job whose ports are not the -sV run's (a fixed port missing, too many others, a port twice) is invalid_job before the
+// fence is asked or nmap starts.
+func TestExternalJobWithOtherPortsIsInvalid(t *testing.T) {
+	t.Parallel()
+	tooMany := slices.Clone(nmapargv.ExtraPortNumbers)
+	for p := range 41 {
+		tooMany = append(tooMany, 50000+p)
+	}
+	for name, ports := range map[string][]int{
+		"a fixed port missing": nmapargv.ExtraPortNumbers[1:],
+		"41 others":            tooMany,
+		"one port":             {22},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			nm := writeNmap(t, printXML)
+			eg := &fakeEgress{answers: []string{"8.8.8.8"}}
+			r := start(t, nm, func(c *worker.Config) { c.Egress = eg })
+			j := externalJob(id1, "8.8.8.8")
+			j.Ports = ports
+			r.core.push(j)
+			if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != "invalid_job" {
+				t.Fatalf("result = %+v", got.res)
+			}
+			if nm.argvLog() != "" || eg.count() != 0 {
+				t.Fatalf("nmap ran (%q) or the fence was asked %d times", nm.argvLog(), eg.count())
 			}
 		})
 	}

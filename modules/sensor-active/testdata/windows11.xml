@@ -5,7 +5,7 @@
      NEGOTIATE with its CHALLENGE: computer name and Product_Version 10.0.22631. The script on the closed port 80 and the one of
      another id must be ignored. -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV --script rdp-ntlm-info,http-ntlm-info -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.95" xmloutputversion="1.05">
-<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<scaninfo type="syn" protocol="tcp" numservices="1001" services="1-1000,3389"/>
 <host starttime="1762650001" endtime="1762650180"><status state="up" reason="arp-response" reason_ttl="0"/>
 <address addr="192.168.10.20" addrtype="ipv4"/>
 <address addr="AA:BB:CC:00:00:49" addrtype="mac" vendor="Intel Corporate"/>

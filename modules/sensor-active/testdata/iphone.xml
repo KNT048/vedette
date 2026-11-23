@@ -3,7 +3,7 @@
 <!-- hand-written fixture shaped after nmap 7.94 output for an iPhone on Wi-Fi; no live network was scanned. Only the lockdown
      port answers, without a product; the OS fingerprint matches exactly (device type phone, OS CPE apple:iphone_os). -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
-<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<scaninfo type="syn" protocol="tcp" numservices="1001" services="1-1000,62078"/>
 <host starttime="1762650001" endtime="1762650040"><status state="up" reason="arp-response" reason_ttl="0"/>
 <address addr="192.168.10.20" addrtype="ipv4"/>
 <address addr="AA:BB:CC:00:00:21" addrtype="mac" vendor="Apple"/>

@@ -1,5 +1,6 @@
-// Package commonports is the one list of TCP ports Vedette probes on the box's own public IP: the scan module's surface
-// scan connects to each of them, and sensor-active's external nmap shape (-sV) names exactly these with -p. It is a leaf
+// Package commonports is the fixed list of TCP ports Vedette always probes on the box's own public IP: the scan module's
+// surface scan connects to each of them (and reads web titles and certificates there), and sensor-active's external nmap shape
+// names all of them in its -sV run, next to nmap's own most common ports its discovery probed (nmapargv.External). It is a leaf
 // with no import at all: the sensor binary links it through nmapargv (TestBinaryDependencies).
 package commonports
 
@@ -23,7 +24,8 @@ type Port struct {
 
 // List is the fixed list of TCP ports: services that are commonly exposed to the Internet by mistake or on purpose (web
 // and admin pages, remote access, file sharing, databases, mail, VPN, devices and their remote management). It is a fixed list,
-// never a range: about as many ports as the top-100 default of naabu, chosen for what an attacker probes first. No UDP.
+// never a range: about as many ports as the top-100 default of naabu, chosen for what an attacker probes first; about a third of them
+// are not among nmap's 1000 most common ports. No UDP.
 var List = []Port{
 	{21, "ftp", Plain}, {22, "ssh", Plain}, {23, "telnet", Plain}, {25, "smtp", Plain}, {53, "domain", Plain},
 	{80, "http", Web}, {81, "http", Web}, {88, "kerberos", Plain}, {102, "s7comm", Plain}, {110, "pop3", Plain},
@@ -47,10 +49,21 @@ var List = []Port{
 	{27017, "mongodb", Plain}, {34567, "dvr", Plain}, {37777, "dvr", Plain},
 }
 
-// MaxBelievableOpen is how many ports of List may be open before the address is taken to answer on every port: an
-// ISP router or a firewall with a SYN proxy completes the handshake on all of them, so nmap -sV would read dozens of "tcpwrapped"
-// rows or run into its host timeout. With more open than this, exposure skips service identification and the template checks
-// and says why; sensor-active's external run discards its -sV rows. No real small office exposes 40 of these 99 ports.
+// MaxBelievableOpen is how many TCP ports of one address may be open before the address is taken to answer on every port: an
+// ISP router or a firewall with a SYN proxy completes the handshake on all of them, so nmap -sV would read hundreds of
+// "tcpwrapped" rows or run into its host timeout. It is a count of open ports, not a share of the probed ones, and it holds for the
+// surface scan's 99 ports and for the default scan's about 1,070 (nmap's top 1000 and this list) alike:
+//   - a SYN proxy answers on all of the probed ports (99, or about 1,070), far above it either way, so widening the scan does not
+//     make it miss one;
+//   - a real small office exposes a handful of services (internet-wide scans such as Shodan's and Censys' find one to three open
+//     ports on a typical host); one with more than 40 open among the 1,000 most common ports is not a configuration to identify
+//     port by port, it is a device answering for everything, or one to fix first;
+//   - it bounds the -sV run: nmap reads about 20 ports at a time at the default timing, so 40 identifications fit the external
+//     shape's 3-minute host timeout.
+//
+// With more open than this, the default scan of the public IP still runs -sV over the fixed list (never skipped: real services sit
+// behind SYN proxies too) and keeps only the ports where -sV named a real service, dropping the tcpwrapped rows of the proxy, and
+// exposure says the address answers everywhere; the deep scan (every port) is not sent, and its rows are discarded the same way.
 const MaxBelievableOpen = 40
 
 // Numbers returns the port numbers of List, in its order (ascending).

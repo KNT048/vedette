@@ -167,6 +167,7 @@
   },
   "source": {
     "manual": "Manual",
+    "declared": "Declared software",
     "agent": "Agent",
     "snmp": "SNMP",
     "nmap": "Active scan",
@@ -403,5 +404,26 @@
     "restarting": "Restarting…",
     "confirming": "Confirming…",
     "working": "Working…"
+  },
+  "shell": {
+    "assistant": "AI assistant",
+    "aiSettings": "AI assistant",
+    "home": "Home",
+    "lookup": "Lookup",
+    "feedsSettings": "Feeds",
+    "detection": "Overview",
+    "logs": "Logs",
+    "siem": "SIEM forwarding",
+    "honeypot": "Internal traps",
+    "reports": "Reports",
+    "findings": "Findings",
+    "exposure": "External exposure",
+    "incidents": "Incidents",
+    "channels": "Alert channels",
+    "devices": "Devices",
+    "declared": "Declared software",
+    "response": "Response",
+    "responseSettings": "AI response (high risk)",
+    "scanning": "Scanning"
   }
 }

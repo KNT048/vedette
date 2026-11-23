@@ -136,7 +136,7 @@ const osGuessRow = `(s.cpe LIKE 'cpe:/o:%' AND ` + guessLine + `)`
 // outrankedGuess (rule 1): a person, the agent, SNMP or the device's LLDP statement gave the device's OS. A passive OS wins over
 // nmap's only as the device's LLDP statement (INV-44); a passive hint (a DHCP client's OS family) never outranks a guess.
 var outrankedGuess = `EXISTS (SELECT 1 FROM inv_asset ga JOIN inv_observation gob ON gob.id = ga.os_obs_id WHERE ga.id = s.asset_id
-	AND (gob.source IN ('manual', 'agent', 'snmp', 'passive') OR (gob.source = 'nmap' AND ` + selfStatedSQL("gob.value") + ` AND NOT ` + selfStatedSQL("s.display") + `)))`
+	AND (gob.source IN ('manual', 'declared', 'agent', 'snmp', 'passive') OR (gob.source = 'nmap' AND ` + selfStatedSQL("gob.value") + ` AND NOT ` + selfStatedSQL("s.display") + `)))`
 
 // selfStatedSQL is the condition on column col that it is the device's own statement without a login (observe.SelfStatedLike): such an
 // OS outranks nmap's fingerprint too, so its guess rows leave the device (rule 1); the row that holds the statement itself stays

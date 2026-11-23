@@ -136,7 +136,7 @@ func (s *Service) lapseOS(ctx context.Context, tx *sql.Tx, assetID string) (bool
 	if newest == "" {
 		return false, nil
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL, assetID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, assetID); err != nil {
 		return false, fmt.Errorf("inventory: lapse the corrected OS: %w", err)
 	}
 	return true, s.auditTx(ctx, tx, systemActor, "inventory.os_correction_lapsed", deviceName(ctx, tx, assetID), person+" → "+newest+" ("+from+")")

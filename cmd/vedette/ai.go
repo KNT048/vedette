@@ -1090,7 +1090,7 @@ func aiUpdateRow(b findings.FixBlockJS) (row ai.UpdateRow, named bool) {
 	case b.Severity.Low > 0:
 		row.Worst = "low"
 	}
-	action := capitalFirst(fixWords(findings.FixKind(fx.Kind), fx.Product, installed, row.Fixed, aiStr(fx.Ref)))
+	action := capitalFirst(findings.FixWords(findings.FixKind(fx.Kind), fx.Product, installed, row.Fixed, aiStr(fx.Ref)))
 	row.Action = cmp.Or(action, "No fixed release is named for "+cmp.Or(row.Software, "this software"))
 	return row, action != ""
 }

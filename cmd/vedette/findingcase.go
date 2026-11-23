@@ -90,49 +90,8 @@ func (c caseSource) Many(ctx context.Context, f findings.ViewFilter) ([]findingC
 
 // ---- the words ----
 
-// fixWords says a fix in words: what to do, with the release. "" for a fix that names no release to install (none yet, not known). The one
-// wording of every reader of a fix: the sentence of FixText, the update rows of the assistant's device_updates tool.
-func fixWords(kind findings.FixKind, product, installed, version, ref string) string {
-	product, installed, version = aiVal(cmp.Or(product, "the software"), 100), aiVal(installed, 60), aiVal(version, 100)
-	switch kind {
-	case findings.FixUpdate:
-		if version == "" {
-			return ""
-		}
-		if installed != "" {
-			return "update " + product + " from " + installed + " to " + version
-		}
-		return "update " + product + " to " + version
-	case findings.FixDistroUpdate:
-		if version != "" {
-			return "install the security update of the distribution's " + product + " package, version " + version + " (the distribution carries the fix under its own numbers)"
-		}
-		return "install the distribution's security updates of " + product + " (it has not published a fixed package yet; they arrive with its updates)"
-	case findings.FixOSUpdate:
-		s := "install the Windows update that brings the build to " + version
-		if kb := aiVal(ref, 20); kb != "" {
-			s += " (" + kb + ")"
-		}
-		return s
-	case findings.FixFeatureUpdate:
-		return "move " + product + " to " + cmp.Or(version, "a later release") + " (this release no longer gets the fix)"
-	}
-	return ""
-}
-
-// FixText is the fix of the finding in one sentence: the stored fix of the view, the one the finding page shows. A fix with no release
-// says so as a fact, never by naming a release of an affected range.
-func (c findingCase) FixText() string {
-	v := c.View
-	fx := v.Finding.Fix
-	if w := fixWords(fx.Kind, v.FixProduct(), "", fx.Version, fx.Ref); w != "" {
-		return capitalFirst(w) + "."
-	}
-	if fx.Kind == findings.FixNoneYet {
-		return "No fixed release exists yet: the vendor's affected versions have no end."
-	}
-	return "The fixed release is not known for this device's version."
-}
+// FixText is the fix of the finding in one sentence, the one the finding page shows (findings.View.FixText).
+func (c findingCase) FixText() string { return c.View.FixText() }
 
 // matchingRange is the range row of the brief that this device's fix comes from ("your device"), nil when the fix names none or no
 // counting row states it.
@@ -150,43 +109,11 @@ func (c findingCase) matchingRange() *feeds.BriefRange {
 }
 
 // ConfirmText says who or what confirmed the finding, or that nobody has.
-func (c findingCase) ConfirmText() string { return c.confirmWords(true) }
+func (c findingCase) ConfirmText() string { return c.View.ConfirmText(true) }
 
 // ConfirmWords is ConfirmText for a reader that is not given the people of the box (the MCP tools): a person's confirmation says "a
 // person", never who.
-func (c findingCase) ConfirmWords() string { return c.confirmWords(false) }
-
-func (c findingCase) confirmWords(named bool) string {
-	cf := c.View.Confirmation()
-	day := ""
-	if !cf.At.IsZero() {
-		day = " on " + cf.At.UTC().Format(time.DateOnly)
-	}
-	switch cf.Verified {
-	case findings.VerifiedPerson:
-		who := "a person"
-		if named {
-			who = cmp.Or(aiVal(cf.By, 100), who)
-		}
-		return "Confirmed by " + who + day + " on their own word."
-	case findings.VerifiedScan:
-		return "Confirmed by a safe check Vedette ran" + day + "."
-	case findings.VerifiedDevice:
-		return "Confirmed by the device itself: its own report of the installed version is inside the affected versions" + day + "."
-	}
-	return "Not confirmed yet: " + basisWords(cf.Basis) + "."
-}
-
-// basisWords says how an unconfirmed finding was detected.
-func basisWords(b findings.DetectionBasis) string {
-	switch b {
-	case findings.DetectScan:
-		return "found by a scan"
-	case findings.DetectBannerVersion:
-		return "the version was read from a service banner or a fingerprint"
-	}
-	return "matched from what the device shows"
-}
+func (c findingCase) ConfirmWords() string { return c.View.ConfirmText(false) }
 
 // WorkaroundText is the workaround the CVE record gives, or the plain sentence when it gives none.
 func (c findingCase) WorkaroundText() string { return briefWorkaround(c.Brief) }

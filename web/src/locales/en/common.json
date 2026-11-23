@@ -311,5 +311,27 @@
     "restarting": "Restarting…",
     "confirming": "Confirming…",
     "working": "Working…"
+  },
+  "shell": {
+    "assistant": "AI assistant",
+    "aiSettings": "AI assistant",
+    "home": "Home",
+    "lookup": "Lookup",
+    "feedsSettings": "Feeds",
+    "detection": "Overview",
+    "logs": "Logs",
+    "siem": "SIEM forwarding",
+    "honeypot": "Internal traps",
+    "reports": "Reports",
+    "findings": "Findings",
+    "plan": "Recommended updates",
+    "exposure": "External exposure",
+    "incidents": "Incidents",
+    "channels": "Alert channels",
+    "devices": "Devices",
+    "declared": "Declared software",
+    "response": "Response",
+    "responseSettings": "AI response (high risk)",
+    "scanning": "Scanning"
   }
 }

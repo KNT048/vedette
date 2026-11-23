@@ -487,7 +487,7 @@ function Body() {
   const [renaming, setRenaming] = useState(false)
   const renameButton = useRef<HTMLButtonElement>(null)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
-  const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
+  const crumbs = [{ label: t('common:shell.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
 
   if (q.isPending) return <>{back}<Loading /></>

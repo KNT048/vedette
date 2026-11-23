@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "devices": "Devices"
-  },
   "off": {
     "title": "The device list is off",
     "body": "Turn on the Inventory module to view, declare and approve devices. Existing data is kept."
@@ -1104,7 +1101,6 @@
     }
   },
   "declaredPage": {
-    "nav": "Declared software",
     "title": "Declared software",
     "description": "Products you run that are not tied to a device.",
     "info": "For example Microsoft Office, a cloud service or a branch firewall you cannot reach. They come from your answers to the weekly question, a CSV row with only a product, or Add here.",

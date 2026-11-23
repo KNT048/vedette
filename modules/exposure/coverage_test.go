@@ -152,8 +152,8 @@ func defaultScans(t *testing.T) (scan func(ServiceScan, error) ScanResult, state
 
 // When the address answers on almost every port, the scanner drops the ports where -sV named no service, though they stay in its
 // Probed: such a port is not counted as checked, so a real service nmap cannot name (8444) found by a normal scan stays open through
-// any number of those scans. A port whose service named itself is still checked there: 8443, kept by the first such scan, is closed
-// once two of them probe it and miss it.
+// any number of those scans. A port of the fixed list is still checked there (the runner TCP-connects it): 8443, named by the first
+// such scan, is closed once two of them miss it.
 func TestCoverage_AnswersEverywhereDoesNotCheckDroppedPorts(t *testing.T) {
 	t.Parallel()
 	scan, state := defaultScans(t)
@@ -176,7 +176,7 @@ func TestCoverage_AnswersEverywhereDoesNotCheckDroppedPorts(t *testing.T) {
 			t.Fatalf("answers-everywhere scan %d closed 8444", i+2)
 		}
 		if i == 1 && state(8443) != ServiceClosed {
-			t.Fatalf("8443, named once and then missed by two scans that probed it, is %s", state(8443))
+			t.Fatalf("8443 (fixed list), named once and then missed by two scans, is %s", state(8443))
 		}
 	}
 }

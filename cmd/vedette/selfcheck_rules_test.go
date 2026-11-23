@@ -13,8 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -226,7 +226,9 @@ var selfcheckCases = map[string]selfcheckCase{
 			{"fnd_finding", map[string]any{"asset_id": "a1", "software_id": "s1", "matched_version": "2.0"}}},
 		breaks: []edit{{2: {"matched_version": "3.0"}}},
 		alsoHold: []edit{{2: {"matched_version": "2.5"}}, {2: {"matched_version": "2.0-1"}}, {2: {"matched_version": "3.0", "basis": string(findings.DetectScan)}},
-			{2: {"matched_version": "3.0", "detected": 0}}}},
+			{2: {"matched_version": "3.0", "detected": 0}}, {2: {"matched_version": "3.0", "basis": string(findings.DetectPerson)}},
+			{2: {"matched_version": "3.0", "state": string(findings.StateHandled)}}, {2: {"matched_version": nil}},
+			{2: {"matched_version": "3.0", "software_id": nil}}}},
 	"findings.cve_in_catalogue": {rule: "every finding's CVE is in the catalogue",
 		holds:  []row{{"feeds_cve", map[string]any{"cve": "CVE-2026-0001"}}, {"fnd_finding", map[string]any{"cve": "CVE-2026-0001"}}},
 		breaks: []edit{{1: {"cve": "CVE-2026-0002"}}}},
@@ -311,8 +313,18 @@ func (c selfcheckCase) checkEdit(e edit) error {
 	return nil
 }
 
-// nonzeroExpectation is a test's comparison that fails unless a count is a number above zero ("if n != 1 { t.Fatal… }").
-var nonzeroExpectation = regexp.MustCompile(`!=\s*[1-9][0-9]*\b`)
+// positiveInt says e is an integer literal above zero: the other side of a test's "if n != 1 { t.Fatal… }".
+func positiveInt(e ast.Expr) bool {
+	if c, ok := e.(*ast.CallExpr); ok && len(c.Args) == 1 { // int64(1)
+		e = c.Args[0]
+	}
+	l, ok := e.(*ast.BasicLit)
+	if !ok || l.Kind != token.INT {
+		return false
+	}
+	n, err := strconv.ParseInt(l.Value, 0, 64)
+	return err == nil && n > 0
+}
 
 // Each invariant counts the rows that break its rule and not the rows that keep it: on a fresh database the rows of its case that
 // hold count zero, every shape that also holds counts zero, and every break counts above zero. A case proved by another test names a
@@ -331,15 +343,14 @@ func TestSelfcheck_EachInvariantCountsABreak(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			if c.provedBy != "" {
-				body, err := testBody(c.provedBy)
+				file, test, _ := strings.Cut(c.provedBy, ":")
+				path := filepath.Join("..", "..", file)
+				src, err := os.ReadFile(path) //nolint:gosec // a path listed in this test
 				if err != nil {
 					t.Fatalf("%s names %s: %v", name, c.provedBy, err)
 				}
-				if c.counts == "" || !strings.Contains(body, c.counts) {
-					t.Errorf("%s: %s does not read the count through %q", name, c.provedBy, c.counts)
-				}
-				if !nonzeroExpectation.MatchString(body) {
-					t.Errorf("%s: %s never expects a count above zero, so it cannot fail when the rule is broken", name, c.provedBy)
+				if err := namedTestProves(path, src, test, c.counts); err != nil {
+					t.Errorf("%s: %s %v", name, c.provedBy, err)
 				}
 				return
 			}
@@ -442,23 +453,58 @@ func describe(e edit) string {
 	return "{" + strings.Join(parts, "; ") + "}"
 }
 
-// testBody is the source of the test named "<file>:<test>" (the file relative to the repository root).
-func testBody(provedBy string) (string, error) {
-	file, test, _ := strings.Cut(provedBy, ":")
-	path := filepath.Join("..", "..", file)
-	src, err := os.ReadFile(path) //nolint:gosec // a path listed in this test
-	if err != nil {
-		return "", err
-	}
+// namedTestProves says why the test named test in the Go source src does not prove a break: it is not there, it does not read the
+// count through the function counts, or it never expects that count to be above zero.
+func namedTestProves(path string, src []byte, test, counts string) error {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, src, parser.SkipObjectResolution)
 	if err != nil {
-		return "", err
+		return err
 	}
 	for _, d := range f.Decls {
 		if fn, ok := d.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.Name == test && fn.Body != nil {
-			return string(src[fset.Position(fn.Body.Pos()).Offset:fset.Position(fn.Body.End()).Offset]), nil
+			calls, nonzero := false, false
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				switch x := n.(type) {
+				case *ast.CallExpr:
+					calls = calls || (counts != "" && funcName(x.Fun) == counts)
+				case *ast.BinaryExpr:
+					nonzero = nonzero || (x.Op == token.NEQ && (positiveInt(x.X) || positiveInt(x.Y)))
+				}
+				return true
+			})
+			if !calls {
+				return fmt.Errorf("does not read the count through %q", counts)
+			}
+			if !nonzero {
+				return fmt.Errorf("never expects a count above zero, so it cannot fail when the rule is broken")
+			}
+			return nil
 		}
 	}
-	return "", fmt.Errorf("no test %s in %s", test, file)
+	return fmt.Errorf("has no test %s", test)
+}
+
+// A named test proves a break only through its code: a call of the counting function and a comparison with a number above zero.
+// Words in a comment or a message prove nothing.
+func TestSelfcheck_NamedTestIsReadAsCode(t *testing.T) {
+	t.Parallel()
+	const head = "package x\n\nimport \"testing\"\n\nfunc TestBreak(t *testing.T) {\n"
+	for name, c := range map[string]struct {
+		body string
+		ok   bool
+	}{
+		"calls and expects one":     {"\tif n := countBreaks(); n != 1 {\n\t\tt.Fatal(n)\n\t}\n", true},
+		"calls through a method":    {"\tif _, n := e.countBreaks(); n != 2 {\n\t\tt.Fatal(n)\n\t}\n", true},
+		"named only in a comment":   {"\t// countBreaks would say 1\n\tif n := other(); n != 1 {\n\t\tt.Fatal(n)\n\t}\n", false},
+		"a longer name":             {"\tif n := countBreaksOld(); n != 1 {\n\t\tt.Fatal(n)\n\t}\n", false},
+		"expects zero only":         {"\tif n := countBreaks(); n != 0 {\n\t\tt.Fatal(n)\n\t}\n", false},
+		"nonzero only in a message": {"\tif n := countBreaks(); n != 0 {\n\t\tt.Fatal(\"want n != 1\")\n\t}\n", false},
+		"nonzero only in a comment": {"\t// later: n != 1\n\tif n := countBreaks(); n != 0 {\n\t\tt.Fatal(n)\n\t}\n", false},
+	} {
+		err := namedTestProves("x_test.go", []byte(head+c.body+"}\n"), "TestBreak", "countBreaks")
+		if (err == nil) != c.ok {
+			t.Errorf("%s: %v, want ok %v", name, err, c.ok)
+		}
+	}
 }

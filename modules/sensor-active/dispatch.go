@@ -206,6 +206,14 @@ func (d *Dispatcher) NmapHealth() string {
 	return ""
 }
 
+// WorkerAbsent says the scan worker has not reported since core started, or not for 90 seconds (a restart of the scan container):
+// a person's check waits for it instead of being refused.
+func (d *Dispatcher) WorkerAbsent() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return !d.fresh(d.now())
+}
+
 // nmapMissing is the health text for a scan worker without nmap. The appliance builds its scan image from the OS packages;
 // the project's image for a container-only install has no nmap by design (it is not shipped), so "rebuild" would
 // be wrong advice there.

@@ -119,6 +119,16 @@ type querier interface {
 type scanner interface{ Scan(dest ...any) error }
 
 func (m *Manager) scanRun(ctx context.Context, s scanner) (Run, error) {
+	r, err := m.scanBare(s)
+	if err != nil {
+		return Run{}, err
+	}
+	r.Summary = m.summary(ctx, r)
+	return r, nil
+}
+
+// scanBare reads a row of runCols without its summary: the summary of a queued run reads the runs ahead of it this way.
+func (m *Manager) scanBare(s scanner) (Run, error) {
 	var r Run
 	var subKind, subID, subLabel, blockID, blockTitle *string
 	var workLeft bool
@@ -139,7 +149,6 @@ func (m *Manager) scanRun(ctx context.Context, s scanner) (Run, error) {
 	}
 	r.CanStop = r.Status == Queued || r.Status == Waiting || r.Status == Running
 	r.CanResume = m.canResume(r, workLeft)
-	r.Summary = m.summary(ctx, r)
 	return r, nil
 }
 

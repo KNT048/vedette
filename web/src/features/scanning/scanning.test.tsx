@@ -224,6 +224,25 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     renderHere(<ScansRunningIndicator />, 'viewer')
     expect(await screen.findByRole('link', { name: '1 scan running' })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
   })
+
+  it('the indicator counts the runs that wait for the scanner apart from the one going, and opens every run, not only the running ones', async () => {
+    as('u-admin')
+    for (const targets of [['a-web01'], ['a-srvad'], ['a-nas02']]) {
+      expect((await fetch(`${base()}/scanning/engines/nmap-discovery/run`, json('POST', { targets }))).status).toBe(202)
+    }
+    renderHere(<ScansRunningIndicator />, 'viewer')
+    const link = await screen.findByRole('link', { name: '1 scan running, 2 queued' })
+    expect(link.getAttribute('href')).not.toContain('runs.status')
+  })
+
+  it('a check queued behind another says Queued on its button, from the run\'s queued flag, and when it starts', async () => {
+    as('u-admin')
+    expect((await fetch(`${base()}/scanning/engines/nmap-discovery/run`, json('POST', { targets: ['a-web01'] }))).status).toBe(202)
+    renderHere(<ScanNowButton targets={['a-nas02']} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Check this device now' }))
+    expect(await screen.findByText(/^Queued behind “Check 192\.168\.10\.\d+”; it starts in about \d+ minutes$/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Queued…/ })).toBeInTheDocument()
+  })
 })
 
 describe('#850: dead ends and the buttons of the Devices pages', () => {

@@ -107,10 +107,38 @@ func (s *Service) refreshWaits(ctx context.Context, st Settings) {
 	}
 }
 
+// resumePersonsChecks queues the person's checks that wait for the scan worker (asked while it had not reported, StartManual) once it
+// is available: they run whatever the window, oldest first, behind whatever holds the nmap lane.
+func (s *Service) resumePersonsChecks(ctx context.Context) {
+	if s.available(ctx) != nil {
+		return
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual' AND parent_id IS NULL
+		AND status = 'waiting' AND waiting_for = ? ORDER BY queued_at, rowid`, ModuleID, RunCheck, waitWorker)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	if rows.Close() != nil {
+		return
+	}
+	for _, id := range ids {
+		if err := s.runs.Resume(ctx, id, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) && !errors.Is(err, run.ErrNotFound) {
+			s.log.WarnContext(ctx, "sensoractive: starting a person's check once the scan worker reported failed", "run", id, "error", err)
+		}
+	}
+}
+
 // QueueLen is the number of device checks waiting for their turn in the window.
 func (s *Service) QueueLen(ctx context.Context) (int, error) {
 	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run WHERE module = ? AND kind = ? AND status = 'waiting'`, ModuleID, RunCheck).Scan(&n)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM core_run WHERE module = ? AND kind = ? AND status = 'waiting' AND trigger <> 'manual'`, ModuleID, RunCheck).Scan(&n)
 	return n, err
 }
 
@@ -171,6 +199,7 @@ func (s *Service) Tick(ctx context.Context) error {
 		return nil
 	}
 	s.refreshWaits(ctx, st)
+	s.resumePersonsChecks(ctx)
 	start, _, ok := st.window(s.local())
 	if !ok {
 		s.resumeYielded(ctx, "") // a person's pass that gave way goes on within its hour (after a restart too)
@@ -622,5 +651,5 @@ func (s *Service) runAllPorts(ctx context.Context, x *run.Exec) (run.Result, err
 	if d.Subject == nil {
 		return run.Result{Status: run.Failed, Error: "the run names no device"}, nil
 	}
-	return s.allPortsResult(ctx, s.scanDevice(ctx, d.Subject.ID, "all_ports", true)), nil
+	return s.allPortsResult(ctx, d.Subject.ID, s.scanDevice(ctx, d.Subject.ID, "all_ports", true)), nil
 }

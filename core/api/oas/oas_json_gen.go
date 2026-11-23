@@ -423893,6 +423893,10 @@ func (s *ScanningGetScanningOKRunningItem) encodeFields(e *jx.Encoder) {
 		s.Progress.Encode(e)
 	}
 	{
+		e.FieldStart("queued")
+		e.Bool(s.Queued)
+	}
+	{
 		e.FieldStart("started_at")
 		json.EncodeDateTime(e, s.StartedAt)
 	}
@@ -423902,13 +423906,14 @@ func (s *ScanningGetScanningOKRunningItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanningGetScanningOKRunningItem = [6]string{
+var jsonFieldsNameOfScanningGetScanningOKRunningItem = [7]string{
 	0: "engine",
 	1: "id",
 	2: "label",
 	3: "progress",
-	4: "started_at",
-	5: "target_id",
+	4: "queued",
+	5: "started_at",
+	6: "target_id",
 }
 
 // Decode decodes ScanningGetScanningOKRunningItem from json.
@@ -423964,8 +423969,20 @@ func (s *ScanningGetScanningOKRunningItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"progress\"")
 			}
-		case "started_at":
+		case "queued":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Queued = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"queued\"")
+			}
+		case "started_at":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -423977,7 +423994,7 @@ func (s *ScanningGetScanningOKRunningItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "target_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.TargetID.Decode(d); err != nil {
 					return err
@@ -423996,7 +424013,7 @@ func (s *ScanningGetScanningOKRunningItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -426549,6 +426566,10 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) encodeFields(e *jx.Encoder
 		s.Progress.Encode(e)
 	}
 	{
+		e.FieldStart("queued")
+		e.Bool(s.Queued)
+	}
+	{
 		e.FieldStart("started_at")
 		json.EncodeDateTime(e, s.StartedAt)
 	}
@@ -426558,13 +426579,14 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfScanningPatchScanningEnginesIDOKRunningItem = [6]string{
+var jsonFieldsNameOfScanningPatchScanningEnginesIDOKRunningItem = [7]string{
 	0: "engine",
 	1: "id",
 	2: "label",
 	3: "progress",
-	4: "started_at",
-	5: "target_id",
+	4: "queued",
+	5: "started_at",
+	6: "target_id",
 }
 
 // Decode decodes ScanningPatchScanningEnginesIDOKRunningItem from json.
@@ -426620,8 +426642,20 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"progress\"")
 			}
-		case "started_at":
+		case "queued":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Queued = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"queued\"")
+			}
+		case "started_at":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -426633,7 +426667,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "target_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.TargetID.Decode(d); err != nil {
 					return err
@@ -426652,7 +426686,7 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -429745,6 +429779,10 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) encodeFields(e *jx
 		s.Progress.Encode(e)
 	}
 	{
+		e.FieldStart("queued")
+		e.Bool(s.Queued)
+	}
+	{
 		e.FieldStart("started_at")
 		json.EncodeDateTime(e, s.StartedAt)
 	}
@@ -429754,13 +429792,14 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfScanningPostScanningEnginesNmapDiscoveryRunAccepted = [6]string{
+var jsonFieldsNameOfScanningPostScanningEnginesNmapDiscoveryRunAccepted = [7]string{
 	0: "engine",
 	1: "id",
 	2: "label",
 	3: "progress",
-	4: "started_at",
-	5: "target_id",
+	4: "queued",
+	5: "started_at",
+	6: "target_id",
 }
 
 // Decode decodes ScanningPostScanningEnginesNmapDiscoveryRunAccepted from json.
@@ -429816,8 +429855,20 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"progress\"")
 			}
-		case "started_at":
+		case "queued":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Queued = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"queued\"")
+			}
+		case "started_at":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -429829,7 +429880,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "target_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.TargetID.Decode(d); err != nil {
 					return err
@@ -429848,7 +429899,7 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

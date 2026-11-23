@@ -66,18 +66,18 @@ function discoveryRuns(): Run[] {
   return kept.map(({ ends_ms, starts_ms, behind, ...r }) => {
     if (starts_ms && behind && now < starts_ms) {
       const p = mockDeviceProgress(now, 0, now)
-      return { ...r, progress: { ...p, message: `Queued behind “${behind}”; it starts when that run ends` } }
+      return { ...r, queued: true, progress: { ...p, message: `Queued behind “${behind}”; it starts in about ${Math.max(1, Math.ceil((starts_ms - now) / 60000))} minutes` } }
     }
     const started = starts_ms ?? Date.parse(r.started_at)
-    return { ...r, progress: mockDeviceProgress(started, (now - started) / (ends_ms - started), now) }
+    return { ...r, queued: false, progress: mockDeviceProgress(started, (now - started) / (ends_ms - started), now) }
   })
 }
 /** Every run going on (#850 review M7): discovery, the LAN vulnerability checks (scan mock) and the public scan (exposure mock). */
 function live(): Run[] {
   const out = discoveryRuns()
-  for (const r of liveScanRuns()) out.push({ engine: 'nuclei', id: r.id, label: r.total === 1 && r.current ? `Check ${r.current.label}` : `Vulnerability checks on ${r.total} devices`, target_id: null, started_at: r.started_at, progress: r.progress })
+  for (const r of liveScanRuns()) out.push({ engine: 'nuclei', id: r.id, label: r.total === 1 && r.current ? `Check ${r.current.label}` : `Vulnerability checks on ${r.total} devices`, target_id: null, started_at: r.started_at, progress: r.progress, queued: false })
   const ex = exposureMockRun()
-  if (ex?.status === 'running') out.push({ engine: ex.phase === 'greenbone' ? 'openvas' : 'zap', id: ex.id, label: ex.target_value, target_id: ex.target_id, started_at: ex.started_at, progress: ex.progress })
+  if (ex?.status === 'running') out.push({ engine: ex.phase === 'greenbone' ? 'openvas' : 'zap', id: ex.id, label: ex.target_value, target_id: ex.target_id, started_at: ex.started_at, progress: ex.progress, queued: false })
   return out
 }
 
@@ -87,7 +87,7 @@ function queueRun(picked: Array<{ id: string; ip: string; services: Parameters<t
   const last = runs.get().filter((r) => r.ends_ms > Date.now()).at(-1)
   const begins = Math.max(Date.parse(started), last?.ends_ms ?? 0)
   const run: Run & { ends_ms: number; starts_ms?: number; behind?: string } = {
-    engine: 'nmap-discovery', id: newId('sar'), started_at: started, progress: null,
+    engine: 'nmap-discovery', id: newId('sar'), started_at: started, progress: null, queued: !!last,
     label: picked.length === 0 ? `LAN sweep ${ranges.join(', ')}` : picked.length === 1 ? `Check ${picked[0]!.ip}` : `Check ${picked.length} devices`,
     target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: begins + RUN_MS * Math.max(1, picked.length),
     ...(last ? { starts_ms: begins, behind: last.label } : {}),
@@ -544,7 +544,7 @@ export const handlers = [
     const targets = b.targets ?? []
     const going = discoveryRuns()
     // never refused because the scanner is busy (the box queues it); a second LAN sweep while one goes on is the one refusal
-    if (targets.length === 0 && going.some((r) => r.target_id === null && r.label.startsWith('LAN sweep'))) return fail(409, 'busy', 'Discovery is running nmap now (the window\'s sweep or a device scan). Try again when it ends.')
+    if (targets.length === 0 && going.some((r) => r.target_id === null && r.label.startsWith('LAN sweep'))) return fail(409, 'busy', 'A LAN sweep is already going on: it is the answer. Follow it on the Runs tab.')
     const assets = assetsStore.get()
     const picked: typeof assets = []
     for (const t of targets) {

@@ -38,7 +38,7 @@ describe('InfoTip name guard: an ⓘ is not named after the button beside it', (
   const found = hits()
 
   it('reports the count of the class', () => {
-    // before this guard: 5 (findings "Applied" and "Ask my AI", the bug report's "Open a GitHub issue", the VulnCheck key's
+    // before this guard: 5 (findings "Applied" and "Ask my AI", the bug report's "Open GitHub issue", the VulnCheck key's
     // "Remove key", the credentialed scan's "Add a server"); after: 0
     console.info(`InfoTips named after a button: ${found.length}`)
     expect(found.length).toBeGreaterThanOrEqual(0)

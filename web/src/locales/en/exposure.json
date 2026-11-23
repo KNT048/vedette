@@ -356,7 +356,7 @@
     "spanRunning": "Scan started {{start}}; OpenVAS is still scanning",
     "spanStart": "Scan started {{start}}",
     "scopeTopic": "What this scan covered",
-    "scopeBasic": "Ports are scanned only on this box's own verified public IPs; a domain's names get one check of their web page on ports 80 and 443.",
+    "scopeBasic": "Ports are scanned only on this box's own verified public IPs: nmap's 1,000 most common TCP ports and a fixed list of commonly exposed ones, then the service behind each open port. A domain's names get one check of their web page on ports 80 and 443.",
     "scopeDeepIp": "Deep scan (testing terms accepted): every TCP port of this IP, the service behind each one, the checks the terms describe and OpenVAS when it is on.",
     "scopeDeepDomain": "Deep scan (testing terms accepted): each public IPv4 address a name under this domain resolves to gets every TCP port, service versions, the checks the terms describe and OpenVAS when it is on, at most 3 addresses a run; IPv6 and private addresses are not scanned.",
     "sourceNote": "The box scans from inside your network. Names hosted elsewhere are reached over the Internet, but the box's own public IP is reached through your router (NAT loopback), so what it shows can differ from what the Internet sees: a router may show its own login page only to the inside, and a router without NAT loopback shows nothing."

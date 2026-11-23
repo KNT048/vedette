@@ -329,6 +329,9 @@ type Content struct {
 	// Not in the API yet ("-"): the snapshot schema of api/openapi.json has no such field and the response decoder refuses unknown
 	// ones; showing them is the page's step (contract.ts, openapi, then this tag becomes "scripts").
 	Scripts []ScriptRow `json:"-"`
+	// Probed are the TCP ports this run's service step probed on each address, by its canonical spelling, beyond the runner's
+	// fixed list (commonports): the default scan's nmap ports (INV-22, carryNotSeen). Not stored; nil when no service step said.
+	Probed map[string][]int `json:"-"`
 }
 
 // Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the

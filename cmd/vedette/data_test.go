@@ -28,19 +28,36 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/logs"
 )
 
-// moduleSchema reads every table of a database with every wired module's migrations, found in sqlite_master.
+// moduleSchema reads every table of both databases of a box, found in sqlite_master: vedette.db with every wired module's
+// migrations, and logs.db with the volume migrations of the logs module. Together they are every table of docs/SCHEMA.sql.
 func moduleSchema(t *testing.T) map[string][][2]string {
 	t.Helper()
-	ctx := t.Context()
-	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	db, err := openMigrated(t.Context(), filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	out := tableColumns(t, db)
+	for tbl, cols := range tableColumns(t, storetest.Migrated(t, storetest.Migration{Module: logs.ModuleID, FS: logs.VolumeMigrations})) {
+		if _, dup := out[tbl]; dup {
+			t.Fatalf("table %s is in both databases", tbl)
+		}
+		out[tbl] = cols
+	}
+	return out
+}
+
+// tableColumns reads every data table of db with its columns: not SQLite's own, not the migration records and the schema epoch, and
+// not a full-text index with its shadow tables.
+func tableColumns(t *testing.T, db *store.DB) map[string][][2]string {
+	t.Helper()
+	ctx := t.Context()
 	rows, err := db.Reader().QueryContext(ctx, `SELECT m.name, p.name, p.type FROM sqlite_master m, pragma_table_info(m.name) p
 		WHERE m.type = 'table' AND m.name NOT GLOB 'sqlite_*' AND m.name NOT GLOB 'core_migration_*' AND m.name <> '`+store.EpochTable+`' ORDER BY m.name, p.cid`)
 	if err != nil {
@@ -82,7 +99,7 @@ func moduleSchema(t *testing.T) map[string][][2]string {
 	return out
 }
 
-// M4, enforced by CI: every table.column of every migration of every module (core included) is classified in the export policy
+// Enforced by CI: every table.column of every migration of every module (core included, and the logs volume) is classified in the export policy
 // (modules/core/export_policy.go: export, json, jsonurl, url or skip). A new column fails this test until someone classifies it, in
 // review; a column that does not exist any more fails too, so the policy cannot rot. Columns classified as plain "export" or "url"
 // that look like a secret by a stricter test of this file must be listed in publicByDecision with a reason: JSON columns are scrubbed
@@ -104,6 +121,18 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 	for _, d := range dirs {
 		if id := filepath.Base(filepath.Dir(filepath.Dir(d))); !wired[id] {
 			t.Errorf("module %s has migrations but is not in wiredModules: its tables would escape the export policy", id)
+		}
+	}
+	// The other migration directories are the two of the logs module: its configuration in vedette.db (wired like the others) and
+	// its volume, logs.db (read by moduleSchema). A new kind of directory would hold tables this test never sees.
+	others, err := filepath.Glob("../../modules/*/migrations/*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range others {
+		rel := filepath.Base(filepath.Dir(filepath.Dir(d))) + "/" + filepath.Base(d)
+		if filepath.Base(d) != "sqlite" && rel != "logs/config" && rel != "logs/volume" {
+			t.Errorf("migration directory %s is not read by this test: its tables would escape the export policy", rel)
 		}
 	}
 	known := map[string]bool{}
@@ -166,7 +195,10 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_nvd_cursor", "notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
+	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_nvd_cursor",
+		// logs.db: the data export reads vedette.db only (received lines leave through GET /core/logs/export)
+		"logs_anomaly_sent", "logs_events", "logs_ioc_hits", "logs_signature_addrs", "logs_signature_buckets", "logs_signature_daily", "logs_source_buckets", "logs_source_seen", "logs_volume",
+		"notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
 	if !slices.Equal(skipAll, want) {
 		t.Errorf("tables left out of the export whole:\n got %q\nwant %q", skipAll, want)
 	}

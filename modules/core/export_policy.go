@@ -13,8 +13,9 @@ import "strings"
 //	url     a URL as text: userinfo, path and query are cut, leaving scheme://host (other text stays as it is)
 //	skip    never exported: a secret, a reference to a secret, a hash or nonce of sign-in state
 //
-// A table with skipAll is not exported at all (secrets, sign-in state, link state, and public data the box pulls again,
-// such as feeds_epss).
+// A table with skipAll is not exported at all (secrets, sign-in state, link state, public data the box pulls again, such as
+// feeds_epss, and the tables of logs.db, which this export does not read). Every table of docs/SCHEMA.sql, in both databases, is
+// listed.
 type tablePolicy struct {
 	skipAll                          bool
 	export, json, jsonURL, url, skip string
@@ -185,6 +186,19 @@ var exportPolicy = map[string]tablePolicy{
 	"sp_sensor":              {export: "id name interface span version last_seen devices_seen"},
 	"sp_seq":                 {export: "sensor_id epoch last_seq"},
 	"sp_span_stat":           {export: "sensor_id packets_per_s other_macs last_packet_at measured_at"},
+
+	// logs.db, the volume of the logs module (a database of its own next to vedette.db). This export reads vedette.db only: received
+	// lines and bad-address hits leave through GET /core/logs/export (its device_logs and known_bad sources), with their own caps,
+	// and the counters below are rebuilt from new lines. Listed so that every table of the schema has a policy.
+	"logs_events":            {skipAll: true, skip: "id ts source_id line"},
+	"logs_ioc_hits":          {skipAll: true, skip: "id ts src_ip dest dest_kind seen_via feeds confidence source_id blocked listed_as"},
+	"logs_volume":            {skipAll: true, skip: "id line_bytes"},
+	"logs_source_buckets":    {skipAll: true, skip: "source_id bucket lines"},
+	"logs_source_seen":       {skipAll: true, skip: "source_id last_received"},
+	"logs_signature_daily":   {skipAll: true, skip: "day source_id signature dest count first_seen sample mined"},
+	"logs_signature_buckets": {skipAll: true, skip: "source_id bucket sig_hash count mined"},
+	"logs_signature_addrs":   {skipAll: true, skip: "source_id bucket sig_hash addr count"},
+	"logs_anomaly_sent":      {skipAll: true, skip: "source_id kind signature ref target bounded sent_at"},
 }
 
 // exportClasses is exportPolicy read once: table -> column -> class.

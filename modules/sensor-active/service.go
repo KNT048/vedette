@@ -118,12 +118,18 @@ type Service struct {
 	off atomic.Bool
 	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
 	beforeSNMPBatch func()
+	// beforeBoxResume, when set (tests only), runs right before the box resumes a run that it read as waiting (resumeWaiting).
+	beforeBoxResume func(id string)
+	// beforeBackground, when set (tests only), runs as a heartbeat's pass is about to be registered with Close (workerReported).
+	beforeBackground func()
 
 	// prog is the last progress report of the worker's nmap, by run (runSink): the summaries of the running device runs read it.
 	// progMu is its own lock: the Dispatcher reports under its lock, and nothing here calls the Dispatcher while holding progMu.
-	// bg is the work started on a goroutine of its own (workerReported); closed refuses more of it once Close began.
+	// bg is the work started on a goroutine of its own (workerReported); closed refuses more of it once Close began. bgMu guards closed
+	// and every bg.Add, so no pass is counted after Close's bg.Wait began.
 	bg     sync.WaitGroup
-	closed atomic.Bool
+	bgMu   sync.Mutex
+	closed bool
 	waking atomic.Bool // a workerReported pass is going on: another heartbeat meanwhile starts none
 	// since is when this process started: a person's check waits personWaitMax for the scan worker from then at the earliest, since
 	// the worker starts with it (resumePersonsChecks).
@@ -293,7 +299,9 @@ func (g moduleGate) Enabled(id string) bool { return id != ModuleID || !g.s.off.
 
 // Close stops the run manager the service made itself (Config.Runs nil); a shared one is the box's to close.
 func (s *Service) Close() {
-	s.closed.Store(true)
+	s.bgMu.Lock()
+	s.closed = true
+	s.bgMu.Unlock()
 	s.bg.Wait()
 	if s.ownRuns {
 		s.runs.Close()

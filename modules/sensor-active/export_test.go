@@ -36,3 +36,13 @@ func HoldRunLock(s *Service) (release func()) {
 	s.runMu.Lock()
 	return s.runMu.Unlock
 }
+
+// SetBeforeBoxResume makes fn run right before the box resumes a run it read as waiting (a test acting between that read and the
+// resume).
+func SetBeforeBoxResume(s *Service, fn func(id string)) { s.beforeBoxResume = fn }
+
+// SetBeforeBackground makes fn run as a scan worker heartbeat's pass is about to be registered with Close.
+func SetBeforeBackground(s *Service, fn func()) { s.beforeBackground = fn }
+
+// WaitBackground waits for the heartbeat passes that were started (Close waits for them the same way).
+func WaitBackground(s *Service) { s.bg.Wait() }

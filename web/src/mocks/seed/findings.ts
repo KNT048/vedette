@@ -1,5 +1,5 @@
-// 3 phát hiện mẫu gắn CVE KEV thật (kế hoạch §2.2 P-3). ID cố định: f-1 (NAS, xác nhận), f-2 (WordPress, nghi), f-3 (Windows Server 2016, nghi).
-// Module findings sở hữu file này (có thể thêm phát hiện); module khác chỉ đọc qua findingsStore.
+// 3 sample findings tied to real KEV CVEs. Fixed ids: f-1 (NAS, confirmed), f-2 (WordPress, suspected), f-3 (Windows Server 2016, suspected).
+// The findings module owns this file (it may add findings); other modules only read through findingsStore.
 import type { Finding } from '@/lib/types'
 import type { Basis, CveSeverity, EventKind, FindingEvent, FixKind, Reason, Resolution, Verified, Via, QuestionKind } from '@/features/findings/types'
 

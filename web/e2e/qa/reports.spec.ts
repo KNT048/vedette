@@ -2,19 +2,19 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
-// QA như người dùng thật cho module reports (S-REP-1, S-REP-2). UI chỉ có tiếng Anh; báo cáo đánh giá nói về Luật 91/2025/QH15.
-// Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/reports.spec.ts
-// Máy dùng chung với nhiều agent nên chậm: nới thời gian mỗi test.
+// QA as a real user for the reports module (S-REP-1, S-REP-2). The UI is English only; the assessment report is about Law 91/2025/QH15.
+// Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/reports.spec.ts
+// The machine is shared and slow: the timeout of every test is widened.
 test.describe.configure({ timeout: 150_000 })
 
-/** Đổi phiên sang tài khoản khác: ép core_session trước mỗi lần tải trang (một lần ghi muộn của trang cũ không đè được). */
+/** Switch the session to another account: force core_session before every page load (a late write from the old page cannot overwrite it). */
 async function asUser(page: Page, userId: string) {
   await page.addInitScript((u) => {
     try {
       const k = 'vedette-mock-db-v4'
       const raw = localStorage.getItem(k)
       if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
-    } catch { /* bỏ qua */ }
+    } catch { /* ignore */ }
   }, userId)
   await page.reload()
 }
@@ -154,7 +154,7 @@ test.describe('reports: data protection assessment under Law 91/2025/QH15 (S-REP
     await page.getByLabel('Tax code', { exact: true }).fill('0312345678-001')
     await page.getByLabel('Contact email', { exact: true }).fill('anna@acme.example')
     await page.getByLabel('Contact phone', { exact: true }).fill('0901 234 567')
-    await page.getByLabel('Contact phone', { exact: true }).press('Enter') // Enter gửi form
+    await page.getByLabel('Contact phone', { exact: true }).press('Enter') // Enter submits the form
     await expect(page.getByText('Organisation details saved').first()).toBeVisible()
     await page.reload()
     await expect(page.getByLabel('Tax code', { exact: true })).toHaveValue('0312345678-001')

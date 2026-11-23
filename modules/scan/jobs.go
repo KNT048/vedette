@@ -29,7 +29,7 @@ const (
 	// rescanPage is how many waiting events one pass of the rescan job looks at, oldest first; the rest wait for the
 	// next minute (#164 review L1).
 	rescanPage = 100
-	// eventRetention keeps the rescan log one year (DATA_MODEL [proposed]).
+	// eventRetention keeps the rescan log one year (DATA_MODEL 4.6 and 8).
 	eventRetention = 365 * 24 * time.Hour
 	systemUser     = "system"
 )

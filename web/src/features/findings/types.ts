@@ -1,4 +1,4 @@
-// Kiểu API module findings — suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the findings module — derived from the Zod contract (contract.ts), not declared by hand.
 import type { z } from 'zod'
 import type * as C from './contract'
 
@@ -6,12 +6,12 @@ export type KevInfo = z.infer<typeof C.KevInfo>
 /** #825: the CVSS base score with its version and source; null on a row = no score known. */
 export type Cvss = z.infer<typeof C.Cvss>
 export type FindingAsset = z.infer<typeof C.FindingAsset>
-/** Phát hiện + thiết bị + thông tin KEV (đọc từ KEV thật, không phải từ gói khuyến nghị của dự án). */
+/** Finding + device + KEV information (read from the real KEV, not from the project's recommendation pack). */
 export type FindingRow = z.infer<typeof C.FindingRow>
 export type CodeStep = z.infer<typeof C.CodeStep>
 export type FirewallVendor = z.infer<typeof C.FirewallVendor>
 export type FirewallGuide = z.infer<typeof C.FirewallGuide>
-/** Gói giảm thiểu đã xác nhận (DATA_PIPELINE §5b). Chỉ gói status=confirmed mới tới được hộp. */
+/** A confirmed mitigation pack (DATA_PIPELINE §5b). Only packs with status=confirmed reach the box. */
 export type MitigationPack = z.infer<typeof C.MitigationPack>
 export type Indicator = z.infer<typeof C.Indicator>
 export type CompromiseCheck = z.infer<typeof C.CompromiseCheck>

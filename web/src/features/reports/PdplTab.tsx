@@ -56,7 +56,7 @@ function OrgSection({ s }: { s: PdplState }) {
   const err = (k: keyof Form) => errs[k] ?? (serverKey === k ? (save.error as Error).message : undefined)
   const reason = operator ? undefined : t('common:needRole', { role: t('common:role.operator') })
 
-  /** Kiểm ở trình duyệt để lỗi hiện đúng ô; máy chủ kiểm lại cùng quy tắc. */
+  /** Checked in the browser so the error shows on the right field; the server checks the same rules again. */
   function validate(): boolean {
     const n: Errs = {}
     const len = (v: string, a: number, b: number) => v.trim().length >= a && v.trim().length <= b

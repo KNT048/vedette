@@ -3,7 +3,7 @@
 @import "@fontsource-variable/inter/opsz.css";
 @import "@fontsource/jetbrains-mono/400.css";
 
-/* Design tokens — docs/FRONTEND.md §3. Một màu nhấn (xanh lục đậm), bốn màu trạng thái nghĩa cố định, luôn kèm chữ. */
+/* Design tokens — docs/FRONTEND.md §3. One accent colour (deep green), four status colours with a fixed meaning, always paired with text. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
@@ -44,7 +44,7 @@
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-/* Trước khi JS chạy (hoặc khi chọn "Theo hệ thống"): theo cài đặt máy, tránh nháy nền sáng. */
+/* Before JS runs (or when "Follow system" is chosen): follow the machine setting, avoiding a flash of light background. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
   --paper: #11181b; --surface: #172125; --sunken: #0d1416;
@@ -116,7 +116,7 @@
   /* No table-wide tabular-nums: Inter's tnum also gives the hyphen a figure width, so names and models in a cell ("NAS-PHOTOS",
      "TS-453D") read with gaps. A numeric column that must line up sets tabular-nums on its own cells (Plan's EPSS, Counter, KPIs). */
   a { color: inherit; text-underline-offset: 3px; }
-  /* Link nằm trong đoạn văn/ô bảng phải nhận ra được không chỉ nhờ màu (WCAG 1.4.1). */
+  /* A link inside a paragraph / table cell must be recognisable by more than colour (WCAG 1.4.1). */
   :where(p, li, dd, td, label) a[href] { text-decoration-line: underline; }
 }
 

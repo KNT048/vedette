@@ -53,7 +53,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
     case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software.length > 0 : value === 'ports' ? d.services.length > 0 : false
     case 'software': return !!value && matchSoftware(d, [value]).length > 0
     case 'possible': return value === 'same' && same.has(d.id)
-    case 'risk': return (d.risk?.level ?? 'none') === value // exploited, update, none (GET /inventory/devices?risk= reads the same words)
+    case 'risk': return (d.risk?.code ?? 'none') === value // the device statuses, none (GET /inventory/devices?risk= reads the same words)
     case 'approved': {
       const span = APPROVED_WITHIN[value as keyof typeof APPROVED_WITHIN]
       return !!span && !!d.approved_at && now - new Date(d.approved_at).getTime() < span

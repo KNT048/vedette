@@ -13,7 +13,7 @@ import { server } from '@/test/server'
 import type { ZodType } from 'zod'
 import { sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
-import { FindingDetail, FindingList, HomeSummary, SUMMARY_DAYS, SUMMARY_TOP } from './contract'
+import { FindingDetail, FindingList } from './contract'
 
 const REAL = import.meta.env.VITE_FINDINGS_REAL_URL as string | undefined
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -120,10 +120,6 @@ const steps: Step[] = [
   // ---- roles
   { name: 'no session', role: null, method: 'GET', path: '/findings', status: 401, code: 'unauthenticated' },
   { name: 'no session on detail', role: null, method: 'GET', path: '/findings/f-1', status: 401, code: 'unauthenticated' },
-  // #825: Home's one read; "summary" is not a finding id.
-  { name: 'home summary', role: 'viewer', method: 'GET', path: '/findings/summary', status: 200, schema: HomeSummary,
-    check: (b) => { expect(b.top.length).toBeLessThanOrEqual(SUMMARY_TOP); expect(b.trend).toHaveLength(SUMMARY_DAYS); expect(b.trend[SUMMARY_DAYS - 1]).toBe(b.open.total) } },
-  { name: 'no session on the home summary', role: null, method: 'GET', path: '/findings/summary', status: 401, code: 'unauthenticated' },
   { name: 'viewer cannot change status', role: 'viewer', method: 'POST', path: (c) => F(c) + '/status', body: status('patched'), status: 403, code: 'forbidden' },
   { name: 'viewer cannot log "Applied"', role: 'viewer', method: 'POST', path: (c) => `/findings/${c.pack}/applied`, body: { item: 'patch' }, status: 403, code: 'forbidden' },
   { name: 'viewer cannot ask the AI', role: 'viewer', method: 'POST', path: (c) => F(c) + '/ai', body: { skill: 'explain' }, status: 403, code: 'forbidden' },

@@ -222,20 +222,19 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 	return f.d.Findings.CountByAsset(ctx)
 }
 
-// RiskByAsset is inventory's RiskSource: findings.RiskMap, one cached batch with To fix's tests (its exploited findings to fix,
-// else its recommended updates for a likely-exploited or High+ CVE), from findings (built after inventory, looked up when asked). Findings off or not built: no device is marked. The feeds
-// module off: no update counts, as GET /findings/plan then lists none.
-func (f findingCounts) RiskByAsset(ctx context.Context) (map[string]inventory.RiskCounts, error) {
-	out := map[string]inventory.RiskCounts{}
+// DeviceStatuses is inventory's RiskSource: findings' device status of every device that has one (the one function the device page,
+// the findings lists and Home read), from findings (built after inventory, looked up when asked). Findings off or not built: no badge.
+func (f findingCounts) DeviceStatuses(ctx context.Context) (map[string]inventory.Risk, error) {
+	out := map[string]inventory.Risk{}
 	if f.d == nil || f.d.Findings == nil || (f.d.Reg != nil && !f.d.Reg.Enabled("findings")) {
 		return out, nil
 	}
-	m, err := f.d.Findings.RiskMap(ctx, f.d.Reg == nil || f.d.Reg.Enabled(findings.FeedsModule))
+	m, err := f.d.Findings.DeviceStatuses(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for id, r := range m {
-		out[id] = inventory.RiskCounts{Exploited: r.Exploited, Updates: r.Updates}
+	for id, st := range m {
+		out[id] = inventory.Risk{Code: st.Code, Count: st.Count}
 	}
 	return out, nil
 }

@@ -53,36 +53,26 @@ func nonNil(s []string) []string {
 	return s
 }
 
-// riskJS is contract.ts DeviceRisk: a device's risk marker, the same value the device list gives (RiskMap).
-type riskJS struct {
-	Level     string `json:"level"`
-	Exploited int    `json:"exploited"`
-	Updates   int    `json:"updates"`
-}
+// riskJS is contract.ts DeviceRiskView: a device's badge, the device status every list gives (DeviceStatuses).
+type riskJS = DeviceStatus
 
-// risks is RiskMap for a page that shows markers; a failure is logged and shows no marker, never fails the page (review r1 of #949).
-func (h *FindingHandlers) risks(ctx context.Context, feedsOn bool) map[string]AssetRisk {
-	m, err := h.svc.RiskMap(ctx, feedsOn)
+// risks is every device's status for a page that shows badges; a failure is logged and shows no badge, never fails the page.
+func (h *FindingHandlers) risks(ctx context.Context, _ bool) map[string]DeviceStatus {
+	m, err := h.svc.DeviceStatuses(ctx)
 	if err != nil {
-		h.svc.cfg.Log.WarnContext(ctx, "findings: risk markers not read", "error", err)
+		h.svc.cfg.Log.WarnContext(ctx, "findings: device statuses not read", "error", err)
 		return nil
 	}
 	return m
 }
 
-// riskOfView is the marker of device a: nil when clean or when a is the Vedette box itself (its updates are in To fix, the box is not
-// marked).
-func riskOfView(m map[string]AssetRisk, a AssetView) *riskJS { return riskJSOf(m[a.ID], a.Box) }
-
-func riskJSOf(r AssetRisk, box bool) *riskJS {
-	if box || r.Level() == "" {
+// riskOfView is the badge of device a: nil when it has none or when a is the Vedette box itself.
+func riskOfView(m map[string]DeviceStatus, a AssetView) *riskJS {
+	st, ok := m[a.ID]
+	if !ok || a.Box {
 		return nil
 	}
-	out := &riskJS{Level: r.Level(), Exploited: r.Exploited, Updates: r.Updates}
-	if out.Level == "update" {
-		out.Exploited = 0
-	}
-	return out
+	return &st
 }
 
 // FindingsGetFindingsToFix implements GET /findings/to-fix: Service.ToFix with each device's name. A device the inventory
@@ -132,13 +122,13 @@ func (h *FindingHandlers) FindingsGetFindingsToFix(ctx context.Context, params o
 			continue
 		}
 		// the card's own classification: its marker counts exactly what the card lists (review r2 of #949)
-		out.Devices = append(out.Devices, deviceJS{Asset: a, Risk: riskJSOf(RiskOf(d), a.Box), Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
+		out.Devices = append(out.Devices, deviceJS{Asset: a, Risk: riskOfView(risks, a), Open: d.Open, Exploited: toFixActions(d.Exploited), NoUpdate: toFixActions(d.NoUpdate),
 			Planned: toFixActions(d.Planned), PlanCompared: d.PlanCompared})
 	}
 	if params.Asset.Or("") == "" {
-		for id, r := range risks {
+		for id := range risks {
 			if a, ok := assets[id]; ok {
-				if v := riskJSOf(r, a.Box); v != nil {
+				if v := riskOfView(risks, a); v != nil {
 					out.Risks[id] = v
 				}
 			}

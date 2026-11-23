@@ -29,8 +29,8 @@ export const NOTE_NEEDED: readonly Resolution[] = ['accepted', 'not_relevant', '
  * box handles exactly that fix's open findings there); otherwise it names the ids. `resolutions` narrows the choices ("Not
  * affected…" offers Not relevant and False positive only).
  */
-export function HandleDialog({ device, rows, fix, complete = false, resolutions = FINDING_RESOLUTIONS, title, onClose }: {
-  device: DeviceRef; rows: HandleRow[]; fix?: string; complete?: boolean; resolutions?: readonly Resolution[]; title?: string; onClose: () => void
+export function HandleDialog({ device, rows, fix, software, complete = false, resolutions = FINDING_RESOLUTIONS, title, onClose }: {
+  device: DeviceRef; rows: HandleRow[]; fix?: string; software?: string | null; complete?: boolean; resolutions?: readonly Resolution[]; title?: string; onClose: () => void
 }) {
   const { t } = useTranslation('findings')
   const handle = useHandle()
@@ -58,7 +58,7 @@ export function HandleDialog({ device, rows, fix, complete = false, resolutions 
     const badNote = needNote && note.trim().length < 3
     setError(badNote ? t('handle.noteRequired') : undefined)
     if (noPick || tooMany || badUntil || badNote) return
-    const target = fix && complete && all ? { device: device.id, fix } : { ids: chosen.map((r) => r.id) }
+    const target = fix && complete && all ? { device: device.id, fix, ...(software ? { software } : {}) } : { ids: chosen.map((r) => r.id) }
     const body: HandleInput = { ...target, resolution, note: note.trim(), ...(accept ? { until } : {}) }
     handle.mutate(body, {
       onSuccess: (r) => {

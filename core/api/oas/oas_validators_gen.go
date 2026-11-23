@@ -54846,41 +54846,20 @@ func (s *FindingsGetFindingsPlanOKItemsItemRisk) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Exploited)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "exploited",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Level.Validate(); err != nil {
+		if err := s.Code.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "level",
+			Name:  "code",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9007199254740991,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,
@@ -54888,13 +54867,13 @@ func (s *FindingsGetFindingsPlanOKItemsItemRisk) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Updates)); err != nil {
+		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "updates",
+			Name:  "count",
 			Error: err,
 		})
 	}
@@ -54904,11 +54883,19 @@ func (s *FindingsGetFindingsPlanOKItemsItemRisk) Validate() error {
 	return nil
 }
 
-func (s FindingsGetFindingsPlanOKItemsItemRiskLevel) Validate() error {
+func (s FindingsGetFindingsPlanOKItemsItemRiskCode) Validate() error {
 	switch s {
+	case "under_attack":
+		return nil
 	case "exploited":
 		return nil
-	case "update":
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -54926,962 +54913,6 @@ func (s FindingsGetFindingsPlanTier) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
-}
-
-func (s *FindingsGetFindingsSummaryOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.Alerts.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "alerts",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Devices.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "devices",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Incidents.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "incidents",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Open.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "open",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Top == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    5,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Top)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Top {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "top",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Trend == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    30,
-			MinLengthSet: true,
-			MaxLength:    30,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Trend)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Trend {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9007199254740991,
-					MaxSet:        true,
-					Max:           9007199254740991,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "trend",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Unchecked.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "unchecked",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKAlerts) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Days)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "days",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Failed)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "failed",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Sent)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "sent",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKDevices) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Pending)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "pending",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Total)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "total",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKIncidents) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Open)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "open",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Urgent)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "urgent",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKOpen) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Confirmed)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "confirmed",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Devices)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "devices",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Ransomware)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ransomware",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Total)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "total",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKTopItem) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.Asset.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "asset",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Cvss.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "cvss",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Severity.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "severity",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Source.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "source",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Status.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           5,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Urgency)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "urgency",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsSummaryOKTopItemAsset) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemAssetKind) Validate() error {
-	switch s {
-	case "router":
-		return nil
-	case "switch":
-		return nil
-	case "modem":
-		return nil
-	case "sd_wan":
-		return nil
-	case "load_balancer":
-		return nil
-	case "network_controller":
-		return nil
-	case "firewall":
-		return nil
-	case "vpn_gateway":
-		return nil
-	case "ids_sensor":
-		return nil
-	case "proxy":
-		return nil
-	case "ap":
-		return nil
-	case "wireless_controller":
-		return nil
-	case "wifi_extender":
-		return nil
-	case "mesh_node":
-		return nil
-	case "server":
-		return nil
-	case "virtual_machine":
-		return nil
-	case "hypervisor":
-		return nil
-	case "bmc":
-		return nil
-	case "domain_controller":
-		return nil
-	case "mail_server":
-		return nil
-	case "database_server":
-		return nil
-	case "backup_server":
-		return nil
-	case "pc":
-		return nil
-	case "laptop":
-		return nil
-	case "workstation":
-		return nil
-	case "thin_client":
-		return nil
-	case "pos_terminal":
-		return nil
-	case "kiosk":
-		return nil
-	case "smartphone":
-		return nil
-	case "tablet":
-		return nil
-	case "smartwatch":
-		return nil
-	case "printer":
-		return nil
-	case "mfp":
-		return nil
-	case "scanner":
-		return nil
-	case "label_printer":
-		return nil
-	case "receipt_printer":
-		return nil
-	case "plotter":
-		return nil
-	case "3d_printer":
-		return nil
-	case "camera":
-		return nil
-	case "nvr":
-		return nil
-	case "dvr":
-		return nil
-	case "video_encoder":
-		return nil
-	case "doorbell":
-		return nil
-	case "video_conferencing":
-		return nil
-	case "ip_phone":
-		return nil
-	case "pbx":
-		return nil
-	case "voip_adapter":
-		return nil
-	case "voip_gateway":
-		return nil
-	case "conference_phone":
-		return nil
-	case "intercom":
-		return nil
-	case "nas":
-		return nil
-	case "san":
-		return nil
-	case "backup_appliance":
-		return nil
-	case "tape_library":
-		return nil
-	case "iot":
-		return nil
-	case "smart_tv":
-		return nil
-	case "media_player":
-		return nil
-	case "smart_speaker":
-		return nil
-	case "game_console":
-		return nil
-	case "smart_plug":
-		return nil
-	case "smart_light":
-		return nil
-	case "smart_hub":
-		return nil
-	case "thermostat":
-		return nil
-	case "projector":
-		return nil
-	case "digital_signage":
-		return nil
-	case "single_board_computer":
-		return nil
-	case "smart_appliance":
-		return nil
-	case "robot_vacuum":
-		return nil
-	case "wireless_bridge":
-		return nil
-	case "plc":
-		return nil
-	case "hmi":
-		return nil
-	case "rtu":
-		return nil
-	case "scada_server":
-		return nil
-	case "industrial_switch":
-		return nil
-	case "ups":
-		return nil
-	case "pdu":
-		return nil
-	case "access_control":
-		return nil
-	case "time_clock":
-		return nil
-	case "alarm_panel":
-		return nil
-	case "hvac_controller":
-		return nil
-	case "building_controller":
-		return nil
-	case "power_meter":
-		return nil
-	case "environment_monitor":
-		return nil
-	case "ev_charger":
-		return nil
-	case "solar_inverter":
-		return nil
-	case "medical_device":
-		return nil
-	case "web":
-		return nil
-	case "cloud_service":
-		return nil
-	case "unknown":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *FindingsGetFindingsSummaryOKTopItemCvss) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Float{
-			MinSet:        true,
-			Min:           0,
-			MaxSet:        true,
-			Max:           10,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    nil,
-			Pattern:       nil,
-		}).Validate(float64(s.Score)); err != nil {
-			return errors.Wrap(err, "float")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "score",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Source.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "source",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     1,
-			MinLengthSet:  true,
-			MaxLength:     200,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Vector)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "vector",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Version.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "version",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemCvssSource) Validate() error {
-	switch s {
-	case "nvd":
-		return nil
-	case "cna":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemCvssVersion) Validate() error {
-	switch s {
-	case "4.0":
-		return nil
-	case "3.1":
-		return nil
-	case "3.0":
-		return nil
-	case "2.0":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemSeverity) Validate() error {
-	switch s {
-	case "critical":
-		return nil
-	case "high":
-		return nil
-	case "medium":
-		return nil
-	case "low":
-		return nil
-	case "info":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemSource) Validate() error {
-	switch s {
-	case "cisa-kev":
-		return nil
-	case "vulncheck-kev":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s FindingsGetFindingsSummaryOKTopItemStatus) Validate() error {
-	switch s {
-	case "confirmed":
-		return nil
-	case "suspected":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *FindingsGetFindingsSummaryOKUnchecked) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Cves)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "cves",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Devices)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "devices",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
 }
 
 func (s *FindingsGetFindingsToFixOK) Validate() error {
@@ -57007,41 +56038,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemRisk) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Exploited)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "exploited",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Level.Validate(); err != nil {
+		if err := s.Code.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "level",
+			Name:  "code",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9007199254740991,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,
@@ -57049,13 +56059,13 @@ func (s *FindingsGetFindingsToFixOKDevicesItemRisk) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Updates)); err != nil {
+		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "updates",
+			Name:  "count",
 			Error: err,
 		})
 	}
@@ -57065,11 +56075,19 @@ func (s *FindingsGetFindingsToFixOKDevicesItemRisk) Validate() error {
 	return nil
 }
 
-func (s FindingsGetFindingsToFixOKDevicesItemRiskLevel) Validate() error {
+func (s FindingsGetFindingsToFixOKDevicesItemRiskCode) Validate() error {
 	switch s {
+	case "under_attack":
+		return nil
 	case "exploited":
 		return nil
-	case "update":
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -57105,41 +56123,20 @@ func (s *FindingsGetFindingsToFixOKRisksItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Exploited)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "exploited",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Level.Validate(); err != nil {
+		if err := s.Code.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "level",
+			Name:  "code",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9007199254740991,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,
@@ -57147,13 +56144,13 @@ func (s *FindingsGetFindingsToFixOKRisksItem) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Updates)); err != nil {
+		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "updates",
+			Name:  "count",
 			Error: err,
 		})
 	}
@@ -57163,11 +56160,19 @@ func (s *FindingsGetFindingsToFixOKRisksItem) Validate() error {
 	return nil
 }
 
-func (s FindingsGetFindingsToFixOKRisksItemLevel) Validate() error {
+func (s FindingsGetFindingsToFixOKRisksItemCode) Validate() error {
 	switch s {
+	case "under_attack":
+		return nil
 	case "exploited":
 		return nil
-	case "update":
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -57373,6 +56378,36 @@ func (s *FindingsPostFindingsHandleReq) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "resolution",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Software.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "software",
 			Error: err,
 		})
 	}
@@ -70463,99 +69498,6 @@ func (s *FindingsPostFindingsIDVerifyReq) Validate() error {
 	return nil
 }
 
-func (s *FindingsPostFindingsPlanDoneReq) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     1,
-			MinLengthSet:  true,
-			MaxLength:     400,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Group)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "group",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     500,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Note)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "note",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsPostFindingsPlanUndoneReq) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     1,
-			MinLengthSet:  true,
-			MaxLength:     400,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Group)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "group",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
 func (s *FindingsPostFindingsQuestionsIDAnswerReq) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -70607,171 +69549,6 @@ func (s FindingsPostFindingsQuestionsIDAnswerReqAnswer) Validate() error {
 	case "affected":
 		return nil
 	case "not_affected":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *FindingsPostFindingsStatusOK) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Skipped)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "skipped",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Updated)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "updated",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsPostFindingsStatusReq) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Action.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "action",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Ids == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    500,
-			MaxLengthSet: true,
-		}).ValidateLength(len(s.Ids)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Ids {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:     1,
-					MinLengthSet:  true,
-					MaxLength:     64,
-					MaxLengthSet:  true,
-					Email:         false,
-					Hostname:      false,
-					Regex:         nil,
-					MinNumeric:    0,
-					MinNumericSet: false,
-					MaxNumeric:    0,
-					MaxNumericSet: false,
-				}).Validate(string(elem)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "ids",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     500,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Note)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "note",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s FindingsPostFindingsStatusReqAction) Validate() error {
-	switch s {
-	case "patched":
-		return nil
-	case "mitigated":
-		return nil
-	case "false_positive":
-		return nil
-	case "not_relevant":
-		return nil
-	case "accept_risk":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -77212,41 +75989,20 @@ func (s *InventoryGetInventoryDevicesIDOKRisk) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Exploited)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "exploited",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Level.Validate(); err != nil {
+		if err := s.Code.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "level",
+			Name:  "code",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9007199254740991,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,
@@ -77254,13 +76010,13 @@ func (s *InventoryGetInventoryDevicesIDOKRisk) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Updates)); err != nil {
+		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "updates",
+			Name:  "count",
 			Error: err,
 		})
 	}
@@ -77270,11 +76026,19 @@ func (s *InventoryGetInventoryDevicesIDOKRisk) Validate() error {
 	return nil
 }
 
-func (s InventoryGetInventoryDevicesIDOKRiskLevel) Validate() error {
+func (s InventoryGetInventoryDevicesIDOKRiskCode) Validate() error {
 	switch s {
+	case "under_attack":
+		return nil
 	case "exploited":
 		return nil
-	case "update":
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -78979,41 +77743,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRisk) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9007199254740991,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Exploited)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "exploited",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Level.Validate(); err != nil {
+		if err := s.Code.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "level",
+			Name:  "code",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9007199254740991,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,
@@ -79021,13 +77764,13 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRisk) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Updates)); err != nil {
+		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "updates",
+			Name:  "count",
 			Error: err,
 		})
 	}
@@ -79037,11 +77780,19 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRisk) Validate() error {
 	return nil
 }
 
-func (s InventoryGetInventoryDevicesOKItemsItemRiskLevel) Validate() error {
+func (s InventoryGetInventoryDevicesOKItemsItemRiskCode) Validate() error {
 	switch s {
+	case "under_attack":
+		return nil
 	case "exploited":
 		return nil
-	case "update":
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

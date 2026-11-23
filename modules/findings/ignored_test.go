@@ -9,13 +9,13 @@ func TestIgnoredDevice_LeftOutOfHomeAndToFix(t *testing.T) {
 	id := e.seed()
 	count := func() (int, int) {
 		t.Helper()
-		_, b := e.call("GET", "/findings/summary", "viewer", "")
+		_, b := e.call("GET", "/findings/overview", "viewer", "")
 		open, _ := b["open"].(map[string]any)
 		tf, err := e.svc.ToFix(t.Context(), true, "")
 		if err != nil {
 			t.Fatal(err)
 		}
-		total, _ := open["total"].(float64)
+		total, _ := open["findings"].(float64)
 		return int(total), len(tf.Devices)
 	}
 	if o, d := count(); o != 1 || d != 1 {

@@ -39,6 +39,7 @@ func urgencySources(d *deps) findings.UrgencySources {
 			}
 			return urgencyAttacks(ctx, q, since)
 		},
+		Names: func(ctx context.Context) (map[string]string, error) { return feeds.ReadSourceNames(ctx, q) },
 		Loads: func(ctx context.Context) (findings.Loads, error) {
 			install, err := newNotify(d).FirstRunAt(ctx)
 			if err != nil {

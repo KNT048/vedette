@@ -18,10 +18,17 @@
 - A new scheme is declared in `content/catalog/products` (`scheme`, `record`) and written in `core/versionscheme`; feeds then leaves the
   product's record rows to it (`recordSkipped`) and reports their changes as `feeds.ranges.updated`.
 
+## Modifying: `View`, `StatusOf`, `DeviceStatusOf`, `DeviceStatuses`, `lineGroups`, `combine`, `compareFix`, `FixFindings`, `Input`, `Handled`, `Overview` (M-9)
+- **web** `features/findings` (By device, By fix, Needs your input, Handled, the device's Findings tab), `features/feeds` Home and the nav
+  badge read these answers; `model.conformance.test.ts` runs against the mock and, with `VITE_FINDINGS_REAL_URL`, the real box.
+- **inventory** shows `DeviceStatuses` as each device's badge (INV-40) and filters on it.
+- The count open = Σ By device = Σ By fix holds only while both lists group the same rows with the same filter: change `where`
+  for both or neither. `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix`, `TestFixCount_ListAndPageReadTheStoredFix`.
+
 ## Modifying: `classify`, `classified`, `RiskOf`, `RiskMap`, `AssetRisk`, `riskyUpdate`, `risk` and `risks` of to-fix and plan (INV-26)
 - **One rule**: the marker is `RiskOf` of To fix's own classification (`actionable`, `Planned`), never a cheaper test of its own. Change To fix and the marker changes with it, by design.
 - **Cost and freshness**: `classified` does To fix's per-device work for every device once per change (`gen`, `plan.ver`, the feeds switch, `riskTTL`) and serves both the To fix page (display cap `ToFixLimit`) and every marker; a new input to To fix's classification must also move that key. `ToFix(…, id)` stays uncached (the device's own page).
-- **inventory** shows it on the Devices list, the device page and the CSV (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`).
+- **inventory** no longer reads it: its badge is `DeviceStatuses` (M-9, through cmd/vedette `findingCounts.DeviceStatuses`); only `GET /findings/to-fix` still reads the classification.
 - **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column and filter from `risks`, To fix cards from each card's `risk`) and Recommended updates (`risk` of each item); the mocks' `deviceRisk`/`riskOfCard` mirror `RiskOf`.
 
 ## Modifying: `Finding.ShownConfidence`, `ConfScan`, `ConfVersion`
@@ -203,15 +210,12 @@
 - **feeds**: `Store.CVSSOf` qua `cmd/vedette/wiring.go` `findingsFeeds.CVSS`; mọi cài đặt giả của `Feeds` phải có `CVSS` (`service_test.go`, `modules/mitigation/mitigation_test.go`).
 - **API/GUI**: `contract.ts` `Cvss`, `FindingRow.cvss` → `api/openapi.json` → `core/api/oas` (`make generate`); `web/src/features/findings/{FindingsPage.tsx,FindingPage.tsx,mocks.ts}` and `web/src/components/common/status/SeverityBadge.tsx` (the CVSS band, "Not scored yet"); `DataTable` thêm `sortSelect` (ô "Sort by" mọi độ rộng, chỉ trang bật nó) và `hiddenColumns` (cột chỉ để sắp xếp); `InfoTip` đặt tên cho popover (`aria-label` như nút) nên axe qua khi ⓘ mở: mọi màn có ⓘ.
 - **mitigation**: `POST /findings/{id}/applied|ai` trả `FindingDetail` qua `FindingHandlers.Detail`, nên có `cvss` không cần sửa gì.
-- **Trang chủ**: `GET /findings/summary` (INV-23) mang cùng `Cvss` trong `top[].cvss`; đổi hình trường = đổi cả hai.
 
-## Modifying: `GET /findings/summary` (`Summary`, `HomeSources`, `FindingHandlers.SetHome`, `Service.gen`; INV-23)
-- **Bộ nhớ đệm**: `Service.gen` tăng ở mọi lần ghi đã commit của `Service.write`; lần ghi `fnd_*` mới **phải** đi qua `write`, nếu không Home giữ số cũ tới 60 s (TTL). Đổi thứ tự `top`, số mục (`SummaryTop`) hay số ngày (`SummaryDays`) = đổi `contract.ts` `SUMMARY_TOP`/`SUMMARY_DAYS` và `HomeSummary` → `pnpm --dir web openapi` → `make generate`, và mock `summary()` trong `web/src/features/findings/mocks.ts`.
-- **Xu hướng Home** đọc hàng đóng trong cửa sổ qua `state = 'handled'` trên chỉ mục `fnd_finding_resolved_ix` (state, resolved_at); đổi cách ghi `resolved_at` hay `state` đổi trend.
-- **Tên và loại thiết bị**: `shownAsset` (guide.go) dùng chung cho `newRow` và summary; đổi luật = đổi một chỗ.
-- **inventory**: `Service.DeviceCounts` (cùng COUNT với `Devices().Counts.All/Pending`); **notify**: `Service.SentSince` (một COUNT trên chỉ mục `notify_send_at_ix`) và `Service.OpenIncidents` (trên `notify_incident_status_ix`); nối ở `cmd/vedette/wiring.go` (`TestWiringHomeSummaryCarriesDevicesAndAlerts`). Đổi chữ ký = đổi `HomeSources`.
-- **GUI**: `web/src/features/findings/{contract.ts,mocks.ts,conformance.test.ts}` (`HomeSummary`, `SummaryItem`), `web/src/features/notify/mocks.ts` (`sentSince`, `openIncidents`). Không trang nào của web đọc `GET /findings/summary` hiện nay (Home, `web/src/features/feeds/homeSummary.ts`, đọc `GET /findings/overview`, mà máy chủ hiện trả `501 not_implemented`); `api.ts` không còn `useHomeSummary`.
-- **Đo trên hộp**: `scripts/dev/home-summary-measure.sh` (thời gian API p50/p95, cỡ câu trả lời, RSS của core trước/sau, tải trang).
+## Modifying: `GET /findings/overview` (`Overview`, `HomeSources`, `FindingHandlers.SetHome`, `Service.gen`; INV-23)
+- **Kept answer**: `Service.gen` moves at every committed write of `Service.write`; a new `fnd_*` write **must** go through `write`, or Home keeps the old numbers up to `overviewTTL` (60 s).
+- **Trend** reads the rows handled inside the window through `fnd_finding_resolved_ix` (state, resolved_at); a change to how `resolved_at` or `state` is written changes the trend.
+- **inventory**: `Service.DeviceCounts`; **notify**: `Service.SentSince` and `Service.OpenIncidents`; wired in `cmd/vedette`.
+- **GUI**: `web/src/features/feeds/HomePage.tsx` and the nav badges (`web/src/app/nav.ts`) read it; `model.conformance.test.ts` checks it.
 
 ## Modifying: `Service.DeviceUpdates`, `UpdateAction`, `Proof*`, `RowFix.SoftwareID`, `PlanItem.SoftwareID` (INV-24)
 - Người gọi: `cmd/vedette` `aiAsk.DeviceUpdates` (công cụ `device_updates` của Ask my AI, ai INV-22c); `Service.ToFix` (`GET /findings/to-fix`, INV-25: trang Findings "To fix", tab Software của thiết bị nối theo `SoftwareID`). Đổi trường → sửa adapter, mô tả công cụ, `handlers_tofix.go` (`toFixActionJS`), `web/src/features/findings/contract.ts` `ToFixAction`, mock `toFix` (`findings/mocks.ts`), `ToFix.tsx`, `SoftwareNeeds.tsx`.

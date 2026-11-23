@@ -181,7 +181,7 @@ function DeviceSearch({ rows, now, query, same, bar, shown }: { rows: DeviceRow[
   const chips: TokenChip[] = [
     // The devices that carry risk first, as Defender's exposure filter does
     { token: 'risk:exploited', label: t('search.chip.exploited'), count: count('risk', 'exploited') },
-    { token: 'risk:update', label: t('search.chip.update'), count: count('risk', 'update') },
+    { token: 'risk:update_recommended', label: t('search.chip.update'), count: count('risk', 'update_recommended') },
     { token: 'fragile', label: t('search.chip.fragile'), count: rows.filter((d) => d.fragile).length },
     { token: 'source:snmp', label: t('search.chip.snmp'), count: count('source', 'snmp') },
     { token: 'source:osquery', label: t('search.chip.osquery'), count: count('source', 'osquery') },

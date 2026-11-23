@@ -10,8 +10,8 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// The Devices list's risk marker comes from findings through the wiring (findingCounts.RiskByAsset, the same rule as
-// Findings › To fix): a device with a finding the box proved is "exploited"; a clean one has none; findings off marks nothing.
+// The Devices list's badge comes from findings through the wiring (findingCounts.DeviceStatuses, the device status of the findings
+// lists): a device with an exploited finding is "1 exploited"; a clean one has none; findings off marks nothing.
 func TestDeviceRiskThroughTheWiring(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -43,18 +43,18 @@ func TestDeviceRiskThroughTheWiring(t *testing.T) {
 		return out
 	}
 	got := risks(inventory.DeviceFilter{})
-	if r := got[fw.ID]; r == nil || r.Level != inventory.RiskExploited || r.Exploited != 1 {
+	if r := got[fw.ID]; r == nil || r.Code != inventory.RiskExploited || r.Count != 1 {
 		t.Fatalf("fw-hq risk = %+v", r)
 	}
 	if got[clean.ID] != nil {
 		t.Fatalf("clean device risk = %+v", got[clean.ID])
 	}
-	// the same value as To fix shows for the device
-	tf, err := s.d.Findings.ToFix(ctx, true, fw.ID)
-	if err != nil || len(tf.Devices) != 1 || len(tf.Devices[0].Exploited)+len(tf.Devices[0].NoUpdate) != 1 {
-		t.Fatalf("To fix = %+v, %v", tf, err)
+	// the same value as the findings lists give the device
+	cards, err := s.d.Findings.ByDevice(ctx, findings.ListFilter{Device: fw.ID}, findings.Page{Limit: 1})
+	if err != nil || len(cards.Items) != 1 || cards.Items[0].Status == nil || cards.Items[0].Status.Code != got[fw.ID].Code {
+		t.Fatalf("By device = %+v, %v", cards, err)
 	}
-	if d, err := s.d.Inventory.DetailPage(ctx, fw.ID); err != nil || d.Risk == nil || d.Risk.Exploited != 1 {
+	if d, err := s.d.Inventory.DetailPage(ctx, fw.ID); err != nil || d.Risk == nil || d.Risk.Count != 1 {
 		t.Fatalf("detail risk = %+v, %v", d.Risk, err)
 	}
 	f, err := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
@@ -70,8 +70,7 @@ func TestDeviceRiskThroughTheWiring(t *testing.T) {
 	}
 }
 
-// The amber path through the wiring: a recommended update for a High CVE marks the device "update" while the feeds module is on, and
-// nothing when it is off (findingCounts passes the switch, as GET /findings/plan lists nothing then). The box is never marked.
+// A catalogue CVE on no list that matches a device is a finding at "update recommended": the badge says so. The box is never marked.
 func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -103,7 +102,7 @@ func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := findingsJobs(*s.d)[1].Run(ctx); err != nil {
+	if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
 		t.Fatal(err)
 	}
 	risk := func() map[string]*inventory.Risk {
@@ -118,14 +117,10 @@ func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 		}
 		return out
 	}
-	if r := risk()[id]; r == nil || *r != (inventory.Risk{Level: inventory.RiskUpdate, Updates: 1}) {
-		t.Fatalf("FortiGate with a High recommended update: %+v", r)
+	if r := risk()[id]; r == nil || *r != (inventory.Risk{Code: inventory.RiskUpdate, Count: 1}) {
+		t.Fatalf("FortiGate with a catalogue CVE: %+v", r)
 	}
 	if r := risk()[box]; r != nil {
 		t.Fatalf("the box is marked: %+v", r)
-	}
-	s.setModule("feeds", false)
-	if r := risk()[id]; r != nil {
-		t.Fatalf("feeds off: %+v", r)
 	}
 }

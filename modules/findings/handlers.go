@@ -35,7 +35,7 @@ type FindingHandlers struct {
 	guide        Guidance
 	agents       AgentReports
 	scanReach    ScanReach
-	summaryState // GET /findings/summary (summary.go); sum and home under mu
+	summaryState // GET /findings/overview (overview.go); ov and home under mu
 }
 
 // NewFindingHandlers returns the handlers. gate says whether mitigation is on: while it is off the registered
@@ -466,23 +466,6 @@ func (h *FindingHandlers) FindingsPostFindingsIDUnconfirm(ctx context.Context, p
 	return Into[oas.FindingsPostFindingsIDUnconfirmOK](d)
 }
 
-// FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for the open
-// findings among up to MaxBulk ids, one history and audit row each, all or nothing; closed ones are skipped (INV-10).
-func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *oas.FindingsPostFindingsStatusReq) (*oas.FindingsPostFindingsStatusOK, error) {
-	p, ok := server.PrincipalFrom(ctx)
-	if !ok {
-		return nil, apierr.Unauthenticated()
-	}
-	if strings.ContainsRune(req.Note, 0) {
-		return nil, apierr.Invalid("The note contains a character that is not allowed.")
-	}
-	n, skipped, err := h.svc.setStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email, req.Until.Or(time.Time{}))
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return &oas.FindingsPostFindingsStatusOK{Updated: n, Skipped: skipped}, nil
-}
-
 // Guidance is the optional "What to do" provider. mitigation registers one with FindingHandlers.SetGuidance
 // while it is on; without one the "What to do" fields of a finding are null or empty (POST-3).
 type Guidance interface {
@@ -584,7 +567,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading the devices of the plan: %w", err)
 	}
-	var risks map[string]AssetRisk // each device's marker, so the page needs no device list
+	var risks map[string]DeviceStatus // each device's badge, so the page needs no device list
 	if len(keep) > 0 {
 		risks = h.risks(ctx, feedsOn)
 	}

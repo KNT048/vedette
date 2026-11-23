@@ -981,3 +981,38 @@ func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product str
 	}
 	return n, nil
 }
+
+// LineRef is a software line as a list of findings names it: its device, display name, the version it runs now and its product.
+type LineRef struct {
+	ID, AssetID, Display, ProductKey string
+	Version                          string // "" when the line has no version
+}
+
+// LineRefs returns the software lines with these ids, in any state (a finding keeps naming a line that was removed); unknown ids are
+// absent. findings reads it to name the line of each finding in its lists and to search them by software name.
+func (s *Service) LineRefs(ctx context.Context, ids []string) (map[string]LineRef, error) {
+	out := make(map[string]LineRef, len(ids))
+	for chunk := range slices.Chunk(ids, 400) {
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			args[i] = id
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, asset_id, display, product_key, ifnull(version, '') FROM inv_software
+			WHERE id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("inventory: read software lines: %w", err)
+		}
+		for rows.Next() {
+			var l LineRef
+			if err := rows.Scan(&l.ID, &l.AssetID, &l.Display, &l.ProductKey, &l.Version); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("inventory: read software lines: %w", err)
+			}
+			out[l.ID] = l
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("inventory: read software lines: %w", err)
+		}
+	}
+	return out, nil
+}

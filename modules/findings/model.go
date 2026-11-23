@@ -152,6 +152,7 @@ const (
 	RangeADP    = "adp"
 	RangeDistro = "distro"
 	RangeScan   = "scan"
+	RangePerson = "person" // a person said the device is affected (an answered question): no range decided it
 )
 
 // FixKind is the kind of the fix of a finding. An open vocabulary.

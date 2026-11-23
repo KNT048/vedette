@@ -1266,10 +1266,8 @@
     }
   },
   "risk": {
-    "exploitedAria_one": "{{count}} open exploited finding on this device: open its findings",
-    "exploitedAria_other": "{{count}} open exploited findings on this device: open its findings",
-    "updateAria_one": "No exploited finding, but {{count}} recommended update fixes a CVE likely to be exploited or of high severity: open its findings",
-    "updateAria_other": "No exploited finding, but {{count}} recommended updates fix a CVE likely to be exploited or of high severity: open its findings",
+    "findingsAria": "open its findings with this status",
+    "inputAria": "Vedette needs your answer about this device: open its questions",
     "column": "Risk",
     "chipExploited": "Exploited",
     "chipUpdate": "Update recommended",

@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
-  ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Plan, PlanDone, PlanFilter, Resolution, StatusAction, ToFix,
+  ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Plan, PlanFilter, Resolution, StatusAction, ToFix,
   UncheckedItem, VersionNeeded, View,
 } from './types'
 
@@ -20,16 +20,6 @@ export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true
   if (done) q.set('done', 'true')
   const qs = q.toString()
   return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null, done], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
-}
-
-/** A person marks a recommended update done, or puts it back: the plan, To fix and the risk markers read again. */
-export function usePlanDone() {
-  const qc = useQueryClient()
-  const refresh = () => { void qc.invalidateQueries({ queryKey: ['findings'] }) }
-  return {
-    mark: useMutation({ mutationFn: (v: { group: string; note: string }) => api.post<PlanDone>('/findings/plan/done', v), onSuccess: refresh }),
-    undo: useMutation({ mutationFn: (group: string) => api.post<{ group: string }>('/findings/plan/undone', { group }), onSuccess: refresh }),
-  }
 }
 
 export const useFinding = (id: string) =>
@@ -103,7 +93,7 @@ function useModelWrite<V, R>(fn: (v: V) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }) } })
 }
 /** The handle request: findings of one device, by ids or by one of its fixes. */
-export type HandleInput = ({ ids: string[] } | { device: string; fix: string }) & { resolution: Resolution; note: string; until?: string }
+export type HandleInput = ({ ids: string[] } | { device: string; fix: string; software?: string }) & { resolution: Resolution; note: string; until?: string }
 export const useHandle = () => useModelWrite((v: HandleInput) => api.post<{ handled: number; skipped: number }>('/findings/handle', v))
 export const useReopen = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/reopen`, { note: v.note }))
 export const useVerify = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/verify`, { note: v.note }))

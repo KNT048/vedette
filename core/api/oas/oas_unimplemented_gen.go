@@ -1851,16 +1851,6 @@ func (UnimplementedHandler) FindingsGetFindingsPlan(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
-//
-// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
-// device and alert counts; one cached read.
-//
-// GET /findings/summary
-func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *FindingsGetFindingsSummaryOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 //
 // To fix: every device that needs an update or an action, the most urgent first, each with its actions
@@ -1949,26 +1939,6 @@ func (UnimplementedHandler) FindingsPostFindingsIDVerify(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsPostFindingsPlanDone implements findings_post_findings_plan_done operation.
-//
-// Mark a recommended update as done (operator, audited): it leaves the plan, the device's To fix card
-// and its risk marker, and is listed under Done; it comes back by itself when the device reports
-// another version of that software or a new CVE joins the item.
-//
-// POST /findings/plan/done
-func (UnimplementedHandler) FindingsPostFindingsPlanDone(ctx context.Context, req *FindingsPostFindingsPlanDoneReq) (r *FindingsPostFindingsPlanDoneOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsPostFindingsPlanUndone implements findings_post_findings_plan_undone operation.
-//
-// Put a recommended update a person marked done back on the plan (operator, audited).
-//
-// POST /findings/plan/undone
-func (UnimplementedHandler) FindingsPostFindingsPlanUndone(ctx context.Context, req *FindingsPostFindingsPlanUndoneReq) (r *FindingsPostFindingsPlanUndoneOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer operation.
 //
 // Answer a question about one CVE on one device: affected records a finding confirmed by the person
@@ -1977,16 +1947,6 @@ func (UnimplementedHandler) FindingsPostFindingsPlanUndone(ctx context.Context, 
 //
 // POST /findings/questions/{id}/answer
 func (UnimplementedHandler) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (r *FindingsPostFindingsQuestionsIDAnswerOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsPostFindingsStatus implements findings_post_findings_status operation.
-//
-// Change the status of the open findings among the ids (at most 500) with one note; one history and
-// audit row per finding, all or nothing; closed findings are skipped.
-//
-// POST /findings/status
-func (UnimplementedHandler) FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (r *FindingsPostFindingsStatusOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

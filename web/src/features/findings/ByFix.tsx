@@ -21,16 +21,16 @@ import { DeviceLine, FixLink, SeverityLine, useFixTitle } from './parts'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceRef, FixCard, FixDevice } from './types'
 
-type Want = { device: DeviceRef; fix: string }
-type Handling = { device: DeviceRef; rows: HandleRow[]; fix: string; complete: boolean }
+type Want = { device: DeviceRef; fix: string; software: string | null }
+type Handling = { device: DeviceRef; rows: HandleRow[]; fix: string; software: string | null; complete: boolean }
 
 /** Reads the device's CVEs of the fix (its block in By device, under the same search and filter), then opens the dialog with them. */
 function LoadRows({ want, q, status, onRows, onFail }: { want: Want; q: string; status: string; onRows: (h: Handling) => void; onFail: () => void }) {
   const { t } = useTranslation('findings')
   const r = useDeviceCards({ device: want.device.id, q, status }, { offset: 0, limit: 1 })
-  const block = r.data?.items[0]?.blocks.find((b) => b.fix.key === want.fix)
+  const block = r.data?.items[0]?.blocks.find((b) => b.fix.key === want.fix && (b.software?.id ?? null) === want.software)
   useEffect(() => {
-    if (block) onRows({ device: want.device, fix: want.fix, complete: !q && !status, rows: block.findings.map((f) => ({ id: f.id, cve: f.cve, severity: f.severity, status: f.status })) })
+    if (block) onRows({ device: want.device, fix: want.fix, software: want.software, complete: !q && !status, rows: block.findings.map((f) => ({ id: f.id, cve: f.cve, severity: f.severity, status: f.status })) })
     else if (r.isError || r.data) { toast.error(r.isError ? errMsg(r.error) : t('byFix.gone', { device: want.device.name })); onFail() }
   }, [block, r.isError, r.data, r.error, want, q, status, onRows, onFail, t])
   return null
@@ -79,8 +79,8 @@ function FixCardView({ card, loading, onHandle }: { card: FixCard; loading: Want
       {open ? (
         <ul id={panel} aria-label={t('byFix.devicesOf', { fix: title })} className="ml-6 grid divide-y divide-rule border-l border-rule pl-3">
           {card.items.map((d) => (
-            <DeviceRow key={d.device.id} d={d} fixTitle={title} busy={loading?.device.id === d.device.id && loading.fix === card.fix.key}
-              onHandle={() => onHandle({ device: d.device, fix: card.fix.key })} />
+            <DeviceRow key={`${d.device.id}/${d.software?.id ?? ''}`} d={d} fixTitle={title} busy={loading?.device.id === d.device.id && loading.fix === card.fix.key && loading.software === (d.software?.id ?? null)}
+              onHandle={() => onHandle({ device: d.device, fix: card.fix.key, software: d.software?.id ?? null })} />
           ))}
         </ul>
       ) : null}

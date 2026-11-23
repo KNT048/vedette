@@ -294,18 +294,6 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 	return UncheckedItems(rows, kev, assets, distro), nil
 }
 
-// uncheckedCounts is Home's line (INV-23): the distinct CVEs and devices of the list.
-func uncheckedCounts(items []UncheckedItem) SummaryUnchecked {
-	cves, devices := map[string]bool{}, map[string]bool{}
-	for _, it := range items {
-		devices[it.AssetID] = true
-		for _, c := range it.CVEs {
-			cves[c.CVE] = true
-		}
-	}
-	return SummaryUnchecked{CVEs: len(cves), Devices: len(devices)}
-}
-
 // UncheckedCVE is contract.ts UncheckedCve.
 type UncheckedCVE struct {
 	CVE        string  `json:"cve"`

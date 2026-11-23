@@ -20,7 +20,7 @@ import { asAsset, DeviceLine, FixLink, useFixTitle } from './parts'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
-export type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; complete?: boolean }
+export type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; software?: string | null; complete?: boolean }
 
 function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block: FixBlock; narrowed: boolean; onHandle: (h: Handling) => void }) {
   const { t } = useTranslation('findings')
@@ -40,7 +40,7 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
           <FixLink fix={block.fix} />
         </p>
         <Button size="sm" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
-          onClick={() => onHandle({ device, rows, fix: block.fix.key, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
+          onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
       </div>
       <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
         items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, to: `/findings/${encodeURIComponent(f.id)}` }))}

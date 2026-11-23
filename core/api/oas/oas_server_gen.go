@@ -1303,13 +1303,6 @@ type Handler interface {
 	//
 	// GET /findings/plan
 	FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (*FindingsGetFindingsPlanOK, error)
-	// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
-	//
-	// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
-	// device and alert counts; one cached read.
-	//
-	// GET /findings/summary
-	FindingsGetFindingsSummary(ctx context.Context) (*FindingsGetFindingsSummaryOK, error)
 	// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 	//
 	// To fix: every device that needs an update or an action, the most urgent first, each with its actions
@@ -1371,20 +1364,6 @@ type Handler interface {
 	//
 	// POST /findings/{id}/verify
 	FindingsPostFindingsIDVerify(ctx context.Context, req *FindingsPostFindingsIDVerifyReq, params FindingsPostFindingsIDVerifyParams) (*FindingsPostFindingsIDVerifyOK, error)
-	// FindingsPostFindingsPlanDone implements findings_post_findings_plan_done operation.
-	//
-	// Mark a recommended update as done (operator, audited): it leaves the plan, the device's To fix card
-	// and its risk marker, and is listed under Done; it comes back by itself when the device reports
-	// another version of that software or a new CVE joins the item.
-	//
-	// POST /findings/plan/done
-	FindingsPostFindingsPlanDone(ctx context.Context, req *FindingsPostFindingsPlanDoneReq) (*FindingsPostFindingsPlanDoneOK, error)
-	// FindingsPostFindingsPlanUndone implements findings_post_findings_plan_undone operation.
-	//
-	// Put a recommended update a person marked done back on the plan (operator, audited).
-	//
-	// POST /findings/plan/undone
-	FindingsPostFindingsPlanUndone(ctx context.Context, req *FindingsPostFindingsPlanUndoneReq) (*FindingsPostFindingsPlanUndoneOK, error)
 	// FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer operation.
 	//
 	// Answer a question about one CVE on one device: affected records a finding confirmed by the person
@@ -1393,13 +1372,6 @@ type Handler interface {
 	//
 	// POST /findings/questions/{id}/answer
 	FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (*FindingsPostFindingsQuestionsIDAnswerOK, error)
-	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
-	//
-	// Change the status of the open findings among the ids (at most 500) with one note; one history and
-	// audit row per finding, all or nothing; closed findings are skipped.
-	//
-	// POST /findings/status
-	FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (*FindingsPostFindingsStatusOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.

@@ -94,19 +94,3 @@ func writeTestFinding(ctx context.Context, tx *sql.Tx, f Finding) error {
 	f.Detected = f.State == StateOpen || f.Detected
 	return writeFinding(ctx, tx, f, true, nil)
 }
-
-// legacyRow is the finding of an older status, for the tests that seed rows by status.
-func legacyRow(id, asset, cve string, st Status, first, resolved time.Time) Finding {
-	f := Finding{ID: id, AssetID: asset, CVE: cve, FirstSeen: first, ResolvedAt: resolved}
-	switch st {
-	case StatusConfirmed:
-		f.State, f.Verified, f.Basis = StateOpen, VerifiedScan, DetectScan
-	case StatusSuspected:
-		f.State = StateOpen
-	case StatusRiskAccepted:
-		f.State, f.Resolution, f.AcceptedUntil = StateHandled, ResolutionAccepted, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
-	default:
-		f.State, f.Resolution = StateHandled, Resolution(st)
-	}
-	return f
-}

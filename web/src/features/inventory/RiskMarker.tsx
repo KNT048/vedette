@@ -5,7 +5,7 @@
 import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/common/status'
-import type { DeviceStatusCode } from '@/lib/statusCodes'
+import { DEVICE_STATUSES, type DeviceStatusCode } from '@/lib/statusCodes'
 import { cn } from '@/lib/utils'
 import type { DeviceRisk } from './types'
 
@@ -19,9 +19,8 @@ export function deviceFindingsLink(device: string, code?: DeviceStatusCode): str
   return code ? `/devices/${d}?tab=findings&status=${code}` : `/devices/${d}?tab=findings`
 }
 
-/** The badge of the older risk marker the device lists still carry: exploited with its count, else Update recommended. */
-export const badgeOfRisk = (risk: DeviceRisk | null | undefined): DeviceBadgeValue =>
-  !risk ? null : risk.level === 'exploited' ? { code: 'exploited', count: risk.exploited } : { code: 'update_recommended', count: risk.updates }
+/** The badge the device lists carry (findings' device status). */
+export const badgeOfRisk = (risk: DeviceRisk | null | undefined): DeviceBadgeValue => (!risk ? null : { code: risk.code, count: risk.count })
 
 /** The badge of device `id`, a link to its findings with that status; nothing for a clean device. `label` is the link's name for
  *  screen readers and on hover; it starts with the words shown (WCAG 2.5.3). */
@@ -46,17 +45,17 @@ export function DeviceBadge({ id, badge, label, className, ...rest }: { id: stri
 export function RiskMarker({ id, risk, className }: { id: string; risk: DeviceRisk | null | undefined; className?: string }) {
   const { t } = useTranslation('inventory')
   if (!risk) return null
-  return <DeviceBadge id={id} badge={badgeOfRisk(risk)} label={`${riskWord(t, risk)}: ${riskDescription(t, risk)}`} data-risk={risk.level} className={className} />
+  return <DeviceBadge id={id} badge={badgeOfRisk(risk)} label={`${riskWord(t, risk)}: ${riskDescription(t, risk)}`} data-risk={risk.code} className={className} />
 }
 
 type T = ReturnType<typeof useTranslation>['t']
 /** The marker's short text: "2 exploited", "Update recommended"; '' when clean (for a <select> option: append it). */
 export const riskWord = (t: T, risk: DeviceRisk | null | undefined) =>
-  !risk ? '' : risk.level === 'exploited' ? t('common:deviceStatus.exploited', { count: risk.exploited }) : t('common:deviceStatus.update_recommended', { count: risk.updates })
+  !risk ? '' : t(`common:deviceStatus.${risk.code}`, { count: risk.count })
 /** What the marker says to a screen reader and on hover, and where it leads. */
 export const riskDescription = (t: T, risk: DeviceRisk) =>
-  risk.level === 'exploited' ? t('inventory:risk.exploitedAria', { count: risk.exploited }) : t('inventory:risk.updateAria', { count: risk.updates })
+  risk.code === 'needs_input' ? t('inventory:risk.inputAria') : t('inventory:risk.findingsAria')
 
-/** Sort key: exploited above update above clean; more exploited findings (then updates) first within a level. */
+/** Sort key: the most urgent status first, then the most CVEs at it; none last. */
 export const riskRank = (risk: DeviceRisk | null | undefined) =>
-  !risk ? 0 : risk.level === 'exploited' ? 1_000_000 + risk.exploited * 1000 + risk.updates : 1000 + risk.updates
+  !risk ? 0 : (DEVICE_STATUSES.length - DEVICE_STATUSES.indexOf(risk.code)) * 1_000_000 + risk.count

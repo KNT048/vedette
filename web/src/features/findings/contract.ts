@@ -215,11 +215,10 @@ export const PlanCve = z.object({
   epss: z.number().min(0).max(1).nullable(),
   percentile: z.number().min(0).max(1).nullable(),
 })
-/** A device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
- * itself, or when the marker could not be read. */
-export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
-  .describe('The device\'s risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
-/** A recommended update a person marked as done (POST /findings/plan/done). */
+/** A device's badge, the device status every list gives (GET /inventory/devices, the findings lists, Home); null when it has none. */
+export const DeviceRiskView = z.object({ code: z.enum(DEVICE_STATUSES), count: z.number().int().min(1) }).nullable()
+  .describe('The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null when it has none, for the Vedette box itself, or when it could not be read')
+/** A recommended update a person marked as done; no mark is made any more (a person who installed it marks its findings Patched). */
 export const PlanDone = z.object({
   by: z.string().describe('Who marked it done'),
   at: iso.describe('When'),
@@ -244,7 +243,7 @@ export const PlanItem = z.object({
   recent: z.number().int().min(0),
   agent_gone: z.boolean().describe('A CVE of the item rests on an agent\'s row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page\'s "No agent reports" line): `version` is the last one an agent reported'),
   agent_reported: z.iso.date().nullable().describe('With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known'),
-  done: PlanDone.nullable().describe('A person marked this item done and the mark still holds (the same version, no new CVE): listed only with ?done=true; null otherwise'),
+  done: PlanDone.nullable().describe('Always null: a recommended update a person installed is Patched on its findings'),
 })
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
@@ -620,6 +619,7 @@ export const endpoints = defineEndpoints([
       ids: z.array(findingId).min(1).max(MAX_HANDLE).optional().describe('These findings; all of one device (else 400 many_devices). Not with device and fix'),
       device: z.string().max(96).optional().describe('With fix: that device'),
       fix: z.string().max(400).optional().describe('With device: the Fix.key whose open findings on the device are handled'),
+      software: z.string().max(96).optional().describe('With device and fix: the software line of the block (FixBlock.software.id, FixDevice.software.id); absent: the block on no software line. Two lines of one product never share a handle'),
       resolution: Resolution, note: handleNote,
       until: z.iso.date().optional().describe('accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)'),
     }),
@@ -643,20 +643,11 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ note: z.string().max(500) }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/unconfirm', summary: 'Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan confirmed is refused', stories: ['S-MIT-1'], role: 'admin',
     params: idParams, response: FindingDetail },
-  { method: 'post', path: '/findings/status', summary: 'Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped', stories: ['S-MIT-1'], role: 'operator',
-    body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500), until }),
-    response: z.object({ updated: z.number().int().describe('Open findings changed'), skipped: z.number().int().describe('Findings already closed, left as they were') }) },
   { method: 'post', path: '/findings/{id}/applied', summary: 'Log "Applied" for one recommendation item; does not change the status by itself', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/ai', summary: 'Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off', stories: ['S-AI-2', 'S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ skill: z.enum(['explain', 'mitigation-config']) }), response: FindingDetail },
-  { method: 'get', path: '/findings/summary', summary: 'Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend, device and alert counts; one cached read', stories: ['S-FEED-1', 'S-MIT-1', 'S-UI-1'], role: 'viewer',
-    response: HomeSummary },
   { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
     query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device'),
       done: z.enum(['true', 'false']).optional().describe('true: only the items a person marked done (Done); default false: the items to plan, without them') }), response: Plan },
-  { method: 'post', path: '/findings/plan/done', summary: 'Mark a recommended update as done (operator, audited): it leaves the plan, the device\'s To fix card and its risk marker, and is listed under Done; it comes back by itself when the device reports another version of that software or a new CVE joins the item', stories: ['S-TIER-1'], role: 'operator',
-    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group'), note: z.string().max(500).describe('Optional: why (already updated, fixed another way)') }), response: PlanDone },
-  { method: 'post', path: '/findings/plan/undone', summary: 'Put a recommended update a person marked done back on the plan (operator, audited)', stories: ['S-TIER-1'], role: 'operator',
-    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group') }), response: z.object({ group: z.string() }) },
 ])

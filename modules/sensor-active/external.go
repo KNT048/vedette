@@ -144,15 +144,18 @@ const (
 
 // externalStep is what one nmap job of an external shape needs on top of nmap's own --host-timeout once it has the nmap slot and
 // core's fence said yes (#723 review L5): the worker's fence (at most 5 rounds of 5 s) and the pickup and the result (15 s).
-// externalNeed is the least time an External run needs: the discovery, core's own-IP check after it, and one -sV batch at
-// nmapargv.BatchMinTimeout (each later batch's host timeout comes from what is left: batchTimeout). With less left of the caller's
+// externalNeed is the least time an External run needs: the discovery, the batches' inner margin, and one -sV batch with core's
+// own-IP check before it at nmapargv.BatchMinTimeout (each later batch's host timeout comes from what is left: batchTimeout). With less left of the caller's
 // deadline the run is skipped (ErrNoTime) rather than cut by it halfway; the wait for the slot is shortened to leave it, plus
 // coreFenceTime for core's own check. fullNeed is the same with the full shapes' host timeout.
 const (
 	coreFenceTime = 30 * time.Second
 	externalStep  = 25*time.Second + 15*time.Second
-	externalNeed  = externalStep + nmapargv.ExternalDiscoveryTimeout + coreFenceTime + externalStep + nmapargv.BatchMinTimeout
+	externalNeed  = externalStep + nmapargv.ExternalDiscoveryTimeout + innerMargin + batchNeed
 	fullNeed      = externalStep + nmapargv.FullHostTimeout
+	// batchNeed is the least time left before the inner deadline in which an -sV batch is still tried: core's own-IP check, the
+	// job's overhead and the shortest host timeout.
+	batchNeed = coreFenceTime + externalStep + nmapargv.BatchMinTimeout
 )
 
 // batchTimeout is the host timeout of the next -sV batch when left is what remains of the run after core's own-IP check: what is
@@ -526,11 +529,17 @@ func runBatches(ctx context.Context, batches [][]int, r batchRunner) (batchResul
 		}
 	}
 	for i, b := range batches {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) { // the batches' inner deadline: no time for this one or the rest
+		// Too little left for the own-IP check, the job and a sane batch (or the inner deadline passed): this one and the rest wait
+		// for the next scan, and the finished ones are kept.
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || left(ctx, externalRun) < batchNeed {
 			stopRest(i, whyNoTime)
 			break
 		}
 		if err := r.fence(ctx); err != nil {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) { // the check ran into the inner deadline, not a stop of the run
+				stopRest(i, whyNoTime)
+				break
+			}
 			return batchResults{}, err
 		}
 		h, fits := batchTimeout(left(ctx, externalRun))
@@ -597,7 +606,8 @@ type lastBatch struct {
 //     discovery did not see closed (still open, or not among the ports it probed), at most commonports.MaxBelievableOpen in all;
 //     none when the address answers everywhere (the fixed list's batches only);
 //   - order: the batches not started last run (in that run's order; a fixed port the last run never wrote a row for counts as not
-//     started, after those), then the batches that failed last run (in that run's order), then the others in their usual order.
+//     started, after those, and a batch only of ports the last run never planned after that), then the batches that failed last run
+//     (in that run's order), then the others in their usual order.
 //
 // Every batch is read at least once every ceil(n/k) runs when k batches fit a run, and a batch that always fails cannot block the
 // others: it queues behind the ones not started.
@@ -649,11 +659,16 @@ func planBatches(open, scanned []int, last []lastBatch, everywhere bool) ([][]in
 		}
 	}
 	rankOf := func(b []int) rank {
-		best := rank{batchDone, 0}
+		best, known := rank{batchDone, 0}, false
 		for _, p := range b {
-			if r, ok := ranks[p]; ok && r.state != batchDone && (best.state == batchDone || r.state < best.state || (r.state == best.state && r.index < best.index)) {
+			r, ok := ranks[p]
+			known = known || ok
+			if ok && r.state != batchDone && (best.state == batchDone || r.state < best.state || (r.state == best.state && r.index < best.index)) {
 				best = r
 			}
+		}
+		if !known && len(last) > 0 { // only ports the last run never planned (newly found extras): not started, after the others
+			return rank{batchNotStarted, len(last) + 1}
 		}
 		return best
 	}
@@ -697,7 +712,9 @@ func (s *Service) notStarted(ctx context.Context, jobID string, ip netip.Addr, p
 func (s *Service) lastRun(ctx context.Context, ip netip.Addr) []lastBatch {
 	r := s.db.Reader()
 	var run sql.NullString
-	if err := r.QueryRowContext(ctx, `SELECT run_id FROM sa_probe WHERE shape = ? AND targets = ? AND run_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
+	// the most recent run that wrote -sV rows: a run stopped during or right after its discovery says nothing of the batches, so
+	// the queue is taken from the one before it
+	if err := r.QueryRowContext(ctx, `SELECT run_id FROM sa_probe WHERE shape = ? AND targets = ? AND run_id IS NOT NULL AND flags LIKE '% -sV %' ORDER BY id DESC LIMIT 1`,
 		nmapargv.External.Name(), ip.String()).Scan(&run); err != nil || !run.Valid {
 		return nil
 	}

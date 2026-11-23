@@ -537,7 +537,7 @@ func TestBatchTimeout(t *testing.T) {
 
 // The budget of the default scan within its 8-minute step (exposure's ServicesTimeout, externalRun here). Worst case: every
 // allowance is used up (the wait for the nmap slot as long as the run's need allows, core's and the worker's own-IP checks at their
-// longest, the discovery at its host timeout): one batch still gets a host timeout above the minimum, and the rest wait for the next
+// longest, the discovery at its host timeout, the batches' inner margin): one batch still gets a host timeout above the minimum (85 s), and the rest wait for the next
 // scan. A SYN proxy that holds every connection with no allowance used (the discovery in 30 s, every batch at its host timeout):
 // three batches a run. A normal box finishes every batch in seconds.
 func TestBatchBudgetWorstCase(t *testing.T) {
@@ -546,8 +546,11 @@ func TestBatchBudgetWorstCase(t *testing.T) {
 	simulate := func(wait, fence, job, discovery time.Duration, batchTakes func(h time.Duration) time.Duration) (hosts []time.Duration) {
 		at := wait + fence + job + discovery
 		for {
+			if step-innerMargin-at < batchNeed { // runBatches' check before the own-IP check
+				return hosts
+			}
 			at += fence
-			h, ok := batchTimeout(step - at)
+			h, ok := batchTimeout(step - innerMargin - at)
 			if !ok {
 				return hosts
 			}
@@ -559,7 +562,7 @@ func TestBatchBudgetWorstCase(t *testing.T) {
 	worst := simulate(wait, coreFenceTime, externalStep, nmapargv.ExternalDiscoveryTimeout, func(h time.Duration) time.Duration { return h })
 	proxy := simulate(0, 0, 0, 30*time.Second, func(h time.Duration) time.Duration { return h })
 	t.Logf("worst case: slot wait %s, batches %v; SYN proxy: batches %v", wait, worst, proxy)
-	if wait != busyWait || len(worst) != 1 || worst[0] != 100*time.Second {
+	if wait != busyWait || len(worst) != 1 || worst[0] != 85*time.Second {
 		t.Fatalf("worst case: wait %s, batches %v", wait, worst)
 	}
 	if len(proxy) != 3 || proxy[0] != nmapargv.BatchMaxTimeout {
@@ -716,6 +719,18 @@ func TestPlanBatchesQueue(t *testing.T) {
 			t.Fatalf("queue %v, want %v", firstPorts(got), firstPorts(want))
 		}
 	}
+	// a batch only of newly found extras is not started too, after every batch the last run planned and did not finish; it goes
+	// before the ones that failed or finished
+	got, err = planBatches([]int{50000}, []int{50000}, last, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = [][]int{plain[4], plain[2], plain[3], {50000}, plain[1], plain[0]}
+	for i := range want {
+		if !slices.Equal(got[i], want[i]) {
+			t.Fatalf("queue with new extras %v, want %v", firstPorts(got), firstPorts(want))
+		}
+	}
 }
 
 func firstPorts(bs [][]int) []int {
@@ -839,8 +854,48 @@ func TestRunBatchesKeepsFinishedOnes(t *testing.T) {
 			t.Fatalf("worker lost: %+v %v %v", res, err, notStarted)
 		}
 
+		// near the inner deadline: the own-IP check runs into it (it takes longer than what is left) or there is too little left to
+		// try one; either way batch 1 is kept and the rest are not started, the check not even asked for a batch that cannot fit
+		near, cancel4 := context.WithTimeout(t.Context(), batchNeed+40*time.Second)
+		defer cancel4()
+		fenced := 0
+		notStarted = nil
+		res, err = runBatches(near, batches, batchRunner{
+			fence: func(ctx context.Context) error {
+				fenced++
+				if fenced == 2 { // the check is slow this time: it hits the inner deadline
+					<-ctx.Done()
+					return ErrStopped
+				}
+				return nil
+			},
+			run: func(_ context.Context, b []int, _ time.Duration, _ string) ([]ExternalService, error) {
+				return []ExternalService{{Port: b[0]}}, nil
+			},
+			notStarted: func(_ []int, label, why string) { notStarted = append(notStarted, label+": "+why) },
+		})
+		if err != nil || !slices.Equal(res.done, []int{22}) || len(notStarted) != 3 || notStarted[0] != "batch 2 of 4: "+whyNoTime || fenced != 2 {
+			t.Fatalf("slow check at the inner deadline: %+v %v %v, %d checks", res, err, notStarted, fenced)
+		}
+		tight, cancel5 := context.WithTimeout(t.Context(), batchNeed-time.Second)
+		defer cancel5()
+		fenced, notStarted = 0, nil
+		_, err = runBatches(tight, batches, batchRunner{
+			fence: func(context.Context) error { fenced++; return nil },
+			run: func(context.Context, []int, time.Duration, string) ([]ExternalService, error) {
+				t.Fatal("a batch ran with too little time")
+				return nil, nil
+			},
+			notStarted: func(_ []int, label, why string) { notStarted = append(notStarted, label+": "+why) },
+		})
+		if !errors.Is(err, ErrNoTime) || fenced != 0 || len(notStarted) != 4 {
+			t.Fatalf("too little time: err %v, %d checks, not started %v", err, fenced, notStarted)
+		}
+
 		// a stop during batch 2 discards everything
-		stop, cancel3 := context.WithCancel(ctx)
+		fresh, cancel6 := context.WithTimeout(t.Context(), 8*time.Minute) // the fake clock moved on in the cases above
+		defer cancel6()
+		stop, cancel3 := context.WithCancel(fresh)
 		_, err = runBatches(stop, batches, batchRunner{fence: yes,
 			run: func(_ context.Context, b []int, _ time.Duration, _ string) ([]ExternalService, error) {
 				if b[0] == 80 {

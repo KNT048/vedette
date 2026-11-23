@@ -353,7 +353,7 @@ func TestScanExternalBatchTimeoutKeepsTheRestAndRotates(t *testing.T) {
 }
 
 // A batch that was not started for want of time leaves a probe row that names its ports and why, and the next run starts with it,
-// like a batch that timed out.
+// like a batch that timed out, even when a run in between stopped before writing any -sV row.
 func TestScanExternalNotStartedBatchRotates(t *testing.T) {
 	t.Parallel()
 	batches, err := nmapargv.ExternalBatches(nil)
@@ -365,6 +365,10 @@ func TestScanExternalNotStartedBatchRotates(t *testing.T) {
 	flags := strings.Join(batchArgv(batches[3], "60s")[:13], " ") + " --stats-every 5s"
 	e.exec(runRow("r-old", sa.RunService, "event", "done", at, ""),
 		`INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES ('`+at+`', 'r-old', 'external', 100, 1, '`+flags+`', '8.8.8.8', 'batch 4 of 5: not started: too little time left in this scan; the next scan starts with these ports')`)
+	// a newer run stopped right after its discovery wrote no -sV row: the queue still comes from the run before it
+	later := "2026-11-02T10:00:00.000Z"
+	e.exec(runRow("r-stopped", sa.RunService, "event", "done", later, ""),
+		`INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES ('`+later+`', 'r-stopped', 'external', 100, 1, '--privileged -sS -Pn -n --max-rate 100 --max-retries 2 --host-timeout 2m --top-ports 1000 --stats-every 5s', '8.8.8.8', 'stopped: the window closed, the scope changed or the module was turned off')`)
 	if _, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}}); err != nil {
 		t.Fatal(err)
 	}

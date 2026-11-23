@@ -44,6 +44,6 @@ describe('private (randomised) MAC addresses', () => {
   it('the device page says plainly that the address is private', async () => {
     renderApp('/devices/a-q1', { role: 'admin' })
     expect(await screen.findByTestId('private-mac-note', undefined, T)).toHaveTextContent('private (randomised) MAC address')
-    expect(await screen.findByText('This device uses a private address and is not approved yet', undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText('This device uses a private address and is not added yet', undefined, T)).toBeInTheDocument()
   })
 })

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { ADDRESSES_SECTION } from './AddressesSection'
 import { useDevices, useMergePreview, useSameDevice } from './api'
 import { errMsg } from './kinds'
+import { NotAddedChip } from '@/features/findings/NotAdded'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import {
   addressText, choiceFields, defaultKeep, matchesQuery, MERGE_MAX_FROM, movePieces, nameScore, rankCandidates, shownDiffers, watchAfterMergeAll,
@@ -280,7 +281,7 @@ function KeepOption({ id, side: s, checked, suggested }: { id: string; side: Mer
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-medium [overflow-wrap:anywhere]">{s.name}</span>
           {suggested ? <Chip tone="accent">{t('merge.suggested')}</Chip> : null}
-          {s.ignored ? <Chip tone="off">{t('merge.ignored')}</Chip> : s.approved ? null : <Chip tone="warn">{t('merge.pending')}</Chip>}
+          {s.ignored ? <Chip tone="off">{t('merge.ignored')}</Chip> : <NotAddedChip asset={s} />}
           {s.agent ? <Chip tone="ok">{t('merge.agent')}</Chip> : null}
           {s.risk ? <StatusBadge code={s.risk.code} count={s.risk.count} /> : null}
         </span>

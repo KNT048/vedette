@@ -42,10 +42,10 @@ describe('Device page: possibly the same device', () => {
     const box = await notice()
     expect(box).toHaveTextContent('Possibly the same device as iPhone.lan')
     expect(box).toHaveTextContent('Same name "iPhone", never online at the same time')
-    expect(box).toHaveTextContent(/Approved, seen 2 days ago/)
+    expect(box).toHaveTextContent(/Added, seen 2 days ago/)
     expect(within(box).getByRole('link', { name: 'iPhone.lan' })).toHaveAttribute('href', '/devices/a-ph1')
     // above the approval notice: merging answers the approval too
-    expect(box.compareDocumentPosition(screen.getByRole('button', { name: 'Approve' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(box.compareDocumentPosition(screen.getAllByRole('button', { name: 'Add device' })[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     await expectNoA11yViolations(container)
 
     await user.click(within(box).getByRole('button', { name: 'Merge' }))
@@ -91,7 +91,7 @@ describe('Device page: possibly the same device', () => {
     const user = userEvent.setup()
     renderApp('/devices/a-ph1', { role: 'admin' })
     const box = await notice()
-    expect(box).toHaveTextContent(/Waiting for review, seen/)
+    expect(box).toHaveTextContent(/Not added yet, seen/)
     // #876: one click by mistake must not split the phone for good
     await user.click(within(box).getByRole('button', { name: 'Keep separate' }))
     let dialog = await screen.findByRole('dialog', { name: 'Keep iPhone.lan and iPhone separate?' }, T)
@@ -155,11 +155,11 @@ describe('Devices › To review: the possibly-same hint', () => {
     renderApp('/devices?tab=review', { role: 'viewer' })
     const hint = await screen.findByRole('link', { name: 'Possibly the same device as iPhone.lan' }, T)
     expect(hint).toHaveAttribute('href', '/devices/a-ph2#possible-same')
-    const pending = screen.getByRole('list', { name: /new devices? not approved/ })
+    const pending = screen.getByRole('list', { name: /new devices? not added yet/ })
     expect(within(pending).getAllByRole('link', { name: /^Possibly the same/ })).toHaveLength(1)
     await toggleFilter(user, /^Possibly the same 1/)
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('possible:same'), T)
-    await waitFor(() => expect(within(screen.getByRole('list', { name: /new devices? not approved/ })).getAllByRole('listitem')).toHaveLength(1), T)
+    await waitFor(() => expect(within(screen.getByRole('list', { name: /new devices? not added yet/ })).getAllByRole('listitem')).toHaveLength(1), T)
   })
 })
 

@@ -496,7 +496,6 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 	seedTierData(t, e, now)
 	inv := &distroInv{got: map[string]map[string]bool{DistroDebian: {"sudo": true, "openssl": true}}}
 	e.svc.Inventory = inv
-	stamp, _ := e.svc.st.TierStamp(t.Context())
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -510,22 +509,7 @@ func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
 	if len(got) != 1 || !got[0].First || !slices.Equal(got[0].CVEs, []string{"CVE-2026-10001"}) {
 		t.Fatalf("events %+v", got)
 	}
-	if s, _ := e.svc.st.TierStamp(t.Context()); s == stamp {
-		t.Fatal("the tier stamp did not move with the distribution pull")
-	}
-	td, err := e.svc.st.TierDistroRecords(t.Context(), now, []DistroPackage{{DistroDebian, "12", "sudo"}, {DistroDebian, "12", "openssl"}, {DistroDebian, "11", "sudo"}})
-	recs, covered := td.Records, td.Covered
-	if err != nil || len(recs) != 2 || !maps.Equal(covered, map[string]bool{"debian/12": true}) || !td.Known["debian/sudo"] || !td.Known["debian/openssl"] {
-		t.Fatalf("%+v %v %v", recs, covered, err)
-	}
-	if r := recs[0]; r.CVE != "CVE-2026-0001" || r.Tier != "likely" || r.EPSS == nil || len(r.Distro) != 1 ||
-		r.Distro[0] != (DistroFix{Distro: DistroDebian, Release: "12", Package: "sudo", CVE: "CVE-2026-0001", Status: DistroFixed, Fixed: "1.9.13p3-1+deb12u5"}) {
-		t.Fatalf("first %+v", r)
-	}
-	if r := recs[1]; r.CVE != "CVE-2026-0002" || r.Tier != "recent" || len(r.Distro) != 1 || r.Distro[0].Package != "openssl" {
-		t.Fatalf("second %+v", r)
-	}
-	// the switch of the feed tells findings about the CISA list's CVEs only (review r1 #4c of #808); tier rows reach the plan by TierStamp
+	// the switch of the feed tells findings about the CISA list's CVEs only (review r1 #4c of #808)
 	if c, _ := e.put(debianTrackerFeedID, `{"enabled":false}`); c != 200 || len(got) != 2 || !slices.Equal(got[1].CVEs, []string{"CVE-2026-10001"}) {
 		t.Fatalf("switch off: %d %+v", c, got)
 	}

@@ -348,9 +348,8 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 	if d.ID != id || d.MAC == nil || *d.MAC != xenMAC || d.IP != "10.0.18.201" || !d.Approved || d.Origin != "manual" || d.Vendor == nil {
 		t.Errorf("after the sighting: %+v", d.AssetCore)
 	}
-	merged := e.ev.named(inventory.EventAssetMerged)
-	if len(merged) != 1 || merged[0].Data.(inventory.MergeEvent).From != dup || len(e.ev.named(inventory.EventAssetDeleted)) != 1 {
-		t.Errorf("events: merged %+v deleted %d", merged, len(e.ev.named(inventory.EventAssetDeleted)))
+	if len(e.ev.named(inventory.EventAssetDeleted)) != 1 {
+		t.Errorf("deleted events: %d", len(e.ev.named(inventory.EventAssetDeleted)))
 	}
 	e.tick(time.Hour)
 	e.record(dhcp(xenMAC, "10.0.18.202", "")...)

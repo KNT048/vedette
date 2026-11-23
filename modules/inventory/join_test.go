@@ -2,7 +2,6 @@ package inventory_test
 
 import (
 	"net/netip"
-	"slices"
 	"testing"
 	"time"
 
@@ -78,13 +77,6 @@ func TestContract_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T) {
 	}
 	if !has(e.auditActions(), "inventory.merge") {
 		t.Errorf("no inventory.merge audit row: %v", e.auditActions())
-	}
-	if m := e.ev.named(inventory.EventAssetMerged); len(m) != 1 || m[0].Data.(inventory.MergeEvent) != (inventory.MergeEvent{From: lldpID, Into: ipID, Actor: "system"}) {
-		t.Errorf("merged events %+v", m)
-	}
-	if i, j := slices.IndexFunc(e.ev.events, func(ev inventory.Event) bool { return ev.Name == inventory.EventAssetMerged }),
-		slices.IndexFunc(e.ev.events, func(ev inventory.Event) bool { return ev.Name == inventory.EventAssetDeleted }); i < 0 || j < i {
-		t.Errorf("merged must go out before deleted: %d, %d", i, j)
 	}
 	del := e.ev.named(inventory.EventAssetDeleted)
 	if len(del) != 1 || del[0].Data.(inventory.AssetEvent).AssetID != lldpID {

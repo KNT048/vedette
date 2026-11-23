@@ -81,8 +81,6 @@ type Service struct {
 	ownRuns bool
 	pend    map[string]*pending
 	waits   map[string]chan outcome
-	// bg holds the background SNMP reads ApplySNMPToSimilar queues
-	bg sync.WaitGroup
 	// pendingQueued: queuePendingOnce has queued the devices waiting for their gentle scan in this process
 	pendingQueued atomic.Bool
 	// owedQueued is the start of the window whose owed normal scans (queueOwedNormal) are queued

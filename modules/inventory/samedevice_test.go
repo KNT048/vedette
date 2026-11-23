@@ -125,11 +125,8 @@ func TestContract_PossibleSameIsOfferedAndMerged(t *testing.T) {
 	for _, ev := range e.ev.events {
 		names = append(names, ev.Name)
 	}
-	if strings.Join(names, " ") != "inventory.asset.merged inventory.asset.deleted inventory.asset.updated" {
+	if strings.Join(names, " ") != "inventory.asset.deleted inventory.asset.updated" {
 		t.Errorf("events: %v", names)
-	}
-	if m := e.ev.named(inventory.EventAssetMerged); len(m) != 1 || m[0].Data != (inventory.MergeEvent{From: newer, Into: old, Actor: admin}) {
-		t.Errorf("merged: %+v", m)
 	}
 	if u := e.ev.named(inventory.EventAssetUpdated); len(u) != 1 || !u[0].Data.(inventory.AssetEvent).Match {
 		t.Errorf("updated: %+v (the kept device must be matched again)", u)

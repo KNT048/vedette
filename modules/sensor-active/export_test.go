@@ -29,12 +29,3 @@ func SNMPJobAt(ctx context.Context, s *Service, asset string, ip netip.Addr) (se
 
 // ErrSNMPNotReadAddress is the refusal of a job whose target is not its device's read address.
 var ErrSNMPNotReadAddress = errSNMPNotReadAddress
-
-// WaitSNMPReads waits for the background reads ApplySNMPToSimilar queued.
-func WaitSNMPReads(s *Service) { s.bg.Wait() }
-
-// SetSNMPOnlyIfNone is SetSNMP as ApplySNMPToSimilar calls it: a device that has settings of its own when the transaction reads them is refused.
-func SetSNMPOnlyIfNone(ctx context.Context, s *Service, actor, id, from string) error {
-	_, err := s.SetSNMP(ctx, actor, id, SNMPInput{CopyFrom: from, onlyIfNone: true})
-	return err
-}

@@ -107,10 +107,7 @@ type SNMPBlocked struct{ Reason, Message string }
 // the read address changes. Port 0 is none given: 161. ReadFrom "" is the device's IP. CopyFrom names another device whose settings
 // and secrets are copied on the box; then only ReadFrom is read besides it.
 type SNMPInput struct {
-	CopyFrom, ReadFrom string
-	// onlyIfNone (set by ApplySNMPToSimilar, never from the wire) refuses the save when the device has settings of its own when the
-	// transaction reads them: applying settings to similar devices never overwrites a device's own.
-	onlyIfNone                            bool
+	CopyFrom, ReadFrom                    string
 	Version, Username, Auth, Priv         string
 	Community, AuthPassword, PrivPassword secrets.Value
 	Port                                  int
@@ -541,9 +538,6 @@ func (s *Service) SetSNMP(ctx context.Context, actor, id string, in SNMPInput) (
 		prev, err := s.snmpRow(ctx, tx, id)
 		if err != nil {
 			return err
-		}
-		if in.onlyIfNone && prev != nil {
-			return apierr.New(409, codeHasOwnSettings, "This device already has SNMP settings of its own: they were left as they are.")
 		}
 		if err := s.readFromFree(ctx, tx, id, readFrom); err != nil {
 			return err

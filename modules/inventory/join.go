@@ -515,7 +515,6 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 			joined = append(joined, into)
 		}
 		if created[from] == "" {
-			o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: systemActor})
 			o.add(EventAssetDeleted, AssetEvent{AssetID: from})
 			if watch != "" { // The moved findings follow into's watch state
 				o.add(watch, AssetEvent{AssetID: into})

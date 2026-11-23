@@ -92,16 +92,11 @@ func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 {
 		t.Fatalf("ARP only: %d devices, %d announced; want 2 and 1", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
-	arpID := e.idOf("10.0.18.137")
 	e.tick(time.Minute)
 	e.record(dhcp(privMac3, "10.0.18.137", "Annas-MacBook-Air")...)
 	d = e.only()
 	if d.ID != id || d.IP != "10.0.18.137" || !d.Approved {
 		t.Errorf("after the name: id %s ip %s approved %v", d.ID, d.IP, d.Approved)
-	}
-	merged := e.ev.named(inventory.EventAssetMerged)
-	if len(merged) != 1 || merged[0].Data.(inventory.MergeEvent).From != arpID || merged[0].Data.(inventory.MergeEvent).Into != id {
-		t.Errorf("merged events: %+v, want %s into %s", merged, arpID, id)
 	}
 	if len(e.ev.named(inventory.EventAssetDeleted)) != 1 {
 		t.Errorf("deleted events: %v", e.ev.named(inventory.EventAssetDeleted))

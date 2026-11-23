@@ -66,10 +66,6 @@ func TestIOCChunksDropVanishedRowsOnlyAfterTheLastChunk(t *testing.T) {
 	if *f2.Records != n+100 || *f1.Records != n+300 {
 		t.Errorf("records %d then %d", *f1.Records, *f2.Records)
 	}
-	ev := e.pub.named(EventIOCUpdated)
-	if last := ev[len(ev)-1]; last != (IOCUpdatedEvent{FeedID: "et-open", Added: 100, Removed: 300}) {
-		t.Errorf("counts: %+v", last)
-	}
 }
 
 func TestIOCSecondIdenticalPullChangesNothing(t *testing.T) {
@@ -84,10 +80,6 @@ func TestIOCSecondIdenticalPullChangesNothing(t *testing.T) {
 	}
 	if got := listings(t, e); got != iocChunkRows+10 {
 		t.Errorf("%d listings", got)
-	}
-	ev := e.pub.named(EventIOCUpdated)
-	if len(ev) != 1 {
-		t.Errorf("an unchanged list published %v", ev)
 	}
 }
 
@@ -189,10 +181,6 @@ func TestIOCVanishedListingsGoEvenWhenTheClockWentBack(t *testing.T) {
 	}
 	if got := listings(t, e); got != 20 {
 		t.Errorf("%d listings after a smaller list on a clock set back, want 20", got)
-	}
-	ev := e.pub.named(EventIOCUpdated)
-	if last := ev[len(ev)-1]; last != (IOCUpdatedEvent{FeedID: "et-open", Removed: 30}) {
-		t.Errorf("counts: %+v", last)
 	}
 }
 

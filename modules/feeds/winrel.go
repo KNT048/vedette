@@ -271,7 +271,7 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 // applyWinRel replaces the stored releases (feeds_winrel) and the stored monthly updates of every release the pull read
 // (feeds_winrel_update); when the releases or the updates changed, it returns the CVEs NVD lists Windows rows for, for findings to
 // match again (EventRangesUpdated): an update moves the build a hotpatched device is compared at (core/winrel.Baseline) and the target
-// and KB of the fix. The plan's target builds follow at its next plan pass (TierStamp has this feed). first: the pull filled an empty
+// and KB of the fix. first: the pull filled an empty
 // table of updates (the first pull, or the first after the update that added the table): the matches it changes are a baseline, not
 // news (EventRangesUpdated.First).
 func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []winrel.Update) (changedCVEs []string, first bool, err error) {

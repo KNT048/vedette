@@ -16,7 +16,7 @@ import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } 
 import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceAddress, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeField, MergeInput, MergePreview, MergeSide, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
-  DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpSimilarResponse, SnmpVersion,
+  DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpVersion,
   DeviceSourceRow, DeviceSourcesView, SoftwareLine, SoftwareName, SplitInput, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
@@ -1767,41 +1767,6 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // Use these settings on similar devices: candidates share the maker or the (known) type and have no SNMP settings of their own.
-  http.get(`${API}/inventory/snmp/devices/:id/similar`, ({ params }) => {
-    const denied = guard('admin'); if (denied) return denied
-    if (!isOn('sensor-active')) return snmpOff()
-    const a = allAssets().find((x) => x.id === params.id)
-    if (!a) return fail(404, 'not_found', 'There is no device with this id.')
-    if (!snmpStore.get().some((x) => x.device_id === a.id)) return fail(409, 'not_set_up', 'SNMP is not set up for this device: there are no settings to use on other devices.')
-    return HttpResponse.json({ devices: similarCandidates(a) })
-  }),
-
-  http.post(`${API}/inventory/snmp/devices/:id/apply-similar`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    if (!isOn('sensor-active')) return snmpOff()
-    const a = allAssets().find((x) => x.id === params.id)
-    if (!a) return fail(404, 'not_found', 'There is no device with this id.')
-    const src = snmpStore.get().find((x) => x.device_id === a.id)
-    if (!src) return fail(409, 'not_set_up', 'SNMP is not set up for this device: there are no settings to use on other devices.')
-    if (src.secret_lost) return fail(409, 'secret_lost', `${SNMP_LOST} Nothing was sent.`)
-    const ids = [...new Set((await body<{ device_ids?: string[] }>(request)).device_ids ?? [])]
-    if (ids.length < 1 || ids.length > 50) return fail(400, 'bad_devices', 'Choose between 1 and 50 devices.')
-    const cands = similarCandidates(a)
-    const results = ids.map((id) => {
-      const c = cands.find((x) => x.device_id === id)
-      if (!c) return { device_id: id, name: '', ok: false, code: 'not_a_candidate', message: 'This device is not a candidate any more: it has its own SNMP settings, is ignored, or is no longer of the same maker or type.' }
-      const t = allAssets().find((x) => x.id === id)!
-      const { device_id: _d, read_from: _r, read_from_default: _rd, last_checked_at: _c, last_answer_at: _l, last_reason: _lr, answer: _a, updated_at: _u, ...rest } = src
-      snmpStore.update((l) => [...l, { ...rest, device_id: id, read_from: t.ip, read_from_default: true, updated_at: nowIso(), last_checked_at: null, last_answer_at: null, last_reason: null, answer: null }])
-      if (metaStore.get()[id]?.snmp_source !== 'on') metaStore.update((m) => ({ ...m, [id]: { ...m[id], snmp_source: 'on' } }))
-      audit('inventory.snmp_set', deviceName(t) || t.ip, `${src.version}, read from ${t.ip}, port ${src.port}, copied from ${deviceName(a) || a.ip}`)
-      return { device_id: id, name: c.name, ok: true, code: '', message: '' }
-    })
-    audit('inventory.snmp_apply_similar', deviceName(a) || a.ip, `${results.filter((r) => r.ok).length} of ${results.length} devices`)
-    return HttpResponse.json({ results })
-  }),
-
   // Mock device: the community "public" or any v3 user gets an answer; any other community gets none (a device ignores a wrong one).
   http.post(`${API}/inventory/snmp/devices/:id/check`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
@@ -1827,21 +1792,6 @@ export const handlers = [
     return HttpResponse.json({ ok: reason === 'ok', reason, message, answer, snmp: deviceSnmp(allAssets().find((x) => x.id === a.id) ?? a) } satisfies SnmpCheckResult)
   }),
 ]
-
-/** The devices that may get another device's SNMP settings: same maker or same known type, no settings of their own, not ignored, not the box. */
-function similarCandidates(src: Asset): SnmpSimilarResponse['devices'] {
-  const maker = src.vendor?.value.toLowerCase().trim() ?? ''
-  const have = new Set(snmpStore.get().map((x) => x.device_id))
-  return allAssets()
-    .filter((x) => x.id !== src.id && x.id !== BOX_ID && hasIp(x) && !have.has(x.id) && !metaStore.get()[x.id]?.ignored_at)
-    .map((x) => ({
-      device_id: x.id, name: deviceName(x), ip: x.ip, vendor: x.vendor?.value ?? '', kind: x.kind,
-      same_maker: maker !== '' && x.vendor?.value.toLowerCase().trim() === maker, same_type: src.kind !== 'unknown' && x.kind === src.kind,
-      approved: x.approved,
-    }))
-    .filter((c) => c.same_maker || c.same_type)
-    .sort((a, b) => Number(b.same_maker) - Number(a.same_maker) || a.name.localeCompare(b.name))
-}
 
 function sameSet(a: string[], b: string[]) { return a.length === b.length && a.every((x) => b.includes(x)) }
 

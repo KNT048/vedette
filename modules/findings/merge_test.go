@@ -35,7 +35,7 @@ func TestContract_DeviceMergedMovesTheFindings(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	fp := e.seed() // a-1: the LLDP row
-	if _, err := e.svc.SetStatus(t.Context(), fp, ActionFalsePositive, "lab switch, the EX flaw needs J-Web which is off", "anna"); err != nil {
+	if _, err := e.svc.mark(t.Context(), fp, "false_positive", "lab switch, the EX flaw needs J-Web which is off", "anna"); err != nil {
 		t.Fatal(err)
 	}
 	kept := Asset{ID: "a-2", Name: "sw .47", Software: nas("6.1.1").Software} // the IP row holds the same CVE, untouched
@@ -153,7 +153,7 @@ func confirm(e *env, id string) {
 
 func falsePositive(e *env, id string) {
 	e.t.Helper()
-	if _, err := e.svc.SetStatus(e.t.Context(), id, ActionFalsePositive, "not exposed on this device", "anna"); err != nil {
+	if _, err := e.svc.mark(e.t.Context(), id, "false_positive", "not exposed on this device", "anna"); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -161,7 +161,7 @@ func falsePositive(e *env, id string) {
 func personReopens(e *env, id string) {
 	e.t.Helper()
 	falsePositive(e, id)
-	if _, err := e.svc.SetStatus(e.t.Context(), id, ActionReopen, "checked again, it is exposed", "anna"); err != nil {
+	if _, err := e.svc.mark(e.t.Context(), id, "reopen", "checked again, it is exposed", "anna"); err != nil {
 		e.t.Fatal(err)
 	}
 }

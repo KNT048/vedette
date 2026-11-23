@@ -1,19 +1,17 @@
 // S-TIER-1: the CVE page of a CVE on no exploited list, from the tier data (EPSS of FIRST, NVD's record of the
-// last 12 months). Its devices are the items of Updates to plan that list it: never findings, never alerts.
+// last 12 months). Its devices are the open findings of the CVE (GET /findings/devices searched for it).
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { SeverityBadge, StatusBadge } from '@/components/common/status'
+import { SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
 import { fmtDate, fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
-import { usePlan } from '@/features/findings/api'
-import { EvidenceChip, PlanDataState } from '@/features/findings/Plan'
-import { usePlanAction } from '@/features/findings/fix'
+import { useCveFindings } from '@/features/findings/api'
+import { useFixTitle } from '@/features/findings/parts'
 import type { TierCve } from './types'
-import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 export function TierCvePage({ v }: { v: TierCve }) {
   const { t } = useTranslation('feeds')
@@ -54,34 +52,32 @@ export function TierCvePage({ v }: { v: TierCve }) {
   )
 }
 
-/** The devices whose updates to plan fix this CVE, with the update and the evidence. */
+/** The devices that have this CVE as an open finding, each with the fix that closes it and how the finding is known. */
 export function TierDevices({ cve }: { cve: string }) {
   const { t } = useTranslation('feeds')
   const on = useModuleEnabled('findings')
-  const q = usePlan()
-  const action = usePlanAction()
+  const { query, hits } = useCveFindings(cve, on === true)
+  const title = useFixTitle()
   if (on === false) return <ModuleOff module="findings" />
   return (
-    <QueryState query={q}>
-      {(p) => {
-        const hits = p.items.flatMap((i) => i.cves.filter((c) => c.cve === cve).map((c) => ({ i, c })))
-        if (!p.compared || (p.data.epss !== 'ready' && p.data.recent !== 'ready')) return <PlanDataState plan={p} compact />
-        if (hits.length === 0) return <p className="text-sm text-muted">{t('tierCve.noDevice')}</p>
-        return (
-          <>
-            <Card flush><ul className="grid divide-y divide-rule">
-              {hits.map(({ i, c }) => (
-                <li key={i.group} className="grid gap-1 px-4 py-2.5 text-sm">
-                  <span className="flex flex-wrap items-center gap-2"><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link><RiskMarker id={i.asset.id} risk={i.risk} /></span>
-                  <span className="text-meta">{action(i)}</span>
-                  <EvidenceChip basis={c.basis} gone={i.agent_gone} />
-                </li>
-              ))}
-            </ul></Card>
-            <Link to="/plan" className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('tierCve.toPlan')}</Link>
-          </>
-        )
-      }}
+    <QueryState query={query}>
+      {() => hits.length === 0 ? <p className="text-sm text-muted">{t('tierCve.noDevice')}</p> : (
+        <>
+          <Card flush><ul className="grid divide-y divide-rule">
+            {hits.map(({ device, block, finding }) => (
+              <li key={finding.id} className="grid gap-1 px-4 py-2.5 text-sm">
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link to={`/devices/${encodeURIComponent(device.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{device.name}</Link>
+                  <StatusBadge code={finding.status} to={`/findings/${encodeURIComponent(finding.id)}`} />
+                </span>
+                <span className="text-meta">{title(block.fix, block.software)}</span>
+                <VerificationLine verified={finding.verified} />
+              </li>
+            ))}
+          </ul></Card>
+          <Link to={`/findings?cve=${encodeURIComponent(cve)}`} className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('tierCve.toFindings', { count: hits.length })}</Link>
+        </>
+      )}
     </QueryState>
   )
 }

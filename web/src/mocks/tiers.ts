@@ -1,5 +1,4 @@
-// Sample tier data (S-TIER-1, S-TIER-2), shared by the findings mock (GET /findings/plan) and the feeds mock
-// (GET /feeds/cve/{id}/tier): CVEs on no exploited list, from the feeds epss-all and nvd-recent of the box. The CVE ids are
+// Sample tier data (S-TIER-1, S-TIER-2) of the feeds mock (GET /feeds/cve/{id}/tier): CVEs on no exploited list, from the feeds epss-all and nvd-recent of the box. The CVE ids are
 // sample ids (not real CVEs), like the rest of the sample data. Every string shown is English.
 import { collection } from './db'
 
@@ -7,20 +6,6 @@ export type TierSeverity = 'critical' | 'high' | 'medium' | 'low' | 'none'
 export interface TierFact {
   cve: string; published: string; last_modified: string; nvd_status: string; severity: TierSeverity | null; score: number | null
   epss: number | null; percentile: number | null; products: string[]; ranges: boolean
-}
-export type PlanBasis = 'scan' | 'agent' | 'distro' | 'version'
-export interface PlanSeed {
-  asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows' | 'esu'
-  pro?: boolean
-  /** distro without `fixed`: the distribution whose security updates to install ("Alpine Linux"). */
-  distro?: string
-  /** windows, esu: `fixed` is Microsoft's newest monthly update, newer than every fix NVD names (the count is a floor). */
-  nvd_lag?: boolean
-  /** windows, esu: the KB number of `fixed` from Microsoft's release information. */
-  kb?: string
-  /** The day an agent last reported the row (agent basis), shown once no agent reports the device. */
-  reported?: string
-  cves: { cve: string; basis: PlanBasis }[]
 }
 export type FeedReady = 'module_off' | 'off' | 'loading' | 'ready'
 /** What the box would say about its tier feeds; tests and the sample switch set it (`compared` false = slice 2's box). */
@@ -60,18 +45,6 @@ export const tierFacts: TierFact[] = [
   fact('CVE-2026-35999', 12, 'high', 8.1, 0.152, ['Ivanti Endpoint Manager'], false, 'Awaiting Analysis'),
 ]
 
-const seed: PlanSeed[] = [
-  { asset_id: 'a-srvacc', software_id: 's-srvacc', software: 'Windows Server 2022', version: '10.0.20348.2700', fixed: '10.0.20348.4405', kind: 'windows', nvd_lag: true, kb: 'KB5000001', reported: day(12),
-    cves: ['CVE-2026-32010', 'CVE-2026-32011', 'CVE-2026-32012', 'CVE-2026-32013', 'CVE-2026-32014', ...Array.from({ length: 60 }, (_, i) => `CVE-2026-${32100 + i}`)].map((cve) => ({ cve, basis: 'agent' as const })) },
-  { asset_id: 'a-web01', software_id: 's-web01-nginx', software: 'nginx', version: '1.18.0', fixed: '1.28.1', kind: 'fixed',
-    cves: ['CVE-2026-31001', 'CVE-2026-31002', 'CVE-2026-31003'].map((cve) => ({ cve, basis: 'version' as const })) },
-  { asset_id: 'a-web01', software_id: 's-web01-openssl', software: 'openssl', version: '3.0.2-0ubuntu1.18', fixed: '3.0.2-0ubuntu1.20', kind: 'distro',
-    cves: ['CVE-2026-33100', 'CVE-2026-33101'].map((cve) => ({ cve, basis: 'distro' as const })) },
-  { asset_id: 'a-nas01', software_id: 's-nas01', software: 'Synology NAS (DSM)', version: '7.2', fixed: '7.2.2-72806', kind: 'fixed',
-    cves: [{ cve: 'CVE-2026-34500', basis: 'version' }, { cve: 'CVE-2024-28870', basis: 'scan' }] },
-]
-
-export const planSeed = collection<PlanSeed[]>('fnd_plan', () => seed, () => [])
 export const tierState = collection<TierState>('fnd_plan_state', () => ({ epss: 'ready', recent: 'ready', compared: true }))
 export const tierFact = (cve: string) => tierFacts.find((f) => f.cve === cve)
 /** likely = EPSS ≥ 0.1; recent otherwise (a KEV CVE is never here). Age is shown by the published date. */

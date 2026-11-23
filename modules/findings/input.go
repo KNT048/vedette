@@ -155,7 +155,7 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 	}
 	for i, v := range vs {
 		cve := v.Finding.CVE
-		check := s.cfg.SafeCheck != nil && s.cfg.SafeCheck(cve) && v.Device.HasIP()
+		check := v.SafeCheck
 		basis := v.Finding.Basis
 		if !slices.Contains(knownBases, basis) {
 			basis = DetectBannerVersion

@@ -117,13 +117,6 @@ type fakeFeeds struct {
 	kev   map[string]KevInfo
 	cvss  map[string]CVSS
 	vulns []Vuln
-	tier  TierStatus
-	tiers []TierVuln // TierVulns keeps those whose entries the scope keeps
-	// distro: TierDistro keeps the rows of the packages asked for; covered: the releases it says the feeds hold rows for
-	distro  []TierVuln
-	covered map[string]bool
-	loading map[string]bool // TierDistro's Loading: the distributions the plan still waits for
-	stamp   string
 	// onMatchSet runs when a pass reads the match set: a test can change the world while the catalogue is read.
 	onMatchSet func()
 }
@@ -155,49 +148,6 @@ func (f *fakeFeeds) MatchSet(context.Context, MatchScope) ([]Vuln, error) {
 		f.onMatchSet()
 	}
 	return f.vulns, nil
-}
-
-func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
-
-func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]TierVuln, error) {
-	var out []TierVuln
-	for _, t := range f.tiers {
-		var kept []Affected
-		for _, af := range t.Affected {
-			if keep(af.CPE) {
-				kept = append(kept, af)
-			}
-		}
-		if len(kept) > 0 {
-			t.Affected = kept
-			out = append(out, t)
-		}
-	}
-	return out, nil
-}
-
-func (f *fakeFeeds) TierStamp(context.Context) (string, error) { return f.stamp, nil }
-
-func (f *fakeFeeds) TierDistro(_ context.Context, pkgs []DistroPackage) (DistroTier, error) {
-	asked := map[DistroPackage]bool{}
-	for _, p := range pkgs {
-		asked[p] = true
-	}
-	out := DistroTier{Covered: f.covered, Known: map[string]bool{}, Loading: f.loading}
-	for _, t := range f.distro {
-		var kept []DistroFix
-		for _, d := range t.Distro {
-			if asked[DistroPackage{Distro: d.Distro, Release: d.Release, Package: d.Package}] || asked[DistroPackage{Distro: d.Distro, Package: d.Package}] {
-				kept = append(kept, d)
-				out.Known[d.Distro+"/"+d.Package] = true
-			}
-		}
-		if len(kept) > 0 {
-			t.Distro = kept
-			out.Vulns = append(out.Vulns, t)
-		}
-	}
-	return out, nil
 }
 
 type published struct {
@@ -370,7 +320,7 @@ func TestContract_INV6_UpsertIsIdempotentAndNeverReopens(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.seed()
-	if _, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "updated", "it@acme.example"); err != nil {
+	if _, err := e.svc.mark(t.Context(), id, "patched", "updated", "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 	e.pub.take()
@@ -397,7 +347,7 @@ func TestContract_INV3_SetStatusWritesHistoryAuditAndEvent(t *testing.T) {
 	e := newEnv(t)
 	id := e.seed()
 	e.advance(time.Minute)
-	r, err := e.svc.SetStatus(t.Context(), id, ActionFalsePositive, "  lab box  ", "it@acme.example")
+	r, err := e.svc.mark(t.Context(), id, "false_positive", "  lab box  ", "it@acme.example")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +362,7 @@ func TestContract_INV3_SetStatusWritesHistoryAuditAndEvent(t *testing.T) {
 		t.Fatalf("events = %+v", ev)
 	}
 	// reopen goes back to suspected (basis product)
-	r, err = e.svc.SetStatus(t.Context(), id, ActionReopen, "", "it@acme.example")
+	r, err = e.svc.mark(t.Context(), id, "reopen", "", "it@acme.example")
 	if err != nil || r.Status != StatusSuspected || r.ResolvedBy != "" || !r.ResolvedAt.IsZero() || r.ResolutionNote != "" {
 		t.Fatalf("reopen = %+v err=%v", r, err)
 	}
@@ -429,18 +379,18 @@ func TestContract_INV3_SetStatusErrorsChangeNothing(t *testing.T) {
 	for _, c := range []struct {
 		name   string
 		id     string
-		action Action
+		action string
 		note   string
 		want   *APIError
 	}{
-		{"unknown id", "f-nope", ActionPatched, "", ErrNotFound},
-		{"bad action", id, Action("explode"), "", ErrBadAction},
-		{"long note", id, ActionPatched, string(make([]rune, 501)) + "x", ErrNoteTooLong},
-		{"note required fp", id, ActionFalsePositive, "ab", ErrNoteRequired},
-		{"note required nr", id, ActionNotRelevant, "   ", ErrNoteRequired},
-		{"already open", id, ActionReopen, "", ErrAlreadyOpen},
+		{"unknown id", "f-nope", "patched", "", ErrNotFound},
+		{"bad action", id, "explode", "", ErrBadAction},
+		{"long note", id, "patched", string(make([]rune, 501)) + "x", ErrNoteTooLong},
+		{"note required fp", id, "false_positive", "ab", ErrNoteRequired},
+		{"note required nr", id, "not_relevant", "   ", ErrNoteRequired},
+		{"already open", id, "reopen", "", ErrAlreadyOpen},
 	} {
-		_, err := e.svc.SetStatus(t.Context(), c.id, c.action, c.note, "it@acme.example")
+		_, err := e.svc.mark(t.Context(), c.id, c.action, c.note, "it@acme.example")
 		var ae *APIError
 		if !errors.As(err, &ae) || ae != c.want {
 			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
@@ -486,7 +436,7 @@ func TestContract_POST2_ConfirmFromScanKeepsPersonsDecisionAndSignalsOncePerTemp
 	t.Parallel()
 	e := newEnv(t)
 	id := e.seed()
-	if _, err := e.svc.SetStatus(t.Context(), id, ActionFalsePositive, "lab box", "it@acme.example"); err != nil {
+	if _, err := e.svc.mark(t.Context(), id, "false_positive", "lab box", "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 	e.pub.take()
@@ -513,7 +463,7 @@ func TestContract_POST2_ConfirmFromScanReopensPatched(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.seed()
-	if _, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "", "it@acme.example"); err != nil {
+	if _, err := e.svc.mark(t.Context(), id, "patched", "", "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 	e.pub.take()
@@ -682,7 +632,7 @@ func TestAuditFailureRollsBackTheRowAndTheEvent(t *testing.T) {
 	id := e.seed()
 	auditBefore := e.count(`SELECT count(*) FROM core_audit`)
 	// NUL passes the library but not the audit log, which runs after the update and the history insert
-	if _, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "a\x00b", "it@acme.example"); err == nil {
+	if _, err := e.svc.mark(t.Context(), id, "patched", "a\x00b", "it@acme.example"); err == nil {
 		t.Fatal("expected the audit failure to surface")
 	}
 	r, _ := e.svc.Get(t.Context(), id)
@@ -696,7 +646,7 @@ func TestContract_INV3_SetStatusRefusesAnInvalidUser(t *testing.T) {
 	e := newEnv(t)
 	id := e.seed()
 	for _, u := range []string{"", strings.Repeat("a", 321), "a\x00b", "\xff\xfe"} {
-		_, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "", u)
+		_, err := e.svc.mark(t.Context(), id, "patched", "", u)
 		if !errors.Is(err, ErrInvalidUser) {
 			t.Errorf("user %q: err = %v", u, err)
 		}

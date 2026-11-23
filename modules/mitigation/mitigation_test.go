@@ -86,20 +86,6 @@ func (fakeFeeds) MatchSet(context.Context, findings.MatchScope) ([]findings.Vuln
 	return nil, nil
 }
 
-func (fakeFeeds) TierStatus(context.Context) (findings.TierStatus, error) {
-	return findings.TierStatus{}, nil
-}
-
-func (fakeFeeds) TierVulns(context.Context, func(string) bool) ([]findings.TierVuln, error) {
-	return nil, nil
-}
-
-func (fakeFeeds) TierStamp(context.Context) (string, error) { return "", nil }
-
-func (fakeFeeds) TierDistro(context.Context, []findings.DistroPackage) (findings.DistroTier, error) {
-	return findings.DistroTier{}, nil
-}
-
 type fakeVendors map[string]bool
 
 func (v fakeVendors) HasFirewallVendor(_ context.Context, vendor string) (bool, error) {

@@ -10,10 +10,10 @@ import { useTargets } from '@/features/scan/api'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
-import { useFindings } from '@/features/findings/api'
+import { useDeviceCards } from '@/features/findings/api'
 import { ScanNowButton } from './ScanNow'
 
-// The rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
+// The rule moved to canScan.ts, shared with the finding page and the device page's fragile line
 type Facts = ScanFacts
 const nmapRefusal = deviceRefusal
 
@@ -154,22 +154,21 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   )
 }
 
-/** What a vulnerability check of the device can do: `checkable` of its `suspected` findings have a safe check (the finding's
- *  has_template: the scan's own template pack) it can confirm or rule out, and `again` of its confirmed or mitigated ones a check
- *  it can run again to see whether a fix or a mitigation holds. `none`: neither, so the device page offers no run (nothing
- *  suspected, or no check exists). Not counted (findings off, no device yet, or its read failed): the run is offered as before,
- *  without a count. The device page's button and its Last checks row read this one rule. Without an id it reads nothing (never
- *  the whole /findings list). */
+/** What a vulnerability check of the device can do: `checkable` of its `suspected` (not confirmed yet) open findings have a safe check
+ *  (CveRow.safe_check) it can confirm or rule out, and `again` of its confirmed ones a check it can run again to see whether a fix
+ *  holds. `none`: neither, so the device page offers no run (nothing suspected, or no check exists). Not counted (findings off, no
+ *  device yet, or its read failed): the run is offered as before, without a count. The device page's button and its Last checks row
+ *  read this one rule. Without an id it reads nothing. The rows are the device's By device card (GET /findings/devices?device=). */
 export function useVulnCheckable(assetId: string) {
   const findingsOn = useModuleEnabled('findings') === true && assetId !== ''
-  const list = useFindings(assetId, findingsOn)
-  const counted = findingsOn && list.isSuccess
-  const items = counted ? list.data.items : []
-  const suspected = items.filter((f) => f.status === 'suspected')
-  const checkable = suspected.filter((f) => f.kev?.has_template).length
-  // the scan also checks confirmed and mitigated findings again (scan run.go `dismissed`): whether a fix or a mitigation holds
-  const again = items.filter((f) => (f.status === 'confirmed' || f.status === 'mitigated') && f.kev?.has_template).length
-  return { pending: findingsOn && list.isPending, counted, suspected: suspected.length, checkable, again, none: counted && checkable + again === 0 }
+  const cards = useDeviceCards({ device: assetId }, { offset: 0, limit: 1 }, findingsOn)
+  const counted = findingsOn && cards.isSuccess
+  const rows = counted ? cards.data.items.filter((c) => c.device.id === assetId).flatMap((c) => c.blocks.flatMap((b) => b.findings)) : []
+  const suspected = rows.filter((f) => f.verified === 'no')
+  const checkable = suspected.filter((f) => f.safe_check).length
+  // the scan also checks confirmed findings again (scan run.go `dismissed`): whether a fix holds
+  const again = rows.filter((f) => f.verified !== 'no' && f.safe_check).length
+  return { pending: findingsOn && cards.isPending, counted, suspected: suspected.length, checkable, again, none: counted && checkable + again === 0 }
 }
 
 /** A device added by hand whose network scan is off: the full note is on its Sources card, next to the switch that turns the scan

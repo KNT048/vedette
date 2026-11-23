@@ -37,13 +37,11 @@ const LEGACY: { name: string; from: RegExp }[] = [
 const ALLOWED: { file: string; key: string; why: string }[] = [
   { file: 'features/findings/NotAdded.tsx', key: 'notAdded.chip', why: '"Not added yet" has one component, this one, used wherever a device nobody added is named' },
   { file: 'features/findings/Recommendation.tsx', key: 'rec.confirmedChip', why: 'a mitigation pack the maintainers reviewed, not a vulnerability' },
-  { file: 'features/findings/Plan.tsx', key: 'plan.tier.', why: 'the EPSS likelihood tier ("Likely to be exploited"), a forecast and not a status' },
   { file: 'features/feeds/TierCvePage.tsx', key: 'tierCve.tier.', why: 'the EPSS likelihood tier ("Likely to be exploited"), a forecast and not a status' },
 ]
 
 const ALLOWED_RUNS: { file: string; text: string; why: string }[] = [
   { file: 'features/feeds/LookupPage.tsx', text: 'vulns.map((v) => (', why: 'search results: one row per CVE with its product and the day it was listed' },
-  { file: 'features/findings/Plan.tsx', text: 'cves.map((c) => (', why: 'a table of CVEs with tier, severity, EPSS and evidence columns, one row each' },
 ]
 
 type Source = { file: string; text: string }

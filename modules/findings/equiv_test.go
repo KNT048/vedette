@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/productid"
 )
 
-// The equivalence fixture: a fixed set of devices and entries that reaches every reader of the matcher and of the fix grouping
+// The equivalence fixture: a fixed set of devices and entries that reaches every reader of the matcher and of the fixed release
 // (Windows release rows serviced, on Extended Security Updates and ended; a network OS stated by LLDP and by SNMP; distribution
 // packages with fixed, Pro-only and not-affected rows; keyed, "Multiple Products" and catalogue-only entries; rows without a version).
 // The answers of the code on it are kept in testdata (equivGolden): a change that is meant to make the code faster must leave them
@@ -238,41 +238,21 @@ func equivGolden(t *testing.T, name string, got any) {
 	}
 }
 
-// fixAnswers is every fix reader's answer on one device for the CVEs the matcher finds on it (its open findings).
+// fixAnswers is the finding page's fixed release (FixedInFor) on one device for each CVE the matcher finds on it (its open findings).
 type fixAnswers struct {
-	Device string                `json:"device"`
-	CVEs   []string              `json:"cves"`
-	Rows   map[string]*RowFix    `json:"rows"`
-	Groups map[string]groupShown `json:"groups"`
-	Pages  map[string]*FixedIn   `json:"pages"`
+	Device string              `json:"device"`
+	CVEs   []string            `json:"cves"`
+	Pages  map[string]*FixedIn `json:"pages"`
 }
 
-// groupShown is a GroupFix with its sets as sorted lists.
-type groupShown struct {
-	Kind, Software, Version, Fixed, Distro, KB string
-	Closed, Ranged                             []string
-	NVDLag                                     bool
-}
-
-func sortedKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k, v := range m {
-		if v {
-			out = append(out, k)
-		}
-	}
-	slices.Sort(out)
-	return out
-}
-
-// RowFixes, FixedInForAll and FixedInFor answer exactly what they answered before they read each device's software once: every list
-// row's grouped update (KB and software id included), every group's closed and ranged CVEs, and every finding page's fixed release, on
+// FixedInFor answers exactly what it answered before it read each device's software once: every finding page's fixed release, on
 // every device of the equivalence fixture.
-func TestFixGrouping_SameAnswersOnTheFixture(t *testing.T) {
+func TestFixedIn_SameAnswersOnTheFixture(t *testing.T) {
 	t.Parallel()
 	assets := equivAssets(t)
 	set := newMatchSet(equivVulns(t, assets))
 	var got []fixAnswers
+	pages := 0
 	for _, a := range assets {
 		dev := set.forDevice(a)
 		r := MatchAsset(a, dev, nil, t0)
@@ -282,31 +262,21 @@ func TestFixGrouping_SameAnswersOnTheFixture(t *testing.T) {
 				byCVE[v.CVE] = v
 			}
 		}
-		var open []Vuln
-		ans := fixAnswers{Device: a.ID, Groups: map[string]groupShown{}, Pages: map[string]*FixedIn{}}
+		ans := fixAnswers{Device: a.ID, Pages: map[string]*FixedIn{}}
 		for _, m := range slices.Concat(r.New, r.Existing) {
 			if slices.Contains(ans.CVEs, m.CVE) {
 				continue
 			}
 			ans.CVEs = append(ans.CVEs, m.CVE)
-			open = append(open, byCVE[m.CVE])
-		}
-		ans.Rows = RowFixes(a, open)
-		for cve, g := range FixedInForAll(a, open) {
-			ans.Groups[cve] = groupShown{Kind: g.Kind, Software: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, KB: g.KB,
-				Closed: sortedKeys(g.Closed), Ranged: sortedKeys(g.Ranged), NVDLag: g.NVDLag}
-		}
-		for _, v := range open {
-			ans.Pages[v.CVE] = FixedInFor(a, v)
+			if f := FixedInFor(a, byCVE[m.CVE]); f != nil {
+				pages++
+			}
+			ans.Pages[m.CVE] = FixedInFor(a, byCVE[m.CVE])
 		}
 		got = append(got, ans)
 	}
-	rows := 0
-	for _, a := range got {
-		rows += len(a.Rows)
-	}
-	if rows == 0 {
-		t.Fatal("the fixture groups nothing: it no longer reaches the fix grouping")
+	if pages == 0 {
+		t.Fatal("the fixture names no fixed release: it no longer reaches FixedInFor")
 	}
 	equivGolden(t, "equiv-fixes", got)
 }

@@ -356,10 +356,10 @@
   "hint": {
     "vulnNone_one": "No suspected finding on this device has a safe check: none exists for its suspected CVE, so a run would confirm nothing. Its installed version, read by SNMP or an agent, decides it, or use Confirm on the finding.",
     "vulnNone_other": "No suspected finding on this device has a safe check: none exists for these {{count}} suspected CVEs, so a run would confirm nothing. The installed version, read by SNMP or an agent, decides them, or use Confirm on each finding.",
-    "vulnNoneSuspected": "No suspected finding on this device has a safe check: nothing on it is suspected, and no confirmed or mitigated finding has a check to run again, so a run would do nothing.",
+    "vulnNoneSuspected": "No suspected finding on this device has a safe check: nothing on it is suspected, and no confirmed finding has a check to run again, so a run would do nothing.",
     "vulnCount": "{{checkable}} of {{count}} suspected findings can be checked.",
-    "vulnAgain_one": "{{count}} confirmed or mitigated finding can be checked again, to see whether a fix or mitigation holds.",
-    "vulnAgain_other": "{{count}} confirmed or mitigated findings can be checked again, to see whether a fix or mitigation holds.",
+    "vulnAgain_one": "{{count}} confirmed finding can be checked again, to see whether a fix holds.",
+    "vulnAgain_other": "{{count}} confirmed findings can be checked again, to see whether a fix holds.",
     "identify": "Finds its open ports, services, operating system and software versions. Does not test whether a flaw can be exploited. Usually 1 to 5 minutes.",
     "vuln": "Tries Vedette’s checks for the exploited flaws this device may have, to confirm or rule them out. Identifies it first; patches nothing. Usually 5 to 15 minutes."
   },

@@ -21,11 +21,11 @@ import { agentNow } from './agentNow'
 
 const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 
-/** What "I updated it" needs of a software row: the finding page passes the row, a To fix action builds it from its own fields. */
+/** What "I updated it" needs of a software row: the finding page passes the row. */
 export type UpdatedSoftware = Pick<SoftwareLine, 'id' | 'display' | 'version' | 'source' | 'kev_cves'>
 
 /**
- * "I updated it" for one software of one device, the one control the finding page and each To fix action use: it does
+ * "I updated it" for one software of one device, the one control the finding page uses: it does
  * what the update needs, never a control with nothing behind it.
  * - Agent-read software (S-MIT-1, agent-intake INV-23): on a device an osquery agent of this box reports, "I updated it: ask the agent
  *   now" (POST /inventory/agents/devices/{id}/report, operator), with its busy state and then the open ask in words; a device only
@@ -75,7 +75,7 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
     const id = setTimeout(() => { void refetch() }, Math.max(0, againAt - Date.now()) + 1000)
     return () => clearTimeout(id)
   }, [againAt, refetch])
-  // the one check of every "the agent reports" sentence (agentNow): the finding's title and steps, Updates to plan
+  // the one check of every "the agent reports" sentence (agentNow): the finding's title and steps
   const now = agentNow(on, q, box)
   if (now === undefined) return null
   const r = q.data

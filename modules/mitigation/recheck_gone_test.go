@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// When no agent of this box reports the device now (the check Updates to plan and the finding page use), the steps say the version is
+// When no agent of this box reports the device now (the check the finding page uses), the steps say the version is
 // the one an agent last reported and never that an agent reports it or will report the new one by itself: for an agent's detection,
 // for a product match on an agent's row, and for a known version an agent gave. A device an agent reports keeps the old words, and a
 // finding no agent gave the version of asks nothing.

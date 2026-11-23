@@ -235,11 +235,6 @@ var contractRoutes = map[string][]string{
 	"findings": {
 		"GET /findings",
 		"GET /findings/{id}",
-		"GET /findings/plan",
-		"GET /findings/to-fix",
-		"POST /findings/{id}/status",
-		"POST /findings/{id}/confirm",
-		"POST /findings/{id}/unconfirm",
 		"GET /findings/devices",
 		"GET /findings/fixes",
 		"GET /findings/input",
@@ -249,6 +244,7 @@ var contractRoutes = map[string][]string{
 		"POST /findings/handle",
 		"POST /findings/{id}/reopen",
 		"POST /findings/{id}/verify",
+		"POST /findings/{id}/unverify",
 		"POST /findings/questions/{id}/answer",
 	},
 	"honeypot": {

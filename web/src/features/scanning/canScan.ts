@@ -1,5 +1,5 @@
 // One rule for "can Vedette scan this device now": the device page's "Check this device now", the
-// Devices list's "Scan selected", the finding page's and To fix's "I updated it" for scan-read software, and the device page's fragile
+// Devices list's "Scan selected", the finding page's "I updated it" for scan-read software, and the device page's fragile
 // line all read it, so none offers or promises a scan the box refuses. It follows what POST /scanning/engines/nmap-discovery/run
 // refuses (sensor-active runnow.go: the box and outside the scope are out_of_scope; never scan, added by hand, no address are
 // not_scannable) and what the run needs of the box (the ranges confirmed, network discovery on).

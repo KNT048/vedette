@@ -90,7 +90,7 @@ func TestWiringAnIgnoredDeviceIsSilentUntilItIsWatchedAgain(t *testing.T) {
 		VALUES ('al-1', 'suricata', 'ET EXPLOIT FortiOS', 1, '203.0.113.9', '192.168.30.1', ?1, ?2, ?2, 1, ?3)`, id, now, strings.Repeat("a", 64))
 	s.exec(`INSERT INTO ids_alert_cve (alert_id, cve) VALUES ('al-1', 'CVE-2026-50002')`)
 	started := time.Now().UTC()
-	for _, j := range []int{0, 2} { // the reconcile pass (it rates at its end) and the hourly urgency pass
+	for _, j := range []int{0, 1} { // the reconcile pass (it rates at its end) and the hourly urgency pass
 		if err := findingsJobs(*s.d)[j].Run(ctx); err != nil {
 			t.Fatal(err)
 		}

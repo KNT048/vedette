@@ -1,5 +1,5 @@
 // How an agent reads a device now: the one check behind every sentence that says an agent reports a version (the "I updated it"
-// line, the finding's title and steps). GET /findings/plan answers the same question on the box (agent_gone), for every item at once.
+// line, the finding's title and steps).
 import { useAgentReport } from '@/features/inventory/api'
 import type { AgentReport } from '@/features/inventory/types'
 import { useModuleEnabled } from '@/lib/modules'

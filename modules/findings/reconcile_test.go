@@ -91,7 +91,7 @@ func TestReconcileNeverReopensOrRecreatesWhatAPersonClosed(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.seed()
-	if _, err := e.svc.SetStatus(t.Context(), id, ActionPatched, "updated", "it@example.test"); err != nil {
+	if _, err := e.svc.mark(t.Context(), id, "patched", "updated", "it@example.test"); err != nil {
 		t.Fatal(err)
 	}
 	e.pub.take()
@@ -162,8 +162,8 @@ func (g *testGate) set(v bool)          { g.mu.Lock(); g.on = v; g.mu.Unlock() }
 
 func TestContract_INV9_ReconcileJobRunsOnlyWhileFindingsIsOn(t *testing.T) {
 	jb := Jobs(nil)
-	if len(jb) != 3 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour || jb[1].Name != "plan" || jb[1].Every != PlanEvery ||
-		jb[2].Module != "findings" || jb[2].Name != UrgencyJob || jb[2].Every != UrgencyEvery {
+	if len(jb) != 2 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour ||
+		jb[1].Module != "findings" || jb[1].Name != UrgencyJob || jb[1].Every != UrgencyEvery {
 		t.Fatalf("jobs = %+v", jb)
 	}
 	synctest.Test(t, func(t *testing.T) {
@@ -343,11 +343,17 @@ func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
 		if _, err := svc.Reconcile(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		items, err := svc.ListVersionNeeded(t.Context(), "a-office")
+		qs, err := svc.Questions(t.Context(), "a-office")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(items) != 1 || items[0].SoftwareID != "s-office" || items[0].CVEs != 27 { // 30 less the 3 no version decides (M3 of #939)
+		var items []Question
+		for _, q := range qs {
+			if q.Kind == QuestionVersionNeeded {
+				items = append(items, q)
+			}
+		}
+		if len(items) != 1 || items[0].SoftwareID != "s-office" || items[0].Cves != 27 { // 30 less the 3 no version decides (M3 of #939)
 			t.Fatalf("items = %+v, want one item of 27 CVEs", items)
 		}
 	}

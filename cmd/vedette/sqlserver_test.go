@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -68,13 +69,15 @@ func TestSQLServerVersionLeavesNeedsYourInput(t *testing.T) {
 	}
 	state := func() ([]string, int) {
 		t.Helper()
-		need, err := s.d.Findings.ListVersionNeeded(ctx, id)
+		qs, err := s.d.Findings.Questions(ctx, id)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var names []string
-		for _, n := range need {
-			names = append(names, n.Software)
+		for _, q := range qs {
+			if q.Kind == findings.QuestionVersionNeeded {
+				names = append(names, q.Detail.Software)
+			}
 		}
 		recs, err := s.d.Findings.List(ctx, id)
 		if err != nil {

@@ -344,10 +344,6 @@ func TestMatchPass_ACVEThatJoinsAListIsAnnouncedOnce(t *testing.T) {
 			if raisedN != 1 {
 				t.Errorf("%d rises told for the finding whose CVE was listed, want 1", raisedN)
 			}
-			u, ok, err := deviceUpdates(t, e, "a-1", true)
-			if err != nil || !ok || len(u.Exploited) != 1 || u.Exploited[0].CVEs[0] != v.CVE {
-				t.Errorf("To fix, exploited: %+v %v %v", u.Exploited, ok, err)
-			}
 			e.advance(time.Hour) // the same list again: nothing new
 			if err := p.run(e); err != nil {
 				t.Fatal(err)

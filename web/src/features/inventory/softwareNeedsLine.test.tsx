@@ -8,26 +8,31 @@ import { server } from '@/test/server'
 import { assetsStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
-// The Software tab's "What it needs" column reads To fix's answer, whose actions name the software row their findings or plan item
-// rest on. The tab shows one line per software (the effective row) and lists the other sources' rows under it, so an action on any
-// row of a software counts on its line, whatever the source of either (agent, SNMP, scan, a person's entry), on every device.
+// The Software tab's "What it needs" column reads the device's By device card, whose fix blocks name the software line their findings
+// are on. The tab shows one line per software (the effective row) and lists the other sources' rows under it, so a block on any row
+// of a software counts on its line, whatever the source of either (agent, SNMP, scan, a person's entry), on every device.
 vi.setConfig({ testTimeout: 30_000 })
 const T = { timeout: 5000 }
 
-type Act = { sid: string; cves: number }
-const action = (deviceId: string, a: Act, kind = 'fixed') => ({
-  group: `${deviceId}/${a.sid}`, software_id: a.sid, software: '', version: '', product: '', source: '', fixed: '9.9', kind, windows: false, distro: '', pro: false,
-  action: 'Upgrade it', cves: Array.from({ length: a.cves }, (_, i) => `CVE-2026-${1000 + i}`), finding_ids: [], worst: 'high', ransomware: 0, likely: 0,
-  confirmed: a.cves, detected: 0, reported: 0, suspected: 0, checkable: 0, nvd_lag: false, kb: '',
-})
-/** To fix for one device: exploited actions and recommended updates on the given rows. */
-function toFix(byDevice: Record<string, { exploited?: Act[]; planned?: Act[] }>) {
-  server.use(http.get('*/api/v1/findings/to-fix', ({ request }) => {
-    const id = new URL(request.url).searchParams.get('asset') ?? ''
-    const d = byDevice[id]
-    const asset = { id, name: id, hostname: null, ip: '192.168.10.1', kind: 'firewall', display: id, approved: true, ignored: false }
-    return HttpResponse.json({ devices: d ? [{ asset, risk: null, open: 1, exploited: (d.exploited ?? []).map((a) => action(id, a)), no_update: [], planned: (d.planned ?? []).map((a) => action(id, a)), plan_compared: true }] : [],
-      truncated: false, plan_ran: true, plan_off: false, risks: {} })
+type Act = { sid: string; cves: number; status?: 'exploited' | 'update_recommended' }
+/** The device's By device card: one fix block per act, on the given software row. */
+function cards(byDevice: Record<string, Act[]>) {
+  server.use(http.get('*/api/v1/findings/devices', ({ request }) => {
+    const id = new URL(request.url).searchParams.get('device') ?? ''
+    const acts = byDevice[id] ?? []
+    const n = acts.reduce((s, a) => s + a.cves, 0)
+    const blocks = acts.map((a, i) => {
+      const status = a.status ?? 'exploited'
+      return {
+        fix: { key: `k-${i}`, kind: 'update', product: 'It', version: '9.9', ref: null, url: null }, software: { id: a.sid, name: a.sid, version: '1.0' }, status,
+        cause: 'CVE-2026-1000', severity: { critical: 0, high: a.cves, medium: 0, low: 0, none: 0, unscored: 0 },
+        findings: Array.from({ length: a.cves }, (_, j) => ({ id: `f-${i}-${j}`, cve: `CVE-2026-${1000 + j}`, status, severity: null, verified: 'device', safe_check: false })),
+      }
+    })
+    const counts = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0 }
+    for (const a of acts) counts[a.status ?? 'exploited'] += a.cves
+    const device = { id, name: id, ip: '192.168.10.1', kind: 'firewall', added: true, ignored: false }
+    return HttpResponse.json(acts.length ? { items: [{ device, status: null, counts, findings: n, cves: n, blocks }], total: 1, findings: n } : { items: [], total: 0, findings: 0 })
   }))
 }
 
@@ -56,29 +61,30 @@ beforeEach(() => ensureBox())
 
 describe('Software tab: what each line needs, from any row of the software', () => {
   it('a-fw01: an action on the scan row under the agent\'s line, and on the scan row under a person\'s entry, show on their lines; an SNMP line its own', async () => {
-    toFix({ 'a-fw01': { planned: [{ sid: 's-fw01-ssh-nmap', cves: 25 }], exploited: [{ sid: 's-fw01-web-nmap', cves: 2 }, { sid: 's-fw01', cves: 1 }] } })
+    cards({ 'a-fw01': [{ sid: 's-fw01-ssh-nmap', cves: 25, status: 'update_recommended' }, { sid: 's-fw01-web-nmap', cves: 2 }, { sid: 's-fw01', cves: 1 }] })
     renderApp('/devices/a-fw01?tab=software')
-    await waitFor(async () => expect(within(await line('OpenSSH')).getByRole('link', { name: 'Recommended update to 9.9 fixes 25 CVEs' })).toBeInTheDocument(), T) // agent line
-    expect(within(await line('nginx')).getByRole('link', { name: '2 exploited CVEs' })).toBeInTheDocument() // a person's entry
-    expect(within(await line('FortiGate firewall')).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument() // SNMP, its own row
-    // sorting by "What it needs": exploited first (most CVEs first), then recommended updates, then the rest
+    await waitFor(async () => expect(within(await line('OpenSSH')).getByText('25 open findings')).toBeInTheDocument(), T) // agent line
+    expect(within(await line('OpenSSH')).getByText('Update It 1.0 → 9.9')).toBeInTheDocument()
+    expect(within(await line('nginx')).getByText('2 open findings')).toBeInTheDocument() // a person's entry
+    expect(within(await line('FortiGate firewall')).getByText('1 open finding')).toBeInTheDocument() // SNMP, its own row
+    // sorting by "What it needs": the most urgent status first (most findings first), then the update_recommended ones, then the rest
     await userEvent.click(within(await table()).getByRole('button', { name: 'What it needs' }))
     await waitFor(async () => expect((await names()).slice(0, 3)).toEqual(['nginx', 'FortiGate firewall', 'OpenSSH']), T)
   })
 
-  it('another device: a scan-read Windows on a PC and a recommended update on its row, and a clean line stays empty', async () => {
+  it('another device: a scan-read Windows on a PC and an update_recommended finding on its row', async () => {
     const pc = assetsStore.get().find((a) => a.software.some((s) => s.source === 'nmap' && s.display === 'Windows'))!
     const sid = pc.software[0]!.id
-    toFix({ [pc.id]: { planned: [{ sid, cves: 4 }] } })
+    cards({ [pc.id]: [{ sid, cves: 4, status: 'update_recommended' }] })
     renderApp(`/devices/${pc.id}?tab=software`)
-    await waitFor(async () => expect(within(await line('Windows')).getByRole('link', { name: 'Recommended update to 9.9 fixes 4 CVEs' })).toBeInTheDocument(), T)
+    await waitFor(async () => expect(within(await line('Windows')).getByText('4 open findings')).toBeInTheDocument(), T)
   })
 
   it('a device with many lines: search finds a line on a later page, the pager jumps to a page, and sorting puts the line that needs something first', async () => {
     const user = userEvent.setup()
     const many = Array.from({ length: 120 }, (_, i) => ({ id: `s-rt02-pkg-${i}`, display: `pkg-${String(i).padStart(3, '0')}`, vendor: 'Alpine', product: `pkg-${i}`, version: '1.0', kev: [], source: 'agent' as const, confidence: 0.95 }))
     assetsStore.update((l) => l.map((a) => (a.id === 'a-rt02' ? { ...a, software: [...a.software, ...many] } : a)))
-    toFix({ 'a-rt02': { exploited: [{ sid: 's-rt02-pkg-110', cves: 3 }] } })
+    cards({ 'a-rt02': [{ sid: 's-rt02-pkg-110', cves: 3 }] })
     renderApp('/devices/a-rt02?tab=software')
     await table()
     expect(screen.getAllByRole('status').filter((s) => /of 121/.test(s.textContent ?? ''))[0]).toHaveTextContent('1–50 of 121')

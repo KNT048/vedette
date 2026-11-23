@@ -24,8 +24,8 @@ import (
 //     affects → proved not affected (no finding; an open one closes by auto-resolve, reason not_affected_version with a platform
 //     audit detail). The distribution's own word is read first and wins;
 //   - the platform is not known (nothing names a platform) → no finding: the CVE is "Could not be checked" (reason
-//     platform_unknown) with the entry's question, and an open finding closes into that list (MatchResult.Asked); the person's
-//     answer (the device's OS, inventory INV-41) decides at the next match;
+//     platform_unknown) with the entry's question, and an open suspected finding closes into that list (MatchResult.Asked; one a safe
+//     check or a person confirmed stays open); the person's answer (the device's OS, inventory INV-41) decides at the next match;
 //   - the platform is one it affects and the entry has the distribution's fixed list: the package release decides. At or above
 //     the fix of the device's branch → proved not affected (closes by auto-resolve); below it → a version finding; no release yet →
 //     "Could not be checked" (reason package_unknown) asking for it, unless the version is older than every fix (a finding);
@@ -373,7 +373,7 @@ const (
 // release proves fixed only against a fix of the SAME upstream version (review r2 H-1 of #961). The device's branch when its fix has
 // the release's upstream; else the branch whose fix has it (a package from another branch's repository: 3.23's 10.2_p1-r0 on a 3.20 box;
 // of two, the later fix); else, an upstream older than the device's branch's fix is below that fix (3.21's 9.9_p1-r5 against
-// 9.9_p2-r1: affected, never fixed); else none. The exploited path (platformCheck) and the plan (alpineData.choose) use it.
+// 9.9_p2-r1: affected, never fixed); else none. The exploited path (platformCheck) and the distribution's word (alpineData.choose) use it.
 func alpineFixBranch(releases map[string]string, osBranch string, rel apkVer, relText string) (string, int) {
 	up := apkUpstream(relText)
 	fx, osFix := parseAPK(releases[osBranch])
@@ -720,16 +720,6 @@ func (k askKind) reason() UncheckedReason {
 		return UncheckedPackageUnknown
 	}
 	return UncheckedPlatformUnknown
-}
-
-// platformSettled says whether the platform condition of a CVE is no longer open for the row: the CVE is not platform-limited, or the
-// row's evidence names a platform it affects (an agent reporting Alpine). The plan lists only such CVEs.
-func platformSettled(in swInfo, cve string) bool {
-	l, ok := platformLimits[cve]
-	if !ok {
-		return true
-	}
-	return slices.ContainsFunc(evidenceOf(in).ids, l.affects)
 }
 
 // AskedWhy is, for a match of MatchResult.Asked, why no row decides it ("CVE-… affects only …; nothing … says which …: check …"); ""

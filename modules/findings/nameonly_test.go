@@ -316,12 +316,8 @@ func TestUnchecked_WaitingForNVD(t *testing.T) {
 	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{pending}); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := e.svc.ListUnchecked(t.Context(), "a-1")
-	if err != nil || len(rows) != 1 || !rows[0].NVDPending {
-		t.Fatalf("stored: %+v %v", rows, err)
-	}
-	items := UncheckedItems(rows, map[string]KevInfo{pending.CVE: {Name: "x", DateAdded: "2022-09-01"}}, nil, nil)
-	if len(items) != 1 || !items[0].CVEs[0].NVDPending {
-		t.Fatalf("items: %+v", items)
+	qs, err := e.svc.Questions(t.Context(), "a-1")
+	if err != nil || len(qs) != 1 || qs[0].CVE != pending.CVE || !qs[0].Detail.NVDPending {
+		t.Fatalf("stored: %+v %v", qs, err)
 	}
 }

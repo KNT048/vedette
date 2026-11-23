@@ -33,7 +33,7 @@
 - **PRIVACY.md** flow 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (the built-in list: 27), the export policy (`feeds_cve_range`, not exported).
 
 ## Modifying: the vulnerability catalogue (`feeds_cve`, `feeds_cve_metric`, `feeds_cve_range`, `feeds_kev`, `feeds_signal`, `feeds_epss_hist`, `feeds_nvd_cursor`, `ParseNVD`, `PickCVSS`, `retention`)
-- **findings** (through `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS`, `TierVulns`/`TierDistro` read these tables; changing the CVSS choosing rule, the retention rule or the order of range sources changes findings: run the golden tests of findings and `cmd/vedette` (`TestReachability_910_Fixture`, the wiring tests that use `catalogue_seed_test.go`).
+- **findings** (through `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS` read these tables; changing the CVSS choosing rule, the retention rule or the order of range sources changes findings: run the golden tests of findings and `cmd/vedette` (`TestReachability_910_Fixture`, the wiring tests that use `catalogue_seed_test.go`).
 - **inventory** (`feedsKEV`: `KevProducts`, `KevIndex`) reads the owner entries of `feeds_kev`.
 - `Store.KevIndex` is kept under `kevStamp` (last pull time and rev of `cisa-kev` and `vulncheck-kev`, count and newest `updated_at` of their entries): a write to `feeds_kev` that moves none of these leaves inventory matching against the old index (`TestKevIndex_KeptUntilTheListsChange`).
 - **core** `export_policy.go`: every column is classified (`TestExport_PolicyClassifiesEveryColumn`, the skipped-table list in `data_test.go`); `docs/SCHEMA.sql` by `make schema`.
@@ -168,7 +168,7 @@
 - Installed by `cmd/vedette/wiring.go` `feedsInventory.NotAffected` (inventory + `findings.PlatformRuledOut`); the CVE page SPA (`CvePage.tsx`) just sees a shorter list, with no contract change.
 
 ## Modifying: feeds `epss-all`, `nvd-recent`, `ParseEPSSCSV`, `RecentPageURL`, `ParseNVD`, tables `feeds_epss`, `feeds_epss_baseline`, `feeds_nvd_cursor`
-- **findings**: the plan's tiers read `feeds_epss` (EPSS at or above `EPSSLikely`, CVEs published in the last 12 months by `feeds_cve.published`) and the NVD entries of `feeds_cve_range` (origin `nvd`); both feeds are in `Store.MatchStamp` and `Store.TierStamp`, and a pull that changes exploited-list ranges publishes `feeds.ranges.updated`.
+- **findings** no longer reads the tiers (its plan was removed: every catalogue CVE that matches a device is a finding, through `Feeds.MatchSet`); both feeds are in `Store.MatchStamp`, and a pull that changes exploited-list ranges publishes `feeds.ranges.updated`.
 - **nvd-kev**: shares `nvdPage` and the gate `nvdSlot` (every NVD request of the two feeds is spaced by at least `nvdPause`); `nvd-recent` stops while `nvd-kev` is pulling (`Service.busy`) or waiting out NVD (`nvdResumeAt`).
 - **core** (`modules/core/export_policy.go`): `feeds_epss`, `feeds_epss_baseline`, `feeds_nvd_cursor` are `skipAll` (public data, pulled again); `cmd/vedette` `TestExport_PolicyClassifiesEveryColumn` pins the list.
 - **PRIVACY.md** flow 1 + Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (FIRST EPSS, NVD rows), `sourcesMock.ts` + `conformance.test.ts`, `sources_test.go` (host `epss.empiricalsecurity.com`): both feeds are on by default, so every box calls them and fills 12 months of NVD on first start (about 105 requests; more than an hour when NVD answers 503).
@@ -177,7 +177,7 @@
 - `Deps.Zone` (the organization's time zone, `core/orgtime`) writes the times of the CISA list alerts (`kevStaleNotice`, `kevFreshNotice`, `orgtime.StampZone`: with the zone's abbreviation, "UTC" when it cannot be read). `feeds_epss_baseline.score_date` holds FIRST's day of the scores; `TierStatus.EPSSDate` reads it, so findings (`epss_date` of the plan page) and the feed note name the same day.
 
 ## Modifying: the KEV publication date and the tier data for the page (INV-25)
-- **findings** (through `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (age rule: a KEV published more than 12 months ago does not become a finding when it only matches the product name; an open finding of that kind is closed) and `KevInfo.published`; `Store.TierStatus` → `findings.Feeds.TierStatus` for `GET /findings/plan`. Changing the meaning of the date (for example using `dateAdded`) changes the findings of every box; a missing date must always mean "recent". The date is `feeds_cve.published` (the NVD record first, CVE.org when NVD has not given a date).
+- **findings** (through `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (age rule: a KEV published more than 12 months ago does not become a finding when it only matches the product name; an open finding of that kind is closed) and `KevInfo.published`. Changing the meaning of the date (for example using `dateAdded`) changes the findings of every box; a missing date must always mean "recent". The date is `feeds_cve.published` (the NVD record first, CVE.org when NVD has not given a date).
 - **nvd-kev**: the full pull (`buildNVD`, ~18 pages) runs when no CVE of the exploited list that NVD has answered for exists yet (`kevNVDCount`) or the last good pull is older than `nvdIncrementalDays`. While NVD returns 503 the full pull pauses and continues on the next run (in memory only: a restart starts again), and there is no update run in the meantime, so the range of a new KEV entry waits until the full run finishes. An NVD test fixture must carry `published`.
 - **exposure** (`cmd/vedette/exposurematch.go`): an old KEV CVE that only matches the product name becomes a "ruled out" row with a reason instead of a CVE row.
 - **core export** (`export_policy.go`): `feeds_cve` is `skipAll` (public data that can be pulled again).
@@ -185,7 +185,7 @@
 - **SPA**: `CveDetail.published`, `TierCve` (`web/src/features/feeds/contract.ts`, `CvePage.tsx`, `TierCvePage.tsx`, mock `web/src/mocks/tiers.ts`).
 
 ## Modifying: tier data (`Store.TierRecords`, `Store.TierStamp`, `Store.MatchStamp`)
-- **findings** reads `Store.TierRecords` through `cmd/vedette` `findingsFeeds.TierVulns` (returns empty when the feeds module is off) and `Store.MatchStamp` through `findingsFeeds.MatchStamp`; `MatchStamp` includes `epss-all` and `nvd-recent` (a pull of theirs also refreshes the KEV list cache of findings/exposure: one reread, the result unchanged). `Store.TierStamp` for the `plan` job of findings.
+- **findings** reads `Store.MatchStamp` through `findingsFeeds.MatchStamp` (`Store.TierRecords` and `Store.TierStamp` have no reader outside feeds since findings' plan was removed); `MatchStamp` includes `epss-all` and `nvd-recent` (a pull of theirs also refreshes the KEV list cache of findings/exposure: one reread, the result unchanged).
 - **Tier feeds on by default**: a new box calls `epss.empiricalsecurity.com` every day and loads 12 months of NVD; `PRIVACY.md` flow 1 and Settings → Privacy (`web/src/locales/en/core.json`) say "on by default"; the mock `web/src/features/feeds/sourcesMock.ts`.
 
 
@@ -200,9 +200,8 @@
 - **Read cost**: a distribution feed counts all its rows (~0.1 s per 100,000 rows); it is only counted again when `last_fetch`/`rev` of a feed in `heldFrom` changes. Adding a source that writes to those tables (outside a pull or a feed edit) requires adding that feed to `heldFrom` or changing the cache key (`TestHeldNotes_FollowTheData`).
 
 ## Modifying: `open` rows, Alpine tier rows, `TierDistroRecords`/`TierDistro` (INV-27)
-- **findings** (cmd/vedette `findingsFeeds.TierDistro` → `Feeds.TierDistro`, `plandistro.go`): `Records` has fixed, not affected and open rows; `Known` (packages that have data) and `Loading` decide the three sentences of the distribution item (a fix / "No fix from … yet" / "Check …'s security updates"); changing the signature or the meaning of `TierDistro` or `DistroOpen` ⇒ fix `distroWords`/`distroItems`, `cmd/vedette/distro_test.go` and the fake implementations of `findings.Feeds.TierDistro` (`modules/findings/service_test.go`, `modules/mitigation/mitigation_test.go`). The KEV matcher does not read `open`: `Store.DistroFixes` filters `fixed|not_affected`.
+- **findings** no longer reads `TierDistroRecords` (its plan was removed). The KEV matcher does not read `open`: `Store.DistroFixes` filters `fixed|not_affected`.
 - **Table**: `feeds_distro_fix` (CHECK `status`, `fixed_version`).
-- **`TierStamp`** includes `alpine-osv`: its pull reruns the full comparison pass of the `plan` job.
 - **Memory/time of the Alpine pull** grow because tier rows are kept; measure again with the log `feeds: distribution pull parsed` when the kept package set changes.
 
 ## Modifying: `DeviceMerged`, `DeviceDeleted` (`devicelifecycle.go`, INV-33)

@@ -220,9 +220,6 @@ func TestFixedIn_PackagedAgentRow(t *testing.T) {
 	if f := on("Rocky Linux 9.4", pkg); f == nil || f.Kind != "distro" || f.Fixed != "3.0.7" || f.Distro != "" {
 		t.Errorf("packaged agent row on a distribution Vedette does not name: %+v, want distro with no name", f)
 	}
-	if g := FixedInForAll(Asset{ID: "a", Name: "web", OS: "Ubuntu 22.04.4 LTS", Software: []Software{pkg}}, []Vuln{v})[v.CVE]; g == nil || g.Kind != "distro" {
-		t.Errorf("weekly report group of a packaged row: %+v, want distro", g)
-	}
 	manual := ssl
 	manual.Source = "manual"
 	unknown := ssl // no source: a caller that does not know it

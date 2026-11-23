@@ -80,27 +80,28 @@ let target: 'mock' | 'real' = 'mock'
 const MOCK_EMAIL: Record<Role, string> = { admin: 'admin@acme.example', operator: 'it@acme.example', viewer: 'view@acme.example' }
 const who = (r: Role) => (target === 'real' ? EMAIL : MOCK_EMAIL)[r]
 const F = (c: Ctx) => `/findings/${c.nopack}`
-const status = (action: string, note = '') => ({ action, note })
 const OPEN = ['confirmed', 'suspected']
 const lastHistory = (b: { history: { action: string; note?: string; user: string }[] }) => b.history.filter((h) => !h.action.startsWith('applied:')).at(-1)
 
 const steps: Step[] = [
-  // ---- reads
-  { name: 'list', role: 'viewer', method: 'GET', path: '/findings', status: 200, schema: FindingList,
+  // ---- reads: the per-device list (asset is required) and the detail
+  { name: 'list for the device of the pack', role: 'viewer', method: 'GET', path: (c) => `/findings?asset=${encodeURIComponent(c.asset!)}`, status: 200, schema: FindingList,
     keep: (b, c) => {
-      const items = b.items as { id: string; cve: string; asset_id: string; status: string }[]
-      const pack = items.find((f) => f.cve === PACK_CVE)
-      const other = items.find((f) => f.cve !== PACK_CVE)
-      if (!pack || !other) throw new Error(`the box needs a finding for ${PACK_CVE} and one for another CVE (real-box.mjs makes them)`)
-      c.pack = pack.id; c.nopack = other.id; c.asset = pack.asset_id; c.total = String(items.length)
+      const pack = (b.items as { id: string; cve: string }[]).find((f) => f.cve === PACK_CVE)
+      if (!pack) throw new Error(`the box needs a finding for ${PACK_CVE} (real-box.mjs makes it)`)
+      c.pack = pack.id
     },
-    check: (b) => {
-      expect(b.items.length).toBeGreaterThan(1)
-      for (const f of b.items) expect(f.first_seen <= f.last_seen).toBe(true)
+    check: (b, c) => {
+      for (const f of b.items) { expect(f.asset_id).toBe(c.asset); expect(f.first_seen <= f.last_seen).toBe(true) }
       expect(new Set(b.items.map((f: { id: string }) => f.id)).size).toBe(b.items.length)
     } },
-  { name: 'list for one device', role: 'viewer', method: 'GET', path: (c) => `/findings?asset=${encodeURIComponent(c.asset!)}`, status: 200, schema: FindingList,
-    check: (b, c) => { expect(b.items.length).toBeGreaterThan(0); expect(b.items.length).toBeLessThanOrEqual(Number(c.total)); for (const f of b.items) expect(f.asset_id).toBe(c.asset) } },
+  { name: 'list for another device', role: 'viewer', method: 'GET', path: (c) => `/findings?asset=${encodeURIComponent(c.other!)}`, status: 200, schema: FindingList,
+    keep: (b, c) => {
+      const other = (b.items as { id: string; cve: string }[]).find((f) => f.cve !== PACK_CVE)
+      if (!other) throw new Error(`the box needs a finding for another CVE than ${PACK_CVE} (real-box.mjs makes it)`)
+      c.nopack = other.id
+    } },
+  { name: 'list without a device', role: 'viewer', method: 'GET', path: '/findings', status: 400, code: 'invalid' },
   { name: 'list for a device that has none', role: 'viewer', method: 'GET', path: '/findings?asset=a-nothing', status: 200, schema: FindingList, check: (b) => expect(b.items).toEqual([]) },
   { name: 'the row carries the device and the KEV entry', role: 'viewer', method: 'GET', path: (c) => `/findings?asset=${encodeURIComponent(c.asset!)}`, status: 200,
     check: (b) => { const f = b.items[0]; expect(f.asset).toMatchObject({ id: f.asset_id }); expect(f.asset.ip).toMatch(/^\d+\.\d+\.\d+\.\d+$/); expect(f.kev.display.length).toBeGreaterThan(0); expect(Array.isArray(f.kev.links)).toBe(true) } },
@@ -118,43 +119,27 @@ const steps: Step[] = [
   { name: 'id of 65 characters', role: 'viewer', method: 'GET', path: `/findings/${'f'.repeat(65)}`, status: 404, code: 'not_found', real: { status: 400, code: 'invalid' } },
 
   // ---- roles
-  { name: 'no session', role: null, method: 'GET', path: '/findings', status: 401, code: 'unauthenticated' },
+  { name: 'no session', role: null, method: 'GET', path: '/findings?asset=a-nothing', status: 401, code: 'unauthenticated' },
   { name: 'no session on detail', role: null, method: 'GET', path: '/findings/f-1', status: 401, code: 'unauthenticated' },
-  { name: 'viewer cannot change status', role: 'viewer', method: 'POST', path: (c) => F(c) + '/status', body: status('patched'), status: 403, code: 'forbidden' },
+  { name: 'viewer cannot mark as handled', role: 'viewer', method: 'POST', path: '/findings/handle', body: (c: Ctx) => ({ ids: [c.nopack], resolution: 'patched', note: '' }), status: 403, code: 'forbidden' },
   { name: 'viewer cannot log "Applied"', role: 'viewer', method: 'POST', path: (c) => `/findings/${c.pack}/applied`, body: { item: 'patch' }, status: 403, code: 'forbidden' },
   { name: 'viewer cannot ask the AI', role: 'viewer', method: 'POST', path: (c) => F(c) + '/ai', body: { skill: 'explain' }, status: 403, code: 'forbidden' },
-  { name: 'status on an unknown finding', role: 'operator', method: 'POST', path: '/findings/f-nope/status', body: status('patched'), status: 404, code: 'not_found' },
 
-  // ---- status
-  { name: 'bad action', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('delete'), status: 400, code: 'bad_action', real: { code: 'invalid' } },
-  { name: 'note of 501 characters', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('patched', 'n'.repeat(501)), status: 400, code: 'note_too_long', real: { code: 'invalid' } },
-  { name: 'false positive needs a note', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('false_positive'), status: 400, code: 'note_required' },
-  { name: 'not relevant with a 2 character note', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('not_relevant', 'ab'), status: 400, code: 'note_required' },
-  { name: 'not relevant with spaces around a short note', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('not_relevant', '  ab  '), status: 400, code: 'note_required' },
-  { name: 'reopen a finding that is open', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('reopen'), status: 409, code: 'already_open' },
-  { name: 'patched', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('patched', '  updated by hand  '), status: 200, schema: FindingDetail,
+  // ---- the finding page's writes (POST /findings/handle and /reopen: modules/findings, model.conformance.test.ts) read back here
+  { name: 'patched from the finding page', role: 'operator', method: 'POST', path: '/findings/handle', body: (c: Ctx) => ({ ids: [c.nopack], resolution: 'patched', note: 'updated by hand' }), status: 200 },
+  { name: 'the detail says patched, who and the note', role: 'viewer', method: 'GET', path: F, status: 200, schema: FindingDetail,
     check: (b) => {
       expect([b.status, b.resolved_by, b.resolution_note]).toEqual(['patched', who('operator'), 'updated by hand'])
-      expect(b.resolved_at).not.toBeNull()
       expect(lastHistory(b)).toMatchObject({ action: 'patched', user: who('operator'), note: 'updated by hand' })
     } },
-  { name: 'the list shows it patched', role: 'viewer', method: 'GET', path: '/findings', status: 200, check: (b, c) => expect(b.items.find((f: { id: string }) => f.id === c.nopack).status).toBe('patched') },
-  { name: 'patched again (a closed finding can be closed another way)', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('mitigated'), status: 200, schema: FindingDetail,
-    check: (b) => { expect([b.status, b.resolution_note]).toEqual(['mitigated', null]) } },
-  { name: 'false positive with a note', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('false_positive', 'we do not run it'), status: 200, schema: FindingDetail,
-    check: (b) => expect([b.status, b.resolution_note]).toEqual(['false_positive', 'we do not run it']) },
-  { name: 'reopen', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('reopen', 'it came back'), status: 200, schema: FindingDetail,
+  { name: 'reopen from the finding page', role: 'operator', method: 'POST', path: (c) => F(c) + '/reopen', body: { note: 'it came back' }, status: 200 },
+  { name: 'the detail is open again, the history only appended', role: 'viewer', method: 'GET', path: F, status: 200, schema: FindingDetail,
     check: (b) => {
       expect(OPEN).toContain(b.status)
       expect([b.resolved_by, b.resolved_at, b.resolution_note]).toEqual([null, null, null])
       expect(lastHistory(b)).toMatchObject({ action: 'reopened', note: 'it came back' })
-      expect(b.history.filter((h: { action: string }) => !h.action.startsWith('applied:')).map((h: { action: string }) => h.action).slice(-4)).toEqual(['patched', 'mitigated', 'false_positive', 'reopened']) // only ever appended
       expect([...b.history].sort((x: { ts: string }, y: { ts: string }) => x.ts.localeCompare(y.ts))).toEqual(b.history)
     } },
-  { name: 'not relevant', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('not_relevant', 'a test machine'), status: 200, schema: FindingDetail, check: (b) => expect(b.status).toBe('not_relevant') },
-  { name: 'reopen again', role: 'operator', method: 'POST', path: (c) => F(c) + '/status', body: status('reopen'), status: 200, schema: FindingDetail, check: (b) => expect(OPEN).toContain(b.status) },
-  { name: 'admin may change status too', role: 'admin', method: 'POST', path: (c) => F(c) + '/status', body: status('mitigated', 'firewall rule'), status: 200, schema: FindingDetail, check: (b) => expect(b.resolved_by).toBe(who('admin')) },
-  { name: 'and reopen it', role: 'admin', method: 'POST', path: (c) => F(c) + '/status', body: status('reopen'), status: 200, schema: FindingDetail },
 
   // ---- "Applied"
   { name: '"Applied" on a CVE without a pack', role: 'operator', method: 'POST', path: (c) => F(c) + '/applied', body: { item: 'patch' }, status: 400, code: 'no_pack' },
@@ -185,17 +170,28 @@ const steps: Step[] = [
     check: (b, _c, t) => { if (t === 'mock') expect(b.ai.explain.paragraphs.length).toBeGreaterThan(0) } },
 ]
 
-// A real box keeps what an earlier (or failed) run left: make the two findings open again before starting and after the end.
+// A real box keeps what an earlier (or failed) run left: make the two findings open again before starting and after the end (an open
+// one answers 409 already_open, which is fine).
 async function reopen(target: 'mock' | 'real', c: Ctx) {
   for (const id of [c.nopack, c.pack]) {
-    if (id) await call(target, { name: 'reopen', role: 'operator', method: 'POST', path: `/findings/${id}/status`, body: status('reopen'), status: 200 }, c)
+    if (id) await call(target, { name: 'reopen', role: 'operator', method: 'POST', path: `/findings/${id}/reopen`, body: { note: '' }, status: 200 }, c)
   }
+}
+
+// The two devices the script reads: the one with a finding of PACK_CVE, and another with an open finding of another CVE (By device,
+// GET /findings/devices; the mock's sample findings of the older store sit on these two).
+async function devices(target: 'mock' | 'real', c: Ctx) {
+  if (target === 'mock') { c.asset = 'a-nas02'; c.other = 'a-web01'; return }
+  const cards = async (q: string) => ((await call(target, { name: 'devices', role: 'viewer', method: 'GET', path: `/findings/devices${q}`, status: 200 }, c)).body as { items: { device: { id: string }; blocks: { findings: { cve: string }[] }[] }[] }).items
+  c.asset = (await cards(`?q=${PACK_CVE}&limit=1`))[0]?.device.id ?? ''
+  c.other = (await cards('?limit=100')).find((d) => d.device.id !== c.asset && d.blocks.some((b) => b.findings.some((f) => f.cve !== PACK_CVE)))?.device.id ?? ''
 }
 
 async function run(which: 'mock' | 'real') {
   target = which
   const c: Ctx = {}
   const problems: string[] = []
+  await devices(target, c)
   for (const s of steps) {
     const want = { status: s.status, code: s.code, ...(target === 'real' ? s.real : {}) }
     let r: Res
@@ -209,7 +205,7 @@ async function run(which: 'mock' | 'real') {
       if (!p.success) problems.push(`${s.name}: body does not match contract.ts: ${p.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`)
     }
     try { s.keep?.(r.body, c); s.check?.(r.body, c, target) } catch (e) { problems.push(`${s.name}: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`) }
-    if (s.name === 'list') await reopen(target, c)
+    if (s.name === 'list for another device') await reopen(target, c)
   }
   await reopen(target, c)
   return problems

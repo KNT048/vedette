@@ -39,7 +39,7 @@ func storedLine(id string) string {
 //   - every match (and every other line the entry matches, Match.Lines) is detected on its (CVE, software line): created, or
 //     detected again;
 //   - every finding of the device that was detected until now, whose CVE is in vulns and that this match no longer detects, goes
-//     away the way the data says (goneVia): a scan's proof is left to the scans unless its software line is gone;
+//     away the way the data says (goneVia): a safe check's proof or a person's confirmation holds against data alone (Transition);
 //   - the device's questions become those of qm (the match of the whole list).
 func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
 	var res UpsertResult
@@ -121,8 +121,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
 			continue
 		}
-		via, from, to, by := goneVia(a, lines, f, proofs) // a safe check's proof holds against data alone (Transition)
-		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by}, emit)
+		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
+		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by, Corrected: corrected}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)
 		}
@@ -227,21 +227,21 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 // goneVia says how a finding the match no longer detects went away, from what the device reads now:
 //   - its software line is gone: software_removed; a person said it is not installed: not_installed (by that person);
 //   - the line reads a newer release than the one matched: version_moved (from, to), unless the reading is a person's correction of
-//     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected;
+//     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected, corrected;
 //   - the distribution's fixed package release proves it: distro_fixed;
 //   - anything else (range data changed, an answer about the platform): data_corrected.
-func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string) {
+func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string, corrected bool) {
 	l, ok := lines[f.SoftwareID]
 	if !ok {
 		for _, ni := range a.NotInstalled {
 			if ni.ID == f.SoftwareID && f.SoftwareID != "" {
-				return ViaNotInstalled, "", "", ni.MarkedBy
+				return ViaNotInstalled, "", "", ni.MarkedBy, false
 			}
 		}
 		if f.SoftwareID != "" {
-			return ViaSoftwareRemoved, "", "", ""
+			return ViaSoftwareRemoved, "", "", "", false
 		}
-		return ViaDataCorrected, "", "", ""
+		return ViaDataCorrected, "", "", "", false
 	}
 	cur := l.reading.Version
 	if l.reading.Pkg != "" { // a line with a package release is matched on it (detectionOf, scanLine): whatever the basis
@@ -249,14 +249,14 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 	}
 	if moved(f.MatchedVersion, cur) {
 		if l.sw.Source == "manual" && l.sw.ReportedSource != "" {
-			return ViaDataCorrected, "", "", "" // a person corrected what a source reads
+			return ViaDataCorrected, "", "", "", true // a person corrected what a source reads
 		}
-		return ViaVersionMoved, f.MatchedVersion, cur, ""
+		return ViaVersionMoved, f.MatchedVersion, cur, "", false
 	}
 	if p, ok := proofs[f.CVE]; ok && p.pkgFixed {
-		return ViaDistroFixed, "", "", ""
+		return ViaDistroFixed, "", "", "", false
 	}
-	return ViaDataCorrected, "", "", ""
+	return ViaDataCorrected, "", "", "", false
 }
 
 // moved reports whether cur is a newer release than was: both known, ordered, and not the same release written more or less
@@ -664,14 +664,11 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; plan when the module starts, then every PlanEvery; urgency (UrgencyJob) when the module starts,
-// then every UrgencyEvery.
+// starts, then every ReconcileEvery; urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
 		return err
-	}}, {Module: "findings", Name: "plan", Every: PlanEvery, Run: func(ctx context.Context) error {
-		return svc.RefreshPlan(ctx)
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
 		r, err := svc.RateUrgency(ctx, "")
 		svc.cfg.Log.InfoContext(ctx, "findings: urgency pass done", "rated", r.Rated, "raised", r.Raised, "lowered", r.Lowered, "announced", r.Announced)

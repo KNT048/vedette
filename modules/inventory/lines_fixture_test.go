@@ -202,59 +202,63 @@ func TestSoftwareLines_Fixture_OneLinePerProductAndTrain(t *testing.T) {
 	_ = rows.Close()
 	t.Logf("products one source reports twice on one device, without a train rule (%d):\n  %s", len(twice), strings.Join(twice, "\n  "))
 
+	var invs []selfcheck.Invariant
 	for _, inv := range selfcheck.Registered() {
-		if !strings.HasPrefix(inv.Name, "inventory.") {
-			continue
+		if strings.HasPrefix(inv.Name, "inventory.") {
+			invs = append(invs, inv)
 		}
-		if n := r.count(t, inv.Query); n != 0 {
-			t.Errorf("%s: %d", inv.Name, n)
+	}
+	for _, res := range selfcheck.Run(ctx, r.db.Reader(), invs) {
+		if res.Failed() {
+			t.Errorf("%s: %d (%v)", res.Name, res.Count, res.Err)
 		}
 	}
 	assertResolved(t, r)
 }
 
-// assertResolved recomputes every line from its readings (the whole resolver rule): the stored value is Resolve's.
+// assertResolved checks every line with the selfcheck's own code (inventory.line_value_is_the_resolvers and
+// inventory.line_is_the_train_of_its_readings), naming each line that breaks a rule.
 func assertResolved(t *testing.T, r *replayed) {
 	t.Helper()
-	ctx := t.Context()
-	rows, err := r.db.Reader().QueryContext(ctx, `SELECT id, state, ifnull(not_installed_at, ''), source, ifnull(version, ''), ifnull(pkg_version, ''), differs, product_key, line
-		FROM inv_software WHERE state <> 'removed'`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	type stored struct {
-		id, state, marked, source, version, pkg, key, line string
-		differs                                            bool
-	}
-	var all []stored
-	for rows.Next() {
-		var s stored
-		if err := rows.Scan(&s.id, &s.state, &s.marked, &s.source, &s.version, &s.pkg, &s.differs, &s.key, &s.line); err != nil {
-			t.Fatal(err)
-		}
-		all = append(all, s)
-	}
-	_ = rows.Close()
-	tx, err := r.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	for _, s := range all {
-		rs, err := readingsOf(ctx, tx, s.id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res := Resolve(LineState{State: s.state, NotInstalledAt: s.marked}, rs)
-		// the line is the catalogue's train of every reading's release (a reading of another train is a line of its own)
-		for _, rd := range rs {
-			if rd.Version != "" && trainOf(s.key, rd.Version) != s.line {
-				t.Errorf("line %s is train %q, its %s reading %q is train %q", s.id, s.line, rd.Source, rd.Version, trainOf(s.key, rd.Version))
+	lines := 0
+	if err := eachStoredLine(t.Context(), r.db.Reader(), func(l storedLine) {
+		lines++
+		for _, broken := range []string{l.trainBreak(), l.resolveBreak()} {
+			if broken != "" {
+				t.Error(broken)
 			}
 		}
-		if res.Lapsed != nil || res.State != s.state || res.Effective.Source != s.source || res.Effective.Version != s.version || res.Effective.PkgVersion != s.pkg || res.Differs != s.differs {
-			t.Errorf("line %s stores %+v, the resolver says %s %s %q %q differs %v", s.id, s, res.State, res.Effective.Source, res.Effective.Version, res.Effective.PkgVersion, res.Differs)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if lines == 0 {
+		t.Fatal("no software line to check")
+	}
+}
+
+// The line check reads the lines a page at a time: a page of one line reads every line with every reading, as one page of all does.
+func TestSoftwareLines_Fixture_CheckReadsEveryLineAcrossPages(t *testing.T) {
+	t.Parallel()
+	r := replayFixture(t)
+	read := func(size int) (lines, readings int, all string) {
+		t.Helper()
+		var b strings.Builder
+		if err := eachStoredLineBy(t.Context(), r.db.Reader(), size, func(l storedLine) {
+			lines++
+			readings += len(l.readings)
+			fmt.Fprintf(&b, "%s %d %s|", l.id, len(l.readings), l.resolveBreak()+l.trainBreak())
+		}); err != nil {
+			t.Fatal(err)
 		}
+		return lines, readings, b.String()
+	}
+	lines, readings, all := read(storedLinesPage)
+	if lines != r.count(t, `SELECT count(*) FROM inv_software`) || readings != r.count(t, `SELECT count(*) FROM inv_software_reading`) {
+		t.Fatalf("read %d lines and %d readings, the tables hold %d and %d", lines, readings, r.count(t, `SELECT count(*) FROM inv_software`),
+			r.count(t, `SELECT count(*) FROM inv_software_reading`))
+	}
+	if l1, r1, all1 := read(1); l1 != lines || r1 != readings || all1 != all {
+		t.Fatalf("pages of one line: %d lines, %d readings; one page: %d, %d", l1, r1, lines, readings)
 	}
 }
 

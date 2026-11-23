@@ -162,10 +162,12 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		if w != nil {
 			except = w.ID
 		}
-		var keep []string
-		add := func(id string) error {
+		// What is left to tell: the waiting summary's findings, then the event's new ones (still open at layer 1-4, not told at that
+		// layer or a more urgent one by another notice).
+		var waitKeep, eventKeep []string
+		add := func(id string, into *[]string) error {
 			f, ok := infos[id]
-			if !ok || slices.Contains(keep, id) || len(keep) == maxNoticeItems {
+			if !ok || slices.Contains(waitKeep, id) || slices.Contains(eventKeep, id) {
 				return nil
 			}
 			told, err := toldAtExcept(ctx, tx, id, except)
@@ -173,26 +175,39 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 				return err
 			}
 			if told == 0 || told > f.Layer {
-				keep = append(keep, id)
+				*into = append(*into, id)
 			}
 			return nil
 		}
 		if w != nil {
 			for _, id := range w.FindingIDs {
-				if err := add(id); err != nil {
+				if err := add(id, &waitKeep); err != nil {
 					return err
 				}
 			}
 			unlisted += max(len(w.Lines)+w.More-len(w.FindingIDs), 0)
 		}
-		before := len(keep)
 		for _, id := range e.FindingIDs {
-			if err := add(id); err != nil {
+			if err := add(id, &eventKeep); err != nil {
 				return err
 			}
 		}
-		if len(keep) == before {
+		if len(eventKeep) == 0 {
 			return nil // nothing new to tell: the waiting summary, if any, stands as it is
+		}
+		keep := append(waitKeep, eventKeep...)
+		devices := e.Devices
+		if len(keep) > maxNoticeItems { // the most urgent are listed, the rest counted
+			slices.SortStableFunc(keep, func(a, b string) int { return infos[a].Layer - infos[b].Layer })
+			seen := map[string]bool{}
+			for _, id := range keep {
+				for _, d := range infos[id].Devices {
+					seen[strings.TrimSpace(d)] = true
+				}
+			}
+			devices = max(devices, len(seen))
+			unlisted += len(keep) - maxNoticeItems
+			keep = keep[:maxNoticeItems]
 		}
 		var sent sql.NullString // the last summary of this load a channel delivered
 		if err := tx.QueryRowContext(ctx, `SELECT max(at) FROM notify_send WHERE kind = 'vuln' AND ok = 1 AND substr(ref_id, 1, ?) = ?`, len(prefix), prefix).Scan(&sent); err != nil {
@@ -205,7 +220,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 			}
 			first = w.At
 		}
-		n := s.summaryNotice(ctx, e.Key, keep, infos, unlisted, e.Devices, e.Layer, sent)
+		n := s.summaryNotice(ctx, e.Key, keep, infos, unlisted, devices, e.Layer, sent)
 		n.ID, n.At = prefix+at.UTC().Format("20060102T150405.000"), first
 		return s.enqueue(ctx, tx, n)
 	})

@@ -3,6 +3,7 @@ package notify_test
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -272,5 +273,27 @@ func TestNotSentOfAnOldNoticeAndOfALineLeftOut(t *testing.T) {
 	}
 	if n := got["nt-f-cut-created"]; n.Reason != notify.UnsentLineLeftOut || !strings.Contains(n.Text, "its line was past what the message could hold") {
 		t.Errorf("line left out: %+v", n)
+	}
+}
+
+// A waiting summary that already lists as many findings as a notice holds still takes the next pass's findings: they are counted, never
+// dropped as "nothing new".
+func TestFirstRunSummaryPastItsListLimitStillCountsNewFindings(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	var ids []string
+	for i := range 100 {
+		id := fmt.Sprintf("f-%03d", i)
+		dir.at(id, 4, finding("nginx", fmt.Sprintf("CVE-2026-%d", 1000+i), fmt.Sprintf("web-%03d", i), notify.Critical))
+		ids = append(ids, id)
+	}
+	pub(notify.EventFirstRun, firstRun(e, ids...))
+	dir.at("f-new", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	pub(notify.EventFirstRun, firstRun(e, "f-new"))
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	got := summaries(e)
+	if len(got) != 1 || got[0].Title != "Patch first: 101 urgent findings on 101 devices" || !strings.Contains(got[0].Items[0], "CVE-2026-114938") {
+		t.Fatalf("summaries = %+v", got)
 	}
 }

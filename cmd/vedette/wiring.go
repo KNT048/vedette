@@ -907,7 +907,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		gate = d.Reg
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
-	// Home's one read (GET /findings/summary, #825; also the shell's nav badges) carries inventory's device counts and notify's sent
+	// Home's one read (GET /findings/overview; also the shell's nav badges) carries inventory's device counts and notify's sent
 	// messages and open incidents; findings imports neither.
 	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents}
 	if d.Inventory != nil {
@@ -1025,7 +1025,10 @@ func subscribe(d deps) {
 		}))
 	}
 	// An ignored device's findings stay as they are: ignoring is an attribute of the device, and every list leaves its findings out
-	// (while it is ignored nothing new is made: MatchInput says it is not there, AssetIDs leaves it out).
+	// (while it is ignored nothing new is made: MatchInput says it is not there, AssetIDs leaves it out). It is silent too: the urgency
+	// pass does not rate its findings, so no rise of them reaches notify, response, the SIEM export or To review. Stop ignoring sends
+	// inventory.asset.updated with match, so OnMatchChanged matches and rates the device again at once: a rise that happened while it
+	// was ignored is told then, by the one Tell rule.
 	// A finding on a device, or a honeypot hit from it, is a reason to look at a private-address device that was held out of To review:
 	// it joins To review with its one new-device notice (inventory INV-49).
 	d.Bus.Subscribe(findings.EventCreated, on("inventory", func(ctx context.Context, data any) error {

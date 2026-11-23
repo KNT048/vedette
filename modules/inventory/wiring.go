@@ -719,7 +719,13 @@ func (s *Service) keyedLines(ctx context.Context) ([]keyedLine, error) {
 // IgnoredIDs lists the devices a person ignored, ordered by id, no cap; a read error is an error, never a short list. findings'
 // reconcile closes their open findings and keeps their findings out of the orphan pass (#945).
 func (s *Service) IgnoredIDs(ctx context.Context) ([]string, error) {
-	return s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
+	return ReadIgnoredIDs(ctx, s.db.Reader())
+}
+
+// ReadIgnoredIDs is IgnoredIDs on a handle of the box's database, for a reader without the service: the selfcheck of findings'
+// urgency layers runs on its own read-only handle and leaves the ignored devices out, as the urgency pass does.
+func ReadIgnoredIDs(ctx context.Context, q *sql.DB) ([]string, error) {
+	return readIDs(ctx, q, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 }
 
 // IsIgnored says whether a person ignored the device; false for a device that does not exist. findings asks it inside its
@@ -750,7 +756,11 @@ func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 }
 
 func (s *Service) assetIDs(ctx context.Context, query string, args ...any) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, query+` ORDER BY 1`, args...)
+	return readIDs(ctx, s.db.Reader(), query, args...)
+}
+
+func readIDs(ctx context.Context, q *sql.DB, query string, args ...any) ([]string, error) {
+	rows, err := q.QueryContext(ctx, query+` ORDER BY 1`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: match products: %w", err)
 	}

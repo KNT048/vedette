@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// DeviceCounts (#825, Home's device tile through findings GET /findings/summary) is the "All" and "To review" counts of the device list,
+// DeviceCounts (Home's device tile through findings GET /findings/overview) is the "All" and "To review" counts of the device list,
 // without the list.
 func TestDeviceCountsAreTheListCounts(t *testing.T) {
 	t.Parallel()

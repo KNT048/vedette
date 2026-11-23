@@ -176,8 +176,9 @@ const (
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
 // A join never changes whether into is watched: into keeps its own ignored_at. When the two rows
-// differ the audit row says so and the caller publishes watchEvent for into, so the findings moved from from follow into's state
-// (inventory.asset.ignored closes them on an ignored into; inventory.asset.unignored reopens on a watched into the ones Ignore closed).
+// differ the audit row says so and the caller publishes watchEvent for into. The findings moved from from follow into's state with no
+// event of their own: on an ignored into the lists leave them out and the urgency pass does not rate them; on a watched into they are
+// listed and rated (the merge's inventory.asset.updated with match).
 // Nothing is dropped: a software row or an open port both rows hold is folded into into's (foldSoftware, foldServices), and every
 // module that keeps rows about a device moves them in this same transaction (core/lifecycle, before from's row goes); an error of
 // any of them rolls the whole write back.

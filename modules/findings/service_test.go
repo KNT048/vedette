@@ -41,6 +41,7 @@ func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView,
 	out := map[string]AssetView{}
 	for _, id := range ids {
 		if a, ok := f.assets[id]; ok {
+			a.Ignored = a.Ignored || f.ignored[id] // as inventory: an ignored device is present, marked
 			out[id] = a
 		}
 	}

@@ -15,6 +15,7 @@
 ## Modifying: `Findings.Linked` (cổng gộp: thiết bị → CVE)
 - Cài ở `idsFindings` (`cmd/vedette/ids.go`), đọc `findings.Service.List` của từng thiết bị.
 - Gọi một lần mỗi trang, mỗi `Summarize` và mỗi flush (không theo từng thiết bị); bộ chuyển `idsFindings` đọc `Attacked` một lần mỗi lời gọi.
+- Devices a person ignored are left out (one `inventory.IgnoredIDs` read per call): their findings never make an alert critical or count as affected. `TestWiringIPSEventAtAnIgnoredDeviceIsNotCriticalOrAffected`.
 
 ## Modifying: `Inventory.DevicesAt`/`Names` (cổng thiết bị)
 - `idsInventory` ghép `logsInventory` (cmd/vedette/logs.go: IP trong danh sách và địa chỉ đọc SNMP từ sensor-active `ReadAddresses`, hai thiết bị cùng địa chỉ → không thiết bị) và `notifyDevices.DeviceStates` cho tên. Đổi quy tắc ghép địa chỉ ở logs → thiết bị của cảnh báo đổi theo.

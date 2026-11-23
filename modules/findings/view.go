@@ -554,7 +554,9 @@ type ViewFilter struct {
 
 // Views reads findings as every place shows them, newest first, each with its history (the confirming person and day are read from it).
 // The urgency reasons and the other findings of the CVE are only on Service.View. The readers that talk about findings (the assistant,
-// the MCP tools, response) read this, never the columns of fnd_finding.
+// the MCP tools, response) read this, never the columns of fnd_finding. The findings of a device a person ignored are left out, as on
+// every list (Service.View still reads one: its page stays reachable from the Ignored tab; a reader of one finding checks
+// View.Device.Ignored).
 func (s *Service) Views(ctx context.Context, f ViewFilter) ([]View, error) {
 	q := s.cfg.DB.Reader()
 	where := `(?1 = '' OR asset_id = ?1) AND (?2 = '' OR cve = ?2)`
@@ -573,6 +575,7 @@ func (s *Service) Views(ctx context.Context, f ViewFilter) ([]View, error) {
 	if err != nil {
 		return nil, err
 	}
+	vs = slices.DeleteFunc(vs, func(v View) bool { return v.Device.Ignored })
 	for i := range vs {
 		vs[i].Events = evs[vs[i].Finding.ID]
 	}

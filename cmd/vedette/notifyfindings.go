@@ -41,6 +41,9 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	if err != nil {
 		return notify.FindingInfo{}, false, err
 	}
+	if v.Device.Ignored { // a person ignored the device: nothing about it is sent (the urgency pass tells no rise of it either)
+		return notify.FindingInfo{}, false, nil
+	}
 	f := v.Finding
 	var kev findings.KevInfo
 	if fs, err := feedsService(*n.d); err == nil {

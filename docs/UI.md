@@ -117,11 +117,11 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
   says "holds this page". Groups are drawn only once `/modules` has answered (no header that turns into an item). First visit: every group closed except the one holding the current page, which opens by
   itself without overwriting the saved state. Open groups and the rail choice are saved per user in `localStorage`
   (`vedette.nav.<userId>`, reads and writes in try/catch; on failure the first-visit default).
-- **Badges** come from one cheap read, `GET /findings/summary` (#825, cached on the box, shared with Home through the same
-  query key `['findings','summary']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
-  items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"), Incidents ←
-  `incidents.urgent` ("high or critical open"); all urgent (red), as work waits for the user. An error stops the polling.
-  The summary API PR (#825) merges before the shell PR. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
+- **Badges** come from one cheap read, `GET /findings/overview` (cached on the box, shared with Home through the same
+  query key `['findings','model','overview']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
+  items: Findings ← the open findings of the four urgent statuses (`open.by_status`: under attack, exploited, public exploit,
+  critical on an edge device), Incidents ← `incidents.urgent` ("high or critical open"); all urgent (red), as work waits for the
+  user. An error stops the polling. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
   of its items; its accessible name starts with the visible text and then lists the parts ("Assets 15 waiting: Devices 15 to review"; no
   `aria-label` that would hide the visible label, WCAG 2.5.3). No summary (findings off, error): no badges.
 - **Rail**: from `lg`, "Collapse menu" at the foot shrinks 240 px to 56 px (then "Expand menu"; the name always equals the tooltip); groups flatten into icons,

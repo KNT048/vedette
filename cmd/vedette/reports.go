@@ -105,8 +105,8 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A device a person ignored is in no report, its findings neither; and a finding Ignore closed is
-	// never "resolved" (nobody fixed anything). A device list that cannot be read fails the report, never a report with them in.
+	// A device a person ignored is in no report, its findings neither (ignoring closes nothing, so it never reads as "resolved":
+	// nobody fixed anything). A device list that cannot be read fails the report, never a report with them in.
 	ignored := map[string]bool{}
 	if a.d != nil && a.d.Inventory != nil {
 		ids, err := a.d.Inventory.IgnoredIDs(ctx)

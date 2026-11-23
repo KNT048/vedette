@@ -120,7 +120,8 @@ func (a idsInventory) Names(ctx context.Context, idList []string) (map[string]st
 // idsFindings gives the attacked devices' findings for the CVEs an alert names, with the status vocabulary of the findings contract.
 // The findings module on this branch keeps its older statuses, so they are mapped here: an open finding has the status of its stored
 // urgency layer (findings.LayerCode: under_attack, exploited, public_exploit, critical_edge, update_recommended), which findings rates
-// again as soon as alerts arrive (urgencyOnAlerts); a handled one keeps its handling.
+// again as soon as alerts arrive (urgencyOnAlerts); a handled one keeps its handling. An ignored device's findings are left out, as on
+// every findings list, so an alert at it is rated by its rule alone (the urgency pass does not rate them either).
 // The findings rebuild replaces this with findings.View and its one status.
 type idsFindings struct{ d *deps }
 
@@ -128,8 +129,18 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 	if a.d.Findings == nil || a.d.Reg != nil && !a.d.Reg.Enabled("findings") {
 		return nil, nil
 	}
+	var ignored []string // a device a person ignored lists no finding: its findings neither make the alert critical nor count as affected
+	if a.d.Inventory != nil {
+		var err error
+		if ignored, err = a.d.Inventory.IgnoredIDs(ctx); err != nil {
+			return nil, err
+		}
+	}
 	out := map[string][]idsmodule.LinkedFinding{}
 	for assetID, cves := range byDevice {
+		if slices.Contains(ignored, assetID) {
+			continue
+		}
 		recs, err := a.d.Findings.List(ctx, assetID)
 		if err != nil {
 			return nil, err

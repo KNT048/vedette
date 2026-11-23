@@ -32,3 +32,4 @@
 
 ## Modifying: `Finding.Fix/Verification`, `CVEEntry` brief fields
 - Built by `cmd/vedette` `mcpSource` from `findingCase` (the finding view and the brief of its CVE). A new field of `findings.View` or `feeds.Brief` reaches an agent only through an allow-listed field here and in `tools.go`.
+- `list_findings` leaves out the findings of devices a person ignored (`findings.Views`) and `get_finding` answers not found for them (`View.Device.Ignored`), as every list does. `TestWiringAnIgnoredDeviceIsSilentUntilItIsWatchedAgain`.

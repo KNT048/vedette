@@ -27,6 +27,7 @@
 ## Modifying: vòng công cụ của `ask-my-data` (`ask_loop.go`, `ask_tools.go`, INV-22)
 - Thêm một công cụ đọc = thêm bề mặt dữ liệu rời hộp tới nhà cung cấp AI: ghi vào `toolImpl` (đối số schema đóng, trần số hàng/byte, `Cite`), cập nhật PRIVACY.md luồng 3 và `privacy.flow.3.what` trong `web/src/locales/en/core.json` cùng commit; `log-investigate` dùng chung danh sách này (`Jobs` của từng công cụ).
 - Đổi `Config.Data` (cmd/vedette `aiAsk`) hoặc `Config.Conns` (`core/conn/read`): đổi dữ liệu AI thấy; đổi `ConnReader` = đổi bề mặt INV-14. `RunJob` có thêm `JobSpec.tools`/`AnswerWhenBlocked` và `JobResult.Hits/Blocked` (người gọi khác không bị ảnh hưởng).
+- The assistant's findings tools (cmd/vedette `aiAsk.Findings`, `aiAsk.Finding`) leave out the findings of devices a person ignored (`findings.Views`; one finding: not found when `View.Device.Ignored`), as `AffectedAssets` already did.
 - GUI: `AskResult` khớp `web/src/features/ai/contract.ts`; đổi hình dạng = đổi cả mock, `api/openapi.json` và `core/api/oas`.
 - Đổi hình dạng kết quả của `search_assets`/`list_findings`/`lookup_cve` hay trần của vòng: mỗi lượt gửi lại cả hội thoại, nên số token đầu vào của một câu hỏi tăng theo kích thước kết quả nhân số lượt sau nó; chạy `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000 / ≤ 20.000) và giữ tổng rõ ràng (`matching_*`, `note`) để mô hình không đọc một trang là toàn bộ.
 - `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).

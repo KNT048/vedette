@@ -663,7 +663,7 @@ type signalDTO struct {
 	LastSeen   time.Time      `json:"last_seen"`
 	Qualifies  bool           `json:"qualifies"`
 	URL        *string        `json:"url"`
-	Detail     map[string]any `json:"detail"`
+	Detail     map[string]any `json:"detail" nullable:"true"`
 }
 
 type rangeDTO struct {

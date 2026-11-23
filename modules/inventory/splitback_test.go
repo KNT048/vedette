@@ -64,3 +64,40 @@ func TestSplit_GivesBackTheMergedDevice(t *testing.T) {
 		t.Errorf("second split by MAC: %s %v, want %s", nw, err, gone)
 	}
 }
+
+// A device that took another in a merge and then joins a third keeps both merges apart: its main interface may be the card the
+// first merge brought (the card seen last becomes the main one), yet splitting off each card gives back the device that had it,
+// with its own id and name.
+func TestSplit_AfterTwoMergesGivesBackEachDevice(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(vmCard("52:54:00:76:6d:01", "192.0.2.132", "")...)
+	e.tick(time.Minute)
+	e.record(vmCard(vmCard1, "192.0.2.131", "")...)
+	e.tick(time.Minute)
+	e.record(vmCard(vmCard2, "192.0.2.130", "vm-b")...)
+	third, kept, gone := e.idOf("192.0.2.132"), e.idOf("192.0.2.131"), e.idOf("192.0.2.130")
+	for id, name := range map[string]string{kept: "Kept VM", gone: "Build VM"} {
+		if err := e.rename(id, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.svc.Merge(e.ctx(), admin, kept, gone); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Merge(e.ctx(), admin, third, kept); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ addr, id, name string }{{"192.0.2.130", gone, "Build VM"}, {"192.0.2.131", kept, "Kept VM"}} {
+		nw, err := e.svc.Split(e.ctx(), admin, third, c.addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if nw != c.id || e.nameOf(nw) != c.name {
+			t.Errorf("split of %s gave %s named %q, want %s named %q", c.addr, nw, e.nameOf(nw), c.id, c.name)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM inv_merged_from`); n != 0 {
+		t.Errorf("%d merge records left after both splits", n)
+	}
+}

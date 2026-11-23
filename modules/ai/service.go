@@ -24,7 +24,7 @@ import (
 // ModuleID is the id of this module in the registry.
 const ModuleID = "ai"
 
-// secretPurpose is the core_secret purpose of an API key (DATA_MODEL 5.7).
+// secretPurpose is the core_secret purpose of an API key (DATA_MODEL 5.4).
 const secretPurpose = "ai_profile.api_key"
 
 // MaxProfiles is how many AI profiles a box holds.

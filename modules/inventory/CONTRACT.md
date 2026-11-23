@@ -58,8 +58,10 @@ detail is in its doc comment.
   id and history), so its findings follow its software again; the kept device gets back its own name, and the type and OS a person
   set on it, when the merge changed them and nobody changed them since. The preview lists
   the type and OS rows also when only one device states them (the other's type as the rules guess it, or none).
-- **INV-53** A merge or delete calls every `core/lifecycle` participant inside inventory's write transaction, so every module's
-  rows change with the device or none do. A merge folds colliding rows instead of dropping them.
+- **INV-53** A merge, split or delete calls every `core/lifecycle` participant inside inventory's write transaction, so every module's
+  rows change with the device or none do. A merge folds colliding rows instead of dropping them. A split names every software line of
+  the device that stays whose readings went to the device split off (`lifecycle.Split.Software`, with whether
+  the device that stays still has that software); a line that moves whole keeps its id and is named mapped to itself, gone.
 
 **Software lines**
 - **INV-54** One `inv_software` row per installed software line: unique on (device, `product_key`, `line`); the id never changes
@@ -93,7 +95,8 @@ detail is in its doc comment.
   emitted only for a newly matched CVE.
 - **INV-15** `DevicesRunning` answers "yes" for an exact product key and "maybe" for a vendor-only match of a "multiple products"
   entry.
-- **INV-30** `MatchInput` also gives the newest agent-reported and SNMP-reported OS, even when a person's value wins the field.
+- **INV-30** `MatchInput` also gives the newest agent-reported and SNMP-reported OS, even when a person's value wins the field. Each
+  software row names the person who entered its version (`MatchSoftware.SetBy`, "" for a source's reading).
 
 **Devices and people**
 - **INV-4** A device added by hand: a unique IPv4, bounded name, vendor, product and version; a duplicate software is 409.

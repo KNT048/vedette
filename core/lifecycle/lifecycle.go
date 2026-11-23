@@ -1,5 +1,6 @@
 // Package lifecycle keeps what other modules hold about a device consistent with the inventory, in the inventory's own write
-// transaction. When the inventory merges two device rows (one machine seen twice) or deletes a device, it calls every registered
+// transaction. When the inventory merges two device rows (one machine seen twice), splits an address off a device as a device of its
+// own, or deletes a device, it calls every registered
 // participant with that transaction before the device row goes: each one moves or removes its own rows there, so either every
 // module's rows change with the device or none does (a participant's error rolls the whole write back). Events on the bus still
 // announce the change after the commit; they are for notifications, never for integrity.
@@ -41,6 +42,25 @@ func (m Merge) SoftwareID(id string) string {
 	return id
 }
 
+// Split is an address of device From that a person says is another device: Into is the device made for it, with what was read only
+// there (the software a merge brought from it, the readings a scan took at that address).
+type Split struct {
+	From, Into string
+	Actor      string // the person who split it
+	// Software maps the id of every software line of From whose readings went to Into to Into's line that holds them now, for the
+	// lines a module may keep rows by: another line of Into, or the same id when the line went whole (it is Into's now, Gone true).
+	Software map[string]SplitLine
+}
+
+// SplitLine is where one software line of a split's From went.
+type SplitLine struct {
+	// Into is the line of the split's Into that took the readings: the line's own id when it went whole.
+	Into string
+	// Gone says From no longer has the software: no reading is left on its line (now removed). When false, From still reads the
+	// software too (another source, or a reading both devices shared): both devices have it.
+	Gone bool
+}
+
 // Delete is a device removed from the inventory: by a person, or a row the inventory found was never a device.
 type Delete struct {
 	Device string
@@ -71,6 +91,7 @@ type LinesDelete struct {
 type Participant struct {
 	Name          string
 	DeviceMerged  func(ctx context.Context, tx *sql.Tx, m Merge) error
+	DeviceSplit   func(ctx context.Context, tx *sql.Tx, s Split) error
 	DeviceDeleted func(ctx context.Context, tx *sql.Tx, d Delete) error
 	FindingFolded func(ctx context.Context, tx *sql.Tx, f FindingFold) error
 	FindingMoved  func(ctx context.Context, tx *sql.Tx, f FindingMove) error
@@ -128,6 +149,20 @@ func (h *Hooks) DeviceMerged(ctx context.Context, tx *sql.Tx, m Merge) error {
 		}
 		if err := p.DeviceMerged(ctx, tx, m); err != nil {
 			return fmt.Errorf("lifecycle: %s: merge of a device: %w", p.Name, err)
+		}
+	}
+	return nil
+}
+
+// DeviceSplit calls every participant's DeviceSplit in tx, after the inventory moved the address and its readings and before the write
+// commits; the first error stops and is returned (the caller rolls back).
+func (h *Hooks) DeviceSplit(ctx context.Context, tx *sql.Tx, s Split) error {
+	for _, p := range h.list() {
+		if p.DeviceSplit == nil {
+			continue
+		}
+		if err := p.DeviceSplit(ctx, tx, s); err != nil {
+			return fmt.Errorf("lifecycle: %s: split of a device: %w", p.Name, err)
 		}
 	}
 	return nil

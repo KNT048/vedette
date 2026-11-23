@@ -252,3 +252,57 @@ func TestCredit_ASourcesMoveIsVedettes(t *testing.T) {
 		t.Fatalf("reopened %+v, want detected_again by nobody", r)
 	}
 }
+
+// A finding comes back on a person's entry that nobody set back (the range data now takes in the version they entered, or it was closed
+// for another reason while the version stayed): the reopen line names nobody, since no person's version change opened it again.
+func TestCredit_ReopenNamesAPersonOnlyWhenTheirVersionWentBack(t *testing.T) {
+	t.Parallel()
+	const who = "qa@example.com"
+	entry := func() (Software, Asset) {
+		sw := Software{ID: "s-1", Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.30.5", Source: "manual", SetBy: who, SeenAt: t0}
+		return sw, Asset{ID: "a-1", Name: "web-01", Software: []Software{sw}}
+	}
+	reopenedBy := func(t *testing.T, e *env) *string {
+		t.Helper()
+		fs, _ := e.svc.Findings(t.Context(), "a-1")
+		if len(fs) != 1 {
+			t.Fatalf("%+v", fs)
+		}
+		v, err := e.svc.View(t.Context(), fs[0].ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := v.JSON().Reopened
+		if r == nil || r.Why != WhyDetectedAgain {
+			t.Fatalf("reopened %+v, want detected_again", r)
+		}
+		return r.By
+	}
+	t.Run("the range now takes in the version they changed to", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		sw, a := entry()
+		e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+		e.advance(time.Hour)
+		a.Software[0].Version = "1.30.6"
+		e.matchPass(t, a, MatchResult{}) // patched by the person
+		e.advance(time.Hour)
+		e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(a.Software[0])}}) // still 1.30.6: the range data moved
+		if by := reopenedBy(t, e); by != nil {
+			t.Errorf("reopen names %q, yet the version is still the one they changed to", *by)
+		}
+	})
+	t.Run("closed while the version stayed", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		sw, a := entry()
+		e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+		e.advance(time.Hour)
+		e.matchPass(t, a, MatchResult{}) // range data corrected: Vedette closed it, the version did not move
+		e.advance(time.Hour)
+		e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(a.Software[0])}})
+		if by := reopenedBy(t, e); by != nil {
+			t.Errorf("reopen names %q, yet nobody changed the version", *by)
+		}
+	})
+}

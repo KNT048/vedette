@@ -41,7 +41,7 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   return (
     <Section id="evidence" title={t('evidence.title')} description={t('evidence.description')} stories={['S-SCAN-3']}>
       <Card className="grid gap-4">
-        {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{admin ? `${f.suspected_why} ${t('evidence.confirmYourself')}` : f.suspected_why}</p> : null}
+        {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{admin && canConfirm(f) ? `${f.suspected_why} ${t('evidence.confirmYourself')}` : f.suspected_why}</p> : null}
         {canConfirm(f) && f.asset ? (
           <ConfirmWays assetId={f.asset.id} deviceStated={f.known_version?.source === 'snmp' || f.known_version?.source === 'agent'} checkable={!!f.kev?.has_template && hasIp(f.asset)}>
             {confirm}
@@ -187,7 +187,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <PageHeader
         breadcrumbs={crumbs}
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status === 'suspected' && !canConfirm(f) ? 'suspected_update' : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

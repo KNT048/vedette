@@ -12,8 +12,13 @@ import type { FindingRow } from './types'
 
 type Target = Pick<FindingRow, 'id' | 'cve' | 'status' | 'basis'>
 
-/** A suspected finding an admin can confirm on their own word; a confirmation a person made can be undone. */
-export const canConfirm = (f: Pick<FindingRow, 'status'>) => f.status === 'suspected'
+/** The urgency layer of an update-recommended finding: it never asks for a confirmation (no sign of exploitation, only a version to
+ *  update), so it offers no Confirm anywhere, as Needs your input lists only layers 1 to 4. */
+export const UPDATE_RECOMMENDED_LAYER = 5
+
+/** A suspected finding an admin can confirm on their own word, when its layer asks for one (1 to 4); a confirmation a person made can
+ *  be undone. */
+export const canConfirm = (f: Pick<FindingRow, 'status' | 'urgency'>) => f.status === 'suspected' && f.urgency < UPDATE_RECOMMENDED_LAYER
 export const canUndo = (f: Pick<FindingRow, 'status' | 'basis'>) => f.status === 'confirmed' && f.basis === 'person'
 
 /** The small dialog of Confirm: what the person checked, required, goes into the history next to their name. */

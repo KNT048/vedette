@@ -9,6 +9,7 @@ export function actionTarget(w: Pick<Watcher, 'id' | 'action'>, container: boole
     case 'traps': return w.action === 'set_up' ? '/honeypot?tab=trap-ips' : '/honeypot'
     case 'logs': return w.action === 'set_up' ? '/logs?tab=sources&add=source' : '/logs?tab=sources' // Add opens the add dialog there
     case 'mirror_port': return container ? '/devices/setup?tab=sensor' : '/settings/network#span'
-    case 'ips_events': return w.action === 'view' ? '#alerts' : w.action === 'set_up' ? '/logs?tab=sources&add=source' : '/logs?tab=sources'
+    // the IPS alerts are listed on the Intrusion detection page itself, under the watchers: no link to the place the person already is
+    case 'ips_events': return w.action === 'view' ? null : w.action === 'set_up' ? '/logs?tab=sources&add=source' : '/logs?tab=sources'
   }
 }

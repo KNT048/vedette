@@ -39,7 +39,17 @@ export default function DetectionPage() {
 /** "Bad addresses": the names and addresses your devices reach, matched against the bad-address lists. Only two inputs feed it, the
  *  mirror port (DNS names, TLS and HTTP hosts) and received logs (a firewall or DNS log); the box does not read its own DNS. Its
  *  state is read from those two watchers: watching when one of them is, quiet when one stopped, else what it needs to work. */
-export function badAddressRow(watchers: Watcher[], container = false): { state: 'watching' | 'quiet' | 'not_set_up'; sources: ('mirror_port' | 'logs')[]; last: string | null; to: string } {
+export function badAddressRow(watchers: Watcher[], container = false): { state: 'watching' | 'quiet' | 'not_set_up'; sources: ('mirror_port' | 'logs')[]; last: string | null; to: string; dnsGap: string | null } {
+  const row = badAddressState(watchers, container)
+  // received logs alone see only what their senders log: the names the devices and the box itself look up (DNS) reach the lists only
+  // through a mirror port or a DNS server's (or a firewall's DNS) log; the row says so with the step that closes the gap
+  const mirror = watchers.find((w) => w.id === 'mirror_port')
+  const dnsGap = row.state === 'not_set_up' || row.sources.includes('mirror_port') ? null
+    : mirror && (mirror.state === 'watching' || mirror.state === 'quiet') ? null : '/logs?tab=sources&add=source'
+  return { ...row, dnsGap }
+}
+
+function badAddressState(watchers: Watcher[], container: boolean): { state: 'watching' | 'quiet' | 'not_set_up'; sources: ('mirror_port' | 'logs')[]; last: string | null; to: string } {
   const feeds = watchers.filter((w): w is Watcher & { id: 'mirror_port' | 'logs' } => w.id === 'mirror_port' || w.id === 'logs')
   const watching = feeds.filter((w) => w.state === 'watching')
   const quiet = feeds.filter((w) => w.state === 'quiet')
@@ -82,6 +92,11 @@ function Watchers({ watchers, badAddresses }: { watchers: Watcher[]; badAddresse
             <div className="grid gap-0.5">
               <p className="flex flex-wrap items-baseline gap-x-2"><span className="font-medium">{t('badAddresses.name')}</span><span className="text-meta" data-state={bad.state}>{t(`state.${bad.state}`)}</span></p>
               <p className="text-meta text-muted">{t(`badAddresses.${bad.state}`, { sources: names })}</p>
+              {bad.dnsGap ? (
+                <p className="text-meta text-warn" data-testid="bad-addresses-dns-gap">
+                  {t('badAddresses.dnsGap')} <Link to={bad.dnsGap} className={link}>{t('badAddresses.dnsGapAction')}</Link>
+                </p>
+              ) : null}
               <p className="text-caption text-muted">
                 {bad.last ? t('watching.last', { when: fmtRelative(bad.last) }) : t('watching.never')}{` · ${t('watching.raised', { count: badAddresses })}`}
               </p>

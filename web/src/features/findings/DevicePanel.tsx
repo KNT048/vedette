@@ -6,6 +6,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 import { useKeepListParams } from '@/components/common/listParams'
+import { ListSearch } from '@/components/common/Pager'
 import { Section } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { StatusBadge } from '@/components/common/status'
@@ -19,6 +20,8 @@ import { StatusFilter, statusesOf } from './StatusFilter'
 import type { DeviceCard } from './types'
 
 const ONE = { offset: 0, limit: 1 }
+/** The address key of the Findings tab's search text. */
+const SEARCH_KEY = 'device-findings.q'
 
 /** What the device page says about the device's findings: the badge, the open count and, from the model, the counts per status. */
 export type DeviceFindingsSummary = {
@@ -66,9 +69,16 @@ export function DeviceFindingsLine({ summary }: { summary: DeviceFindingsSummary
  *  waits for an answer and to what was handled. */
 export function DeviceFindings({ assetId, summary }: { assetId: string; summary: DeviceFindingsSummary | undefined }) {
   const { t } = useTranslation('findings')
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const status = statusesOf(params.get('status')).join(',')
-  const cards = useDeviceCards({ device: assetId, status }, ONE)
+  // searched like every other list (the CVE id, the software's name); one card, so no pages: only the text is in the address
+  const q = params.get(SEARCH_KEY) ?? ''
+  const setQ = (v: string) => setParams((prev) => {
+    const p = new URLSearchParams(prev)
+    if (v) p.set(SEARCH_KEY, v); else p.delete(SEARCH_KEY)
+    return p
+  }, { replace: true, preventScrollReset: true })
+  const cards = useDeviceCards({ device: assetId, status, q }, ONE)
   const handled = useHandledList({ device: assetId }, ONE, cards.isSuccess)
   const [handling, setHandling] = useState<Handling | null>(null)
   const id = encodeURIComponent(assetId)
@@ -79,11 +89,12 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
       <div className="grid gap-3">
         {/* the toggles help only when the device has findings of two statuses or more (or a link brought one pressed) */}
         {summary?.counts && (status || OPEN_FINDING_STATUSES.filter((s) => summary.counts![s] > 0).length > 1) ? <StatusFilter counts={summary.counts} /> : null}
+        {summary?.open || q ? <ListSearch value={q} onChange={setQ} label={t('device.search')} /> : null}
         <QueryState query={cards}>
           {(d) => {
             const card: DeviceCard | undefined = d.items.find((c) => c.device.id === assetId)
-            if (!card) return <p className="text-sm text-muted">{status ? t('device.noneWithStatus') : t('device.none')}</p>
-            return <Card><DeviceCardView own card={card} narrowed={!!status} onHandle={setHandling} /></Card>
+            if (!card) return <p className="text-sm text-muted">{q ? t('device.noneMatch', { q }) : status ? t('device.noneWithStatus') : t('device.none')}</p>
+            return <Card><DeviceCardView own card={card} narrowed={!!status || !!q} onHandle={setHandling} /></Card>
           }}
         </QueryState>
         {input || done ? (

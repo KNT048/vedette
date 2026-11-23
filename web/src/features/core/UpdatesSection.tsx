@@ -278,13 +278,14 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <ul className="grid gap-2">
           {s.advisories.map((a) => (
             <li key={a.id}><Card className="text-sm">
+              {/* an advisory this build already fixes is history: its id, a short title and "Fixed in your build", never its heading,
+                  which tells a box it affects what to install; the full heading and what to do are for a box it affects */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{a.title}</span>
+                <span className="font-medium">{a.status === 'affected' ? a.title : t('updates.advisoryFixedTitle', { id: a.id, severity: t(`updates.advisorySeverity.${a.severity}`) })}</span>
                 {a.status === 'affected' ? <Chip tone="danger">{t('updates.advisoryAffected')}</Chip> : <Chip tone="ok">{t('updates.advisoryFixed')}</Chip>}
               </div>
-              <p className="mt-1 text-meta text-muted">{a.id}, {fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
-              {/* what to do is for a box it affects; a fixed box reads the title and "Fixed in your build", and a summary that only
-                  repeats the title is not said twice */}
+              <p className="mt-1 text-meta text-muted">{a.status === 'affected' ? `${a.id}, ` : ''}{fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
+              {/* a summary that only repeats the title is not said twice */}
               {a.status === 'affected' && norm(a.summary) !== norm(a.title) ? <p className="mt-1">{a.summary}</p> : null}
             </Card></li>
           ))}

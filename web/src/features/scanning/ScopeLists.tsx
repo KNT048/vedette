@@ -24,9 +24,11 @@ export function useSettled<T>(value: T, ms = 300): T {
 
 /** Add or edit one entry in a dialog. Its form stops the submit from reaching the page's own form behind it. `below` renders under
  *  the field with the text as typed (the cost of a range). */
-function EntryDialog({ title, label, hint, info, initial, placeholder, submitLabel, check, onSave, onClose, below }: {
+function EntryDialog({ title, label, hint, info, initial, placeholder, submitLabel, check, onSave, onClose, below, blocked }: {
   title: string; label: string; hint: string; info?: string; initial: string; placeholder: string; submitLabel: string
   check: (raw: string) => Checked; onSave: (value: string, note?: string) => void; onClose: () => void; below?: (draft: string) => ReactNode
+  /** Why the entry cannot be added as it is (the scope would be refused on save): the submit button is off and says why. */
+  blocked?: string | null
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(initial)
@@ -34,6 +36,7 @@ function EntryDialog({ title, label, hint, info, initial, placeholder, submitLab
   function submit(e: React.FormEvent) {
     e.preventDefault()
     e.stopPropagation()
+    if (blocked) return
     const r = check(draft.trim())
     if ('error' in r) { setError(r.error); return }
     onSave(r.value, r.note)
@@ -47,9 +50,10 @@ function EntryDialog({ title, label, hint, info, initial, placeholder, submitLab
             aria-describedby={error ? 'entry-input-error' : 'entry-input-hint'} onChange={(e) => { setDraft(e.target.value); setError(undefined) }} />
         </Field>
         {below?.(draft)}
+        {blocked ? <p id="entry-blocked" className="sr-only">{blocked}</p> : null}
         <DialogFooter>
           <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
-          <Button type="submit" variant="primary">{submitLabel}</Button>
+          <Button type="submit" variant="primary" disabled={!!blocked} title={blocked ?? undefined} aria-describedby={blocked ? 'entry-blocked' : undefined}>{submitLabel}</Button>
         </DialogFooter>
       </form>
     </DialogContent>
@@ -62,11 +66,16 @@ function EntryDialog({ title, label, hint, info, initial, placeholder, submitLab
  * blocking the others. `cost` renders the cost of the ranges with the one typed in the dialog (null: none typed or not valid yet).
  */
 export function RangeList({ items, onChange, disabled, cost }: {
-  items: string[]; onChange: (v: string[]) => void; disabled: boolean; cost: (ranges: string[]) => ReactNode
+  items: string[]; onChange: (v: string[]) => void; disabled: boolean
+  /** The cost of `ranges`; it calls `onRefused` with whether a scope of them would be refused on save. */
+  cost: (ranges: string[], onRefused: (refused: boolean) => void) => ReactNode
 }) {
   const { t } = useTranslation('scanning')
   const [dlg, setDlg] = useState<{ old: string | null } | null>(null)
+  // the scope with the range typed in the dialog would be refused on save ("Saving is refused"): Add / Save stays off until it fits
+  const [refused, setRefused] = useState(false)
   const [note, setNote] = useState<string | undefined>()
+  const open = (old: string | null) => { setNote(undefined); setRefused(false); setDlg({ old }) }
   const problemText = (v: string, others: string[]) => {
     const p = rangeProblem(v, others)
     if (!p) return null
@@ -92,7 +101,7 @@ export function RangeList({ items, onChange, disabled, cost }: {
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm font-medium">{t('safety.range.title')}</p>
-        <Button id="range-input" disabled={disabled || items.length >= 16} onClick={() => { setNote(undefined); setDlg({ old: null }) }}><Plus />{t('safety.range.add')}</Button>
+        <Button id="range-input" disabled={disabled || items.length >= 16} onClick={() => open(null)}><Plus />{t('safety.range.add')}</Button>
       </div>
       {note ? <p role="status" className="max-w-2xl text-meta text-ok">{note}</p> : null}
       {items.length ? (
@@ -105,7 +114,7 @@ export function RangeList({ items, onChange, disabled, cost }: {
                   <span className="text-sm font-medium [overflow-wrap:anywhere]">{it}</span>
                   {disabled ? null : (
                     <span className="flex gap-1">
-                      <Button size="sm" variant="ghost" aria-label={t('safety.range.editNamed', { value: it })} onClick={() => { setNote(undefined); setDlg({ old: it }) }}><Pencil />{t('safety.range.edit')}</Button>
+                      <Button size="sm" variant="ghost" aria-label={t('safety.range.editNamed', { value: it })} onClick={() => open(it)}><Pencil />{t('safety.range.edit')}</Button>
                       <Button size="sm" variant="ghost" aria-label={t('safety.range.removeNamed', { value: it })} onClick={() => onChange(items.filter((x) => x !== it))}><X />{t('safety.range.remove')}</Button>
                     </span>
                   )}
@@ -121,7 +130,8 @@ export function RangeList({ items, onChange, disabled, cost }: {
           <EntryDialog title={dlg.old === null ? t('safety.range.addTitle') : t('safety.range.editNamed', { value: dlg.old })} label={t('safety.range.label')}
             hint={t('safety.range.hint')} info={t('safety.range.hintInfo')} initial={dlg.old ?? ''} placeholder="192.168.10.0/24"
             submitLabel={dlg.old === null ? t('safety.range.add') : t('safety.range.save')} onClose={() => setDlg(null)}
-            check={(raw) => check(raw, dlg.old)} below={(draft) => <DraftCost ranges={withDraft(draft, dlg.old)} cost={cost} />}
+            check={(raw) => check(raw, dlg.old)} below={(draft) => <DraftCost ranges={withDraft(draft, dlg.old)} cost={cost} onRefused={setRefused} />}
+            blocked={refused ? t('safety.range.refused') : null}
             onSave={(v, n) => { onChange(dlg.old === null ? [...items, v] : items.map((x) => (x === dlg.old ? v : x))); setNote(n) }} />
         ) : null}
       </Dialog>
@@ -130,9 +140,10 @@ export function RangeList({ items, onChange, disabled, cost }: {
 }
 
 /** The cost of the ranges with the draft, once the draft is a range that would be accepted and has settled for a moment. */
-function DraftCost({ ranges, cost }: { ranges: string[] | null; cost: (ranges: string[]) => ReactNode }) {
+function DraftCost({ ranges, cost, onRefused }: { ranges: string[] | null; cost: (ranges: string[], onRefused: (refused: boolean) => void) => ReactNode; onRefused: (refused: boolean) => void }) {
   const settled = useSettled(ranges)
-  return settled ? <>{cost(settled)}</> : null
+  useEffect(() => { if (!settled) onRefused(false) }, [settled, onRefused]) // no range to cost: nothing refuses it
+  return settled ? <>{cost(settled, onRefused)}</> : null
 }
 
 /** IPv4 addresses or ranges no engine touches: chips with Remove, and Add in a dialog. */

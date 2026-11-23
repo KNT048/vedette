@@ -1160,6 +1160,21 @@ describe('core: audit log (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
+  it('every action reads in words: the label, never the stored code; an action without a label yet is said by its kind', async () => {
+    auditStore.set([
+      { id: 'a1', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'schedule.save', target: 'reports.def:rd-1', detail: null, ...NOHASH },
+      { id: 'a2', ts: new Date().toISOString(), user: 'system', action: 'inventory.software_sync', target: 'web-01', detail: 'osquery: 12 items', ...NOHASH },
+      { id: 'a3', ts: new Date().toISOString(), user: 'system', action: 'inventory.brand_new_thing', target: 'web-01', detail: null, ...NOHASH },
+    ])
+    renderApp('/settings/audit')
+    const table = await screen.findByRole('table', { name: 'Audit log' })
+    await within(table).findByText('Change a schedule')
+    expect(within(table).getByText('Software list synced')).toBeInTheDocument()
+    expect(within(table).getByText('Devices: brand new thing')).toBeInTheDocument()
+    for (const code of ['schedule.save', 'inventory.software_sync', 'inventory.brand_new_thing']) expect(within(table).queryByText(code)).toBeNull()
+    expect(within(table).getByText('Change a schedule')).toHaveAttribute('title', 'schedule.save') // the code, for support, on hover
+  })
+
   it('CSV export resists formulas and has correct quoting', async () => {
     renderApp('/settings/audit')
     await screen.findByRole('table', { name: 'Audit log' })
@@ -1212,14 +1227,17 @@ describe('core: updates (S-CORE-2)', () => {
     expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('an advisory on a box already fixed shows its title and "Fixed in your build", never the same sentence twice', async () => {
+  it('an advisory on a box already fixed shows a short title and "Fixed in your build", never the heading that says what to install', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const base = await (await fetch(`${location.origin}/api/v1/core/updates`)).json() as Record<string, unknown>
     const same = 'Vedette 0.1.1 needs a fresh install: back up what you need, uninstall, then install 0.1.1 with install.sh'
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, advisories: [{ id: 'VED-2026-001', title: same, severity: 'high', published: '2026-11-23', fixed_in: '0.1.1', summary: `${same}.`, status: 'fixed' }] })))
     renderApp('/settings/updates')
     expect(await screen.findByText('Fixed in your build')).toBeInTheDocument()
-    expect(screen.getAllByText((_, el) => el?.textContent === same || el?.textContent === `${same}.`).length).toBe(1)
+    expect(screen.getByText('VED-2026-001: a high security advisory')).toBeInTheDocument()
+    expect(screen.getByText(/23 Nov 2026\. Fixed in 0\.1\.1/)).toBeInTheDocument()
+    // the heading tells a box it affects what to install: a box with the fix never reads it
+    expect(document.body.textContent).not.toContain('needs a fresh install')
   })
 
   it('the advisory banner points to the advisory when no software update reaches the fix', async () => {

@@ -1,6 +1,7 @@
 package notify_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -295,5 +296,117 @@ func TestFirstRunSummaryPastItsListLimitStillCountsNewFindings(t *testing.T) {
 	got := summaries(e)
 	if len(got) != 1 || got[0].Title != "Patch first: 101 urgent findings on 101 devices" || !strings.Contains(got[0].Items[0], "CVE-2026-114938") {
 		t.Fatalf("summaries = %+v", got)
+	}
+}
+
+// hookFindings is a finding directory that runs a hook once, on the first read of a given finding: another pass of the same load
+// published from another goroutine while this one reads its findings.
+type hookFindings struct {
+	*liveFindings
+	on   string
+	hook func()
+}
+
+func (h *hookFindings) Finding(ctx context.Context, id string) (notify.FindingInfo, bool, error) {
+	if id == h.on && h.hook != nil {
+		f := h.hook
+		h.hook = nil
+		f()
+	}
+	return h.liveFindings.Finding(ctx, id)
+}
+
+// Two passes of one load told at the same time are still one message: the second pass's summary is written while the first one reads
+// its findings, and the first one must then take it in, not queue a second summary beside it.
+func TestFirstRunPassesToldAtOnceAreOneMessage(t *testing.T) {
+	live := &liveFindings{}
+	dir := &hookFindings{liveFindings: live, on: "f-1"}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	e.telegram(notify.Medium)
+	e.svc.Subscribe(e.bus)
+	pub := func(data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(notify.EventFirstRun, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	live.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	live.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	first := firstRun(e, "f-1")
+	e.clock.Add(time.Second)
+	dir.hook = func() { pub(firstRun(e, "f-2")) }
+	pub(first)
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	if got := summaries(e); len(got) != 1 || len(got[0].Items) != 2 {
+		t.Fatalf("summaries = %+v, want one that tells both findings", got)
+	}
+}
+
+// Send now never tells a finding twice: a notice not sent at the time whose finding a later alert (its rise) already told is refused.
+func TestSendNowRefusesAFindingAlreadyToldSince(t *testing.T) {
+	dir := &liveFindings{}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	e.svc.Subscribe(e.bus)
+	e.telegram(notify.Critical)
+	pub := func(name string, data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir.at("f-1", 3, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", CVE: "CVE-2026-1", Severity: findings.SeverityHigh})
+	e.flush()
+	dir.at("f-1", 2, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
+	pub(notify.EventUrgencyRaised, rise("f-1", 3, 2, e.clock.Now()))
+	e.flush()
+	if n := len(sentMessages(e)); n != 1 {
+		t.Fatalf("%d messages, want the rise's alert", n)
+	}
+	_, err := e.svc.SendNow(e.ctx(), "it@acme.example", "nt-f-1-created")
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Status != http.StatusConflict || ae.Code != "already_sent" {
+		t.Errorf("send now of a finding told since: %v, want 409 already_sent", err)
+	}
+	e.flush()
+	if n := len(sentMessages(e)); n != 1 {
+		t.Errorf("%d messages: the finding was told twice", n)
+	}
+}
+
+// A summary a person sent with Send now goes out as they asked: the next pass of its load does not take it back into a new summary that
+// the channel's minimum severity drops again.
+func TestSendNowOfASummaryIsNotTakenBackByTheNextPass(t *testing.T) {
+	dir := &liveFindings{}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	e.telegram(notify.Critical)
+	e.svc.Subscribe(e.bus)
+	pub := func(data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(notify.EventFirstRun, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	pub(firstRun(e, "f-1"))
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	if got := summaries(e); len(got) != 0 {
+		t.Fatalf("a high summary went to a channel that takes only critical: %+v", got)
+	}
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM notify_notice WHERE event = 'first_run'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.SendNow(e.ctx(), "it@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(time.Second)
+	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.High))
+	pub(firstRun(e, "f-2"))
+	e.flush()
+	if got := summaries(e); len(got) != 1 || got[0].ID != id {
+		t.Fatalf("summaries = %+v, want the one sent now", got)
 	}
 }

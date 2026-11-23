@@ -17,8 +17,9 @@ import (
 // SendNow sends a vulnerability notice that no channel delivered (History, Not sent) to every channel that is on, now: a person decided
 // it matters, so the channels' minimum severity, quiet hours and grouping do not hold it back. It is written again from its findings as
 // findings shows them now (the status, the reasons and the verification line of today), keeps its id, so the message that delivers it
-// takes it off the Not sent list, and goes out with the next run of the deliver job. Refused (409) when a message already delivered it,
-// when its findings are no longer open at an urgent status (1-4), or when no channel is on.
+// takes it off the Not sent list, and goes out with the next run of the deliver job. Refused (409) when a message already delivered it
+// or has told all its findings since at their status or a more urgent one (one alert per finding), when its findings are no longer open
+// at an urgent status (1-4), or when no channel is on.
 func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, error) {
 	db := s.cfg.DB.Reader()
 	var event, title, created string
@@ -57,15 +58,31 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 	}
 	infos := map[string]FindingInfo{}
 	var keep []string
+	urgent := 0
 	for _, f := range ids {
 		info, ok, err := s.cfg.Findings.Finding(ctx, f)
 		if err != nil {
 			return UnsentNotice{}, err
 		}
-		if ok && info.Open && info.Layer >= 1 && info.Layer < layerUpdate {
+		if !ok || !info.Open || info.Layer < 1 || info.Layer >= layerUpdate {
+			continue
+		}
+		urgent++
+		// One alert per finding: one a message that arrived already told at this status or a more urgent one (a later rise) is not
+		// told again.
+		var told int
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM notify_notice_finding nf JOIN notify_send_notice sn ON sn.notice_id = nf.notice_id
+			JOIN notify_send d ON d.id = sn.send_id WHERE nf.finding_id = ? AND nf.notice_id <> ? AND nf.layer BETWEEN 1 AND ? AND d.ok = 1`,
+			f, id, info.Layer).Scan(&told); err != nil {
+			return UnsentNotice{}, fmt.Errorf("notify: read what a finding was told at: %w", err)
+		}
+		if told == 0 {
 			infos[f] = info
 			keep = append(keep, f)
 		}
+	}
+	if urgent > 0 && len(keep) == 0 {
+		return UnsentNotice{}, apierr.New(http.StatusConflict, "already_sent", "A message that arrived since already told its findings at this status. Use Send again on that message instead.")
 	}
 	if len(keep) == 0 {
 		return UnsentNotice{}, apierr.New(http.StatusConflict, "nothing_to_send", "Its findings are handled, or no longer exploited or urgent, so there is nothing to send.")

@@ -43,9 +43,10 @@ func settleDue(now, first time.Time) time.Time {
 func firstRunPrefix(key string) string { return "nt-first-run-" + clip(key, 80) + "-" }
 
 // waitingSummaryWhere selects a first-run summary that no channel has taken yet: queued on at least one channel, every row still pending
-// (none claimed or being sent), no attempt recorded, no message named it.
+// (none claimed or being sent), none queued to go now (a person's Send now: it goes as they asked, not into a summary a channel's minimum
+// severity drops), no attempt recorded, no message named it.
 const waitingSummaryWhere = `EXISTS (SELECT 1 FROM notify_pending p WHERE p.notice_id = n.id)
-	AND NOT EXISTS (SELECT 1 FROM notify_pending p WHERE p.notice_id = n.id AND p.state <> 'pending')
+	AND NOT EXISTS (SELECT 1 FROM notify_pending p WHERE p.notice_id = n.id AND (p.state <> 'pending' OR p.reason = 'now'))
 	AND NOT EXISTS (SELECT 1 FROM notify_send d WHERE d.kind = 'vuln' AND d.ref_id = n.id)
 	AND NOT EXISTS (SELECT 1 FROM notify_send_notice sn WHERE sn.notice_id = n.id)`
 
@@ -68,18 +69,25 @@ func waitingSummary(ctx context.Context, q dbtx, prefix string) (*Notice, error)
 	return &n, nil
 }
 
-// stillWaiting says whether a summary read before the write still waits (no run took it meanwhile).
-func stillWaiting(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
-	var one int
-	err := tx.QueryRowContext(ctx, `SELECT 1 FROM notify_notice n WHERE n.id = ? AND `+waitingSummaryWhere, id).Scan(&one)
+// waitingSummaryID is the id of the summary of the load (its id prefix) that waits in the queue now, read inside the write; "" when none.
+func waitingSummaryID(ctx context.Context, tx *sql.Tx, prefix string) (string, error) {
+	var id string
+	err := tx.QueryRowContext(ctx, `SELECT n.id FROM notify_notice n WHERE substr(n.id, 1, ?) = ? AND n.event = ? AND `+waitingSummaryWhere+`
+		ORDER BY n.created_at DESC, n.id DESC LIMIT 1`, len(prefix), prefix, string(NoticeFirstRun)).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
+		return "", nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("notify: read the waiting first-run summary: %w", err)
+		return "", fmt.Errorf("notify: read the waiting first-run summary: %w", err)
 	}
-	return true, nil
+	return id, nil
 }
+
+// errSummaryMoved: another pass of the same load queued or replaced its waiting summary between the reads and the write.
+var errSummaryMoved = errors.New("notify: the waiting first-run summary changed meanwhile")
+
+// firstRunTries bounds how often a pass reads again after another pass of its load wrote in between.
+const firstRunTries = 5
 
 // dropNotice removes a notice that never reached a channel, with its queue rows and the record of what it told.
 func dropNotice(ctx context.Context, tx *sql.Tx, id string) error {
@@ -128,6 +136,20 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		at = s.now()
 	}
 	prefix := firstRunPrefix(e.Key)
+	// Passes of one load may be told at the same time (several devices rated at once): a pass that finds the waiting summary changed
+	// when it comes to write reads again, so it joins the summary the other pass wrote instead of queuing a second one beside it.
+	for try := 1; ; try++ {
+		err := s.firstRunPass(ctx, e.Key, prefix, at, e.Findings, e.Devices, e.Layer, e.FindingIDs, try < firstRunTries)
+		if !errors.Is(err, errSummaryMoved) {
+			return err
+		}
+	}
+}
+
+// firstRunPass is one try of urgencyFirstRun for the event of a load (its key and id prefix): eventFindings counted, ids listed.
+// retry: return errSummaryMoved when the waiting summary changed between the reads and the write (else tell what this pass has alone).
+func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.Time, eventFindings, eventDevices, eventLayer int, eventIDs []string,
+	retry bool) error {
 	waiting, err := waitingSummary(ctx, s.cfg.DB.Reader(), prefix)
 	if err != nil {
 		return err
@@ -137,7 +159,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	if waiting != nil {
 		ids = append(ids, waiting.FindingIDs...)
 	}
-	ids = dedupe(append(ids, e.FindingIDs...))
+	ids = dedupe(append(ids, eventIDs...))
 	infos := make(map[string]FindingInfo, len(ids))
 	for _, id := range ids {
 		f, ok, err := s.cfg.Findings.Finding(ctx, id)
@@ -148,15 +170,19 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 			infos[id] = f
 		}
 	}
-	unlisted := max(e.Findings-len(e.FindingIDs), 0) // the event counts more findings than it lists
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		unlisted := max(eventFindings-len(eventIDs), 0) // the event counts more findings than it lists
 		w := waiting
-		if w != nil {
-			if still, err := stillWaiting(ctx, tx, w.ID); err != nil {
-				return err
-			} else if !still {
-				w = nil // a run took it meanwhile: this summary tells only what came since
-			}
+		cur, err := waitingSummaryID(ctx, tx, prefix)
+		if err != nil {
+			return err
+		}
+		switch {
+		case w != nil && cur == w.ID: // still waits: this pass replaces it
+		case cur != "" && retry:
+			return errSummaryMoved // another pass of the load queued or replaced it meanwhile: read again
+		default:
+			w = nil // a run took it meanwhile: this summary tells only what came since
 		}
 		except := ""
 		if w != nil {
@@ -187,7 +213,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 			}
 			unlisted += max(len(w.Lines)+w.More-len(w.FindingIDs), 0)
 		}
-		for _, id := range e.FindingIDs {
+		for _, id := range eventIDs {
 			if err := add(id, &eventKeep); err != nil {
 				return err
 			}
@@ -196,7 +222,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 			return nil // nothing new to tell: the waiting summary, if any, stands as it is
 		}
 		keep := append(waitKeep, eventKeep...)
-		devices := e.Devices
+		devices := eventDevices
 		if len(keep) > maxNoticeItems { // the most urgent are listed, the rest counted
 			slices.SortStableFunc(keep, func(a, b string) int { return infos[a].Layer - infos[b].Layer })
 			seen := map[string]bool{}
@@ -220,7 +246,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 			}
 			first = w.At
 		}
-		n := s.summaryNotice(ctx, e.Key, keep, infos, unlisted, devices, e.Layer, sent)
+		n := s.summaryNotice(ctx, key, keep, infos, unlisted, devices, eventLayer, sent)
 		n.ID, n.At = prefix+at.UTC().Format("20060102T150405.000"), first
 		return s.enqueue(ctx, tx, n)
 	})

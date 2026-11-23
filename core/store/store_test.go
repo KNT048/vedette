@@ -721,3 +721,26 @@ func TestMigrateStartsOnADatabaseNewerThanTheBinary(t *testing.T) {
 		t.Fatalf("applied version = %d (%v), want 2 untouched", top, err)
 	}
 }
+
+func TestModuleSinceIsTheFirstMigration(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db := storetest.New(t)
+	if at, err := db.ModuleSince(ctx, "my-mod"); err != nil || !at.IsZero() {
+		t.Fatalf("before any migration: %v, %v; want zero, nil", at, err)
+	}
+	before := time.Now().UTC().Add(-time.Minute)
+	if err := store.Migrate(ctx, db, "my-mod", migrations(goodMigration)); err != nil {
+		t.Fatal(err)
+	}
+	at, err := db.ModuleSince(ctx, "my-mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if at.Before(before) || at.After(time.Now().UTC().Add(time.Minute)) {
+		t.Fatalf("since = %v, want about now", at)
+	}
+	if _, err := db.ModuleSince(ctx, "Bad Name"); err == nil {
+		t.Fatal("a bad module name was accepted")
+	}
+}

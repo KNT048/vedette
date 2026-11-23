@@ -22,12 +22,13 @@ var howLabels = map[string]string{
 	"data_corrected": "the match was corrected", "not_installed": "the software is not installed",
 }
 
-func dayMonth(at string, loc *time.Location) string {
+// dayOf is the organisation's day of a moment with its year ("24 Nov 2026"), as every page writes it beside the dates of a finding.
+func dayOf(at string, loc *time.Location) string {
 	t := parseTS(at)
 	if t.IsZero() {
 		return ""
 	}
-	return orgtime.Short(t, loc)
+	return orgtime.Day(t, loc)
 }
 
 // zoneOf is the zone a document was made in (its period's tz), UTC when it cannot be loaded.
@@ -39,12 +40,15 @@ func zoneOf(d Document) *time.Location {
 }
 
 // HandledLine is who handled a finding and how, from the stored fields, in the words the pages use: "Patched by Vedette: version moved
-// 6.24 → 7.23 (18 Nov)", "Patched by Vedette: WinRAR was removed (18 Nov)", "Mitigated by ana@example.com (17 Nov): firewall rule".
-// The day is written in loc, the organisation's zone.
+// 6.24 → 7.23 (18 Nov 2026)", "Patched by Vedette: WinRAR was removed (18 Nov 2026)", "Mitigated by ana@example.com (17 Nov 2026):
+// firewall rule", "Risk accepted until 24 Dec 2026 by ana@example.com (17 Nov 2026)". The day is written in loc, the organisation's zone.
 func HandledLine(h Handled, software string, loc *time.Location) string {
 	status := statusLabels[h.Resolution]
 	if h.Resolution == "accepted" && h.AcceptedUntil != nil {
 		status = "Risk accepted until " + *h.AcceptedUntil
+		if d, err := time.Parse(time.DateOnly, *h.AcceptedUntil); err == nil {
+			status = "Risk accepted until " + orgtime.CalendarDay(d)
+		}
 	}
 	by := h.By
 	if by == "system" {
@@ -63,9 +67,9 @@ func HandledLine(h Handled, software string, loc *time.Location) string {
 	default:
 		how = howLabels[h.Via]
 	}
-	line := fmt.Sprintf("%s by %s (%s)", status, by, dayMonth(h.At, loc))
+	line := fmt.Sprintf("%s by %s (%s)", status, by, dayOf(h.At, loc))
 	if how != "" {
-		line = fmt.Sprintf("%s by %s: %s (%s)", status, by, how, dayMonth(h.At, loc))
+		line = fmt.Sprintf("%s by %s: %s (%s)", status, by, how, dayOf(h.At, loc))
 	}
 	if h.Note != nil && *h.Note != "" {
 		line += ": " + clip(*h.Note, 200)
@@ -126,12 +130,13 @@ func digest(d Document, sentID string) Mail {
 		if len(parts) > 0 {
 			what = append(what, strings.Join(parts, ", ")+".")
 		}
+		// the mail's own heading says "What to do first": the first thing follows it as it is, the others are marked "Then"
 		for i, f := range s.First {
 			if i == 0 {
-				m.Action = "Do first: " + firstLine(f)
+				m.Action = firstLine(f)
 				continue
 			}
-			items = append(items, firstLine(f))
+			items = append(items, "Then: "+firstLine(f))
 		}
 	}
 	if h := d.Handled; h != nil {
@@ -141,7 +146,8 @@ func digest(d Document, sentID string) Mail {
 				if n == maxMailHandled {
 					break
 				}
-				items = append(items, fmt.Sprintf("%s on %s: %s", it.Product, dev.Device.Name, HandledLine(it.Handled, it.Product, loc)))
+				// each handled line says it is one, and which CVE: it no longer runs on from the things to do
+				items = append(items, fmt.Sprintf("Handled: %s, %s on %s: %s", it.CVE, it.Product, dev.Device.Name, HandledLine(it.Handled, it.Product, loc)))
 				n++
 			}
 		}

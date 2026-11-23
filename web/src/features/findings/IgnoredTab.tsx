@@ -53,7 +53,7 @@ export function IgnoredTab() {
       <QueryState query={q}>
         {(d) => d.total === 0 ? <EmptyState title={t('ignoredTab.none')} /> : (
           <DataTable urlKey="ignored" caption={t('ignoredTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list }} mobileRow={(c) => <IgnoredDevice card={c} />} />
+            server={{ total: d.total, list, max: PAGE_MAX }} mobileRow={(c) => <IgnoredDevice card={c} />} />
         )}
       </QueryState>
     </div>

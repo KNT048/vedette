@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fmtDate, fmtDayMonth } from '@/lib/format'
+import { fmtDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import type { Reason, Urgency } from '@/features/findings/types'
@@ -8,7 +8,8 @@ import { useStatusLabel } from './StatusBadge'
 
 /**
  * Why a finding has its status: every urgency layer that applies, each with its sources, date and link, under the badge.
- * "Exploited in the wild: Rapid7, Mandiant (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)".
+ * "Exploited in the wild: Rapid7, Mandiant (19 Nov 2026); not yet in CISA KEV · Public exploit available: GitHub, 244 stars
+ * (18 Nov 2026)". Every date carries its year, as the fix-by day beside it does.
  * Nothing for an update that is only recommended (no layer 1 to 4 applies).
  */
 export function ReasonsLine({ urgency, className }: { urgency: Pick<Urgency, 'reasons' | 'internet'>; className?: string }) {
@@ -27,16 +28,16 @@ export function ReasonsLine({ urgency, className }: { urgency: Pick<Urgency, 're
       <span key={layer} data-layer={layer}>
         {label(OPEN_FINDING_STATUSES[layer - 1]!)}{': '}
         {rs.map((r, i) => <Fragment key={`${r.source}-${i}`}>{i > 0 ? ', ' : null}<Source r={r} /></Fragment>)}
-        {` (${fmtDayMonth(first)})`}{extra ? `; ${extra}` : null}
+        {` (${fmtDate(first)})`}{extra ? `; ${extra}` : null}
       </span>
     )
   })
   if (urgency.internet) parts.push(<span key="internet">{t('reasons.internet', { date: fmtDate(urgency.internet) })}</span>)
   if (!parts.length) return null
   return (
-    <p className={cn('text-meta text-muted', className)}>
+    <span data-testid="reasons-line" className={cn('block text-meta text-muted', className)}>
       {parts.map((p, i) => <Fragment key={i}>{i > 0 ? ' · ' : null}{p}</Fragment>)}
-    </p>
+    </span>
   )
 }
 

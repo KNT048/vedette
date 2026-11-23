@@ -6,6 +6,7 @@ import { fmtDateTime } from '@/lib/format'
 import type { Asset } from '@/lib/types'
 import { ensureBox } from './mocks'
 import { neverSeen } from './nameOf'
+import { devicePoll } from './api'
 
 // A value a person entered is labelled as entered, never as "seen on the network"; "Last seen" is only a report of a sensor, a scan
 // or an agent. A hand-added device keeps last_seen = first_seen = the time it was added until a report moves it.
@@ -100,5 +101,16 @@ describe('Device page and list: what a person entered, what the network saw', ()
     const cell = await listSeen('fw-edge-01')
     expect(cell).not.toHaveTextContent('Never')
     expect(within(cell).getByText(/ago/)).toHaveAttribute('title', fmtDateTime(scan))
+  })
+
+  it('an open device page shows a new report by itself: "last seen" moves without a reload', async () => {
+    devicePoll.ms = 200
+    try {
+      addFirewall('a-hand-live', '192.168.10.83', ago(2))
+      renderApp('/devices/a-hand-live')
+      expect(await screen.findByText('Firewall, last seen 2 hours ago', undefined, T)).toBeInTheDocument()
+      assetsStore.update((l) => l.map((a) => (a.id === 'a-hand-live' ? { ...a, last_seen: new Date().toISOString() } : a))) // an agent report
+      expect(await screen.findByText(/^Firewall, last seen (now|less than a minute ago|\d+ seconds? ago)$/, undefined, T)).toBeInTheDocument()
+    } finally { devicePoll.ms = 60_000 }
   })
 })

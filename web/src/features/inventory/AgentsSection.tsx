@@ -22,6 +22,7 @@ import { ApiError } from '@/lib/api'
 import { useAgentActions, useAgents, useWazuhActions } from './api'
 import { errMsg } from './kinds'
 import { AGENT_COMMANDS, boxHostPort } from './AgentQuiet'
+import { InfoLine } from '@/components/common/InfoLine'
 import type { AgentNode, AgentToken, AgentsResponse, CreateTokenResult, OsqueryPackage, WazuhConnection } from './types'
 
 /** Only the preview build with the mock API: the "Send sample data" button simulates one agent report (the real build does not have it). */
@@ -245,7 +246,7 @@ export function OsqueryEnrol({ data, tokenName, onCreated }: { data: AgentsRespo
   return (
     <div className="grid gap-4">
       <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
-      <p className="text-meta text-muted">{t('agents.createNote')}</p>
+      <InfoLine className="text-meta text-muted" topic={t('agents.createNote')} info={t('agents.createNoteInfo')}>{t('agents.createNote')}</InfoLine>
       {error ? <TokenError error={error} onRemoved={() => setError(null)} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>

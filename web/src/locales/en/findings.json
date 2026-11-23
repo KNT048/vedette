@@ -187,6 +187,7 @@
     "fixedSourceDistro": "Source: {{source}}.",
     "vendorLink": "Vendor advisory ({{host}})",
     "noVendorLink": "The exploited list gives no vendor link for this flaw. Search the vendor's security advisories for {{cve}} ({{product}}).",
+    "noAdvisoryLink": "No vendor advisory is linked for this flaw yet. Search the security advisories of {{product}} for {{cve}}.",
     "nvdLink": "NVD entry (affected versions)",
     "cisaLink": "CISA notice",
     "cisa": {
@@ -489,12 +490,17 @@
     "updateFrom": "Update {{product}} {{from}} → {{to}}",
     "update": "Update {{product}} to {{to}}",
     "distro": "Install the {{product}} package {{to}} or later",
+    "distroAny": "Install the distribution's security updates for {{product}}",
+    "updateAny": "Update {{product}} to a fixed release",
+    "osAny": "Install the latest cumulative update on {{product}}",
+    "featureAny": "Move {{product}} to a later release",
     "osRef": "Install {{ref}} on {{product}}",
     "osBuild": "Update {{product}} to build {{to}}",
     "feature": "Move {{product}} to release {{to}}",
     "noneYet": "No fix known yet for {{product}}",
     "unknown": "No fix data for {{product}}",
     "advisory": "Vendor advisory",
+    "advisories": "Advisories for {{cve}}",
     "notes": "Release notes"
   },
   "byDevice": {
@@ -564,6 +570,7 @@
     "noteRequiredLabel": "Note: why (required)",
     "noteRequired": "Say why (at least 3 characters), so the next person understands.",
     "pickOne": "Tick at least one finding.",
+    "pickHow": "Choose how it was handled.",
     "tooMany": "Mark at most {{max}} findings at a time.",
     "submit_one": "Mark {{count}} finding",
     "submit_other": "Mark {{count}} findings",
@@ -624,7 +631,18 @@
     "affected": "Affected",
     "not_affected": "Not affected",
     "affectedTitle": "{{cve}} affects {{device}}",
-    "not_affectedTitle": "{{cve}} does not affect {{device}}"
+    "not_affectedTitle": "{{cve}} does not affect {{device}}",
+    "notAffectedSaved": "Saved: {{cve}} does not affect {{device}}.",
+    "undo": "Undo",
+    "askedAgain": "Asked again: {{cve}} on {{device}} waits for your answer.",
+    "askAgain": "Ask again",
+    "askAgainOf": "Ask again: {{cve}} on {{device}}",
+    "answered_one": "{{count}} question answered \"Not affected\"",
+    "answered_other": "{{count}} questions answered \"Not affected\"",
+    "answeredCaption": "Questions answered not affected",
+    "answeredBy": "Not affected, answered by {{by}} on {{date}}",
+    "answeredMore_one": "{{count}} more answer is not shown.",
+    "answeredMore_other": "{{count}} more answers are not shown."
   },
   "handledTab": {
     "caption": "Handled findings",

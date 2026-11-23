@@ -30,7 +30,7 @@ function Body({ a, crumbs }: { a: Alert; crumbs: { label: string; to: string }[]
       <Section id="facts" title={t('alert.facts')}>
         <Card>
           <KeyValue items={[
-            { label: t('alert.flow'), value: <AlertLine a={a} /> },
+            { label: t('alert.flow'), value: <AlertLine a={a} plain /> },
             { label: t('alert.attacked'), value: a.dst_device ? <DeviceLink device={a.dst_device} ip={a.dst_ip} /> : <span className="text-muted">{t('alert.notInInventory', { ip: a.dst_ip })}</span> },
             { label: t('alert.source'), value: a.src_device ? <DeviceLink device={a.src_device} ip={a.src_ip} /> : <span>{t('alert.outside', { ip: a.src_ip })}</span> },
             { label: t('alert.rule'), value: a.sid === null ? t('alert.noSid') : String(a.sid) },

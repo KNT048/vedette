@@ -11,9 +11,46 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useHistory, useResend } from './api'
-import type { HistoryItem } from './types'
+import { NotSentFix, waitingReason } from './shared'
+import type { HistoryItem, UnsentNotice } from './types'
 
-/** Settings, Alert channels, History: every message sent, all kinds. */
+/** The vulnerability alerts of the last days that no channel delivered, each with the box's sentence of why and, for an admin, where to
+ *  fix it: a notice is never missing without a reason on this page. */
+function NotSentNotices({ rows, days }: { rows: UnsentNotice[]; days: number }) {
+  const { t } = useTranslation('notify')
+  const admin = useCan('admin')
+  const why = (r: UnsentNotice) => (
+    <div className="grid justify-items-start gap-1">
+      <Chip tone={waitingReason(r.not_sent) ? 'accent' : 'warn'}>{t(waitingReason(r.not_sent) ? 'history.notSent.waiting' : 'history.notSent.notSent')}</Chip>
+      <span className="min-w-[10rem] max-w-[48ch] text-meta">{r.not_sent.text}</span>
+      <NotSentFix notSent={r.not_sent} admin={admin} />
+    </div>
+  )
+  const what = (r: UnsentNotice) => <Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link>
+  const columns: ColumnDef<UnsentNotice>[] = [
+    { id: 'time', header: t('history.col.time'), accessorFn: (r) => r.at, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.at)}</span> },
+    { id: 'what', header: t('history.col.what'), accessorFn: (r) => r.what, cell: ({ row }) => what(row.original) },
+    { id: 'result', header: t('history.col.result'), accessorFn: (r) => r.not_sent.reason, cell: ({ row }) => why(row.original) },
+  ]
+  const mobileRow = (r: UnsentNotice) => (
+    <div className="grid gap-1.5 text-sm">
+      {what(r)}
+      <p className="text-meta text-muted">{fmtDateTime(r.at)}</p>
+      {why(r)}
+    </div>
+  )
+  return (
+    <div className="mb-6 grid gap-2">
+      <h3 className="text-base font-semibold">{t('history.notSent.title')}</h3>
+      {rows.length === 0 ? <p className="text-meta text-muted">{t('history.notSent.none', { days })}</p> : <>
+        <p className="max-w-3xl text-meta text-muted">{t('history.notSent.description', { days })}</p>
+        <DataTable urlKey="notify-not-sent" caption={t('history.notSent.caption')} data={rows} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />
+      </>}
+    </div>
+  )
+}
+
+/** Settings, Alert channels, History: every message sent, all kinds, and the vulnerability alerts that were not sent. */
 export default function History() {
   const { t } = useTranslation('notify')
   const q = useHistory()
@@ -57,6 +94,7 @@ export default function History() {
         {(d) => (
           <>
             <p className="mb-3 max-w-3xl text-meta text-muted">{d.suppressed.count > 0 ? t('history.meta', { count: d.suppressed.count, days: d.suppressed.days }) : t('history.metaNone', { days: d.suppressed.days })}</p>
+            <NotSentNotices rows={d.not_sent} days={d.suppressed.days} />
             {d.items.length === 0 ? <EmptyState title={t('history.emptyTitle')} info={t('history.emptyBodyInfo')}>{t('history.emptyBody')}</EmptyState>
               : <DataTable urlKey="notify-history" caption={t('history.caption')} data={d.items} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
           </>

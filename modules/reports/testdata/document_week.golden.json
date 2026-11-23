@@ -232,7 +232,8 @@
         }
       ],
       "more": 0,
-      "median_days": 20
+      "median_days": 20,
+      "not_relevant_left_out": 1
     },
     "open": {
       "grouping": "device",
@@ -657,13 +658,13 @@
   "mail": {
     "Title": "Security report: 4 open, 3 handled (4 Nov to 11 Nov 2026)",
     "What": "Open now: 4 (4 at the start of the period). New: 2. Handled: 3.\nUnder attack here: 1, Exploited in the wild: 2, Update recommended: 1.\nDetections: 3 incidents.",
-    "Action": "Do first: Under attack here: CVE-2021-41773 in Apache HTTP Server on web-01: update to 2.4.51",
+    "Action": "Under attack here: CVE-2021-41773 in Apache HTTP Server on web-01: update to 2.4.51",
     "Items": [
-      "Exploited in the wild: CVE-2023-23397 in Microsoft Outlook on ws-accounting-07: update to 16.0.2",
-      "Exploited in the wild: CVE-2025-0411 in 7-Zip on laptop-sales-12: update to 24.09",
-      "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)",
-      "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov): Checked on the machine.",
-      "Apache Log4j on web-01: Mitigated by it@acme.example (6 Nov): JNDI lookups turned off until the vendor update."
+      "Then: Exploited in the wild: CVE-2023-23397 in Microsoft Outlook on ws-accounting-07: update to 16.0.2",
+      "Then: Exploited in the wild: CVE-2025-0411 in 7-Zip on laptop-sales-12: update to 24.09",
+      "Handled: CVE-2023-38831, WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov 2026)",
+      "Handled: CVE-2023-40477, WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov 2026): Checked on the machine.",
+      "Handled: CVE-2021-44228, Apache Log4j on web-01: Mitigated by it@acme.example (6 Nov 2026): JNDI lookups turned off until the vendor update."
     ],
     "Path": "/reports/sent/rep-1"
   }

@@ -180,7 +180,7 @@ type TargetView struct {
 	Latest             *Counts `json:"latest"`
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1); nil when never scanned.
-	OpenPorts []PortRow `json:"open_ports"`
+	OpenPorts []PortRow `json:"open_ports" nullable:"true"` // nil: never scanned (null in the API)
 	// Proof says where a domain's TXT record goes and which verified domain of the box covers it already; nil for an IP.
 	Proof *ProofHint `json:"proof"`
 	// Origin says who added the target: "person" (typed in) or "box" (a public IP the box found as its own egress address).

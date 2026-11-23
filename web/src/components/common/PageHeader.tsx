@@ -10,12 +10,12 @@ import { Breadcrumbs, type Crumb } from './Breadcrumbs'
  *  Page frame: a ~20 px heading and a short description on one line (the description wraps when there is not enough room); then KpiStrip, PageTabs (`PageFrame.tsx`). */
 /*  `meta` is one short line (about 12 words); longer explanation goes into `info` (ⓘ next to the heading, #824). */
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
-/** `titleAction` sits right after the title, outside the heading (a Rename button); `editing` replaces the visible title with an
- *  edit-in-place field while the heading stays for screen readers. */
+/** `titleAction` sits right after the title, outside the heading (a Rename button that opens a dialog: a title is never edited in
+ *  place, as no item is). */
 /*  The header names the page: title, breadcrumbs, one meta line. An action sits next to what it acts on (a list's toolbar, a section's
     `actions`, the notice it answers); a rare or destructive one on the whole page goes to `PageEnd`. `actions` is left for a page that
     has nothing else to put it next to (a print preview's Print). */
-export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, titleAction, editing }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[]; titleAction?: ReactNode; editing?: ReactNode }) {
+export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, titleAction }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[]; titleAction?: ReactNode }) {
   const mod = useContext(PageModule) // A preview or leaving module's page says so under its title (#818, #819)
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -23,8 +23,8 @@ export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, t
         {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <div className="flex flex-wrap items-center gap-1">
-            <h1 className={editing ? 'sr-only' : 'page-title'}>{title}</h1>
-            {editing ?? titleAction}
+            <h1 className="page-title">{title}</h1>
+            {titleAction}
             {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
             {mod ? <ModuleBadge id={mod} className="ml-1.5 self-center" /> : null}
           </div>

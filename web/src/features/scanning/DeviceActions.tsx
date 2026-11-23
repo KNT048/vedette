@@ -136,7 +136,7 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
 /** "Run vulnerability checks now" on one device: a person's own pick (the box too); a device the scan refuses (never
  *  scan, no IP, outside the scope) gets the reason instead (#877). */
 function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton }) {
-  const { t } = useTranslation('scanning')
+  const { t } = useTranslation(['scanning', 'scan'])
   const hint = useId()
   const c = useVulnCheckable(assetId)
   if (vuln === 'off') return null

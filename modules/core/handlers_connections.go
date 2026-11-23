@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn"
@@ -76,13 +77,9 @@ func connView[T any, P interface {
 	*T
 	json.Unmarshaler
 }](c conn.Connection) (*T, error) {
-	raw, err := json.Marshal(c)
+	out, err := apijson.Into[T](c)
 	if err != nil {
-		return nil, fmt.Errorf("core: encode connection: %w", err)
-	}
-	out := new(T)
-	if err := P(out).UnmarshalJSON(raw); err != nil {
-		return nil, fmt.Errorf("core: decode connection: %w", err)
+		return nil, fmt.Errorf("core: connection: %w", err)
 	}
 	return out, nil
 }

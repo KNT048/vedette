@@ -89246,6 +89246,971 @@ func (s *FeedsPutFeedsSourcesIDReq) SetURL(val OptString) {
 	s.URL = val
 }
 
+type FindingsGetFindingsAnsweredOK struct {
+	// The newest answer first.
+	Items []FindingsGetFindingsAnsweredOKItemsItem `json:"items"`
+	Total int                                      `json:"total"`
+}
+
+// GetItems returns the value of Items.
+func (s *FindingsGetFindingsAnsweredOK) GetItems() []FindingsGetFindingsAnsweredOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsAnsweredOK) GetTotal() int {
+	return s.Total
+}
+
+// SetItems sets the value of Items.
+func (s *FindingsGetFindingsAnsweredOK) SetItems(val []FindingsGetFindingsAnsweredOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsAnsweredOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// A question a person answered "not affected": no finding records it, so it is listed here and can be
+// asked again.
+type FindingsGetFindingsAnsweredOKItemsItem struct {
+	Answer string    `json:"answer"`
+	At     time.Time `json:"at"`
+	// Who answered.
+	By     string                                       `json:"by"`
+	Cve    NilString                                    `json:"cve"`
+	Cves   int                                          `json:"cves"`
+	Device FindingsGetFindingsAnsweredOKItemsItemDevice `json:"device"`
+	// The question.
+	ID string `json:"id"`
+	// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+	// platforms and nothing says which this is; package_release = the distribution's package release
+	// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+	// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+	Question FindingsGetFindingsAnsweredOKItemsItemQuestion    `json:"question"`
+	Software NilFindingsGetFindingsAnsweredOKItemsItemSoftware `json:"software"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetAnswer() string {
+	return s.Answer
+}
+
+// GetAt returns the value of At.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetBy() string {
+	return s.By
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetCve() NilString {
+	return s.Cve
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetCves() int {
+	return s.Cves
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetDevice() FindingsGetFindingsAnsweredOKItemsItemDevice {
+	return s.Device
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetQuestion returns the value of Question.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetQuestion() FindingsGetFindingsAnsweredOKItemsItemQuestion {
+	return s.Question
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) GetSoftware() NilFindingsGetFindingsAnsweredOKItemsItemSoftware {
+	return s.Software
+}
+
+// SetAnswer sets the value of Answer.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetAnswer(val string) {
+	s.Answer = val
+}
+
+// SetAt sets the value of At.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetCve(val NilString) {
+	s.Cve = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetCves(val int) {
+	s.Cves = val
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetDevice(val FindingsGetFindingsAnsweredOKItemsItemDevice) {
+	s.Device = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetQuestion sets the value of Question.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetQuestion(val FindingsGetFindingsAnsweredOKItemsItemQuestion) {
+	s.Question = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsAnsweredOKItemsItem) SetSoftware(val NilFindingsGetFindingsAnsweredOKItemsItemSoftware) {
+	s.Software = val
+}
+
+type FindingsGetFindingsAnsweredOKItemsItemDevice struct {
+	// False = "Not added yet": nobody added this device; its card offers Add device and Ignore.
+	Added bool   `json:"added"`
+	ID    string `json:"id"`
+	// A person ignored the device: its findings are left out of every list and count except the Ignored
+	// devices tab.
+	Ignored bool `json:"ignored"`
+	// Null when the device has no IP address.
+	IP   NilString                                        `json:"ip"`
+	Kind FindingsGetFindingsAnsweredOKItemsItemDeviceKind `json:"kind"`
+	// The name the Devices page shows; never the internal id.
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetIP() NilString {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetKind() FindingsGetFindingsAnsweredOKItemsItemDeviceKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetKind(val FindingsGetFindingsAnsweredOKItemsItemDeviceKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsAnsweredOKItemsItemDeviceKind string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindRouter              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "router"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSwitch              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "switch"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindModem               FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "modem"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSdWan               FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "sd_wan"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindLoadBalancer        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "load_balancer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindNetworkController   FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "network_controller"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindFirewall            FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "firewall"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVpnGateway          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "vpn_gateway"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindIdsSensor           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "ids_sensor"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindProxy               FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "proxy"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindAp                  FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "ap"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessController  FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "wireless_controller"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindWifiExtender        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "wifi_extender"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindMeshNode            FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "mesh_node"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindServer              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "server"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVirtualMachine      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "virtual_machine"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindHypervisor          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "hypervisor"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindBmc                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "bmc"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindDomainController    FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "domain_controller"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindMailServer          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "mail_server"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindDatabaseServer      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "database_server"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupServer        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "backup_server"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPc                  FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "pc"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindLaptop              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "laptop"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindWorkstation         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "workstation"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindThinClient          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "thin_client"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPosTerminal         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "pos_terminal"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindKiosk               FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "kiosk"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartphone          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smartphone"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindTablet              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "tablet"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartwatch          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smartwatch"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPrinter             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "printer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindMfp                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "mfp"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindScanner             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "scanner"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindLabelPrinter        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "label_printer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindReceiptPrinter      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "receipt_printer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlotter             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "plotter"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKind3dPrinter           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "3d_printer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindCamera              FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "camera"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindNvr                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "nvr"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindDvr                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "dvr"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoEncoder        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "video_encoder"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindDoorbell            FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "doorbell"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoConferencing   FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "video_conferencing"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindIPPhone             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "ip_phone"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPbx                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "pbx"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipAdapter         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "voip_adapter"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipGateway         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "voip_gateway"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindConferencePhone     FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "conference_phone"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindIntercom            FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "intercom"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindNas                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "nas"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSan                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "san"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupAppliance     FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "backup_appliance"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindTapeLibrary         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "tape_library"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindIot                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "iot"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartTv             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_tv"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindMediaPlayer         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "media_player"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartSpeaker        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_speaker"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindGameConsole         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "game_console"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartPlug           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_plug"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartLight          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_light"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartHub            FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_hub"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindThermostat          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "thermostat"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindProjector           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "projector"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindDigitalSignage      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "digital_signage"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSingleBoardComputer FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "single_board_computer"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartAppliance      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "smart_appliance"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindRobotVacuum         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "robot_vacuum"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessBridge      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "wireless_bridge"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlc                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "plc"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindHmi                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "hmi"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindRtu                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "rtu"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindScadaServer         FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "scada_server"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindIndustrialSwitch    FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "industrial_switch"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindUps                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "ups"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPdu                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "pdu"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindAccessControl       FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "access_control"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindTimeClock           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "time_clock"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindAlarmPanel          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "alarm_panel"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindHvacController      FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "hvac_controller"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindBuildingController  FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "building_controller"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindPowerMeter          FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "power_meter"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindEnvironmentMonitor  FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "environment_monitor"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindEvCharger           FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "ev_charger"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindSolarInverter       FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "solar_inverter"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindMedicalDevice       FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "medical_device"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindWeb                 FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "web"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindCloudService        FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "cloud_service"
+	FindingsGetFindingsAnsweredOKItemsItemDeviceKindUnknown             FindingsGetFindingsAnsweredOKItemsItemDeviceKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemDeviceKind values.
+func (FindingsGetFindingsAnsweredOKItemsItemDeviceKind) AllValues() []FindingsGetFindingsAnsweredOKItemsItemDeviceKind {
+	return []FindingsGetFindingsAnsweredOKItemsItemDeviceKind{
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindRouter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSwitch,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindModem,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSdWan,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindLoadBalancer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindNetworkController,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindFirewall,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVpnGateway,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindIdsSensor,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindProxy,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindAp,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessController,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindWifiExtender,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindMeshNode,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindServer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVirtualMachine,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindHypervisor,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindBmc,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindDomainController,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindMailServer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindDatabaseServer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupServer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPc,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindLaptop,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindWorkstation,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindThinClient,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPosTerminal,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindKiosk,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartphone,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindTablet,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartwatch,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPrinter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindMfp,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindScanner,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindLabelPrinter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindReceiptPrinter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlotter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKind3dPrinter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindCamera,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindNvr,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindDvr,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoEncoder,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindDoorbell,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoConferencing,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindIPPhone,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPbx,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipAdapter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipGateway,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindConferencePhone,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindIntercom,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindNas,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSan,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupAppliance,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindTapeLibrary,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindIot,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartTv,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindMediaPlayer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartSpeaker,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindGameConsole,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartPlug,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartLight,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartHub,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindThermostat,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindProjector,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindDigitalSignage,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSingleBoardComputer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartAppliance,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindRobotVacuum,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessBridge,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlc,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindHmi,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindRtu,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindScadaServer,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindIndustrialSwitch,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindUps,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPdu,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindAccessControl,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindTimeClock,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindAlarmPanel,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindHvacController,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindBuildingController,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindPowerMeter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindEnvironmentMonitor,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindEvCharger,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindSolarInverter,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindMedicalDevice,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindWeb,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindCloudService,
+		FindingsGetFindingsAnsweredOKItemsItemDeviceKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemDeviceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemDeviceKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemDeviceKind(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRouter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindRouter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSwitch:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSwitch
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindModem:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindModem
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSdWan:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSdWan
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindLoadBalancer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNetworkController:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindNetworkController
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindFirewall:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindFirewall
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVpnGateway:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVpnGateway
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIdsSensor:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindIdsSensor
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindProxy:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindProxy
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAp:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindAp
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessController:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessController
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWifiExtender:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindWifiExtender
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMeshNode:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindMeshNode
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindServer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindServer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVirtualMachine
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHypervisor:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindHypervisor
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBmc:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindBmc
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDomainController:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindDomainController
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMailServer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindMailServer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindDatabaseServer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupServer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupServer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPc:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPc
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLaptop:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindLaptop
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWorkstation:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindWorkstation
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindThinClient:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindThinClient
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPosTerminal:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPosTerminal
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindKiosk:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindKiosk
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartphone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartphone
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTablet:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindTablet
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartwatch:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartwatch
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPrinter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPrinter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMfp:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindMfp
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindScanner:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindScanner
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindLabelPrinter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlotter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlotter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKind3dPrinter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKind3dPrinter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindCamera:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindCamera
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNvr:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindNvr
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDvr:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindDvr
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoEncoder
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDoorbell:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindDoorbell
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVideoConferencing
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIPPhone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindIPPhone
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPbx:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPbx
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipAdapter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipGateway:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindVoipGateway
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindConferencePhone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindConferencePhone
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIntercom:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindIntercom
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindNas:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindNas
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSan:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSan
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindBackupAppliance
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindTapeLibrary
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIot:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindIot
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartTv:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartTv
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindMediaPlayer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindGameConsole:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindGameConsole
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartPlug:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartPlug
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartLight:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartLight
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartHub:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartHub
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindThermostat:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindThermostat
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindProjector:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindProjector
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindDigitalSignage
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSmartAppliance
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindRobotVacuum
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindWirelessBridge
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlc:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPlc
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHmi:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindHmi
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindRtu:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindRtu
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindScadaServer:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindScadaServer
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindUps:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindUps
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPdu:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPdu
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAccessControl:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindAccessControl
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindTimeClock:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindTimeClock
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindAlarmPanel
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindHvacController:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindHvacController
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindBuildingController:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindBuildingController
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindPowerMeter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindPowerMeter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindEvCharger:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindEvCharger
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindSolarInverter:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindSolarInverter
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindMedicalDevice
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindWeb:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindWeb
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindCloudService:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindCloudService
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemDeviceKindUnknown:
+		*s = FindingsGetFindingsAnsweredOKItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+// platforms and nothing says which this is; package_release = the distribution's package release
+// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+type FindingsGetFindingsAnsweredOKItemsItemQuestion string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemQuestionVersionNeeded  FindingsGetFindingsAnsweredOKItemsItemQuestion = "version_needed"
+	FindingsGetFindingsAnsweredOKItemsItemQuestionPlatform       FindingsGetFindingsAnsweredOKItemsItemQuestion = "platform"
+	FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease FindingsGetFindingsAnsweredOKItemsItemQuestion = "package_release"
+	FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable  FindingsGetFindingsAnsweredOKItemsItemQuestion = "not_comparable"
+	FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData    FindingsGetFindingsAnsweredOKItemsItemQuestion = "no_range_data"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemQuestion values.
+func (FindingsGetFindingsAnsweredOKItemsItemQuestion) AllValues() []FindingsGetFindingsAnsweredOKItemsItemQuestion {
+	return []FindingsGetFindingsAnsweredOKItemsItemQuestion{
+		FindingsGetFindingsAnsweredOKItemsItemQuestionVersionNeeded,
+		FindingsGetFindingsAnsweredOKItemsItemQuestionPlatform,
+		FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease,
+		FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable,
+		FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemQuestion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionVersionNeeded:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionPlatform:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemQuestion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemQuestion(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionVersionNeeded:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionVersionNeeded
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionPlatform:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionPlatform
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsAnsweredOKItemsItemSoftware struct {
+	// The software line of the device (inventory).
+	ID string `json:"id"`
+	// Display name, as on the device page.
+	Name string `json:"name"`
+	// The version the match compared.
+	Version NilString `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) GetName() string {
+	return s.Name
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) GetVersion() NilString {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) SetName(val string) {
+	s.Name = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) SetVersion(val NilString) {
+	s.Version = val
+}
+
 // True: only ignored devices (the Ignored devices tab); default false: none of them.
 type FindingsGetFindingsDevicesIgnored string
 
@@ -89481,7 +90446,7 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItem) SetStatus(val Findings
 	s.Status = val
 }
 
-// One CVE of a list, a link to its finding.
+// One CVE of a list, a link to its finding, with the status lines its finding's page shows.
 type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem struct {
 	Cve string `json:"cve"`
 	// The finding.
@@ -89496,6 +90461,10 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem struct {
 	// first (layer 4); update_recommended = a known flaw, no sign of exploitation yet (layer 5); patched,
 	// mitigated, accepted, not_relevant, false_positive = handled, as the handling resolution says.
 	Status FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemStatus `json:"status"`
+	// The same urgency and reasons as the finding's View: the reasons line under the status.
+	Urgency FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency `json:"urgency"`
+	// The same verification as the finding's View: the confirmation line under the status.
+	Verification FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification `json:"verification"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerified `json:"verified"`
@@ -89526,6 +90495,16 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) GetStatus(
 	return s.Status
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) GetUrgency() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency {
+	return s.Urgency
+}
+
+// GetVerification returns the value of Verification.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) GetVerification() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification {
+	return s.Verification
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) GetVerified() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerified {
 	return s.Verified
@@ -89554,6 +90533,16 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) SetSeverit
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) SetStatus(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemStatus) {
 	s.Status = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) SetUrgency(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) {
+	s.Urgency = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItem) SetVerification(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) {
+	s.Verification = val
 }
 
 // SetVerified sets the value of Verified.
@@ -89823,6 +90812,334 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemStatus) Unma
 		return nil
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemStatusFalsePositive:
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The same urgency and reasons as the finding's View: the reasons line under the status.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency struct {
+	// "Reachable from the Internet (seen )": the day an exposure scan last saw the affected service from
+	// outside; raises the order inside a layer, never the layer.
+	Internet NilDate `json:"internet"`
+	// The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1].
+	Layer int `json:"layer"`
+	// Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5.
+	// The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry.
+	Reasons []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem `json:"reasons"`
+	// When the finding entered this layer.
+	Since time.Time `json:"since"`
+}
+
+// GetInternet returns the value of Internet.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) GetInternet() NilDate {
+	return s.Internet
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) GetLayer() int {
+	return s.Layer
+}
+
+// GetReasons returns the value of Reasons.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) GetReasons() []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem {
+	return s.Reasons
+}
+
+// GetSince returns the value of Since.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) GetSince() time.Time {
+	return s.Since
+}
+
+// SetInternet sets the value of Internet.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) SetInternet(val NilDate) {
+	s.Internet = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) SetReasons(val []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSince sets the value of Since.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgency) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// One urgency layer that applies, with its evidence.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem struct {
+	// When the source said so (or the box first saw it say so); layer 1: the newest alert; layer 4: since
+	// when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars" for a public exploit, the attacker address for layer 1; null
+	// when none.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4
+	// (computed).
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemUrgencyReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The same verification as the finding's View: the confirmation line under the status.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At NilDateTime `json:"at"`
+	// What the match rests on: scan = a safe check; device_version = a version the device itself reports;
+	// package = a distribution package release; banner_version = a version read from a network banner;
+	// statement = a version a person typed for the device; person = a person said it is affected.
+	Basis FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By NilString `json:"by"`
+	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
+	// package list); scan = a safe check confirmed it; person = a person confirmed it.
+	Verified FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetBasis() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetVerified() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetBasis(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetVerified(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified) {
+	s.Verified = val
+}
+
+// What the match rests on: scan = a safe check; device_version = a version the device itself reports;
+// package = a distribution package release; banner_version = a version read from a network banner;
+// statement = a version a person typed for the device; person = a person said it is affected.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis string
+
+const (
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisScan          FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "scan"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisDeviceVersion FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "device_version"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPackage       FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "package"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisBannerVersion FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "banner_version"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisStatement     FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "statement"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPerson        FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis = "person"
+)
+
+// AllValues returns all FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis values.
+func (FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis) AllValues() []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis {
+	return []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis{
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisScan,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisDeviceVersion,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPackage,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisBannerVersion,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisStatement,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisScan:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis(data) {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisScan:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisScan
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisDeviceVersion:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisDeviceVersion
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPackage:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPackage
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisBannerVersion:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisBannerVersion
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisStatement:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisStatement
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPerson:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
+// package list); scan = a safe check confirmed it; person = a person confirmed it.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified string
+
+const (
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedNo     FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified = "no"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedDevice FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified = "device"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedScan   FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified = "scan"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedPerson FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified = "person"
+)
+
+// AllValues returns all FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified values.
+func (FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified) AllValues() []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified {
+	return []FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified{
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedNo,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedDevice,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedScan,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified(data) {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedNo:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedNo
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedDevice:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedDevice
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedScan:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedScan
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedPerson:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerifiedPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -105624,6 +106941,10 @@ type FindingsGetFindingsOverviewOK struct {
 	// Open findings at the end of each of the last 30 days of the organization time zone, oldest first;
 	// the last is now.
 	Trend []int `json:"trend"`
+	// The first day of the trend that holds data, in the organization time zone: the first of the 30 days,
+	// or the day this box began keeping findings when that is later. The days before it are not drawn or
+	// compared.
+	TrendStart time.Time `json:"trend_start"`
 }
 
 // GetAlerts returns the value of Alerts.
@@ -105666,6 +106987,11 @@ func (s *FindingsGetFindingsOverviewOK) GetTrend() []int {
 	return s.Trend
 }
 
+// GetTrendStart returns the value of TrendStart.
+func (s *FindingsGetFindingsOverviewOK) GetTrendStart() time.Time {
+	return s.TrendStart
+}
+
 // SetAlerts sets the value of Alerts.
 func (s *FindingsGetFindingsOverviewOK) SetAlerts(val NilFindingsGetFindingsOverviewOKAlerts) {
 	s.Alerts = val
@@ -105706,6 +107032,11 @@ func (s *FindingsGetFindingsOverviewOK) SetTrend(val []int) {
 	s.Trend = val
 }
 
+// SetTrendStart sets the value of TrendStart.
+func (s *FindingsGetFindingsOverviewOK) SetTrendStart(val time.Time) {
+	s.TrendStart = val
+}
+
 type FindingsGetFindingsOverviewOKAlerts struct {
 	Days   int `json:"days"`
 	Failed int `json:"failed"`
@@ -105743,12 +107074,20 @@ func (s *FindingsGetFindingsOverviewOKAlerts) SetSent(val int) {
 }
 
 type FindingsGetFindingsOverviewOKDevices struct {
+	// Devices with an open finding by their most urgent status, the Vedette box included (it carries no
+	// badge, but its findings count like any device's): "3 open findings on 1 device".
+	Affected FindingsGetFindingsOverviewOKDevicesAffected `json:"affected"`
 	// Devices by their badge (DeviceStatus.code).
 	ByStatus FindingsGetFindingsOverviewOKDevicesByStatus `json:"by_status"`
 	// Devices nobody added yet.
 	NotAdded int `json:"not_added"`
 	// Devices on the Devices page.
 	Total int `json:"total"`
+}
+
+// GetAffected returns the value of Affected.
+func (s *FindingsGetFindingsOverviewOKDevices) GetAffected() FindingsGetFindingsOverviewOKDevicesAffected {
+	return s.Affected
 }
 
 // GetByStatus returns the value of ByStatus.
@@ -105766,6 +107105,11 @@ func (s *FindingsGetFindingsOverviewOKDevices) GetTotal() int {
 	return s.Total
 }
 
+// SetAffected sets the value of Affected.
+func (s *FindingsGetFindingsOverviewOKDevices) SetAffected(val FindingsGetFindingsOverviewOKDevicesAffected) {
+	s.Affected = val
+}
+
 // SetByStatus sets the value of ByStatus.
 func (s *FindingsGetFindingsOverviewOKDevices) SetByStatus(val FindingsGetFindingsOverviewOKDevicesByStatus) {
 	s.ByStatus = val
@@ -105779,6 +107123,66 @@ func (s *FindingsGetFindingsOverviewOKDevices) SetNotAdded(val int) {
 // SetTotal sets the value of Total.
 func (s *FindingsGetFindingsOverviewOKDevices) SetTotal(val int) {
 	s.Total = val
+}
+
+// Devices with an open finding by their most urgent status, the Vedette box included (it carries no
+// badge, but its findings count like any device's): "3 open findings on 1 device".
+type FindingsGetFindingsOverviewOKDevicesAffected struct {
+	CriticalEdge      int `json:"critical_edge"`
+	Exploited         int `json:"exploited"`
+	PublicExploit     int `json:"public_exploit"`
+	UnderAttack       int `json:"under_attack"`
+	UpdateRecommended int `json:"update_recommended"`
+}
+
+// GetCriticalEdge returns the value of CriticalEdge.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) GetCriticalEdge() int {
+	return s.CriticalEdge
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) GetExploited() int {
+	return s.Exploited
+}
+
+// GetPublicExploit returns the value of PublicExploit.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) GetPublicExploit() int {
+	return s.PublicExploit
+}
+
+// GetUnderAttack returns the value of UnderAttack.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) GetUnderAttack() int {
+	return s.UnderAttack
+}
+
+// GetUpdateRecommended returns the value of UpdateRecommended.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) GetUpdateRecommended() int {
+	return s.UpdateRecommended
+}
+
+// SetCriticalEdge sets the value of CriticalEdge.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetCriticalEdge(val int) {
+	s.CriticalEdge = val
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetPublicExploit sets the value of PublicExploit.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetPublicExploit(val int) {
+	s.PublicExploit = val
+}
+
+// SetUnderAttack sets the value of UnderAttack.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetUnderAttack(val int) {
+	s.UnderAttack = val
+}
+
+// SetUpdateRecommended sets the value of UpdateRecommended.
+func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetUpdateRecommended(val int) {
+	s.UpdateRecommended = val
 }
 
 // Devices by their badge (DeviceStatus.code).
@@ -105956,7 +107360,7 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlock) SetStatus(val FindingsGetF
 	s.Status = val
 }
 
-// One CVE of a list, a link to its finding.
+// One CVE of a list, a link to its finding, with the status lines its finding's page shows.
 type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem struct {
 	Cve string `json:"cve"`
 	// The finding.
@@ -105971,6 +107375,10 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem struct {
 	// first (layer 4); update_recommended = a known flaw, no sign of exploitation yet (layer 5); patched,
 	// mitigated, accepted, not_relevant, false_positive = handled, as the handling resolution says.
 	Status FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemStatus `json:"status"`
+	// The same urgency and reasons as the finding's View: the reasons line under the status.
+	Urgency FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency `json:"urgency"`
+	// The same verification as the finding's View: the confirmation line under the status.
+	Verification FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification `json:"verification"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerified `json:"verified"`
@@ -106001,6 +107409,16 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) GetStatus() Fi
 	return s.Status
 }
 
+// GetUrgency returns the value of Urgency.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) GetUrgency() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency {
+	return s.Urgency
+}
+
+// GetVerification returns the value of Verification.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) GetVerification() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification {
+	return s.Verification
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) GetVerified() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerified {
 	return s.Verified
@@ -106029,6 +107447,16 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) SetSeverity(va
 // SetStatus sets the value of Status.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) SetStatus(val FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemStatus) {
 	s.Status = val
+}
+
+// SetUrgency sets the value of Urgency.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) SetUrgency(val FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) {
+	s.Urgency = val
+}
+
+// SetVerification sets the value of Verification.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItem) SetVerification(val FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) {
+	s.Verification = val
 }
 
 // SetVerified sets the value of Verified.
@@ -106298,6 +107726,334 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemStatus) Unmarsha
 		return nil
 	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemStatusFalsePositive:
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemStatusFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The same urgency and reasons as the finding's View: the reasons line under the status.
+type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency struct {
+	// "Reachable from the Internet (seen )": the day an exposure scan last saw the affected service from
+	// outside; raises the order inside a layer, never the layer.
+	Internet NilDate `json:"internet"`
+	// The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1].
+	Layer int `json:"layer"`
+	// Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5.
+	// The GUI says "not yet in CISA KEV" for a layer 2 without a cisa-kev entry.
+	Reasons []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem `json:"reasons"`
+	// When the finding entered this layer.
+	Since time.Time `json:"since"`
+}
+
+// GetInternet returns the value of Internet.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) GetInternet() NilDate {
+	return s.Internet
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) GetLayer() int {
+	return s.Layer
+}
+
+// GetReasons returns the value of Reasons.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) GetReasons() []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem {
+	return s.Reasons
+}
+
+// GetSince returns the value of Since.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) GetSince() time.Time {
+	return s.Since
+}
+
+// SetInternet sets the value of Internet.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) SetInternet(val NilDate) {
+	s.Internet = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetReasons sets the value of Reasons.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) SetReasons(val []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) {
+	s.Reasons = val
+}
+
+// SetSince sets the value of Since.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgency) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// One urgency layer that applies, with its evidence.
+type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem struct {
+	// When the source said so (or the box first saw it say so); layer 1: the newest alert; layer 4: since
+	// when the rule holds.
+	Date time.Time `json:"date"`
+	// A short fact of the signal: "244 stars" for a public exploit, the attacker address for layer 1; null
+	// when none.
+	Detail NilString `json:"detail"`
+	// Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise.
+	Due   NilDate `json:"due"`
+	Layer int     `json:"layer"`
+	// The source as people name it: "CISA KEV", "Rapid7", "GitHub".
+	Name string `json:"name"`
+	// The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei,
+	// metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4
+	// (computed).
+	Source string `json:"source"`
+	URL    NilURI `json:"url"`
+}
+
+// GetDate returns the value of Date.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetDate() time.Time {
+	return s.Date
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetDetail() NilString {
+	return s.Detail
+}
+
+// GetDue returns the value of Due.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetDue() NilDate {
+	return s.Due
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetLayer() int {
+	return s.Layer
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetSource() string {
+	return s.Source
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) GetURL() NilURI {
+	return s.URL
+}
+
+// SetDate sets the value of Date.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetDate(val time.Time) {
+	s.Date = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetDetail(val NilString) {
+	s.Detail = val
+}
+
+// SetDue sets the value of Due.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetDue(val NilDate) {
+	s.Due = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetLayer(val int) {
+	s.Layer = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetSource(val string) {
+	s.Source = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemUrgencyReasonsItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// The same verification as the finding's View: the confirmation line under the status.
+type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification struct {
+	// When it was confirmed; null while not confirmed.
+	At NilDateTime `json:"at"`
+	// What the match rests on: scan = a safe check; device_version = a version the device itself reports;
+	// package = a distribution package release; banner_version = a version read from a network banner;
+	// statement = a version a person typed for the device; person = a person said it is affected.
+	Basis FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis `json:"basis"`
+	// Verified person: who confirmed it.
+	By NilString `json:"by"`
+	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
+	// package list); scan = a safe check confirmed it; person = a person confirmed it.
+	Verified FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified `json:"verified"`
+}
+
+// GetAt returns the value of At.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetBasis() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis {
+	return s.Basis
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetBy() NilString {
+	return s.By
+}
+
+// GetVerified returns the value of Verified.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetVerified() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified {
+	return s.Verified
+}
+
+// SetAt sets the value of At.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetBasis(val FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis) {
+	s.Basis = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetBy(val NilString) {
+	s.By = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetVerified(val FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified) {
+	s.Verified = val
+}
+
+// What the match rests on: scan = a safe check; device_version = a version the device itself reports;
+// package = a distribution package release; banner_version = a version read from a network banner;
+// statement = a version a person typed for the device; person = a person said it is affected.
+type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis string
+
+const (
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisScan          FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "scan"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisDeviceVersion FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "device_version"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPackage       FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "package"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisBannerVersion FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "banner_version"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisStatement     FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "statement"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPerson        FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis = "person"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis values.
+func (FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis) AllValues() []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis {
+	return []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis{
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisScan,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisDeviceVersion,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPackage,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisBannerVersion,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisStatement,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisScan:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisDeviceVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPackage:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisBannerVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisStatement:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis(data) {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisScan:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisScan
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisDeviceVersion:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisDeviceVersion
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPackage:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPackage
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisBannerVersion:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisBannerVersion
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisStatement:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisStatement
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPerson:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasisPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
+// package list); scan = a safe check confirmed it; person = a person confirmed it.
+type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified string
+
+const (
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedNo     FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified = "no"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedDevice FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified = "device"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedScan   FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified = "scan"
+	FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedPerson FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified = "person"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified values.
+func (FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified) AllValues() []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified {
+	return []FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified{
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedNo,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedDevice,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedScan,
+		FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedNo:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedScan:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified(data) {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedNo:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedNo
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedDevice:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedDevice
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedScan:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedScan
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedPerson:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerifiedPerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -124068,6 +125824,21 @@ func (s *FindingsPostFindingsQuestionsIDAnswerReqAnswer) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type FindingsPostFindingsQuestionsIDUnanswerOK struct {
+	// The question, open again.
+	ID string `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsQuestionsIDUnanswerOK) GetID() string {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsQuestionsIDUnanswerOK) SetID(val string) {
+	s.ID = val
 }
 
 // HoneypotDeleteHoneypotTokensIDNoContent is response for HoneypotDeleteHoneypotTokensID operation.
@@ -175107,6 +176878,51 @@ func (o NilFeedsPutFeedsSourcesIDOKParser) Or(d FeedsPutFeedsSourcesIDOKParser) 
 	return d
 }
 
+// NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware returns new NilFindingsGetFindingsAnsweredOKItemsItemSoftware with value set to v.
+func NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware(v FindingsGetFindingsAnsweredOKItemsItemSoftware) NilFindingsGetFindingsAnsweredOKItemsItemSoftware {
+	return NilFindingsGetFindingsAnsweredOKItemsItemSoftware{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsAnsweredOKItemsItemSoftware is nullable FindingsGetFindingsAnsweredOKItemsItemSoftware.
+type NilFindingsGetFindingsAnsweredOKItemsItemSoftware struct {
+	Value FindingsGetFindingsAnsweredOKItemsItemSoftware
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemSoftware) SetTo(v FindingsGetFindingsAnsweredOKItemsItemSoftware) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemSoftware) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemSoftware) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsAnsweredOKItemsItemSoftware
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemSoftware) Get() (v FindingsGetFindingsAnsweredOKItemsItemSoftware, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemSoftware) Or(d FindingsGetFindingsAnsweredOKItemsItemSoftware) FindingsGetFindingsAnsweredOKItemsItemSoftware {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity returns new NilFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity with value set to v.
 func NewNilFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity(v FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity) NilFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity {
 	return NilFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemSeverity{
@@ -189345,13 +191161,22 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel) UnmarshalText(data 
 }
 
 type NotifyGetNotifyHistoryOK struct {
-	Items      []NotifyGetNotifyHistoryOKItemsItem `json:"items"`
-	Suppressed NotifyGetNotifyHistoryOKSuppressed  `json:"suppressed"`
+	Items []NotifyGetNotifyHistoryOKItemsItem `json:"items"`
+	// The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest
+	// first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the
+	// channels' minimum, no channel or channels off when it was found.
+	NotSent    []NotifyGetNotifyHistoryOKNotSentItem `json:"not_sent"`
+	Suppressed NotifyGetNotifyHistoryOKSuppressed    `json:"suppressed"`
 }
 
 // GetItems returns the value of Items.
 func (s *NotifyGetNotifyHistoryOK) GetItems() []NotifyGetNotifyHistoryOKItemsItem {
 	return s.Items
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyHistoryOK) GetNotSent() []NotifyGetNotifyHistoryOKNotSentItem {
+	return s.NotSent
 }
 
 // GetSuppressed returns the value of Suppressed.
@@ -189362,6 +191187,11 @@ func (s *NotifyGetNotifyHistoryOK) GetSuppressed() NotifyGetNotifyHistoryOKSuppr
 // SetItems sets the value of Items.
 func (s *NotifyGetNotifyHistoryOK) SetItems(val []NotifyGetNotifyHistoryOKItemsItem) {
 	s.Items = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyHistoryOK) SetNotSent(val []NotifyGetNotifyHistoryOKNotSentItem) {
+	s.NotSent = val
 }
 
 // SetSuppressed sets the value of Suppressed.
@@ -189595,6 +191425,309 @@ func (s *NotifyGetNotifyHistoryOKItemsItemKind) UnmarshalText(data []byte) error
 		return nil
 	case NotifyGetNotifyHistoryOKItemsItemKindApproval:
 		*s = NotifyGetNotifyHistoryOKItemsItemKindApproval
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyHistoryOKNotSentItem struct {
+	// When the notice was made.
+	At time.Time `json:"at"`
+	ID string    `json:"id"`
+	// The finding it is about, or the findings list for a first-run summary.
+	Link    string                                     `json:"link"`
+	NotSent NotifyGetNotifyHistoryOKNotSentItemNotSent `json:"not_sent"`
+	// Its title: " on : ()".
+	What string `json:"what"`
+}
+
+// GetAt returns the value of At.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetID returns the value of ID.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetID() string {
+	return s.ID
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetLink() string {
+	return s.Link
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetNotSent() NotifyGetNotifyHistoryOKNotSentItemNotSent {
+	return s.NotSent
+}
+
+// GetWhat returns the value of What.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetWhat() string {
+	return s.What
+}
+
+// SetAt sets the value of At.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetLink(val string) {
+	s.Link = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetNotSent(val NotifyGetNotifyHistoryOKNotSentItemNotSent) {
+	s.NotSent = val
+}
+
+// SetWhat sets the value of What.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetWhat(val string) {
+	s.What = val
+}
+
+type NotifyGetNotifyHistoryOKNotSentItemNotSent struct {
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+	// (below_min_severity).
+	Channel OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel `json:"channel"`
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
+	Reason NotifyGetNotifyHistoryOKNotSentItemNotSentReason `json:"reason"`
+	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
+	// send high and above.".
+	Text string `json:"text"`
+	// Quiet_hours, grouped: when the held message goes out.
+	Until OptDateTime `json:"until"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetChannel() OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return s.Channel
+}
+
+// GetReason returns the value of Reason.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetReason() NotifyGetNotifyHistoryOKNotSentItemNotSentReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetText() string {
+	return s.Text
+}
+
+// GetUntil returns the value of Until.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetChannel(val OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) {
+	s.Channel = val
+}
+
+// SetReason sets the value of Reason.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetReason(val NotifyGetNotifyHistoryOKNotSentItemNotSentReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetText(val string) {
+	s.Text = val
+}
+
+// SetUntil sets the value of Until.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+// (below_min_severity).
+type NotifyGetNotifyHistoryOKNotSentItemNotSentChannel string
+
+const (
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram     NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "telegram"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack        NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "slack"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo         NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "zalo"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "zalo-personal"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail        NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "email"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook      NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "webhook"
+)
+
+// AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentChannel values.
+func (NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) AllValues() []NotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return []NotifyGetNotifyHistoryOKNotSentItemNotSentChannel{
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyHistoryOKNotSentItemNotSentChannel(data) {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
+type NotifyGetNotifyHistoryOKNotSentItemNotSentReason string
+
+const (
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued           NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "queued"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "quiet_hours"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "grouped"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel        NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "no_channel"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channels_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channel_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved   NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channel_removed"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "below_min_severity"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed           NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "failed"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale     NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "dropped_stale"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary  NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "first_run_summary"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "unknown"
+)
+
+// AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentReason values.
+func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetNotifyHistoryOKNotSentItemNotSentReason {
+	return []NotifyGetNotifyHistoryOKNotSentItemNotSentReason{
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyHistoryOKNotSentItemNotSentReason(data) {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -189921,13 +192054,14 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -190043,13 +192177,15 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -190066,6 +192202,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 	return []NotifyGetNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -190084,6 +192221,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -190116,6 +192255,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -190799,13 +192941,14 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -190921,13 +193064,15 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "queued"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel        NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_off"
@@ -190944,6 +193089,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 	return []NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason{
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff,
@@ -190962,6 +193108,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -190994,6 +193142,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
@@ -192224,13 +194375,14 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -192346,13 +194498,15 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -192369,6 +194523,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 	return []NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -192387,6 +194542,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -192419,6 +194576,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -200333,6 +202493,52 @@ func (o OptNilString) Or(d string) string {
 	return d
 }
 
+// NewOptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel returns new OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel with value set to v.
+func NewOptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel(v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel is optional NotifyGetNotifyHistoryOKNotSentItemNotSentChannel.
+type OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel struct {
+	Value NotifyGetNotifyHistoryOKNotSentItemNotSentChannel
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel was set.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Reset() {
+	var v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) SetTo(v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Get() (v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Or(d NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) NotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel returns new OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel with value set to v.
 func NewOptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel(v NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel {
 	return OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel{
@@ -203305,6 +205511,10 @@ type ReportsGetReportsDocumentOKHandled struct {
 	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
+	// Findings closed as not relevant in the period that this report leaves out ("Include not relevant"
+	// off): why its count is lower than Findings › Handled. Absent when none, and in documents sent
+	// before it existed.
+	NotRelevantLeftOut OptInt `json:"not_relevant_left_out"`
 	// Handled in the period by resolution.
 	Totals []ReportsGetReportsDocumentOKHandledTotalsItem `json:"totals"`
 }
@@ -203322,6 +205532,11 @@ func (s *ReportsGetReportsDocumentOKHandled) GetMedianDays() NilFloat64 {
 // GetMore returns the value of More.
 func (s *ReportsGetReportsDocumentOKHandled) GetMore() int {
 	return s.More
+}
+
+// GetNotRelevantLeftOut returns the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsDocumentOKHandled) GetNotRelevantLeftOut() OptInt {
+	return s.NotRelevantLeftOut
 }
 
 // GetTotals returns the value of Totals.
@@ -203342,6 +205557,11 @@ func (s *ReportsGetReportsDocumentOKHandled) SetMedianDays(val NilFloat64) {
 // SetMore sets the value of More.
 func (s *ReportsGetReportsDocumentOKHandled) SetMore(val int) {
 	s.More = val
+}
+
+// SetNotRelevantLeftOut sets the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsDocumentOKHandled) SetNotRelevantLeftOut(val OptInt) {
+	s.NotRelevantLeftOut = val
 }
 
 // SetTotals sets the value of Totals.
@@ -208439,6 +210659,10 @@ type ReportsGetReportsHistoryIDOKDocumentHandled struct {
 	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
+	// Findings closed as not relevant in the period that this report leaves out ("Include not relevant"
+	// off): why its count is lower than Findings › Handled. Absent when none, and in documents sent
+	// before it existed.
+	NotRelevantLeftOut OptInt `json:"not_relevant_left_out"`
 	// Handled in the period by resolution.
 	Totals []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem `json:"totals"`
 }
@@ -208456,6 +210680,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMedianDays() NilFloat64
 // GetMore returns the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMore() int {
 	return s.More
+}
+
+// GetNotRelevantLeftOut returns the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetNotRelevantLeftOut() OptInt {
+	return s.NotRelevantLeftOut
 }
 
 // GetTotals returns the value of Totals.
@@ -208476,6 +210705,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMedianDays(val NilFloat
 // SetMore sets the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMore(val int) {
 	s.More = val
+}
+
+// SetNotRelevantLeftOut sets the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetNotRelevantLeftOut(val OptInt) {
+	s.NotRelevantLeftOut = val
 }
 
 // SetTotals sets the value of Totals.

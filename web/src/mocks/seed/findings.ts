@@ -80,6 +80,8 @@ export interface QuestionRecord {
   url: string | null
   command: string | null
   choices: { label: string; os?: string; ask?: ('os' | 'pkg_version')[] }[]
+  /** A "not affected" answer, kept so it can be taken back; absent while the question waits. */
+  answered?: { by: string; at: string }
 }
 
 const day = (days: number) => D(days).slice(0, 10)

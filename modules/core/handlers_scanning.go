@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
@@ -354,13 +354,9 @@ func listOf[T any](v []T) []T {
 
 // encode turns a view into the generated type (the field names are the contract's).
 func encode[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("core: scanning: encode: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("core: scanning: build the response: %w", err)
+		return nil, fmt.Errorf("core: scanning: %w", err)
 	}
 	return out, nil
 }

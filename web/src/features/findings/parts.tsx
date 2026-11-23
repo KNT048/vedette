@@ -16,24 +16,34 @@ export function useFixTitle() {
   const { t } = useTranslation('findings')
   return (fix: Fix, software?: SoftwareRef | null) => {
     const from = software?.version ?? null
+    const to = fix.version
+    // a fix that names no release says what to do without an empty slot ("Install the Linux kernel package  or later")
     switch (fix.kind) {
-      case 'update': return from && fix.version ? t('fixLine.updateFrom', { product: fix.product, from, to: fix.version }) : t('fixLine.update', { product: fix.product, to: fix.version ?? '' })
-      case 'distro_update': return t('fixLine.distro', { product: fix.product, to: fix.version ?? '' })
-      case 'os_update': return fix.ref ? t('fixLine.osRef', { product: fix.product, ref: fix.ref }) : t('fixLine.osBuild', { product: fix.product, to: fix.version ?? '' })
-      case 'feature_update': return t('fixLine.feature', { product: fix.product, to: fix.version ?? '' })
+      case 'update': return !to ? t('fixLine.updateAny', { product: fix.product }) : from ? t('fixLine.updateFrom', { product: fix.product, from, to }) : t('fixLine.update', { product: fix.product, to })
+      case 'distro_update': return to ? t('fixLine.distro', { product: fix.product, to }) : t('fixLine.distroAny', { product: fix.product })
+      case 'os_update': return fix.ref ? t('fixLine.osRef', { product: fix.product, ref: fix.ref }) : to ? t('fixLine.osBuild', { product: fix.product, to }) : t('fixLine.osAny', { product: fix.product })
+      case 'feature_update': return to ? t('fixLine.feature', { product: fix.product, to }) : t('fixLine.featureAny', { product: fix.product })
       case 'none_yet': return t('fixLine.noneYet', { product: fix.product })
       default: return t('fixLine.unknown', { product: fix.product })
     }
   }
 }
 
-/** The advisory of a fix, when it has one. */
-export function FixLink({ fix }: { fix: Fix }) {
+/** The advisory of a fix, when it has one. A fix with no release to install and no advisory link ("No fix data") links its cause's
+ *  CVE page instead, where the CVE record's references are: the person always has somewhere to read what the vendor says. */
+export function FixLink({ fix, cve }: { fix: Fix; cve?: string }) {
   const { t } = useTranslation('findings')
+  if (!fix.url && cve && (fix.kind === 'none_yet' || fix.kind === 'unknown')) {
+    return (
+      <Link to={`/cve/${encodeURIComponent(cve)}`} onClick={(e) => e.stopPropagation()} className="text-meta text-accent underline-offset-4 hover:underline">
+        {t('fixLine.advisories', { cve })}
+      </Link>
+    )
+  }
   if (!fix.url) return null
   return (
     <a href={fix.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-meta text-accent underline-offset-4 hover:underline">
-      {fix.kind === 'none_yet' ? t('fixLine.advisory') : t('fixLine.notes')}
+      {fix.kind === 'none_yet' || fix.kind === 'unknown' ? t('fixLine.advisory') : t('fixLine.notes')}
     </a>
   )
 }

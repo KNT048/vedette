@@ -42,7 +42,7 @@
     "passive": {
       "name": "Passive listening",
       "finds": "Devices that talk on your network, without sending anything to them.",
-      "where": "Sensor and its card: Devices, Scope and sensors, Sensor"
+      "where": "Sensor and its card: Devices, Sensor and agents, Sensor"
     },
     "nmap-discovery": {
       "name": "Network discovery (nmap)",
@@ -61,12 +61,12 @@
     "osquery": {
       "name": "osquery agents",
       "finds": "Installed software and versions on your servers.",
-      "where": "Install osquery and its token: Devices, Scope and sensors, Agents"
+      "where": "Install osquery and its token: Devices, Sensor and agents, Agents"
     },
     "wazuh": {
       "name": "Wazuh",
       "finds": "The software list your Wazuh server already keeps.",
-      "where": "Your Wazuh server: Devices, Scope and sensors, Agents"
+      "where": "Your Wazuh server: Devices, Sensor and agents, Agents"
     },
     "nuclei": {
       "name": "Vulnerability checks (Nuclei)",
@@ -104,7 +104,8 @@
   "settingsOf": "Settings of {{name}}",
   "adminOnly": "Only an administrator can turn engines on or off.",
   "box": {
-    "memory": "The engines that are on can use up to {{used}} of this box's {{total}} of memory (upper limits, Vedette's core included).",
+    "memory": "Engines that are on: up to {{used}} of this box's {{total}} of memory.",
+    "memoryInfo": "Upper limits, Vedette's core included: the engines use less most of the time.",
     "overTitle": "The engines' memory limits add up to more than this box has",
     "over": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down or a scan stops for lack of memory, turn off an engine you do not need.",
     "overViewer": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down, an administrator can turn off an engine that is not needed.",
@@ -186,7 +187,7 @@
     "open": "Set the network ranges",
     "dialogTitle": "Network ranges you may scan",
     "dialogDescription": "Vedette scans nothing outside these ranges.",
-    "dialogInfo": "Internal IPv4 ranges only (RFC 1918 or 100.64.0.0/10). They stay editable under Settings, Scanning, Safety and Devices, Scope and sensors.",
+    "dialogInfo": "Internal IPv4 ranges only (RFC 1918 or 100.64.0.0/10). They stay editable under Settings, Scanning, Safety.",
     "rangesHint": "For example 192.168.10.0/24.",
     "save": "Add and confirm",
     "saved": "Network ranges saved and confirmed",
@@ -197,8 +198,7 @@
     "add": "Network range to add",
     "addOptional": "Another range to add (optional)",
     "confirmOnly": "Confirm these ranges",
-    "changed": "The ranges changed since this dialog opened (another admin or tab). The current list is shown: check it and tick again.",
-    "ranges": "Network ranges, one per line"
+    "changed": "The ranges changed since this dialog opened (another admin or tab). The current list is shown: check it and tick again."
   },
   "module": {
     "turnOn": "Turn on {{name}}",
@@ -234,7 +234,6 @@
     "rpsOption_other": "{{count}} requests per second",
     "exclTitle": "Exclusions",
     "exclDescription": "Addresses no engine touches on your LAN.",
-    "exclLabel": "One IP or network per line",
     "exclHint": "For example 192.168.10.5 or 192.168.20.0/28.",
     "exclInfo": "The Vedette box needs no line here: it is never part of a sweep.",
     "fragileTitle": "Fragile device types",
@@ -258,7 +257,49 @@
       "line": "One pass: {{addresses}} addresses, at least {{pass}} at {{pps}} packets/s",
       "fits": "It fits one scan window ({{window}}).",
       "nights": "It needs {{windows}} scan windows of {{window}}: the sweep is one run that goes on each night where it stopped. To finish in one window, raise the scan rate, widen the window or narrow the ranges.",
-      "tooLarge": "It needs {{windows}} scan windows of {{window}}, and a week has {{week}}. Saving is refused: raise the scan rate, widen the window or add days, or narrow the ranges."
+      "tooLarge": "It needs {{windows}} scan windows of {{window}}, and a week has {{week}}. Saving is refused: raise the scan rate, widen the window or add days, or narrow the ranges.",
+      "useSpeed_one": "Use {{count}} packet per second",
+      "useSpeed_other": "Use {{count}} packets per second",
+      "widen": "Change the window"
+    },
+    "saveBlocked": {
+      "bad_one": "Fix or remove the range marked in red to save.",
+      "bad_other": "Fix or remove the {{count}} ranges marked in red to save.",
+      "tooLarge": "Saving is refused: one pass of this scope does not fit a week of scan windows."
+    },
+    "range": {
+      "title": "Network ranges",
+      "list": "Network ranges",
+      "add": "Add range",
+      "addTitle": "Add a network range",
+      "save": "Save range",
+      "label": "Network range",
+      "hint": "With its prefix length, for example 192.168.10.0/24.",
+      "hintInfo": "Internal addresses only: 10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127. Other prefix lengths work too, for example 192.168.10.0/25. At most 16 ranges.",
+      "edit": "Edit",
+      "remove": "Remove",
+      "editNamed": "Edit range {{value}}",
+      "removeNamed": "Remove range {{value}}",
+      "none": "No range yet. Add at least one range to let Vedette scan.",
+      "duplicate": "{{value}} is already in the list.",
+      "note": "{{from}} was added as {{to}}, the first address of its range.",
+      "problem": {
+        "empty": "Type a range first. Write it like 192.168.10.0/24.",
+        "noPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25.",
+        "format": "\"{{value}}\" is not a valid range. Write it like 192.168.10.0/24.",
+        "hostBits": "{{value}} is not written correctly: the address part must be the first address of the range. Use {{net}}.",
+        "notPrivate": "{{value}} is not an internal range, so it cannot be added here. To scan public addresses, use External exposure after verifying ownership.",
+        "overlap": "{{value}} overlaps {{other}}, which is already in the list. Keep the larger range and remove the smaller one."
+      }
+    },
+    "excl": {
+      "add": "Add exclusion",
+      "addTitle": "Add an exclusion",
+      "label": "IP address or network",
+      "list": "Exclusions",
+      "removeNamed": "Remove exclusion {{value}}",
+      "none": "No exclusions.",
+      "bad": "Enter one IP (192.168.10.10) or a network (192.168.10.0/28, where the address part is the first address of the range)."
     }
   },
   "scanNow": {
@@ -475,6 +516,7 @@
     "stopConfirm": "Stop the run",
     "stopped": "Run stopped",
     "resume": "Resume",
+    "startNow": "Start now",
     "resumed": "Run queued again: it goes on from where it stopped",
     "goneTitle": "Run not found",
     "gone": "This run is not kept: it does not exist, or it ended more than 400 days ago.",

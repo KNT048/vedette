@@ -2,9 +2,9 @@ package honeypot
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
@@ -22,13 +22,9 @@ type HoneypotHandlers struct{ svc *Service }
 func NewHoneypotHandlers(svc *Service) *HoneypotHandlers { return &HoneypotHandlers{svc: svc} }
 
 func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("honeypot: encode: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("honeypot: decode: %w", err)
+		return nil, fmt.Errorf("honeypot: %w", err)
 	}
 	return out, nil
 }

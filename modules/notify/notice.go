@@ -37,6 +37,9 @@ type Notice struct {
 	What          string   // what happened and how urgent
 	Action        string   // what to do first
 	Change        string   // vulnerability changed since it was first told ("now critical (was medium)"): added to its line of a digest
+	// Reasons is the finding page's reasons line (the status and its sources with their dates: "Exploited in the wild: CISA KEV (4 Mar);
+	// fix by 25 Mar 2025"), from findings; a digest puts it on the finding's line, so a grouped alert says why as the page does.
+	Reasons string
 	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
 	Layer int
 	Link  string // absolute URL of the finding or incident in Vedette
@@ -165,7 +168,7 @@ func digest(release []Batch, link string) []Batch {
 	var notices []Notice
 	var out []Batch
 	for _, b := range release {
-		if b.Notices[0].Kind != KindVuln {
+		if b.Notices[0].Kind != KindVuln || b.Notices[0].Event == NoticeFirstRun { // a summary has its own title and words: never a line
 			out = append(out, b)
 			continue
 		}
@@ -289,6 +292,9 @@ func (b Batch) Message() (channel.Message, error) {
 		}
 		if change != "" {
 			line += ": " + change
+		}
+		if r := strings.TrimSpace(n.Reasons); r != "" {
+			line += " — " + r
 		}
 		items = append(items, line)
 	}

@@ -21,7 +21,7 @@
 - `idsInventory` combines `logsInventory` (cmd/vedette/logs.go: IPs in the list and addresses read through SNMP from sensor-active `ReadAddresses`; two devices with the same address → no device) and `notifyDevices.DeviceStates` for names. Changing the address-matching rule in logs → the alert's devices change accordingly.
 
 ## Modifying: `List`/`Get`/`Summarize`
-- **web/features/detection** (`contract.ts` is the contract; the handler's `into` rejects a response that drifts from the schema). `Summarize` → the overview (`alerts.total/affected`, the `ips_events` watcher) in `cmd/vedette/detection.go`, together with `NativeIPS`.
+- **web/features/detection** (`contract.ts` is the contract; the handler's `into`, through `core/api/apijson.Into`, rejects a response that drifts from the schema and writes an empty list as `[]`, never `null`). `Summarize` → the overview (`alerts.total/affected`, the `ips_events` watcher) in `cmd/vedette/detection.go`, together with `NativeIPS`.
 - The `/detection/alerts*` routes are tied to the module in `core/server/modules.go` and `web/src/lib/apiModules.ts` (404 when the module is off); `cmd/vedette/handler.go` embeds `IDSHandlers`, `cmd/vedette/modules.go` registers migrations + jobs, `cmd/vedette/devicelifecycle.go` registers `DeviceMerged`.
 
 ## Modifying: `logs.Config.Received` (module logs)

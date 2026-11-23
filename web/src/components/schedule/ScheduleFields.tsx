@@ -10,7 +10,7 @@ import { ApiError } from '@/lib/api'
 import { displayTimeZone, fmtWeekdayDateTimeIn } from '@/lib/format'
 import { TIMEZONES } from '@/features/core/util'
 import { useSchedulePreview } from './api'
-import { DAYS, toSave, unitsFor, zoneOf, type Draft, type Unit } from './rule'
+import { clockIn, DAYS, daysText, intervalProblem, intervalText, toSave, unitsFor, zoneOf, type Draft, type Unit } from './rule'
 import { WindowFields } from './WindowFields'
 import type { Freq, Schedule, WindowMode } from './types'
 
@@ -46,8 +46,10 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
   const zone = zoneOf(d.tz, orgZone)
   const body = toSave(d, orgZone)
   const on = d.enabled || !onOff
-  const preview = useSchedulePreview({ owner_key: s.owner_key, rule: body.rule, paused_until: body.paused_until ?? null }, on)
-  const err = fieldError(error) ?? (on ? fieldError(preview.error) : null)
+  // an interval the owner does not allow is said here, in plain words, and nothing is asked of the box for it
+  const local = on ? intervalProblem(d, l) : null
+  const preview = useSchedulePreview({ owner_key: s.owner_key, rule: body.rule, paused_until: body.paused_until ?? null }, on && !local)
+  const err = (local ? { field: 'every_minutes', message: intervalText(local, l, t) } : null) ?? fieldError(error) ?? (on ? fieldError(preview.error) : null)
   const at = (f: string) => (err && err.field === f ? err.message : undefined)
   const [more, setMore] = useState(() => d.tz !== 'org' || d.window === 'custom' || d.resumeOn !== '' || (!!err && ADVANCED.has(err.field)))
   const set = (p: Partial<Draft>) => onChange({ ...d, ...p })
@@ -166,9 +168,16 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
           {unlisted ? <p role="alert" className="text-meta text-danger">{unlisted}</p> : null}
           {!err && preview.data ? (
             <div className="grid gap-1" aria-live="polite">
-              <p className="text-sm font-medium">{t('preview.title')}</p>
+              {/* the zone the times are in is named here, not only behind "Time zone, window, pause" */}
+              <p className="text-sm font-medium">{t('preview.titleIn', { zone: preview.data.zone || zone })}</p>
               {preview.data.upcoming.length ? (
-                <ol className="grid gap-0.5 text-sm">{preview.data.upcoming.map((u) => <li key={u}>{fmtInZone(u, preview.data.zone || zone)}</li>)}</ol>
+                <ol className="grid gap-0.5 text-sm">{preview.data.upcoming.map((u) => {
+                  // a start the window moved off the asked time says so and why
+                  const z = preview.data.zone || zone
+                  const moved = body.rule.at_time && body.rule.window !== 'none' && clockIn(u, z) !== body.rule.at_time
+                  const win = body.rule.window === 'global' ? t('preview.scanWindow') : t('preview.customWindow', { days: daysText(body.rule.window_days ?? [], t), from: body.rule.window_from, to: body.rule.window_to })
+                  return <li key={u}>{fmtWeekdayDateTimeIn(u, z)}{moved ? <span className="text-meta text-muted">{` · ${t('preview.moved', { at: body.rule.at_time, window: win })}`}</span> : null}</li>
+                })}</ol>
               ) : <p className="text-sm text-muted">{t('preview.none')}</p>}
             </div>
           ) : null}

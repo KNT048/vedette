@@ -138,7 +138,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_incident_device": {export: "incident_id asset_id name"},
 	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at ca_pem", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},
 	"oidc_flow":              {skipAll: true, skip: "state_hash binding_hash nonce verifier issuer client_id redirect_uri created_at expires_at"},
-	"notify_notice":          {export: "id event created_at product", json: "cves"},
+	"notify_notice":          {export: "id event created_at product title severity unsent unsent_floor unsent_channel", json: "cves"},
 	"notify_notice_finding":  {export: "notice_id finding_id layer"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},

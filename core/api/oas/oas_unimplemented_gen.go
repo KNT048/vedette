@@ -1928,6 +1928,16 @@ func (UnimplementedHandler) FindingsGetFindings(ctx context.Context, params Find
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsGetFindingsAnswered implements findings_get_findings_answered operation.
+//
+// The questions a person answered "not affected" (ignored devices left out), the newest first: each
+// can be asked again.
+//
+// GET /findings/answered
+func (UnimplementedHandler) FindingsGetFindingsAnswered(ctx context.Context, params FindingsGetFindingsAnsweredParams) (r *FindingsGetFindingsAnsweredOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsGetFindingsDevices implements findings_get_findings_devices operation.
 //
 // By device: one card per device with open findings (devices not added yet included, ignored ones only
@@ -2062,6 +2072,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDVerify(ctx context.Context, re
 //
 // POST /findings/questions/{id}/answer
 func (UnimplementedHandler) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (r *FindingsPostFindingsQuestionsIDAnswerOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsQuestionsIDUnanswer implements findings_post_findings_questions_id_unanswer operation.
+//
+// Take back a "not affected" answer: the question is asked again in Needs your input (an "affected"
+// answer made a finding and is changed on its page: 409 not_answered); audit.
+//
+// POST /findings/questions/{id}/unanswer
+func (UnimplementedHandler) FindingsPostFindingsQuestionsIDUnanswer(ctx context.Context, params FindingsPostFindingsQuestionsIDUnanswerParams) (r *FindingsPostFindingsQuestionsIDUnanswerOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

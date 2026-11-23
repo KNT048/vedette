@@ -46,10 +46,14 @@ type Overview struct {
 		Total    int                `json:"total"`
 		NotAdded int                `json:"not_added"`
 		ByStatus DeviceStatusCounts `json:"by_status"`
+		// Affected: devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its
+		// findings are counted like any device's: "3 open findings on 1 device").
+		Affected StatusCounts `json:"affected"`
 	} `json:"devices"`
 	Input       int               `json:"input"`
 	First       []FirstItem       `json:"first"`
 	Trend       []int             `json:"trend"`
+	TrendStart  string            `json:"trend_start"`
 	Alerts      *SummaryAlerts    `json:"alerts"`
 	Incidents   *SummaryIncidents `json:"incidents"`
 	GeneratedAt string            `json:"generated_at"`
@@ -129,10 +133,17 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 		return nil, fmt.Errorf("findings: overview: reading devices: %w", err)
 	}
 	for id, st := range statuses {
-		if ignored[id] || boxes[id].Box { // the Vedette box never carries a badge, as on the Devices list
+		if ignored[id] {
 			continue
 		}
-		if l, ok := layerOf(st.Code); ok {
+		l, ok := layerOf(st.Code)
+		if ok {
+			o.Devices.Affected.add(l, 1)
+		}
+		if boxes[id].Box { // the Vedette box never carries a badge, as on the Devices list
+			continue
+		}
+		if ok {
 			o.Devices.ByStatus.add(l, 1)
 		} else {
 			o.Devices.ByStatus.NeedsInput++
@@ -147,6 +158,9 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 		return nil, err
 	}
 	if o.Trend, err = s.trend(ctx, now, ignored); err != nil {
+		return nil, err
+	}
+	if o.TrendStart, err = s.trendStart(ctx, now); err != nil {
 		return nil, err
 	}
 	if src.Devices != nil {
@@ -246,6 +260,23 @@ func (s *Service) firstBlocks(ctx context.Context, gs []lineGroup) ([]FirstItem,
 		}
 	}
 	return out, nil
+}
+
+// trendStart is the first day of the trend that holds data (YYYY-MM-DD in the organization's time zone): the first of its TrendDays
+// days, or the day this box began keeping findings when that is later. A box installed today has no "was 0 on 25 Oct".
+func (s *Service) trendStart(ctx context.Context, now time.Time) (string, error) {
+	loc := orgtime.At(ctx, s.cfg.Zone)
+	y, m, d := now.UTC().In(loc).Date()
+	first := time.Date(y, m, d-(TrendDays-1), 0, 0, 0, 0, loc)
+	since, err := s.cfg.DB.ModuleSince(ctx, "findings")
+	if err != nil {
+		return "", fmt.Errorf("findings: overview: trend start: %w", err)
+	}
+	if since.In(loc).After(first) {
+		sy, sm, sd := since.In(loc).Date()
+		first = time.Date(sy, sm, sd, 0, 0, 0, 0, loc)
+	}
+	return first.Format(time.DateOnly), nil
 }
 
 // trend is the open findings at the end of each of the last TrendDays days of the organization's time zone, the last one now: those

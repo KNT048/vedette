@@ -2,11 +2,11 @@ package sensoractive
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/netip"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/secrets"
@@ -129,15 +129,11 @@ func deviceWire(d SNMPDevice) deviceRow {
 
 // shapeAs converts v to the generated type T of the same JSON shape.
 func shapeAs[T any](v any) (*T, error) {
-	b, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sensoractive: %w", err)
 	}
-	var out T
-	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("sensoractive: snmp shape: %w", err)
-	}
-	return &out, nil
+	return out, nil
 }
 
 // InventoryGetInventorySnmp implements GET /inventory/snmp.

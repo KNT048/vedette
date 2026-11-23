@@ -2,10 +2,10 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
@@ -26,13 +26,9 @@ func NewAIHandlers(svc *Service) *AIHandlers { return &AIHandlers{svc: svc} }
 
 // convert re-reads v, through its JSON form, as T.
 func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("ai: encode: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("ai: decode: %w", err)
+		return nil, fmt.Errorf("ai: %w", err)
 	}
 	return out, nil
 }

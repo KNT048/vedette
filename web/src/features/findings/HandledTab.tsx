@@ -8,7 +8,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
-import { HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
+import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
@@ -72,8 +72,7 @@ export function HandledTab({ device }: { device: string }) {
     ) },
     { id: 'status', header: t('handledTab.col.status'), cell: ({ row: { original: r } }) => (
       <span className="grid gap-1">
-        <StatusBadge code={r.status} until={r.handled.accepted_until} />
-        <HandledLine handled={r.handled} software={r.software?.name} />
+        <FindingStatusLines value={{ status: r.status, handled: r.handled, software: r.software?.name }} />
       </span>
     ) },
     { id: 'actions', header: t('handledTab.col.actions'), cell: ({ row: { original: r } }) => <Reopen r={r} /> },
@@ -94,7 +93,7 @@ export function HandledTab({ device }: { device: string }) {
       <QueryState query={q}>
         {(d) => (
           <DataTable urlKey="handled" caption={t('handledTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}`} empty={t('handledTab.empty')}
+            server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}`} empty={t('handledTab.empty')}
             mobileRow={(r) => (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -102,7 +101,7 @@ export function HandledTab({ device }: { device: string }) {
                   <StatusBadge code={r.status} until={r.handled.accepted_until} />
                 </div>
                 <DeviceLine device={r.device} badge={false} />
-                <HandledLine handled={r.handled} software={r.software?.name} />
+                <HandledLine underBadge handled={r.handled} software={r.software?.name} />
                 <span className="w-fit"><Reopen r={r} /></span>
               </div>
             )} />

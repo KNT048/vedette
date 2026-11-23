@@ -113,6 +113,11 @@ describe('Findings: Mark as handled acts on one device', () => {
     for (const b of boxes) expect(b).toBeChecked()
     expect(dlg).toHaveTextContent('Acts on 3 findings (3 CVEs) on one device: FW-HQ.')
     const before = auditStore.get().filter((a) => a.action === 'findings.handle').length
+    // nothing is chosen for the person: these CVEs may have no fix, "Patched" is their word, not a default
+    for (const r of within(dlg).getAllByRole('radio')) expect(r).not.toBeChecked()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 3 findings' }))
+    expect(within(dlg).getByRole('alert')).toHaveTextContent('Choose how it was handled.')
+    await userEvent.click(within(dlg).getByRole('radio', { name: /^Patched/ }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 3 findings' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
     expect(posts.find((p) => p.url.endsWith('/findings/handle'))?.body).toMatchObject({ device: 'a-fw01', fix: 'openbsd:openssh|update|10.6', resolution: 'patched' })
@@ -178,7 +183,7 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
   it('Handled says who and how; accepted risks are a filter', async () => {
     renderApp('/findings?tab=handled')
     const table = await screen.findByRole('table', { name: 'Handled findings' }, T)
-    expect(await within(table).findByText('Patched by Vedette: version moved 22631.4602 → 22631.4751 (' , { exact: false }, T)).toBeInTheDocument()
+    expect(await within(table).findByText('By Vedette: version moved 22631.4602 → 22631.4751 (' , { exact: false }, T)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Risk accepted' }))
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2), T)
     expect(within(table).getByText(/^Risk accepted until /, { selector: '[data-status]' })).toBeInTheDocument()

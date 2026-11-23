@@ -29,6 +29,7 @@ import { ScopeButton, ScopeDialog, TurnOnModule } from './Fixes'
 import { AlertChannels } from './AlertChannels'
 import { runHref } from './places'
 import { ScanNowButton } from './ScanNow'
+import { InfoLine } from '@/components/common/InfoLine'
 import type { Engine, EngineId, Scanning } from './types'
 
 const GROUPS = ['discover', 'identify', 'vuln', 'traps'] as const
@@ -46,7 +47,8 @@ const PLACE: Partial<Record<EngineId, string>> = {
 const ADMIN_PLACE = (to: string) => to.startsWith('/devices/setup')
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
-const mb = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${n} MB`)
+/** Memory the box reports in MiB, said in decimal GB and MB like every other size on the screens (OpenVAS says "7.5 GB" for the same box). */
+const mb = (n: number) => { const bytes = n * 1024 * 1024; return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB` }
 
 /** osquery: the token and its install commands, made here (POST /inventory/agents/tokens; §0). */
 function OsqueryDialog({ onClose }: { onClose: () => void }) {
@@ -248,7 +250,7 @@ function BoxMemory({ d }: { d: Scanning }) {
   const admin = useCan('admin')
   const { memory_mb: total, reserved_mb: used } = d.box
   if (!total) return null
-  if (used <= total) return <p className="mb-5 text-meta text-muted">{t('box.memory', { used: mb(used), total: mb(total) })}</p>
+  if (used <= total) return <InfoLine className="mb-5 text-meta text-muted" topic={t('box.memory', { used: mb(used), total: mb(total) })} info={t('box.memoryInfo')}>{t('box.memory', { used: mb(used), total: mb(total) })}</InfoLine>
   const biggest = d.engines
     .filter((e) => e.enabled && e.can_toggle && e.cost.while === 'on' && (e.cost.ram_mb ?? 0) > 0)
     .sort((a, b) => (b.cost.ram_mb ?? 0) - (a.cost.ram_mb ?? 0))[0]

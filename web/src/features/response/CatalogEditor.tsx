@@ -192,14 +192,19 @@ export function CatalogEditor() {
         <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('catalog.title')}</h3><InfoTip topic={t('catalog.title')}>{t('catalog.hintInfo')}</InfoTip></div><p className="text-meta text-muted">{t('catalog.hint')}</p></div>
         <Button onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('catalog.add')}</Button>
       </div>
+      {/* One way to fix every action that waits for a connection; each card says only why it waits */}
+      {cat.items.some((a) => a.device && !a.available) ? (
+        <p className="text-meta text-warn">{t('catalog.someUnavailable')} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></p>
+      ) : null}
       {packsOf(cat.items).map((pack) => {
         const items = cat.items.filter((a) => a.pack === pack)
         if (!items.length) return null
         return (
           <section key={pack} className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={t(`catalog.packs.${pack}`, { defaultValue: pack })}>
             <h4 className="mt-2 text-meta font-medium text-muted">{t(`catalog.packs.${pack}`, { defaultValue: pack })}</h4>
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {items.map((a) => (
-              <Card key={a.id} className="grid grid-cols-[minmax(0,1fr)] gap-2">
+              <li key={a.id}><Card className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <Switch aria-label={t('catalog.allow', { name: a.name })} checked={a.enabled} disabled={save.isPending} onCheckedChange={(v) => save.mutate({ id: a.id, input: { enabled: v } }, { onError: fail })} />
@@ -228,12 +233,13 @@ export function CatalogEditor() {
                     <div className="flex flex-wrap items-center gap-2">
                       <label htmlFor={`cc-${a.id}`} className="text-muted">{t('catalog.connection')}:</label>
                       {a.builtin ? <Select id={`cc-${a.id}`} className="h-8 w-auto max-w-56 sm:max-w-none" value={a.connection_id ?? ''} onChange={(e) => save.mutate({ id: a.id, input: { connection_id: e.target.value } }, { onError: fail })}>{a.connection_id ? null : <option value="">{t('catalog.chooseConnection')}</option>}<ConnectionOptions connections={cat.connections} /></Select> : <span>{a.connection}</span>}
-                      {!a.available ? <span className="text-warn">{a.unavailable_reason} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></span> : null}
+                      {!a.available ? <span className="text-warn">{a.unavailable_reason}</span> : null}
                     </div>
                   ) : <span className="text-muted">{t('catalog.boxOnly')}</span>}
                 </div>
-              </Card>
+              </Card></li>
             ))}
+            </ul>
           </section>
         )
       })}

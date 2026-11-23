@@ -1,7 +1,9 @@
 // The shared schedule editor against the schedules mock: the line it shows, the dialog with the next three starts, the owner's limits
 // with their reason, pause and resume, and Run now opening the run it started.
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -62,7 +64,32 @@ describe('ScheduleEditor', () => {
     expect(dlg.getByText('Sources ask clients not to poll more often.')).toBeInTheDocument()
     await u.clear(dlg.getByLabelText('Every'))
     await u.type(dlg.getByLabelText('Every'), '0')
-    expect(await dlg.findByText(/The interval is 1 minute to 366 days\./, undefined, T)).toBeInTheDocument()
+    // 0 reads as every other value below the owner's minimum, in plain words (never the API's field name), and Save sends nothing
+    expect(await dlg.findByText('The interval is at least 1 hour. Sources ask clients not to poll more often.', undefined, T)).toBeInTheDocument()
+    await u.click(dlg.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(dlg.queryByText(/every_minutes/)).toBeNull()
+  })
+
+  it('the next starts name their zone, and a start the window moved off the asked time says so and why', async () => {
+    const u = userEvent.setup()
+    render(<Harness ownerKey="exposure.target:xt-14" />)
+    await u.click(await screen.findByRole('button', { name: 'Change the schedule of Outside scan' }, T))
+    const dlg = within(await screen.findByRole('dialog'))
+    expect(await dlg.findByText(/^Next starts \(.+ time\)$/, undefined, T)).toBeInTheDocument()
+    await u.selectOptions(dlg.getByLabelText('Repeat'), 'interval')
+    await u.clear(dlg.getByLabelText('Every'))
+    await u.type(dlg.getByLabelText('Every'), '3')
+    await u.selectOptions(dlg.getByLabelText('Unit'), 'days')
+    fireEvent.change(dlg.getByLabelText(/^At/), { target: { value: '02:30' } })
+    await waitFor(() => expect(dlg.getAllByRole('listitem').length).toBeGreaterThan(0), T)
+    // the box moves a start to the window's opening (22:00 in Ho Chi Minh City): the line says when and why
+    server.use(http.post('*/api/v1/schedules/preview', () => HttpResponse.json({ zone: 'Asia/Ho_Chi_Minh', upcoming: ['2026-11-25T19:30:00.000Z', '2026-11-30T15:00:00.000Z'] })))
+    await u.clear(dlg.getByLabelText('Every'))
+    await u.type(dlg.getByLabelText('Every'), '4')
+    expect(await dlg.findByText(/moved off 02:30 into the/, undefined, T)).toBeInTheDocument()
+    expect(dlg.getAllByText(/moved off/)).toHaveLength(1) // the 02:30 start is not
+    expect(dlg.getByText('Next starts (Asia/Ho_Chi_Minh time)')).toBeInTheDocument()
   })
 
   it('pauses, resumes and runs once, opening the run it started', async () => {

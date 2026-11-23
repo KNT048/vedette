@@ -1254,7 +1254,7 @@ CREATE TABLE notify_notice (
     created_at TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     product    TEXT NOT NULL CHECK (length(product) <= 300),
     cves       TEXT NOT NULL CHECK (json_valid(cves))
-);
+, title TEXT CHECK (title IS NULL OR length(title) <= 400), severity TEXT CHECK (severity IS NULL OR severity IN ('critical', 'high', 'medium', 'low', 'info')), unsent TEXT CHECK (unsent IS NULL OR (length(unsent) BETWEEN 1 AND 40 AND unsent NOT GLOB '*[^a-z0-9_]*')), unsent_floor TEXT CHECK (unsent_floor IS NULL OR unsent_floor IN ('critical', 'high', 'medium', 'low')), unsent_channel TEXT CHECK (unsent_channel IS NULL OR (length(unsent_channel) BETWEEN 1 AND 40 AND unsent_channel NOT GLOB '*[^a-z-]*')));
 
 CREATE TABLE notify_notice_finding (
     notice_id  TEXT NOT NULL REFERENCES notify_notice (id) ON DELETE CASCADE,

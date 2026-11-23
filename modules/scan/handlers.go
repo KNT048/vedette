@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
@@ -27,15 +28,11 @@ func into[T any, P interface {
 	*T
 	json.Unmarshaler
 }](v any) (*T, error) {
-	b, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("scan: encoding response: %w", err)
+		return nil, fmt.Errorf("scan: %w", err)
 	}
-	var out T
-	if err := P(&out).UnmarshalJSON(b); err != nil {
-		return nil, fmt.Errorf("scan: response does not fit the API schema: %w", err)
-	}
-	return &out, nil
+	return out, nil
 }
 
 // actor is the signed-in user the audit trail names.

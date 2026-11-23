@@ -137,11 +137,26 @@ func (a reportsViews) Views(ctx context.Context) ([]reports.FindingView, error) 
 	if err != nil {
 		return nil, err
 	}
+	// an open finding is listed under its block's fix, as By device and By fix list it: the report names the same fix
+	listed, err := a.svc.ListedFixes(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]reports.FindingView, 0, len(vs))
 	for _, v := range vs {
-		out = append(out, reportView(v))
+		r := reportView(v)
+		if l, ok := listed[v.Finding.ID]; ok && v.Finding.State == findings.StateOpen {
+			r.Fix = listedFix(r.Fix, l)
+		}
+		out = append(out, r)
 	}
 	return out, nil
+}
+
+// listedFix is the fix the Findings lists name for an open finding (its block's combined release), keeping the kind, product and
+// advisory of the finding's own fix (a block combines only fixes of one kind).
+func listedFix(own reports.Fix, l findings.ListedFix) reports.Fix {
+	return reports.Fix{Key: l.Key, Kind: own.Kind, Product: own.Product, Version: optionalText(l.Fix.Version), Ref: optionalText(l.Fix.Ref), URL: own.URL}
 }
 
 // reportView maps one view through its API shape (View.JSON), so the report and the findings pages cannot disagree.

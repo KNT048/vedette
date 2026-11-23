@@ -443,6 +443,7 @@
     "readOnly": "Read-only: this connection has no write tools",
     "needConnection": "Connection not listed? Add one first; typed text here is not kept.",
     "toConnections": "Open Settings → Connections",
+    "someUnavailable": "Some actions wait for a connection.",
     "noWritable": "No connection has write tools yet. Turn on a write tool in Settings → Connections.",
     "chooseConnection": "Choose a connection",
     "chooseMethod": "Choose a method",

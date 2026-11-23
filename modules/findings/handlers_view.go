@@ -231,3 +231,25 @@ func (h *FindingHandlers) FindingsPostFindingsQuestionsIDAnswer(ctx context.Cont
 	}
 	return out, nil
 }
+
+// FindingsGetFindingsAnswered implements findings_get_findings_answered: the questions answered "not affected", each can be asked again.
+func (h *FindingHandlers) FindingsGetFindingsAnswered(ctx context.Context, p oas.FindingsGetFindingsAnsweredParams) (*oas.FindingsGetFindingsAnsweredOK, error) {
+	out, err := h.svc.Answered(ctx, p.Device.Or(""), ParsePage(p.Offset.Or(""), p.Limit.Or("")))
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsGetFindingsAnsweredOK](out)
+}
+
+// FindingsPostFindingsQuestionsIDUnanswer implements findings_post_findings_questions_id_unanswer (operator): a "not affected" answer is
+// taken back and the question is asked again.
+func (h *FindingHandlers) FindingsPostFindingsQuestionsIDUnanswer(ctx context.Context, params oas.FindingsPostFindingsQuestionsIDUnanswerParams) (*oas.FindingsPostFindingsQuestionsIDUnanswerOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if err := h.svc.UnanswerQuestion(ctx, params.ID, p.Email); err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsQuestionsIDUnanswerOK{ID: params.ID}, nil
+}

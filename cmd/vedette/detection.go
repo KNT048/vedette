@@ -3,13 +3,13 @@ package main
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/store"
 	idsmodule "github.com/knt048/vedette/modules/ids"
@@ -105,15 +105,11 @@ func watcher(id, module, state, detail, action string) detWatcher {
 
 // DetectionGetDetectionOverview implements detection_get_detection_overview (viewer).
 func (h *detectionHandlers) DetectionGetDetectionOverview(ctx context.Context) (*oas.DetectionGetDetectionOverviewOK, error) {
-	b, err := json.Marshal(h.overview(ctx))
+	out, err := apijson.Into[oas.DetectionGetDetectionOverviewOK](h.overview(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("detection: encoding the overview: %w", err)
+		return nil, fmt.Errorf("detection: the overview: %w", err)
 	}
-	var out oas.DetectionGetDetectionOverviewOK
-	if err := out.UnmarshalJSON(b); err != nil {
-		return nil, fmt.Errorf("detection: the overview does not fit the API schema: %w", err)
-	}
-	return &out, nil
+	return out, nil
 }
 
 // overview never fails as a whole: a module that cannot be read makes its own watcher "failed" (and its counts zero).

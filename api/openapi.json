@@ -51158,6 +51158,314 @@
         }
       }
     },
+    "/findings/answered": {
+      "get": {
+        "operationId": "findings_get_findings_answered",
+        "summary": "The questions a person answered \"not affected\" (ignored devices left out), the newest first: each can be asked again",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "One device",
+              "type": "string",
+              "maxLength": 96
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Items to skip (default 0)",
+              "type": "string",
+              "pattern": "^[0-9]{1,6}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Items of the page, 1 to 100 (default 20; above: 100)",
+              "type": "string",
+              "pattern": "^[0-9]{1,3}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "The question"
+                          },
+                          "question": {
+                            "type": "string",
+                            "enum": [
+                              "version_needed",
+                              "platform",
+                              "package_release",
+                              "not_comparable",
+                              "no_range_data"
+                            ],
+                            "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions (\"Possibly affected: check the version\")"
+                          },
+                          "device": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The name the Devices page shows; never the internal id"
+                              },
+                              "ip": {
+                                "description": "null when the device has no IP address",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "router",
+                                  "switch",
+                                  "modem",
+                                  "sd_wan",
+                                  "load_balancer",
+                                  "network_controller",
+                                  "firewall",
+                                  "vpn_gateway",
+                                  "ids_sensor",
+                                  "proxy",
+                                  "ap",
+                                  "wireless_controller",
+                                  "wifi_extender",
+                                  "mesh_node",
+                                  "server",
+                                  "virtual_machine",
+                                  "hypervisor",
+                                  "bmc",
+                                  "domain_controller",
+                                  "mail_server",
+                                  "database_server",
+                                  "backup_server",
+                                  "pc",
+                                  "laptop",
+                                  "workstation",
+                                  "thin_client",
+                                  "pos_terminal",
+                                  "kiosk",
+                                  "smartphone",
+                                  "tablet",
+                                  "smartwatch",
+                                  "printer",
+                                  "mfp",
+                                  "scanner",
+                                  "label_printer",
+                                  "receipt_printer",
+                                  "plotter",
+                                  "3d_printer",
+                                  "camera",
+                                  "nvr",
+                                  "dvr",
+                                  "video_encoder",
+                                  "doorbell",
+                                  "video_conferencing",
+                                  "ip_phone",
+                                  "pbx",
+                                  "voip_adapter",
+                                  "voip_gateway",
+                                  "conference_phone",
+                                  "intercom",
+                                  "nas",
+                                  "san",
+                                  "backup_appliance",
+                                  "tape_library",
+                                  "iot",
+                                  "smart_tv",
+                                  "media_player",
+                                  "smart_speaker",
+                                  "game_console",
+                                  "smart_plug",
+                                  "smart_light",
+                                  "smart_hub",
+                                  "thermostat",
+                                  "projector",
+                                  "digital_signage",
+                                  "single_board_computer",
+                                  "smart_appliance",
+                                  "robot_vacuum",
+                                  "wireless_bridge",
+                                  "plc",
+                                  "hmi",
+                                  "rtu",
+                                  "scada_server",
+                                  "industrial_switch",
+                                  "ups",
+                                  "pdu",
+                                  "access_control",
+                                  "time_clock",
+                                  "alarm_panel",
+                                  "hvac_controller",
+                                  "building_controller",
+                                  "power_meter",
+                                  "environment_monitor",
+                                  "ev_charger",
+                                  "solar_inverter",
+                                  "medical_device",
+                                  "web",
+                                  "cloud_service",
+                                  "unknown"
+                                ]
+                              },
+                              "added": {
+                                "type": "boolean",
+                                "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                              },
+                              "ignored": {
+                                "type": "boolean",
+                                "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "ip",
+                              "kind",
+                              "added",
+                              "ignored"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "software": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "The software line of the device (inventory)"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "Display name, as on the device page"
+                                  },
+                                  "version": {
+                                    "description": "The version the match compared",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "version"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "cve": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "cves": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "answer": {
+                            "type": "string",
+                            "const": "not_affected"
+                          },
+                          "by": {
+                            "type": "string",
+                            "description": "Who answered"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "question",
+                          "device",
+                          "software",
+                          "cve",
+                          "cves",
+                          "answer",
+                          "by",
+                          "at"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A question a person answered \"not affected\": no finding records it, so it is listed here and can be asked again"
+                      },
+                      "description": "The newest answer first"
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/findings/devices": {
       "get": {
         "operationId": "findings_get_findings_devices",
@@ -51741,6 +52049,175 @@
                                       "safe_check": {
                                         "type": "boolean",
                                         "description": "A safe check exists for the CVE and can reach the device: a vulnerability check of the device can confirm it, rule it out, or see whether a fix holds"
+                                      },
+                                      "urgency": {
+                                        "type": "object",
+                                        "properties": {
+                                          "layer": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5,
+                                            "description": "The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]"
+                                          },
+                                          "since": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                            "description": "When the finding entered this layer"
+                                          },
+                                          "reasons": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "layer": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 4
+                                                },
+                                                "source": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z0-9-]{1,40}$",
+                                                  "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4 (computed)"
+                                                },
+                                                "name": {
+                                                  "type": "string",
+                                                  "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                                },
+                                                "date": {
+                                                  "type": "string",
+                                                  "format": "date",
+                                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                                  "description": "When the source said so (or the box first saw it say so); layer 1: the newest alert; layer 4: since when the rule holds"
+                                                },
+                                                "url": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "format": "uri"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "detail": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "maxLength": 120
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ],
+                                                  "description": "A short fact of the signal: \"244 stars\" for a public exploit, the attacker address for layer 1; null when none"
+                                                },
+                                                "due": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "format": "date",
+                                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ],
+                                                  "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
+                                                }
+                                              },
+                                              "required": [
+                                                "layer",
+                                                "source",
+                                                "name",
+                                                "date",
+                                                "url",
+                                                "detail",
+                                                "due"
+                                              ],
+                                              "additionalProperties": false,
+                                              "description": "One urgency layer that applies, with its evidence"
+                                            },
+                                            "description": "Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5. The GUI says \"not yet in CISA KEV\" for a layer 2 without a cisa-kev entry"
+                                          },
+                                          "internet": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "format": "date",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ],
+                                            "description": "\"Reachable from the Internet (seen <date>)\": the day an exposure scan last saw the affected service from outside; raises the order inside a layer, never the layer"
+                                          }
+                                        },
+                                        "required": [
+                                          "layer",
+                                          "since",
+                                          "reasons",
+                                          "internet"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "The same urgency and reasons as the finding's View: the reasons line under the status"
+                                      },
+                                      "verification": {
+                                        "type": "object",
+                                        "properties": {
+                                          "verified": {
+                                            "type": "string",
+                                            "enum": [
+                                              "no",
+                                              "device",
+                                              "scan",
+                                              "person"
+                                            ],
+                                            "description": "no = not confirmed yet; device = the device itself reports the affected version (agent, SNMP, package list); scan = a safe check confirmed it; person = a person confirmed it"
+                                          },
+                                          "basis": {
+                                            "type": "string",
+                                            "enum": [
+                                              "scan",
+                                              "device_version",
+                                              "package",
+                                              "banner_version",
+                                              "statement",
+                                              "person"
+                                            ],
+                                            "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
+                                          },
+                                          "by": {
+                                            "description": "verified person: who confirmed it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "at": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ],
+                                            "description": "When it was confirmed; null while not confirmed"
+                                          }
+                                        },
+                                        "required": [
+                                          "verified",
+                                          "basis",
+                                          "by",
+                                          "at"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "The same verification as the finding's View: the confirmation line under the status"
                                       }
                                     },
                                     "required": [
@@ -51749,10 +52226,12 @@
                                       "status",
                                       "severity",
                                       "verified",
-                                      "safe_check"
+                                      "safe_check",
+                                      "urgency",
+                                      "verification"
                                     ],
                                     "additionalProperties": false,
-                                    "description": "One CVE of a list, a link to its finding"
+                                    "description": "One CVE of a list, a link to its finding, with the status lines its finding's page shows"
                                   },
                                   "description": "Every open finding of the block, the most severe first (no score last), then the most urgent, then the CVE id"
                                 }
@@ -53841,12 +54320,52 @@
                           ],
                           "additionalProperties": false,
                           "description": "Devices by their badge (DeviceStatus.code)"
+                        },
+                        "affected": {
+                          "type": "object",
+                          "properties": {
+                            "under_attack": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "exploited": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "public_exploit": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "critical_edge": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "update_recommended": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "under_attack",
+                            "exploited",
+                            "public_exploit",
+                            "critical_edge",
+                            "update_recommended"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its findings count like any device's): \"3 open findings on 1 device\""
                         }
                       },
                       "required": [
                         "total",
                         "not_added",
-                        "by_status"
+                        "by_status",
+                        "affected"
                       ],
                       "additionalProperties": false
                     },
@@ -54245,6 +54764,175 @@
                                     "safe_check": {
                                       "type": "boolean",
                                       "description": "A safe check exists for the CVE and can reach the device: a vulnerability check of the device can confirm it, rule it out, or see whether a fix holds"
+                                    },
+                                    "urgency": {
+                                      "type": "object",
+                                      "properties": {
+                                        "layer": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 5,
+                                          "description": "The most urgent layer that applies; the open status is OPEN_FINDING_STATUSES[layer - 1]"
+                                        },
+                                        "since": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                          "description": "When the finding entered this layer"
+                                        },
+                                        "reasons": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "layer": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 4
+                                              },
+                                              "source": {
+                                                "type": "string",
+                                                "pattern": "^[a-z0-9-]{1,40}$",
+                                                "description": "The signal source: cisa-kev, msrc, chrome, cisco, fortinet, apple, android, rapid7, gti, nuclei, metasploit, exploit-db, github-poc; ids for an attack seen here (layer 1); cvss for layer 4 (computed)"
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                                "description": "The source as people name it: \"CISA KEV\", \"Rapid7\", \"GitHub\""
+                                              },
+                                              "date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                                "description": "When the source said so (or the box first saw it say so); layer 1: the newest alert; layer 4: since when the rule holds"
+                                              },
+                                              "url": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "format": "uri"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "detail": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 120
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "A short fact of the signal: \"244 stars\" for a public exploit, the attacker address for layer 1; null when none"
+                                              },
+                                              "due": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Layer 2: the day the list asks for the fix (CISA KEV due date); null otherwise"
+                                              }
+                                            },
+                                            "required": [
+                                              "layer",
+                                              "source",
+                                              "name",
+                                              "date",
+                                              "url",
+                                              "detail",
+                                              "due"
+                                            ],
+                                            "additionalProperties": false,
+                                            "description": "One urgency layer that applies, with its evidence"
+                                          },
+                                          "description": "Every layer 1 to 4 that applies, most urgent first, each source its own entry; empty for layer 5. The GUI says \"not yet in CISA KEV\" for a layer 2 without a cisa-kev entry"
+                                        },
+                                        "internet": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "date",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "\"Reachable from the Internet (seen <date>)\": the day an exposure scan last saw the affected service from outside; raises the order inside a layer, never the layer"
+                                        }
+                                      },
+                                      "required": [
+                                        "layer",
+                                        "since",
+                                        "reasons",
+                                        "internet"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "The same urgency and reasons as the finding's View: the reasons line under the status"
+                                    },
+                                    "verification": {
+                                      "type": "object",
+                                      "properties": {
+                                        "verified": {
+                                          "type": "string",
+                                          "enum": [
+                                            "no",
+                                            "device",
+                                            "scan",
+                                            "person"
+                                          ],
+                                          "description": "no = not confirmed yet; device = the device itself reports the affected version (agent, SNMP, package list); scan = a safe check confirmed it; person = a person confirmed it"
+                                        },
+                                        "basis": {
+                                          "type": "string",
+                                          "enum": [
+                                            "scan",
+                                            "device_version",
+                                            "package",
+                                            "banner_version",
+                                            "statement",
+                                            "person"
+                                          ],
+                                          "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
+                                        },
+                                        "by": {
+                                          "description": "verified person: who confirmed it",
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "at": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "format": "date-time",
+                                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "description": "When it was confirmed; null while not confirmed"
+                                        }
+                                      },
+                                      "required": [
+                                        "verified",
+                                        "basis",
+                                        "by",
+                                        "at"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "The same verification as the finding's View: the confirmation line under the status"
                                     }
                                   },
                                   "required": [
@@ -54253,10 +54941,12 @@
                                     "status",
                                     "severity",
                                     "verified",
-                                    "safe_check"
+                                    "safe_check",
+                                    "urgency",
+                                    "verification"
                                   ],
                                   "additionalProperties": false,
-                                  "description": "One CVE of a list, a link to its finding"
+                                  "description": "One CVE of a list, a link to its finding, with the status lines its finding's page shows"
                                 },
                                 "description": "Every open finding of the block, the most severe first (no score last), then the most urgent, then the CVE id"
                               }
@@ -54291,6 +54981,12 @@
                         "maximum": 9007199254740991
                       },
                       "description": "Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now"
+                    },
+                    "trend_start": {
+                      "type": "string",
+                      "format": "date",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                      "description": "The first day of the trend that holds data, in the organization time zone: the first of the 30 days, or the day this box began keeping findings when that is later. The days before it are not drawn or compared"
                     },
                     "alerts": {
                       "anyOf": [
@@ -54368,6 +55064,7 @@
                     "input",
                     "first",
                     "trend",
+                    "trend_start",
                     "alerts",
                     "incidents",
                     "generated_at"
@@ -54460,6 +55157,63 @@
                   },
                   "required": [
                     "finding"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/questions/{id}/unanswer": {
+      "post": {
+        "operationId": "findings_post_findings_questions_id_unanswer",
+        "summary": "Take back a \"not affected\" answer: the question is asked again in Needs your input (an \"affected\" answer made a finding and is changed on its page: 409 not_answered); audit",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The question, open again"
+                    }
+                  },
+                  "required": [
+                    "id"
                   ],
                   "additionalProperties": false
                 }
@@ -71254,6 +72008,90 @@
                         "additionalProperties": false
                       }
                     },
+                    "not_sent": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                            "description": "When the notice was made"
+                          },
+                          "what": {
+                            "type": "string",
+                            "description": "Its title: \"<product> on <device>: <status> (<CVE>)\""
+                          },
+                          "link": {
+                            "type": "string",
+                            "description": "The finding it is about, or the findings list for a first-run summary"
+                          },
+                          "not_sent": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "queued",
+                                  "quiet_hours",
+                                  "grouped",
+                                  "no_channel",
+                                  "channels_off",
+                                  "channel_off",
+                                  "channel_removed",
+                                  "below_min_severity",
+                                  "failed",
+                                  "dropped_stale",
+                                  "first_run_summary",
+                                  "unknown"
+                                ],
+                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                              },
+                              "text": {
+                                "type": "string",
+                                "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
+                              },
+                              "channel": {
+                                "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
+                                "type": "string",
+                                "enum": [
+                                  "telegram",
+                                  "slack",
+                                  "zalo",
+                                  "zalo-personal",
+                                  "email",
+                                  "webhook"
+                                ]
+                              },
+                              "until": {
+                                "description": "quiet_hours, grouped: when the held message goes out",
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "text"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "at",
+                          "what",
+                          "link",
+                          "not_sent"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the channels' minimum, no channel or channels off when it was found"
+                    },
                     "suppressed": {
                       "type": "object",
                       "properties": {
@@ -71277,6 +72115,7 @@
                   },
                   "required": [
                     "items",
+                    "not_sent",
                     "suppressed"
                   ],
                   "additionalProperties": false
@@ -71600,6 +72439,7 @@
                                     "enum": [
                                       "queued",
                                       "quiet_hours",
+                                      "grouped",
                                       "no_channel",
                                       "channels_off",
                                       "channel_off",
@@ -71610,7 +72450,7 @@
                                       "first_run_summary",
                                       "unknown"
                                     ],
-                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
                                   },
                                   "text": {
                                     "type": "string",
@@ -71629,7 +72469,7 @@
                                     ]
                                   },
                                   "until": {
-                                    "description": "quiet_hours: when the held message goes out",
+                                    "description": "quiet_hours, grouped: when the held message goes out",
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -71901,6 +72741,7 @@
                                   "enum": [
                                     "queued",
                                     "quiet_hours",
+                                    "grouped",
                                     "no_channel",
                                     "channels_off",
                                     "channel_off",
@@ -71911,7 +72752,7 @@
                                     "first_run_summary",
                                     "unknown"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
                                 },
                                 "text": {
                                   "type": "string",
@@ -71930,7 +72771,7 @@
                                   ]
                                 },
                                 "until": {
-                                  "description": "quiet_hours: when the held message goes out",
+                                  "description": "quiet_hours, grouped: when the held message goes out",
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -72258,6 +73099,7 @@
                                   "enum": [
                                     "queued",
                                     "quiet_hours",
+                                    "grouped",
                                     "no_channel",
                                     "channels_off",
                                     "channel_off",
@@ -72268,7 +73110,7 @@
                                     "first_run_summary",
                                     "unknown"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
                                 },
                                 "text": {
                                   "type": "string",
@@ -72287,7 +73129,7 @@
                                   ]
                                 },
                                 "until": {
-                                  "description": "quiet_hours: when the held message goes out",
+                                  "description": "quiet_hours, grouped: when the held message goes out",
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -74683,6 +75525,12 @@
                             }
                           ],
                           "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
+                        },
+                        "not_relevant_left_out": {
+                          "description": "Findings closed as not relevant in the period that this report leaves out (\"Include not relevant\" off): why its count is lower than Findings › Handled. Absent when none, and in documents sent before it existed",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
                         }
                       },
                       "required": [
@@ -76835,6 +77683,12 @@
                                 }
                               ],
                               "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
+                            },
+                            "not_relevant_left_out": {
+                              "description": "Findings closed as not relevant in the period that this report leaves out (\"Include not relevant\" off): why its count is lower than Findings › Handled. Absent when none, and in documents sent before it existed",
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
                             }
                           },
                           "required": [

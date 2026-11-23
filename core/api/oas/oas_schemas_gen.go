@@ -151079,7 +151079,9 @@ func (s *InventoryGetInventoryDevicesFragile) UnmarshalText(data []byte) error {
 	}
 }
 
-// True: findings_count > 0.
+// True: the device has open findings (a status of one of the five layers; needs_input alone is none).
+// findings_count counts every state and is not used. The Vedette box is never marked, so never under
+// true. Statuses unreadable: 503 risk_unavailable.
 type InventoryGetInventoryDevicesHasFindings string
 
 const (
@@ -162439,7 +162441,9 @@ func (s *InventoryGetInventoryExportCsvFragile) UnmarshalText(data []byte) error
 	}
 }
 
-// True: findings_count > 0.
+// True: the device has open findings (a status of one of the five layers; needs_input alone is none).
+// findings_count counts every state and is not used. The Vedette box is never marked, so never under
+// true. Statuses unreadable: 503 risk_unavailable.
 type InventoryGetInventoryExportCsvHasFindings string
 
 const (

@@ -83,9 +83,9 @@ func (w *docWriter) table(t DocTable) {
 	}
 	var hb strings.Builder
 	hb.WriteString(`<table style="border-collapse:collapse;width:100%;margin:0 0 12px;font-size:13px">`)
-	if c := docText(t.Caption, maxDocTitle); c != "" {
+	c := docText(t.Caption, maxDocTitle)
+	if c != "" {
 		hb.WriteString(`<caption style="text-align:left;font-weight:bold;padding:4px 0">` + html.EscapeString(c) + "</caption>")
-		w.text.WriteString(c + "\n")
 	}
 	hb.WriteString("<tr>")
 	for _, h := range head {
@@ -96,6 +96,9 @@ func (w *docWriter) table(t DocTable) {
 		return
 	}
 	w.html.WriteString(hb.String())
+	if c != "" { // only once the table is in the HTML part: both parts stop at the same place
+		w.text.WriteString(c + "\n")
+	}
 	for k, row := range t.Rows {
 		if k == maxDocRows {
 			w.cut = true

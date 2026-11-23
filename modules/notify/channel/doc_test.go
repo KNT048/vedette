@@ -111,3 +111,29 @@ func TestEmailWithoutADocumentIsPlainText(t *testing.T) {
 		t.Fatalf("mail = %s", raw)
 	}
 }
+
+// Both parts stop at the same place: a table that no longer fits leaves no caption behind in the text part.
+func TestEmailOfACutDocumentHasTheSameTablesInBothParts(t *testing.T) {
+	var sec DocSection
+	sec.Title = "Still open"
+	for i := range 2000 {
+		sec.Tables = append(sec.Tables, DocTable{Caption: fmt.Sprintf("device-%04d %s", i, strings.Repeat("x", 180)),
+			Head: []string{strings.Repeat("h", 150), strings.Repeat("i", 150)}, Rows: [][]string{{"a"}}})
+	}
+	m := Message{Kind: "report", Severity: "info", Title: "Security report", Link: "https://box.example:8443/reports/sent/rep-4",
+		Doc: &Doc{Heading: "Security report", Sections: []DocSection{sec}}}
+	raw, err := buildMIME("alerts@acme.example", []string{"it@acme.example"}, m.norm(), m.Link, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := parts(t, raw)
+	if !strings.Contains(p["text/html"], docCut) {
+		t.Fatal("the document was not cut")
+	}
+	for i := range 2000 {
+		c := fmt.Sprintf("device-%04d ", i)
+		if strings.Contains(p["text/plain"], c) != strings.Contains(p["text/html"], c) {
+			t.Fatalf("%q is in one part only", c)
+		}
+	}
+}

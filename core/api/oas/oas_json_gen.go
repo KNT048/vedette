@@ -187502,14 +187502,19 @@ func (s *FindingsGetFindingsIDViewOKReopened) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.At)
 	}
 	{
+		e.FieldStart("by")
+		s.By.Encode(e)
+	}
+	{
 		e.FieldStart("why")
 		s.Why.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDViewOKReopened = [2]string{
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKReopened = [3]string{
 	0: "at",
-	1: "why",
+	1: "by",
+	2: "why",
 }
 
 // Decode decodes FindingsGetFindingsIDViewOKReopened from json.
@@ -187533,8 +187538,18 @@ func (s *FindingsGetFindingsIDViewOKReopened) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "why":
+		case "by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.By.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "why":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Why.Decode(d); err != nil {
 					return err
@@ -187553,7 +187568,7 @@ func (s *FindingsGetFindingsIDViewOKReopened) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -216632,14 +216647,19 @@ func (s *FindingsPostFindingsIDReopenOKReopened) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.At)
 	}
 	{
+		e.FieldStart("by")
+		s.By.Encode(e)
+	}
+	{
 		e.FieldStart("why")
 		s.Why.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDReopenOKReopened = [2]string{
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKReopened = [3]string{
 	0: "at",
-	1: "why",
+	1: "by",
+	2: "why",
 }
 
 // Decode decodes FindingsPostFindingsIDReopenOKReopened from json.
@@ -216663,8 +216683,18 @@ func (s *FindingsPostFindingsIDReopenOKReopened) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "why":
+		case "by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.By.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "why":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Why.Decode(d); err != nil {
 					return err
@@ -216683,7 +216713,7 @@ func (s *FindingsPostFindingsIDReopenOKReopened) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -219774,14 +219804,19 @@ func (s *FindingsPostFindingsIDUnverifyOKReopened) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.At)
 	}
 	{
+		e.FieldStart("by")
+		s.By.Encode(e)
+	}
+	{
 		e.FieldStart("why")
 		s.Why.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKReopened = [2]string{
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKReopened = [3]string{
 	0: "at",
-	1: "why",
+	1: "by",
+	2: "why",
 }
 
 // Decode decodes FindingsPostFindingsIDUnverifyOKReopened from json.
@@ -219805,8 +219840,18 @@ func (s *FindingsPostFindingsIDUnverifyOKReopened) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "why":
+		case "by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.By.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "why":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Why.Decode(d); err != nil {
 					return err
@@ -219825,7 +219870,7 @@ func (s *FindingsPostFindingsIDUnverifyOKReopened) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -222820,14 +222865,19 @@ func (s *FindingsPostFindingsIDVerifyOKReopened) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.At)
 	}
 	{
+		e.FieldStart("by")
+		s.By.Encode(e)
+	}
+	{
 		e.FieldStart("why")
 		s.Why.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKReopened = [2]string{
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKReopened = [3]string{
 	0: "at",
-	1: "why",
+	1: "by",
+	2: "why",
 }
 
 // Decode decodes FindingsPostFindingsIDVerifyOKReopened from json.
@@ -222851,8 +222901,18 @@ func (s *FindingsPostFindingsIDVerifyOKReopened) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "why":
+		case "by":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.By.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "why":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Why.Decode(d); err != nil {
 					return err
@@ -222871,7 +222931,7 @@ func (s *FindingsPostFindingsIDVerifyOKReopened) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

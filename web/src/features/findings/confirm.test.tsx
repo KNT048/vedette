@@ -75,6 +75,13 @@ describe('a person confirms a suspected finding', () => {
 
 })
 
+describe('a finding open again after a handling', () => {
+  it('says on its page why it is open again', async () => {
+    renderApp('/findings/fv-srvad-win-2')
+    expect(await screen.findByTestId('reopened-line', undefined, T)).toHaveTextContent(/^Reopened: a reading newer than the patched mark still shows the affected version \(/)
+  })
+})
+
 describe('an update-recommended finding asks for no confirmation', () => {
   it('offers no Confirm anywhere on its page, no "confirm it yourself", and its title says an update is recommended', async () => {
     sessionStore.set({ userId: 'u-admin' })

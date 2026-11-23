@@ -514,6 +514,9 @@ func optional(s string) *string {
 type reopenedJS struct {
 	Why string `json:"why"`
 	At  string `json:"at"`
+	// By is, for detected_again, the person whose version entry made the finding detected again (they set the version back); null
+	// when a source's reading did.
+	By *string `json:"by"`
 }
 
 // reopenedOf says why an open finding that was handled before is open again: its newest reopening, when no handling came after it.
@@ -535,7 +538,7 @@ func reopenedOf(f Finding, evs []Event) *reopenedJS {
 				if t, err := parseTS(e.Detail.ReadingAt); err == nil && e.Detail.Why == WhyStillDetected {
 					at = t
 				}
-				return &reopenedJS{Why: e.Detail.Why, At: store.FormatTS(at)}
+				return &reopenedJS{Why: e.Detail.Why, At: store.FormatTS(at), By: optional(e.Detail.By)}
 			}
 			return nil // a person reopened it: nothing to explain
 		}

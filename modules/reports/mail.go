@@ -58,7 +58,10 @@ func HandledLine(h Handled, software string, loc *time.Location) string {
 	switch h.Via {
 	case "person":
 	case "version_moved":
-		how = fmt.Sprintf("version moved %s → %s", deref(h.FromVersion, "?"), deref(h.ToVersion, "?"))
+		how = fmt.Sprintf("version moved %s → %s", versionOrUnknown(h.FromVersion), versionOrUnknown(h.ToVersion))
+		if h.By != "system" { // a person changed the version they had entered: theirs, in the words the pages use
+			how = fmt.Sprintf("version changed %s → %s", versionOrUnknown(h.FromVersion), versionOrUnknown(h.ToVersion))
+		}
 	case "software_removed":
 		how = "the software was removed"
 		if software != "" {
@@ -77,9 +80,10 @@ func HandledLine(h Handled, software string, loc *time.Location) string {
 	return line
 }
 
-func deref(s *string, or string) string {
+// versionOrUnknown gives the version, or "?" when it is not known.
+func versionOrUnknown(s *string) string {
 	if s == nil || *s == "" {
-		return or
+		return "?"
 	}
 	return *s
 }

@@ -48,7 +48,7 @@ function expireAccepted() {
   const t = today()
   if (!records.get().some((r) => r.resolution === 'accepted' && r.accepted_until! < t)) return
   records.update((l) => l.map((r) => (r.resolution === 'accepted' && r.accepted_until! < t
-    ? { ...r, ...unhandled, reopened: { why: 'acceptance_expired', at: nowIso() }, events: [...r.events, event('system', 'acceptance_expired')] } : r)))
+    ? { ...r, ...unhandled, reopened: { why: 'acceptance_expired', at: nowIso(), by: null }, events: [...r.events, event('system', 'acceptance_expired')] } : r)))
 }
 const unhandled = { state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null, from_version: null, to_version: null }
 const event = (actor: string, kind: FindingRecord['events'][number]['kind'], extra: Partial<FindingRecord['events'][number]> = {}) =>
@@ -129,7 +129,7 @@ function view(r: FindingRecord & { asset: Asset }): View {
     severity: severityOf(r.cve),
     verification: { verified: r.verified, basis: r.basis, by: r.verified_by, at: r.verified_at },
     handled: r.state === 'handled' ? { resolution: r.resolution!, via: r.via!, by: r.resolved_by!, at: r.resolved_at!, note: r.note, accepted_until: r.accepted_until, from_version: r.from_version, to_version: r.to_version } : null,
-    reopened: r.state === 'open' ? r.reopened : null,
+    reopened: r.state === 'open' && r.reopened ? { by: null, ...r.reopened } : null,
     fix: { ...r.fix },
     same_cve: same.map((x) => ({ id: x.id, software: x.software, status: statusOf(x) })),
     first_seen: r.first_seen, last_seen: r.last_seen, events: r.events,

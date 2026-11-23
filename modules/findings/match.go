@@ -69,6 +69,9 @@ type Software struct {
 	// Correction names the person's correction this row is ("it@acme.example corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on
 	// 17 Nov 2026"), for the history of a finding it closes or reopens; "" otherwise.
 	Correction string
+	// SetBy is, on a person's entry (Source "manual"), who entered the version: a finding a person's change of it closes is
+	// handled by that person, not by Vedette, and one it opens again names them; "" when not known or not a person's entry.
+	SetBy string
 	// Superseded names, on a reported row, a person's correction of an earlier reading of it that rests since the source moved on
 	// (inventory INV-41, #950); "" otherwise.
 	Superseded string

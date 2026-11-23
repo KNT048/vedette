@@ -36,8 +36,8 @@ var TriggerKinds = []TriggerKind{TrDetected, TrGone, TrHandle, TrReopen, TrVerif
 type Trigger struct {
 	Kind TriggerKind
 	At   time.Time // when it happened (the pass, the person's action, the clock)
-	// Actor is the person of handle, reopen, verify and unverify, and of gone via not_installed (who said the software is not
-	// installed); "" means SystemUser.
+	// Actor is the person of handle, reopen, verify and unverify, of gone via not_installed (who said the software is not
+	// installed) and of gone via version_moved on a person's entry (who changed the version); "" means SystemUser.
 	Actor string
 
 	Detection Detection // TrDetected
@@ -70,6 +70,9 @@ type Detection struct {
 	ReadAt time.Time
 	// Urgency is the layer a new finding starts with until the urgency pass sets it (0: 5, update recommended).
 	Urgency int
+	// SetBy is the person whose version entry the match compared ("" for a source's reading): a finding a version move closed that
+	// this detection opens on another version says who set the version back.
+	SetBy string
 }
 
 // Transition is the one function that changes the handling of a finding. It is total: every finding (new: State
@@ -253,9 +256,13 @@ func (t *transition) detected(d Detection) error {
 	case was.Via == ViaPerson: // mitigated, accepted, false positive and not relevant hold while detected
 	case was.Via == ViaScanClear && (d.Basis == DetectBannerVersion || d.Basis == DetectStatement):
 		// a banner or a person's statement does not overrule a clear safe check; the device's own reading or another check does
-	default: // Vedette closed it, or a person said the software is not installed: the data detects it again
+	default: // Vedette closed it, a person's version change closed it, or a person said the software is not installed: detected again
+		by := "" // a person is named only when their entry took the version back from the one it had moved to
+		if was.Via == ViaVersionMoved && d.MatchedVersion != was.ToVersion {
+			by = d.SetBy
+		}
 		t.open()
-		t.emit(SystemUser, EvReopened, EventDetail{Why: WhyDetectedAgain})
+		t.emit(SystemUser, EvReopened, EventDetail{Why: WhyDetectedAgain, By: by})
 	}
 	return nil
 }
@@ -284,8 +291,8 @@ func (t *transition) gone(tr Trigger) error {
 		from, to = "", ""
 	}
 	by := SystemUser
-	if via == ViaNotInstalled {
-		by = t.actor
+	if via == ViaNotInstalled || via == ViaVersionMoved && t.actor != SystemUser {
+		by = t.actor // a person said the software is not installed, or changed the version they had entered: theirs, not Vedette's
 	}
 	f.Detected = false
 	res := ResolutionNotRelevant

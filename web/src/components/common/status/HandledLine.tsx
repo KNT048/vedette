@@ -17,7 +17,8 @@ export function HandledLine({ handled: h, software, underBadge = false, classNam
   const by = h.by === 'system' ? t('handled.vedette') : h.by
   const date = fmtDate(h.at)
   const how = h.via === 'person' ? null
-    : h.via === 'version_moved' ? t('handled.how.version_moved', { from: h.from_version ?? '?', to: h.to_version ?? '?' })
+    // a version move a person made (they changed the version they had entered) is theirs: "Patched by ana: version changed 1.30.5 → 1.30.6"
+    : h.via === 'version_moved' ? t(h.by === 'system' ? 'handled.how.version_moved' : 'handled.how.version_set', { from: h.from_version ?? '?', to: h.to_version ?? '?' })
     : h.via === 'software_removed' ? (software ? t('handled.how.software_removed', { software }) : t('handled.how.software_removed_unnamed'))
     : t(`handled.how.${h.via}`)
   const line = underBadge

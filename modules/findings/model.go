@@ -325,6 +325,7 @@ type EventDetail struct {
 	Layer         int        `json:"layer,omitempty"`      // urgency_changed: the new layer
 	From          string     `json:"from,omitempty"`       // confirmed, unconfirmed: the verification before; fix_changed: the fix key before
 	To            string     `json:"to,omitempty"`         // confirmed, unconfirmed: the verification after; fix_changed: the fix key after
+	By            string     `json:"by,omitempty"`         // reopened detected_again: the person whose version entry made it detected again
 }
 
 // QuestionKind is the kind of a fnd_question row. An open vocabulary.

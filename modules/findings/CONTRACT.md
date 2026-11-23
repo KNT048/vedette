@@ -45,7 +45,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   Open total = sum by device = sum by `fix_key`: every open row is in exactly one group of each, so the API test
   `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix` proves it, not a selfcheck query.
 - **M-5 Patch credit by structure.** How a finding went away depends on what changed on the device, never on which source read the
-  version. A person's correction of what a source reads is not an update (`data_corrected`, no credit).
+  version. A person's correction of what a source reads is not an update (`data_corrected`, no credit). A person who changes the
+  version they entered themselves (a line that is only their entry) updated the device and said so: `version_moved` with credit,
+  handled by that person (`resolved_by`), never by Vedette; setting it back opens the finding again with the person named in the
+  reopen event (`detail.by`, View `reopened.by`). Inventory's `MatchSoftware` carries no `SetBy`; `cmd/vedette` reads it from
+  inventory's software lines for the lines that are a person's entry (`Software.SetBy`).
 - **M-6 Device lifecycle.** Findings take part in inventory's merge and delete inside inventory's transaction (`lifecycle.go`): a
   merge moves findings to the kept device and line and folds two findings of one (CVE, line) into one, keeping events; a delete
   removes findings, events and questions. Lines inventory deletes for good are settled first (`LinesDeleted`). Ignoring a device

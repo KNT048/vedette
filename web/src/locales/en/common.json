@@ -136,6 +136,13 @@
       "person": "a person's word"
     }
   },
+  "reopened": {
+    "setBack": "Reopened: the version was set back to {{version}} by {{by}} ({{date}})",
+    "setBackNoVersion": "Reopened: the version was set back by {{by}} ({{date}})",
+    "detected_again": "Reopened: Vedette detects it again ({{date}})",
+    "still_detected": "Reopened: a reading newer than the patched mark still shows the affected version ({{date}})",
+    "acceptance_expired": "Reopened: the accepted risk ended ({{date}})"
+  },
   "handled": {
     "vedette": "Vedette",
     "line": "{{status}} by {{by}} ({{date}})",
@@ -145,6 +152,7 @@
     "withNote": "{{line}}: {{note}}",
     "how": {
       "version_moved": "version moved {{from}} → {{to}}",
+      "version_set": "version changed {{from}} → {{to}}",
       "software_removed": "{{software}} was removed",
       "software_removed_unnamed": "the software was removed",
       "distro_fixed": "the distribution's package is fixed",

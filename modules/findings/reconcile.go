@@ -185,6 +185,9 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	if src == "" && ok {
 		src = l.sw.Source
 	}
+	if ok && src == "manual" { // the version compared is a person's entry: the line's own value (an entry is its effective reading)
+		d.SetBy = enteredBy(l.sw)
+	}
 	switch {
 	case x.Basis == BasisScan:
 		d.Basis, d.Verified, d.RangeOrigin = DetectScan, VerifiedScan, RangeScan
@@ -231,8 +234,9 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 
 // goneVia says how a finding the match no longer detects went away, from what the device reads now:
 //   - its software line is gone: software_removed; a person said it is not installed: not_installed (by that person);
-//   - the line reads a newer release than the one matched: version_moved (from, to), unless the reading is a person's correction of
-//     what a source reads (a wrong version corrected, nothing changed on the device): data_corrected, corrected;
+//   - the line reads a newer release than the one matched: version_moved (from, to), by the person when the line is their own entry
+//     (they updated the software and said so), unless the reading is a person's correction of what a source reads (a wrong version
+//     corrected, nothing changed on the device): data_corrected, corrected;
 //   - the distribution's fixed package release proves it: distro_fixed;
 //   - anything else (range data changed, an answer about the platform): data_corrected.
 func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string, corrected bool) {
@@ -256,12 +260,20 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		if l.sw.Source == "manual" && l.sw.ReportedSource != "" {
 			return ViaDataCorrected, "", "", "", true // a person corrected what a source reads
 		}
-		return ViaVersionMoved, f.MatchedVersion, cur, "", false
+		return ViaVersionMoved, f.MatchedVersion, cur, enteredBy(l.sw), false // a person's own entry moved: handled by them
 	}
 	if p, ok := proofs[lineKey(f.CVE, f.SoftwareID)]; ok && p.pkgFixed {
 		return ViaDistroFixed, "", "", "", false
 	}
 	return ViaDataCorrected, "", "", "", false
+}
+
+// enteredBy is the person who entered the version of a line that is a person's entry ("" for a source's reading, or when not known).
+func enteredBy(s Software) string {
+	if s.Source != "manual" {
+		return ""
+	}
+	return s.SetBy
 }
 
 // proofReason is why Vedette closed a finding by itself when the match's proof says it (the distribution's fixed package release, its

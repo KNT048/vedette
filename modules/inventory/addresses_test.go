@@ -237,3 +237,36 @@ func TestAddresses_Split(t *testing.T) {
 		t.Errorf("after both cards were seen again: %d devices, %d addresses in two places", e.devices(), e.homeless())
 	}
 }
+
+// A merge keeps each interface's IP and MAC together: a routed interface known by its address only (no MAC) merged with a card seen
+// with its MAC never takes that card's MAC as its own. Split off again, the card is a device of its own, and seeing it again changes
+// nothing: no device loses an address.
+func TestAddresses_MergeKeepsEachInterfaceWhole(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(cardOf(card2, "198.51.100.1")...)
+	e.tick(time.Minute)
+	e.record(byAddress("192.0.2.1", "fw-wan.example.com")...) // seen last: it keeps the main address
+	a, b := e.idOf("192.0.2.1"), e.idOf("198.51.100.1")
+	if err := e.svc.Merge(e.ctx(), admin, a, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.addresses(a); !slices.Equal(got, []string{"192.0.2.1 - main", "198.51.100.1 " + card2}) {
+		t.Fatalf("after the merge: %v", got)
+	}
+	nw, err := e.svc.Split(e.ctx(), admin, a, "198.51.100.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	e.record(cardOf(card2, "198.51.100.1")...)
+	if got := e.addresses(a); !slices.Equal(got, []string{"192.0.2.1 - main"}) {
+		t.Errorf("the device after the card was seen again: %v", got)
+	}
+	if got := e.addresses(nw); !slices.Equal(got, []string{"198.51.100.1 " + card2 + " main"}) {
+		t.Errorf("the split card after it was seen again: %v", got)
+	}
+	if e.homeless() != 0 {
+		t.Errorf("%d addresses in two places", e.homeless())
+	}
+}

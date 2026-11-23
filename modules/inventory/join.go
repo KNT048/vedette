@@ -361,9 +361,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 // moveAddresses gives into the other addresses of from (INV-57) and, with keep (a person's merge), from's main address too, so every
 // address of both stays the device's. The main address follows the machine join's rule: from's when from was seen later and into may
 // lose its address (a discovered device, or one bound to a MAC or an agent: claimIP's rule); into's main address is then one of its
-// others. A main part into lacks (a hand-added device with no MAC) is filled from from's: its MAC comes back as into's main MAC by
-// RecomputeAsset (from's observations move to into). What a scan read at an address that becomes a row is bound to that row (addr_id),
-// so it stays apart from what was read at the other. It reports whether it placed the addresses itself: the machine join's own address
+// others. Each interface stays whole (its IP and MAC together): the halves of one (an address known without its MAC, a MAC seen without
+// an address) make into's main address; two whole interfaces stay two, the one with an IP the main one. What a scan read at an address
+// that becomes a row is bound to that row (addr_id), so it stays apart from what was read at the other. It reports whether it placed the addresses itself: the machine join's own address
 // move is then skipped.
 func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into string, keep bool) (placed bool, err error) {
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
@@ -396,13 +396,25 @@ func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into stri
 			return false, fmt.Errorf("inventory: move the addresses: %w", err)
 		}
 	}
-	if !main.ip.Valid { // into has no main IP: the other one is its main IP, not a row
-		main.ip, main.confirmed, row.ip = row.ip, row.confirmed, sql.NullString{}
+	// An interface stays whole, its IP and MAC together: one IP with another interface's MAC would make a later sighting of that MAC
+	// move the main address (claimIP) and a split take the wrong pair.
+	switch {
+	case !main.ip.Valid && main.mac.Valid && row.ip.Valid && row.mac.Valid: // two whole interfaces: the one with an IP is the main one
+		row, main = main, row
+		if rowOf == from {
+			rowOf = into
+		} else {
+			rowOf = from
+		}
+	case !main.ip.Valid && row.ip.Valid, !main.mac.Valid && !row.ip.Valid: // two halves of one interface: they are into's main address
+		if !main.ip.Valid {
+			main.ip, main.confirmed, row.ip = row.ip, row.confirmed, sql.NullString{}
+		}
+		if !main.mac.Valid {
+			main.mac, row.mac = row.mac, sql.NullString{}
+		}
 	}
-	if !main.mac.Valid { // nor a main MAC: RecomputeAsset gives it the row's from the observations
-		row.mac = sql.NullString{}
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ?`, main.ip, main.confirmed, into); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ?, mac = ? WHERE id = ?`, main.ip, main.confirmed, main.mac, into); err != nil {
 		return false, fmt.Errorf("inventory: move the addresses: %w", err)
 	}
 	id, err := addExtra(ctx, tx, into, row.ip, row.mac, addrMerge, row.first, row.last)

@@ -205,9 +205,15 @@ func (u *updCheck) firstWarn(kind string) bool {
 
 // updateSettings is core_setting keyUpdates.
 type updateSettings struct {
-	Channel   string    `json:"channel"` // stable | beta
-	Mode      string    `json:"mode"`    // auto | manual
-	LastCheck time.Time `json:"last_check"`
+	Channel string `json:"channel"` // stable | beta
+	// FollowRelease is true until the channel is settled: on a fresh box (no row yet) the first check that verifies the
+	// manifest of the running release sets Channel to the channel that release was published on (a box installed from a
+	// beta release stays on beta, as a package installed from a beta or edge channel keeps tracking it). Choosing a
+	// channel (PATCH) settles it too. A row written before this field existed has no key and stays as it is: the
+	// channel a box already has is never replaced.
+	FollowRelease bool      `json:"follow_release,omitempty"`
+	Mode          string    `json:"mode"` // auto | manual
+	LastCheck     time.Time `json:"last_check"`
 	// LastCheckError is the latest check's failure, kept across restarts and cleared by the next good check.
 	LastCheckError *checkErrorView `json:"last_check_error,omitempty"`
 }
@@ -220,22 +226,32 @@ type checkErrorView struct {
 	Message string    `json:"message"`
 }
 
-func defaultUpdateSettings() updateSettings { return updateSettings{Channel: "stable", Mode: "manual"} }
+// defaultUpdateSettings is a box with no keyUpdates row: stable and manual, the channel not settled yet.
+func defaultUpdateSettings() updateSettings {
+	return updateSettings{Channel: "stable", Mode: "manual", FollowRelease: true}
+}
 
 func (h *OSHandlers) updSettings(ctx context.Context) (updateSettings, error) {
-	s := defaultUpdateSettings()
-	return s, h.loadJSON(ctx, keyUpdates, &s)
+	raw, err := coredb.New(h.db.Reader()).GetSetting(ctx, keyUpdates)
+	return decodeUpdSettings(raw, err)
 }
 
 func updSettingsTx(ctx context.Context, tx *sql.Tx) (updateSettings, error) {
-	s := defaultUpdateSettings()
 	raw, err := coredb.New(tx).GetSetting(ctx, keyUpdates)
+	return decodeUpdSettings(raw, err)
+}
+
+// decodeUpdSettings reads a keyUpdates row (raw, err of GetSetting). A stored row follows the release only when it
+// says so: an absent follow_release is a settled channel.
+func decodeUpdSettings(raw string, err error) (updateSettings, error) {
+	s := defaultUpdateSettings()
 	if isNoRows(err) {
 		return s, nil
 	}
 	if err != nil {
 		return s, fmt.Errorf("core: read setting %s: %w", keyUpdates, err)
 	}
+	s.FollowRelease = false
 	if err := json.Unmarshal([]byte(raw), &s); err != nil {
 		return s, fmt.Errorf("core: setting %s is not valid: %w", keyUpdates, err)
 	}
@@ -719,37 +735,67 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 		h.log.WarnContext(ctx, "core: the update information is stale (the index is past expires_at)", "sequence", idx.Sequence, "expires_at", idx.ExpiresAt)
 	}
 	st.Index, st.IndexSig, st.Carried = raw, sig, nonNil(idx.Revoked)
-	offer, why, oerr := h.fetchOffer(ctx, trust, idx, s.Channel)
 	if st.Offer != nil && st.Offer.Version == h.upd.version {
 		st.Running = st.Offer // the release installed since the last check: its manifest is already here
 	}
+	fetchedRunning := false
+	seeded := "" // the channel of the running release, when this check settles the channel with it
+	if s.FollowRelease {
+		m := runningFrom(trust, st, idx, h.upd.version)
+		if m == nil {
+			st.Running, fetchedRunning = h.fetchRunning(ctx, trust, idx), true
+			m = runningFrom(trust, st, idx, h.upd.version)
+		}
+		if m != nil { // verified: its channel is stable or beta (release.VerifyManifest)
+			seeded, s.Channel = m.Channel, m.Channel
+		}
+	}
+	offer, why, oerr := h.fetchOffer(ctx, trust, idx, s.Channel)
 	st.Offer = offer
-	if oerr == nil && runningFrom(trust, st, idx, h.upd.version) == nil {
+	if oerr == nil && !fetchedRunning && runningFrom(trust, st, idx, h.upd.version) == nil {
 		st.Running = h.fetchRunning(ctx, trust, idx)
 	}
 	wctx := context.WithoutCancel(ctx) // what was verified is kept even when the caller left
+	settled := false                   // the channel of the release was stored (no person chose one during the check)
 	err = h.db.Write(wctx, func(tx *sql.Tx) error {
+		settled = false
 		if err := h.putSetting(wctx, tx, keyUpdateRelease, st, by); err != nil {
 			return err
-		}
-		if oerr != nil {
-			return nil
 		}
 		cur, err := updSettingsTx(wctx, tx) // the channel and mode as they are now, not as they were when the check began
 		if err != nil {
 			return err
 		}
-		cur.LastCheck, cur.LastCheckError = h.now().UTC(), nil
+		write := false
+		if seeded != "" && cur.FollowRelease { // not chosen by a person meanwhile
+			cur.Channel, cur.FollowRelease, write, settled = seeded, false, true, true
+		}
+		if oerr == nil {
+			cur.LastCheck, cur.LastCheckError, write = h.now().UTC(), nil, true
+		}
+		if !write {
+			return nil
+		}
 		return h.putSetting(wctx, tx, keyUpdates, cur, by)
 	})
 	if err != nil {
 		return "", err
 	}
+	if !settled {
+		seeded = "" // a person chose the channel during the check: theirs stands, the log and audit do not claim otherwise
+	}
+	if seeded != "" {
+		h.log.InfoContext(ctx, "core: update channel set from the running release", "version", h.upd.version, "channel", seeded)
+	}
 	if oerr != nil {
 		return "", oerr
 	}
+	channel := s.Channel
+	if seeded != "" {
+		channel += " (the channel release " + h.upd.version + " was published on)"
+	}
 	h.log.InfoContext(ctx, "core: update check", "sequence", idx.Sequence, "channel", s.Channel, "offer", why)
-	return fmt.Sprintf("running %s, channel %s, index %d sha256 %s: %s", h.upd.version, s.Channel, idx.Sequence, idx.RawSHA256, why), nil
+	return fmt.Sprintf("running %s, channel %s, index %d sha256 %s: %s", h.upd.version, channel, idx.Sequence, idx.RawSHA256, why), nil
 }
 
 // putCheckError stores the failure of the latest check in core_updates (the channel and mode as they are now).
@@ -840,7 +886,7 @@ func (h *OSHandlers) CorePatchCoreUpdates(ctx context.Context, req *oas.CorePatc
 			return err
 		}
 		if chSet {
-			s.Channel = string(ch)
+			s.Channel, s.FollowRelease = string(ch), false // a person's choice: no release replaces it
 		}
 		if modeSet {
 			s.Mode = string(mode)

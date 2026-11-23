@@ -75,6 +75,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await expect(page.getByRole('heading', { level: 2, name: 'Network to watch' })).toBeVisible()
 
   // step 2: empty, public range, /0, malformed, bare address, host bits, duplicates, add/remove rows
+  await page.getByLabel('Range 1', { exact: true }).fill('') // row 1 starts as the box's own network: clear it to see the empty refusal
   await next(page)
   await expect(page.getByText('Enter at least one range.')).toBeVisible()
   await page.getByLabel('Range 1', { exact: true }).fill('8.8.8.0/24')
@@ -133,15 +134,15 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await next(page)
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await shot(page, 'real', 'setup-3')
-  // Three steps; Modules is the last one and finishes setup, there is no Alerts step
-  await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
+  // Four steps (terms, administrator, network, modules); Modules is the last one and finishes setup, there is no Alerts step
+  await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(4)
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(h1(page)).toBeVisible()
   await expect(page).toHaveURL(/\/$/) // finishing lands on Home, signed in as the new administrator
   await expect(h1(page)).toContainText('Today')
-  // a new box has no alert channel: Home says so and links to Settings, Alert channels (read from the real notify module)
-  await expect(page.getByText('No alert channel yet')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Set up an alert channel' })).toHaveAttribute('href', '/settings/channels')
+  // a new box has no alert channel: the Get started card on Home says so and links to Settings, Alert channels (read from the real notify module)
+  await expect(page.getByText('Email or Telegram, when an exploited flaw matches a device.')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Set up alerts' })).toHaveAttribute('href', '/settings/channels#channels')
   await shot(page, 'real', 'setup-home-no-channel')
 
   // the scope reached the inventory module (the real one)

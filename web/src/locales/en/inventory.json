@@ -410,6 +410,7 @@
     "descriptionInfo": "A normal scan replaces this list with the ports it found open: nmap's 1000 most common ports and the usual alternate admin ports (SSH on 22222, HTTPS on 10443 and the like). Once a week a device that is not fragile gets a scan of every port, in the scan window.",
     "descriptionInfo2": "A gentle scan only adds ports, and a scan that timed out changes nothing. An agent (osquery, Wazuh) and the box itself list the ports they listen on, each as its own row. A port not seen for 90 days is removed.",
     "caption": "Services open on the device",
+    "address": "Address",
     "port": "Port",
     "name": "Service",
     "product": "Product",
@@ -1232,6 +1233,7 @@
     "bulkLabel": "Merge the {{count}} selected devices",
     "bulkTooMany": "Select {{max}} devices at most: one device and {{from}} that join it.",
     "bulkBoxLeftOut": "The Vedette box is left out: it is always its own device.",
+    "bulkOne": "Select two or more devices to merge them: a device is always itself.",
     "title": "Merge {{count}} devices",
     "description": "One device stays; the others join it and leave the lists. Split an address off to undo.",
     "info": "Use this when several rows are one machine: the interfaces of a firewall or router, a server with two network cards, a phone with a new private Wi-Fi address. The device you keep keeps its id, main address, notes, settings and findings history; the addresses, software, open ports and findings of the others move to it, and it is found by any of its addresses. It becomes approved when one of them was. Split off an address on its Addresses list to make it a device of its own again.",
@@ -1265,6 +1267,8 @@
     "followsSources": "Keeps {{value}}",
     "followsSourcesHint": "The strongest source decides.",
     "onDevices": "on {{list}}",
+    "guessed": "{{value}} (likely)",
+    "noneOn": "None on {{list}}",
     "moves": "What moves to {{name}}",
     "move": {
       "exploited_one": "{{count}} exploited CVE",
@@ -1299,13 +1303,14 @@
       "group": {
         "suggested": "Possibly the same device",
         "similar": "Similar devices",
-        "nearby": "Nearby addresses",
+        "nearby": "Next MAC address",
         "other": "Other devices"
       },
       "sameModel": "Same model: {{value}}",
       "sameName": "Same name: {{value}}",
       "sameMaker": "Same maker: {{value}}",
-      "near": "Near {{ip}}",
+      "near": "MAC next to {{mac}}",
+      "self": "{{name}} is the device you are merging into: pick the other device.",
       "none": "No device matches “{{q}}”.",
       "empty": "There is no other device to merge with.",
       "max": "{{count}} devices at most join one device in one step.",
@@ -1320,7 +1325,8 @@
       "same_name_cards": "Same name on two network cards",
       "rotating_name": "Same name, changing Wi-Fi address",
       "rotating_model": "Same model, changing Wi-Fi address",
-      "mac_at_added_device": "Seen at a device added by hand"
+      "mac_at_added_device": "Seen at a device added by hand",
+      "same_os": "Same operating system and release"
     }
   },
   "addresses": {
@@ -1341,6 +1347,8 @@
     "splitLabel": "Split {{address}} off",
     "blockAgent": "The agent reports from this address: it stays with the agent's machine.",
     "blockOnly": "The only address of this device.",
+    "blockBox": "The Vedette box's own address: the box is always its own device.",
+    "mergeBox": "The Vedette box is always its own device: it cannot be merged with another.",
     "splitTitle": "Split {{address}} off {{name}}?",
     "splitBody": "That interface, its IP and MAC together, becomes a device of its own with what was read only there.",
     "splitStays": "What an agent or SNMP read of the whole machine stays with {{name}}, and Vedette will not offer the two as the same device again.",

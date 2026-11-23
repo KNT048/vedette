@@ -84,19 +84,22 @@ function MergePicker({ me, suggested, picked, setPicked, onNext }: {
     return rankCandidates(me, rows, suggested, rowName)
   }, [list.data, me, suggested])
   const shown = ranked.filter((c) => matchesQuery(c.row, rowName(c.row), q))
+  // the device itself is never a candidate; searching for it says so instead of "no device matches"
+  const meRow = list.data?.items.find((r) => r.id === me.id)
+  const self = !!q.trim() && !!meRow && matchesQuery(meRow, me.label, q)
   const full = picked.length >= MERGE_MAX_FROM
   const toggle = (rid: string, on: boolean) => setPicked(on ? [...picked, rid] : picked.filter((x) => x !== rid))
   const groups = (['suggested', 'similar', 'nearby', 'other'] as const).map((g) => ({ g, items: shown.filter((c) => c.group === g) })).filter((x) => x.items.length)
   const why = (c: Candidate) => {
     if (c.group === 'suggested') return c.reason ? t(`merge.reason.${c.reason}`) : ''
     if (c.similar) return t(`merge.pick.same${c.similar.what === 'model' ? 'Model' : c.similar.what === 'name' ? 'Name' : 'Maker'}`, { value: c.similar.value })
-    return c.near ? t('merge.pick.near', { ip: c.near }) : ''
+    return c.near ? t('merge.pick.near', { mac: c.near }) : ''
   }
   let body: React.ReactNode
   if (list.isPending) body = <Loading />
   else if (list.error) body = <p role="alert" className="text-meta text-danger">{t('merge.pick.loadFailed')} {errMsg(list.error)}</p>
   else if (!ranked.length) body = <p className="text-sm text-muted">{t('merge.pick.empty')}</p>
-  else if (!shown.length) body = <p className="text-sm text-muted" role="status">{t('merge.pick.none', { q: q.trim() })}</p>
+  else if (!shown.length) body = <p className="text-sm text-muted" role="status">{self ? t('merge.pick.self', { name: me.label }) : t('merge.pick.none', { q: q.trim() })}</p>
   else {
     body = (
       <div className="grid max-h-[46vh] gap-4 overflow-y-auto pr-1" data-testid="merge-candidates">
@@ -139,6 +142,7 @@ function MergePicker({ me, suggested, picked, setPicked, onNext }: {
         <Label htmlFor={`${id}-q`}>{t('merge.pick.search')}</Label>
         <Input id={`${id}-q`} type="search" value={q} autoComplete="off" onChange={(e) => setQ(e.target.value)} />
       </div>
+      {self && shown.length ? <p className="text-meta text-muted" role="status">{t('merge.pick.self', { name: me.label })}</p> : null}
       {body}
       <DialogFooter className="items-center">
         <span role="status" aria-live="polite" className="mr-auto text-meta text-muted">
@@ -298,36 +302,45 @@ function KeepOption({ id, side: s, checked, suggested }: { id: string; side: Mer
 }
 
 /** A field the devices state differently: a choice of their values where the merge takes one (name, type, OS), else the value the
- *  sources give the kept device, with the others for comparison. */
+ *  sources give the kept device, with the others for comparison. A type the box only guesses says so; the devices with no value of the
+ *  field are named under it. */
 function DifferRow({ id, f, value, disabled, nameOf: nameOfDevice, onPick }: {
   id: string; f: ShownField; value: string; disabled: boolean; nameOf: (id: string) => string; onPick: (v: string) => void
 }) {
   const { t } = useTranslation('inventory')
-  const shown = (v: string) => (f.field === 'kind' ? kindLabel(v) : v)
+  const shown = (o: { value: string; guess?: boolean }) => {
+    const v = f.field === 'kind' ? kindLabel(o.value) : o.value
+    return o.guess ? t('merge.guessed', { value: v }) : v
+  }
   // whose value it is, unless the value is the device's name itself
-  const whose = (o: { devices: string[] }) => (f.field === 'name' ? '' : t('merge.onDevices', { list: o.devices.map(nameOfDevice).join(', ') }))
+  const whose = (o: { devices: string[] }) => (f.field === 'name' || !o.devices.length ? '' : t('merge.onDevices', { list: o.devices.map(nameOfDevice).join(', ') }))
+  const none = f.missing.length ? <p className="text-caption text-muted [overflow-wrap:anywhere]">{t('merge.noneOn', { list: f.missing.map(nameOfDevice).join(', ') })}</p> : null
   return (
     <div className="contents">
       <dt id={`${id}-label`} className="text-meta text-muted sm:pt-0.5">{t(`merge.field.${f.field}`)}</dt>
       <dd className="min-w-0">
         {f.choosable ? (
-          <RadioGroup value={value} aria-labelledby={`${id}-label`} onValueChange={onPick} disabled={disabled} className="gap-1.5">
-            {f.options.map((o, i) => (
-              <div key={o.value} className="flex items-start gap-2.5">
-                <RadioItem id={`${id}-${i}`} value={o.value} className="mt-0.5" />
-                <label htmlFor={`${id}-${i}`} className="grid min-w-0 cursor-pointer text-sm">
-                  <span className="[overflow-wrap:anywhere]">{shown(o.value)}</span>
-                  {whose(o) ? <span className="text-caption text-muted [overflow-wrap:anywhere]">{whose(o)}</span> : null}
-                </label>
-              </div>
-            ))}
-          </RadioGroup>
+          <>
+            <RadioGroup value={value} aria-labelledby={`${id}-label`} onValueChange={onPick} disabled={disabled} className="gap-1.5">
+              {f.options.map((o, i) => (
+                <div key={o.value} className="flex items-start gap-2.5">
+                  <RadioItem id={`${id}-${i}`} value={o.value} className="mt-0.5" />
+                  <label htmlFor={`${id}-${i}`} className="grid min-w-0 cursor-pointer text-sm">
+                    <span className="[overflow-wrap:anywhere]">{shown(o)}</span>
+                    {whose(o) ? <span className="text-caption text-muted [overflow-wrap:anywhere]">{whose(o)}</span> : null}
+                  </label>
+                </div>
+              ))}
+            </RadioGroup>
+            {none}
+          </>
         ) : (
           <div className="grid gap-0.5 text-sm">
-            <span className="[overflow-wrap:anywhere]"><span className="font-medium">{t('merge.followsSources', { value: shown(f.kept) })}</span> <span className="text-caption text-muted">{t('merge.followsSourcesHint')}</span></span>
+            <span className="[overflow-wrap:anywhere]"><span className="font-medium">{t('merge.followsSources', { value: shown({ value: f.kept }) })}</span> <span className="text-caption text-muted">{t('merge.followsSourcesHint')}</span></span>
             <ul className="text-caption text-muted">
-              {f.options.filter((o) => o.value !== f.kept).map((o) => <li key={o.value} className="[overflow-wrap:anywhere]">{`${shown(o.value)} ${whose(o)}`}</li>)}
+              {f.options.filter((o) => o.value !== f.kept).map((o) => <li key={o.value} className="[overflow-wrap:anywhere]">{`${shown(o)} ${whose(o)}`}</li>)}
             </ul>
+            {none}
           </div>
         )}
       </dd>

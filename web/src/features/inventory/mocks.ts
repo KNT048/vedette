@@ -1026,8 +1026,12 @@ export const handlers = [
       addresses: addressesOf(a), software: a.software.length, open_ports: a.services.length, findings: findingsOf(a.id), risk: deviceRisk(a.id), last_seen: a.last_seen })
     const values = (f: MergeField['field']) => (all as Asset[]).map((a) => ({ device: a.id,
       value: f === 'name' ? nameOf(a, a.kind) : f === 'kind' ? (a.kind === 'unknown' ? '' : a.kind) : f === 'hostname' ? a.hostname ?? '' : a[f]?.value ?? '' })).filter((v) => v.value)
-    const differs = (['name', 'kind', 'os', 'vendor', 'model', 'hostname'] as const).map((f) => ({ field: f, values: values(f), kept: values(f)[0]?.value ?? '', choosable: f === 'name' || f === 'kind' || f === 'os' }))
-      .filter((d) => new Set(d.values.map((v) => v.value.toLowerCase())).size > 1)
+    // a type or OS only one of the devices states is a row too (missing names the others), as the box says it
+    const differs = (['name', 'kind', 'os', 'vendor', 'model', 'hostname'] as const).map((f) => {
+      const vals = values(f)
+      const missing = f === 'kind' || f === 'os' ? ids.filter((x) => !vals.some((v) => v.device === x)) : []
+      return { field: f, values: vals, kept: vals[0]?.value ?? (f === 'kind' ? 'unknown' : ''), choosable: f === 'name' || f === 'kind' || f === 'os', missing }
+    }).filter((d) => { const n = new Set(d.values.map((v) => v.value.toLowerCase())).size; return n > 1 || (n === 1 && d.missing.length > 0) })
     const sides = (all as Asset[]).slice(1).map(side)
     const into = all[0]!
     return HttpResponse.json({

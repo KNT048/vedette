@@ -19,12 +19,12 @@ import type { AiProfile } from './types'
 const enabled = (el: HTMLElement) => waitFor(() => expect(el).toBeEnabled())
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const api = (path: string, init?: RequestInit) => fetch(`${location.origin}/api/v1${path}`, { headers: { 'Content-Type': 'application/json' }, ...init })
-/** Dựng một thành phần riêng (cài đặt, khung log) với phiên đã đăng nhập. */
+/** Build one component on its own (settings, log panel) with a signed-in session. */
 function renderUi(ui: React.ReactNode, role: Role = 'admin') {
   sessionStore.set({ userId: USER[role] })
   const qc = makeQueryClient()
   const view = render(<QueryClientProvider client={qc}><MemoryRouter>{ui}</MemoryRouter><Toaster /></QueryClientProvider>)
-  // Vai (useCan) đến sau khi /me trả lời; chờ để các nút không còn ở trạng thái "đang tải quyền".
+  // The role (useCan) arrives after /me answers; wait so the buttons are no longer in the "loading permissions" state.
   const ready = waitFor(() => expect(qc.getQueryData(['me'])).toBeTruthy())
   ready.catch(() => undefined) // tests that never await `ready` must not leave an unhandled rejection after unmount
   return Object.assign(view, { ready, qc })
@@ -65,14 +65,14 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Which machines still expose RDP?' }))
     const region = await screen.findByRole('region', { name: /Answer to: Which machines still expose RDP/ })
     expect(within(region).getByText('AI-generated, needs human review')).toBeInTheDocument()
-    expect(within(region).getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument() // hồ sơ chính của "Ask your data"
+    expect(within(region).getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument() // the primary profile of "Ask your data"
     expect(within(region).getByText(/Start with SRV-AD/)).toBeInTheDocument()
     const expected = assetsStore.get().filter((a) => a.services.some((s) => s.port === 3389)).length
     const table = within(region).getByRole('table', { name: /Results for the question/ })
     expect(within(table).getAllByRole('row')).toHaveLength(expected + 1)
     expect(within(table).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
     expect(within(region).getByText(/search_assets\(\{"port": 3389\}\)/)).toBeInTheDocument()
-    expect(within(region).queryAllByRole('button').filter((b) => !b.closest('table'))).toHaveLength(0) // S-AI-6: không nút hành động trong câu trả lời
+    expect(within(region).queryAllByRole('button').filter((b) => !b.closest('table'))).toHaveLength(0) // S-AI-6: no action button in the answer
     const run = aiRunsStore.get().filter((r) => r.skill === 'ask-my-data')
     expect(run).toHaveLength(1)
     expect(run[0]).toMatchObject({ profile: 'Claude Sonnet', model: 'claude-sonnet-5-5' })
@@ -301,12 +301,12 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4)', () => {
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
     const res = await api('/ai/ask', { method: 'POST', body: JSON.stringify({ question: 'Which machines still expose RDP?' }) })
     const a = await res.json() as { profile: string; model: string }
-    expect(a).toMatchObject({ profile: 'Company Ollama server', model: 'qwen3:8b' }) // dự phòng của "Ask your data"
+    expect(a).toMatchObject({ profile: 'Company Ollama server', model: 'qwen3:8b' }) // the fallback of "Ask your data"
     expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'ask-my-data', profile: 'Company Ollama server', fallback: true })
-    // hồ sơ hết trần riêng cũng chuyển
+    // a profile that ran out of its own cap also switches
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, base_url: 'https://api.anthropic.com' } : p.id === 'p-haiku' ? { ...p, monthly_budget: 1000 } : p)))
     const r2 = await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
-    expect(((await r2.json()) as { profile: string }).profile).toBe('Company Ollama server') // chính Haiku hết trần, dự phòng Ollama
+    expect(((await r2.json()) as { profile: string }).profile).toBe('Company Ollama server') // Haiku itself is out of cap, the Ollama fallback answers
   })
 
   it('a call no profile answered is failed in the log of calls, one a profile cap stopped is capped (S-AI-4, POST-5)', async () => {
@@ -326,12 +326,12 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4)', () => {
     sessionStore.set({ userId: 'u-admin' })
     aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'weekly-report': { primary: 'p-haiku', fallback: null } } }))
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://unreachable.example.com' } : p)))
-    // unreachable chỉ làm bước "Thử kết nối" lỗi; dùng timeout để mô phỏng không trả lời khi chạy việc
+    // unreachable only makes the "Test connection" step fail; use a timeout to simulate no answer when running the job
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
     const res = await api('/reports/weekly/ai-summary', { method: 'POST', body: '{}' })
-    expect(res.status).toBe(200) // báo cáo tuần ghi qua recordAiRun, không qua trần của module ai
+    expect(res.status).toBe(200) // the weekly report is recorded through recordAiRun, not through the cap of the ai module
     const r = await api('/ai/logs/digest', { method: 'POST', body: '{}' })
-    expect(r.status).toBe(200) // log-digest chính là Ollama, không ảnh hưởng
+    expect(r.status).toBe(200) // log-digest's primary is Ollama, unaffected
   })
 })
 
@@ -359,12 +359,12 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude') // filled from the provider, editable
     await userEvent.clear(within(dlg).getByLabelText('Profile name'))
     await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Claude Haiku')
-    expect(within(dlg).getByRole('button', { name: 'Add profile' })).toBeDisabled() // chưa xác nhận luồng dữ liệu
+    expect(within(dlg).getByRole('button', { name: 'Add profile' })).toBeDisabled() // the data flow is not confirmed yet
     await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
     expect(await within(dlg).findByText(/Enter the provider's API key/)).toBeInTheDocument()
     expect(within(dlg).getByLabelText('API key')).toBeInvalid()
-    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude Haiku') // dữ liệu đã gõ không mất
+    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude Haiku') // typed data is not lost
     await userEvent.type(within(dlg).getByLabelText('API key'), 'abc def')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
     expect(await within(dlg).findByText(/too short or contains spaces/)).toBeInTheDocument()
@@ -376,7 +376,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(within(table).getByText('Key ends in 9z9z')).toBeInTheDocument()
     const raw = await (await api('/ai/profiles')).text()
     expect(raw).not.toContain('sk-ant-demo-key')
-    // việc chưa có hồ sơ chính tự lấy hồ sơ mới nên dùng được ngay
+    // a job with no primary profile takes the new profile, so it is usable at once
     expect(aiAvailable('ask-my-data')).toBe(true)
     expect(aiConfigStore.get()).toMatchObject({ configured: true, model: 'claude-haiku-5-5', key_last4: '9z9z' })
   })
@@ -419,11 +419,11 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Gateway')
     await userEvent.type(within(dlg).getByLabelText('Server address'), 'http://10.0.0.5:8080')
     await userEvent.type(within(dlg).getByLabelText('Model'), 'my-model')
-    // đám mây + http bị từ chối đúng ô
+    // cloud + http is rejected on the right field
     await userEvent.click(within(dlg).getByRole('button', { name: 'Test connection' }))
     expect(await within(dlg).findByText(/must start with https:\/\//)).toBeInTheDocument()
     expect(within(dlg).getByLabelText('Server address')).toBeInvalid()
-    // nội bộ: http được, không cần khoá
+    // internal: http is allowed, no key needed
     await userEvent.click(within(dlg).getByRole('radio', { name: /Inside your network/ }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Test connection' }))
     expect(await within(dlg).findByText('Connected')).toBeInTheDocument()
@@ -606,7 +606,7 @@ describe('ai: settings, job routing and privacy rule', () => {
     expect(primary).toHaveValue('p-ollama')
     await userEvent.selectOptions(primary, 'Claude Haiku')
     const fb = within(table).getByLabelText('Fallback profile for Log summaries')
-    expect(fb).toHaveValue('') // trùng hồ sơ chính nên dự phòng bị bỏ
+    expect(fb).toHaveValue('') // same as the primary profile, so the fallback is dropped
     await userEvent.selectOptions(fb, 'Company Ollama server')
     const save = screen.getByRole('button', { name: 'Save routing' })
     await enabled(save)
@@ -687,7 +687,7 @@ describe('ai: settings, job routing and privacy rule', () => {
     await userEvent.selectOptions(within(table).getByLabelText('Primary profile for Weekly report comments'), 'None')
     expect(within(table).getByLabelText('Fallback profile for Weekly report comments')).toBeDisabled()
     const opts = within(within(table).getByLabelText('Fallback profile for Explain findings')).getAllByRole('option') as HTMLOptionElement[]
-    expect(opts.find((o) => o.textContent === 'Claude Sonnet')!.disabled).toBe(true) // đang là hồ sơ chính
+    expect(opts.find((o) => o.textContent === 'Claude Sonnet')!.disabled).toBe(true) // it is the primary profile
   })
 
   it('privacy rule on: cloud profiles are cleared from tasks that send internal data and greyed out; public-data tasks keep them', async () => {
@@ -698,8 +698,8 @@ describe('ai: settings, job routing and privacy rule', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Logs and device data go only to profiles inside your network' }))
     expect(await screen.findByText(/cloud assignment\(s\) were cleared/)).toBeInTheDocument()
     const table = screen.getByRole('table', { name: 'AI job routing' })
-    expect(within(table).getByLabelText('Primary profile for Explain findings')).toHaveValue('') // cả chính lẫn dự phòng đều đám mây: bỏ hết
-    expect(within(table).getByLabelText('Primary profile for Ask your data')).toHaveValue('p-ollama') // dự phòng nội bộ lên làm chính
+    expect(within(table).getByLabelText('Primary profile for Explain findings')).toHaveValue('') // both the primary and the fallback are cloud: all dropped
+    expect(within(table).getByLabelText('Primary profile for Ask your data')).toHaveValue('p-ollama') // the internal fallback becomes the primary
     const opts = within(within(table).getByLabelText('Primary profile for Ask your data')).getAllByRole('option') as HTMLOptionElement[]
     expect(opts.find((o) => o.textContent?.startsWith('Claude Haiku'))!.disabled).toBe(true)
     expect(opts.find((o) => o.textContent?.startsWith('Claude Haiku'))!.textContent).toMatch(/cloud, not allowed for internal data/)
@@ -718,11 +718,11 @@ describe('ai: settings, job routing and privacy rule', () => {
     const cloud = await put({ 'log-digest': { primary: 'p-haiku', fallback: null } })
     expect(cloud.status).toBe(400)
     expect(((await cloud.json()) as { error: { code: string; message: string } }).error).toMatchObject({ code: 'privacy_rule' })
-    expect((await put({ 'cve-news': { primary: 'p-haiku', fallback: null } })).status).toBe(200) // dữ liệu công khai thì đám mây được
+    expect((await put({ 'cve-news': { primary: 'p-haiku', fallback: null } })).status).toBe(200) // public data may go to the cloud
     expect((await put({ 'log-digest': { primary: null, fallback: 'p-ollama' } })).status).toBe(400)
     expect((await put({ 'log-digest': { primary: 'p-ollama', fallback: 'p-ollama' } })).status).toBe(400)
     expect((await put({ 'log-digest': { primary: 'p-nope', fallback: null } })).status).toBe(400)
-    // luật riêng tư bật: việc dữ liệu nội bộ gán hồ sơ đám mây từ cấu hình cũ cũng không chạy
+    // privacy rule on: an internal-data job assigned a cloud profile from an old configuration does not run either
     aiAssignStore.set({ internal_only: true, jobs: { ...aiAssignStore.get().jobs, 'ask-my-data': { primary: 'p-haiku', fallback: null } } })
     expect(aiAvailable('ask-my-data')).toBe(false)
     const ask = await api('/ai/ask', { method: 'POST', body: JSON.stringify({ question: 'Which machines still expose RDP?' }) })
@@ -733,10 +733,10 @@ describe('ai: settings, job routing and privacy rule', () => {
   it('apply suggestion: fast model for batch tasks, strong for reasoning, internal data prefers the internal profile; reviewed, then saved', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const s = await (await api('/ai/assignments/suggestion?internal_only=false')).json() as { jobs: Record<string, { primary: string | null; fallback: string | null }> }
-    expect(s.jobs['explain-finding']!.primary).toBe('p-sonnet') // mạnh cho suy luận
+    expect(s.jobs['explain-finding']!.primary).toBe('p-sonnet') // strong for reasoning
     expect(s.jobs['ask-my-data']!.primary).toBe('p-sonnet')
-    expect(s.jobs['log-digest']!.primary).toBe('p-ollama') // nhanh, dữ liệu nội bộ ưu tiên nội bộ
-    expect(s.jobs['translate-advisory']!.primary).toBe('p-haiku') // nhanh, dữ liệu công khai ưu tiên đám mây
+    expect(s.jobs['log-digest']!.primary).toBe('p-ollama') // fast, internal data prefers an internal profile
+    expect(s.jobs['translate-advisory']!.primary).toBe('p-haiku') // fast, public data prefers the cloud
     const strict = await (await api('/ai/assignments/suggestion?internal_only=true')).json() as { jobs: Record<string, { primary: string | null; fallback: string | null }> }
     expect(strict.jobs['explain-finding']).toEqual({ primary: 'p-ollama', fallback: null })
     expect(strict.jobs['cve-news']!.primary).toBe('p-haiku')
@@ -746,7 +746,7 @@ describe('ai: settings, job routing and privacy rule', () => {
     aiAssignStore.set({ internal_only: false, jobs: Object.fromEntries(Object.keys(aiAssignStore.get().jobs).map((k) => [k, { primary: null, fallback: null }])) as never })
     await userEvent.click(screen.getByRole('button', { name: 'Apply suggestion' }))
     expect(await screen.findByText(/Suggestion applied below/)).toBeInTheDocument()
-    expect(aiAssignStore.get().jobs['log-digest'].primary).toBeNull() // chưa lưu cho tới khi bấm Save
+    expect(aiAssignStore.get().jobs['log-digest'].primary).toBeNull() // not saved until Save is clicked
     await userEvent.click(screen.getByRole('button', { name: 'Save routing' }))
     await waitFor(() => expect(aiAssignStore.get().jobs['log-digest'].primary).toBe('p-ollama'))
   })
@@ -832,7 +832,7 @@ describe('ai: log digest panel (S-AI-4)', () => {
     expect(await screen.findByText(/SRV-AD is under RDP password guessing/)).toBeInTheDocument()
     expect(screen.getByText('AI-generated, needs human review')).toBeInTheDocument()
     expect(screen.getByText(/Medium level: A full summary of new kinds of line/)).toBeInTheDocument()
-    expect(screen.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeInTheDocument() // hồ sơ chính của "Log summaries"
+    expect(screen.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeInTheDocument() // the primary profile of "Log summaries"
     expect(screen.getAllByRole('link', { name: 'View device' })[0]).toHaveAttribute('href', '/devices/a-srvad')
     await userEvent.click(screen.getByRole('button', { name: 'Regenerate now' }))
     await waitFor(() => expect(aiRunsStore.get().filter((r) => r.skill === 'log-digest')).toHaveLength(1))

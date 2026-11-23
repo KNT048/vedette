@@ -15,7 +15,7 @@ export function IncidentStatusChip({ status }: { status: IncidentStatus }) {
 export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : knownKind(i.kind)}` as const
 
 
-/** Lý do có chỗ sửa: liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
+/** The reason there is somewhere to edit: a link to Settings, Alert channels; only an admin can open that page. */
 const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
 
 /** Open incidents no channel has and that will not go out by themselves (queued / quiet hours do): the KPI "not sent" and `?sent=no`. */
@@ -62,7 +62,7 @@ export function DeliveryBadges({ sends, notSent = null, admin = false, noChannel
   )
 }
 
-/** Xem trước đúng nội dung đã gửi: chữ thường trong khung, không mô phỏng giao diện của hãng khác (rule legal.md). */
+/** A preview of exactly the content sent: plain text in a frame, it does not imitate another vendor's UI (legal rule). */
 export function MessagePreview({ preview, label }: { preview: Pick<Preview, 'text' | 'subject'>; label: string }) {
   const { t } = useTranslation('notify')
   return (

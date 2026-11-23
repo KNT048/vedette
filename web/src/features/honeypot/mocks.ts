@@ -100,7 +100,7 @@ const TOKEN_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/
 const TOKEN_LABEL: Record<TokenType, string> = { file: 'File token', credential: 'Credential token', url: 'URL token', dns: 'DNS token' }
 
 const toInt = (ip: string) => ip.split('.').reduce((n, x) => n * 256 + Number(x), 0)
-// Mạng của hộp: dữ liệu mẫu 192.168.10.0/24; cài sạch theo dải LAN người dùng khai (boxInfo).
+// The box's network: sample data 192.168.10.0/24; a clean install follows the LAN range the user declares (boxInfo).
 function inLan(ip: string) {
   const lan = boxInfo().lan
   if (!lan) return false
@@ -295,7 +295,7 @@ export const handlers = [
     return HttpResponse.json(detail)
   }),
 
-  // "Thử chạm bẫy": lần chạm có nhãn thử trên Trap IP đầu tiên đang bật có dịch vụ đó, đi từ chính hộp (bình thường bị loại trừ), không tính vào số liệu, không gửi cảnh báo.
+  // "Try a trap hit": a hit labelled as a test on the first enabled Trap IP that has that service, coming from the box itself (normally excluded), not counted in the figures, no alert sent.
   http.post(`${API}/honeypot/test-hit`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ service: HpService }>(request)

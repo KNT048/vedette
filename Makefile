@@ -1,6 +1,6 @@
-# Vedette — lệnh chung. Máy: `make check` trước khi push; CI gọi đúng các đích ở đây.
-# Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
-# Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
+# Vedette: shared commands. Run `make check` before pushing; CI calls exactly the targets defined here.
+# Node is pinned in web/package.json (devEngines); pnpm downloads the right version itself.
+# Go is pinned in go.mod (go downloads the toolchain itself); Go tools are pinned in tools/go.mod.
 .PHONY: schema images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check brand dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
@@ -30,28 +30,28 @@ endif
 endif
 RELEASE_PKG := github.com/knt048/vedette/internal/release
 
-# Chỉ dựng/kiểm trên Linux hoặc macOS (sản phẩm chạy Linux; test dùng syscall Unix). Windows: dùng WSL2.
+# Build and check on Linux or macOS only (the product runs on Linux; tests use Unix syscalls). On Windows use WSL2.
 ifeq ($(OS),Windows_NT)
 $(error Vedette builds and checks run on Linux or macOS only. On Windows, run make inside WSL2 (Ubuntu), from the WSL file system, not /mnt/c)
 endif
 
 help:
-	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
-	@echo "make dev-api      backend Go thật + giao diện; REAL=core,inventory chọn module thật, còn lại là mock"
-	@echo "make check-fast    tuỳ chọn: build, vet, lint dòng mới, test (không -race) của gói đã đổi, tsc/lint/vitest --changed"
-	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
-	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
-	@echo "make verify-web    chỉ phần giao diện"
-	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race (gồm contract), golangci-lint, govulncheck"
-	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   các phần của verify-go mà CI chạy song song"
-	@echo "make generate      sinh lại mã Go: sqlc (core/store/coredb) + ogen (core/api), commit kết quả"
-	@echo "make schema        ghi lại docs/SCHEMA.sql: schema của mọi module như một bản cài mới"
+	@echo "make dev           run the UI with sample data at http://localhost:5173"
+	@echo "make dev-api      real Go backend + UI; REAL=core,inventory picks the real modules, the rest are mocks"
+	@echo "make check-fast    optional: build, vet, lint of new lines, tests (no -race) of the changed packages, tsc/lint/vitest --changed"
+	@echo "make check         check what changed against origin/main, with -race and dependent packages (optional; reproduces a red CI)"
+	@echo "make verify        web + Go: type check, lint, tests, contract drift check, build (then clean up)"
+	@echo "make verify-web    UI only"
+	@echo "make verify-go     Go only: build, vet, generate-check, test -race (including contract), golangci-lint, govulncheck"
+	@echo "make verify-go-static / test-go-shard SHARD=n / test-go-release   the parts of verify-go that CI runs in parallel"
+	@echo "make generate      regenerate Go code: sqlc (core/store/coredb) + ogen (core/api), commit the result"
+	@echo "make schema        rewrite docs/SCHEMA.sql: the schema of every module as a fresh install"
 	@echo "make contract      go test ./modules/... -run Contract"
-	@echo "make e2e           kiểm thử đầu-cuối bằng Playwright (Chromium)"
+	@echo "make e2e           end-to-end tests with Playwright (Chromium)"
 	@echo "make e2e-real      the real backend (release GUI inside core) + Playwright, web/e2e-real/; SPECS=..., E2E_WORKERS=n, HOLD=1; heavy, not in CI or check"
-	@echo "make audit         quét lỗ hổng dependency: govulncheck + pnpm audit (đầu mỗi phiên)"
-	@echo "make oui          dựng lại content/oui/oui.tsv.gz từ runZero mac-tracker (cần mạng tới raw.githubusercontent.com)"
-	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
+	@echo "make audit         scan dependencies for vulnerabilities: govulncheck + pnpm audit (at the start of each work session)"
+	@echo "make oui          rebuild content/oui/oui.tsv.gz from runZero mac-tracker (needs network access to raw.githubusercontent.com)"
+	@echo "make fixtures      pull real KEV/EPSS data for the hot board"
 	@echo "make dev-sensors   core + sensor (pcap replay) + scan (fake nmap, fake nuclei) with docker compose, profile dev"
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
 	@echo "make container-only-smoke   the container-only install on Docker and Podman (builds images, checks ports/key/uid/caps, tears down); opt-in, slow, not in check or CI"
@@ -72,23 +72,23 @@ help:
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g); host-deb-check installs it in systemd containers (opt-in, pulls images)"
-	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
+	@echo "make reaper-install install the cleaner for orphaned test/dev processes (every 10 minutes)"
 	@echo "make clean         xoá build output và báo cáo test"
 
 dev:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web dev
 
-# Backend Go thật cho các module trong REAL (mặc định core), mock cho phần còn lại; Ctrl-C dừng cả hai.
+# The real Go backend for the modules in REAL (core by default), mocks for the rest; Ctrl-C stops both.
 dev-api:
 	scripts/dev/dev-api.sh
 
-# Cổng PR: chỉ phần đã đổi; file dùng chung đổi thì tự chuyển sang verify đầy đủ.
+# PR gate: only what changed; when a shared file changes it switches to the full verify by itself.
 check:
 	scripts/check.sh
 
-# Tuỳ chọn (không bắt buộc trước khi push): gói đã đổi, không -race, không gói phụ
-# thuộc, không Playwright. CI là cổng merge.
+# Optional (not required before pushing): changed packages, no -race, no dependent
+# packages, no Playwright. CI is the merge gate.
 check-fast:
 	scripts/check-fast.sh
 
@@ -130,7 +130,7 @@ verify-go-static:
 	bash scripts/dev/orphan-reaper-test.sh
 	bash scripts/dev/lab-vm-test.sh
 
-# Mọi mã sinh được commit: truy vấn sqlc (DATA_MODEL §6) + server ogen. Không sửa tay.
+# All generated code is committed: sqlc queries (DATA_MODEL §6) + the ogen server. Do not edit by hand.
 generate: generate-sql generate-api
 
 # docs/SCHEMA.sql: the schema of every module as a fresh install makes it (a test fails when it is stale).
@@ -140,20 +140,20 @@ schema:
 generate-sql:
 	$(GO_TOOL) sqlc generate
 
-# Sinh lại rồi so với bản đã commit: lệch (hoặc file sinh chưa được git theo dõi) = đỏ.
+# Regenerate and compare with the committed copy: any difference (or a generated file git does not track) = red.
 GENERATED := core/store/coredb core/api
 generate-check: generate
 	git diff --exit-code -- $(GENERATED)
 	@test -z "$$(git status --porcelain -- $(GENERATED))" || { git status --porcelain -- $(GENERATED); echo "generate-check: untracked generated files"; exit 1; }
 
-# web/.npmrc node-version phải bằng devEngines.runtime.version: pnpm bản độc lập kiểm engine bằng
-# Node nhúng của nó và bỏ qua native binding của oxlint/rolldown (issue #21).
+# The node-version in web/.npmrc must equal devEngines.runtime.version: a standalone pnpm checks the engine against
+# its own embedded Node and skips the native bindings of oxlint/rolldown (issue #21).
 node-version-check:
 	@want=$$(sed -n '/"devEngines"/,/}/s/.*"version": *"\([0-9.]*\)".*/\1/p' web/package.json); \
 	have=$$(sed -n 's/^node-version=//p' web/.npmrc); \
 	test -n "$$want" && test "$$want" = "$$have" || { echo "web/.npmrc node-version=$$have, devEngines.runtime.version=$$want: make them equal"; exit 1; }
 
-# api/openapi.json phải đúng bằng bản sinh từ contract.ts.
+# api/openapi.json must be exactly what contract.ts generates.
 openapi-check:
 	pnpm --dir web openapi
 	git diff --exit-code -- api/openapi.json
@@ -217,8 +217,8 @@ ci-flaky:
 	if [ -n "$$n" ]; then gh issue comment "$$n" --body-file flaky.md; else gh issue create --title "Flaky tests (daily -count=2 -shuffle=on run)" --label flaky --body-file flaky.md; fi; \
 	s=$$?; rm -f flaky.md; exit $$s
 
-# Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
-# Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".
+# Every INV/POST in modules/<id>/CONTRACT.md has a TestContract... (docs/MODULE_CONTRACTS.md).
+# With no Go module yet, skip instead of failing with "matched no packages".
 contract:
 	@if [ -n "$$(go list ./modules/... 2>/dev/null)" ]; then go test ./modules/... -run Contract; else echo "contract: no Go modules yet"; fi
 
@@ -241,7 +241,7 @@ lint-go:
 vuln:
 	$(GO_TOOL) govulncheck ./...
 
-# Quét lỗ hổng dependency: đầu mỗi phiên làm việc (CI cũng quét hằng ngày trên main).
+# Dependency vulnerability scan: at the start of each work session (CI also scans daily on main).
 audit: vuln
 	pnpm --dir web audit --prod
 
@@ -261,22 +261,22 @@ fixtures:
 brand:
 	pnpm --dir web exec node ../scripts/brand/render.mjs $(if $(PREVIEW),--preview)
 
-# Bảng OUI→hãng: kéo macs.json của runZero mac-tracker (MIT, dựng từ 5 file CSV của IEEE) ở commit đã ghim, kiểm SHA-256, giữ tổ chức mới nhất cho mỗi tiền tố /24 /28 /36, ghi file nén có thứ tự cố định. Kết quả được commit; sản phẩm không tải gì lúc chạy.
+# OUI to vendor table: fetch runZero mac-tracker's macs.json (MIT, built from 5 IEEE CSV files) at the pinned commit, check the SHA-256, keep the newest organisation for each /24 /28 /36 prefix, write a compressed file in a fixed order. The result is committed; the product downloads nothing at run time.
 oui:
 	go run ./scripts/oui
 
 clean:
 	rm -rf bin .dev/bin dist coverage.out web/dist internal/webui/dist internal/webui/licenses web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
 
-# Mã Go server sinh từ api/openapi.json: chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
-# Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
+# Go server code generated from api/openapi.json: normalise into a temp directory, run ogen, write the role table.
+# The normalised copy is not committed. Do not edit core/api/oas and core/api/routes/routes_gen.go by hand.
 generate-api:
 	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
 	go run ./core/api/apigen -in api/openapi.json -spec "$$tmp/openapi.json" -routes core/api/routes/routes_gen.go && \
 	go tool ogen --config core/api/ogen.yml --target core/api/oas --package oas --clean "$$tmp/openapi.json"
 
 .PHONY: reaper-install reaper-uninstall
-# Dừng tiến trình test/dev mồ côi làm quá tải máy, chạy 10 phút một lần (launchd/systemd user).
+# Stop orphaned test/dev processes that overload the machine, every 10 minutes (launchd/systemd user).
 reaper-install:
 	scripts/dev/reaper-install.sh
 

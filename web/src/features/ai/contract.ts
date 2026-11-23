@@ -1,4 +1,4 @@
-// Hợp đồng API module ai. Kiểu UI suy ra từ schema ở đây (types.ts).
+// API contract of the ai module. UI types are derived from the schema here (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 

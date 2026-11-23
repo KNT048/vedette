@@ -1,14 +1,14 @@
-id: honeypot           # trùng tên thư mục
-name: { vi: "Bẫy nội bộ", en: "Honeypot" }
-summary: { vi: "Trap IP giống thiết bị thật (tên, MAC theo hãng, dịch vụ riêng: SMB, RDP, SSH, cơ sở dữ liệu, web, FTP, Telnet, VNC... 18 dịch vụ) và honey token: ai chạm vào là biết ngay, chạm hai Trap IP trong một phút là quét.", en: "Trap IPs that look like real devices (name, vendor MAC, their own services: SMB, RDP, SSH, databases, web, FTP, Telnet, VNC... 18 in all) and honey tokens: any touch is an alert, touching two Trap IPs within a minute is a scan." }
+id: honeypot           # same as the folder name
+name: { en: "Honeypot" }
+summary: { en: "Trap IPs that look like real devices (name, vendor MAC, their own services: SMB, RDP, SSH, databases, web, FTP, Telnet, VNC... 18 in all) and honey tokens: any touch is an alert, touching two Trap IPs within a minute is a scan." }
 tier: optional
-needs_host: true      # chỉ chạy khi có vedette-host (appliance); bản chỉ container không bật được
+needs_host: true      # runs only where vedette-host is (the appliance); a container-only install cannot turn it on
 default: off
 depends: [core, inventory]
-soft_depends: [notify, response]   # notify: gửi cảnh báo; response: trigger "honeypot" (không có response thì hit vẫn lưu và báo)
-permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng thấp của các dịch vụ trong container honeypot; địa chỉ Trap IP và danh sách cổng của từng địa chỉ do vedette-host dựng
-ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80", "tcp/443", "tcp/21", "tcp/23", "tcp/3306", "tcp/27017", "tcp/6379", "tcp/5900", "tcp/9418", "tcp/8080", "tcp/25", "udp/69", "udp/123", "udp/5060"]   # chỉ trên Trap IP, mỗi Trap IP chỉ cổng của dịch vụ nó có; không trên IP quản trị của hộp
-container: honeypot    # OpenCanary (BSD-3) trong container riêng, macvlan trên IP phụ; API + bảng nằm trong `core`
+soft_depends: [notify, response]   # notify: sends alerts; response: the "honeypot" trigger (without response a hit is still stored and reported)
+permissions: [net_bind_low, "host:net.decoy_ip"]   # low ports of the services in the honeypot container; the Trap IP addresses and the port list of each address are set up by vedette-host
+ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80", "tcp/443", "tcp/21", "tcp/23", "tcp/3306", "tcp/27017", "tcp/6379", "tcp/5900", "tcp/9418", "tcp/8080", "tcp/25", "udp/69", "udp/123", "udp/5060"]   # only on Trap IPs, each Trap IP only the ports of the service it has; not on the box's admin IP
+container: honeypot    # OpenCanary (BSD-3) in its own container, macvlan on a secondary IP; the API + tables live in `core`
 tables_prefix: hp_
 tables: [hp_config, hp_trap_ips, hp_hits, hp_tokens, hp_ignored_day]
 stories: [S-HP-1, S-HP-2]

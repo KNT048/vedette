@@ -12,14 +12,14 @@ import type { AiJob } from './types'
 // The profile dialog lives with Settings, AI assistant; loaded only when a page opens it to add the first profile.
 const ProfileDialog = lazy(() => import('./AiSettings').then((m) => ({ default: m.ProfileDialog })))
 
-/** Lỗi của một thao tác (không phải lỗi tải trang): nói cái gì sai, kèm cách sửa từ máy chủ. */
+/** The error of an action (not a page-load error): say what is wrong, with the fix from the server. */
 export function ActionError({ error }: { error: unknown }) {
   if (!error) return null
   const msg = error instanceof ApiError ? error.message : error instanceof Error ? error.message : String(error)
   return <Notice tone="danger" role="alert" className="mb-0" title={msg} />
 }
 
-/** Việc AI chỉ chạy được khi module bật, có hồ sơ AI dùng được và việc đó được gán hồ sơ (kể cả luật riêng tư). `reason` giải thích nút bị khoá. */
+/** An AI job can run only when the module is on, there is a usable AI profile and the job is assigned a profile (privacy rule included). `reason` explains the locked button. */
 export function useAiGate(minRole: 'operator' | 'viewer' = 'operator', job?: AiJob) {
   const { t } = useTranslation('ai')
   const on = useModuleEnabled('ai')

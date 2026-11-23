@@ -1,6 +1,6 @@
-// "Hỏi dữ liệu của tôi" (S-AI-5) — bản mock: câu trả lời soạn sẵn (tiếng Anh) nhưng bảng và con số TÍNH từ
-// assetsStore/findingsStore, nên luôn khớp dữ liệu đang có. Bản thật: skill `ask-my-data` gọi tool chỉ-đọc (AI_ASSISTANT §2); không có tool ghi.
-// Câu ngoài dữ liệu thì nói thẳng là không có câu trả lời, không đoán.
+// "Ask my data" (S-AI-5), the mock version: ready-made answers (in English) but the tables and numbers are COMPUTED from
+// assetsStore/findingsStore, so they always match the data at hand. The real version: the `ask-my-data` skill calls read-only tools (AI_ASSISTANT §2); there is no write tool.
+// A question outside the data gets a plain "no answer", not a guess.
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import { BOX_ID } from '@/features/inventory/mocks'
 import type { Asset } from '@/lib/types'
@@ -17,7 +17,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 const KIND: Record<string, string> = { firewall: 'Firewall', router: 'Router', switch: 'Switch', ap: 'Wi-Fi', nas: 'NAS', server: 'Server', pc: 'Computer', printer: 'Printer', camera: 'Camera', nvr: 'Recorder', iot: 'IoT', web: 'Website', unknown: 'Unknown' }
 const SEV: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
-// Từ chung không nói gì về dữ liệu: bỏ khỏi tìm kiếm theo từ khoá để "weather today" không khớp bừa.
+// Common words say nothing about the data: dropped from the keyword search so "weather today" does not match at random.
 const STOP = new Set(['what', 'which', 'who', 'how', 'many', 'the', 'are', 'any', 'have', 'has', 'show', 'list', 'about', 'with', 'for', 'and', 'does', 'did', 'today', 'weather', 'tell', 'me', 'my', 'our', 'there', 'is', 'of', 'in', 'on', 'to', 'do', 'devices', 'device', 'machines', 'machine', 'still', 'now', 'this', 'that', 'whats', 'when', 'where', 'why', 'can', 'you'])
 const DEV = (n: number) => `${plural(n, 'device')}`
 /** Counts devices with the Vedette box named apart, as Devices and Reports do (modules/ai/ask_tools.go boxApart). */
@@ -40,7 +40,7 @@ export function answerQuestion(question: string): Answer {
     }
   }
 
-  // Chưa có kiểm kê thì mọi câu trả lời "không có gì" đều sai lệch: nói thẳng và chỉ việc cần làm.
+  // With no inventory yet every "nothing found" answer would be misleading: say so plainly and point to what to do.
   if (assets.length === 0) {
     return { answer: ['The inventory has no devices yet, so Vedette has nothing to answer from. Open the Devices page to turn on inventory, import a CSV or add a device by hand, then ask again.'], table: null, tool_calls: [tc('search_assets', '{}', [])], citations: [inv] }
   }

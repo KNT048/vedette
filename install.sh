@@ -476,7 +476,7 @@ install_deb() {
 # host_pkg_state: <Debian version>|<status> of vedette-host, empty when dpkg does not know it
 host_pkg_state() { dpkg-query -W -f='${Version}|${db:Status-Status}' vedette-host 2>/dev/null || true; }
 
-# keep_package (host-api 6.14 "Nhận bản đầu"): the verified .deb is kept as
+# keep_package (host-api 6.14 adopting the first package): the verified .deb is kept as
 # selfupdate/packages/vedette-host_<SemVer>_<arch>.deb, the name of the release asset and of host.files[].name (never Debian's "~"),
 # so that vedette-host can go back to this version when a later self-update fails. It goes there BEFORE apt installs it: on an
 # upgrade the package's postinst restarts vedette-host inside that apt run, and the host adopts the file when it starts (a first

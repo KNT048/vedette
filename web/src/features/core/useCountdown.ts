@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-/** Đếm ngược theo giây (nút "gửi lại mã"). `start(n)` đặt lại; chạy theo đồng hồ nên không trôi khi tab ngủ. */
+/** Count down by the second (the "resend code" button). `start(n)` resets; it follows the clock so it does not drift when the tab sleeps. */
 export function useCountdown() {
   const [until, setUntil] = useState(0)
   const [left, setLeft] = useState(0)

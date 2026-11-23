@@ -8,7 +8,7 @@ function read(): ThemePref {
   try {
     const v = localStorage.getItem(KEY)
     if (v === 'light' || v === 'dark' || v === 'system') return v
-  } catch { /* bỏ qua */ }
+  } catch { /* ignore */ }
   return 'system'
 }
 let pref: ThemePref = read()
@@ -25,7 +25,7 @@ export function initTheme() {
 
 export function setTheme(p: ThemePref) {
   pref = p
-  try { localStorage.setItem(KEY, p) } catch { /* bỏ qua */ }
+  try { localStorage.setItem(KEY, p) } catch { /* ignore */ }
   apply()
   listeners.forEach((l) => l())
 }

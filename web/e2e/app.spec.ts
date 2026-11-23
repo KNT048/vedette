@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { axeViolations, collectErrors, expectAccessible, startWithSample } from './helpers'
 import { POST_V1_IN_UI } from '../src/lib/postV1'
 
-// Mọi trang trong thanh bên + các trang chi tiết chính. Kiểm: có tiêu đề, không lỗi console, axe sạch (gồm tương phản).
+// Every page in the sidebar plus the main detail pages. Checks: a heading, no console errors, a clean axe run (contrast included).
 // A page of a module left out of v1 (MCP server) is not offered while POST_V1_IN_UI is false, so it is not in the list.
 const PAGES = [
   '/', '/lookup?q=185.220.101.47', '/cve/CVE-2022-27593', '/findings', '/findings/f-1', '/findings/f-2', '/incidents',
@@ -19,7 +19,7 @@ test('first open: set up with sample data, then the home page', async ({ page, i
   expect(errors).toEqual([])
 })
 
-test('mọi trang mở được, không lỗi, truy cập được', async ({ page }) => {
+test('every page opens without errors and is accessible', async ({ page }) => {
   test.setTimeout(180_000)
   const errors = collectErrors(page)
   await startWithSample(page)
@@ -36,20 +36,20 @@ test('mọi trang mở được, không lỗi, truy cập được', async ({ pa
   expect(errors).toEqual([])
 })
 
-test('người dùng làm việc trong GUI: khai thiết bị, xử lý phát hiện, đăng xuất và đăng nhập lại', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'menu tài khoản trên điện thoại được kiểm ở test riêng')
+test('a user works in the GUI: declares a device, handles a finding, signs out and back in', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'the account menu on a phone is checked by a separate test')
   await startWithSample(page)
-  // "Tôi có" từ bảng "Tuần này" thêm thiết bị khai tay
+  // "I have" from the "This week" table adds a hand-declared device
   await page.getByRole('button', { name: 'I have this' }).first().click()
   await expect(page.getByText(/^Done\. This flaw is now a finding/).first()).toBeVisible() // feeds weekly.addedToast
-  // Phát hiện xác nhận có hướng dẫn "BYN đã xác nhận" và đoạn cấu hình FortiGate
+  // A confirmed finding shows the "BYN confirmed" guidance and the FortiGate config snippet
   await page.goto('/findings/f-1')
   await expect(page.getByText('Confirmed by scan', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/192\.168\.10\.21/).first()).toBeVisible()
-  // dữ liệu còn sau khi tải lại trang
+  // data is still there after a page reload
   await page.reload()
   await expect(page.getByText('Confirmed by scan', { exact: true }).first()).toBeVisible()
-  // đăng xuất, đăng nhập bằng tài khoản chỉ xem
+  // sign out, sign in with a view-only account
   await page.goto('/')
   await page.getByRole('button', { name: /Account/ }).first().click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
@@ -70,13 +70,13 @@ test('dark theme is readable and accessible', async ({ page, isMobile }) => {
   await expectAccessible(page, 'home dark')
 })
 
-test('điện thoại: mở menu, đi tới Thiết bị, bảng cuộn trong khung', async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'chỉ cho điện thoại')
+test('phone: open the menu, go to Devices, the table scrolls inside its frame', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'phone only')
   await startWithSample(page)
   await page.getByRole('button', { name: 'Open menu' }).click()
   await page.getByRole('button', { name: /^Assets/ }).click() // docs/UI.md §2: groups start closed except the current page's
   await page.getByRole('link', { name: 'Devices' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-  expect(overflow, 'trang không được cuộn ngang').toBeLessThanOrEqual(1)
+  expect(overflow, 'the page must not scroll horizontally').toBeLessThanOrEqual(1)
 })

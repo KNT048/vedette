@@ -4,9 +4,9 @@ summary: { en: "Listens on the network (DHCP, mDNS, SSDP, ARP, LLDP and optional
 tier: standard
 default: true
 depends: [core, inventory]
-permissions: [net_raw, pcap]    # chỉ CAP_NET_RAW (ambient), User=<sensor_uid>, không UserNS; card SPAN không có IP
-ports: []                       # chỉ bắt gói, không mở cổng nghe
-container: sensor               # Nửa capture trong `sensor` (mạng host, vai mTLS passive); nửa core (sp_*) trong `core`
-tables_prefix: sp_              # ⚠ MODULES.md ghi `inv_*`; xem câu hỏi mở
+permissions: [net_raw, pcap]    # CAP_NET_RAW only (ambient), User=<sensor_uid>, no UserNS; the SPAN card has no IP
+ports: []                       # packet capture only, no listening port
+container: sensor               # the capture half in `sensor` (host network, the passive mTLS role); the core half (sp_*) in `core`
+tables_prefix: sp_              # note: MODULES.md says `inv_*`; see the open question
 stories: [S-INV-1, S-INV-3, S-LOG-4]
 milestone: M3

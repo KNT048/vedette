@@ -1,5 +1,5 @@
-// Dựng báo cáo tuần từ kho dùng chung (assetsStore, findingsStore) và KEV thật. `asOf` cho phép dựng lại số liệu của các tuần trước.
-// Số lần chạm bẫy và log bất thường KHÔNG đưa vào: dữ liệu đó nằm trong module honeypot/logs, chưa có store dùng chung; không bịa số.
+// Builds the weekly report from the shared stores (assetsStore, findingsStore) and the real KEV. `asOf` lets earlier weeks' figures be rebuilt.
+// Honeypot hits and anomalous logs are NOT included: that data lives in the honeypot/logs modules, which have no shared store yet; no figure is invented.
 import kev from '@/mocks/fixtures/kev.json'
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import type { Finding } from '@/lib/types'

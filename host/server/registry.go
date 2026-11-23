@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/internal/jsonstrict"
 )
 
-// Limits on a command definition: a timeout is mandatory (agent-safety, POST-4).
+// Limits on a command definition: a timeout is mandatory (POST-4).
 const (
 	maxCommandTimeout = 2 * time.Hour
 	maxCommandBody    = 4 << 20 // ceiling of Spec.MaxBody (ponytail: raise with the command that needs it)

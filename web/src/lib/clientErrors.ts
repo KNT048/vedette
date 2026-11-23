@@ -1,5 +1,5 @@
-// Vòng đệm 20 lỗi phía trình duyệt gần nhất cho gói chẩn đoán báo lỗi (S-CORE-5). Chỉ giữ trong bộ nhớ, không gửi đi đâu.
-// Xoá email và địa chỉ IP khỏi thông điệp trước khi lưu: gói chẩn đoán không được chứa chúng.
+// A ring buffer of the last 20 browser-side errors for the bug-report diagnostic bundle (S-CORE-5). Kept in memory only, never sent anywhere.
+// Emails and IP addresses are removed from the message before it is stored: the diagnostic bundle must not contain them.
 export interface ClientError { at: string; kind: 'error' | 'unhandledrejection'; message: string }
 
 const MAX = 20
@@ -19,7 +19,7 @@ function push(kind: ClientError['kind'], raw: unknown) {
   if (buf.length > MAX) buf.shift()
 }
 
-/** Gọi một lần ở main.tsx. */
+/** Called once in main.tsx. */
 export function installClientErrors() {
   if (installed) return
   installed = true
@@ -27,6 +27,6 @@ export function installClientErrors() {
   window.addEventListener('unhandledrejection', (e) => push('unhandledrejection', e.reason))
 }
 
-/** Dùng cho lỗi trang (RouteError) mà trình duyệt không báo qua sự kiện. */
+/** For page errors (RouteError) that the browser does not report through an event. */
 export const recordClientError = (e: unknown) => push('error', e)
 export const getClientErrors = (): ClientError[] => [...buf]

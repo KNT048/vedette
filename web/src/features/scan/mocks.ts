@@ -1,5 +1,5 @@
-// Mock API module scan (S-SCAN-1..5). Trạng thái quét "chạy thật theo thời gian": mỗi lần đọc, mock tính tiến độ từ giờ bắt đầu (timing.stepMs mỗi thiết bị),
-// nên UI poll 1 giây là thấy tiến độ và "Dừng ngay" có hiệu lực sau timing.stopMs (≤ 5 s). Chỉ quét mục tiêu trong phạm vi đã xác nhận + ô cam kết (LEGAL §3).
+// Mock API of the scan module (S-SCAN-1..5). The scan state "runs for real over time": on every read the mock computes progress from the start time (timing.stepMs per device),
+// so a UI that polls every second sees progress and "Stop now" takes effect after timing.stopMs (<= 5 s). Only targets inside the confirmed scope + the commitment box are scanned (LEGAL §3).
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
@@ -13,11 +13,11 @@ import { mockDeviceProgress } from '@/lib/progress'
 import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
-/** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
+/** Tests set it small; the browser uses the real value. */
 // #830: in the browser a device takes 15 s, so the page (read every 5 s) shows its steps move; tests keep 2 s.
 export const timing = { stepMs: import.meta.env.MODE === 'test' ? 2000 : 15_000, stopMs: 1000, engineMs: 3000 }
 export const RETENTION_DAYS = 90
-// Thiết bị mẫu phản hồi chậm: dùng để minh hoạ "tự dừng khi thiết bị không phản hồi" (S-SCAN-4).
+// The slow-answering sample device: used to illustrate "stops by itself when a device does not answer" (S-SCAN-4).
 const SLOW = new Set(['a-cam03'])
 
 interface Vuln { cve: string; vendor: string; product: string; date_added: string; has_template: boolean }
@@ -25,15 +25,15 @@ const vulns = (kev as { vulns: Vuln[] }).vulns
 const hasTemplate = (cve: string) => vulns.find((v) => v.cve === cve)?.has_template ?? false
 const templateName = (cve: string) => `http/cves/${cve.split('-')[1]}/${cve}.yaml`
 
-// Mọi chuỗi hiển thị bằng tiếng Anh.
+// Every displayed string is English.
 type StoredRow = RunResultRow
 interface StoredRun extends ScanRun { target_ids: string[]; stop_requested_at: string | null }
 const row = (t: ScanTarget, template: string | null, result: RunResultRow['result'], finding_id: string | null, note: string): StoredRow => ({ target_id: t.id, label: t.label, ip: t.ip, template, result, finding_id, note })
 interface ExternalTarget { id: string; value: string; ip: string; verified: boolean; expired: boolean }
 const VERIFY_DAYS = 30
 
-// Phạm vi trong = dải LAN ở Thiết bị → Phạm vi và cảm biến (inventory) + ô cam kết đã đánh dấu ở đó (scope_confirmed_at). Không còn văn bản đồng ý.
-// Mục tiêu ngoài (exposure): chỉ IP mà chính hộp đi ra Internet bằng và hộp còn thấy trong 30 ngày qua (hộp tự dò và gia hạn; quá hạn = không quét); tên miền xác thực bằng DNS TXT không hết hạn. LEGAL §3.
+// Inside scope = the LAN ranges in Devices → Scope and sensors (inventory) + the commitment box ticked there (scope_confirmed_at). There is no consent text any more.
+// External targets (exposure): only the IPs the box itself reaches the Internet with and the box has seen again in the last 30 days (the box probes and renews by itself; expired = not scanned); a domain is verified by a DNS TXT that does not expire. LEGAL §3.
 const scope = {
   get(): ScanScope {
     const s = inventorySettingsStore.get()
@@ -44,7 +44,7 @@ const external = {
   get(): ExternalTarget[] {
     const snaps = exposureSnapshotsStore.get()
     return exposureTargetsStore.get().map((t) => {
-      // exposure sẽ có expires_at; chưa có thì tính verified_at + 30 ngày.
+      // exposure will have expires_at; until it does, compute verified_at + 30 days.
       const exp = (t as { expires_at?: string | null }).expires_at ?? (t.verified_at ? new Date(Date.parse(t.verified_at) + VERIFY_DAYS * 864e5).toISOString() : null)
       return {
         id: `ext:${t.id}`, value: t.value,
@@ -60,7 +60,7 @@ const config = collection<ScanConfig>('scan_config', () => ({
   // The sample excludes a spare address, not the box: the box is pick-only, so it needs no exclusion line.
   rate: 5, exclusions: ['192.168.10.240'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
 }), () => ({
-  // Cài sạch: cùng mặc định nhưng chưa loại trừ IP nào (IP hộp mẫu 192.168.10.250 không phải của khách). Chưa có phạm vi/đồng ý thì không quét được.
+  // A clean install: the same defaults but no IP excluded yet (the sample box IP 192.168.10.250 is not the customer's). Without a scope/consent nothing can be scanned.
   window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
   rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
 }))
@@ -113,7 +113,7 @@ const STOP_NOW = 'You pressed Stop now.'
 const STOPPED_MID = 'Stopped while this device was being scanned: no result. The requests on their way are in the probe log as stopped.'
 
 function seedEvents(): RescanEvent[] {
-  // Từ KEV thật: CVE có mẫu quét, khớp phần mềm trong kiểm kê mẫu.
+  // From the real KEV: CVEs that have a scan template and match software in the sample inventory.
   const out: RescanEvent[] = []
   // a rescan only scans devices allowed without a hand pick, so a match names only those
   const pickOnly = new Set(targets().filter((x) => x.pick_only).map((x) => x.id))
@@ -134,7 +134,7 @@ function seedEvents(): RescanEvent[] {
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
 
-// ---- tiện ích địa chỉ / thời gian ----
+// ---- address / time helpers ----
 const ipNum = (ip: string) => ip.split('.').reduce((n, p) => n * 256 + Number(p), 0)
 function inCidr(ip: string, cidr: string): boolean {
   const [base, bits] = cidr.includes('/') ? cidr.split('/') as [string, string] : [cidr, '32']
@@ -143,7 +143,7 @@ function inCidr(ip: string, cidr: string): boolean {
 }
 const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
-// ---- mục tiêu ----
+// ---- targets ----
 function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
@@ -222,7 +222,7 @@ function identOne(t: ScanTarget): RunIdentRow {
   return identRow(t, found, !a.services.length ? 'no_open_ports' : a.os?.value.includes('(build ') ? 'os_no_patch_level' : a.os ? 'os_unconfirmed' : 'no_version')
 }
 
-// ---- chạy quét ----
+// ---- scan runs ----
 const who = () => currentUser()?.email ?? 'system'
 const strip = (r: StoredRun): ScanRun => { const { target_ids: _t, stop_requested_at: _s, ...rest } = r; return rest }
 const saveRun = (r: StoredRun) => runs.update((l) => l.map((x) => (x.id === r.id ? r : x)))
@@ -248,7 +248,7 @@ function scanOne(t: ScanTarget, stopOnSlow: boolean): { rows: StoredRow[]; probe
   return { rows, probes: out, unresponsive: false }
 }
 
-/** Ghi kết quả vào phát hiện dùng chung: chỉ khớp → xác nhận. Không khớp chỉ là "không báo khớp" (nuclei chỉ in dòng khớp): không bao giờ đóng, hạ hay ghi gì lên phát hiện. */
+/** Write the result into the shared finding: only a match → confirmed. A non-match is merely "no match reported" (nuclei prints only matching lines): it never closes, lowers or writes anything on the finding. */
 function applyToFindings(rows: StoredRow[]) {
   const ts = nowIso()
   findingsStore.update((l) => l.map((f: Finding) => {
@@ -290,7 +290,7 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
   return done
 }
 
-/** Tính tiến độ theo thời gian thực của đồng hồ. */
+/** Compute progress from the real-time clock. */
 function advance(r: StoredRun): StoredRun {
   if (r.status === 'done' || r.status === 'stopped' || r.status === 'auto_stopped') return r
   const now = Date.now()
@@ -331,7 +331,7 @@ export const liveScanRuns = () => allRuns().filter((r) => r.status === 'running'
 export const lastScanRun = () => allRuns().find((r) => r.status !== 'running' && r.status !== 'stopping')
 
 
-// ---- validate cấu hình ----
+// ---- validate the configuration ----
 function validateConfig(c: ScanConfig): string | null {
   const w = c.window
   if (!Array.isArray(w.days) || !w.days.length || w.days.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) return 'Choose at least one day for the scan window.'
@@ -369,7 +369,7 @@ const NOT_FOUND = () => fail(404, 'not_found', 'No such item.')
 export const handlers = [
   http.get(`${API}/scans/config`, () => { const d = guard('viewer'); return d ?? HttpResponse.json(configResponse()) }),
 
-  // Cấu hình phạm vi/an toàn = admin (spec §4). Nhận một phần, gộp rồi kiểm tra toàn bộ.
+  // The scope/safety configuration = admin (spec §4). Accepts a partial update, merges it, then validates the whole.
   http.put(`${API}/scans/config`, async ({ request }) => {
     const d = guard('admin'); if (d) return d
     const { version, ...b } = await body<Partial<ScanConfig> & { dangerous_checks: boolean; version?: string }>(request)
@@ -420,7 +420,7 @@ export const handlers = [
     return HttpResponse.json(strip(r), { status: 201 })
   }),
 
-  // "Dừng ngay" (S-SCAN-4): ngừng gửi yêu cầu mới, trạng thái thành "stopping" rồi "stopped" sau timing.stopMs (≤ 5 s).
+  // "Stop now" (S-SCAN-4): stop sending new requests, the state becomes "stopping" then "stopped" after timing.stopMs (<= 5 s).
   http.post(`${API}/scans/runs/:id/stop`, ({ params }) => {
     const d = guard('operator'); if (d) return d
     const cur = allRuns().find((x) => x.id === params.id)
@@ -452,7 +452,7 @@ export const handlers = [
     return HttpResponse.json({ items: events.get(), auto_rescan: config.get().auto_rescan })
   }),
 
-  // Quét có tài khoản (module scan-credentialed, S-SCAN-5). Khoá riêng không bao giờ được lưu hay trả lại: chỉ giữ 4 ký tự cuối.
+  // Credentialed scan (the scan-credentialed module, S-SCAN-5). A private key is never stored or returned: only the last 4 characters are kept.
   http.get(`${API}/scans/credentialed`, () => {
     const d = guard('viewer'); if (d) return d
     return HttpResponse.json({ items: creds.get(), enabled: isOn('scan-credentialed') })
@@ -485,7 +485,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // Thử kết nối: mock coi là thành công khi thiết bị có dịch vụ ở đúng cổng trong kiểm kê.
+  // Test connection: the mock counts it a success when the device has a service on exactly that port in the inventory.
   http.post(`${API}/scans/credentialed/:id/test`, ({ params }) => {
     const d = guard('operator'); if (d) return d
     const c = creds.get().find((x) => x.id === params.id)

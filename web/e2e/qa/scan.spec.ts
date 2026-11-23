@@ -1,8 +1,8 @@
-// QA như người dùng thật cho module scan (UI chỉ tiếng Anh), trang Settings › Scanning (#850): IT operator watches and stops scans,
+// QA as a real user for the scan module (English-only UI), Settings > Scanning page (#850): IT operator watches and stops scans,
 // admin turns engines on and off and sets the shared safety block, director (viewer), clean install. Scan now sits where the person is:
 // Scan the LAN now is on the Network discovery card and the Devices list; Scan selected on the Devices list; Check this device now and
 // Run vulnerability checks now on the device page (slots of #849, filled by features/scanning).
-// Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
+// Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
 
@@ -21,7 +21,7 @@ async function sample(page: Page) {
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
   await turnOnModules(page, ['Vulnerability scan']) // A Preview module, off by default
 }
-/** Cài sạch; `commit` = đánh dấu cam kết quét ở bước mạng (như người dùng thật chọn quét ngay). */
+/** Clean install; `commit` = mark the scan commitment at the network step (as a real user who chooses to scan right away). */
 async function clean(page: Page, commit = false) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
@@ -62,7 +62,7 @@ const english = async (page: Page, where: string) => {
   const text = await page.evaluate(() => document.body.innerText)
   expect(text.match(DIACRITICS)?.[0] ?? null, `${where}: Vietnamese text left in the UI`).toBeNull()
 }
-/** Bật module scan-credentialed (mặc định tắt) như quản trị làm ở Settings, Modules. */
+/** Turn on the scan-credentialed module (off by default) the way an admin does in Settings, Modules. */
 async function enableCred(page: Page) {
   await page.evaluate((k) => {
     const db = JSON.parse(localStorage.getItem(k) ?? '{}')

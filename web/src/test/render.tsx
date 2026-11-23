@@ -1,4 +1,4 @@
-// renderApp: dựng toàn bộ app (router thật, mock API thật) tại một đường dẫn, đã đăng nhập với vai cho trước.
+// renderApp: build the whole app (real router, real mock API) at a path, signed in with a given role.
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import axe from 'axe-core'
 import { expect } from 'vitest'
@@ -15,7 +15,7 @@ export function renderApp(path: string, opts: { role?: Role | null; setupComplet
   return render(<App initialPath={path} />)
 }
 
-/** a11y: axe-core trên DOM (jsdom không tính được tương phản màu — kiểm ở E2E). */
+/** a11y: axe-core on the DOM (jsdom cannot compute colour contrast; that is checked in E2E). */
 export async function expectNoA11yViolations(node: Element = document.body) {
   const res = await axe.run(node, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } })
   const msg = res.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')})`).join('\n')

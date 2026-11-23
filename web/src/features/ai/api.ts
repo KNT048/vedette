@@ -9,7 +9,7 @@ function useInvalidateAi() {
   const qc = useQueryClient()
   return () => { void qc.invalidateQueries({ queryKey: ['ai'] }) }
 }
-// Lệnh gọi AI bị chặn do trần vẫn ghi một dòng nhật ký, nên làm tươi cả khi lỗi.
+// An AI call blocked by a cap still writes one log line, so refresh on error too.
 
 export function useSaveConfig() {
   const done = useInvalidateAi()

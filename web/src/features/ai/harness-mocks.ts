@@ -1,5 +1,5 @@
-// Mock API của harness AI (S-AI-7). Mọi endpoint cần quản trị viên. Khoá/secret không bao giờ lưu: chỉ 4 ký tự cuối (SYS-4).
-// Handler nối vào `handlers` của module ai (mocks.ts). Thứ tự quan trọng: đường dẫn cố định ("settings", "test") đứng trước ":id".
+// Mock API of the AI harness (S-AI-7). Every endpoint needs an administrator. Keys/secrets are never stored: only the last 4 characters (SYS-4).
+// The handlers plug into the `handlers` of the ai module (mocks.ts). Order matters: fixed paths ("settings", "test") come before ":id".
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { newId, nowIso } from '@/mocks/db'

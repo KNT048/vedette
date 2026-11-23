@@ -1,7 +1,7 @@
 // Package client is how core talks to vedette-host over its unix socket (docs/specs/host-api.md).
 // An absent socket is ErrUnreachable: "not an appliance, or the host is not running"; core shows
 // the matching "unsupported / cannot reach vedette-host" state and never pretends success
-// (modules/host/CONTRACT.md, "Khi vắng mặt").
+// (modules/host/CONTRACT.md, the section on the host being absent).
 package client
 
 import (

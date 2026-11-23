@@ -1,8 +1,8 @@
-// Client API duy nhất của SPA. M1: MSW trả lời (src/mocks); M2: backend Go cùng hợp đồng.
+// The only API client of the SPA. M1: MSW answers (src/mocks); M2: the Go backend with the same contract.
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
-  /** Trường thêm trong `error` của phản hồi (ví dụ `missing` khi bật module thiếu phụ thuộc). */
+  /** An extra field in the response's `error` (for example `missing` when turning on a module with missing dependencies). */
   readonly details: Record<string, unknown>
   constructor(status: number, code: string, message: string, details: Record<string, unknown> = {}) {
     super(message)
@@ -12,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Sản phẩm chỉ có tiếng Anh; vẫn gửi header để máy chủ sinh văn bản đúng ngôn ngữ. */
+/** The product is English only; the header is still sent so the server produces text in the right language. */
 const lang = () => 'en'
 
 /** Double-submit CSRF (API_CONVENTIONS 7.2): the server sets cookie `__Host-vedette_csrf`, state-changing calls echo it in a header. The mock ignores it. */
@@ -77,7 +77,7 @@ export function dispositionName(header: string | null, fallback: string): string
   return n || fallback
 }
 
-/** Tải file (CSV/JSON/rule pack) từ API mock hoặc thật mà không rời trình duyệt. Tên file: do hộp gửi (Content-Disposition), không có thì `filename`. */
+/** Download a file (CSV/JSON/rule pack) from the mock or real API without leaving the browser. File name: sent by the box (Content-Disposition), otherwise `filename`. */
 export async function download(path: string, filename: string, body?: unknown) {
   // With a body it is a POST (a download behind a password, like the decryption key): JSON and the CSRF header as every POST.
   const csrf = body === undefined ? null : csrfToken()

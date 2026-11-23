@@ -16,7 +16,7 @@ const qs = (q: Partial<AuditQuery> & { offset?: string; limit?: string }) => {
   return s ? `?${s}` : ''
 }
 
-// ---- cài đặt ban đầu ----
+// ---- initial setup ----
 export const useSetupModules = () => useQuery({ queryKey: ['core', 'setup-modules'], queryFn: () => api.get<{ modules: SetupModule[]; install: InstallKind; lan: string | null }>('/core/setup/modules'), retry: false })
 export const useSetupStatus = () => useQuery({ queryKey: ['setup'], queryFn: () => api.get<SetupStatus>('/setup') })
 export function useSubmitSetup() {
@@ -27,7 +27,7 @@ export function useSubmitSetup() {
   })
 }
 
-// ---- khôi phục từ tệp sao lưu ở lần cài đầu (S-CORE-1) ----
+// ---- restore from a backup file on the first install (S-CORE-1) ----
 export const useUploadBackup = () => useMutation({ mutationFn: (v: { code: string; file: File }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim() }) })
 export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean; accept_terms: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
 /** Polled while the first-run restore runs. Vedette restarts during it, so a failed poll keeps polling; done once the restored
@@ -38,7 +38,7 @@ export const useSetupRestoreRun = (enabled: boolean) => useQuery({
   refetchInterval: (q) => (q.state.data?.status === 'done' || q.state.data?.status === 'reverted' || q.state.data?.status === 'failed' ? false : 3000),
 })
 
-// ---- đăng nhập ----
+// ---- sign-in ----
 export const useAuthOptions = () => useQuery({ queryKey: ['core', 'auth-options'], queryFn: () => api.get<AuthOptions>('/core/auth-options'), retry: false })
 
 // ---- chung ----
@@ -74,7 +74,7 @@ export function useToggleModule() {
   })
 }
 
-// ---- tài khoản ----
+// ---- account ----
 export const useAccount = (enabled = true) => useQuery({ queryKey: ['core', 'account'], queryFn: () => api.get<Account>('/core/account'), enabled })
 export function useAccountMutations() {
   const qc = useQueryClient()
@@ -92,7 +92,7 @@ export function useAccountMutations() {
   }
 }
 
-// ---- người dùng, OIDC ----
+// ---- users, OIDC ----
 export const useUsers = (enabled = true) => useQuery({ queryKey: ['core', 'users'], queryFn: () => api.get<{ items: AdminUser[] }>('/core/users'), enabled })
 export function useUserMutations() {
   const qc = useQueryClient()
@@ -121,8 +121,8 @@ export const useAudit = (q: AuditQuery, page: { offset: number; limit: number })
 }
 export const auditExportPath = (q: AuditQuery) => `/core/audit/export${qs(q)}`
 
-// ---- cập nhật ----
-/** Hỏi lại mỗi giây khi phần mềm đang cập nhật hay quay lại; vẫn hỏi khi một lần hỏi lỗi lúc Vedette khởi động lại. */
+// ---- updates ----
+/** Poll every second while the software is updating or rolling back; keep polling when one request fails while Vedette restarts. */
 export const useUpdates = () => useQuery({
   queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'),
   refetchInterval: (q) => (q.state.data?.run?.status === 'running' ? 1000 : false), refetchIntervalInBackground: true,
@@ -144,11 +144,11 @@ export function useUpdateMutations() {
   }
 }
 
-// ---- hệ điều hành của hộp ----
+// ---- the box's operating system ----
 // The pages that use the endpoints of vedette-host mount them only on the appliance (useInstallKind); on a container-only
 // install they could only answer 409 not_appliance.
 export const useOsState = () => useQuery({ queryKey: ['core', 'os'], queryFn: () => api.get<OsState>('/core/updates/os') })
-/** Lần chạy hiện tại hoặc gần nhất; tự hỏi lại mỗi 0,5 giây khi đang chạy để có log trực tiếp. */
+/** The current or latest run; polls again every 0.5 seconds while running to get a live log. */
 export const useOsRun = () => useQuery({
   queryKey: ['core', 'os-run'], queryFn: () => api.get<OsRun | null>('/core/updates/os/run'),
   refetchInterval: (q) => (q.state.data?.status === 'running' ? 500 : false),
@@ -165,14 +165,14 @@ export function useOsMutations() {
   }
 }
 
-// ---- quyền riêng tư ----
+// ---- privacy ----
 export const usePrivacy = () => useQuery({ queryKey: ['core', 'privacy'], queryFn: () => api.get<PrivacyState>('/core/privacy') })
 export function useSavePrivacy() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (v: { telemetry?: boolean; update_check?: boolean }) => api.patch<PrivacyState>('/core/privacy', v), onSuccess: (d) => { qc.setQueryData(['core', 'privacy'], d); void qc.invalidateQueries({ queryKey: ['core', 'updates'] }) } })
 }
 
-// ---- kết nối tới thiết bị ----
+// ---- connections to devices ----
 /** Every change refreshes the list and the Privacy page: flow 12 is on while a connection is enabled. */
 function useConnectionWrite<A, R = unknown>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient()
@@ -195,15 +195,15 @@ export function useMcpMutations() {
   }
 }
 
-// ---- dữ liệu ----
-// ---- cài đặt ban đầu: ghi vào module thật sau khi tạo quản trị ----
-/** Module kiểm kê: dải LAN + xác nhận phạm vi (giữ nguyên các trường còn lại của cài đặt hiện có). */
+// ---- data ----
+// ---- initial setup: written into the real module after the admin is created ----
+/** Inventory module: the LAN range + the scope confirmation (keeps the other fields of the existing settings). */
 export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean) {
   const cur = await api.get<Record<string, unknown>>('/inventory/settings')
   return api.put<{ scope_confirmed_at: string | null }>('/inventory/settings', { ...cur, lan_ranges: lan, active: { ...(cur.active as object), enabled: scopeConfirmed }, scope_confirmed: scopeConfirmed })
 }
 
-// ---- khôi phục sao lưu trên hộp (S-CORE-1) ----
+// ---- restore a backup on the box (S-CORE-1) ----
 export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })
 /** Polled while a restore runs: Vedette restarts during it, so a failed poll is retried, not shown. The host makes the Before
  * restore copy during the run, so the list of backups is read again when a run this page saw running ends (A13-1). */
@@ -231,7 +231,7 @@ export const useRestore = () => {
 }
 export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
-// ---- mạng của hộp ----
+// ---- the box's network ----
 export const useNetwork = (enabled: boolean) => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), enabled, refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })
 /** Polled while the page is open: the point of the card is to watch traffic arrive. */
 export const useSpanStatus = () => useQuery({ queryKey: ['core', 'network', 'span-status'], queryFn: () => api.get<SpanStatus>('/core/network/span/status'), refetchInterval: 5000 })

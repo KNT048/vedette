@@ -2,10 +2,10 @@ id: core
 name: { en: "Core" }
 summary: { en: "Sign-in, users, module on/off, settings, audit, updates (software and the box's own OS), privacy and the job scheduler. Always on." }
 tier: core
-default: true          # luôn bật; PATCH /modules/core bị từ chối (INV-1)
+default: true          # always on; PATCH /modules/core is refused (INV-1)
 depends: []
-permissions: [outbound:https, outbound:lan]   # kiểm tra cập nhật; apt/OS đi qua vedette-host, không qua core; outbound:lan = kết nối tới thiết bị/dịch vụ do admin khai (core/conn; kho ở 13b-4, đường truyền ở 13b-5)
-helpers: [vedette-host]         # Cập nhật OS, sao lưu, mạng; gọi qua socket nội bộ, danh sách lệnh cố định
+permissions: [outbound:https, outbound:lan]   # update check; apt/OS goes through vedette-host, not core; outbound:lan = connections to devices/services the admin declares (core/conn)
+helpers: [vedette-host]         # OS updates, backup, network; called over an internal socket, with a fixed command list
 ports: ["tcp/8443"]
 container: core        # Go + SPA, SQLite trên volume
 tables_prefix: core_

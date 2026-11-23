@@ -111,6 +111,40 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	}
 }
 
+// Only existence matters: scores alone make EPSS ready while nvd-recent stays loading when the catalogue holds no NVD record inside
+// the window (an old record, or a record NVD never filled, does not count).
+func TestTierStatusExistence(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.clock()
+	ts := func(d time.Time) string { return d.UTC().Format("2006-01-02T15:04:05.000Z") }
+	err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, q := range []struct {
+			sql  string
+			args []any
+		}{
+			{`INSERT INTO feeds_epss (cve, epss, percentile, gen) VALUES ('CVE-2020-0003', 0.5, 0.99, 1)`, nil},
+			{`INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES ('CVE-2020-0003', ?, ?, 'Analyzed', ?, ?)`,
+				[]any{ts(now.AddDate(-3, 0, 0)), ts(now), ts(now), ts(now)}},
+			{`INSERT INTO feeds_cve (cve, published, modified, updated_at) VALUES ('CVE-2026-0009', ?, ?, ?)`, []any{ts(now.AddDate(0, -1, 0)), ts(now), ts(now)}},
+			{`INSERT INTO feeds_nvd_cursor (selector, url, mode, win_from, win_to, until, next_index, total) VALUES ('recent', 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, []any{ts(now), ts(now), ts(now)}},
+			{`UPDATE feeds_source SET last_success = ?, status = 'ok' WHERE id = ?`, []any{ts(now), epssAllFeedID}},
+		} {
+			if _, err := tx.ExecContext(t.Context(), q.sql, q.args...); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := e.svc.st.TierStatus(t.Context(), now)
+	if err != nil || st.EPSS != TierReady || st.Recent != TierLoading {
+		t.Fatalf("scores, no NVD record in the window: %+v %v", st, err)
+	}
+}
+
 // seedTierData writes a small filled state of epss-all and nvd-recent: CVE-2026-0001 (likely, nginx < 1.28.1), CVE-2026-0002 (recent, no
 // entry), CVE-2020-0003 (EPSS only).
 func seedTierData(t *testing.T, e *env, now time.Time) {

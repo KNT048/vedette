@@ -1,14 +1,13 @@
-// The summary card at the top of a finding: the CVE in one sentence, why it is urgent, its key facts, and what to do on this
-// device. It reads the CVE brief (GET /feeds/cve/{id}) and the finding; no AI, worked out again on every view. The fixed releases
+// The summary card at the top of a finding: the CVE in one sentence, its key facts, and what to do on this device (why the finding is
+// urgent is its status lines under the title, the words every list says). It reads the CVE brief (GET /feeds/cve/{id}) and the finding; no AI, worked out again on every view. The fixed releases
 // per release train, every affected version, the full facts and the sources sit behind one click.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
-import { ReasonsLine } from '@/components/common/status'
 import { fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCve } from '@/features/feeds/api'
-import { briefReasons, briefSentence } from '@/features/feeds/brief'
+import { briefSentence } from '@/features/feeds/brief'
 import { AffectedAll, BriefFacts, BriefRemedy, BriefSources, FixTable } from '@/features/feeds/BriefParts'
 import type { CveBrief } from '@/features/feeds/types'
 import { FixedInNote } from './Recommendation'
@@ -33,8 +32,11 @@ export function CveBriefCard({ f }: { f: FindingDetail }) {
   const b = q.data
   const urls = advisories(b, f)
   const labels = linkLabels(t, urls)
-  const product = f.kev?.display || b?.display || t('rec.theSoftware')
-  const software = f.known_version?.software ?? product
+  // the finding's own software names the product when the exploited list and the CVE record do not (an update-recommended finding
+  // is on no list): never "the software"
+  const known = f.known_version?.software ?? null
+  const product = f.kev?.display || b?.display || known || t('rec.theSoftware')
+  const software = known ?? product
   const version = f.known_version?.version ?? f.fixed_in?.version
   const cwe = b?.cwe[0]
   return (
@@ -43,8 +45,7 @@ export function CveBriefCard({ f }: { f: FindingDetail }) {
       <div className="grid gap-4">
         {b ? (
           <div className="grid gap-1.5">
-            <p className="max-w-[72ch] text-base leading-relaxed" data-testid="brief-sentence">{briefSentence(tf, b)}</p>
-            <ReasonsLine urgency={{ reasons: briefReasons(b), internet: null }} />
+            <p className="max-w-[72ch] text-base leading-relaxed" data-testid="brief-sentence">{briefSentence(tf, b, known)}</p>
             {cwe || b.epss ? (
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                 {cwe ? <span>{cwe.name ? `${cwe.id}: ${cwe.name}` : cwe.id}</span> : null}
@@ -59,7 +60,7 @@ export function CveBriefCard({ f }: { f: FindingDetail }) {
           <ol className="grid max-w-[72ch] list-decimal gap-1.5 pl-5 text-sm">
             <li>
               <div className="grid gap-1">
-                {f.fixed_in ? <FixedInNote finding={f} /> : q.isLoading ? null : <span>{urls.length ? t('brief.fix') : t('rec.noVendorLink', { cve: f.cve, product })}</span>}
+                {f.fixed_in ? <FixedInNote finding={f} /> : q.isLoading ? null : <span>{urls.length ? t('brief.fix') : t(f.kev ? 'rec.noVendorLink' : 'rec.noAdvisoryLink', { cve: f.cve, product })}</span>}
                 {urls.length ? (
                   <span className="flex flex-wrap gap-x-3 gap-y-0.5">
                     {urls.map((u, i) => <a key={u} className={`break-all ${link}`} href={u} target="_blank" rel="noopener noreferrer">{labels[i]}</a>)}

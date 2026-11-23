@@ -37,13 +37,13 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
           <span className="text-muted">{block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}</span>
           <StatusBadge code={block.status} />
           {block.findings.length > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: block.cause })}</span> : null}
-          <FixLink fix={block.fix} />
+          <FixLink fix={block.fix} cve={block.cause} />
         </p>
         <Button size="sm" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
           onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
       </div>
       <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
-        items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, to: `/findings/${encodeURIComponent(f.id)}` }))}
+        items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, urgency: f.urgency, verification: f.verification, to: `/findings/${encodeURIComponent(f.id)}` }))}
         action={(i) => (
           <Button size="sm" variant="ghost" className="h-7" disabled={!can} title={need} aria-label={t('byDevice.handleOneOf', { cve: i.cve, device: device.name })}
             onClick={() => onHandle({ device, rows: rows.filter((r) => r.id === i.id) })}>{t('byDevice.handleOne')}</Button>
@@ -109,7 +109,7 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
           <>
             <p role="status" className="text-sm" data-count="device">{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}</p>
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              server={{ total: d.total, list }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
+              server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
               mobileRow={(c) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} />} />
           </>
         )}

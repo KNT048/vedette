@@ -29,8 +29,8 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(doc).getByText(/^8 findings are open\. 5 need action now\. 6 were handled in this period\.$/)).toBeInTheDocument()
     expect(within(doc).getAllByRole('heading', { level: 3 }).map((h) => h.textContent?.replace(/^\d+/, ''))).toEqual(['Summary', 'Handled this period', 'Still open', 'New this period', 'External exposure', 'Detections', 'Coverage'])
     const handled = within(doc).getByRole('region', { name: 'Handled this period' })
-    expect(within(handled).getAllByText(/^Patched by Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)
-    expect(within(handled).getByText(/^Patched by Vedette: Notepad\+\+ was removed/)).toBeInTheDocument()
+    expect(within(handled).getAllByText(/^By Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)
+    expect(within(handled).getByText(/^By Vedette: Notepad\+\+ was removed/)).toBeInTheDocument()
     expect(within(handled).getByText('Vedette saw 3 of them itself, without anyone telling it.')).toBeInTheDocument()
     expect(within(handled).queryByText(/Not relevant/)).toBeNull() // left out by default
     expect(within(doc).getAllByText('Not added yet').length).toBeGreaterThan(0) // the laptop nobody added, included by default
@@ -119,7 +119,7 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(doc).queryByRole('img', { name: /^Open at the start/ })).toBeNull()
     const open = within(doc).getByRole('region', { name: 'Still open' })
     expect(within(open).getByRole('columnheader', { name: 'Device' })).toBeInTheDocument() // grouped by CVE: one row per device
-    expect(within(within(doc).getByRole('region', { name: 'Handled this period' })).getByText(/^Not relevant by Vedette: the match was corrected/)).toBeInTheDocument()
+    expect(within(within(doc).getByRole('region', { name: 'Handled this period' })).getByText(/^By Vedette: the match was corrected/)).toBeInTheDocument()
     expect(within(doc).getByText(/Includes findings handled as not relevant\. Open findings grouped by CVE\./)).toBeInTheDocument()
   })
 

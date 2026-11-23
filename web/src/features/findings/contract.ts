@@ -285,7 +285,9 @@ export const CveRow = z.object({
   severity: CveSeverity.nullable(),
   verified: Verified,
   safe_check: z.boolean().describe('A safe check exists for the CVE and can reach the device: a vulnerability check of the device can confirm it, rule it out, or see whether a fix holds'),
-}).describe('One CVE of a list, a link to its finding')
+  urgency: Urgency.describe('The same urgency and reasons as the finding\'s View: the reasons line under the status'),
+  verification: Verification.describe('The same verification as the finding\'s View: the confirmation line under the status'),
+}).describe('One CVE of a list, a link to its finding, with the status lines its finding\'s page shows')
 export const SeverityCounts = z.object({
   critical: z.number().int().min(0), high: z.number().int().min(0), medium: z.number().int().min(0), low: z.number().int().min(0),
   none: z.number().int().min(0), unscored: z.number().int().min(0).describe('No CVSS score yet'),
@@ -377,6 +379,21 @@ export const InputList = z.object({
   items: z.array(InputItem).describe('Devices not added yet first, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true'),
   total: z.number().int().min(0).describe('The queue length: the tab count'),
 })
+export const AnsweredQuestion = z.object({
+  id: z.string().describe('The question'),
+  question: QuestionKind,
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  cve: cve.nullable(),
+  cves: z.number().int().min(1),
+  answer: z.literal('not_affected'),
+  by: z.string().describe('Who answered'),
+  at: iso,
+}).describe('A question a person answered "not affected": no finding records it, so it is listed here and can be asked again')
+export const AnsweredList = z.object({
+  items: z.array(AnsweredQuestion).describe('The newest answer first'),
+  total: z.number().int().min(0),
+})
 export const HandledRow = z.object({
   id: z.string(),
   cve,
@@ -429,10 +446,12 @@ export const Overview = z.object({
       under_attack: z.number().int().min(0), exploited: z.number().int().min(0), public_exploit: z.number().int().min(0),
       critical_edge: z.number().int().min(0), update_recommended: z.number().int().min(0), needs_input: z.number().int().min(0),
     }).describe('Devices by their badge (DeviceStatus.code)'),
+    affected: StatusCounts.describe('Devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its findings count like any device\'s): "3 open findings on 1 device"'),
   }),
   input: z.number().int().min(0).describe('The Needs your input queue length'),
   first: z.array(FirstItem).max(FIRST_TOP).describe('Fix first: the most urgent fix blocks across devices, then the most findings'),
   trend: z.array(z.number().int().min(0)).length(TREND_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
+  trend_start: z.iso.date().describe('The first day of the trend that holds data, in the organization time zone: the first of the 30 days, or the day this box began keeping findings when that is later. The days before it are not drawn or compared'),
   alerts: HomeSummary.shape.alerts,
   incidents: HomeSummary.shape.incidents,
   generated_at: iso,
@@ -460,6 +479,8 @@ export const endpoints = defineEndpoints([
     query: z.object({ q, status: statusFilter, offset, limit }), response: FixCards, example: { query: {} } },
   { method: 'get', path: '/findings/input', summary: 'Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and questions only a person can answer; one queue', stories: ['S-MIT-1', 'S-INV-3'], role: 'viewer',
     query: z.object({ device: deviceFilter, offset, limit }), response: InputList, example: { query: {} } },
+  { method: 'get', path: '/findings/answered', summary: 'The questions a person answered "not affected" (ignored devices left out), the newest first: each can be asked again', stories: ['S-MIT-1'], role: 'viewer',
+    query: z.object({ device: deviceFilter, offset, limit }), response: AnsweredList, example: { query: {} } },
   { method: 'get', path: '/findings/handled', summary: 'Handled: findings by handling, the newest first, each with who and how', stories: ['S-MIT-1'], role: 'viewer',
     query: z.object({ q, resolution: z.string().max(200).optional().describe('Comma-separated resolutions; an unknown value: 400 bad_filter'), device: deviceFilter,
       from: iso.optional().describe('Handled at or after'), to: iso.optional().describe('Handled at or before'), offset, limit }),
@@ -487,6 +508,8 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit', stories: ['S-MIT-1'], role: 'operator',
     params: z.object({ id: z.string().min(1).max(96) }), body: z.object({ answer: z.enum(['affected', 'not_affected']), note: z.string().max(500) }),
     response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
+  { method: 'post', path: '/findings/questions/{id}/unanswer', summary: 'Take back a "not affected" answer: the question is asked again in Needs your input (an "affected" answer made a finding and is changed on its page: 409 not_answered); audit', stories: ['S-MIT-1'], role: 'operator',
+    params: z.object({ id: z.string().min(1).max(96) }), response: z.object({ id: z.string().describe('The question, open again') }) },
   { method: 'get', path: '/findings', summary: 'The findings of one device in every state, newest first, each with its history: what a version entry, "I updated it" or "Not installed" changed on the device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',
     query: z.object({ asset: z.string().min(1).max(96) }), response: FindingList, example: { query: { asset: 'a-bn340' } } },
   { method: 'get', path: '/findings/{id}', summary: 'One finding: evidence, recommendation, compromise indicators, AI results', stories: ['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2'], role: 'viewer',

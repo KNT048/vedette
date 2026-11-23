@@ -11,8 +11,10 @@ import { errMsg } from './errors'
 /** One value the dialog asks for. `min`: the fewest characters (a note's 3); `long`: a note (a text area). */
 export type Ask = { name: string; label: string; hint?: string; placeholder?: string; min?: number; max: number; long?: boolean; required?: boolean; check?: (v: string) => string | undefined }
 
-export function AskDialog({ title, description, fields, submit, busyLabel, done, onSend, onClose }: {
+/** `undo`: the toast after sending offers to take it back (an answer that leaves the queue and no finding records). */
+export function AskDialog({ title, description, fields, submit, busyLabel, done, undo, onSend, onClose }: {
   title: string; description?: string; fields: Ask[]; submit: string; busyLabel?: string; done: string
+  undo?: { label: string; run: () => Promise<unknown>; done: string }
   onSend: (values: Record<string, string>) => Promise<unknown>; onClose: () => void
 }) {
   const { t } = useTranslation('findings')
@@ -33,7 +35,10 @@ export function AskDialog({ title, description, fields, submit, busyLabel, done,
     if (Object.values(errs).some(Boolean)) return
     setBusy(true)
     onSend(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()])))
-      .then(() => { toast.success(done); onClose() }, (er: unknown) => setErrors({ [fields.at(-1)!.name]: errMsg(er) }))
+      .then(() => {
+        toast.success(done, undo ? { action: { label: undo.label, onClick: () => { undo.run().then(() => toast.success(undo.done), (er: unknown) => toast.error(errMsg(er))) } } } : undefined)
+        onClose()
+      }, (er: unknown) => setErrors({ [fields.at(-1)!.name]: errMsg(er) }))
       .finally(() => setBusy(false))
   }
   return (

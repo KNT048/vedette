@@ -433,7 +433,7 @@ describe('findings: the device page\'s Findings tab', () => {
 })
 
 describe('findings: Mark as handled form matrix', () => {
-  it('Cancel drops the draft: the next opening starts at Patched with an empty note', async () => {
+  it('Cancel drops the draft: the next opening starts with nothing chosen and an empty note', async () => {
     renderApp('/findings/f-1')
     const open = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' })); return screen.findByRole('dialog', { name: 'Mark as handled' }) }
     let dlg = await open()
@@ -445,7 +445,7 @@ describe('findings: Mark as handled form matrix', () => {
       await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
       dlg = await open()
     })
-    expect(within(dlg).getByRole('radio', { name: /Patched/ })).toBeChecked()
+    for (const r of within(dlg).getAllByRole('radio')) expect(r).not.toBeChecked()
     expect(within(dlg).getByRole('textbox')).toHaveValue('')
   })
 })
@@ -519,7 +519,12 @@ describe('findings: accept risk until a day (S-MIT-1)', () => {
     await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'No patch window before March')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Mark 1 finding' }))
     expect(await screen.findByRole('heading', { level: 1, name: /risk accepted until/ })).toBeInTheDocument()
-    expect(screen.getByText(/^Risk accepted until .* by admin@acme\.example\. No patch window before March$/)).toBeInTheDocument()
+    // the toast says the status as its badge does, with the day: not the option's "Accept the risk until…."
+    expect(screen.getByText(/^Marked 1 finding: Risk accepted until \d{1,2} [A-Z][a-z]{2} \d{4}\.$/)).toBeInTheDocument()
+    // said once, in the notice under the title: until when, by whom and why (the header no longer repeats it)
+    expect(screen.getByTestId('closed-notice')).toHaveTextContent(/Risk accepted until .* by admin@acme\.example/)
+    expect(screen.getByTestId('closed-notice')).toHaveTextContent('No patch window before March')
+    expect(screen.queryByText(/^Risk accepted until .* by admin@acme\.example\. No patch window before March$/)).toBeNull()
     expect(findingsStore.get().find((x) => x.id === 'f-2')!.history.at(-1)?.action).toBe('risk_accepted')
   })
 })

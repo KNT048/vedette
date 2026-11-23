@@ -653,3 +653,33 @@ func IsUniqueViolation(err error) bool {
 	}
 	return se.Code() == sqliteConstraintUnique || se.Code() == sqliteConstraintPrimaryKey
 }
+
+// ModuleSince is when the module's tables were first made in this database: the time of its first migration (goose's own stamp,
+// kept by a backup and its restore). A reader of a history (a trend of the last days) starts there, not before the module kept
+// anything. Zero when the module has no migration table.
+func (db *DB) ModuleSince(ctx context.Context, module string) (time.Time, error) {
+	t := "core_migration_" + strings.ReplaceAll(module, "-", "_")
+	if !migrationTableRE.MatchString(t) {
+		return time.Time{}, fmt.Errorf("store: module since: bad module %q", module)
+	}
+	var has int
+	if err := db.r.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, t).Scan(&has); err != nil {
+		return time.Time{}, fmt.Errorf("store: module since: %w", err)
+	}
+	if has == 0 {
+		return time.Time{}, nil
+	}
+	var s sql.NullString
+	// t matched migrationTableRE: lower-case letters, digits and underscores, safe to quote as an identifier.
+	if err := db.r.QueryRowContext(ctx, `SELECT strftime('%Y-%m-%dT%H:%M:%SZ', min(tstamp)) FROM "`+t+`"`).Scan(&s); err != nil {
+		return time.Time{}, fmt.Errorf("store: module since: %w", err)
+	}
+	if !s.Valid || s.String == "" {
+		return time.Time{}, nil
+	}
+	at, err := time.Parse(time.RFC3339, s.String)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: module since: %w", err)
+	}
+	return at, nil
+}

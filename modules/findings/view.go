@@ -3,6 +3,7 @@ package findings
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -152,50 +153,111 @@ func keys(m map[string]bool) []string {
 // reasons are the layers 1..4 that apply to f now, read with the urgency pass's own inputs, kept to those at or below the stored layer
 // (a more urgent one the pass has not rated yet is not said: the stored layer is the only urgency).
 func (s *Service) reasons(ctx context.Context, f Finding) ([]ViewReason, error) {
-	if !s.rates() {
-		return nil, nil
+	m, err := s.reasonsOf(ctx, []Finding{f})
+	return m[f.ID], err
+}
+
+// reasonsOf are the reasons of each of fs by finding id, with one read of each input: the finding page and every list row say the same
+// reasons line from it.
+func (s *Service) reasonsOf(ctx context.Context, fs []Finding) (map[string][]ViewReason, error) {
+	out := map[string][]ViewReason{}
+	if !s.rates() || len(fs) == 0 {
+		return out, nil
 	}
 	now := s.now()
-	in, err := s.urgencyInputs(ctx, []Finding{f}, now)
+	in, err := s.urgencyInputs(ctx, fs, now)
 	if err != nil {
 		return nil, err
 	}
-	r := in.rate(f, now)
 	var names map[string]string
 	if s.cfg.Urgency.Names != nil {
 		if names, err = s.cfg.Urgency.Names(ctx); err != nil {
 			return nil, err
 		}
 	}
-	var due string
-	if k, err := s.cfg.Feeds.KevInfo(ctx, []string{f.CVE}); err == nil && k[f.CVE].DueDate != nil {
-		due = *k[f.CVE].DueDate
+	cves := make([]string, 0, len(fs))
+	for _, f := range fs {
+		if f.Urgency < UrgencyUpdate {
+			cves = append(cves, f.CVE)
+		}
 	}
-	var out []ViewReason
-	for _, x := range r.Reasons {
-		if x.Layer < f.Urgency || x.Layer >= UrgencyUpdate {
-			continue
+	slices.Sort(cves)
+	kev := map[string]KevInfo{}
+	if len(cves) > 0 {
+		if k, err := s.cfg.Feeds.KevInfo(ctx, slices.Compact(cves)); err == nil {
+			kev = k
 		}
-		vr := ViewReason{Reason: x}
-		switch x.Layer {
-		case UrgencyUnderAttack:
-			vr.Name, vr.Source = "Intrusion alert", "ids"
-		case UrgencyCriticalEdge:
-			vr.Source, vr.Name = "cvss", "CVSS"
-			if c := in.facts[f.CVE].CVSS; c != nil {
-				vr.Name = fmt.Sprintf("CVSS %.1f", c.Score)
-			}
-		default:
-			if vr.Name = names[x.Source]; vr.Name == "" {
-				continue // a source the box no longer has: never shown by its id
-			}
-			if x.Source == "cisa-kev" {
-				vr.Due = due
-			}
+	}
+	for _, f := range fs {
+		if f.Urgency >= UrgencyUpdate {
+			continue // an update that is only recommended has no reason to tell
 		}
-		out = append(out, vr)
+		r := in.rate(f, now)
+		var due string
+		if d := kev[f.CVE].DueDate; d != nil {
+			due = *d
+		}
+		var rs []ViewReason
+		for _, x := range r.Reasons {
+			if x.Layer < f.Urgency || x.Layer >= UrgencyUpdate {
+				continue
+			}
+			vr := ViewReason{Reason: x}
+			switch x.Layer {
+			case UrgencyUnderAttack:
+				vr.Name, vr.Source = "Intrusion alert", "ids"
+			case UrgencyCriticalEdge:
+				vr.Source, vr.Name = "cvss", "CVSS"
+				if c := in.facts[f.CVE].CVSS; c != nil {
+					vr.Name = fmt.Sprintf("CVSS %.1f", c.Score)
+				}
+			default:
+				if vr.Name = names[x.Source]; vr.Name == "" {
+					continue // a source the box no longer has: never shown by its id
+				}
+				if x.Source == "cisa-kev" {
+					vr.Due = due
+				}
+			}
+			rs = append(rs, vr)
+		}
+		out[f.ID] = rs
 	}
 	return out, nil
+}
+
+// listViews are the views of list rows: the device, line and severity, the reasons of their urgency and the history a confirmation is
+// read from (who and when), so a row says the same status, reasons line and confirmation line as the finding's own page.
+func (s *Service) listViews(ctx context.Context, fs []Finding) ([]View, error) {
+	vs, err := s.views(ctx, fs)
+	if err != nil {
+		return nil, err
+	}
+	confirmed := []string{}
+	for _, f := range fs {
+		if f.Confirmed() {
+			confirmed = append(confirmed, f.ID)
+		}
+	}
+	if len(confirmed) > 0 {
+		ids, _ := json.Marshal(confirmed)
+		evs, err := eventsOf(ctx, s.rd(ctx), `f.id IN (SELECT value FROM json_each(?)) AND e.kind IN ('created', 'confirmed')`, string(ids))
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading the confirmations: %w", err)
+		}
+		for i := range vs {
+			vs[i].Events = evs[vs[i].Finding.ID]
+		}
+	}
+	rs, err := s.reasonsOf(ctx, fs)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: the reasons of list rows could not be read", "error", err)
+		return vs, nil // the statuses stand on the stored layers; only their reasons lines are missing
+	}
+	for i := range vs {
+		vs[i].Reasons = rs[vs[i].Finding.ID]
+	}
+	return vs, nil
 }
 
 // ---- the API shape of the view (contract.ts, "The findings model") ----
@@ -310,17 +372,20 @@ func productPart(f Finding) string {
 }
 
 type cveRowJS struct {
-	ID       string         `json:"id"`
-	CVE      string         `json:"cve"`
-	Status   string         `json:"status"`
-	Severity *cveSeverityJS `json:"severity"`
-	Verified string         `json:"verified"`
-	Check    bool           `json:"safe_check"`
+	ID           string         `json:"id"`
+	CVE          string         `json:"cve"`
+	Status       string         `json:"status"`
+	Severity     *cveSeverityJS `json:"severity"`
+	Verified     string         `json:"verified"`
+	Check        bool           `json:"safe_check"`
+	Urgency      urgencyJS      `json:"urgency"`
+	Verification verificationJS `json:"verification"`
 }
 
+// cveRow is one CVE of a list with the status lines its finding's page shows: the reasons of its urgency and how it is known.
 func cveRow(v View) cveRowJS {
 	return cveRowJS{ID: v.Finding.ID, CVE: v.Finding.CVE, Status: v.Status(), Severity: severityJS(v.Severity), Verified: string(v.Finding.Verified),
-		Check: v.SafeCheck}
+		Check: v.SafeCheck, Urgency: urgencyOf(v), Verification: verificationOf(v.Finding, v.Events)}
 }
 
 type reasonJS struct {

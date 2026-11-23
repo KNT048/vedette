@@ -112,8 +112,9 @@ export function fixLink(b: CveBrief): string | null {
  * the status. "VMware ESXi hypervisor has an Out-of-bounds Write weakness (CWE-787) that an attacker can use with local access,
  * with high privileges and with no user action; attackers use it in real attacks."
  */
-export function briefSentence(t: TFunction<'feeds'>, b: CveBrief): string {
-  const product = b.display ?? b.products[0] ?? t('brief.theProduct')
+export function briefSentence(t: TFunction<'feeds'>, b: CveBrief, known?: string | null): string {
+  // `known`: the product as the page already knows it (a finding's software line), before the generic "The product"
+  const product = b.display ?? b.products[0] ?? known ?? t('brief.theProduct')
   const cwe = b.cwe.find((c) => c.name)
   const weakness = cwe ? t('brief.weakness', { name: cwe.name, id: cwe.id }) : t('brief.flaw')
   const r = b.cvss?.reading

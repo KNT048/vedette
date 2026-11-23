@@ -45,7 +45,8 @@ func StatusMeaning(layer int) string {
 // ReasonsLine is the urgency reasons of the view as one line, built the way the finding page builds its line (ReasonsLine.tsx): a layer at a
 // time, most urgent first, each with its sources ("name, detail"), the earliest date of the layer, and after it "not yet in CISA KEV" (an
 // exploited layer with no CISA entry) and "fix by <day>" (the earliest day a list asks for): "Exploited in the wild: Rapid7, Mandiant
-// (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)". The reasons are the ones the page lists
+// (19 Nov 2026); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov 2026)". Every date carries its year, as
+// the fix-by day beside it does. The reasons are the ones the page lists
 // (View.Reasons: the layers at or below the stored one, those with a date). "" when there are none.
 func (v View) ReasonsLine() string {
 	var layers []int
@@ -80,7 +81,7 @@ func (v View) ReasonsLine() string {
 			}
 			listed = listed || r.Source == "cisa-kev"
 		}
-		text := StatusName(l) + ": " + strings.Join(names, ", ") + " (" + orgtime.CalendarShort(first) + ")"
+		text := StatusName(l) + ": " + strings.Join(names, ", ") + " (" + orgtime.CalendarDay(first) + ")"
 		if l == UrgencyExploited && !listed {
 			text += "; not yet in CISA KEV"
 		}
@@ -90,4 +91,40 @@ func (v View) ReasonsLine() string {
 		parts = append(parts, text)
 	}
 	return strings.Join(parts, " · ")
+}
+
+// VerificationLine is how Vedette knows the device is affected, the second line under the status in the words of every screen
+// (VerificationLine.tsx): "Confirmed by a safe check", "Confirmed: the device reports this version", "Confirmed by <person>", "Not
+// confirmed yet: based on a scan banner". A notice or a mail about a finding says it with this, so it reads as the finding's page.
+func (v View) VerificationLine() string {
+	c := v.Confirmation()
+	switch c.Verified {
+	case VerifiedScan:
+		return "Confirmed by a safe check"
+	case VerifiedDevice:
+		return "Confirmed: the device reports this version"
+	case VerifiedPerson:
+		if c.By != "" {
+			return "Confirmed by " + c.By
+		}
+		return "Confirmed by a person"
+	}
+	return "Not confirmed yet: based on " + BasisWords(c.Basis)
+}
+
+// BasisWords names what an unconfirmed finding rests on, as the screens say it ("a scan banner").
+func BasisWords(b DetectionBasis) string {
+	switch b {
+	case DetectScan:
+		return "a safe check"
+	case DetectDeviceVersion:
+		return "the version the device reports"
+	case DetectPackage:
+		return "the distribution's package data"
+	case DetectStatement:
+		return "a version someone entered"
+	case DetectPerson:
+		return "a person's word"
+	}
+	return "a scan banner"
 }

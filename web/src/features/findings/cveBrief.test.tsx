@@ -35,13 +35,14 @@ async function esxiFinding(b: CveBrief = brief) {
 }
 
 describe('the CVE summary card on a finding', () => {
-  it('says the CVE in one sentence, why it is urgent, the fix for this device with the advisory, and that no workaround is published', async () => {
+  it('says the CVE in one sentence, the fix for this device with the advisory, and that no workaround is published', async () => {
     await esxiFinding()
     renderApp('/findings/f-2')
     const card = (await screen.findByRole('heading', { name: 'About CVE-2025-22225' })).closest('section')!
     expect(await within(card).findByTestId('brief-sentence')).toHaveTextContent(
       'VMware ESXi hypervisor has a flaw of type “Out-of-bounds Write” (CWE-787) that an attacker can use with local access to it, with high privileges and with no action from a user; attackers use it in real attacks.')
-    expect(within(card).getByText(/^Exploited in the wild:/).closest('p')).toHaveTextContent('Exploited in the wild: CISA KEV (4 Mar); fix by 25 Mar 2025')
+    // why it is urgent is the finding's status lines under the title (the words every list says), not a second line from the CVE record
+    expect(within(card).queryByTestId('reasons-line')).toBeNull()
     expect(within(card).getByText(/^Fixed in 8\.0 U3d \(build 24585383\): upgrade/)).toBeInTheDocument()
     expect(within(card).getByRole('link', { name: /^Vendor advisory \(support\.broadcom\.com\)/ })).toHaveAttribute('href', esxiBrief.references[0]!.url)
     expect(within(card).getByText('No workaround is published: install the fix.')).toBeInTheDocument()

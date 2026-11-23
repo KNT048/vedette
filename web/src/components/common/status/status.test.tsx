@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router'
 import type { ReactNode } from 'react'
 import '@/lib/i18n'
 import { FINDING_STATUSES } from '@/lib/statusCodes'
-import { CveList, HandledLine, ReasonsLine, SeverityBadge, StatusBadge, VerificationLine, bandOf, type CveItem } from '.'
+import { CveList, FindingStatusLines, HandledLine, ReasonsLine, SeverityBadge, StatusBadge, VerificationLine, bandOf, type CveItem } from '.'
 
 const inRouter = (ui: ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>)
 
@@ -83,10 +83,36 @@ describe('HandledLine', () => {
       <HandledLine handled={{ ...base, resolution: 'mitigated', via: 'person', by: 'ana', note: 'firewall rule on port 443' }} />
       <HandledLine handled={{ ...base, resolution: 'accepted', via: 'person', by: 'ana', accepted_until: '2027-03-03' }} />
     </>)
-    expect(screen.getByText('Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)')).toBeInTheDocument()
-    expect(screen.getByText('Patched by Vedette: WinRAR was removed (18 Nov)')).toBeInTheDocument()
-    expect(screen.getByText('Mitigated by ana (18 Nov): firewall rule on port 443')).toBeInTheDocument()
-    expect(screen.getByText(/^Risk accepted until .*2027 by ana \(18 Nov\)$/)).toBeInTheDocument()
+    expect(screen.getByText('Patched by Vedette: version moved 6.24 → 7.23 (18 Nov 2026)')).toBeInTheDocument()
+    expect(screen.getByText('Patched by Vedette: WinRAR was removed (18 Nov 2026)')).toBeInTheDocument()
+    expect(screen.getByText('Mitigated by ana (18 Nov 2026): firewall rule on port 443')).toBeInTheDocument()
+    expect(screen.getByText(/^Risk accepted until .*2027 by ana \(18 Nov 2026\)$/)).toBeInTheDocument()
+  })
+})
+
+describe('HandledLine under its badge', () => {
+  it('does not say the status the badge beside it says', () => {
+    const h = { by: 'ana', at: '2026-11-18T08:00:00Z', note: 'isolated segment', accepted_until: '2026-12-24', from_version: null, to_version: null, resolution: 'accepted', via: 'person' } as const
+    const { container } = render(<FindingStatusLines value={{ status: 'accepted', handled: h }} />)
+    expect(container.textContent).toMatch(/^Risk accepted until 24 Dec 2026By ana \(18 Nov 2026\): isolated segment$/)
+    expect(container.textContent!.match(/Risk accepted/g)).toHaveLength(1)
+  })
+})
+
+describe('FindingStatusLines', () => {
+  const urgency = { internet: null, reasons: [{ layer: 2, source: 'cisa-kev', name: 'CISA KEV', date: '2025-03-04', url: null, detail: null, due: '2025-03-25' }] }
+  const verification = { verified: 'no', basis: 'statement', by: null, at: null } as const
+  it('the badge, why it has that status and how Vedette knows: one finding, one set of words', () => {
+    const { container } = render(<FindingStatusLines value={{ status: 'exploited', urgency, verification }} />)
+    expect(container.querySelector('[data-status="exploited"]')).not.toBeNull()
+    expect(screen.getByTestId('reasons-line')).toHaveTextContent('Exploited in the wild: CISA KEV (4 Mar 2025); fix by 25 Mar 2025')
+    expect(screen.getByText('Not confirmed yet: based on a version someone entered')).toBeInTheDocument()
+  })
+  it('the lines alone under a badge a row already shows: an update only recommended has no reasons line, only its confirmation', () => {
+    const { container } = render(<FindingStatusLines badge={false} value={{ status: 'update_recommended', urgency: { internet: null, reasons: [] }, verification: { verified: 'device', basis: 'device_version', by: null, at: null } }} />)
+    expect(container.querySelector('[data-status]')).toBeNull()
+    expect(screen.queryByTestId('reasons-line')).toBeNull()
+    expect(container).toHaveTextContent('Confirmed: the device reports this version')
   })
 })
 
@@ -95,12 +121,12 @@ describe('ReasonsLine', () => {
     ({ layer, source, name, date, url: extra.url ?? null, detail: extra.detail ?? null, due: extra.due ?? null })
   it('every layer that applies, with sources, date and link; a layer 2 without CISA KEV says so', () => {
     const { container } = render(<ReasonsLine urgency={{ internet: null, reasons: [r(2, 'rapid7', 'Rapid7', '2026-11-19'), r(2, 'gti', 'Mandiant', '2026-11-20'), r(3, 'github-poc', 'GitHub', '2026-11-18', { detail: '244 stars', url: 'https://github.com/example/poc' })] }} />)
-    expect(container.textContent).toBe('Exploited in the wild: Rapid7, Mandiant (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)')
+    expect(container.textContent).toBe('Exploited in the wild: Rapid7, Mandiant (19 Nov 2026); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov 2026)')
     expect(screen.getByRole('link', { name: 'GitHub, 244 stars' })).toHaveAttribute('href', 'https://github.com/example/poc')
   })
   it('CISA KEV with its due date; nothing for an update that is only recommended', () => {
     const { container } = render(<ReasonsLine urgency={{ internet: null, reasons: [r(2, 'cisa-kev', 'CISA KEV', '2026-11-10', { due: '2026-12-01' })] }} />)
-    expect(container.textContent).toMatch(/^Exploited in the wild: CISA KEV \(10 Nov\); fix by 1 Dec 2026$/)
+    expect(container.textContent).toMatch(/^Exploited in the wild: CISA KEV \(10 Nov 2026\); fix by 1 Dec 2026$/)
     expect(render(<ReasonsLine urgency={{ internet: null, reasons: [] }} />).container).toBeEmptyDOMElement()
   })
 })

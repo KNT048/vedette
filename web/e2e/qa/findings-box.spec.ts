@@ -18,6 +18,8 @@ type Role = keyof typeof USER
 const EMAIL: Record<Role, string> = { admin: 'admin@qa.test', operator: 'op@qa.test', viewer: 'view@qa.test' }
 const PACK_CVE = 'CVE-2022-27593'
 const NAS_IP = '192.168.10.21' // the device the pack finding is on, on the mock and on the box (real-box.mjs)
+// The sample's CVE on an exploited list without a confirmed pack (WordPress). On the box any CVE without a pack will do.
+const NOPACK_CVE = REAL ? null : 'CVE-2026-119977'
 
 async function asMockRole(page: Page, role: Role) {
   await startWithSample(page)
@@ -48,15 +50,18 @@ const h1 = (page: Page) => page.getByRole('heading', { level: 1 }).first()
 const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toast]').filter({ hasText: re }).first()).toBeVisible()
 const noHScroll = async (page: Page, where: string) =>
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${where}: horizontal scroll`).toBeLessThanOrEqual(1)
-/** Table rows (desktop) or cards (phone) of the findings list, not counting the header row. */
-const rowsOf = (page: Page, isMobile: boolean) =>
-  isMobile ? page.getByRole('list', { name: 'Findings list' }).getByRole('listitem') : page.getByRole('table', { name: 'Findings list' }).getByRole('row').filter({ hasNot: page.getByRole('columnheader') })
+const byDevice = (page: Page) => page.getByRole('tabpanel', { name: 'By device' })
+/** One card per device with open findings: table rows on a wide screen, a list on a phone. */
+const devicesOf = (page: Page) => byDevice(page).getByRole('article')
+const search = (page: Page) => byDevice(page).getByRole('searchbox', { name: 'Search devices, software or CVEs' })
+const summary = (page: Page) => byDevice(page).getByRole('status').filter({ hasText: /open findings? on \d+ devices?$/ })
 
-/** The id of the first finding of a CVE (pack) or of any other CVE (no pack), read from the links of the list. */
+/** The id of the first finding of a CVE (pack) or of any other CVE (no pack), read from the CVE links of By device. */
 async function findingId(page: Page, which: 'pack' | 'nopack'): Promise<string> {
-  await page.goto(which === 'pack' ? `/findings?cve=${PACK_CVE}` : '/findings')
-  await expect(h1(page)).toContainText(/unresolved finding/)
-  const links = page.locator('a[href^="/findings/"]:visible')
+  const cve = which === 'pack' ? PACK_CVE : NOPACK_CVE
+  await page.goto(cve ? `/findings?tab=device&by-device.q=${cve}` : '/findings?tab=device')
+  await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+  const links = byDevice(page).getByRole('link', { name: /^CVE-\d{4}-\d+$/ })
   await expect(links.first()).toBeVisible()
   for (const a of await links.all()) {
     const isPack = (await a.innerText()).trim() === PACK_CVE
@@ -72,49 +77,52 @@ async function reopen(page: Page, id: string) {
 }
 
 test.describe('findings: list (S-MIT-1)', () => {
-  test('headline, filters, CVE filter, open a row, Back, reload', async ({ page, isMobile }, info) => {
+  test('headline, status filter, Handled, an older CVE link, search, open a row, Back, reload', async ({ page }, info) => {
     const errors = collectErrors(page)
     await start(page, 'operator')
-    await expect(h1(page)).toContainText(/^\d+ unresolved findings?, \d+ confirmed$/)
-    const rows = rowsOf(page, isMobile)
-    await expect(rows.first()).toBeVisible()
+    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    const open = Number((await h1(page).innerText()).split(' ')[0])
+    await expect(summary(page)).toHaveText(new RegExp(`^${open} open findings? on \\d+ devices?$`)) // the headline and the list agree
+    await expect(devicesOf(page).first()).toBeVisible()
     await shot(page, 'findings-box', `${info.project.name}-list`)
-    await page.getByRole('button', { name: 'Suspected or detected', exact: true }).click()
-    await expect(rows.first()).toBeVisible()
+    const exploited = byDevice(page).getByRole('button', { name: /^Exploited in the wild \d+$/ })
+    const n = Number((await exploited.innerText()).match(/\d+$/)![0])
+    await exploited.click()
+    await expect(exploited).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/status=exploited/)
+    await expect(summary(page)).toHaveText(new RegExp(`^${n} open findings? on`))
+    await byDevice(page).getByRole('button', { name: 'Show all statuses' }).click()
+    await expect(summary(page)).toHaveText(new RegExp(`^${open} open findings? on`))
     await page.getByRole('tab', { name: /^Handled/ }).click()
-    await expect(rows.first().or(page.getByText('No findings in this list.').first()).first()).toBeVisible()
-    await page.getByRole('tab', { name: /^Open/ }).click()
-    await page.getByRole('button', { name: 'All unresolved', exact: true }).click()
-    await expect(rows.first()).toBeVisible()
-    await page.goto(`/findings?cve=${PACK_CVE.toLowerCase()}`) // lower case in the address bar
-    await expect(page.getByRole('button', { name: new RegExp(`Clear ${PACK_CVE} filter`) })).toBeVisible()
-    await expect(rows.first()).toBeVisible()
-    for (const a of await page.getByRole('link', { name: PACK_CVE }).all()) await expect(a).toBeVisible()
-    await page.getByRole('button', { name: new RegExp(`Clear ${PACK_CVE} filter`) }).click()
-    await expect(page.getByRole('button', { name: new RegExp(`Clear ${PACK_CVE} filter`) })).toHaveCount(0)
-    await page.goto(`/findings?cve=CVE-1999-0001`)
-    await expect(page.getByText(/No findings for CVE-1999-0001/).first()).toBeVisible()
-    await page.goto(`/findings?cve=${PACK_CVE}`) // the full list has 195 rows on the box: open the one that matters through the filter
-    await page.getByRole('link', { name: PACK_CVE }).first().click()
+    await expect(page.getByRole('tabpanel', { name: 'Handled' })).toBeVisible()
+    await page.goto(`/findings?cve=${PACK_CVE.toLowerCase()}`) // an older link, lower case in the address bar: By device searched for it
+    await expect(search(page)).toHaveValue(PACK_CVE)
+    await expect(devicesOf(page).first()).toBeVisible()
+    for (const a of await byDevice(page).getByRole('link', { name: /^CVE-\d{4}-\d+$/ }).all()) await expect(a).toHaveText(PACK_CVE)
+    await search(page).fill('CVE-1999-0001')
+    await expect(summary(page)).toHaveText('0 open findings on 0 devices')
+    await page.goto(`/findings?tab=device&by-device.q=${PACK_CVE}`) // the full list can be long on the box: open the one that matters through the search
+    await byDevice(page).getByRole('link', { name: PACK_CVE }).first().click()
     await expect(page).toHaveURL(/\/findings\/[^/]+$/)
     await expect(h1(page)).toContainText(PACK_CVE)
     await page.goBack()
-    await expect(page).toHaveURL(/\/findings\?cve=/)
+    await expect(page).toHaveURL(/by-device\.q=/)
     await page.reload()
-    await expect(h1(page)).toContainText(/unresolved finding/)
+    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
     expect(errors, errors.join('\n')).toEqual([])
   })
 
   test('a viewer reads the list', async ({ page }) => {
     await start(page, 'viewer')
-    await expect(h1(page)).toContainText(/unresolved finding/)
-    await expect(page.locator('a[href^="/findings/"]:visible').first()).toBeVisible()
+    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    await expect(byDevice(page).getByRole('link', { name: /^CVE-\d{4}-\d+$/ }).first()).toBeVisible()
+    for (const b of await page.getByRole('button', { name: /^Mark (these )?as handled: / }).all()) await expect(b).toBeDisabled()
   })
 
   test('phone: no sideways scroll on the list and on a finding', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'phone only')
     await start(page, 'operator')
-    await expect(h1(page)).toContainText(/unresolved finding/)
+    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
     await noHScroll(page, 'list')
     const id = await findingId(page, 'pack')
     await page.goto(`/findings/${id}`)
@@ -206,7 +214,7 @@ test.describe('findings: What to do with a confirmed pack (S-MIT-1)', () => {
   test('links: the device, the CVE page, "Rescan this device"', async ({ page }) => {
     await start(page, 'operator')
     await page.goto(`/findings/${await findingId(page, 'pack')}`)
-    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', /^\/scans\?target=.+/)
+    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', /^\/devices\/[^/?]+$/)
     await page.getByRole('link', { name: new RegExp(`Open ${PACK_CVE} page`) }).click()
     await expect(page).toHaveURL(new RegExp(`/cve/${PACK_CVE}`))
     await expect(h1(page)).toContainText(PACK_CVE)
@@ -235,7 +243,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
       await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai#ai-profiles')
     } else {
       await ask.click()
-      await expect(page.getByText(/AI-generated/).locator('visible=true').first()).toBeVisible() // #824: the no-pack note's "AI-generated" mention is behind its ⓘ; the label on the answer must show
+      await expect(page.getByText(/AI-generated/).locator('visible=true').first()).toBeVisible() // the no-pack note's "AI-generated" mention is behind its ⓘ; the label on the answer must show
       await page.reload()
       await expect(page.getByRole('button', { name: /^Ask my AI again$/ })).toHaveCount(1)
     }
@@ -302,9 +310,12 @@ test.describe('findings: status dialog (S-MIT-1)', () => {
     const id = await findingId(page, 'nopack')
     await reopen(page, id)
     await page.goto(`/findings/${id}`)
+    await expect(h1(page)).toContainText(NOPACK_CVE ?? /CVE-/)
+    await page.waitForLoadState('networkidle') // the page has settled: a late re-render cannot take the focus from the button
     const heading = await h1(page).innerText()
     const btn = page.getByRole('button', { name: 'Mark as handled' })
     await btn.focus()
+    await expect(btn).toBeFocused()
     await page.keyboard.press('Enter')
     const dlg = page.getByRole('dialog')
     await expect(dlg).toBeVisible()
@@ -334,9 +345,10 @@ test.describe('findings: device panel, missing finding, signed out', () => {
   test('the device page lists the findings of that device and links to them', async ({ page }) => {
     await start(page, 'operator')
     await page.goto(`/findings/${await findingId(page, 'pack')}`)
-    const dev = page.locator('section[aria-labelledby="dev-title"]').getByRole('link').first()
-    await dev.click()
+    await page.getByRole('region', { name: 'Device' }).getByRole('link').first().click()
     await expect(page).toHaveURL(/\/devices\/[^/]+$/)
+    await page.getByRole('tab', { name: /^Findings/ }).click()
+    await expect(page).toHaveURL(/tab=findings/)
     const panel = page.getByRole('region', { name: 'Findings on this device' })
     await expect(panel).toBeVisible()
     await panel.getByRole('link', { name: PACK_CVE }).click()
@@ -347,7 +359,7 @@ test.describe('findings: device panel, missing finding, signed out', () => {
   test('a finding that does not exist says so and offers the way back', async ({ page }) => {
     await start(page, 'operator', '/findings/does-not-exist')
     await expect(page.getByText(/No such finding/).first()).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Findings' })).toBeVisible() // docs/UI.md §3: the parent in the breadcrumb
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Findings' })).toBeVisible() // the parent in the breadcrumb
     await page.goto(`/findings/${'f'.repeat(80)}`) // longer than any id
     await expect(page.getByText(/No such finding|not valid|invalid/i).first()).toBeVisible()
   })
@@ -375,7 +387,7 @@ test.describe('findings: device panel, missing finding, signed out', () => {
       await expect(page.getByText('Confirmed by Vedette maintainers', { exact: true })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Mark as handled' }).or(page.getByRole('button', { name: 'Reopen finding' }))).toBeVisible()
       await page.goto('/findings')
-      await expect(h1(page)).toContainText(/unresolved finding/)
+      await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
     } finally {
       expect((await toggle(true)).status()).toBe(200)
     }

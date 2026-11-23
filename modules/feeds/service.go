@@ -300,9 +300,7 @@ func (s *Service) ready(ctx context.Context) error {
 	if err := s.Seed(ctx); err != nil {
 		return err
 	}
-	if err := s.LearnWindowsReleases(ctx); err != nil { // The last good list; a helper table never stops the feeds (review r1 L2)
-		s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
-	}
+	s.learnWindowsReleases(ctx) // The last good list; a helper table never stops the feeds (review r1 L2)
 	s.seeded = true
 	return nil
 }
@@ -393,4 +391,13 @@ func (s *Service) reconcileDevices(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// failLevel is the level of a failure the caller goes on after: an error, but only debug once ctx has ended (shutdown, the module
+// turned off), where the failure is just the cancel reaching a read or a write.
+func failLevel(ctx context.Context) slog.Level {
+	if ctx.Err() != nil {
+		return slog.LevelDebug
+	}
+	return slog.LevelError
 }

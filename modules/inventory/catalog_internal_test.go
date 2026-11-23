@@ -118,6 +118,18 @@ func TestContract_INV12_CatalogShape(t *testing.T) {
 	if e := c.custom("Red Hat", "OpenJDK"); !slices.Contains(e.kev, "oracle|java se") || slices.ContainsFunc(e.kev, func(k string) bool { return strings.HasPrefix(k, "red hat|") }) {
 		t.Fatalf("the catalogue product of that name (Java), not the vendor's other products: %v", e.kev)
 	}
+	// a Java build is never what an operating system's or a cloud's name finds (a CSV cell "RHEL", a typed "Red Hat" "RHEL")
+	for _, text := range []string{"rhel", "Red Hat", "aws"} {
+		if e := c.find(text); e != nil && slices.Contains(e.kev, "oracle|java se") {
+			t.Errorf("find(%q) is %q, a Java build", text, e.display)
+		}
+	}
+	if e := c.find("rhel"); e == nil || e.product != "Enterprise Linux" {
+		t.Errorf("find(rhel): %+v", e)
+	}
+	if e := c.custom("Red Hat", "RHEL"); slices.Contains(e.kev, "oracle|java se") {
+		t.Errorf("a typed Red Hat RHEL is Java: %v", e.kev)
+	}
 	if e := c.custom("Fortinet", "Brand New"); !slices.Equal(e.kev, []string{"fortinet|brand new"}) || e.kevCount != 0 {
 		t.Fatalf("not every product of the vendor: %v %d", e.kev, e.kevCount)
 	}

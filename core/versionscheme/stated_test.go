@@ -24,6 +24,12 @@ func TestESXi_Stated(t *testing.T) {
 		{"8.0b", "", "8.0.0", "VMware ESXi 8.0b (build 21203435)"},
 		{"7.0 U3s", "", "7.0.3", "VMware ESXi 7.0 Update 3s (build 24585291)"},
 		{"8.0.3 build 99999999", "", "8.0.3", "VMware ESXi 8.0 Update 3 (build 99999999)"}, // a build newer than the table: placed by its version
+		// a host patched past the table states a build it does not list: that build stays, never an older listed one of its update
+		{"8.0.3", "VMware ESXi 8.0.3 (build 99999999)", "8.0.3", "VMware ESXi 8.0 Update 3 (build 99999999)"},
+		{"8.0.3", "VMware ESXi 8.0 Update 3 (build 99999999)", "8.0.3", "VMware ESXi 8.0 Update 3 (build 99999999)"},
+		{"8.0", "VMware ESXi 8.0 Update 3 (build 99999999)", "8.0.3", "VMware ESXi 8.0 Update 3 (build 99999999)"},
+		// a name whose build is of another update than the text says is not the text's release
+		{"8.0.2", "VMware ESXi 8.0 Update 3 (build 99999999)", "8.0.2", "VMware ESXi 8.0 Update 2 (build 22380479)"},
 	} {
 		v, d, ok := s.Stated(c.version, c.display)
 		if !ok || v != c.wantVersion || d != c.wantDisplay {

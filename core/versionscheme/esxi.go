@@ -103,8 +103,16 @@ func esxiStated(version, display string) (string, string, bool) {
 	named := build == "" && update < 0 && letter == "" // the text is a line alone: the name's build says the release
 	if build == "" {
 		if b := esxiNamedBuild.FindStringSubmatch(display); b != nil {
-			if rel, ok := esxiBuilds[b[1]]; ok && rel.Version == line && (named || sameUpdate(rel, max(update, 0), letter)) {
+			rel, ok := esxiBuilds[b[1]]
+			switch {
+			case ok && rel.Version == line && (named || sameUpdate(rel, max(update, 0), letter)):
 				build = b[1]
+			case !ok && letter == "":
+				// a build the table does not list yet (a host patched after the table was written) is the device's own word: it is
+				// kept when the name states it for the update the text says, never replaced by an older build the table lists
+				if u, ok := esxiNamedUpdate(display, line, b[1]); ok && (named || u == update) {
+					build, update = b[1], u
+				}
 			}
 		}
 	}
@@ -144,6 +152,24 @@ func esxiStated(version, display string) (string, string, bool) {
 		return "", "", false // the build belongs to another release than the text says
 	}
 	return line + "." + strconv.Itoa(u), "VMware " + rel.Name + " (build " + build + ")", true
+}
+
+// esxiNamedUpdate is the update a name states for its build ("VMware ESXi 8.0.3 (build N)" and "VMware ESXi 8.0 Update 3 (build N)"
+// are update 3, "VMware ESXi 8.0.0 (build N)" is 0); ok is false when the name is of another line or build, or states no update.
+func esxiNamedUpdate(display, line, build string) (int, bool) {
+	m := esxiTyped.FindStringSubmatch(display)
+	if m == nil || m[1]+"."+m[2] != line || m[6] != build || m[5] != "" {
+		return 0, false
+	}
+	switch {
+	case m[3] != "" && m[4] != "" && m[3] != m[4]:
+		return 0, false
+	case m[4] != "":
+		return atoi(m[4]), true
+	case m[3] != "":
+		return atoi(m[3]), true
+	}
+	return 0, false
 }
 
 // esxiUpdateOf is a release's update number and patch letter ("update_3e" is 3, "e"; "b" is 0, "b"; "-" is 0, ""); -1 when unreadable.

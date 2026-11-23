@@ -10,7 +10,7 @@ inventory service; everything else reads devices and software lines through inve
 | Route | Minimum role |
 |---|---|
 | `GET /inventory/devices`, `/inventory/devices/{id}`, `/inventory/devices/{id}/sources`, `/inventory/possible-same`, `/inventory/catalog`, `/inventory/export.csv`, `/inventory/import-template.csv` | viewer |
-| `POST /inventory/devices`, `PATCH`/`DELETE /inventory/devices/{id}`, `POST /inventory/devices/{id}/approve`, `…/suspicious`, `…/ignore`, `…/software`, `…/differs/{field}/use`, `…/differs/{field}/keep`, `PATCH`/`DELETE /inventory/devices/{id}/software/{sid}`, `POST /inventory/import`, `PUT /inventory/notify-new` | operator |
+| `POST /inventory/devices`, `POST /inventory/box/check` (the box reads its own packages now), `PATCH`/`DELETE /inventory/devices/{id}`, `POST /inventory/devices/{id}/approve`, `…/suspicious`, `…/ignore`, `…/software`, `…/differs/{field}/use`, `…/differs/{field}/keep`, `PATCH`/`DELETE /inventory/devices/{id}/software/{sid}`, `POST /inventory/import`, `PUT /inventory/notify-new` | operator |
 | `GET`/`PUT /inventory/settings`, `PUT /inventory/devices/{id}/sources`, `POST /inventory/devices/{id}/merge`, `GET /inventory/devices/{id}/merge-preview`, `POST /inventory/devices/{id}/split`, `POST /inventory/devices/{id}/keep-separate` | admin |
 
 The other `/inventory/*` routes belong to the modules that serve them: `/inventory/agents/*` (agent-intake), `/inventory/snmp/*`
@@ -35,7 +35,8 @@ detail is in its doc comment.
 
 **The box**
 - **INV-3** Exactly one device is the box (`is_box`), created at install with its own package list; it cannot be deleted
-  (409 `box_device`) or have its sources switched.
+  (409 `box_device`) or have its sources switched. It reads its own packages and ports every hour (`BoxEvery`); its device page
+  shows that as its agent row (last and next read) with Check now (`POST /inventory/box/check`, operator).
 
 **Identity: one machine, one device**
 - **INV-29** A switch, router, access point or firewall seen only by MAC joins exactly one device with an address that does not

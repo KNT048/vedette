@@ -58,6 +58,7 @@ const (
 	ActionCreateToken  = "create_token"   // no agent and no token made for this device: create an agent token for it
 	ActionShowSetup    = "show_setup"     // a token made for this device and no agent yet, or enrolled but never reported: the token and the install command again
 	ActionCheck        = "check"          // the agent reported at least once: the troubleshooting steps
+	ActionBoxCheck     = "box_check"      // the box's own agent: read its packages and ports now (POST /inventory/box/check)
 )
 
 // Agents an agent row names.
@@ -78,6 +79,9 @@ type SourceRow struct {
 	Action *string     `json:"action"`  // the one button; nil when none
 	Agent  *string     `json:"agent"`   // agent row: AgentOsquery, AgentWazuh, AgentBox or AgentNone; nil on the other rows
 	Token  *AgentToken `json:"token"`   // agent row: the token Show setup shows (AgentFact.Token); nil otherwise
+	// NextAt is when the source reads the device next by itself: the box's own agent row (its hourly read, BoxEvery after the last one
+	// since start); nil otherwise or when not known yet.
+	NextAt *string `json:"next_at"`
 }
 
 // AgentToken is an agent enrolment token as the agent row shows it (contract.ts AgentToken): never its secret.
@@ -220,8 +224,14 @@ func (s *Service) snmpRow(ctx context.Context, d Device) SourceRow {
 func (s *Service) agentRow(ctx context.Context, d Device, times map[string]string) SourceRow {
 	r := SourceRow{Source: RowAgent, LastAt: optional(times[RowAgent]), Agent: ptrTo(AgentNone)}
 	switch {
-	case d.IsBox:
+	case d.IsBox: // it reads its own packages and ports every hour, whatever the Agents module; Check now reads them at once
 		r.State, r.Agent = StateReporting, ptrTo(AgentBox)
+		if s.box != nil {
+			r.Action = ptrTo(ActionBoxCheck)
+			if at := s.boxRead.Load(); at > 0 {
+				r.NextAt = ptrTo(store.FormatTS(time.UnixMilli(at).Add(BoxEvery)))
+			}
+		}
 	case !s.enabled("agent-intake"):
 		r.State, r.Action = StateModuleOff, ptrTo(ActionTurnOnModule)
 	case s.agentOf == nil:

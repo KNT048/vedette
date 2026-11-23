@@ -100,7 +100,7 @@ func inventoryJobs(d deps) []jobs.Job {
 	if d.HostSocket != "" {
 		hostc = hostclient.New(d.HostSocket)
 	}
-	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
+	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: inventory.BoxEvery, Run: func(ctx context.Context) error {
 		// The machine's name, not the container's (#471). No answer from the host since core started: keep the row's name rather
 		// than write "vedette" over it.
 		host, ok := d.BoxName.Get(ctx)

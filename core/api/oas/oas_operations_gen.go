@@ -261,6 +261,7 @@ const (
 	InventoryPostInventoryAgentsTokensRemoveUnusedOperation  OperationName = "InventoryPostInventoryAgentsTokensRemoveUnused"
 	InventoryPostInventoryAgentsWazuhSampleDataOperation     OperationName = "InventoryPostInventoryAgentsWazuhSampleData"
 	InventoryPostInventoryAgentsWazuhTestOperation           OperationName = "InventoryPostInventoryAgentsWazuhTest"
+	InventoryPostInventoryBoxCheckOperation                  OperationName = "InventoryPostInventoryBoxCheck"
 	InventoryPostInventoryDevicesOperation                   OperationName = "InventoryPostInventoryDevices"
 	InventoryPostInventoryDevicesIDApproveOperation          OperationName = "InventoryPostInventoryDevicesIDApprove"
 	InventoryPostInventoryDevicesIDDiffersFieldKeepOperation OperationName = "InventoryPostInventoryDevicesIDDiffersFieldKeep"

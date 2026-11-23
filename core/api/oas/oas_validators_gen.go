@@ -75388,6 +75388,8 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) Validate() error 
 		return nil
 	case "check":
 		return nil
+	case "box_check":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -80465,6 +80467,363 @@ func (s *InventoryPostInventoryAgentsWazuhTestReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *InventoryPostInventoryBoxCheckOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Only.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "only",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Rows == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Rows {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rows",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryBoxCheckOKOnly) Validate() error {
+	switch s {
+	case "passive":
+		return nil
+	case "manual":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Action.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Agent.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "agent",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Dot.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dot",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Switch.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "switch",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Token.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "token",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemAction) Validate() error {
+	switch s {
+	case "turn_on_module":
+		return nil
+	case "scan_now":
+		return nil
+	case "approve":
+		return nil
+	case "set_up":
+		return nil
+	case "check_now":
+		return nil
+	case "create_token":
+		return nil
+	case "show_setup":
+		return nil
+	case "check":
+		return nil
+	case "box_check":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemAgent) Validate() error {
+	switch s {
+	case "osquery":
+		return nil
+	case "wazuh":
+		return nil
+	case "box":
+		return nil
+	case "none":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemDot) Validate() error {
+	switch s {
+	case "green":
+		return nil
+	case "amber":
+		return nil
+	case "red":
+		return nil
+	case "grey":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemSource) Validate() error {
+	switch s {
+	case "scan":
+		return nil
+	case "snmp":
+		return nil
+	case "agent":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemState) Validate() error {
+	switch s {
+	case "module_off":
+		return nil
+	case "no_address":
+		return nil
+	case "off":
+		return nil
+	case "waiting":
+		return nil
+	case "working":
+		return nil
+	case "not_approved":
+		return nil
+	case "not_set_up":
+		return nil
+	case "not_answering":
+		return nil
+	case "none":
+		return nil
+	case "reporting":
+		return nil
+	case "quiet":
+		return nil
+	case "never_reported":
+		return nil
+	case "replaced":
+		return nil
+	case "unavailable":
+		return nil
+	case "box":
+		return nil
+	case "ignored":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemSwitch) Validate() error {
+	switch s {
+	case "on":
+		return nil
+	case "off":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hosts)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hosts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryPostInventoryBoxCheckOKRowsItemTokenKind) Validate() error {
+	switch s {
+	case "osquery":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *InventoryPostInventoryDevicesCreated) Validate() error {

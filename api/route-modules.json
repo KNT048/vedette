@@ -282,6 +282,7 @@
   "POST /inventory/agents/tokens/{id}/sample-data": "agent-intake",
   "POST /inventory/agents/wazuh/sample-data": "agent-intake",
   "POST /inventory/agents/wazuh/test": "agent-intake",
+  "POST /inventory/box/check": "inventory",
   "POST /inventory/devices": "inventory",
   "POST /inventory/devices/{id}/approve": "inventory",
   "POST /inventory/devices/{id}/differs/{field}/keep": "inventory",

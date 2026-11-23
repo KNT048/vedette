@@ -1,5 +1,5 @@
 // Package pktgen builds small hand-made packets and recordings for the tests of sensor-passive. Nothing here
-// captures from a network or sends to one: it only produces bytes (agent-safety: fixtures replace the real
+// captures from a network or sends to one: it only produces bytes (fixtures replace the real
 // network). The recordings under ../../testdata are generated from Fixtures and compared byte for byte by
 // TestFixturesAreCurrent; regenerate them with `go test ./modules/sensor-passive/internal/pktgen -run TestWriteFixtures -update`.
 package pktgen

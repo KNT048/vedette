@@ -217,7 +217,12 @@ export const runsStore = collection<RunRow[]>('core_runs', () => [
     steps: [{ seq: 1, name: 'safe checks', status: 'done', total: 12, done: 12, note: '2 findings confirmed', started_at: minAgo(600), ended_at: minAgo(540) }],
     log: [{ ts: minAgo(600), level: 'info', text: 'Started' }, { ts: minAgo(540), level: 'info', text: 'Done' }] }),
   runBase({ id: 'run-m5', module: 'exposure', kind: 'exposure_scan', lane: 'exposure', title: 'Scan of www.example.com',
-    subject: { kind: 'target', id: 'et-1', label: 'www.example.com' }, status: 'done', queued_at: minAgo(300), started_at: minAgo(300), ended_at: minAgo(260), updated_at: minAgo(260) }),
+    subject: { kind: 'target', id: 'et-1', label: 'www.example.com' }, status: 'done', queued_at: minAgo(300), started_at: minAgo(300), ended_at: minAgo(260), updated_at: minAgo(260),
+    items: [
+      { seq: 1, subject_kind: 'address', subject_id: '203.0.113.10', label: '203.0.113.10', outcome: 'checked_top', note: null },
+      { seq: 2, subject_kind: 'port', subject_id: '203.0.113.10:8444', label: '203.0.113.10:8444', outcome: 'checked_top', note: null },
+    ],
+    items_total: 2 }),
   runBase({ id: 'run-m6', module: 'exposure', kind: 'zap_passive', lane: 'zap', title: 'ZAP passive scan of www.example.com', parent_id: 'run-m5',
     subject: { kind: 'target', id: 'et-1', label: 'www.example.com' }, status: 'done', queued_at: minAgo(290), started_at: minAgo(290), ended_at: minAgo(265), updated_at: minAgo(265) }),
   runBase({ id: 'run-m7', module: 'sensor-active', kind: 'snmp_read', lane: 'snmp', title: 'SNMP read of 3 devices', trigger: 'schedule', requested_by: 'system',

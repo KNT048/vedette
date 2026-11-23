@@ -232,7 +232,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
                   <Select id={id} value={fields[k] ?? 'starttls'} aria-invalid={fieldErr[k] ? true : undefined} aria-describedby={fieldErr[k] ? `${id}-error` : undefined} onChange={(e) => {
                     const v = e.target.value
                     fixed('security'); fixed('port') // a port/encryption mismatch is shown under the port
-                    // Cổng mặc định đi theo kiểu mã hoá: 465 = SSL/TLS ngầm, 587 = STARTTLS hoặc không mã hoá (không đổi nếu người dùng đã tự đặt cổng khác).
+                    // The default port follows the encryption type: 465 = implicit SSL/TLS, 587 = STARTTLS or no encryption (unchanged if the user has already set another port).
                     setFields((f) => ({ ...f, security: v, port: v === 'ssl' && f.port === '587' ? '465' : v !== 'ssl' && f.port === '465' ? '587' : f.port ?? '' }))
                   }}>
                     {(['starttls', 'ssl', 'none'] as const).map((o) => <option key={o} value={o}>{t(`channels.f.email.security.${o}`)}</option>)}

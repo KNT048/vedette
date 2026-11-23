@@ -1,11 +1,11 @@
-id: auth-oidc          # trùng tên thư mục
-name: { vi: "Đăng nhập SSO (OIDC)", en: "SSO sign-in (OIDC)" }
-summary: { vi: "Đăng nhập một lần qua OIDC (authorization code + PKCE), ánh xạ nhóm IdP sang 3 vai xem/vận hành/quản trị.", en: "Single sign-on through OIDC (authorization code + PKCE), mapping IdP groups to the three roles viewer/operator/admin." }
+id: auth-oidc          # same as the folder name
+name: { en: "SSO sign-in (OIDC)" }
+summary: { en: "Single sign-on through OIDC (authorization code + PKCE), mapping IdP groups to the three roles viewer/operator/admin." }
 tier: optional
 default: off
 depends: [core]
-permissions: ["outbound:https"]     # discovery, token, JWKS tới IdP của khách khai báo
-ports: []                           # /auth/oidc/* và trang /sso/callback trên cổng 8443 của core
+permissions: ["outbound:https"]     # discovery, token and JWKS requests to the IdP the customer declares
+ports: []                           # /auth/oidc/* and the /sso/callback page on core's port 8443
 container: core
 tables_prefix: oidc_
 tables: [oidc_config, oidc_flow]

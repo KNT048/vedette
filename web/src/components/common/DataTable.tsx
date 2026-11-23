@@ -25,8 +25,8 @@ function useNarrow() {
 }
 
 /**
- * Bảng là thành phần chính (FRONTEND §3): 40px/dòng, header dính, sắp xếp, lọc chữ, phân trang 50.
- * `rowTone` tô viền trái cho dòng cần chú ý (ví dụ "Anh có" + đang bị khai thác).
+ * The table is the main component (FRONTEND §3): 40px rows, sticky header, sorting, text filter, 50 per page.
+ * `rowTone` paints a left border on rows that need attention (for example "You have it" + being exploited).
  * A list that pages has a search box and the same pager above and below it (First, Previous, numbered pages, Next, Last, Go to
  * page, rows per page); the search, the page and the size live in the URL under `urlKey`, so back, reload and a shared link keep them.
  */
@@ -48,12 +48,12 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   pageSize?: number
   initialSort?: SortingState
   caption: string
-  /** Màn hẹp (< 768 px): hiện danh sách thay cho bảng. Nội dung tự lo link/nút; lọc, sắp xếp, phân trang dùng chung. */
+  /** Narrow screen (< 768 px): show a list instead of the table. The content handles its own links/buttons; filtering, sorting and paging are shared. */
   mobileRow?: (row: T) => ReactNode
-  /** Ô chọn "Sort by" trên bảng (mọi độ rộng): các cột sắp xếp được có tiêu đề chữ, kể cả cột ẩn, mỗi cột theo chiều bấm đầu tiên của nó.
-   *  Màn hẹp không có tiêu đề cột để bấm; cột ẩn chỉ sắp được từ đây. Bật theo trang (#825: danh sách finding sắp theo CVSS). */
+  /** "Sort by" select on the table (every width): sortable columns have a text heading, hidden columns included, each in the direction of its first click.
+   *  A narrow screen has no column headers to click; a hidden column can only be sorted from here. Turned on per page (#825: the finding list sorts by CVSS). */
   sortSelect?: boolean
-  /** Cột chỉ để sắp xếp (qua `sortSelect`), không hiện: giá trị của nó đã nằm trong ô của cột khác (#825: CVSS dưới mức rủi ro). */
+  /** A column only for sorting (through `sortSelect`), not shown: its value is already in the cell of another column (#825: CVSS under the risk level). */
   hiddenColumns?: string[]
   /** The column that takes the width the others leave and cuts its content to it (the cell must truncate or wrap), so a long value
    *  never widens the table past its container. */
@@ -129,7 +129,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
       </span>
     ))
     : (empty ?? t('table.empty'))
-  // Chỉ dựng MỘT bố cục (danh sách trên màn hẹp, bảng trên màn rộng): không có nút trùng lặp trong DOM.
+  // Build only ONE layout (a list on a narrow screen, a table on a wide one): no duplicate buttons in the DOM.
   const narrow = useNarrow()
   const asList = !!mobileRow && narrow
   const sortable = sortSelect ? table.getAllLeafColumns().filter((c) => c.getCanSort() && typeof c.columnDef.header === 'string') : []

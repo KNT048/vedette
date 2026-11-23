@@ -1,14 +1,14 @@
-// Nội dung mẫu cho mock: gói giảm thiểu đã xác nhận, dấu hiệu bị khai thác (S-MIT-3). Gói rule vá ảo (S-MIT-2) đã bỏ.
-// Bản thật: content pack ký của dự án Vedette (soạn với AI, người duy trì xác nhận qua PR trên GitHub) (content/mitigation/<CVE>.yaml, status: confirmed). `{IP}`/`{HOST}` được thay bằng thiết bị thật của khách.
-// Mọi chuỗi hiển thị bằng tiếng Anh.
+// Sample content for the mock: confirmed mitigation packs, exploitation indicators (S-MIT-3). The virtual-patch rule pack (S-MIT-2) has been dropped.
+// The real version: a signed content pack of the Vedette project (drafted with AI, confirmed by a maintainer through a PR on GitHub) (content/mitigation/<CVE>.yaml, status: confirmed). `{IP}`/`{HOST}` are replaced with the customer's real device.
+// Every displayed string is English.
 import type { CompromiseCheck, MitigationPack } from './types'
 
 const QNAP = 'https://www.qnap.com/en/security-advisory/qsa-22-24'
 
-// Nguồn đã đối chiếu 2026-11-06:
-// - QNAP QSA-22-24 (qnap.com): bản vá Photo Station theo từng dòng QTS (bảng FIXED_*).
-// - FortiOS: `show … | grep -f` hiện cả khối cấu hình chứa dòng khớp (Fortinet CLI "Using grep to filter get and show command output"); tuỳ bản FortiOS, nên có ghi chú.
-// - FortiOS config firewall address (type geography, country): Fortinet admin guide 7.2.8 "Geography based addresses" (docs.fortinet.com/document/fortigate/7.2.8/administration-guide/286826); config firewall policy `set status enable|disable`: FortiOS CLI reference 6.4.x/7.2 (đối chiếu 2026-11-06).
+// Sources checked 2026-11-06:
+// - QNAP QSA-22-24 (qnap.com): the Photo Station patch per QTS line (the FIXED_* table).
+// - FortiOS: `show … | grep -f` shows the whole config block that contains the matching line (Fortinet CLI "Using grep to filter get and show command output"); it depends on the FortiOS version, so there is a note.
+// - FortiOS config firewall address (type geography, country): Fortinet admin guide 7.2.8 "Geography based addresses" (docs.fortinet.com/document/fortigate/7.2.8/administration-guide/286826); config firewall policy `set status enable|disable`: FortiOS CLI reference 6.4.x/7.2 (checked 2026-11-06).
 // - RouterOS filter: connection-nat-state, in-interface-list, place-before (wiki.mikrotik.com Firewall filter, help.mikrotik.com).
 export function packs(): Record<string, MitigationPack> {
   return {

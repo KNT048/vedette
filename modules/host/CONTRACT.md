@@ -83,7 +83,7 @@ Danh sách gói của "This box" (INV-9) là lệnh đọc `GET /v1/state/packag
 - **POST-2** `container.rollback` xong: container chạy lại với `previous` đã xác minh (đúng `ImageDigest`) và qua kiểm sức khoẻ; với `core` và `rollback.safe=false`, DB là bản `pre_update` của lần cập nhật đó, khôi phục trong cùng run; nếu sức khoẻ hỏng, bản đang chạy được đặt lại và run báo `reverted`/`failed`, không báo thành công.
 - **POST-3** `net.*` thay đổi xong: trạng thái đọc lại (`GET /v1/state/net`) khớp giá trị vừa đặt và hiệu ứng đã kiểm (địa chỉ trên card, gateway trả lời ARP, `chronyc` thấy nguồn, decoy có trong `vedette-hp`); không khớp → hoàn tác hoặc báo lỗi. `net.apply` đổi phần quản trị kết thúc ở `awaiting_confirm` tới khi `net.confirm`/hoàn tác (INV-16).
 - **POST-5** `host.self_update` `succeeded` → `dpkg-query` in bản mới `installed`, `GET /v1/info.host_version` là bản mới, `versions.json` có `current` = bản mới và `previous` = bản cũ với `.deb` còn và đúng SHA-256, `packages/` chỉ hai tệp đó, `staged/` rỗng, nhật ký và `applier` đã xoá, chuỗi kiểm toán vẫn kiểm được; `reverted` → cùng điều đó với bản cũ và `versions.json` không đổi.
-- **POST-4** Mọi lệnh thất bại để hệ thống ở trạng thái cũ hoặc báo rõ trạng thái dở dang; không để thao tác treo giữ khoá vô hạn (có timeout theo lệnh, agent-safety).
+- **POST-4** Mọi lệnh thất bại để hệ thống ở trạng thái cũ hoặc báo rõ trạng thái dở dang; không để thao tác treo giữ khoá vô hạn (có timeout theo lệnh).
 
 ## Forbidden (không bao giờ)
 - **FORBID-1** Chạy lệnh ngoài allowlist; chạy qua shell; nối chuỗi lệnh từ tham số (INV-1, INV-2).

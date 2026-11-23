@@ -10,12 +10,12 @@ import { Field, Textarea } from '@/components/ui/input'
 import { useModules } from '@/lib/modules'
 import { buildBundle, downloadBundle, issueUrl } from './bugReport'
 
-/** S-CORE-5: mô tả, xem trước gói chẩn đoán đã lọc, tải về, mở GitHub issue điền sẵn. Hộp không tự gửi gì. */
+/** S-CORE-5: a description, a preview of the filtered diagnostic bundle, a download, a pre-filled GitHub issue. The box sends nothing by itself. */
 export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('core')
   const { data } = useModules()
   const [text, setText] = useState({ what: '', steps: '', expected: '' })
-  // Dựng lại mỗi lần mở để lấy lỗi mới nhất.
+  // Rebuilt on every open to get the latest errors.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const bundle = useMemo(() => buildBundle(data?.modules), [data, open])
   const set = (k: keyof typeof text) => (e: { target: { value: string } }) => setText((s) => ({ ...s, [k]: e.target.value }))

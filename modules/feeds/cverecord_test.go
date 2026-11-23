@@ -529,8 +529,8 @@ func TestRecordRanges_BeforeAndAfterNVD(t *testing.T) {
 	if err := db.Reader().QueryRowContext(t.Context(), `SELECT title, cwe, ssvc_impact FROM feeds_cve WHERE cve = ?`, cve).Scan(&title, &cwe, &ssvc); err != nil || cwe != `["CWE-122"]` || ssvc.String != "total" {
 		t.Fatalf("columns: %q %q %v %v", title, cwe, ssvc, err)
 	}
-	if n := count(t, db, `SELECT count(*) FROM feeds_cve_ref WHERE cve = ?`, cve); n != 0 {
-		t.Fatalf("references of a CVE no list, signal or finding names: %d", n)
+	if n := count(t, db, `SELECT count(*) FROM feeds_cve_ref WHERE cve = ?`, cve); n != 14 {
+		t.Fatalf("references of a CVE no list, signal or finding names: %d, want the record's 14", n)
 	}
 	write(t, db, func(tx *sql.Tx) error {
 		return storeRecords(t.Context(), tx, []NVDRecord{{CVE: cve, Published: now.AddDate(0, 0, -2), LastModified: now.Add(time.Hour), Status: "Analyzed",

@@ -1,13 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
 
-// QA như người dùng thật cho module logs (S-LOG-1..3). Giao diện chỉ có tiếng Anh. Mỗi test tự dựng dữ liệu, không phụ thuộc thứ tự.
-// Máy dev dùng chung với agent khác (HMR có thể tải lại trang giữa chừng): cho thử lại một lần.
+// QA as a real user for the logs module (S-LOG-1..3). English-only UI. Each test builds its own data and does not depend on order.
+// The dev machine is shared (HMR may reload the page mid-test): allow one retry.
 test.describe.configure({ retries: 1 })
 const VI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
 
-// Bản bền hơn startWithSample/startClean của helpers: đi thẳng /setup (không đua với chuyển hướng từ /).
-/** Xoá dữ liệu rồi mở /setup; thử lại nếu trang vừa tải lại giữa chừng (HMR của server dev dùng chung). */
+// A sturdier version of startWithSample/startClean from helpers: go straight to /setup (no race with the redirect from /).
+/** Clear data then open /setup; retry if the page has just reloaded mid-way (HMR of the shared dev server). */
 async function resetStorage(page: Page) {
   for (let i = 0; i < 3; i++) {
     try {
@@ -29,7 +29,7 @@ async function startWithSample(page: Page) {
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
 }
-/** Cài sạch đi hết các bước, chọn gói "Mid-size business" (có logs), bỏ qua kênh. */
+/** Clean install through all steps, pick the "Mid-size business" pack (has logs), skip the channel. */
 async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await resetStorage(page)
   await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // The terms of use come first
@@ -49,7 +49,7 @@ async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
   await turnOnModules(page, ['Logs']) // A bundle turns on v1 modules only
 }
-/** Đổi phiên mock sang tài khoản khác (u-view = chỉ xem). */
+/** Switch the mock session to another account (u-view = view only). */
 async function asUser(page: Page, userId: string) {
   await page.evaluate((u) => {
     const k = 'vedette-mock-db-v4'
@@ -62,7 +62,7 @@ async function asUser(page: Page, userId: string) {
 const noHorizontalScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
 const visible = (l: ReturnType<Page['locator']>) => l.locator('visible=true').first()
 
-/** Add log source: mở hộp thoại, tìm, chọn loại. */
+/** Add log source: open the dialog, search, pick a type. */
 async function pickKind(page: Page, query: string, name: RegExp | string) {
   await page.getByRole('button', { name: 'Add log source' }).first().click()
   const d = page.getByRole('dialog')
@@ -77,10 +77,10 @@ test.describe('logs: log sources (S-LOG-1)', () => {
     await startWithSample(page)
     await page.goto('/logs')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Today:')
-    // 3 lần bấm: Add, chọn loại, điền và gửi
+    // 3 clicks: Add, pick the type, fill in and submit
     const d = await pickKind(page, 'forti', /FortiGate/)
     await expect(d.getByText('Device type: FortiGate (FortiOS)')).toBeVisible()
-    // gửi trống: lỗi nói sai gì
+    // empty submit: the error says what is wrong
     await d.getByRole('button', { name: 'Add and show setup' }).click()
     await expect(d.getByLabel('Name', { exact: true })).toHaveAccessibleDescription(/The name may only contain/)
     await d.getByLabel('Name', { exact: true }).fill('FW-TEST')
@@ -112,13 +112,13 @@ test.describe('logs: log sources (S-LOG-1)', () => {
     await expect(d2.getByLabel('IP of the sending device', { exact: true })).toHaveAccessibleDescription(/There is already a log source with this IP address/)
     await d2.getByRole('button', { name: 'Cancel' }).click()
     await expect(d2).toBeHidden()
-    // sửa
+    // edit
     await page.getByRole('button', { name: 'Edit FW-TEST' }).click()
     await expect(page.getByRole('dialog').getByText('Device type: FortiGate (FortiOS)')).toBeVisible()
     await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('FW-CHANGED')
     await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
     await expect(rowOf('FW-CHANGED')).toBeVisible()
-    // xoá: Esc không xoá, xác nhận thì xoá
+    // delete: Esc does not delete, confirming does
     await page.getByRole('button', { name: 'Delete FW-CHANGED' }).click()
     await expect(page.getByRole('dialog')).toContainText('Logs already received are kept')
     await page.keyboard.press('Escape')
@@ -245,7 +245,7 @@ test.describe('logs: digest, event search, retention', () => {
     await expect(page.getByRole('table', { name: 'Connections to bad IPs or domains' })).toBeVisible()
     await expect(page.getByRole('table', { name: 'New log types' })).toBeVisible()
     await expect(page.getByRole('table', { name: 'Log types with a spike' })).toBeVisible()
-    // số ở tiêu đề khớp số dòng
+    // the number in the heading matches the row count
     expect(await page.getByRole('heading', { level: 1 }).innerText()).toMatch(/3 connections.*3 new log types.*2 spikes/)
     await page.getByLabel('Keyword', { exact: true }).fill('no-such-line-anywhere')
     await expect(visible(page.getByText('No matching line'))).toBeVisible()
@@ -345,7 +345,7 @@ test.describe('logs: clean install', () => {
     await d.getByLabel('Name', { exact: true }).fill('FW-NEW')
     await d.getByLabel('IP of the sending device', { exact: true }).fill('10.0.0.1')
     await d.getByRole('button', { name: 'Add and show setup' }).click()
-    // địa chỉ hộp suy ra từ dải LAN đã khai (192.168.18.0/24 -> .250), không phải IP của dữ liệu mẫu
+    // the box address is derived from the declared LAN range (192.168.18.0/24 -> .250), not the IP in the sample data
     await expect(page.getByRole('dialog', { name: /Set up FW-NEW/ })).toContainText('set server "192.168.18.250"')
     await expect(page.getByRole('dialog')).not.toContainText('192.168.10.250')
     await page.keyboard.press('Escape')
@@ -353,7 +353,7 @@ test.describe('logs: clean install', () => {
     await expect(page.getByText('No logs to analyse yet')).toBeVisible()
     await expect(visible(page.getByText('No log line in this range yet'))).toBeVisible()
     await shot(page, 'logs', 'clean-one-source')
-    // axe không chạy ở đây: panel AI (slot logs.panels, module ai) là việc của module ai.
+    // axe does not run here: the AI panel (slot logs.panels, ai module) belongs to the ai module.
     expect(errors).toEqual([])
   })
 })

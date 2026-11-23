@@ -347,6 +347,10 @@ type Content struct {
 	// Listed are the names a domain's scan found under it and did not probe (ScanTarget.Names: another target scans them, or the
 	// scope leaves them out): name, source and CNAME only. They are stored as names of the target, with no address.
 	Listed []HostRow `json:"-"`
+	// Probed are the TCP ports this run's service step probed on each address, by its canonical spelling: the default scan's nmap
+	// ports (ServiceScan.Probed, INV-22). Only these, besides the runner's fixed list, count as checked by the scan's coverage
+	// (coverTop). nil when no service step said; never the ports of a -sV batch that did not finish.
+	Probed map[string][]int `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

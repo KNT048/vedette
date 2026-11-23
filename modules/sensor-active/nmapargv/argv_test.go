@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func addrs(t testing.TB, ss ...string) []netip.Addr {
@@ -100,9 +101,12 @@ var (
 	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"}
 	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"}
 	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert,http-hp-ilo-info,vmware-version", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.50"}
-	// The ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
+	// The ports written out here are those of modules/scan/commonports (TestExternalVersionsCoverTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,11443,27017,34567,37777"
-	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+	// The external discovery: SYN only, nmap's own 1000 most common TCP ports, no -sV.
+	shapeExternal = []string{"--privileged", "-sS", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "2m", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+	// One external -sV batch: three open ports the discovery found outside the fixed list, with a 90-second host timeout.
+	shapeExternalVersions = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "90s", "-p", "50000,50001,60000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 	// The run after a normal or versions scan over the surface list and the reviewed admin ports.
 	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100",
 		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
@@ -223,7 +227,7 @@ func TestValidate(t *testing.T) {
 			t.Errorf("%s: accepted %q", name, argv)
 		}
 	}
-	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "external_full": shapeFull, "external_disruptive": shapeDisruptive, "all_ports": shapeAllPorts, "extra_ports": shapeExtra, "port_versions": shapePortVersions, "all_ports slower": swap(shapeAllPorts, "100", "50"), "two targets": with(shapeSweep, "192.168.10.2")} {
+	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "external -sV": shapeExternalVersions, "external_full": shapeFull, "external_disruptive": shapeDisruptive, "all_ports": shapeAllPorts, "extra_ports": shapeExtra, "port_versions": shapePortVersions, "all_ports slower": swap(shapeAllPorts, "100", "50"), "two targets": with(shapeSweep, "192.168.10.2")} {
 		if err := Validate(argv); err != nil {
 			t.Errorf("%s: a good argv is rejected: %v", name, err)
 		}
@@ -310,9 +314,38 @@ func portVersionsOracle(flags []string) bool {
 	return true
 }
 
-// externalOracle: the flags are one of the three shapes whose target is public (external, external_full, external_disruptive).
+// externalOracle: the flags are one of the shapes whose target is public (the external discovery, its -sV run, external_full,
+// external_disruptive).
 func externalOracle(flags []string) bool {
-	return slices.ContainsFunc([][]string{shapeExternal, shapeFull, shapeDisruptive}, func(s []string) bool { return slices.Equal(flags, s[:slices.Index(s, "--stats-every")]) })
+	return externalVersionsOracle(flags) ||
+		slices.ContainsFunc([][]string{shapeExternal, shapeFull, shapeDisruptive}, func(s []string) bool { return slices.Equal(flags, s[:slices.Index(s, "--stats-every")]) })
+}
+
+// externalVersionsOracle: an external -sV batch with 1..40 ascending plain-decimal ports and a host timeout of 60..120 whole seconds.
+func externalVersionsOracle(flags []string) bool {
+	want := shapeExternalVersions[:slices.Index(shapeExternalVersions, "--stats-every")]
+	if len(flags) != len(want) {
+		return false
+	}
+	pi, hi := slices.Index(want, "-p")+1, slices.Index(want, "--host-timeout")+1
+	for i := range want {
+		if i != pi && i != hi && flags[i] != want[i] {
+			return false
+		}
+	}
+	if !regexp.MustCompile(`^(6[0-9]|[7-9][0-9]|1[01][0-9]|120)s$`).MatchString(flags[hi]) ||
+		!regexp.MustCompile(`^[1-9][0-9]{0,4}(,[1-9][0-9]{0,4}){0,39}$`).MatchString(flags[pi]) {
+		return false
+	}
+	last := 0
+	for _, p := range strings.Split(flags[pi], ",") {
+		n, _ := strconv.Atoi(p)
+		if n <= last || n > 65535 {
+			return false
+		}
+		last = n
+	}
+	return true
 }
 
 // public is the oracle's own idea of a public IPv4 address: dotted decimal without leading zeros, outside 0/8, 10/8, 100.64/10,
@@ -346,7 +379,7 @@ func public(s string) bool {
 
 func FuzzValidate(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeExternalVersions, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
 		append(slices.Clone(shapeExternal[:len(shapeExternal)-1]), "192.168.1.1"),
 		append(slices.Clone(shapeExternal), "1.1.1.1"),
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "--stats-every", "5s", "-oX", "-", "10.0.0.1", "10.0.0.2"},
@@ -424,7 +457,7 @@ func TestParseInvertsBuild(t *testing.T) {
 // that nothing is lost or invented on the way (L8).
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeExternalVersions, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "--stats-every", "5s", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1", "--stats-every", "5s", "-oX", "-", "172.16.0.1"},
 	} {
@@ -440,6 +473,9 @@ func FuzzParseBuild(f *testing.F) {
 			t.Fatalf("Parse refuses an argv Validate accepts: %q: %v", argv, err)
 		}
 		got, err := BuildFor(kind, rate, ports, targets)
+		if kind == External && ports != nil { // an external -sV batch carries its host timeout
+			got, err = BuildBatch(rate, ports, HostTimeoutOf(argv), targets)
+		}
 		if err != nil || !slices.Equal(got, argv) {
 			t.Fatalf("Build(Parse(a)) != a:\n a = %q\n b = %q (%v)", argv, got, err)
 		}
@@ -449,18 +485,40 @@ func FuzzParseBuild(f *testing.F) {
 	})
 }
 
-// The external shape is -sV on the fixed TCP list of the surface scan, one public address, the fixed rate, no -O, no
-// script; it is the only shape that names a public address, and only one.
+// The external shape is runs on one public address at the fixed rate, with no -O and no script: the discovery (SYN only, nmap's
+// own --top-ports 1000, no port list of Vedette's) and -sV batches of at most 40 ports, each with a host timeout of 60 to 120
+// whole seconds. It is the only shape besides the full ones that names a public address, and only one.
 func TestExternalShape(t *testing.T) {
 	t.Parallel()
 	got, err := Build(External, ExternalRate, addrs(t, "8.8.8.8"))
 	if err != nil || !slices.Equal(got, shapeExternal) {
 		t.Fatalf("argv = %q %v\nwant   %q", got, err, shapeExternal)
 	}
-	for _, a := range got {
-		if a == "-O" || strings.HasPrefix(a, "--script") || a == "-A" || a == "-sC" || strings.HasPrefix(a, "--version") || a == "-sU" {
-			t.Fatalf("external argv has %q", a)
+	gotV, err := BuildBatch(ExternalRate, []int{50000, 50001, 60000}, 90*time.Second, addrs(t, "8.8.8.8"))
+	if err != nil || !slices.Equal(gotV, shapeExternalVersions) {
+		t.Fatalf("argv = %q %v\nwant   %q", gotV, err, shapeExternalVersions)
+	}
+	for _, argv := range [][]string{got, gotV} {
+		for _, a := range argv {
+			if a == "-O" || strings.HasPrefix(a, "--script") || a == "-A" || a == "-sC" || strings.HasPrefix(a, "--version") || a == "-sU" || a == "-p-" {
+				t.Fatalf("external argv has %q", a)
+			}
 		}
+	}
+	if slices.Contains(got, "-sV") || slices.Contains(got, "-p") {
+		t.Fatalf("the discovery reads versions or names ports: %q", got)
+	}
+	for _, argv := range [][]string{shapeExternal, shapeExternalVersions} {
+		k, rate, p, ts, err := ParseFor(argv)
+		if err != nil || k != External || rate != ExternalRate || len(ts) != 1 || ts[0].String() != "8.8.8.8" {
+			t.Fatalf("ParseFor(%q) = %v %d %v %v %v", argv, k, rate, p, ts, err)
+		}
+	}
+	if h := HostTimeoutOf(shapeExternalVersions); h != 90*time.Second {
+		t.Fatalf("HostTimeoutOf = %s", h)
+	}
+	if h := HostTimeoutOf(shapeExternal); h != 0 {
+		t.Fatalf("HostTimeoutOf(discovery) = %s", h)
 	}
 	for name, c := range map[string]struct {
 		rate    int
@@ -482,20 +540,63 @@ func TestExternalShape(t *testing.T) {
 		if _, err := Build(External, c.rate, c.targets); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+		if _, err := BuildBatch(c.rate, []int{22}, 90*time.Second, c.targets); err == nil {
+			t.Errorf("%s: the -sV batch accepted", name)
+		}
+	}
+	var fortyOne []int
+	for i := range 41 {
+		fortyOne = append(fortyOne, 1000+i)
+	}
+	for name, c := range map[string]struct {
+		ports []int
+		host  time.Duration
+	}{
+		"no port":                    {nil, 90 * time.Second},
+		"41 ports":                   {fortyOne, 90 * time.Second},
+		"descending":                 {[]int{443, 22}, 90 * time.Second},
+		"a port twice":               {[]int{22, 22}, 90 * time.Second},
+		"port 0":                     {[]int{0, 22}, 90 * time.Second},
+		"a host timeout below 60 s":  {[]int{22}, 59 * time.Second},
+		"a host timeout above 120 s": {[]int{22}, 121 * time.Second},
+		"a host timeout not seconds": {[]int{22}, 90*time.Second + time.Millisecond},
+	} {
+		if _, err := BatchFlags(ExternalRate, c.ports, c.host); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := FlagsFor(External, ExternalRate, []int{22}); err == nil {
+		t.Error("FlagsFor built an external -sV line without its host timeout")
 	}
 	with := func(base []string, extra ...string) []string { return append(slices.Clone(base), extra...) }
-	set := func(i int, v string) []string { a := slices.Clone(shapeExternal); a[i] = v; return a }
+	set := func(base []string, i int, v string) []string { a := slices.Clone(base); a[i] = v; return a }
+	vp := slices.Index(shapeExternalVersions, "-p") + 1
+	vh := slices.Index(shapeExternalVersions, "--host-timeout") + 1
 	bad := map[string][]string{
 		"two public targets":             with(shapeExternal, "1.1.1.1"),
-		"a private target":               set(len(shapeExternal)-1, "192.168.10.1"),
+		"a private target":               set(shapeExternal, len(shapeExternal)-1, "192.168.10.1"),
 		"a public target in a LAN shape": with(shapeSweep[:len(shapeSweep)-1], "8.8.8.8"),
-		"another port list":              set(slices.Index(shapeExternal, "-p")+1, "1-65535"),
-		"a port added":                   set(slices.Index(shapeExternal, "-p")+1, externalPorts+",65000"),
+		"more top ports":                 set(shapeExternal, slices.Index(shapeExternal, "--top-ports")+1, "5000"),
+		"discovery with -sV":             with([]string{"--privileged", "-sS", "-sV"}, shapeExternal[2:]...),
 		"no -Pn":                         slices.DeleteFunc(slices.Clone(shapeExternal), func(a string) bool { return a == "-Pn" }),
-		"another rate":                   set(slices.Index(shapeExternal, "--max-rate")+1, "1000"),
-		"a longer host timeout":          set(slices.Index(shapeExternal, "--host-timeout")+1, "30m"),
-		"with -O":                        with([]string{"--privileged", "-sS", "-sV", "-O"}, shapeExternal[3:]...),
-		"with scripts":                   with([]string{"--privileged", "-sS", "-sV", "--script", "vuln"}, shapeExternal[3:]...),
+		"another rate":                   set(shapeExternal, slices.Index(shapeExternal, "--max-rate")+1, "1000"),
+		"a longer host timeout":          set(shapeExternal, slices.Index(shapeExternal, "--host-timeout")+1, "30m"),
+		"with -O":                        with([]string{"--privileged", "-sS", "-O"}, shapeExternal[2:]...),
+		"with scripts":                   with([]string{"--privileged", "-sS", "--script", "vuln"}, shapeExternal[2:]...),
+		"-sV: every port":                set(shapeExternalVersions, vp, "1-65535"),
+		"-sV: ranges":                    set(shapeExternalVersions, vp, "50000-50001"),
+		"-sV: the whole surface list":    set(shapeExternalVersions, vp, externalPorts),
+		"-sV: a port twice":              set(shapeExternalVersions, vp, "22,22"),
+		"-sV: a port above 65535":        set(shapeExternalVersions, vp, "22,65536"),
+		"-sV: host timeout in minutes":   set(shapeExternalVersions, vh, "2m"),
+		"-sV: host timeout too long":     set(shapeExternalVersions, vh, "180s"),
+		"-sV: host timeout too short":    set(shapeExternalVersions, vh, "30s"),
+		"-sV: host timeout leading zero": set(shapeExternalVersions, vh, "090s"),
+		"-sV: a private target":          set(shapeExternalVersions, len(shapeExternalVersions)-1, "192.168.10.1"),
+		"-sV: two targets":               with(shapeExternalVersions, "1.1.1.1"),
+		"-sV: another rate":              set(shapeExternalVersions, slices.Index(shapeExternalVersions, "--max-rate")+1, "300"),
+		"-sV: --version-light":           with([]string{"--privileged", "-sS", "-sV", "--version-light"}, shapeExternalVersions[3:]...),
+		"-sV: with scripts":              with([]string{"--privileged", "-sS", "-sV", "--script", "vuln"}, shapeExternalVersions[3:]...),
 	}
 	for name, argv := range bad {
 		if err := Validate(argv); err == nil {
@@ -507,11 +608,58 @@ func TestExternalShape(t *testing.T) {
 	}
 }
 
-// The -p list is the surface scan's, the one list of modules/scan/commonports: written out above apart from the code.
-func TestExternalPortsAreTheSurfaceList(t *testing.T) {
+// The -sV batches after a discovery: the surface scan's list first (written out above apart from the code, so it is always
+// read whatever nmap's top ports are), then the reviewed admin ports, then the open ports outside both; each batch at most 40
+// ascending ports, every port once. More than 40 open ports outside the fixed list is refused.
+func TestExternalBatches(t *testing.T) {
 	t.Parallel()
-	if ExternalPorts != externalPorts {
-		t.Fatalf("ExternalPorts = %s", ExternalPorts)
+	var surface []int
+	for _, p := range strings.Split(externalPorts, ",") {
+		n, _ := strconv.Atoi(p)
+		surface = append(surface, n)
+	}
+	for name, open := range map[string][]int{"nothing found": nil, "extra open ports": {22, 443, 50000, 50001}} {
+		batches, err := ExternalBatches(open)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var all []int
+		for i, b := range batches {
+			if len(b) == 0 || len(b) > MaxBatchPorts || !slices.IsSorted(b) {
+				t.Fatalf("%s: batch %d = %v", name, i, b)
+			}
+			all = append(all, b...)
+		}
+		if !slices.Equal(all[:len(surface)], surface) { // the surface list first, in its order
+			t.Fatalf("%s: the first batches are %v", name, all[:len(surface)])
+		}
+		want := slices.Clone(ExtraPortNumbers)
+		if open != nil {
+			want = append(want, 50000, 50001)
+		}
+		got := slices.Clone(all)
+		slices.Sort(got)
+		slices.Sort(want)
+		if !slices.Equal(got, want) {
+			t.Fatalf("%s: the batches hold %v", name, got)
+		}
+		wantN := 5 // 99 = 3 x 33; the 50 admin ports = 2 x 25
+		if open != nil {
+			wantN = 6 // and the extras in one batch
+			if !slices.Equal(batches[5], []int{50000, 50001}) {
+				t.Fatalf("%s: the last batch is %v", name, batches[5])
+			}
+		}
+		if len(batches) != wantN || len(batches[0]) != 33 {
+			t.Fatalf("%s: %d batches, the first of %d", name, len(batches), len(batches[0]))
+		}
+	}
+	var many []int
+	for p := range 41 {
+		many = append(many, 50000+p)
+	}
+	if _, err := ExternalBatches(many); err == nil {
+		t.Error("41 open ports outside the fixed list accepted")
 	}
 }
 

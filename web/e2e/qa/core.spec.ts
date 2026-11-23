@@ -1,5 +1,5 @@
-// QA như người dùng thật cho module core: cài đặt ban đầu, đăng nhập, cài đặt, tài khoản. Giao diện chỉ có tiếng Anh.
-// Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/core.spec.ts
+// QA as a real user for the core module: first-time setup, sign-in, settings, account. The UI is English only.
+// Run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/core.spec.ts
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { axeViolations, collectErrors, expectAccessible, shot } from '../helpers'
@@ -10,7 +10,7 @@ test.use({ actionTimeout: 10_000 })
 const PW = 'a-very-long-password-123'
 const LOGIN = { email: 'admin@example.test', password: PW }
 const SAMPLE = { admin: 'admin@acme.example', operator: 'it@acme.example', viewer: 'director@acme.example', password: 'vedette-demo' }
-// chữ Việt có dấu không được lọt vào giao diện (trừ dữ liệu mẫu do người dùng/seed đặt)
+// Vietnamese letters with diacritics must not reach the UI (except sample data set by the user or the seed)
 const VI = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i
 const ALLOWED_VI = /acme\.example/
 
@@ -24,7 +24,7 @@ const noErrors = (errors: string[], extra?: RegExp) => expect(errors.filter((e) 
 async function noVietnamese(page: Page, label: string) {
   const text = await page.locator('body').innerText()
   const bad = text.split('\n').filter((l) => VI.test(l) && !ALLOWED_VI.test(l))
-  expect(bad, `${label}: chữ Việt trong giao diện`).toEqual([])
+  expect(bad, `${label}: Vietnamese text in the UI`).toEqual([])
 }
 
 async function startSample(page: Page) {
@@ -50,7 +50,7 @@ async function startClean(page: Page, org = 'Test Company') {
   await page.getByLabel('Password', { exact: true }).fill(PW)
   await page.getByLabel('Repeat password', { exact: true }).fill(PW)
 }
-/** Cài sạch trọn vẹn, vào trang chủ với tài khoản quản trị mới. */
+/** A complete clean install, landing on the home page with the new admin account. */
 async function cleanInstall(page: Page, bundle: RegExp = /Small business/) {
   await startClean(page)
   await next(page)
@@ -84,7 +84,7 @@ function b32decode(s: string) {
   for (const c of s.toUpperCase()) { const i = B32.indexOf(c); if (i < 0) continue; v = (v << 5) | i; bits += 5; if (bits >= 8) { out.push((v >>> (bits - 8)) & 255); bits -= 8 } }
   return Buffer.from(out)
 }
-/** TOTP viết độc lập trong test (node:crypto) để đối chiếu với bản trong ứng dụng. */
+/** TOTP written independently in the test (node:crypto) to cross-check the one in the app. */
 function totp(secret: string, at = Date.now()) {
   const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(Math.floor(at / 30000)))
   const h = createHmac('sha1', b32decode(secret)).update(c).digest()
@@ -727,7 +727,7 @@ test.describe('viewer and operator roles', () => {
   })
 })
 
-// ---------- giao diện: điện thoại/máy tính, sáng/tối ----------
+// ---------- UI: phone/desktop, light/dark ----------
 const SCREENS = ['/settings/general', '/settings/modules', '/settings/users', '/settings/audit', '/settings/updates', '/settings/privacy', '/settings/mcp', '/settings/data', '/account']
 
 test.describe('look and feel', () => {

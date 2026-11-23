@@ -68,7 +68,7 @@ export default function DataSection() {
     } catch (e) { setPurgeErr(errMsg(e, t)) }
   }
   async function doReset() {
-    // Chỉ có ở bản chạy trên mock; backend thật không có nút này. Về dữ liệu mẫu nguyên bản và đăng nhập lại quản trị mẫu.
+    // Exists only in the mock build; the real backend has no such button. Back to the original sample data and the sample admin sign-in.
     resetMockDb()
     try { await api.post('/core/setup', { sample: true }) } catch (e) { toast.error(errMsg(e, t)); return }
     nav.reload()

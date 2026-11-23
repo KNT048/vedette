@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "response": "Response"
-  },
   "risk": {
     "statement": "This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for actions your AI takes.",
     "banner": "High risk: your AI can be wrong and can change your network devices.",
@@ -144,7 +141,6 @@
     "open": "Open Response"
   },
   "settings": {
-    "nav": "AI response (high risk)",
     "title": "AI response (high risk)",
     "description": "Let Vedette change your network devices, only after the right people approve.",
     "descriptionInfo": "Actions that change only this box (block list, messages) do not need the switch; actions that change another device do. Execution is off by default.",

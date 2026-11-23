@@ -259,10 +259,12 @@ func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
 	}
 }
 
-// An address that answers on more than 40 of the 99 ports (a router or SYN proxy) gets one "Not checked" line: the
-// surface scan saw it, so nmap is not even asked (exactly 40 is still scanned; ports of another address do not count; an
-// IPv4-mapped address counts as itself); nmap seeing it, or nmap's 3-minute limit, are their own lines. No template and no web
-// page runs, and no line says "no services": the template and web lines say why they did not run.
+// An address that answers on more than 40 ports (a router or SYN proxy): the default scan still asks for service
+// identification, which reads the fixed list and keeps the ports where a service named itself, so the services are stored and
+// compared and one "Not checked" line says the address answers everywhere (the surface scan saw it, or the scanner said so;
+// exactly 40 is a normal scan; ports of another address do not count; an IPv4-mapped address counts as itself). A scanner error
+// that says it (ErrAnswersEverywhere) or nmap's limit are their own lines: no template and no web page runs, and no line says
+// "no services".
 func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
 	t.Parallel()
 	open := func(n int, ip string) []PortRow {
@@ -274,30 +276,32 @@ func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
 	}
 	one := []PortRow{{IP: ipA, Port: 80}}
 	for name, tc := range map[string]struct {
-		ports   []PortRow
-		svcErr  error
-		want    []string // lines that must be under "Not checked"
-		scanned int
+		ports      []PortRow
+		svcErr     error
+		everywhere bool     // the scanner says the address answers everywhere
+		kept       bool     // identified and checked, with the "answers everywhere" line
+		want       []string // lines that must be under "Not checked"
 	}{
-		"41 open on the surface": {ports: open(41, ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
-		"60 open, IPv4-mapped":   {ports: open(60, "::ffff:"+ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
-		"exactly 40 open":        {ports: open(40, ipA), scanned: 1},
-		"60 open on another IP":  {ports: append(open(60, ipB), one...), scanned: 1},
-		"nmap saw it":            {ports: one, svcErr: ErrAnswersEverywhere, want: []string{notAnswersEverywhere, notWebTarpit}, scanned: 1},
-		"nmap timed out":         {ports: one, svcErr: ErrServicesTimedOut, want: []string{notServicesGaveUp, notTemplatesNoIdent, notWebNoIdent}, scanned: 1},
+		"41 open on the surface": {ports: open(41, ipA), kept: true},
+		"60 open, IPv4-mapped":   {ports: open(60, "::ffff:"+ipA), kept: true},
+		"the scanner says it":    {ports: one, everywhere: true, kept: true},
+		"exactly 40 open":        {ports: open(40, ipA)},
+		"60 open on another IP":  {ports: append(open(60, ipB), one...)},
+		"nmap saw it (an error)": {ports: one, svcErr: ErrAnswersEverywhere, want: []string{notAnswersEverywhere, notWebTarpit}},
+		"nmap timed out":         {ports: one, svcErr: ErrServicesTimedOut, want: []string{notServicesGaveUp, notTemplatesNoIdent, notWebNoIdent}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e, f := tplEnv(t)
-			sv := &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}, err: tc.svcErr}
+			sv := &fakeServices{scan: ServiceScan{Ports: 98, AnswersEverywhere: tc.everywhere, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}, err: tc.svcErr}
 			web := &fakeWeb{report: func(string) []byte { return nil }}
 			e.svc.cfg.Services, e.svc.cfg.Web = sv, web
 			s := e.scanIP(Content{Ports: tc.ports})
-			if len(sv.calls) != tc.scanned {
-				t.Fatalf("service scanner called %d times, want %d", len(sv.calls), tc.scanned)
+			if len(sv.calls) != 1 { // the default scan always asks for service identification
+				t.Fatalf("service scanner called %d times", len(sv.calls))
 			}
-			if tc.want == nil { // under the bound: identified and checked as usual
-				if len(s.Services) != 1 || len(f.jobs) != 1 || slices.Contains(notChecked(s), notAnswersEverywhere) {
+			if tc.want == nil { // identified and checked as usual
+				if len(s.Services) != 1 || len(f.jobs) != 1 || slices.Contains(notChecked(s), notAnswersEverywhere) || slices.Contains(notChecked(s), notAnswersEverywhereKept) != tc.kept {
 					t.Fatalf("services %+v, jobs %d, not checked %q", s.Services, len(f.jobs), notChecked(s))
 				}
 				return

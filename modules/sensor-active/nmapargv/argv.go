@@ -34,10 +34,16 @@ const (
 	// (vmware-version); per TLS port one more handshake (ssl-cert). Every answer is read, nothing is sent with a login. A fragile
 	// device keeps Gentle exactly: no script, no -sV, no UDP.
 	GentleTitles
-	// External is service identification on the box's own verified public IP for exposure (exposure INV-19): -sV over the
-	// fixed TCP list of the surface scan (commonports), at ExternalRate, with no -O and no --script (only what -sV runs itself). It
-	// is the only shape whose target is public, and it takes exactly one; every other shape takes local addresses only. Whether
-	// the address is the box's own is not grammar: core checks it before it hands the job out, the worker again before nmap.
+	// External is the default scan of the box's own verified public IP for exposure (exposure INV-19), in nmap runs of the
+	// same name: first port discovery (-sS, no -sV) over nmap's own ExternalTopPorts most common TCP ports (--top-ports, read from
+	// the nmap-services of the nmap the box installed, never copied here), then -sS -sV in batches (BatchFlags: at most
+	// MaxBatchPorts ports each, each with its own host timeout, ExternalBatches orders them): the surface scan's list
+	// (commonports), the reviewed admin ports, then the ports the discovery found open outside both (at most
+	// commonports.MaxBelievableOpen). nmap's --host-timeout drops every result of a host that times out, so batches keep what
+	// finished. -sV only ever reads open ports. The fixed list always gets its -sV batches, whatever the discovery said. All at
+	// ExternalRate, with no -O and no --script (only what -sV runs itself). It is the only shape whose target is public outside the full ones, and it takes
+	// exactly one; every other shape takes local addresses only. Whether the address is the box's own is not grammar: core checks
+	// it before it hands each job out, the worker again before nmap.
 	External
 	// ExternalFull is the deep scan of the box's own verified public IP once an administrator accepted the target's testing terms
 	// (exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
@@ -87,19 +93,33 @@ const (
 	allPortsRetries     = "1"
 )
 
-// ExternalRate is the fixed --max-rate of the external shape (packets a second): 99 ports with 2 retries are a few hundred SYNs,
-// a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
+// ExternalRate is the fixed --max-rate of the external shape (packets a second), gentle on the customer's own router: the
+// discovery's ExternalTopPorts SYNs with at most 2 retransmissions each are at most 3,000 probes, 30 seconds at this rate; each -sV
+// batch's port scan (at most MaxBatchPorts ports) about a second more.
 const ExternalRate = 100
 
-// ExternalPorts is the -p value of the external shape: the ports of commonports.List, ascending, comma-separated.
-var ExternalPorts = func() string {
-	ns := commonports.Numbers()
-	ss := make([]string, len(ns))
-	for i, n := range ns {
-		ss[i] = strconv.Itoa(n)
-	}
-	return strings.Join(ss, ",")
-}()
+// ExternalTopPorts is the --top-ports count of the external discovery: nmap's most common TCP ports by its own frequency data.
+// The list itself is never written into Vedette (nmap-services is under the Nmap Public Source License): nmap picks it when it
+// runs, and the parser reads back the ports it probed from its <scaninfo services>. Nessus probes about 4,790 ports by default,
+// Qualys' standard list about 2,800, typical attack-surface tools 200 to 300; with ExtraPortNumbers this probes about 1,070.
+const ExternalTopPorts = 1000
+
+// MaxBatchPorts is the most ports one -sV batch of the external shape names: nmap reads about 20 ports at a time at the default
+// timing, so a batch is about two rounds of -sV even when every port answers and holds the connection.
+const MaxBatchPorts = 40
+
+// The host timeouts of the external runs. The discovery needs about 30 seconds in the worst case (every port dropped, see
+// ExternalRate); 2 minutes leave room for nmap slowing down on a lossy path. Each -sV batch gets a host timeout the caller picks
+// from the time left (BatchFlags takes whole seconds from BatchMinTimeout to BatchMaxTimeout): BatchMaxTimeout covers two rounds
+// of -sV probes on ports that accept and hold the connection; below BatchMinTimeout a batch is not started. exposure's step bound
+// (ServicesTimeout there) holds the discovery and at least one batch, the waits for the worker and the own-IP checks; cmd/vedette
+// holds them together in a test.
+const (
+	ExternalDiscoveryTimeout = 2 * time.Minute
+	BatchMinTimeout          = time.Minute
+	BatchMaxTimeout          = 2 * time.Minute
+	externalDiscoveryTimeout = "2m"
+)
 
 // The host discovery probes of the sweep. nmap's own -sn default for an address outside the box's segment is an ICMP
 // echo, a SYN to 443, an ACK to 80 and an ICMP timestamp request (https://nmap.org/book/man-host-discovery.html); a Windows PC
@@ -120,10 +140,6 @@ var SweepProbes = 2 + strings.Count(sweepSYNPorts, ",") + 1 + strings.Count(swee
 // lanMaxRetries caps the retransmissions of a normal or versions scan's port probes: nmap's default allows ten, -T4 six
 // (https://nmap.org/book/man-performance.html); a LAN loses few packets, and a lossy Wi-Fi client stops stretching a run.
 const lanMaxRetries = "3"
-
-// externalHostTimeout bounds -sV on the one host, inside exposure's 5-minute step (ServicesTimeout there) with room for the
-// wait for the nmap slot and the own-IP checks.
-const externalHostTimeout = "3m"
 
 // The two full shapes, tuned from nmap's reference guide:
 // https://nmap.org/book/man-performance.html (--max-rate "only affect[s] port scans and host discovery"; version detection and
@@ -218,7 +234,7 @@ const (
 	// reads 20 ports at once at the default timing (desired_par), so the worst case (40 such ports, commonports.MaxBelievableOpen)
 	// is about 18 minutes of -sV, which with the port scan (at most 11) and the scripts (each at most fullScriptTimeout, in
 	// parallel) stays inside FullHostTimeout. A typical deep scan gets longer by its soft-matched ports: compare sa_probe's p50/p95
-	// of external_full on a test box before and after. The External shape keeps the default: its host timeout is 3
+	// of external_full on a test box before and after. The External shape keeps the default: its -sV batches' host timeouts are at most 2
 	// minutes. https://nmap.org/book/man-version-detection.html, https://nmap.org/book/vscan-technique.html
 	flagVersionAll = "--version-all"
 )
@@ -325,8 +341,10 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if rate != ExternalRate {
 			return nil, fmt.Errorf("nmapargv: the external shape runs at %d packets/s, not %d", ExternalRate, rate)
 		}
-		// -Pn: the box's own address need not answer a ping (routers drop it); it is up by definition.
-		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalHostTimeout, "-p", ExternalPorts}, nil
+		// The discovery run; its -sV batches are BatchFlags' (their ports and host timeouts vary). -Pn: the box's own address need not answer a ping
+		// (routers drop it); it is up by definition.
+		return []string{flagPrivileged, "-sS", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalDiscoveryTimeout,
+			flagTopPorts, strconv.Itoa(ExternalTopPorts)}, nil
 	case ExternalFull, ExternalDisruptive:
 		if rate != FullRate {
 			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
@@ -380,11 +398,11 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 }
 
 // FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending); every other kind takes
-// none.
+// none, and External without ports is its discovery run (its -sV batches are BatchFlags', with their host timeout).
 func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	if kind != PortVersions {
 		if len(ports) != 0 {
-			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list", kind.Name())
+			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list here (an external -sV batch is BatchFlags')", kind.Name())
 		}
 		return Flags(kind, rate)
 	}
@@ -394,15 +412,140 @@ func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	if len(ports) == 0 || len(ports) > MaxPortVersions {
 		return nil, fmt.Errorf("nmapargv: a port_versions run reads 1 to %d ports, got %d", MaxPortVersions, len(ports))
 	}
+	list, err := portList(ports)
+	if err != nil {
+		return nil, err
+	}
+	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
+		"-p", list, flagHostTimeout, normalHostTimeout}, nil
+}
+
+// portList writes ascending, distinct ports 1..65535 as a plain comma-separated -p value.
+func portList(ports []int) (string, error) {
 	list := make([]string, len(ports))
 	for i, p := range ports {
 		if p < 1 || p > 65535 || (i > 0 && p <= ports[i-1]) {
-			return nil, errors.New("nmapargv: the ports of a port_versions run must be ascending, distinct, 1..65535")
+			return "", errors.New("nmapargv: the ports of a run must be ascending, distinct, 1..65535")
 		}
 		list[i] = strconv.Itoa(p)
 	}
-	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
-		"-p", strings.Join(list, ","), flagHostTimeout, normalHostTimeout}, nil
+	return strings.Join(list, ","), nil
+}
+
+// ExternalBatches is the ordered -sV batches of the External shape after a discovery that found open (nil when it found nothing
+// usable): the surface scan's list (commonports, the highest yield: what is exposed by mistake or on purpose most often), then the
+// reviewed admin ports, then the ports of open outside both. Each group is cut into as few batches of at most MaxBatchPorts as it
+// takes, of about equal size, each ascending. More than commonports.MaxBelievableOpen ports of open outside the fixed list is an
+// error (the caller then names the fixed list alone).
+func ExternalBatches(open []int) ([][]int, error) {
+	var extra []int
+	for _, p := range open {
+		if p < 1 || p > 65535 {
+			return nil, fmt.Errorf("nmapargv: port %d is outside 1..65535", p)
+		}
+		if !slices.Contains(ExtraPortNumbers, p) {
+			extra = append(extra, p)
+		}
+	}
+	slices.Sort(extra)
+	extra = slices.Compact(extra)
+	if len(extra) > commonports.MaxBelievableOpen {
+		return nil, fmt.Errorf("nmapargv: %d open ports outside the fixed list, more than %d", len(extra), commonports.MaxBelievableOpen)
+	}
+	var admin []int
+	for _, p := range ExtraPortNumbers {
+		if !slices.Contains(commonports.Numbers(), p) {
+			admin = append(admin, p)
+		}
+	}
+	var out [][]int
+	for _, group := range [][]int{commonports.Numbers(), admin, extra} {
+		out = append(out, cut(group, MaxBatchPorts)...)
+	}
+	return out, nil
+}
+
+// cut splits ports into ceil(len/max) runs of about equal size, in order; nil for no ports.
+func cut(ports []int, most int) [][]int {
+	if len(ports) == 0 {
+		return nil
+	}
+	n := (len(ports) + most - 1) / most
+	var out [][]int
+	for i := range n {
+		out = append(out, slices.Clone(ports[i*len(ports)/n:(i+1)*len(ports)/n]))
+	}
+	return out
+}
+
+// BatchFlags is one -sV batch of the External shape: 1..MaxBatchPorts ascending, distinct ports, at ExternalRate, with a host
+// timeout of whole seconds from BatchMinTimeout to BatchMaxTimeout. The -sV options are those of the shape before the batches:
+// -sS -sV -Pn -n --max-rate 100 --max-retries 2.
+func BatchFlags(rate int, ports []int, host time.Duration) ([]string, error) {
+	if rate != ExternalRate {
+		return nil, fmt.Errorf("nmapargv: the external shape runs at %d packets/s, not %d", ExternalRate, rate)
+	}
+	if len(ports) == 0 || len(ports) > MaxBatchPorts {
+		return nil, fmt.Errorf("nmapargv: an external -sV batch reads 1 to %d ports, got %d", MaxBatchPorts, len(ports))
+	}
+	if host < BatchMinTimeout || host > BatchMaxTimeout || host%time.Second != 0 {
+		return nil, fmt.Errorf("nmapargv: an external -sV batch's host timeout %s is not whole seconds from %s to %s", host, BatchMinTimeout, BatchMaxTimeout)
+	}
+	list, err := portList(ports)
+	if err != nil {
+		return nil, err
+	}
+	return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, "2", flagHostTimeout,
+		strconv.Itoa(int(host/time.Second)) + "s", "-p", list}, nil
+}
+
+// BuildBatch is Build of one -sV batch of the External shape (BatchFlags) on its one public target.
+func BuildBatch(rate int, ports []int, host time.Duration, targets []netip.Addr) ([]string, error) {
+	valid, err := targetRule(External, len(targets))
+	if err != nil {
+		return nil, err
+	}
+	args, err := BatchFlags(rate, ports, host)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, flagStats, StatsEvery, flagXML, "-")
+	for _, t := range targets {
+		if !valid(t) {
+			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, External.Name())
+		}
+		args = append(args, t.String())
+	}
+	return args, nil
+}
+
+// hostTimeoutOf reads the --host-timeout of flags written as whole seconds ("90s"); 0 otherwise.
+func hostTimeoutOf(flags []string) time.Duration {
+	i := slices.Index(flags, flagHostTimeout)
+	if i < 0 || i+1 >= len(flags) {
+		return 0
+	}
+	v, ok := strings.CutSuffix(flags[i+1], "s")
+	if !ok {
+		return 0
+	}
+	n, ok := atoi(v)
+	if !ok {
+		return 0
+	}
+	return time.Duration(n) * time.Second
+}
+
+// HostTimeoutOf is the host timeout of an argv Validate accepts that is an external -sV batch; 0 for every other line.
+func HostTimeoutOf(args []string) time.Duration {
+	i := slices.Index(args, flagXML)
+	if i < 2 {
+		return 0
+	}
+	if k, _, ports, ok := shapeOf(args[:i-2]); !ok || k != External || ports == nil {
+		return 0
+	}
+	return hostTimeoutOf(args[:i-2])
 }
 
 // BuildFor is Build with the ports of a PortVersions run (one target).
@@ -428,10 +571,11 @@ func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string,
 	return args, nil
 }
 
-// portsOf reads the -p list of flags that may be a PortVersions line: plain decimal ports separated by commas; nil otherwise.
+// portsOf reads the -p list of flags that may be a PortVersions line or an external -sV batch: plain decimal ports separated by
+// commas; nil otherwise.
 func portsOf(flags []string) []int {
 	i := slices.Index(flags, "-p")
-	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*MaxPortVersions {
+	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*max(MaxBatchPorts, MaxPortVersions) {
 		return nil
 	}
 	var out []int
@@ -459,8 +603,9 @@ func atoi5(s string) (int, bool) {
 	return n, err == nil
 }
 
-// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, or a PortVersions line whose flags are
-// exactly FlagsFor of its own rate and ports.
+// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, a PortVersions line whose flags are
+// exactly FlagsFor of its own rate and ports, or an external -sV batch whose flags are exactly BatchFlags of its own rate, ports and
+// host timeout.
 func shapeOf(flags []string) (Kind, int, []int, bool) {
 	rate := 1
 	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
@@ -476,6 +621,9 @@ func shapeOf(flags []string) (Kind, int, []int, bool) {
 	if ports := portsOf(flags); ports != nil {
 		if want, err := FlagsFor(PortVersions, rate, ports); err == nil && slices.Equal(flags, want) {
 			return PortVersions, rate, ports, true
+		}
+		if want, err := BatchFlags(rate, ports, hostTimeoutOf(flags)); err == nil && slices.Equal(flags, want) {
+			return External, rate, ports, true
 		}
 	}
 	return 0, 0, nil, false
@@ -506,7 +654,8 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 // starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
 // (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
 // port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
-// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), then "--stats-every 5s -oX -", then 1 to MaxBatch
+// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports) and of an external -sV batch
+// (1..MaxBatchPorts ascending ports, with its host timeout, BatchFlags), then "--stats-every 5s -oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
 // IPv4 address).
 // Everything else is rejected.
@@ -560,7 +709,8 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	return k, rate, targets, err
 }
 
-// ParseFor is Parse with the ports of a PortVersions line (nil for every other shape).
+// ParseFor is Parse with the ports of a PortVersions line or of an external -sV batch (nil for every other line; a batch's host
+// timeout is HostTimeoutOf's).
 func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
 	if err := Validate(args); err != nil {
 		return 0, 0, nil, nil, err

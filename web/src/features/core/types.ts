@@ -1,4 +1,4 @@
-// Kiểu API module core, suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the core module, derived from the Zod contract (contract.ts), not declared by hand.
 import type { z } from 'zod'
 import type * as C from './contract'
 import type { Role } from '@/lib/session'

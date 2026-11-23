@@ -1,15 +1,15 @@
-// Hai script cài osquery một dòng lệnh do CHÍNH HỘP phục vụ (S-INV-4): /api/v1/install/osquery.sh và /osquery.ps1.
-// Hộp dùng CA tự ký nên CA được nhúng thẳng trong script; người dùng đối chiếu SHA-256 của script (hiện trong giao diện, kênh đã đăng nhập) trước khi chạy,
-// mọi lần tải sau đó ghim CA này (không còn -k): Linux bằng curl --cacert, Windows bằng .NET với hàm kiểm chứng chỉ riêng từng yêu cầu (curl.exe/Schannel không kiểm được CA của hộp). Gói osquery do hộp phản chiếu từ bản phát hành chính thức và kiểm checksum nên máy chủ không cần Internet.
-// Đối chiếu tài liệu (2026-11-06):
-// - Linux: gói .deb/.rpm, dịch vụ systemd "osqueryd" (/usr/lib/systemd/system/osqueryd.service), cấu hình /etc/osquery/, `systemctl enable --now osqueryd`.
-//   https://osquery.readthedocs.io/en/stable/installation/install-linux/ ; cài tay trong agentConfig.ts cũng tải gói từ hộp, không dùng kho ngoài.
-// - Windows: MSI cài vào C:\Program Files\osquery, daemon osqueryd\osqueryd.exe, dịch vụ "osqueryd" tạo bằng manage-osqueryd.ps1 -install -startupArgs "--flagfile=…", Start-Service osqueryd.
+// Two one-line osquery install scripts served by THE BOX ITSELF (S-INV-4): /api/v1/install/osquery.sh and /osquery.ps1.
+// The box uses a self-signed CA so the CA is embedded straight into the script; the user compares the SHA-256 of the script (shown in the UI, a signed-in channel) before running it,
+// every later download pins this CA (no more -k): Linux with curl --cacert, Windows with .NET using a verification function of its own for each request (curl.exe/Schannel cannot check the box's CA). The osquery package is mirrored by the box from the official release and checksum-checked, so the server needs no Internet.
+// Checked against documentation (2026-11-06):
+// - Linux: .deb/.rpm packages, the systemd service "osqueryd" (/usr/lib/systemd/system/osqueryd.service), configuration in /etc/osquery/, `systemctl enable --now osqueryd`.
+//   https://osquery.readthedocs.io/en/stable/installation/install-linux/ ; the manual install in agentConfig.ts also downloads the package from the box, no external repository.
+// - Windows: the MSI installs into C:\Program Files\osquery, daemon osqueryd\osqueryd.exe, the service "osqueryd" created with manage-osqueryd.ps1 -install -startupArgs "--flagfile=…", Start-Service osqueryd.
 //   https://osquery.readthedocs.io/en/stable/installation/install-windows/
-// - Cờ TLS: config_plugin, logger_plugin, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), *_tls_endpoint, host_identifier.
+// - TLS flags: config_plugin, logger_plugin, enroll_secret_path, tls_server_certs, tls_hostname (with the port, without https://), *_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
-// TÊN GÓI do hộp phản chiếu (theo tên tệp phát hành osquery trên GitHub; backend làm thật phải khớp): osquery_<ver>-1.linux_amd64.deb, osquery-<ver>-1.linux.x86_64.rpm,
-// osquery_<ver>-1.linux_arm64.deb, osquery-<ver>-1.linux.aarch64.rpm, osquery-<ver>.msi, kèm SHA256SUMS, tất cả dưới /api/v1/install/osquery/. Đường dẫn /api/v1/install/*, /api/v1/intake/* là của riêng Vedette (tên mock).
+// PACKAGE NAMES mirrored by the box (following the osquery release file names on GitHub; a real backend must match): osquery_<ver>-1.linux_amd64.deb, osquery-<ver>-1.linux.x86_64.rpm,
+// osquery_<ver>-1.linux_arm64.deb, osquery-<ver>-1.linux.aarch64.rpm, osquery-<ver>.msi, with SHA256SUMS, all under /api/v1/install/osquery/. The paths /api/v1/install/*, /api/v1/intake/* are Vedette's own (mock names).
 
 export const OSQUERY_VERSION = '5.12.1'
 /** The host part of server_url while the box knows no address other machines can reach (agent-intake PRE-3): the box serves no script
@@ -23,9 +23,9 @@ const fill = (t: string, box: string, ca: string) => t.replaceAll('@@BOX@@', box
 export const linuxInstallScript = (box: string, ca: string) => fill(BASH, box, ca)
 export const windowsInstallScript = (box: string, ca: string) => fill(PWSH, box, ca)
 
-/** Một dòng lệnh cài: tải từ hộp, đối chiếu SHA-256 đã hiện trong giao diện, rồi chạy với token. Token đi qua tham số, không nằm trong URL.
- *  Script tải vào một tệp mktemp mới mỗi lần rồi xoá: một đường cố định trong /tmp do người dùng khác để lại không ghi đè được
- *  (fs.protected_regular=2 của Ubuntu; lượt đi thật 2). */
+/** A one-line install command: download from the box, compare the SHA-256 shown in the UI, then run with the token. The token goes through a parameter, never in the URL.
+ *  The script downloads into a fresh mktemp file every time and then deletes it: a fixed path in /tmp left by another user cannot overwrite it
+ *  (Ubuntu's fs.protected_regular=2; the real run 2). */
 export function linuxOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `--token ${token}` : '--uninstall'
   // In a subshell, so the exit status of the download, the check or the install survives the cleanup and `exit` never closes the admin's terminal.
@@ -34,8 +34,8 @@ export function linuxOneLiner(box: string, sha256: string, token: string, action
   const url = `${box}/api/v1/install/osquery.sh`
   return `(command -v sudo >/dev/null 2>&1 || sudo() { "$@"; }; f=$(mktemp) && { curl -fsSLk ${url} -o "$f" || wget -qO "$f" --no-check-certificate ${url}; } && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
 }
-/** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và ghim nó cho mọi lần tải sau (.NET).
- *  Tên tệp mới mỗi lần (GUID, đuôi .ps1 vì -File cần nó) và xoá sau khi chạy, như bản Linux. */
+/** Windows PowerShell 5.1: there is no -SkipCertificateCheck, so only the first script download uses curl.exe -k (there is no CA yet); the script embeds the CA and pins it for every later download (.NET).
+ *  A new file name each time (a GUID, the .ps1 extension because -File needs it) and deleted after running, like the Linux version. */
 export function windowsOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `-Token '${token}'` : '-Uninstall'
   return `$f=Join-Path $env:TEMP ('vedette-osquery-'+[guid]::NewGuid()+'.ps1'); curl.exe -fsSLk ${box}/api/v1/install/osquery.ps1 -o $f; if ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${sha256}') { powershell -NoProfile -ExecutionPolicy Bypass -File $f ${arg}; Remove-Item -Force $f } else { Remove-Item -Force $f; throw 'Checksum mismatch: do not run this file' }`

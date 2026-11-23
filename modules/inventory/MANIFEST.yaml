@@ -8,5 +8,5 @@ permissions: []
 ports: []
 container: core
 tables_prefix: inv_
-stories: [S-INV-1, S-INV-2, S-INV-3, S-INV-5, S-FEED-1]   # S-INV-4 thuộc agent-intake
-milestone: M2   # khai tay; M3 tự động
+stories: [S-INV-1, S-INV-2, S-INV-3, S-INV-5, S-FEED-1]   # S-INV-4 belongs to agent-intake
+milestone: M2   # hand declaration; M3 automatic

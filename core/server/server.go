@@ -96,7 +96,7 @@ func New(cfg Config) (http.Handler, error) {
 		return nil, fmt.Errorf("server: build api: %w", err)
 	}
 	a.oas = srv
-	return Envelope(cfg.Log, a.checkOrigin(a.limitBody(limitWrites(http.HandlerFunc(a.route))))), nil
+	return Envelope(cfg.Log, compressJSON(a.checkOrigin(a.limitBody(limitWrites(http.HandlerFunc(a.route)))))), nil
 }
 
 // Envelope is the outermost layer of every response the process produces: panic recovery, a fresh

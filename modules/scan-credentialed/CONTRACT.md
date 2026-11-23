@@ -1,38 +1,38 @@
 # Scan-credentialed Contract
 
-> Tier: optional · Story: S-SCAN-5 · Last verified: 2026-11-21 (docs-first, chưa có code; mọi câu đã đối chiếu với code)
+> Tier: optional · Story: S-SCAN-5 · Last verified: 2026-11-21 (docs first, no code yet; every sentence checked against the code)
 
-Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentialed*` trong `scan/contract.ts` và `scan/mocks.ts`. Module chưa có mã Go (thư mục chỉ có `MANIFEST.yaml`): các điều dưới đây là thiết kế, chưa thi hành. GUI mới có quản lý tài khoản và thử kết nối; chưa có nút chạy quét hay xem kết quả.
+Source of behaviour: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentialed*` in `scan/contract.ts` and `scan/mocks.ts`. The module has no Go code yet (the folder holds only `MANIFEST.yaml`): the items below are design, not yet implemented. The GUI only has account management and the connection test; there is no button to run a scan or view results yet.
 
 ## Invariants
-- **INV-1**: Chỉ quét máy trong phạm vi `inventory` (đã xác nhận, không nằm trong loại trừ) và đã duyệt; `selectable=false` → 400 `out_of_scope`. Mọi kết nối của container greenbone chỉ tới `host:port` của tài khoản đã lưu (SYS-7).
-- **INV-2**: Chỉ cho máy có `device_kind ∈ {server, nas, web}` (400 `not_server`); mỗi tài sản một tài khoản (409 `exists`, muốn đổi khoá phải xoá rồi thêm lại).
-- **INV-3**: `username` khớp `^[a-z_][a-z0-9_-]{0,31}$` (400 `bad_username`); `port ∈ 1..65535` (400 `bad_port`); `private_key` ≤ 16 384 ký tự và đúng định dạng khoá riêng (400 `bad_key`).
-- **INV-4**: Khoá riêng SSH là bí mật: lưu bằng `core/secrets` (AES-256-GCM), API chỉ trả `key_last4`, không log, không vào export/backup/log xuất (SYS-4). Xoá tài khoản xoá khoá.
-- **INV-5**: `POST …/test`: timeout 5 giây; kết quả `{ok, ts, message}` lưu vào `last_test`, thông điệp không chứa khoá hay phần riêng của khoá.
-- **INV-6**: Greenbone chạy trong container riêng, không sửa, không nhúng vào binary (GPL/AGPL, legal.md); chỉ tắt/bật khi module bật, image ký cosign do `vedette-host` kéo.
-- **INV-7**: Tôn trọng cửa sổ giờ, tốc độ và loại trừ của `scan`/`inventory`; dùng chung nút "Stop now" của lượt quét.
-- **INV-8**: Kết quả Greenbone là dữ liệu không tin cậy (SYS-6): parser fail-closed, giới hạn kích thước; chỉ đi vào hệ thống qua `findings` với `basis` hợp lệ.
-- **INV-9**: Mọi lần thêm/xoá/thử/quét ghi `core_audit` (`scan.credentialed.add|remove|test`), không có bí mật.
+- **INV-1**: Scans only machines in the `inventory` scope (confirmed, not in the exclusions) and approved; `selectable=false` → 400 `out_of_scope`. Every connection of the greenbone container goes only to the `host:port` of a stored account (SYS-7).
+- **INV-2**: Only for machines with `device_kind ∈ {server, nas, web}` (400 `not_server`); one account per asset (409 `exists`, to change the key it must be deleted and added again).
+- **INV-3**: `username` matches `^[a-z_][a-z0-9_-]{0,31}$` (400 `bad_username`); `port ∈ 1..65535` (400 `bad_port`); `private_key` ≤ 16,384 characters and in a valid private key format (400 `bad_key`).
+- **INV-4**: The SSH private key is a secret: stored with `core/secrets` (AES-256-GCM), the API returns only `key_last4`, never logged, never in export/backup/log export (SYS-4). Deleting the account deletes the key.
+- **INV-5**: `POST …/test`: a 5 second timeout; the result `{ok, ts, message}` is stored in `last_test`, the message contains neither the key nor any part of it.
+- **INV-6**: Greenbone runs in its own container, unmodified, not embedded in the binary (GPL/AGPL, legal rule); it is started/stopped only when the module is on, a cosign-signed image pulled by `vedette-host`.
+- **INV-7**: Respects the time window, speed and exclusions of `scan`/`inventory`; shares the "Stop now" button of the scan run.
+- **INV-8**: Greenbone results are untrusted data (SYS-6): the parser fails closed with size limits; they enter the system only through `findings` with a valid `basis`.
+- **INV-9**: Every add/delete/test/scan writes `core_audit` (`scan.credentialed.add|remove|test`), with no secrets.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`POST /scans/credentialed`): `admin`, INV-1…4. **POST-1**: `CredTarget {id, asset_id, label, host, port, username, key_last4, created_at, last_test:null}` (201); khoá nằm trong `core/secrets`.
-- **PRE-2** (`POST …/{id}/test`): `operator`, tài khoản tồn tại (404). **POST-2**: INV-5; trả `CredTarget` với `last_test` mới.
-- **PRE-3** (`DELETE …/{id}`): `admin`. **POST-3**: 204; tài khoản và khoá biến mất; kết quả cũ giữ.
-- **PRE-4** (`GET /scans/credentialed`): `viewer`. **POST-4**: `{items, enabled}`; `enabled` phản ánh trạng thái module và container.
+- **PRE-1** (`POST /scans/credentialed`): `admin`, INV-1…4. **POST-1**: `CredTarget {id, asset_id, label, host, port, username, key_last4, created_at, last_test:null}` (201); the key sits in `core/secrets`.
+- **PRE-2** (`POST …/{id}/test`): `operator`, the account exists (404). **POST-2**: INV-5; returns `CredTarget` with a new `last_test`.
+- **PRE-3** (`DELETE …/{id}`): `admin`. **POST-3**: 204; the account and key disappear; old results are kept.
+- **PRE-4** (`GET /scans/credentialed`): `viewer`. **POST-4**: `{items, enabled}`; `enabled` reflects the state of the module and the container.
 
 ## Forbidden
-- **FORBID-1**: Trả hoặc log khoá riêng; lưu khoá dạng rõ.
-- **FORBID-2**: Dùng tài khoản cho máy ngoài phạm vi, hoặc máy không phải server/nas/web.
-- **FORBID-3**: Nhúng hay sửa Greenbone; ship GPL/AGPL trong lõi.
-- **FORBID-4**: Chạy lệnh trên máy đích ngoài những gì Greenbone thực hiện; không ghi gì lên máy đích.
-- **FORBID-5**: Dùng quyền root/sudo tài khoản; khuyến nghị tài khoản chỉ đọc (hiển thị trong giao diện).
+- **FORBID-1**: Return or log the private key; store the key in clear text.
+- **FORBID-2**: Use an account for a machine outside the scope, or one that is not a server/nas/web.
+- **FORBID-3**: Embed or modify Greenbone; ship GPL/AGPL in the core.
+- **FORBID-4**: Run commands on the target machine beyond what Greenbone does; write nothing to the target machine.
+- **FORBID-5**: Use the account's root/sudo rights; a read-only account is recommended (shown in the UI).
 
 ## Dependencies
-- **DEPENDS ON**: `core` (secrets, audit, `host/client` của `vedette-host`), `inventory`, `scan`.
-- **DEPENDED ON BY**: không (tiêu thụ bởi `findings` qua sự kiện).
+- **DEPENDS ON**: `core` (secrets, audit, `host/client` of `vedette-host`), `inventory`, `scan`.
+- **DEPENDED ON BY**: none (consumed by `findings` through events).
 
-## Endpoints owned (role tối thiểu)
+## Endpoints owned (minimum role)
 | Route | Vai |
 |---|---|
 | `GET /scans/credentialed` | viewer |
@@ -40,21 +40,21 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 | `POST /scans/credentialed`, `DELETE /scans/credentialed/{id}` | admin |
 
 ## Tables owned (`scc_`)
-`scc_target` (tài khoản; khoá nằm ở `core_secret`), `scc_run` (lượt quét), `scc_result`.
+`scc_target` (accounts; the key sits in `core_secret`), `scc_run` (scan runs), `scc_result`.
 
 ## Events
-- **Phát**: `scancred.run.finished {run_id, findings}`, `scancred.finding.reported {asset_id, cve}` (đề xuất).
-- **Nhận**: `scan.run.stopped` (nút Stop now), `inventory.asset.deleted` (xoá tài khoản), `core.module.disabled`.
+- **Emits**: `scancred.run.finished {run_id, findings}`, `scancred.finding.reported {asset_id, cve}` (a proposal).
+- **Receives**: `scan.run.stopped` (the Stop now button), `inventory.asset.deleted` (delete the account), `core.module.disabled`.
 
-## Behaviour khi tắt
-Không route `/scans/credentialed*` (tab hiện "off" qua `enabled:false` ở bản GUI), container greenbone dừng, không kết nối SSH. Tài khoản và khoá mã hoá giữ nguyên.
+## Behaviour when off
+No `/scans/credentialed*` routes (the tab shows "off" through `enabled:false` in the GUI build), the greenbone container stops, no SSH connection. Accounts and encrypted keys are kept as they are.
 
-## Story và quyết định
-S-SCAN-5. Giấy phép minh bạch; container `greenbone` tuỳ chọn. **Bản v1 không có backend** (core trả 501 `not_implemented` cho `/scans/credentialed*`), nên GUI không mời module này: không tab trong Settings → Scanning (`ScanningPage`), không dòng trong Settings → Modules hay trình cài đặt, sau công tắc `CREDENTIALED_IN_UI = false` (`web/src/lib/credentialed.ts`). Mã GUI, hợp đồng, mock giữ nguyên.
+## Story and decisions
+S-SCAN-5. Transparent licensing; the `greenbone` container is optional. **The v1 build has no backend** (core returns 501 `not_implemented` for `/scans/credentialed*`), so the GUI does not offer this module: no tab in Settings → Scanning (`ScanningPage`), no row in Settings → Modules or the setup wizard, behind the switch `CREDENTIALED_IN_UI = false` (`web/src/lib/credentialed.ts`). The GUI code, contract and mock are kept as they are.
 
-## Không khớp / câu hỏi mở
-- ~~`contract.ts` ghi "khoá riêng không bao giờ được lưu"~~ Đã sửa chữ trong GUI/contract: "lưu mã hoá trên hộp, không bao giờ hiện lại" (`core/secrets`, SYS-4).
-- Chưa có endpoint chạy quét hoặc xem kết quả credentialed; chưa rõ nó dùng `POST /scans/runs` (id `cred:<id>`?) hay endpoint riêng.
-- Kéo feed NVT của Greenbone là luồng dữ liệu ra mới: chưa có trong `PRIVACY.md` (legal.md bắt buộc cập nhật cùng commit).
-- ~~`MODULES.md` ghi bảng `scan_*`~~ Đã chốt `scc_` (manifest, mock `scc_target`).
-- `basis` của finding từ credentialed chưa định nghĩa.
+## Mismatches / open questions
+- ~~`contract.ts` says "the private key is never stored"~~ The wording in the GUI/contract was fixed: "stored encrypted on the box, never shown again" (`core/secrets`, SYS-4).
+- There is no endpoint yet to run a scan or view credentialed results; it is not clear whether it uses `POST /scans/runs` (id `cred:<id>`?) or its own endpoint.
+- Pulling the Greenbone NVT feed is a new outbound data flow: it is not yet in `PRIVACY.md` (the legal rule requires updating it in the same commit).
+- ~~`MODULES.md` lists the `scan_*` tables~~ `scc_` is settled (manifest, mock `scc_target`).
+- The `basis` of a finding from credentialed is not defined yet.

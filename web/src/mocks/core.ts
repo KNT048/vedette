@@ -1,5 +1,5 @@
-// Handler lõi: phiên đăng nhập, người dùng hiện tại, trạng thái module, trạng thái cài đặt ban đầu.
-// Các handler còn lại của module core (người dùng, cập nhật, quyền riêng tư…) ở features/core/mocks.ts.
+// Core handlers: the sign-in session, the current user, the module state, the initial setup state.
+// The other handlers of the core module (users, updates, privacy...) are in features/core/mocks.ts.
 import { http, HttpResponse } from 'msw'
 import { API, body, fail, guard, currentUser, audit } from './http'
 import { emailChannelReady, moduleAvailable, modulesStore, modulesView, orgStore, sessionStore, twofaMethodOf, usersStore } from './stores'
@@ -9,7 +9,7 @@ import { collection } from './db'
 import { verifyTotp } from '@/features/core/totp'
 import { checkCode, issueCode, sentBody } from '@/features/core/emailCode'
 
-// Cùng bảng với features/core/mocks.ts (khoá TOTP đã xác nhận của từng người dùng).
+// The same table as features/core/mocks.ts (each user's confirmed TOTP key).
 const totpSecrets = collection<Record<string, string>>('core_totp', () => ({}))
 
 // Sign-in throttle like the box (API_CONVENTIONS section 8, S-CORE-3): 10 wrong passwords for an email, then 429 rate_limited with
@@ -50,11 +50,11 @@ export const coreHandlers = [
       audit('auth.login_failed', u.email, 'temporary password expired')
       return fail(400, 'temp_password_expired', 'This temporary password has expired. Ask an administrator for a new one.')
     }
-    // Xác thực hai lớp: đúng mật khẩu nhưng thiếu mã → 401 để trang đăng nhập hỏi mã; mã sai → 400.
+    // Two-step authentication: the right password but no code → 401 so the sign-in page asks for a code; a wrong code → 400.
     if (u.twofa) {
       const code = String(b.code ?? '').replace(/\s/g, '')
       if (twofaMethodOf(u) === 'email') {
-        // Không bao giờ lùi về "chỉ mật khẩu": kênh email không gửi được thì từ chối đăng nhập.
+        // Never fall back to "password only": if the email channel cannot send, refuse the sign-in.
         if (!emailChannelReady()) {
           audit('auth.login_failed', u.email, 'email channel unavailable for two-step code')
           return fail(503, 'twofa_email_unavailable', EMAIL_UNAVAILABLE)
@@ -81,7 +81,7 @@ export const coreHandlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // Gửi lại mã email ở bước hai: gửi cả mật khẩu để người lạ không thể bắt hộp thư người khác nhận mã.
+  // Resend the email code at the second step: send the password too so a stranger cannot make the box mail a code to someone else.
   http.post(`${API}/auth/login/resend-code`, async ({ request }) => {
     const b = await body<{ email: string; password: string }>(request)
     const u = usersStore.get().find((x) => x.email === String(b.email ?? '').trim().toLowerCase() && !x.disabled)
@@ -106,7 +106,7 @@ export const coreHandlers = [
     return HttpResponse.json(modulesView())
   }),
 
-  // S-CORE-1: bật module thiếu phụ thuộc → 409 kèm danh sách, UI hỏi bật kèm (rule modules.md: không tự bật ngầm).
+  // S-CORE-1: turning on a module with missing dependencies → 409 with a list, the UI asks to turn them on together (modules rule: never turned on silently).
   http.patch(`${API}/modules/:id`, async ({ params, request }) => {
     const denied = guard('admin')
     if (denied) return denied

@@ -541,7 +541,7 @@ func (s *Service) deliverServices(ctx context.Context, src netip.Addr, hint obse
 	if !s.allowReplace(ctx, src, node, listServices) {
 		return false, nil
 	}
-	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(osqueryListening(rows))); err != nil {
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, mapServices(osqueryListening(rows))); err != nil {
 		if transient(err) {
 			return false, fmt.Errorf("agentintake: services: %w", err)
 		}

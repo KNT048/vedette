@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// QA khám phá trên server dev đang chạy (http://localhost:5173, HMR): agent sửa mã là thấy ngay.
-// Chạy một file: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/<module>.spec.ts
+// Exploratory QA against the running dev server (http://localhost:5173, HMR): a code change shows up at once.
+// Run one file: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/<module>.spec.ts
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,

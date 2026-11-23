@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-// Sản phẩm chỉ có tiếng Anh. Không còn thư mục vi; không chuỗi nào trong en có dấu tiếng Việt.
+// The product is English only. There is no vi folder any more; no string in en has Vietnamese diacritics.
 const en = import.meta.glob<{ default: Record<string, unknown> }>('../locales/en/*.json', { eager: true })
 const vi = import.meta.glob('../locales/vi/*.json')
 const VI = /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i

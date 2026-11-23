@@ -322,7 +322,8 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 	if err := ctx.Err(); err != nil {
 		return Output{}, err
 	}
-	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: make([]string, len(targets)), Ports: ports}}
+	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: make([]string, len(targets)), Ports: ports,
+		HostTimeoutS: int(nmapargv.HostTimeoutOf(argv) / time.Second)}}
 	if scope != nil {
 		j.spec.Scope, j.spec.Domain = sensorlink.ScopeDomainIP, scope
 	}

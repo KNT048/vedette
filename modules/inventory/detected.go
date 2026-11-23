@@ -177,7 +177,7 @@ func keptSet(ctx context.Context, q querier, id string) (map[[2]string]bool, err
 // deviceDifferences reads the device's observations and says where a trusted reading differs from a person's value.
 func deviceDifferences(ctx context.Context, q querier, id string) ([]Differs, error) {
 	rows, err := q.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
-		AND NOT (field = 'mac' AND evidence IS ?) AND NOT `+declaredObsSQL, id, chassisEvidence)
+		AND NOT (field = 'mac' AND evidence IS ?) AND source <> 'declared'`, id, chassisEvidence)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read observations: %w", err)
 	}
@@ -234,7 +234,7 @@ func (s *Service) UseDetected(ctx context.Context, actor, id, field, detected st
 			return err
 		}
 		name := deviceName(ctx, tx, id)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = ? AND source = 'manual' AND NOT `+declaredObsSQL, id, field); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = ? AND source = 'manual'`, id, field); err != nil {
 			return fmt.Errorf("inventory: drop the entered value: %w", err)
 		}
 		if _, err := s.RecomputeAsset(ctx, tx, id); err != nil {

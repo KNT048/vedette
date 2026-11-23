@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "reports": "Reports"
-  },
   "page": {
     "titleLoading": "Reports",
     "title": "This week {{open}} findings are unresolved and {{unapproved}} devices await approval.",

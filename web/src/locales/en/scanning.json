@@ -1,5 +1,4 @@
 {
-  "nav": "Scanning",
   "page": {
     "title": "Scanning",
     "meta": "{{on}} of {{total}} engines on. Next run {{time}}.",
@@ -437,7 +436,17 @@
       "checked": "checked",
       "unreachable": "did not answer",
       "failed": "failed",
-      "skipped": "skipped"
+      "skipped": "skipped",
+      "probed": "probed",
+      "checked_all": "every TCP port checked",
+      "checked_list": "common ports checked",
+      "checked_top": "common ports and nmap's 1,000 most common ports checked",
+      "checked_web": "ports 80 and 443 checked by name",
+      "deep_scanned": "deep-scanned",
+      "deep_waiting": "next in line for the deep scan",
+      "deep_fence": "checked by name only",
+      "deep_refused": "deep scan refused before anything was sent",
+      "deep_incomplete": "deep scan did not finish"
     },
     "queuedBehind": "Queued behind",
     "count": "{{done}} of {{total}}",

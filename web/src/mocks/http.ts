@@ -1,4 +1,4 @@
-// Tiện ích chung cho handler mock: lỗi chuẩn {error:{code,message}}, kiểm tra quyền, validate ở biên (SYS-2).
+// Shared helpers for mock handlers: the standard error {error:{code,message}}, permission checks, validation at the edge (SYS-2).
 import { HttpResponse } from 'msw'
 import { sessionStore, usersStore, type User } from './stores'
 import { realSessionOn, realUser } from './realSession'
@@ -13,14 +13,14 @@ export function fail(status: number, code: string, message: string, extra: Recor
 
 const rank: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 
-/** Người đang đăng nhập: phiên của mock, hoặc (khi core chạy thật trong `make dev-api`) người dùng của backend thật (`mocks/realSession.ts`). */
+/** The signed-in person: the mock session, or (when core runs for real in `make dev-api`) the real backend's user (`mocks/realSession.ts`). */
 export function currentUser(): User | undefined {
   if (realSessionOn()) return realUser()
   const s = sessionStore.get()
   return s.userId ? usersStore.get().find((x) => x.id === s.userId) : undefined
 }
 
-/** Trả về lỗi 401/403 nếu thiếu quyền, hoặc null nếu được phép. `allowLimited`: cho cả phiên đang bị giới hạn vì mật khẩu tạm. */
+/** Returns a 401/403 error if the permission is missing, or null if allowed. `allowLimited`: also lets a session that is limited because of a temporary password through. */
 export function guard(min: Role, allowLimited = false) {
   const u = currentUser()
   if (!u) return fail(401, 'unauthenticated', 'Your session has ended. Sign in again.')
@@ -40,10 +40,10 @@ export const CIDR_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)
 export const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Ghi nhật ký kiểm toán cho mọi mutation (SYS-3). Module core hiển thị ở Cài đặt → Nhật ký. */
+/** Write an audit entry for every mutation (SYS-3). The core module shows it in Settings → Audit log. */
 export { audit } from './stores'
 
-/** Sản phẩm chỉ có tiếng Anh. Giữ chữ ký để mã cũ chạy; viết mới thì dùng chuỗi tiếng Anh trực tiếp. */
+/** The product is English only. Keep the signature so old code runs; new code uses English strings directly. */
 export const langOf = (_req: Request): 'en' => 'en'
-/** @deprecated dùng chuỗi tiếng Anh trực tiếp. Trả về bản tiếng Anh. */
+/** @deprecated use English strings directly. Returns the English text. */
 export const msg = (_req: Request, _vi: string, en: string) => en

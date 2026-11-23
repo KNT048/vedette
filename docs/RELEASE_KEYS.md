@@ -1,88 +1,88 @@
 # Khoá ký phát hành
 
-Ba khoá ký mọi thứ hộp Vedette tin khi cập nhật. Nửa công khai nhúng trong binary (`internal/release/keys.go`); nửa riêng chỉ ở chỗ người duy trì giữ, không bao giờ trong repo, trên hộp, trong log hay PR.
+Three keys sign everything a Vedette box trusts when it updates. The public half is embedded in the binary (`internal/release/keys.go`); the private half lives only where the maintainer keeps it, never in the repository, on a box, in a log or in a PR.
 
-| Khoá | ID | Ký gì | Tệp riêng | Mật khẩu (Keychain, service) |
+| Key | ID | Signs what | Private file | Password (Keychain, service) |
 |---|---|---|---|---|
-| minisign **đang dùng** | `7B78764E550D48D0` | `index.json` và mọi `release-manifest.json` | `~/.vedette-release-keys/minisign.key` | `vedette-release-minisign` |
-| minisign **dự phòng** (ngoại tuyến) | `8DD38917AD864FAE` | index thu hồi một khoá, và bản cứu sau khi khoá đang dùng lộ; không ký bản phát hành thường | `~/.vedette-release-keys/minisign-backup.key` | `vedette-release-minisign-backup` |
-| cosign (ECDSA P-256) | SHA-256 PKIX `CosignKeyID` | image (định dạng cũ) | `~/.vedette-release-keys/cosign.key` | `vedette-release-cosign` |
+| minisign **in use** | `7B78764E550D48D0` | `index.json` and every `release-manifest.json` | `~/.vedette-release-keys/minisign.key` | `vedette-release-minisign` |
+| minisign **backup** (offline) | `8DD38917AD864FAE` | the index that revokes a key, and a rescue release after the key in use leaks; does not sign ordinary releases | `~/.vedette-release-keys/minisign-backup.key` | `vedette-release-minisign-backup` |
+| cosign (ECDSA P-256) | SHA-256 PKIX `CosignKeyID` | images (the old format) | `~/.vedette-release-keys/cosign.key` | `vedette-release-cosign` |
 
-Account của mục Keychain là tên người dùng macOS của người duy trì (`$USER`). Mỗi mục **không tin ứng dụng nào** (`-T ""`): mọi lần đọc, bởi bất kỳ chương trình nào, hiện hộp thoại macOS cần mật khẩu đăng nhập, nên một tiến trình chạy dưới tài khoản đó (agent, script cài gói) không lấy được mật khẩu một cách im lặng. Bấm **Allow**, không bao giờ **Always Allow** (nó thêm chương trình đó vào danh sách tin cậy). Nửa công khai nằm cạnh (`*.pub`, đúng tên mà `RELEASE_KEYS` đọc); không đặt `RELEASE_KEYS` thì `scripts/release` dùng khoá biên dịch sẵn, cũng chính là ba khoá này.
+The account of a Keychain entry is the maintainer's macOS user name (`$USER`). Each entry **trusts no application** (`-T ""`): every read, by any program, shows a macOS dialog that needs the login password, so a process running under that account (a script, a package installer) cannot get the password silently. Click **Allow**, never **Always Allow** (it adds that program to the trust list). The public half sits next to it (`*.pub`, exactly the names that `RELEASE_KEYS` reads); if `RELEASE_KEYS` is not set, `scripts/release` uses the compiled-in keys, which are these same three keys.
 
-## Nghi thức tạo khoá (2026-11-11)
+## Key generation ceremony (2026-11-11)
 
-`scripts/release/keygen.sh` trên Mac của người duy trì (chỉ macOS vì mật khẩu vào Keychain):
+`scripts/release/keygen.sh` on the maintainer's Mac (macOS only because the password goes into Keychain):
 
-0. Thử trước một lần: `security dump-keychain -a ~/Library/Keychains/login.keychain-db > /dev/null` phải thoát 0 (chỉ đọc danh sách quyền, không có mật khẩu). Script dùng lệnh này để kiểm mục vừa tạo không tin ứng dụng nào; lệnh này hỏng thì script dừng.
-1. Kiểm `minisign` trong PATH đúng phiên bản `deploy/tools.env` (0.12; trên macOS là bản Homebrew, chỉ kiểm phiên bản, không ghim hash: binary ghim của `minisign.sh` chỉ có cho Linux) và lấy cosign v2.6.5 ghim SHA-256 bằng `scripts/release/cosign.sh`.
-2. Từ chối nếu đã có tệp khoá hay mục Keychain cùng tên (không bao giờ ghi đè khoá).
-3. Mỗi khoá: mật khẩu ngẫu nhiên 256 bit (`openssl rand -hex 32`) vào biến shell, ghi thẳng vào Keychain qua `security -i` đọc từ stdin (không nằm trong argv, lịch sử shell hay tệp, không in ra), mục không tin ứng dụng nào; tạo khoá, mã hoá bằng mật khẩu đó (minisign: scrypt; cosign: scrypt + secretbox; cosign nhận mật khẩu qua `COSIGN_PASSWORD`, tiến trình cùng tài khoản thấy được trong lúc cosign chạy); thư mục `0700`, tệp `0600`.
-4. Tự kiểm: đọc lại mật khẩu từ Keychain (một hộp thoại mỗi khoá), so với bản vừa ghi, rồi mỗi khoá ký một tệp bỏ đi và chữ ký được kiểm bằng nửa công khai (chứng minh mục Keychain, khoá riêng, khoá công khai là một bộ); tệp bỏ đi bị xoá.
-5. Chỉ in nửa công khai. Hỏng giữa chừng thì script nói còn sót tệp và mục Keychain nào, phải xoá trước khi chạy lại.
+0. Try once first: `security dump-keychain -a ~/Library/Keychains/login.keychain-db > /dev/null` must exit 0 (it only reads the access list, with no password). The script uses this command to check that the entry just created trusts no application; if this command fails the script stops.
+1. Check that `minisign` in PATH is the version in `deploy/tools.env` (0.12; on macOS the Homebrew build, only the version is checked, the hash is not pinned: the pinned binary of `minisign.sh` exists only for Linux) and fetch cosign v2.6.5 pinned by SHA-256 with `scripts/release/cosign.sh`.
+2. Refuse if a key file or a Keychain entry of the same name already exists (a key is never overwritten).
+3. For each key: a random 256-bit password (`openssl rand -hex 32`) into a shell variable, written straight into Keychain through `security -i` reading from stdin (not in argv, shell history or a file, not printed), the entry trusting no application; create the key, encrypt it with that password (minisign: scrypt; cosign: scrypt + secretbox; cosign takes the password through `COSIGN_PASSWORD`, which a process of the same account can see while cosign runs); the folder `0700`, the file `0600`.
+4. Self-check: read the password back from Keychain (one dialog per key), compare it with what was just written, then each key signs a throwaway file and the signature is checked with the public half (proving that the Keychain entry, the private key and the public key are one set); the throwaway file is deleted.
+5. Only the public half is printed. If it breaks midway the script says which files and Keychain entries are left, which must be deleted before running again.
 
-Ba khoá thật được tạo bằng bản đầu của script (mục Keychain khi đó tin công cụ `security`); sau rà soát cùng ngày, ba mục được tạo lại với cùng mật khẩu và `-T ""` (danh sách ứng dụng của quyền `decrypt` rỗng, đã kiểm bằng `security dump-keychain -a`).
+The three real keys were created with the first version of the script (the Keychain entries then trusted the `security` tool); after a review the same day, the three entries were created again with the same passwords and `-T ""` (the application list of the `decrypt` permission is empty, checked with `security dump-keychain -a`).
 
-Sau đó mỗi khoá ký `internal/release/testdata/prod/proof.txt` (bằng chứng sở hữu, không phải tài liệu phát hành). `TestProductionKeysProofOfPossession` kiểm ba chữ ký đó bằng hằng nhúng, nên hằng bị sửa một ký tự hay dán nhầm ô sẽ đỏ trên CI chứ không phải ở bản phát hành đầu tiên.
+After that each key signs `internal/release/testdata/prod/proof.txt` (proof of possession, not a release document). `TestProductionKeysProofOfPossession` checks those three signatures with the embedded constants, so a constant altered by one character or pasted into the wrong cell goes red on CI and not at the first release.
 
-## Ký một bản phát hành
+## Signing a release
 
-Trước khi ký:
+Before signing:
 
-- [ ] Người duy trì tag `v<v>` **trước**, rồi mới dựng image và `.deb` từ bản clone sạch ở đúng tag: `.deb` dựng trước tag mang commit và phiên bản khác, `release-gates` dựng lại ở tag và từ chối (bản v0.1.0-beta.1 phải dựng lại `.deb`).
-- [ ] `podman login ghcr.io` (token `write:packages`); `gh auth refresh -s read:packages` để `gh` liệt kê được package.
-- [ ] Tổ chức KNT048 cho phép package Public (Settings → Packages); sau `release-push` lần đầu, bốn package `vedette-core`, `-sensor`, `-scan`, `-honeypot` đặt Public và nối với repo.
+- [ ] The maintainer tags `v<v>` **first**, and only then builds the images and the `.deb` from a clean clone at exactly that tag: a `.deb` built before the tag carries a different commit and version, `release-gates` rebuilds at the tag and refuses (the v0.1.0-beta.1 release had to rebuild the `.deb`).
+- [ ] `podman login ghcr.io` (a `write:packages` token); `gh auth refresh -s read:packages` so `gh` can list packages.
+- [ ] The KNT048 organisation allows Public packages (Settings → Packages); after the first `release-push`, the four packages `vedette-core`, `-sensor`, `-scan`, `-honeypot` are set to Public and linked to the repo.
 
-Mật khẩu không bao giờ là đối số; mỗi lệnh dưới đây hiện một hộp thoại Keychain:
+The password is never an argument; each command below shows one Keychain dialog:
 
 ```bash
 security find-generic-password -s vedette-release-minisign -a "$USER" -w | make release-sign MINISIGN_KEY=$HOME/.vedette-release-keys/minisign.key MINISIGN_BIN=$(command -v minisign) PASSPHRASE_STDIN=1
 ```
 
 ```bash
-make -s release-cosign-plan COSIGN_KEY=$HOME/.vedette-release-keys/cosign.key > dist/cosign-plan.sh && less dist/cosign-plan.sh   # chỉ in lệnh (cosign đã ghim); đọc lại
+make -s release-cosign-plan COSIGN_KEY=$HOME/.vedette-release-keys/cosign.key > dist/cosign-plan.sh && less dist/cosign-plan.sh   # prints the commands only (cosign pinned); read them again
 COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) scripts/release/cosign-auth.sh sh -eu dist/cosign-plan.sh
 ```
 
-Kế hoạch bắt đầu bằng `cd` về gốc repo, rồi `cosign sign` cho từng image (ghi `dist/release/cosign/<service>.{payload.json,sig}` cho `release-manifest`), rồi `cosign attest --type cyclonedx` cho từng SBOM theo kiến trúc (`dist/sbom` của `make sbom RELEASE=1 IMAGE_TAG=<v>`), tải lên ghcr cạnh digest của kiến trúc đó. Mỗi SBOM phải là SBOM của đúng image đã đẩy: `aquasecurity:trivy:ImageID` của trivy phải bằng config digest mà `release-push` ghi cho kiến trúc đó trong `images.json` (dựng lại image sau khi đẩy thì SBOM mới bị từ chối). cosign cần đăng nhập ghcr và đọc nó như Docker (`$DOCKER_CONFIG/config.json`, rồi `~/.docker/config.json`; chỉ khi cả hai không có mới đọc `auth.json` của podman), nên một `~/.docker/config.json` không có ghcr che mất `podman login ghcr.io`: `scripts/release/cosign-auth.sh` trỏ `DOCKER_CONFIG` vào thư mục tạm (0700) có `config.json` là liên kết tới `auth.json` của podman (`$REGISTRY_AUTH_FILE`, hoặc `~/.config/containers/auth.json` trên macOS), chạy kế hoạch rồi xoá thư mục; không chép, không in thông tin đăng nhập. Chạy lại sau lỗi: `--replace` thay attestation CycloneDX cũ của cùng digest (chưa đo trên ghcr) (phần C).
+The plan starts with a `cd` to the repo root, then `cosign sign` for each image (writing `dist/release/cosign/<service>.{payload.json,sig}` for `release-manifest`), then `cosign attest --type cyclonedx` for each per-architecture SBOM (`dist/sbom` of `make sbom RELEASE=1 IMAGE_TAG=<v>`), uploaded to ghcr next to the digest of that architecture. Each SBOM must be the SBOM of exactly the image that was pushed: trivy's `aquasecurity:trivy:ImageID` must equal the config digest that `release-push` recorded for that architecture in `images.json` (if the image is rebuilt after pushing, the new SBOM is refused). cosign needs the ghcr login and reads it like Docker (`$DOCKER_CONFIG/config.json`, then `~/.docker/config.json`; only when both are missing does it read podman's `auth.json`), so a `~/.docker/config.json` with no ghcr hides `podman login ghcr.io`: `scripts/release/cosign-auth.sh` points `DOCKER_CONFIG` at a temporary folder (0700) whose `config.json` is a link to podman's `auth.json` (`$REGISTRY_AUTH_FILE`, or `~/.config/containers/auth.json` on macOS), runs the plan, then deletes the folder; it copies and prints no credentials. Re-running after a failure: `--replace` replaces the old CycloneDX attestation of the same digest (not measured on ghcr) (part C).
 
-Khoá dự phòng chỉ được lấy ra khi cần ký index thu hồi (`RELEASE_SLOT=backup`) hay bản cứu.
+The backup key is taken out only when the revocation index must be signed (`RELEASE_SLOT=backup`) or for a rescue release.
 
-## Người duy trì cần làm (một lần, **ngay**)
+## What the maintainer must do (once, **now**)
 
-1. Chép `~/.vedette-release-keys/` (ba tệp `.key` đã mã hoá và ba `.pub`) ra **hai nơi ngoại tuyến** khác nhau, ví dụ hai USB cất ở hai chỗ.
-2. Chép **ba mật khẩu** từ Keychain (Keychain Access → tìm `vedette-release` → Show password, hoặc `security find-generic-password -s vedette-release-<tên> -a "$USER" -w` trên terminal của chính mình) ra **giấy**, cất tách khỏi USB. Khoá đã mã hoá mà mất mật khẩu thì vô dụng; mật khẩu không kèm tệp khoá thì cũng vô dụng; tách hai thứ thì mất một nơi không lộ khoá.
-3. **Khoá dự phòng rời Mac ngay** sau khi có hai bản ngoại tuyến: xoá `minisign-backup.key` và mục Keychain `vedette-release-minisign-backup` (`security delete-generic-password -s vedette-release-minisign-backup -a "$USER"`). Ý nghĩa của khoá dự phòng là kẻ chiếm được máy ký không có nó; mà một mình nó ký được index và manifest hộp nhận, nên để nó trên Mac là để cả hai khoá ở một chỗ. Khoá đang dùng và khoá cosign có thể ở lại Mac để phát hành; tuỳ chọn xoá luôn và chỉ cắm USB khi phát hành.
-4. Kiểm lại một bản sao bằng cách ký thử một tệp từ USB (`minisign -S -s <usb>/minisign.key -m <tệp>` rồi `minisign -Vm <tệp> -p <usb>/minisign.pub`).
-5. **Time Machine**: nó sao lưu cả `~/.vedette-release-keys` lẫn `login.keychain-db`, nên ai có đĩa sao lưu chỉ cần thêm mật khẩu đăng nhập của người duy trì. Hoặc loại thư mục khoá khỏi Time Machine (`tmutil addexclusion ~/.vedette-release-keys`; hai USB đã là bản sao), hoặc chỉ dùng đĩa Time Machine mã hoá.
+1. Copy `~/.vedette-release-keys/` (three encrypted `.key` files and three `.pub`) to **two different offline places**, for example two USB sticks stored in two places.
+2. Copy the **three passwords** from Keychain (Keychain Access → search `vedette-release` → Show password, or `security find-generic-password -s vedette-release-<name> -a "$USER" -w` in your own terminal) onto **paper**, stored apart from the USB sticks. An encrypted key without its password is useless; a password without the key file is useless too; with the two kept apart, losing one place does not expose the key.
+3. **The backup key leaves the Mac at once** after the two offline copies exist: delete `minisign-backup.key` and the Keychain entry `vedette-release-minisign-backup` (`security delete-generic-password -s vedette-release-minisign-backup -a "$USER"`). The point of the backup key is that an attacker who takes over the machine does not have it; and since it alone can sign the index and manifest that a box accepts, leaving it on the Mac puts both keys in one place. The key in use and the cosign key may stay on the Mac for releasing; optionally delete them too and plug in the USB stick only when releasing.
+4. Re-check one copy by signing a test file from the USB stick (`minisign -S -s <usb>/minisign.key -m <file>` then `minisign -Vm <file> -p <usb>/minisign.pub`).
+5. **Time Machine**: it backs up both `~/.vedette-release-keys` and `login.keychain-db`, so whoever has the backup disk needs only the maintainer's login password in addition. Either exclude the key folder from Time Machine (`tmutil addexclusion ~/.vedette-release-keys`; the two USB sticks are already copies), or use only an encrypted Time Machine disk.
 
-Thư mục khoá nằm ở thư mục nhà, ngoài iCloud Drive.
+The key folder sits in the home folder, outside iCloud Drive.
 
-## Xoay khoá và thu hồi
+## Key rotation and revocation
 
-- **Khoá đang dùng bị lộ hoặc mất:** hộp đã cài chỉ tin hai khoá nhúng, nên bản cứu phải đi qua khoá **dự phòng**. Các bước ở mục "Bản cứu" ngay dưới.
-- **Khoá cosign bị lộ:** thu hồi `kind=key` bằng `CosignKeyID` trong index ký bằng khoá dự phòng, và phát hành binary với khoá cosign mới. Bộ xác minh nhận 1–2 khoá cosign (`Trust.Cosign`), nhưng `Embedded()` hôm nay chỉ dựng từ một hằng `prodCosign`: nhúng hai khoá trong lúc chuyển cần sửa mã.
-- **Khoá dự phòng bị lộ:** nghiêm trọng như lộ cả hai: một mình nó ký được index và manifest hộp nhận, và thu hồi vĩnh viễn được khoá đang dùng. Không index nào thu hồi được khoá dự phòng (thiết kế). Phản ứng: phát hành ngay bằng khoá đang dùng một binary với khoá dự phòng mới, trước khi kẻ giữ khoá kịp thu hồi khoá đang dùng; hộp nào đã nhận index thu hồi của kẻ đó chỉ cứu được bằng cài lại. Cả hai khoá minisign cùng lộ là giới hạn đã ghi (update-manifest §13 (b)).
-- Mất mật khẩu hay mọi bản sao của khoá đang dùng mà khoá dự phòng còn: như "bị lộ" ở trên. Mất cả hai khoá minisign: hộp đã cài không nhận cập nhật nào nữa; người dùng phải cài lại bằng `install.sh` mới.
+- **The key in use leaks or is lost:** installed boxes trust only the two embedded keys, so a rescue release must go through the **backup** key. The steps are in "Rescue release" just below.
+- **The cosign key leaks:** revoke `kind=key` by `CosignKeyID` in an index signed by the backup key, and release a binary with the new cosign key. The verifier accepts 1-2 cosign keys (`Trust.Cosign`), but `Embedded()` today is built from a single constant `prodCosign`: embedding two keys during a transition needs a code change.
+- **The backup key leaks:** as serious as both leaking: it alone can sign the index and manifest a box accepts, and can permanently revoke the key in use. No index can revoke the backup key (by design). Response: at once release, with the key in use, a binary with a new backup key, before the holder of the key can revoke the key in use; a box that has already accepted that person's revocation index can be rescued only by reinstalling. Both minisign keys leaking together is a recorded limit (update-manifest §13 (b)).
+- Losing the password or every copy of the key in use while the backup key remains: treat as "leaked" above. Losing both minisign keys: installed boxes accept no more updates; users must reinstall with a new `install.sh`.
 
-## Bản cứu sau khi khoá đang dùng lộ
+## Rescue release after the key in use leaks
 
-**Hộp tìm chữ ký ở đâu.** Hộp nhận **một** chữ ký cho mỗi tài liệu, ở đúng chỗ như mọi bản: `index.json.minisig` và `release-manifest.json.minisig` (`container.pull` có `index_sig`/`manifest_sig`; cài đặt đầu dùng `-index-sig`/`-manifest-sig`). Bộ xác minh của hộp nhận chữ ký của **bất kỳ** khoá nào trong hai khoá nhúng. Vì vậy bản cứu đăng chữ ký của khoá **dự phòng** ở chính hai tệp đó, và không đăng chữ ký nào của khoá đang dùng (hộp sẽ từ chối nó vì khoá đó đã bị thu hồi). Mã phía hộp không đổi dòng nào. `<tệp>.backup.minisig` (`-slot backup`) vẫn chỉ là chữ ký thêm để `verify` kiểm; hộp không bao giờ tải nó.
+**Where the box looks for the signature.** The box receives **one** signature per document, in exactly the same place as for every release: `index.json.minisig` and `release-manifest.json.minisig` (`container.pull` has `index_sig`/`manifest_sig`; the first install uses `-index-sig`/`-manifest-sig`). The box's verifier accepts a signature of **any** of the two embedded keys. So a rescue release publishes the **backup** key's signature in those very two files, and publishes no signature of the key in use (the box would refuse it because that key has been revoked). The box-side code does not change a line. `<file>.backup.minisig` (`-slot backup`) is still only an extra signature for `verify` to check; the box never downloads it.
 
-**Các bước** (máy người duy trì, khoá dự phòng lấy từ USB):
+**Steps** (the maintainer's machine, the backup key taken from the USB stick):
 
-1. Giữ một thư mục có ba nửa công khai **cũ** (`minisign.pub` là khoá vừa lộ, `minisign-backup.pub`, `cosign.pub`): đó là thứ các hộp đã cài đang tin. Mọi lệnh dưới đây chạy với `-keys-dir` trỏ vào đó, vì khoá biên dịch trong bản cứu đã là khoá mới.
-2. Tạo khoá đang dùng mới: chuyển cặp cũ vào `retired/`, `scripts/release/keygen.sh minisign`. Đổi `prodMinisignActive`, chuyển dòng cũ vào `prodMinisignRetired`, ghi D mới, merge, dựng image và `.deb` của bản cứu.
-3. **Index nền là bản lưu của chính người duy trì**, không tải lại từ GitHub: kẻ giữ khoá lộ có thể đã đăng index của nó, và mọi thứ trong `-prev-index` (kênh, advisory, thu hồi, `keys`) đi vào index mà khoá dự phòng sắp ký. Dùng bản sao index cuối cùng mình đăng (so SHA-256 với bản đã ghi lúc đăng), và đọc lại phần được mang theo trước khi ký.
-4. `release manifest` như mọi bản (`-prev-index` là bản lưu đó, `-keys-dir` cũ).
-5. `release index … -prev-index <bản lưu> -keys-dir <khoá cũ> -revoke-key <ID khoá lộ> -revoke-reason "<lý do>"`: thêm dòng thu hồi `kind=key` (`-revoke-key` không chạy khi thiếu `-prev-index`: index không nền sẽ bỏ mất kênh, advisory và thu hồi đã có). Thu hồi khoá được giữ mãi; hộp chỉ nhận nó khi index do khoá dự phòng ký, và khi đó `sequence` được phép thấp hơn index kẻ giữ khoá lộ có thể đã đưa cho hộp.
-6. `release sign -slot rescue -key <usb>/minisign-backup.key -prev-index <bản lưu> -keys-dir <khoá cũ> …` (hoặc `make release-sign RELEASE_SLOT=rescue RELEASE_PREV_INDEX=… RELEASE_KEYS=…`): khoá dự phòng ký `index.json` (cùng mọi `index.v<N>.json`) **và** `release-manifest.json` vào `<tệp>.minisig`. Công cụ từ chối khi thiếu manifest, khi thư mục đã có chữ ký của lượt khác, khi index không thu hồi khoá đang dùng của bộ khoá cũ, hoặc khi index nền đã thu hồi khoá đó (mỗi khoá lộ chỉ một bản cứu). Ký xong nó chạy `verify`; không ra `RESCUE` (ví dụ ký nhầm bằng khoá khác) thì xoá hết chữ ký của lượt đó.
-7. `release verify -dir … -prev-index <bản lưu> -keys-dir <khoá cũ>`: chạy đúng bộ xác minh của hộp, dòng kết quả ghi `RESCUE`. Manifest ký bằng khoá dự phòng chỉ qua khi index cũng do khoá dự phòng ký, thu hồi khoá đang dùng của bộ khoá được kiểm, và index nền chưa thu hồi nó. Kiểm với khoá biên dịch mới thì bị từ chối.
-8. **Khách chỉ-container**: bốn tệp `vedette.env`, `compose*.yaml` của bản cứu cũng ký bằng khoá dự phòng, còn khách chỉ có `vedette.pub` (khoá vừa lộ) sẽ thấy `FAILED`. Ghi chú phát hành và trang GitHub release phải ghi rõ "rescue release" và bảo họ kiểm bằng `vedette-backup.pub` (nửa công khai của khoá dự phòng, `8DD38917AD864FAE`, từ repository: `docs/INSTALL-CONTAINER.md` §1 đã bảo lưu nó, §5 nói cách dùng). `cosign.pub` không đổi trừ khi chính khoá cosign lộ.
-9. Đăng, rồi cất khoá dự phòng lại ngoại tuyến. Bản thường kế tiếp dùng khoá mới, `-prev-index` là index của bản cứu, khoá biên dịch mới; thu hồi khoá cũ đi tiếp trong mọi index sau.
+1. Keep a folder with the three **old** public halves (`minisign.pub` is the key that just leaked, `minisign-backup.pub`, `cosign.pub`): this is what installed boxes trust. Every command below runs with `-keys-dir` pointing there, because the compiled-in key in the rescue release is already the new key.
+2. Create a new key in use: move the old pair into `retired/`, `scripts/release/keygen.sh minisign`. Change `prodMinisignActive`, move the old line into `prodMinisignRetired`, write the new key, merge, build the images and the `.deb` of the rescue release.
+3. **The base index is the maintainer's own saved copy**, not downloaded again from GitHub: the holder of the leaked key may have published an index of their own, and everything in `-prev-index` (channels, advisories, revocations, `keys`) goes into the index the backup key is about to sign. Use the copy of the last index you published (compare its SHA-256 with the one recorded when it was published), and re-read the carried-over part before signing.
+4. `release manifest` like every release (`-prev-index` is that saved copy, `-keys-dir` the old one).
+5. `release index … -prev-index <saved copy> -keys-dir <old keys> -revoke-key <ID of the leaked key> -revoke-reason "<reason>"`: adds a `kind=key` revocation row (`-revoke-key` does not run without `-prev-index`: an index with no base would lose the existing channels, advisories and revocations). A key revocation is kept forever; a box accepts it only when the index is signed by the backup key, and then `sequence` is allowed to be lower than the index the holder of the leaked key may have given the box.
+6. `release sign -slot rescue -key <usb>/minisign-backup.key -prev-index <saved copy> -keys-dir <old keys> …` (or `make release-sign RELEASE_SLOT=rescue RELEASE_PREV_INDEX=… RELEASE_KEYS=…`): the backup key signs `index.json` (with every `index.v<N>.json`) **and** `release-manifest.json` into `<file>.minisig`. The tool refuses when the manifest is missing, when the folder already has a signature from another run, when the index does not revoke the key in use of the old key set, or when the base index has already revoked that key (each leaked key gets only one rescue). After signing it runs `verify`; if the result is not `RESCUE` (for example signed by mistake with another key) it deletes all the signatures of that run.
+7. `release verify -dir … -prev-index <saved copy> -keys-dir <old keys>`: runs exactly the box's verifier, the result line says `RESCUE`. A manifest signed by the backup key passes only when the index is also signed by the backup key, revokes the key in use of the checked key set, and the base index has not revoked it yet. Checking with the new compiled-in key is refused.
+8. **Container-only customers**: the four files `vedette.env`, `compose*.yaml` of the old rescue release are also signed by the backup key, and customers who have only `vedette.pub` (the key that just leaked) will see `FAILED`. The release notes and the GitHub release page must say "rescue release" and tell them to verify with `vedette-backup.pub` (the public half of the backup key, `8DD38917AD864FAE`, from the repository: `docs/INSTALL-CONTAINER.md` §1 already preserves it, §5 says how to use it). `cosign.pub` does not change unless the cosign key itself leaks.
+9. Publish, then put the backup key back offline. The next ordinary release uses the new key, `-prev-index` is the rescue release's index, the new compiled-in key; revoking the old key carries on in every later index.
 
-**Cửa sổ của bản cứu.** Hộp tải `index.json` hiện hành. Hộp còn binary cũ chỉ đọc được index do khoá dự phòng ký; index kế tiếp (bản làm mới hằng tuần, hay bản thường) do khoá mới ký thì hộp cũ từ chối, không tới được manifest cứu. Vậy hộp nào chưa nhận bản cứu (tắt máy, lỗi mạng) trước index kế tiếp phải cài lại bằng `install.sh` mới. Để cửa sổ dài nhất: index cứu `-valid-days 14`, và không đăng index nào khác trong 14 ngày trừ khi có bản vá gấp (index hết hạn chỉ cảnh báo, nên hộp cũ vẫn nhận index cứu sau đó). Không chọn: khoá dự phòng ký luôn các bản làm mới trong một thời gian (khoá ngoại tuyến phải ra ngoài nhiều lần).
+**The rescue window.** A box downloads the current `index.json`. A box that still has the old binary can read only an index signed by the backup key; the next index (the weekly refresh, or an ordinary release) signed by the new key is refused by an old box, which then cannot reach the rescue manifest. So any box that has not received the rescue release (powered off, a network error) before the next index must reinstall with a new `install.sh`. To make the window longest: the rescue index `-valid-days 14`, and publish no other index for 14 days unless there is an urgent fix (an expired index only warns, so an old box still accepts the rescue index afterwards). Not chosen: having the backup key also sign the refreshes for a while (the offline key would have to come out many times).
 
-Quy tắc "khoá dự phòng chỉ ký bản cứu" nằm ở công cụ (`sign`, `verify`), không ở hộp: hộp nhận manifest do khoá dự phòng ký vì khoá đó không bao giờ bị thu hồi. Vì thế nó phải ở ngoại tuyến.
+The rule "the backup key signs only the rescue release" lives in the tool (`sign`, `verify`), not in the box: the box accepts a manifest signed by the backup key because that key is never revoked. That is why it must be offline.
 
-Nguồn: `docs/specs/update-manifest.md` §5, §8, §13.
+Source: `docs/specs/update-manifest.md` §5, §8, §13.

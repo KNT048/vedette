@@ -11,7 +11,7 @@ import type { AiJob as Job } from '../types'
 
 export const ALL_JOBS = AiJob.options as Job[]
 
-/** Một dòng trong danh sách quản lý: nội dung bên trái, công tắc và nút bên phải. */
+/** One row in a management list: content on the left, a switch and buttons on the right. */
 export function Row({ children, actions, dim }: { children: React.ReactNode; actions?: React.ReactNode; dim?: boolean }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-rule px-4 py-3 last:border-b-0">
@@ -28,7 +28,7 @@ export function Toggle({ checked, onChange, label, disabled, title }: { checked:
 
 export function jobNames(t: (k: string) => string, jobs: Job[]) { return jobs.length ? jobs.map((j) => t(`jobs.${j}.name`)).join(', ') : t('harness.allJobs') }
 
-/** "Mọi việc" hoặc chọn từng việc. `value` rỗng = mọi việc. */
+/** "Every job" or pick individual jobs. An empty `value` = every job. */
 export function JobPicker({ value, onChange, idPrefix, legend, allLabel }: { value: Job[]; onChange: (v: Job[]) => void; idPrefix: string; legend: string; allLabel?: string }) {
   const { t } = useTranslation('ai')
   const all = value.length === 0

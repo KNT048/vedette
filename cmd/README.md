@@ -1,1 +1,1 @@
-cmd/vedette (server|sensor|all), cmd/vedette-builder (pipeline trung tâm). Chưa có code — M2.
+cmd/vedette (server|sensor|all), cmd/vedette-builder (the central pipeline). No code yet.

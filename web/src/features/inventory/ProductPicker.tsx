@@ -8,16 +8,16 @@ import { kindIcon } from './kinds'
 import type { CatalogItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
 
-/** Sản phẩm đã chọn: một mục trong danh mục, hoặc do người dùng tự nhập hãng + sản phẩm (khớp theo hãng). */
+/** The chosen product: an entry in the catalogue, or a vendor + product typed by the user (matched by vendor). */
 export interface ChosenProduct { catalog_id?: string; vendor?: string; product?: string; display: string; hint: string; version_hint: string | null; custom: boolean }
 export const chosenFromItem = (it: CatalogItem): ChosenProduct => ({ catalog_id: it.id, display: it.display, hint: it.hint, version_hint: it.version_hint, custom: false })
-/** Phần của body gửi lên máy chủ để nói "sản phẩm này". */
+/** The part of the body sent to the server that says "this product". */
 export const productFields = (p: ChosenProduct) => (p.custom ? { vendor: p.vendor, product: p.product } : { catalog_id: p.catalog_id })
 
 /**
- * Ô tìm sản phẩm theo tên thương mại, model hoặc hãng (S-INV-2). Chưa gõ thì không hiện danh sách, chỉ một dòng gợi ý (danh sách 30 mục làm tưởng chỉ hỗ trợ 30 sản phẩm).
- * Gõ rồi mới hiện danh sách cuộn; máy chủ trả tối đa 30 dòng, phần còn lại báo "N more match". Không thấy thì tự nhập hãng + sản phẩm.
- * Combobox chuẩn ARIA: bàn phím lên/xuống/Enter, trình đọc màn hình đọc được số kết quả.
+ * A product search by commercial name, model or vendor (S-INV-2). Before typing no list is shown, only a hint line (a list of 30 entries would suggest only 30 products are supported).
+ * A scrolling list shows only after typing; the server returns at most 30 rows, the rest is reported as "N more match". If it is not found, type the vendor + product.
+ * A standard ARIA combobox: up/down/Enter on the keyboard, the number of results is readable by a screen reader.
  */
 export function ProductPicker({ value, onChange, label, listOpenRef }: { value: ChosenProduct | null; onChange: (v: ChosenProduct | null) => void; label: string; listOpenRef?: RefObject<boolean> }) {
   const { t } = useTranslation('inventory')
@@ -36,7 +36,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
   const items = typed ? (res.data?.items ?? []) : []
   const total = typed ? (res.data?.total ?? 0) : 0
   const listVisible = open && !value && !custom && items.length > 0
-  // Hộp thoại chứa ô này hỏi cờ này để Esc chỉ đóng danh sách gợi ý, không đóng cả hộp thoại.
+  // The dialog that holds this field asks for this flag so Esc closes only the suggestion list, not the whole dialog.
   useEffect(() => {
     if (listOpenRef) listOpenRef.current = listVisible
     return () => { if (listOpenRef) listOpenRef.current = false }

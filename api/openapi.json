@@ -60238,6 +60238,7 @@
                                 "type": "string",
                                 "enum": [
                                   "manual",
+                                  "declared",
                                   "agent",
                                   "snmp",
                                   "nmap",
@@ -60489,6 +60490,7 @@
                                     "type": "string",
                                     "enum": [
                                       "manual",
+                                      "declared",
                                       "agent",
                                       "snmp",
                                       "nmap",
@@ -60546,6 +60548,7 @@
                                     "type": "string",
                                     "enum": [
                                       "manual",
+                                      "declared",
                                       "agent",
                                       "snmp",
                                       "nmap",
@@ -60603,6 +60606,7 @@
                                     "type": "string",
                                     "enum": [
                                       "manual",
+                                      "declared",
                                       "agent",
                                       "snmp",
                                       "nmap",
@@ -60683,6 +60687,7 @@
                                   "type": "string",
                                   "enum": [
                                     "manual",
+                                    "declared",
                                     "agent",
                                     "snmp",
                                     "nmap",
@@ -60759,6 +60764,7 @@
                                   "type": "string",
                                   "enum": [
                                     "manual",
+                                    "declared",
                                     "agent",
                                     "snmp",
                                     "nmap",
@@ -60955,6 +60961,7 @@
                                     "type": "string",
                                     "enum": [
                                       "manual",
+                                      "declared",
                                       "agent",
                                       "snmp",
                                       "nmap",
@@ -61386,6 +61393,7 @@
                               "type": "string",
                               "enum": [
                                 "manual",
+                                "declared",
                                 "agent",
                                 "snmp",
                                 "nmap",
@@ -61637,6 +61645,7 @@
                                   "type": "string",
                                   "enum": [
                                     "manual",
+                                    "declared",
                                     "agent",
                                     "snmp",
                                     "nmap",
@@ -61694,6 +61703,7 @@
                                   "type": "string",
                                   "enum": [
                                     "manual",
+                                    "declared",
                                     "agent",
                                     "snmp",
                                     "nmap",
@@ -61751,6 +61761,7 @@
                                   "type": "string",
                                   "enum": [
                                     "manual",
+                                    "declared",
                                     "agent",
                                     "snmp",
                                     "nmap",
@@ -61830,6 +61841,7 @@
                                 "type": "string",
                                 "enum": [
                                   "manual",
+                                  "declared",
                                   "agent",
                                   "snmp",
                                   "nmap",
@@ -61983,6 +61995,7 @@
                                 "type": "string",
                                 "enum": [
                                   "manual",
+                                  "declared",
                                   "agent",
                                   "snmp",
                                   "nmap",
@@ -62051,6 +62064,7 @@
                                       "type": "string",
                                       "enum": [
                                         "manual",
+                                        "declared",
                                         "agent",
                                         "snmp",
                                         "nmap",
@@ -62167,6 +62181,7 @@
                                             "type": "string",
                                             "enum": [
                                               "manual",
+                                              "declared",
                                               "agent",
                                               "snmp",
                                               "nmap",
@@ -62271,6 +62286,7 @@
                                       "type": "string",
                                       "enum": [
                                         "manual",
+                                        "declared",
                                         "agent",
                                         "snmp",
                                         "nmap",
@@ -62440,6 +62456,7 @@
                             "type": "string",
                             "enum": [
                               "manual",
+                              "declared",
                               "agent",
                               "snmp",
                               "nmap",
@@ -62514,6 +62531,7 @@
                             "type": "string",
                             "enum": [
                               "manual",
+                              "declared",
                               "agent",
                               "snmp",
                               "nmap",

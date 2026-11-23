@@ -534,7 +534,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	_ = x.EndStep(ctx, surface, corerun.Done, fmt.Sprintf("%d open services (%d new, %d closed), %d open issues (%d new)",
 		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
 	s.recordSteps(ctx, x, steps, runOn)
-	s.recordCoverage(ctx, x, wr.checked)
+	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
@@ -1083,9 +1083,10 @@ func (s *Service) recordNames(ctx context.Context, x *corerun.Exec, probed map[s
 // itemName is the kind of a run item that names a name the scan probed.
 const itemName = "name"
 
-// recordCoverage writes, as items of the run, which ports the scan probed on each address it reached: the next scan closes a service
-// only when this one, which probed it, missed it too (INV-22). A failure is logged: the next scan then waits one scan more.
-func (s *Service) recordCoverage(ctx context.Context, x *corerun.Exec, checked map[string]string) {
+// recordCoverage writes, as items of the run, which ports the scan probed on each address it reached, and each open service outside
+// the fixed list its service step probed (topPorts, kind itemPort): the next scan closes a service only when this one, which probed
+// it, missed it too (INV-22). A failure is logged: the next scan then waits one scan more.
+func (s *Service) recordCoverage(ctx context.Context, x *corerun.Exec, checked map[string]string, topPorts []string) {
 	ips := make([]string, 0, len(checked))
 	for ip := range checked {
 		ips = append(ips, ip)
@@ -1095,6 +1096,16 @@ func (s *Service) recordCoverage(ctx context.Context, x *corerun.Exec, checked m
 		if err := x.AddItem(ctx, corerun.Item{SubjectKind: "address", SubjectID: ip, Label: ip, Outcome: checked[ip]}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "exposure: recording what a scan checked", "run", x.ID(), "address", ip, "error", err)
 		}
+	}
+	items := make([]corerun.Item, 0, len(topPorts))
+	for _, k := range topPorts {
+		items = append(items, corerun.Item{SubjectKind: itemPort, SubjectID: k, Label: k, Outcome: coverTop})
+	}
+	if len(items) == 0 {
+		return
+	}
+	if err := x.AddItems(ctx, items...); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: recording the ports a scan's service step checked", "run", x.ID(), "error", err)
 	}
 }
 

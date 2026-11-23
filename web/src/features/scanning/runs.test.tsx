@@ -78,6 +78,14 @@ describe('/runs/<id>: one run', () => {
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })
 
+  it('a public scan names what it checked on an address in words; its per-port items are neither listed nor counted', async () => {
+    renderApp('/runs/run-m5')
+    expect(await screen.findByRole('heading', { level: 2, name: '1 device or address' }, T)).toBeInTheDocument()
+    expect(screen.getByText("common ports and nmap's 1,000 most common ports checked")).toBeInTheDocument()
+    expect(screen.queryByText('checked_top')).toBeNull()
+    expect(screen.queryByText('203.0.113.10:8444')).toBeNull()
+  })
+
   it('a run that is not kept says so and leads to every run', async () => {
     renderApp('/runs/run-nope')
     expect(await screen.findByText('This run is not kept: it does not exist, or it ended more than 400 days ago.', {}, T)).toBeInTheDocument()

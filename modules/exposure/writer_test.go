@@ -136,6 +136,13 @@ func (e *env) replay(target, startedAt string, c Content, gbAddrs ...GreenboneAd
 				return err
 			}
 		}
+		for _, k := range out.topPorts {
+			seq++
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome) VALUES (?, ?, ?, ?, ?, ?)`,
+				runID, seq, itemPort, k, k, coverTop); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {

@@ -259,9 +259,16 @@ type Job struct {
 	// address); "" and nil on every other nmap job, which keeps the shape an older worker knows.
 	Scope  string
 	Domain *DomainScope
-	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending); nil on every other nmap job, which keeps the
-	// shape an older worker knows. Sent only to a worker whose heartbeat says nmap.ports.
+	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending), sent only to a worker whose heartbeat says
+	// nmap.ports, and of an external -sV batch (1..40, ascending, with HostTimeoutS); nil on every other nmap job, which keeps the
+	// shape an older worker knows. A worker from before the external discovery runs its own earlier line for the discovery job,
+	// which core recognises and reports as an older worker before sending any batch.
 	Ports []int
+	// HostTimeoutS is the --host-timeout in seconds of an external -sV batch (nmapargv.BatchFlags: 60..120), the only nmap job
+	// whose host timeout core picks from the time left; 0 on every other job (omitempty keeps their shape). A worker built before
+	// this field decodes jobs strictly and fails its whole poll on it, so the batch job expires unread (ErrWorkerLost) and the
+	// service step keeps the batches that finished; only while the box updates.
+	HostTimeoutS int
 
 	Nuclei *NucleiJob // nuclei, nil for the others
 	SNMP   *SNMPJob   // snmp, nil for the others
@@ -470,6 +477,7 @@ type nmapWire struct {
 	Scope    string       `json:"scope,omitempty"`
 	Domain   *DomainScope `json:"domain,omitempty"`
 	Ports    []int        `json:"ports,omitempty"`
+	HostS    int          `json:"host_timeout_s,omitempty"`
 }
 
 type nucleiWire struct {
@@ -490,7 +498,7 @@ type snmpWire struct {
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
 	case "", KindNmap:
-		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports})
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports, HostS: j.HostTimeoutS})
 	case KindNuclei:
 		if j.Nuclei == nil {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
@@ -529,7 +537,7 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		if err := strict(&w); err != nil {
 			return err
 		}
-		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports, HostTimeoutS: w.HostS}
 	case KindNuclei:
 		var w nucleiWire
 		if err := strict(&w); err != nil {

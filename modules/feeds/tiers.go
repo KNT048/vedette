@@ -45,15 +45,16 @@ func (s *Store) TierStatus(ctx context.Context, now time.Time) (TierStatus, erro
 	if err != nil {
 		return out, err
 	}
-	var scores, records int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM feeds_epss), (SELECT count(*) FROM feeds_cve WHERE nvd_at IS NOT NULL AND published >= ?)`,
-		store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&scores, &records); err != nil {
+	// Only "is there any row" is read, so ask for that: counting walks the whole table (400k scores, 100k CVEs).
+	var hasScores, hasRecords bool
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_epss), EXISTS (SELECT 1 FROM feeds_cve WHERE nvd_at IS NOT NULL AND published >= ?)`,
+		store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&hasScores, &hasRecords); err != nil {
 		return out, fmt.Errorf("feeds: tier status: %w", err)
 	}
 	out.EPSS, out.Recent = TierOff, TierOff
 	if epss.Enabled {
 		out.EPSS = TierLoading
-		if scores > 0 && epss.LastSuccess != nil {
+		if hasScores && epss.LastSuccess != nil {
 			out.EPSS, out.EPSSDate = TierReady, epss.LastSuccess.UTC().Truncate(24*time.Hour)
 			// FIRST's own day of the scores, the day Settings › Feeds names too; a pull before the column kept none
 			var day sql.NullString
@@ -72,7 +73,7 @@ func (s *Store) TierStatus(ctx context.Context, now time.Time) (TierStatus, erro
 		if err != nil {
 			return out, err
 		}
-		if cur != nil && !cur.fill() && records > 0 {
+		if cur != nil && !cur.fill() && hasRecords {
 			out.Recent, out.RecentSince = TierReady, now.UTC().AddDate(0, 0, -recentDays).Truncate(24*time.Hour)
 		}
 	}

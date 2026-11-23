@@ -28,7 +28,7 @@ function Body() {
   const admin = me.data?.role === 'admin'
   const moved = snmpMoved(search, hash)
   // UI.md §3: breadcrumbs (parents only) above the title.
-  const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
+  const crumbs = [{ label: t('common:shell.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
   if (moved) return <Navigate to={moved} replace />
   if (me.isPending) return <>{back}<Loading /></>

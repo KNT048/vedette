@@ -21,7 +21,7 @@ const MAX = 10 * 1024 * 1024
 const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 const hostOf = (u: string) => { try { return new URL(u).host } catch { return u } }
 
-/** Kho tri thức (RAG): tài liệu của khách, chỉ mục xây trên hộp bằng hồ sơ AI đã chọn. */
+/** Knowledge base (RAG): the customer's documents, with an index built on the box using the chosen AI profile. */
 export default function KnowledgeTab() {
   const { t } = useTranslation('ai')
   const kb = useKnowledge()

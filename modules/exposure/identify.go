@@ -81,8 +81,9 @@ type (
 // ServiceScanner identifies the service and version on the TCP ports of the box's own verified public IP (nmap -sV in the scan
 // container, S-EXP-2). The scan calls it after the runner, only for an IP target that passed the gate (INV-1, INV-13); ip is that
 // target. The implementation keeps its own fences (the worker checks again that ip is the box's own egress) and writes every probe
-// to the probe log before it is sent (LEGAL §3). Services are untrusted; Ports is how many TCP ports it probed. A step that could
-// not run for a reason the page may show (the module is off, the scanner is busy) returns *Unavailable.
+// to the probe log before it is sent (LEGAL §3). Services are untrusted; Ports is how many TCP ports it probed and Probed which ones
+// (INV-22 counts a port as checked only by a scan that probed it). A step that could not run for a reason the page may show (the
+// module is off, the scanner is busy) returns *Unavailable.
 type ServiceScanner interface {
 	ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error)
 }
@@ -91,6 +92,18 @@ type ServiceScanner interface {
 type ServiceScan struct {
 	Services []ServiceRow
 	Ports    int
+	// Probed are the TCP ports the default scan probed, ascending: nmap's own most common ports (as nmap said it probed them) and
+	// the fixed list. nil when the scanner does not say (a deep scan, which probes every port).
+	Probed []int
+	// DiscoveryCut: nmap's search of its most common ports did not finish, so Probed is only the fixed list's finished -sV batches.
+	DiscoveryCut bool
+	// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy); Services holds only the ports of the fixed
+	// list and the reviewed admin ports where -sV named a real service. The other ports of those lists stay in Probed, but exposure
+	// does not count them as checked (answeredPorts).
+	AnswersEverywhere bool
+	// Unfinished are the ports whose -sV batch timed out, printed nothing usable or was not started this run: not in Probed (this
+	// run never calls them closed), and the scanner reads them first next time.
+	Unfinished []int
 	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
 	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
@@ -161,27 +174,38 @@ func (e *Unavailable) Error() string { return e.Reason }
 // The errors of a ServiceScanner whose nmap ran but whose result says nothing about the services:
 // ErrAnswersEverywhere, the address answered on more than commonports.MaxBelievableOpen
 // ports (a router or SYN proxy answering for all of them), so its rows are not services; ErrServicesTimedOut, nmap hit its
-// 3-minute limit on the address and printed no port table. Each is its own "Not checked" line, never "0 services".
+// limit on the address (its --host-timeout) and printed no port table. Each is its own "Not checked" line, never "0 services".
 var (
 	ErrAnswersEverywhere = errors.New("exposure: the address answers on almost every port")
-	ErrServicesTimedOut  = errors.New("exposure: service identification did not finish within 3 minutes")
+	ErrServicesTimedOut  = errors.New("exposure: service identification did not finish within nmap's limit for one address")
 )
 
 // The lines of what a scan did not check (INV-19). They are sentences the page shows under "Not checked".
 const (
-	notUDP           = "UDP ports: the scan connects over TCP only."
-	notOtherPortsIP  = "TCP ports outside the fixed list of commonly exposed ports."
-	notOtherPortsDom = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
-	notNonExploited  = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
-	notServicesDom   = "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain."
+	notUDP          = "UDP ports: the scan connects over TCP only."
+	notOtherPortsIP = "TCP ports outside the fixed list of commonly exposed ports."
+	// notOtherPortsProbed replaces notOtherPortsIP once service identification said which ports it probed (%s: "1052 ports");
+	// notOtherPortsCut when its search of nmap's most common ports did not finish ("2 minutes": nmapargv.ExternalDiscoveryTimeout).
+	notOtherPortsProbed = "TCP ports other than the %s this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports."
+	notOtherPortsCut    = "TCP ports outside the fixed list of commonly exposed ports: nmap's search of its 1000 most common ports did not finish this time."
+	// notAnswersEverywhereKept is the line of a default scan of an address that answers on almost every port: service
+	// identification still read the fixed list and the reviewed admin ports, and only the ports where a service named itself were kept ("40":
+	// commonports.MaxBelievableOpen).
+	// notServicesUnfinished is the line of a default scan some of whose -sV batches did not finish (%s: "25 ports").
+	notServicesUnfinished    = "Service identification of %s did not finish this time (nmap's time limit for each batch of ports, or too little time left); the next scan reads them first."
+	notAnswersEverywhereKept = "More than 40 ports answered, more than a normal box exposes: a router or firewall that answers for every port looks like this. Only the ports of the fixed list and of the admin ports list where a service named itself were kept; the other ports may be the firewall answering."
+	notOtherPortsDom         = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
+	notNonExploited          = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
+	notServicesDom           = "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain."
 	// NotSetUpServices is the line of every scan while no ServiceScanner is wired (the scan container's nmap -sV is not set up).
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
-	notServicesSlow  = "Service identification (nmap -sV) did not finish within 5 minutes, so no service versions were read."
-	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "3 minutes" is nmapargv's --host-timeout of the
-	// external shape (externalHostTimeout); "40" is commonports.MaxBelievableOpen: change them together.
-	notServicesGaveUp    = "Service identification (nmap -sV) did not finish within 3 minutes, nmap's limit for one address, so no service versions were read. Services may still be open there; scan again later."
-	notAnswersEverywhere = "More than 40 of the 99 ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
+	notServicesSlow  = "Service identification (nmap -sV) did not finish within 8 minutes, so no service versions were read."
+	// The lines of ErrServicesTimedOut and ErrAnswersEverywhere. "2 minutes" and "up to 2" are nmapargv's host timeouts of the
+	// external shape's runs (ExternalDiscoveryTimeout, BatchMaxTimeout; cmd/vedette holds them in a test); "40" is
+	// commonports.MaxBelievableOpen: change them together. The second line serves the surface scan's count and nmap's alike.
+	notServicesGaveUp    = "Service identification (nmap) did not finish within nmap's limit for one address (2 minutes to find the open ports, up to 2 for each batch of ports it identifies), so no service versions were read. Services may still be open there; scan again later."
+	notAnswersEverywhere = "More than 40 of the ports checked answered, more than a normal box exposes: a router or firewall that answers for every port looks like this, so service identification and the template checks were skipped. If real services run here, forward only the ports you use."
 	notMatcher           = "Comparison with exploited vulnerabilities is not set up on this box yet."
 	notMatchFail         = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
 )
@@ -199,9 +223,11 @@ const (
 	maxUnlisted    = 20
 )
 
-// ServicesTimeout bounds service identification, like the 5-minute cap of the surface runner: a scanner that hangs ends as a
-// "Not checked" line and the rest of the scan is kept.
-const ServicesTimeout = 5 * time.Minute
+// ServicesTimeout bounds service identification: a scanner that hangs ends as a "Not checked" line and the rest of the scan is
+// kept. The default scan is two nmap runs (port discovery over nmap's most common ports, up to 2 minutes, then -sV on the open ones,
+// up to 3), each with the worker's own-IP check and its pickup, plus up to a minute's wait for the box's one nmap slot: 8 minutes.
+// cmd/vedette holds it to nmapargv's host timeouts in a test.
+const ServicesTimeout = 8 * time.Minute
 
 // The step bound of a deep scan. nmap's full shapes give up on the address after 60 minutes
 // (nmapargv.FullHostTimeout, its --host-timeout); the scanner also waits up to 2 minutes for the box's one nmap slot and checks
@@ -299,7 +325,10 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
-	if answersEverywhere(c.Ports, ip) { // The surface scan already saw it; nmap -sV is not sent at all
+	// The surface scan already saw the address answer on almost every port. A deep scan is not sent (-sV on every port of a SYN
+	// proxy would only run into its hour); the default scan still reads the fixed list and keeps the ports that named a service.
+	surfaceEverywhere := answersEverywhere(c.Ports, ip)
+	if surfaceEverywhere && st.Mode.Full {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
 		return c, nil
@@ -317,10 +346,40 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			}
 		}
 		c.Services = append(c.Services, got...)
+		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})
+		}
+		// INV-22: the ports this scan checked on ip. A port whose -sV batch did not finish is never among them, whatever the scanner
+		// said: it got no service identification, so this scan cannot have missed a service there.
+		unfinished := sanitizeProbed(res.Unfinished)
+		probed := slices.DeleteFunc(sanitizeProbed(res.Probed), func(p int) bool { _, in := slices.BinarySearch(unfinished, p); return in })
+		if !st.Mode.Full && len(probed) > 0 {
+			if covered := answeredPorts(probed, got, res.AnswersEverywhere || surfaceEverywhere); len(covered) > 0 {
+				if c.Probed == nil {
+					c.Probed = map[string][]int{}
+				}
+				c.Probed[ip.String()] = covered
+			}
+			line := fmt.Sprintf(notOtherPortsProbed, plural(len(probed), "port"))
+			if res.DiscoveryCut {
+				line = notOtherPortsCut
+			}
+			for i, n := range c.NotChecked {
+				if n.Kind == "ports" && n.Text == notOtherPortsIP {
+					c.NotChecked[i].Text = line
+				}
+			}
+		}
+		if n := len(unfinished); n > 0 && !st.Mode.Full {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})
+		}
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		read := servicesRead(got)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
-		if res.Ports > 0 {
+		switch {
+		case !st.Mode.Full && len(probed) > 0: // the default scan: -sV read only the open ones of the ports it probed
+			text = fmt.Sprintf("Port scan (nmap) of %s, then service identification (nmap -sV) of the open ones: %s.", plural(len(probed), "TCP port"), read)
+		case res.Ports > 0:
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // the script results of the deep scan, kept apart from the services
@@ -357,6 +416,30 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// answeredPorts is what of probed counts as checked for INV-22. Normally all of it. When the address answers on almost every port, the
+// scanner drops each port where -sV named no service (it may be the firewall answering), so such a port says nothing about a real
+// service there: only the fixed list (the runner TCP-connects it and reports what is open) and the ports whose service was kept count.
+func answeredPorts(probed []int, kept []ServiceRow, everywhere bool) []int {
+	if !everywhere {
+		return probed
+	}
+	return slices.DeleteFunc(slices.Clone(probed), func(p int) bool {
+		return !slices.Contains(commonports.Numbers(), p) && !slices.ContainsFunc(kept, func(r ServiceRow) bool { return r.Port == p })
+	})
+}
+
+// sanitizeProbed keeps the ports of a scanner's Probed that are TCP ports, ascending and distinct; nil when there is none.
+func sanitizeProbed(ports []int) []int {
+	var out []int
+	for _, p := range ports {
+		if p >= 1 && p <= 65535 {
+			out = append(out, p)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // answersEverywhere says the surface scan saw more than commonports.MaxBelievableOpen ports of ip open; ports of

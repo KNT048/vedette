@@ -4,9 +4,9 @@ summary: { en: "Pulls exploited-vulnerability and bad-IOC feeds straight from th
 tier: standard
 default: true
 depends: [core]
-permissions: [outbound:https]   # Mỗi nguồn kéo trực tiếp; không qua GitHub/trung tâm
+permissions: [outbound:https]   # each source is pulled directly; nothing goes through GitHub or a central server
 ports: []
 container: core
 tables_prefix: feeds_
-stories: [S-FEED-1, S-FEED-2, S-FEED-3, S-FEED-4, S-FEED-5]   # MODULES.md mới ghi S-FEED-1..3
+stories: [S-FEED-1, S-FEED-2, S-FEED-3, S-FEED-4, S-FEED-5]   # MODULES.md only lists S-FEED-1..3
 milestone: M2

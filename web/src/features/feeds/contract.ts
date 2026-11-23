@@ -1,4 +1,4 @@
-// Hợp đồng API module feeds. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// API contract of the feeds module. UI types are derived from the schema here (types.ts), so UI ↔ mock ↔ OpenAPI do not drift apart.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 

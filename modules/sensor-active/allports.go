@@ -3,12 +3,10 @@ package sensoractive
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
@@ -27,10 +25,10 @@ import (
 // fragile, of unknown kind, set to never, past nothing but its gentle scan, the box or declared by hand never gets it
 // (allPortsPlan), checked when it is picked, again under the run lock right before nmap (scanDevice), and while it runs
 // (checkRun, on a change of the device or of the settings). A Scan now identification or an exposure scan stops it and goes
-// first (lockWithin); it stays due. The run only adds ports and their services: never the software list (no -O, so no OS guess).
+// first (lockWithin); it stays due. The run writes straight into the inventory, scoped to what it looked at: the ports found open or closed (every port, no versions), and the products the follow-up read (per port, observe.PortInstance); never the rest of the software list (no -O, so no OS guess).
 
 // allPortsEvery is how often a device gets its scan of every port; allPortsKeep is how long the ports such a run found outside the
-// normal scan's lists are carried by the normal scans when no later weekly run replaces them (review r1 M4).
+// normal scan's lists stay when no later weekly run sees them again (a normal scan removes them after that, review r1 M4).
 const (
 	allPortsEvery = 7 * 24 * time.Hour
 	allPortsKeep  = 14 * 24 * time.Hour
@@ -276,7 +274,7 @@ func cmpStr(a, b string) int {
 }
 
 // markAllPorts records the end of a device's weekly scan (or that it was not eligible): it is due again allPortsEvery later. The
-// ports of a done run were written by recordDevice (keepAllPortsExtra) and are kept.
+// ports of a done run were written to the inventory by recordDevice.
 func (s *Service) markAllPorts(ctx context.Context, id, outcome string) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
@@ -317,16 +315,17 @@ func (s *Service) probeAllPorts(ctx context.Context, jobID, assetID string, ip n
 	if len(h.ports) > commonports.MaxBelievableOpen {
 		return nil, errAnswersEverywhere
 	}
-	st := s.allPortsState(ctx, assetID)
+	read := s.readTimes(ctx, assetID)
+	recent := s.clock().Add(-readFresh)
 	var want []int
 	for _, p := range h.ports {
 		_, inExtra := slices.BinarySearch(nmapargv.ExtraPortNumbers, p.number)
-		if p.proto == "tcp" && !inExtra && !slices.Contains(st.NormalPorts, p.number) {
+		if p.proto == "tcp" && !inExtra && !read[p.number].After(recent) { // a port read this week (by a normal scan too) is left alone
 			want = append(want, p.number)
 		}
 	}
-	slices.SortFunc(want, func(a, b int) int { // never read first ("" sorts first), then read longest ago, then by port
-		if c := cmpStr(st.Versioned[strconv.Itoa(a)], st.Versioned[strconv.Itoa(b)]); c != 0 {
+	slices.SortFunc(want, func(a, b int) int { // never read first (the zero time sorts first), then read longest ago, then by port
+		if c := read[a].Compare(read[b]); c != 0 {
 			return c
 		}
 		return a - b
@@ -363,205 +362,46 @@ func (s *Service) probeAllPorts(ctx context.Context, jobID, assetID string, ip n
 	return hosts, nil
 }
 
-// portSoftware is a software row a weekly follow-up read on one port (review r2 M2): kept by port and product, carried into the
-// device's nmap software list by the weekly run and by the normal scans, as the extra ports are.
-type portSoftware struct {
-	Port     int              `json:"port"`
-	Software observe.Software `json:"software"`
-}
+// readFresh is how recent a port's -sV read must be for the weekly follow-up to leave the port alone: a normal scan reads every
+// port it finds open, so the ports it found this week are not read again; a port the follow-up read last week is read again.
+const readFresh = allPortsEvery - 24*time.Hour
 
-// allPortsRow is what sa_all_ports holds for a device besides its schedule.
-type allPortsRow struct {
-	NormalPorts []int
-	NormalSW    []observe.Software // nil: no normal scan recorded since the upgrade
-	Extra       []observe.Service
-	ExtraSW     []portSoftware
-	ExtraAt     string
-	Versioned   map[string]string // port -> when the follow-up last read it
-}
-
-// allPortsState reads the row (empty on none or a read error).
-func (s *Service) allPortsState(ctx context.Context, id string) allPortsRow {
-	var np, ex, exsw, ver string
-	var nsw, at sql.NullString
-	r := allPortsRow{Versioned: map[string]string{}}
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT normal_ports, normal_sw, extra, extra_sw, coalesce(extra_at, ''), versioned FROM sa_all_ports WHERE asset_id = ?`, id).
-		Scan(&np, &nsw, &ex, &exsw, &at, &ver)
+// readTimes are the times each open TCP port of a device was last read with -sV, by port (the inventory's inv_service.read_at of
+// the nmap rows; a port that closed went with its row). On a read error none: the follow-up then picks its ports as never read,
+// which costs a port read twice, never a missed one.
+func (s *Service) readTimes(ctx context.Context, id string) map[int]time.Time {
+	if s.svc == nil {
+		return nil
+	}
+	out, err := s.svc.PortReadTimes(ctx, id, observe.Nmap)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			s.log.WarnContext(ctx, "sensoractive: reading the weekly scan of a device failed", "asset", id, "error", err)
-		}
-		return r
+		s.log.WarnContext(ctx, "sensoractive: reading the ports read with versions failed", "asset", id, "error", err)
+		return nil
 	}
-	_ = json.Unmarshal([]byte(np), &r.NormalPorts)
-	if nsw.Valid {
-		r.NormalSW = []observe.Software{}
-		_ = json.Unmarshal([]byte(nsw.String), &r.NormalSW)
-	}
-	_ = json.Unmarshal([]byte(ex), &r.Extra)
-	_ = json.Unmarshal([]byte(exsw), &r.ExtraSW)
-	_ = json.Unmarshal([]byte(ver), &r.Versioned)
-	r.ExtraAt = at.String
-	return r
+	return out
 }
 
-// fresh says the carry of the last weekly run is at most allPortsKeep old (review r1 M4).
-func (s *Service) fresh(r allPortsRow) bool {
-	return r.ExtraAt != "" && r.ExtraAt >= store.FormatTS(s.clock().Add(-allPortsKeep))
-}
-
-// keepNormal stores what a normal or versions scan found: its open ports (the weekly follow-up does not read them again) and its
-// software (the weekly run writes the device's nmap software as this plus its own, review r2 M2). It returns the weekly run's
-// software to carry, while fresh.
-func (s *Service) keepNormal(ctx context.Context, id string, list []observe.Service, sw []observe.Software) ([]observe.Software, error) {
-	ports := []int{}
-	for _, sv := range list {
-		if sv.Proto == "tcp" {
-			ports = append(ports, sv.Port)
-		}
-	}
-	if sw == nil {
-		sw = []observe.Software{}
-	}
-	bp, err := json.Marshal(ports)
-	if err != nil {
-		return nil, err
-	}
-	bs, err := json.Marshal(sw)
-	if err != nil {
-		return nil, err
-	}
-	if len(bs) > 262144 {
-		bs = []byte("[]")
-	}
-	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_all_ports (asset_id, normal_ports, normal_sw) VALUES (?, ?, ?)
-ON CONFLICT (asset_id) DO UPDATE SET normal_ports = excluded.normal_ports, normal_sw = excluded.normal_sw`, id, string(bp), string(bs))
-		return err
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: keeping the ports of a normal scan: %w", err)
-	}
-	r := s.allPortsState(ctx, id)
-	if !s.fresh(r) {
-		return nil, nil
-	}
-	out := make([]observe.Software, len(r.ExtraSW))
-	for i, e := range r.ExtraSW {
-		out[i] = e.Software
-	}
-	return out, nil
-}
-
-// keepAllPorts stores what a done weekly run found and returns the device's nmap software list to write, or nil when none should be
-// written (no normal scan recorded since the upgrade: the device is queued for one instead, which writes both). Open ports outside
-// nmapargv.ExtraPorts are carried with the run's time (a port the follow-up did not read keeps what an earlier run read on it);
-// the software of the ports the follow-up read replaces what was kept for them (a version that changed, review r2 M2), the rest is
-// kept while the port is open; ports no longer open drop out; the versioned times move for the ports read.
-func (s *Service) keepAllPorts(ctx context.Context, id string, h host) ([]observe.Software, error) {
-	prev := s.allPortsState(ctx, id)
-	now := s.now()
-	open := map[int]bool{}
-	for _, p := range h.ports {
-		if p.proto == "tcp" {
-			open[p.number] = true
-		}
-	}
-	extra := []observe.Service{}
-	for _, sv := range servicesOf(h) {
-		if _, in := slices.BinarySearch(nmapargv.ExtraPortNumbers, sv.Port); in && sv.Proto == "tcp" {
-			continue
-		}
-		if !slices.Contains(h.read, sv.Port) && sv.Product == "" {
-			if j := slices.IndexFunc(prev.Extra, func(e observe.Service) bool { return e.Port == sv.Port && e.Proto == sv.Proto }); j >= 0 {
-				sv = prev.Extra[j] // what an earlier run read on a port this one did not read
-			}
-		}
-		extra = append(extra, sv)
-	}
-	var extraSW []portSoftware
-	for _, e := range prev.ExtraSW {
-		if open[e.Port] && !slices.Contains(h.read, e.Port) {
-			extraSW = append(extraSW, e)
-		}
-	}
+// recordFollowUp writes the software the weekly follow-up read: each read port's products replace what was read on that port
+// before (instance observe.PortInstance), and the software of every other port stays. A port the follow-up read that no longer
+// answers has no product, so its old reading goes.
+func (s *Service) recordFollowUp(ctx context.Context, hint observe.AssetHint, h host) error {
+	var sw []observe.Software
+	scope := make([]string, 0, len(h.read))
 	for _, p := range h.read {
+		scope = append(scope, observe.PortInstance(p))
 		k := slices.IndexFunc(h.ports, func(q portInfo) bool { return q.number == p && q.proto == "tcp" })
 		if k < 0 {
 			continue
 		}
-		for _, sw := range softwareOf(host{addr: h.addr, ports: []portInfo{h.ports[k]}}) {
-			if !sw.Guess && !slices.ContainsFunc(extraSW, func(e portSoftware) bool {
-				return e.Port == p && e.Software.Vendor == sw.Vendor && e.Software.Product == sw.Product
-			}) {
-				extraSW = append(extraSW, portSoftware{Port: p, Software: sw})
+		for _, x := range softwareOf(host{addr: h.addr, ports: []portInfo{h.ports[k]}}) {
+			if !x.Guess {
+				x.Instance = observe.PortInstance(p)
+				sw = append(sw, x)
 			}
 		}
 	}
-	versioned := map[string]string{}
-	for k, v := range prev.Versioned {
-		if n, err := strconv.Atoi(k); err == nil && open[n] {
-			versioned[k] = v
-		}
+	if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, scope, sw); err != nil {
+		return fmt.Errorf("sensoractive: recording software: %w", err)
 	}
-	for _, p := range h.read {
-		versioned[strconv.Itoa(p)] = now
-	}
-	be, err1 := json.Marshal(extra)
-	bs, err2 := json.Marshal(extraSW)
-	bv, err3 := json.Marshal(versioned)
-	if err := errors.Join(err1, err2, err3); err != nil {
-		return nil, err
-	}
-	if extraSW == nil {
-		bs = []byte("[]")
-	}
-	if len(be) > 262144 || len(bs) > 262144 || len(bv) > 65536 {
-		return nil, errors.New("sensoractive: the ports of a weekly scan are over the column's size")
-	}
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO sa_all_ports (asset_id, extra, extra_sw, extra_at, versioned) VALUES (?, ?, ?, ?, ?)
-ON CONFLICT (asset_id) DO UPDATE SET extra = excluded.extra, extra_sw = excluded.extra_sw, extra_at = excluded.extra_at, versioned = excluded.versioned`,
-			id, string(be), string(bs), now, string(bv))
-		return err
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: keeping the ports of a weekly scan: %w", err)
-	}
-	if prev.NormalSW == nil {
-		if len(extraSW) > 0 {
-			if err := s.Enqueue(ctx, id, "all_ports"); err != nil { // its normal scan writes the software, with these carried
-				return nil, err
-			}
-		}
-		return nil, nil
-	}
-	out := slices.Clone(prev.NormalSW)
-	for _, e := range extraSW {
-		out = append(out, e.Software)
-	}
-	return out, nil
-}
-
-// allPortsExtra is the weekly run's carried ports while fresh (none when the device never had a weekly run, after allPortsKeep, or
-// on a read error).
-func (s *Service) allPortsExtra(ctx context.Context, id string) []observe.Service {
-	r := s.allPortsState(ctx, id)
-	if !s.fresh(r) {
-		return nil
-	}
-	return r.Extra
-}
-
-// withExtra adds to a normal scan's list the extra ports it does not hold itself, up to maxServices.
-func withExtra(list, extra []observe.Service) []observe.Service {
-	for _, e := range extra {
-		if len(list) >= maxServices {
-			break
-		}
-		if !slices.ContainsFunc(list, func(x observe.Service) bool { return x.Port == e.Port && x.Proto == e.Proto }) {
-			list = append(list, e)
-		}
-	}
-	return list
+	return nil
 }

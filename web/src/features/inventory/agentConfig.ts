@@ -1,28 +1,28 @@
-// Cấu hình agent (S-INV-4). Chỉ hai đường: osquery (Linux và Windows Server; Vedette là máy chủ TLS của osquery) và Wazuh (Vedette kéo qua API, không cài gì lên máy agent).
-// KHÔNG hỗ trợ Trivy, KHÔNG macOS: Vedette chỉ hỗ trợ hệ điều hành máy chủ (chủ dự án).
-// Đối chiếu tài liệu hãng (2026-11-06):
-// - osquery TLS: cờ config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), enroll/config/logger_tls_endpoint, host_identifier.
+// Agent configuration (S-INV-4). Only two ways: osquery (Linux and Windows Server; Vedette is the TLS server of osquery) and Wazuh (Vedette pulls over the API, nothing is installed on the agent machine).
+// NO Trivy, NO macOS: Vedette supports server operating systems only (a product decision).
+// Checked against vendor documentation (2026-11-06):
+// - osquery TLS: flags config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (with the port, without https://), enroll/config/logger_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
-// - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
-// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (cột
-//   `version` là kernel đang chạy, "7.0.0-43-generic", câu một dòng riêng; hộp gắn nó vào danh sách gói để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
-//   (`os_revision` đọc cột `revision` của os_version, chỉ có trên Windows từ osquery 5.12: UBR, bản vá tháng, "22631.4460"; osquery tự đọc
+// - osquery query schedule: the JSON "schedule" (query, interval in seconds, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
+// - osquery tables: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (the column
+//   `version` is the running kernel, "7.0.0-43-generic", a one-line query of its own; the box attaches it to the package list so the Kernel row gets the exact running kernel image). https://osquery.io/schema/
+//   (`os_revision` reads the `revision` column of os_version, available on Windows only since osquery 5.12: the UBR, the monthly patch, "22631.4460"; osquery reads
 //   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR. https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
-//   (câu `programs` đọc thêm đúng một giá trị registry, PatchLevel của khoá Setup mỗi phiên bản SQL Server
-//   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: bản dựng đã cài gồm cả CU; mục Uninstall chung
+//   (the `programs` query also reads exactly one registry value, PatchLevel of the Setup key of each SQL Server version
+//   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: the installed build including the CU; the shared Uninstall entry
 //   "Microsoft SQL Server 2022 (64-bit)" không có DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
 //   https://github.com/osquery/osquery/blob/5.12.1/specs/windows/registry.table)
-//   (INV-22: `listening_ports` JOIN `processes` cho Open services của máy chỉ có agent; Linux chỉ namespace mạng của
-//   pid 1 (process_namespaces), Windows không có cột net_namespace nên câu riêng. https://osquery.io/schema/ listening_ports, process_namespaces)
-//   (`interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
-// - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
-//   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
+//   (INV-22: `listening_ports` JOIN `processes` for Open services of a machine that has only an agent; on Linux only the network namespace of
+//   pid 1 (process_namespaces), Windows has no net_namespace column so it has its own query. https://osquery.io/schema/ listening_ports, process_namespaces)
+//   (`interfaces` lets the box know the machine's MAC/IP to match the device; cpu_brand, physical_memory and patches are left out because the store has no field for them.)
+// - osquery install: the official package is served by THE BOX ITSELF (the box is the only source, no pkg.osquery.io, no Chocolatey), the SHA-256 is checked against the value on
+//   the signed-in page before installing: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); the MSI installs into
 //   C:\Program Files\osquery, manage-osqueryd.ps1 -install -startupArgs, Start-Service osqueryd (https://osquery.readthedocs.io/en/stable/installation/install-windows/).
-// - Wazuh API: cổng 55000, POST /security/user/authenticate (-u user:pass, ?raw=true), policy/role/user qua POST /security/policies|roles|users, nối bằng
-//   POST /security/roles/{id}/policies?policy_ids= và POST /security/users/{id}/roles?role_ids=; hành động agent:read và syscollector:read trên agent:id:*;
+// - Wazuh API: port 55000, POST /security/user/authenticate (-u user:pass, ?raw=true), policy/role/user through POST /security/policies|roles|users, linked with
+//   POST /security/roles/{id}/policies?policy_ids= and POST /security/users/{id}/roles?role_ids=; the actions agent:read and syscollector:read on agent:id:*;
 //   syscollector: GET /syscollector/{agent_id}/os|packages|hotfixes|ports, GET /agents.
 //   https://documentation.wazuh.com/current/user-manual/api/getting-started.html , .../api/rbac/configuration.html , .../api/rbac/reference.html
-// ĐƯỜNG DẪN CỦA RIÊNG VEDETTE: /api/v1/install/*, /api/v1/intake/osquery/{enroll,config,log,status}, /api/v1/intake/ca.pem.
+// VEDETTE'S OWN PATHS: /api/v1/install/*, /api/v1/intake/osquery/{enroll,config,log,status}, /api/v1/intake/ca.pem.
 import { linuxOneLiner, OSQUERY_VERSION, windowsOneLiner } from './installScripts'
 import type { OsqueryPackage } from './types'
 
@@ -31,8 +31,8 @@ export interface ConfigStep { key: string; file: string; code: string }
 
 const hostOf = (serverUrl: string) => serverUrl.replace(/^https:\/\//, '')
 
-/** Lịch truy vấn Vedette cần (gửi qua config endpoint; hiện ở đây để người dùng biết thu thập gì). Chỉ đọc, không có truy vấn ghi hay chạy lệnh.
- *  Giờ đầu sau khi đăng ký, câu nào kho chưa nhận thì hỏi mỗi phút (`queriesBody`); `--config_refresh=300` cho máy quay về lịch này. */
+/** The query schedule Vedette needs (sent through the config endpoint; shown here so the user knows what is collected). Read only, no write query or command execution.
+ *  In the first hour after enrolment, any query the store has not received is asked again every minute (`queriesBody`); `--config_refresh=300` brings a machine back to this schedule. */
 export const OSQUERY_SCHEDULE = JSON.stringify({
   schedule: {
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
@@ -48,9 +48,9 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
   },
 }, null, 2)
 
-/** Các bước cài thủ công ("Advanced: manual setup"). `token` là secret thật (chỉ lúc vừa tạo) hoặc "<TOKEN>". Gói tải từ chính hộp và kiểm
- *  bằng SHA-256 của `packages` (trang đã đăng nhập) trước khi cài, sai thì không cài; hộp không có gói nào → không có bước cài (giao diện nói lý do).
- *  Một lệnh cho cả x86_64 và arm64: tên gói theo `dpkg --print-architecture` (amd64, arm64) hay `uname -m` (x86_64, aarch64), đúng tên tệp của hộp. */
+/** The manual install steps ("Advanced: manual setup"). `token` is the real secret (only right when it is created) or "<TOKEN>". The package is downloaded from the box itself and checked
+ *  against the SHA-256 of `packages` (the signed-in page) before installing, and a mismatch is not installed; a box with no package → no install step (the UI says why).
+ *  One command for both x86_64 and arm64: the package name follows `dpkg --print-architecture` (amd64, arm64) or `uname -m` (x86_64, aarch64), exactly the box's file name. */
 export function osquerySteps(platform: Platform, serverUrl: string, token: string, packages: OsqueryPackage[]): ConfigStep[] {
   const host = hostOf(serverUrl)
   const mirror = `${serverUrl}/api/v1/install/osquery`
@@ -87,7 +87,7 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
 
 export { linuxOneLiner, windowsOneLiner }
 
-/** Các bước tạo người dùng API Wazuh CHỈ ĐỌC: một policy (agent:read + syscollector:read trên mọi agent), một role, một user. Chạy trên máy có tới được API Wazuh. */
+/** The steps to create a READ-ONLY Wazuh API user: one policy (agent:read + syscollector:read on every agent), one role, one user. Run on a machine that can reach the Wazuh API. */
 export function wazuhReaderSteps(): ConfigStep[] {
   const api = 'https://<WAZUH_MANAGER>:55000'
   const auth = '-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"'

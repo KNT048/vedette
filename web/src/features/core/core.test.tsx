@@ -43,7 +43,7 @@ async function acceptTerms(u: ReturnType<typeof user>) {
   await u.click(screen.getByRole('button', { name: 'Continue' }))
 }
 
-describe('core: cài đặt ban đầu', () => {
+describe('core: initial setup', () => {
   it('the terms of use come first; Continue stays off with its reason until they are ticked, and Back keeps the tick', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
@@ -71,13 +71,13 @@ describe('core: cài đặt ban đầu', () => {
     expect(await screen.findByRole('checkbox', { name: AGREE })).toBeChecked()
   })
 
-  it('đi hết 4 bước (không có bước kênh; điều khoản trước), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+  it('goes through all 4 steps (no channel step; terms first), creates the admin, sets setup_complete and enters the home page', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     await expectNoA11yViolations()
-    // lỗi ở bước 1: mật khẩu ngắn
+    // error at step 1: the password is too short
     await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Lan')
     await u.type(screen.getByLabelText('Sign-in email'), 'lan@abc.vn')
@@ -93,7 +93,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
     await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    // bước 2
+    // step 2
     expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
     // The box's own network (GET /core/setup/modules lan) is the first row
     expect(screen.getByLabelText('Range 1')).toHaveValue('192.168.10.0/24')
@@ -103,7 +103,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/"192.168.10.0\/33" is not a valid range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
-    // địa chỉ trần thiếu tiền tố: báo lỗi, không tự đoán /24 (có thể là /25)
+    // a bare address without a prefix: report an error, do not guess /24 (it could be /25)
     await u.type(screen.getByLabelText('Range 1'), '192.168.10.0')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/"192.168.10.0" has no prefix length/)).toBeInTheDocument()
@@ -120,7 +120,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(screen.getByText(/Vedette is provided as is under the Apache-2.0 license/)).toBeInTheDocument()
     await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    // bước 3: tuỳ chọn, chọn module kéo theo phụ thuộc
+    // step 3: optional, choosing a module pulls in its dependencies
     expect(await screen.findByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
     await u.click(screen.getByRole('radio', { name: /Custom/ }))
     await u.click(await screen.findByRole('checkbox', { name: /^Vulnerability scan/ }))
@@ -137,7 +137,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(assetsStore.get()).toHaveLength(0)
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
     expect(modulesStore.get().find((m) => m.id === 'agent-intake')!.enabled).toBe(false)
-    // phạm vi quét được ghi vào module kiểm kê thật
+    // the scan scope is written into the real inventory module
     const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null; active: { enabled: boolean } }
     expect(inv.lan_ranges).toEqual(['192.168.10.0/24', '10.20.0.0/16'])
     expect(inv.scope_confirmed_by).toBe('lan@abc.vn')
@@ -148,7 +148,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(terms.accepted).toMatchObject({ by: 'lan@abc.vn', version: TERMS_VERSION, via: 'setup' })
   })
 
-  it('xong cài đặt mới (chưa có kênh), Home nhắc bước "Get alerts" và dẫn tới Settings → Alert channels', async () => {
+  it('after a new setup (no channel yet), Home reminds about the "Get alerts" step and leads to Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -186,7 +186,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(table.closest('#channels')).not.toBeNull() // the link's #channels lands on the list (docs/UI.md §0.2)
     const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; active: { enabled: boolean } }
     expect(inv.lan_ranges).toEqual(['10.0.0.0/24'])
-    expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
+    expect(inv.active.enabled).toBe(false) // the confirmation is not ticked: passive listening only
   })
 
   it('a wrong setup code sends you back to the first step with the error on the code field; nothing is created', async () => {
@@ -400,14 +400,14 @@ describe('core: cài đặt ban đầu', () => {
     } finally { server.events.removeListener('request:start', seen) }
   })
 
-  it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
+  it('once set up, /setup redirects to sign-in', async () => {
     renderApp('/setup', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
   })
 })
 
-describe('core: khung Cài đặt và vai', () => {
-  it('/settings chuyển tới mục đầu tiên, a11y sạch', async () => {
+describe('core: Settings frame and roles', () => {
+  it('/settings redirects to the first section, a11y clean', async () => {
     renderApp('/settings')
     expect(await screen.findByRole('heading', { level: 1, name: /Sample Company box/ })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
@@ -415,7 +415,7 @@ describe('core: khung Cài đặt và vai', () => {
     await expectNoA11yViolations()
   })
 
-  it('chỉ xem: menu ẩn mục cần quản trị, URL trực tiếp báo cần quyền', async () => {
+  it('view only: the menu hides sections that need an admin, a direct URL says a permission is needed', async () => {
     renderApp('/settings/users', { role: 'viewer' })
     expect(await screen.findByText('Users needs a higher role')).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
@@ -423,14 +423,14 @@ describe('core: khung Cài đặt và vai', () => {
     expect(within(nav).getByRole('link', { name: 'Privacy' })).toBeInTheDocument()
   })
 
-  it('chỉ xem: mục Chung chỉ đọc, nút Lưu tắt kèm lý do', async () => {
+  it('view only: the General section is read-only, the Save button is off with a reason', async () => {
     renderApp('/settings/general', { role: 'viewer' })
     expect(await screen.findByLabelText('Organization name')).toBeDisabled()
     expect(screen.getByRole('note')).toHaveTextContent('Changing it needs the Admin role')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
-  it('mục không tồn tại: thông báo thân thiện', async () => {
+  it('a section that does not exist: a friendly message', async () => {
     renderApp('/settings/khong-co')
     expect(await screen.findByText('No such settings section')).toBeInTheDocument()
   })
@@ -444,7 +444,7 @@ describe('core: khung Cài đặt và vai', () => {
     expect(screen.getByRole('tab', { name: 'Sign-in and two-step' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('lưu cài đặt chung và ghi nhật ký', async () => {
+  it('saves the general settings and writes the audit log', async () => {
     const u = user()
     renderApp('/settings/general')
     const name = await screen.findByLabelText('Organization name')
@@ -456,7 +456,7 @@ describe('core: khung Cài đặt và vai', () => {
     expect(auditStore.get()[0]!.action).toBe('core.general')
   })
 
-  it('lỗi API hiện thông báo và nút thử lại', async () => {
+  it('an API error shows a message and a retry button', async () => {
     server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ error: { code: 'x', message: 'The settings server is not responding.' } }, { status: 503 })))
     renderApp('/settings/general')
     expect(await screen.findByText('The settings server is not responding.')).toBeInTheDocument()
@@ -465,7 +465,7 @@ describe('core: khung Cài đặt và vai', () => {
 })
 
 describe('core: module (S-CORE-1)', () => {
-  it('bật module thiếu phụ thuộc: hộp thoại "bật kèm"', async () => {
+  it('turning on a module with missing dependencies: the "turn on together" dialog', async () => {
     const u = user()
     setModule('scan', false)
     renderApp('/settings/modules')
@@ -488,7 +488,7 @@ describe('core: module (S-CORE-1)', () => {
     } finally { credFlag.CREDENTIALED_IN_UI = true }
   })
 
-  it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
+  it('turning off a module: lists the affected modules and says the data is kept', async () => {
     const u = user()
     renderApp('/settings/modules')
     await u.click(await screen.findByRole('switch', { name: 'Turn off module Inventory' }))
@@ -500,7 +500,7 @@ describe('core: module (S-CORE-1)', () => {
     expect(assetsStore.get().length).toBeGreaterThan(0)
   })
 
-  it('vai chỉ xem không bật tắt được, module lõi bị khoá', async () => {
+  it('a view-only role cannot switch modules, core modules are locked', async () => {
     renderApp('/settings/modules', { role: 'viewer' })
     expect(await screen.findByRole('switch', { name: 'Turn off module Inventory' })).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Turn off module Core' })).toBeDisabled()
@@ -508,7 +508,7 @@ describe('core: module (S-CORE-1)', () => {
   })
 })
 
-describe('core: quyền riêng tư (S-CORE-4)', () => {
+describe('core: privacy (S-CORE-4)', () => {
   it('flow 1 lists the host of a custom feed that is on, host only, read from /feeds/sources', async () => {
     const f = { id: 'cf-1', builtin: false, name: 'Partner list', kind: 'ioc', format: 'json', url: 'https://intel.partner.example:8443/feed.json?token=s3cret', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null }
     server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [f] })))
@@ -517,7 +517,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('s3cret')
   })
-  it('hiện đủ 16 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload', async () => {
+  it('shows all 16 flows; the anonymous signal says "not sent", no switch, no payload', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     expect(within(table).getAllByRole('row')).toHaveLength(17)
@@ -553,7 +553,7 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect(screen.queryByText(/Sending every hour/)).toBeNull()
   })
 
-  it('luồng 8 và 9 theo trạng thái module', async () => {
+  it('flows 8 and 9 follow the module state', async () => {
     setModule('exposure', false)
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
@@ -561,14 +561,14 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect(within(row).getByText('Off')).toBeInTheDocument()
   })
 
-  it('vai chỉ xem xem được nhưng công tắc kiểm tra cập nhật tắt', async () => {
+  it('a view-only role can view but the update check switch is off', async () => {
     renderApp('/settings/privacy', { role: 'viewer' })
     expect(await screen.findByRole('switch', { name: 'Automatic update check' })).toBeDisabled()
   })
 })
 
-describe('core: dữ liệu', () => {
-  it('khôi phục bản sao lưu trên hộp: cần "I understand", bản dữ liệu hiện tại được giữ thành Before restore', async () => {
+describe('core: data', () => {
+  it('restore a backup on the box: needs "I understand", the current data is kept as Before restore', async () => {
     const u = user()
     renderApp('/settings/data')
     const before = await screen.findAllByRole('button', { name: 'Restore' })
@@ -594,7 +594,7 @@ describe('core: dữ liệu', () => {
     expect(await screen.findAllByRole('button', { name: 'Restore' })).toHaveLength(before.length + 1)
   })
 
-  it('khôi phục không có confirm_data_loss: 409 confirm_required, không gì đổi', async () => {
+  it('restore without confirm_data_loss: 409 confirm_required, nothing changes', async () => {
     renderApp('/settings/data')
     await screen.findAllByRole('button', { name: 'Restore' })
     const r = await fetch(`${location.origin}/api/v1/core/data/backups`).then((x) => x.json()) as { backups: { id: string }[] }
@@ -603,7 +603,7 @@ describe('core: dữ liệu', () => {
     expect((await res.json() as { error: { code: string } }).error.code).toBe('confirm_required')
   })
 
-  it('xoá toàn bộ dữ liệu: gõ đúng tên, hộp về trạng thái chưa cài đặt', async () => {
+  it('delete all data: type the exact name, the box returns to the not-set-up state', async () => {
     const u = user()
     const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
     renderApp('/settings/data')
@@ -629,7 +629,7 @@ describe('core: dữ liệu', () => {
     spy.mockRestore()
   })
 
-  it('mật khẩu sai bị từ chối, 5 lần sai bị chặn, không xoá gì', async () => {
+  it('a wrong password is refused, 5 wrong attempts are blocked, nothing is deleted', async () => {
     const u = user()
     const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
     renderApp('/settings/data')
@@ -649,7 +649,7 @@ describe('core: dữ liệu', () => {
     spy.mockRestore()
   })
 
-  it('có hai bước: ô mã hiện ra, thiếu hay sai mã bị từ chối, đúng mã mới xoá', async () => {
+  it('two-step: the code field appears, a missing or wrong code is refused, only the right code deletes', async () => {
     const u = user()
     const secret = newSecret()
     collection<Record<string, string>>('core_totp', () => ({})).update((s) => ({ ...s, 'u-admin': secret }))
@@ -675,7 +675,7 @@ describe('core: dữ liệu', () => {
     spy.mockRestore()
   })
 
-  it('nói rõ cái gì chưa xoá được (kept) trước khi rời trang', async () => {
+  it('says plainly what could not be deleted (kept) before leaving the page', async () => {
     const u = user()
     const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
     server.use(http.post(`${location.origin}/api/v1/core/data/purge`, () => HttpResponse.json({ ok: true, removed: {}, kept: ['host_backups'] })))
@@ -722,7 +722,7 @@ describe('core: dữ liệu', () => {
     spy.mockRestore()
   })
 
-  it('server từ chối khi tên không khớp', async () => {
+  it('the server refuses when the name does not match', async () => {
     renderApp('/settings/data')
     await screen.findByRole('button', { name: 'Delete all data' })
     const res = await fetch(`${location.origin}/api/v1/core/data/purge`, { method: 'POST', body: JSON.stringify({ confirm: 'sai', password: 'vedette-demo' }) })
@@ -743,7 +743,7 @@ describe('core: dữ liệu', () => {
     } finally { vi.unstubAllEnvs(); document.cookie = '__Host-vedette_csrf=; Path=/; Secure; Max-Age=0' }
   })
 
-  it('khôi phục dữ liệu mẫu gọi reset rồi tải lại', async () => {
+  it('restoring the sample data calls reset then reloads', async () => {
     const u = user()
     const spy = vi.spyOn(nav, 'reload').mockImplementation(() => {})
     renderApp('/settings/data')
@@ -753,18 +753,18 @@ describe('core: dữ liệu', () => {
     spy.mockRestore()
   })
 
-  it('vai chỉ xem bị chặn ở mục Dữ liệu', async () => {
+  it('a view-only role is blocked in the Data section', async () => {
     renderApp('/settings/data', { role: 'viewer' })
     expect(await screen.findByText('Data needs a higher role')).toBeInTheDocument()
   })
 })
 
-describe('core: đăng nhập hai lớp', () => {
-  it('đúng mật khẩu nhưng thiếu mã: trang đăng nhập hỏi mã; mã sai bị từ chối; mã đúng vào được', async () => {
+describe('core: two-step sign-in', () => {
+  it('right password but no code: the sign-in page asks for the code; a wrong code is refused; the right code gets in', async () => {
     const u = user()
     const secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'
     localStorage.clear()
-    // bật 2FA bằng khoá cố định qua API thật của mock
+    // turn on 2FA with a fixed key through the mock's real API
     sessionStore.set({ userId: 'u-admin' })
     const st = (await (await fetch(`${location.origin}/api/v1/core/account/2fa/start`, { method: 'POST', body: JSON.stringify({ password: 'vedette-demo' }) })).json()) as { secret: string }
     const ok = await fetch(`${location.origin}/api/v1/core/account/2fa/confirm`, { method: 'POST', body: JSON.stringify({ code: await totpAt(st.secret, Date.now()) }) })
@@ -787,7 +787,7 @@ describe('core: đăng nhập hai lớp', () => {
     expect(sessionStore.get().userId).toBe('u-admin')
   })
 
-  it('API: thiếu mã 401 twofa_required, mã sai 400 invalid_code', async () => {
+  it('API: a missing code 401 twofa_required, a wrong code 400 invalid_code', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-op' ? { ...x, twofa: true } : x)))
     const login = (extra: object) => fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'it@acme.example', password: 'vedette-demo', ...extra }) })
     const a = await login({})
@@ -800,8 +800,8 @@ describe('core: đăng nhập hai lớp', () => {
   })
 })
 
-describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
-  it('thêm người dùng cho mật khẩu tạm một lần', async () => {
+describe('core: users, OIDC, audit log (S-CORE-3)', () => {
+  it('adds a user with a one-time temporary password', async () => {
     const u = user()
     renderApp('/settings/users')
     // The title names the page; the count and Add user are the list's toolbar
@@ -818,7 +818,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     expect(usersStore.get().find((x) => x.email === 'hana@acme.example')?.role).toBe('operator')
   })
 
-  it('không hạ vai quản trị cuối cùng', async () => {
+  it('does not demote the last admin', async () => {
     const u = user()
     renderApp('/settings/users')
     await u.selectOptions((await screen.findAllByLabelText('Role of Admin'))[0]!, 'viewer')
@@ -826,7 +826,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     expect(usersStore.get().find((x) => x.id === 'u-admin')!.role).toBe('admin')
   })
 
-  it('đổi vai và vô hiệu người dùng', async () => {
+  it('changes a role and disables a user', async () => {
     const u = user()
     renderApp('/settings/users')
     await u.selectOptions((await screen.findAllByLabelText('Role of IT Operator'))[0]!, 'viewer')
@@ -835,7 +835,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-view')!.disabled).toBe(true))
   })
 
-  it('OIDC: lưu trống báo cả ba ô một lần (QA b8)', async () => {
+  it('OIDC: saving empty reports all three fields at once (QA b8)', async () => {
     const u = user()
     renderApp('/settings/users')
     await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
@@ -845,7 +845,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     expect(screen.getByText('Enter the Client secret.')).toBeInTheDocument()
   })
 
-  it('OIDC: bật, lưu, thử, và nút SSO hiện ở trang đăng nhập', async () => {
+  it('OIDC: turn on, save, test, and the SSO button shows on the sign-in page', async () => {
     const u = user()
     renderApp('/settings/users')
     await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
@@ -877,7 +877,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
   })
 
   // An IdP behind a private CA (the mock stands for one with an issuer under .internal).
-  it('OIDC: CA nội bộ của IdP: dán, kiểm, hiện hạn, gỡ', async () => {
+  it("OIDC: the IdP's internal CA: paste, check, show the expiry, remove", async () => {
     const u = user()
     const pem = '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIBATAKBggqhkjOPQQDAjAUMRIwEAYDVQQDEwlBY21lIFJvb3Q=\n-----END CERTIFICATE-----\n'
     renderApp('/settings/users')
@@ -912,10 +912,10 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('trang đăng nhập có nút SSO khi auth-oidc bật và đã cấu hình', async () => {
+  it('the sign-in page has an SSO button when auth-oidc is on and configured', async () => {
     setModule('auth-oidc', true)
     const r = await fetch(`${location.origin}/api/v1/core/auth-options`)
-    expect(((await r.json()) as { oidc: boolean }).oidc).toBe(false) // bật nhưng chưa cấu hình issuer
+    expect(((await r.json()) as { oidc: boolean }).oidc).toBe(false) // on but the issuer is not configured
     renderApp('/login', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign in with SSO' })).toBeNull()
@@ -924,7 +924,7 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
 
 // The SSO round trip on the mock. The mock skips the identity provider: its authorization address is the
 // callback page itself, with a code. The identity there is MOCK_IDP_USER (groups vedette-operators and staff).
-describe('core: đăng nhập SSO (S-CORE-3)', () => {
+describe('core: SSO sign-in (S-CORE-3)', () => {
   const ISSUER = 'https://sso.acme.example'
   async function configure(map: { group: string; role: Role }[], default_role: Role | null = null) {
     setModule('auth-oidc', true)
@@ -943,7 +943,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
   }
   const ssoUser = () => usersStore.get().find((x) => x.email === MOCK_IDP_USER.email)
 
-  it('nút SSO bắt đầu luồng và giữ binding trong tab này', async () => {
+  it('the SSO button starts the flow and keeps the binding in this tab', async () => {
     const u = user()
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     const assign = vi.fn()
@@ -957,7 +957,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(takeSsoFlow()).toEqual({ binding: expect.stringMatching(/^[0-9a-f]{64}$/), next: '/account' })
   })
 
-  it('lần đầu: tạo tài khoản SSO với vai cao nhất của nhóm, vào trang đang định vào', async () => {
+  it('first time: creates the SSO account with the highest role of the group, goes to the page it was heading to', async () => {
     await configure([{ group: 'staff', role: 'viewer' }, { group: 'vedette-operators', role: 'operator' }, { group: 'other', role: 'admin' }])
     renderApp(await start(), { role: null })
     expect(await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)).toBeInTheDocument()
@@ -971,7 +971,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(login.status).toBe(400)
   })
 
-  it('vai đồng bộ theo nhóm ở mỗi lần đăng nhập', async () => {
+  it('the role syncs from the groups at every sign-in', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     renderApp(await start(), { role: null })
     await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
@@ -981,7 +981,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(auditStore.get().some((r) => r.action === 'user.role' && r.detail?.includes('SSO groups'))).toBe(true)
   })
 
-  it('không nhóm nào khớp và vai mặc định là No access → từ chối, không tạo tài khoản', async () => {
+  it('no group matches and the default role is No access → refused, no account created', async () => {
     await configure([{ group: 'vedette-admins', role: 'admin' }])
     renderApp(await start(), { role: null })
     expect(await screen.findByRole('alert')).toHaveTextContent('Your company account is not in a group that may use Vedette')
@@ -991,14 +991,14 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('vai mặc định cho người không thuộc nhóm nào khi quản trị viên chọn', async () => {
+  it('the default role for a person in no group when the admin picks one', async () => {
     await configure([], 'viewer')
     renderApp(await start(), { role: null })
     await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
     expect(ssoUser()?.role).toBe('viewer')
   })
 
-  it('liên kết gọi lại mở ở tab khác (không có binding) hay dùng lại → từ chối', async () => {
+  it('a callback link opened in another tab (no binding) or reused → refused', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     const path = await start()
     const kept = takeSsoFlow()! // another tab: nothing kept here
@@ -1012,7 +1012,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(((await again.json()) as { error: { code: string } }).error.code).toBe('sso_expired')
   })
 
-  it('IdP trả lỗi → hiện mã lỗi, không gọi hộp', async () => {
+  it('the IdP returns an error → shows the error code, does not call the box', async () => {
     const calls: string[] = []
     const seen = ({ request }: { request: Request }) => { calls.push(new URL(request.url).pathname) }
     server.events.on('request:start', seen)
@@ -1023,7 +1023,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(calls).not.toContain('/api/v1/auth/oidc/callback')
   })
 
-  it('module tắt: không có route SSO (404); địa chỉ khác địa chỉ đã đăng ký → 409 sso_wrong_address', async () => {
+  it('module off: no SSO route (404); an address different from the registered one → 409 sso_wrong_address', async () => {
     const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
     expect(r.status).toBe(404)
     await configure([{ group: 'vedette-operators', role: 'operator' }])
@@ -1034,7 +1034,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(((await w.json()) as { error: { code: string; message: string } }).error).toMatchObject({ code: 'sso_wrong_address', message: expect.stringContaining('https://vedette.acme.example') })
   })
 
-  it('luồng gắn với issuer/client lúc bắt đầu: đổi cấu hình giữa chừng → hết hạn', async () => {
+  it('the flow is bound to the issuer/client at the start: changing the configuration midway → expired', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     const path = await start()
     sessionStore.set({ userId: 'u-admin' })
@@ -1045,7 +1045,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(ssoUser()).toBeUndefined()
   })
 
-  it('rời nhóm → từ chối và kết thúc phiên đang có của người đó', async () => {
+  it('leaving the group → refused and ends that person\'s existing session', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     renderApp(await start(), { role: null })
     await screen.findByText(/Your password and two-step sign-in are set at your identity provider/)
@@ -1058,7 +1058,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(sessionStore.get().userId).toBeNull()
   })
 
-  it('đổi IdP: tài khoản SSO cũ được gắn lại chỉ khi email đã xác minh', async () => {
+  it('changing the IdP: an old SSO account is re-linked only when the email is verified', async () => {
     usersStore.update((l) => [...l, { id: 'u-old', name: 'Old', email: MOCK_IDP_USER.email, role: 'viewer', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: 'https://old-idp.acme.example', sub: 'old-sub' } }])
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     MOCK_IDP_USER.email_verified = undefined // the new IdP does not say (Entra)
@@ -1073,7 +1073,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(auditStore.get().some((r) => r.action === 'user.sso_relink')).toBe(true)
   })
 
-  it('email đã thuộc tài khoản mật khẩu → không nối', async () => {
+  it('an email that already belongs to a password account → not linked', async () => {
     usersStore.update((l) => [...l, { id: 'u-pw', name: 'Same', email: MOCK_IDP_USER.email, role: 'admin', password: 'x'.repeat(12), twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null }])
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     renderApp(await start(), { role: null })
@@ -1083,14 +1083,14 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect(sessionStore.get().userId).toBeNull()
   })
 
-  it('tài khoản SSO bị vô hiệu → từ chối dù IdP cho qua', async () => {
+  it('a disabled SSO account → refused even if the IdP lets it through', async () => {
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     usersStore.update((l) => [...l, { id: 'u-sso', name: 'S', email: MOCK_IDP_USER.email, role: 'operator', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, disabled: true, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
     renderApp(await start(), { role: null })
     expect(await screen.findByRole('alert')).toHaveTextContent('This account has been disabled')
   })
 
-  it('Users: tài khoản SSO không đổi vai, không đặt lại mật khẩu; quản trị viên mật khẩu cuối cùng được giữ', async () => {
+  it('Users: an SSO account cannot change role or reset password; the last password admin is kept', async () => {
     const u = user()
     usersStore.update((l) => [...l, { id: 'u-sso', name: 'Sso Admin', email: MOCK_IDP_USER.email, role: 'admin', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
     renderApp('/settings/users')
@@ -1105,7 +1105,7 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
     expect((await screen.findAllByText(/who signs in with a password must remain/))[0]).toBeInTheDocument()
   })
 
-  it('tắt SSO: hộp thoại nói số người chỉ đăng nhập bằng SSO', async () => {
+  it('turning off SSO: the dialog says how many people sign in only with SSO', async () => {
     const u = user()
     await configure([{ group: 'vedette-operators', role: 'operator' }])
     usersStore.update((l) => [...l, { id: 'u-sso', name: 'S', email: MOCK_IDP_USER.email, role: 'operator', password: '', twofa: false, created_at: '2026-10-01T02:00:00Z', last_login: null, sso: { iss: ISSUER, sub: MOCK_IDP_USER.sub } }])
@@ -1118,8 +1118,8 @@ describe('core: đăng nhập SSO (S-CORE-3)', () => {
   })
 })
 
-describe('core: nhật ký (S-CORE-3)', () => {
-  it('nhật ký lọc được theo chữ và nhóm', async () => {
+describe('core: audit log (S-CORE-3)', () => {
+  it('the audit log filters by text and by group', async () => {
     const u = user()
     auditStore.set([
       { id: 'a1', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'module.enable', target: 'scan', detail: null, ...NOHASH },
@@ -1160,7 +1160,7 @@ describe('core: nhật ký (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('xuất CSV chống công thức và đúng dấu ngoặc', async () => {
+  it('CSV export resists formulas and has correct quoting', async () => {
     renderApp('/settings/audit')
     await screen.findByRole('table', { name: 'Audit log' })
     auditStore.set([{ id: 'x', ts: '2026-11-06T01:00:00.000Z', user: 'a@b.vn', action: 'data.export', target: '=HYPERLINK("x")', detail: 'yes, comma', ...NOHASH }])
@@ -1172,8 +1172,8 @@ describe('core: nhật ký (S-CORE-3)', () => {
   })
 })
 
-describe('core: cập nhật (S-CORE-2)', () => {
-  it('cảnh báo khuyến cáo, cập nhật phần mềm rồi khuyến cáo hết', async () => {
+describe('core: updates (S-CORE-2)', () => {
+  it('an advisory warns, a software update, then the advisory is gone', async () => {
     const u = user()
     renderApp('/settings/updates')
     expect(await screen.findByRole('alert')).toHaveTextContent('1 known vulnerabilities')
@@ -1258,7 +1258,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(screen.getByRole('button', { name: 'Update Log parser pack' })).toBeEnabled()
   })
 
-  it('rollback hỏi xác nhận và chuyển sang cập nhật tay', async () => {
+  it('rollback asks for confirmation and switches to manual update', async () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: /^Back to .*Vedette software/i }))
@@ -1271,7 +1271,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(within(table).getByText('0.9.2')).toBeInTheDocument()
   })
 
-  it('đổi kênh và chế độ; chế độ tự động tự cài khi kiểm tra', async () => {
+  it('changes the channel and mode; automatic mode installs itself on a check', async () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Automatic' }))
@@ -1322,7 +1322,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(screen.getAllByRole('link', { name: `Vedette ${running}` })[0]).toHaveAttribute('href', '/settings/updates')
   })
 
-  it('bundle offline: chữ ký sai bị từ chối, chữ ký đúng được cài', async () => {
+  it('offline bundle: a wrong signature is refused, a right signature is installed', async () => {
     const u = user()
     renderApp('/settings/updates')
     const input = await screen.findByLabelText('Bundle file')
@@ -1348,14 +1348,14 @@ describe('core: cập nhật (S-CORE-2)', () => {
     } finally { bundleFlag.BUNDLE_IN_UI = true }
   })
 
-  it('chỉ xem: không cập nhật được', async () => {
+  it('view only: cannot update', async () => {
     renderApp('/settings/updates', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Update Vedette software' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Check for Vedette releases' })).toBeDisabled()
     await expectNoA11yViolations()
   })
 
-  it('so sánh phiên bản', () => {
+  it('version comparison', () => {
     expect(compareVersion('0.9.4', '0.10.0-beta.1')).toBe(-1)
     expect(compareVersion('0.10.0', '0.10.0-beta.1')).toBe(1)
     expect(compareVersion('20261106.08', '20261106.12')).toBe(-1)
@@ -1364,7 +1364,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
 })
 
 describe('core: MCP (S-MCP-1)', () => {
-  it('bật, tạo token chỉ hiện một lần, thu hồi', async () => {
+  it('turn on, create a token shown only once, revoke', async () => {
     const u = user()
     renderApp('/settings/mcp')
     expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
@@ -1432,8 +1432,8 @@ describe('core: MCP (S-MCP-1)', () => {
   })
 })
 
-describe('core: tài khoản', () => {
-  it('đổi mật khẩu: sai mật khẩu cũ, rồi thành công', async () => {
+describe('core: account', () => {
+  it('change password: a wrong old password, then success', async () => {
     const u = user()
     renderApp('/settings/account?tab=sign-in')
     await u.type(await screen.findByLabelText('Current password'), 'sai-roi')
@@ -1448,7 +1448,7 @@ describe('core: tài khoản', () => {
     expect(usersStore.get().find((x) => x.id === 'u-admin')!.password).toBe('mat-khau-moi-rat-dai')
   })
 
-  it('bật 2FA bằng mã TOTP thật, sai mã bị từ chối, rồi tắt bằng mật khẩu', async () => {
+  it('turn on 2FA with a real TOTP code, a wrong code is refused, then turn off with the password', async () => {
     const u = user()
     renderApp('/settings/account?tab=sign-in')
     const start = await screen.findByRole('button', { name: 'Set up authenticator app' })
@@ -1494,7 +1494,7 @@ describe('core: tài khoản', () => {
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-admin')!.twofa).toBe(false))
   })
 
-  it('kết thúc phiên khác, a11y sạch', async () => {
+  it('ends other sessions, a11y clean', async () => {
     const u = user()
     renderApp('/settings/account?tab=sessions', { role: 'viewer' })
     await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows at 192.168.10.61' }))
@@ -1528,7 +1528,7 @@ describe('core: tài khoản', () => {
   })
 })
 
-// ---------- hai kiểu đăng nhập hai bước ----------
+// ---------- two kinds of two-step sign-in ----------
 const call = (path: string, method = 'POST', body: object = {}) => fetch(`${location.origin}/api/v1${path}`, { method, body: method === 'GET' ? undefined : JSON.stringify(body) })
 const errCode = async (r: Response) => ((await r.json()) as { error: { code: string } }).error.code
 const setUser = (id: string, patch: object) => usersStore.update((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))

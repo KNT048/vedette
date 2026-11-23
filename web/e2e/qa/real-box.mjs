@@ -89,7 +89,7 @@ for (const d of DEVICES) {
 }
 let n = 0
 for (let i = 0; i < 40 && n === 0; i++) {
-  n = must(await call(op, 'GET', '/findings'), 'list findings', 200).body.items.length
+  n = must(await call(op, 'GET', '/findings/devices'), 'list findings', 200).body.findings
   if (n === 0) await sleep(500)
 }
 console.log('findings on the box:', n)

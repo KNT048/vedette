@@ -16,10 +16,6 @@ func TestWiringFindingsOfADeviceNotAddedYet(t *testing.T) {
 	if n := s.nf("", ""); n != len(cves) {
 		t.Fatalf("%d findings for an unapproved device, want %d", n, len(cves))
 	}
-	c, b := s.do("GET", "/findings", "viewer", "")
-	if c != 200 || at(b, "items", 0, "asset", "approved") != false || at(b, "items", 0, "asset", "ignored") != false {
-		t.Fatalf("the finding's device: %d %v", c, at(b, "items", 0, "asset"))
-	}
 	list, err := s.d.Inventory.Devices(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -33,10 +29,14 @@ func TestWiringFindingsOfADeviceNotAddedYet(t *testing.T) {
 	if id == "" {
 		t.Fatal("no device")
 	}
+	c, b := s.do("GET", "/findings?asset="+id, "viewer", "")
+	if c != 200 || at(b, "items", 0, "asset", "approved") != false || at(b, "items", 0, "asset", "ignored") != false {
+		t.Fatalf("the finding's device: %d %v", c, at(b, "items", 0, "asset"))
+	}
 	if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", id, true); err != nil {
 		t.Fatal(err)
 	}
-	c, b = s.do("GET", "/findings", "viewer", "")
+	c, b = s.do("GET", "/findings?asset="+id, "viewer", "")
 	if c != 200 || at(b, "items", 0, "asset", "ignored") != true {
 		t.Fatalf("an ignored device's findings are not marked: %d %v", c, at(b, "items", 0, "asset"))
 	}

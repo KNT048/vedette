@@ -655,50 +655,6 @@ func windowsFixedIn(in swInfo, v Vuln) (*FixedIn, bool) {
 	return nil, true
 }
 
-// winNVDLagWindow is how long after Microsoft publishes a monthly update the count of its release's item still says "at least": NVD
-// analyses a Patch Tuesday's CVEs over days to weeks (hundreds of them each month), so one analysed CVE of the newest month says nothing
-// about the rest. About six weeks: by then the next month's update is out, and NVD has usually caught up with the one before.
-const winNVDLagWindow = 42 * 24 * time.Hour
-
-// winLatest is the target build of a Windows release's cumulative update: the newest monthly security update Microsoft's release
-// information lists for the device's release (core/winrel.Updates, feed windows-releases) when it is newer than fixed, the highest
-// fixed build NVD names among the CVEs; fixed itself when Microsoft's list has nothing for the release or nothing newer (never a build
-// below NVD's). NVD analyses a month's CVEs days to weeks after Patch Tuesday, so without this the plan names last month's update and
-// counts none of this month's CVEs. A kind fixed on a release whose free updates ended (LastFreeRev) reads only the free updates:
-// its target is the newest one Windows Update gives without Extended Security Updates.
-//
-// kb is the target's KB number when Microsoft's list has the target build ("" otherwise). lag says the count of the item is a floor:
-// an update newer than the first one that carries fixed exists (its CVEs are not in NVD's data yet), or the newest update is younger
-// than winNVDLagWindow at now (NVD may have analysed only some of its CVEs; this also covers a highest fix NVD names on an
-// out-of-band build). A zero now reads no age.
-func winLatest(d winDev, fixed, kind string, now time.Time) (target, kb string, lag bool) {
-	m := winBoundRE.FindStringSubmatch(fixed)
-	if m == nil {
-		return fixed, "", false
-	}
-	build, _ := strconv.Atoi(m[1])
-	rev, _ := strconv.Atoi(m[2])
-	us := winrel.Updates(d.rel.Build, d.rel.Server)
-	free := kind == "fixed" && d.rel.LastFreeRev > 0 // the free updates ended long ago: NVD has analysed their CVEs
-	if free {
-		us = slices.DeleteFunc(slices.Clone(us), func(u winrel.Update) bool { return u.Rev > d.rel.LastFreeRev })
-	}
-	if build != d.rel.Build || len(us) == 0 {
-		return fixed, "", false
-	}
-	newest := us[len(us)-1]
-	carrier := slices.IndexFunc(us, func(u winrel.Update) bool { return u.Rev >= rev }) // the first update that has NVD's fix
-	lag = !free && (carrier >= 0 && carrier < len(us)-1 || !now.IsZero() && now.Sub(newest.Day) < winNVDLagWindow)
-	target = fixed
-	if newest.Rev > rev {
-		target, rev = fmt.Sprintf("10.0.%d.%d", build, newest.Rev), newest.Rev
-	}
-	if i := slices.IndexFunc(us, func(u winrel.Update) bool { return u.Rev == rev }); i >= 0 {
-		kb = us[i].KB
-	}
-	return target, kb, lag
-}
-
 // WIN-NOISE-2: Windows updates are cumulative. Each month Microsoft ships one update per release line, and
 // NVD's ranges of the flaws it fixes end at that update's build ("windows_11_24h2 < 10.0.26100.2033" for the CVEs Microsoft published on
 // 8 October 2024). So the list itself says which month's update a build carries, and a flaw of Windows Microsoft fixed in or before that

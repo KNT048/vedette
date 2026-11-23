@@ -204,13 +204,13 @@ func TestWiringDeviceMatchesKEVAndDeleteRemovesTheFinding(t *testing.T) {
 	s.kev("CVE-2026-1003", "Synology", "DiskStation Manager")
 	id := s.addFortiGate()
 
-	if c, b := s.do("GET", "/findings", "viewer", ""); c != 200 || len(at(b, "items").([]any)) != 2 {
+	if c, b := s.do("GET", "/findings?asset="+id, "viewer", ""); c != 200 || len(at(b, "items").([]any)) != 2 {
 		t.Fatalf("GET /findings: %d %v", c, b)
 	}
 	if n := s.nf(id, ""); n != 2 || s.got["findings.finding.created"] != 2 || s.got[inventory.EventMatchChanged] != 2 {
 		t.Fatalf("findings %d, events %v", n, s.got)
 	}
-	_, list := s.do("GET", "/findings", "viewer", "")
+	_, list := s.do("GET", "/findings?asset="+id, "viewer", "")
 	fid := at(list, "items", 0, "id").(string)
 	if at(list, "items", 0, "asset", "id") != id || at(list, "items", 0, "basis") != "version" || at(list, "items", 0, "kev", "name") == nil {
 		t.Errorf("row: %v", at(list, "items", 0))
@@ -279,7 +279,7 @@ func TestWiringModuleOffNoReaction(t *testing.T) {
 	if s.got[inventory.EventMatchChanged] != 1 || s.nf("", "") != 0 || s.got["findings.finding.created"] != 0 {
 		t.Fatalf("findings off: match events %d, findings %d", s.got[inventory.EventMatchChanged], s.nf("", ""))
 	}
-	if c, _ := s.do("GET", "/findings", "viewer", ""); c != 404 {
+	if c, _ := s.do("GET", "/findings?asset="+id, "viewer", ""); c != 404 {
 		t.Errorf("GET /findings with findings off: %d", c)
 	}
 	// findings back on: the next match is handled (the matcher reads everything, so the missed one comes too)

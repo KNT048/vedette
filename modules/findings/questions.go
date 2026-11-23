@@ -201,10 +201,6 @@ type UncheckedAnswer struct {
 	Ask   []string `json:"ask,omitempty"` // "os", "pkg_version": what the person types (both for "Another system")
 }
 
-func reasonRank(r UncheckedReason) int {
-	return slices.Index([]UncheckedReason{UncheckedPlatformUnknown, UncheckedPackageUnknown, UncheckedNoNVDData, UncheckedNoNVDVersions, UncheckedNotNamed, UncheckedNotComparable}, r)
-}
-
 // edgeLegacyOf says an NVD entry is about Edge Legacy (rowEntries).
 func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	if edgeLegacyEntry(c, af.Range) {
@@ -213,11 +209,4 @@ func edgeLegacyOf(c CPE, af Affected, v Vuln) bool {
 	p, _ := c.Product.Literal()
 	pre := !v.Published.IsZero() && v.Published.Before(chromiumEdgeGA) || v.Published.IsZero() && cveYear(v.CVE) > 0 && cveYear(v.CVE) < 2020
 	return productid.Norm(p) == "edge" && !versionEvidence(af) && pre
-}
-
-func boolRank(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

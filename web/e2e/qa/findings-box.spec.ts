@@ -272,16 +272,16 @@ test.describe('findings: status dialog (S-MIT-1)', () => {
       await dlg.getByRole('radio', { name: a.radio }).click()
       await expect(dlg.getByLabel(a.note ? /Note: why \(required\)/ : /Note \(optional\)/)).toBeVisible()
       if (a.note) {
-        await dlg.getByRole('button', { name: 'Save status' }).click()
+        await dlg.getByRole('button', { name: 'Mark 1 finding' }).click()
         await expect(dlg.getByText(/at least 3 characters/)).toBeVisible()
         await dlg.getByLabel(/Note/).fill('ab')
-        await dlg.getByRole('button', { name: 'Save status' }).click()
+        await dlg.getByRole('button', { name: 'Mark 1 finding' }).click()
         await expect(dlg.getByText(/at least 3 characters/)).toBeVisible()
       }
       const note = `checked by hand, ${a.radio.source}`
       await dlg.getByLabel(/Note/).fill(note)
-      await dlg.getByRole('button', { name: 'Save status' }).click()
-      await toast(page, /Status updated/)
+      await dlg.getByRole('button', { name: 'Mark 1 finding' }).click()
+      await toast(page, /Marked 1 finding/)
       await expect(dlg).toHaveCount(0)
       await expect(h1(page)).toHaveText(a.headline)
       await expect(page.getByText(note).first()).toBeVisible()

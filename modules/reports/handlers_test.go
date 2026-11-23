@@ -158,13 +158,20 @@ func TestConformance_TheRealBackendAnswersTheWebContract(t *testing.T) {
 		t.Fatalf("admin saves: %d %v", code, b)
 	}
 
-	// refuses a definition that is not valid and names the field (an enum outside the schema is refused by the decoder itself)
+	// refuses a definition that is not valid and names the field with the contract's code, also where the schema itself refuses it
+	many := make([]string, 21)
+	for i := range many {
+		many[i] = fmt.Sprintf("%q", fmt.Sprintf("u%d@example.com", i))
+	}
 	noSections := strings.NewReplacer(`"summary":true`, `"summary":false`, `"handled":true`, `"handled":false`, `"open":true`, `"open":false`, `"new":true`, `"new":false`,
 		`"exposure":true`, `"exposure":false`, `"detections":true`, `"detections":false`, `"coverage":true`, `"coverage":false`).Replace(string(opts))
 	for _, c := range []struct{ body, code, field string }{
 		{body(" ", string(opts), `[]`), "invalid_name", "name"},
-		{body("R", strings.Replace(string(opts), `"last_7_days"`, `"yearly"`, 1), `[]`), "invalid", "options.period"},
-		{body("R", strings.Replace(string(opts), `"device"`, `"site"`, 1), `[]`), "invalid", "options.grouping"},
+		{body(strings.Repeat("n", 81), string(opts), `[]`), "invalid_name", "name"},
+		{body("R", strings.Replace(string(opts), `"last_7_days"`, `"yearly"`, 1), `[]`), "invalid_period", "options.period"},
+		{body("R", strings.Replace(string(opts), `"device"`, `"site"`, 1), `[]`), "invalid_grouping", "options.grouping"},
+		{body("R", string(opts), "["+strings.Join(many, ",")+"]"), "invalid_recipients", "recipients"},
+		{body("R", string(opts), `["`+strings.Repeat("a", 120)+`@example.com"]`), "invalid_email", "recipients[0]"},
 		{body("R", noSections, `[]`), "no_sections", "options.sections"},
 		{body("R", string(opts), `["ok@example.com","not-an-email"]`), "invalid_email", "recipients[1]"},
 	} {

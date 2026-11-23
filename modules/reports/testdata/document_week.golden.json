@@ -1,0 +1,670 @@
+{
+  "document": {
+    "definition_id": "security",
+    "title": "Security report",
+    "generated_at": "2026-11-11T10:00:00.000Z",
+    "org": "Acme Ltd",
+    "period": {
+      "kind": "last_7_days",
+      "from": "2026-11-04T10:00:00.000Z",
+      "to": "2026-11-11T10:00:00.000Z",
+      "tz": "UTC"
+    },
+    "options": {
+      "period": "last_7_days",
+      "grouping": "device",
+      "include_not_added": true,
+      "include_not_relevant": false,
+      "sections": {
+        "summary": true,
+        "handled": true,
+        "open": true,
+        "new": true,
+        "exposure": true,
+        "detections": true,
+        "coverage": true
+      },
+      "charts": true
+    },
+    "summary": {
+      "open_by_status": [
+        {
+          "status": "under_attack",
+          "n": 1
+        },
+        {
+          "status": "exploited",
+          "n": 2
+        },
+        {
+          "status": "update_recommended",
+          "n": 1
+        }
+      ],
+      "open_now": 4,
+      "open_before": 4,
+      "new": 2,
+      "handled": 3,
+      "first": [
+        {
+          "status": "under_attack",
+          "cve": "CVE-2021-41773",
+          "finding_id": "f-apache",
+          "product": "Apache HTTP Server",
+          "severity": {
+            "band": "high",
+            "score": 7.5,
+            "version": "3.1",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "fix": {
+            "key": "Apache HTTP Server|update|2.4.51",
+            "kind": "update",
+            "product": "Apache HTTP Server",
+            "version": "2.4.51",
+            "ref": null,
+            "url": null
+          },
+          "devices": [
+            {
+              "id": "a-web",
+              "name": "web-01",
+              "added": true
+            }
+          ],
+          "device_count": 1,
+          "finding_count": 1
+        },
+        {
+          "status": "exploited",
+          "cve": "CVE-2023-23397",
+          "finding_id": "f-outlook",
+          "product": "Microsoft Outlook",
+          "severity": {
+            "band": "critical",
+            "score": 9.8,
+            "version": "3.1",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "fix": {
+            "key": "Microsoft Outlook|update|16.0.2",
+            "kind": "update",
+            "product": "Microsoft Outlook",
+            "version": "16.0.2",
+            "ref": null,
+            "url": null
+          },
+          "devices": [
+            {
+              "id": "a-ws",
+              "name": "ws-accounting-07",
+              "added": true
+            }
+          ],
+          "device_count": 1,
+          "finding_count": 1
+        },
+        {
+          "status": "exploited",
+          "cve": "CVE-2025-0411",
+          "finding_id": "f-7zip",
+          "product": "7-Zip",
+          "severity": {
+            "band": "high",
+            "score": 7,
+            "version": "3.1",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "fix": {
+            "key": "7-Zip|update|24.09",
+            "kind": "update",
+            "product": "7-Zip",
+            "version": "24.09",
+            "ref": null,
+            "url": null
+          },
+          "devices": [
+            {
+              "id": "a-lap",
+              "name": "laptop-sales-12",
+              "added": false
+            }
+          ],
+          "device_count": 1,
+          "finding_count": 1
+        }
+      ]
+    },
+    "handled": {
+      "totals": [
+        {
+          "resolution": "patched",
+          "via": "version_moved",
+          "n": 2
+        },
+        {
+          "resolution": "mitigated",
+          "via": "person",
+          "n": 1
+        }
+      ],
+      "devices": [
+        {
+          "device": {
+            "id": "a-ws",
+            "name": "ws-accounting-07",
+            "added": true
+          },
+          "items": [
+            {
+              "finding_id": "f-winrar-1",
+              "cve": "CVE-2023-38831",
+              "product": "WinRAR",
+              "severity": {
+                "band": "high",
+                "score": 7.8,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "handled": {
+                "resolution": "patched",
+                "via": "version_moved",
+                "by": "system",
+                "at": "2026-11-09T08:00:00.000Z",
+                "note": null,
+                "accepted_until": null,
+                "from_version": "6.24",
+                "to_version": "7.23"
+              }
+            },
+            {
+              "finding_id": "f-winrar-2",
+              "cve": "CVE-2023-40477",
+              "product": "WinRAR",
+              "severity": {
+                "band": "high",
+                "score": 7.8,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "handled": {
+                "resolution": "patched",
+                "via": "version_moved",
+                "by": "system",
+                "at": "2026-11-09T08:00:00.000Z",
+                "note": "Checked on the machine.",
+                "accepted_until": null,
+                "from_version": "6.24",
+                "to_version": "7.23"
+              }
+            }
+          ]
+        },
+        {
+          "device": {
+            "id": "a-web",
+            "name": "web-01",
+            "added": true
+          },
+          "items": [
+            {
+              "finding_id": "f-log4j",
+              "cve": "CVE-2021-44228",
+              "product": "Apache Log4j",
+              "severity": {
+                "band": "critical",
+                "score": 10,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "handled": {
+                "resolution": "mitigated",
+                "via": "person",
+                "by": "it@acme.example",
+                "at": "2026-11-06T12:00:00.000Z",
+                "note": "JNDI lookups turned off until the vendor update.",
+                "accepted_until": null,
+                "from_version": null,
+                "to_version": null
+              }
+            }
+          ]
+        }
+      ],
+      "more": 0,
+      "median_days": 20
+    },
+    "open": {
+      "grouping": "device",
+      "total": 4,
+      "groups": [
+        {
+          "key": "a-web",
+          "label": "web-01",
+          "status": "under_attack",
+          "items": [
+            {
+              "finding_id": "f-apache",
+              "cve": "CVE-2021-41773",
+              "device": {
+                "id": "a-web",
+                "name": "web-01",
+                "added": true
+              },
+              "product": "Apache HTTP Server",
+              "version": "2.4.49",
+              "status": "under_attack",
+              "reasons": [
+                {
+                  "layer": 1,
+                  "source": "ids",
+                  "name": "Intrusion alert",
+                  "date": "2026-11-10",
+                  "url": null,
+                  "detail": "192.0.2.77",
+                  "due": null
+                },
+                {
+                  "layer": 2,
+                  "source": "cisa-kev",
+                  "name": "CISA KEV",
+                  "date": "2021-11-03",
+                  "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+                  "detail": null,
+                  "due": "2021-11-17"
+                }
+              ],
+              "severity": {
+                "band": "high",
+                "score": 7.5,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "verification": {
+                "verified": "scan",
+                "basis": "scan",
+                "by": null,
+                "at": "2026-10-01T09:00:00.000Z"
+              },
+              "fix": {
+                "key": "Apache HTTP Server|update|2.4.51",
+                "kind": "update",
+                "product": "Apache HTTP Server",
+                "version": "2.4.51",
+                "ref": null,
+                "url": null
+              },
+              "first_seen": "2026-10-01T09:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "key": "a-ws",
+          "label": "ws-accounting-07",
+          "status": "exploited",
+          "items": [
+            {
+              "finding_id": "f-outlook",
+              "cve": "CVE-2023-23397",
+              "device": {
+                "id": "a-ws",
+                "name": "ws-accounting-07",
+                "added": true
+              },
+              "product": "Microsoft Outlook",
+              "version": "16.0.1",
+              "status": "exploited",
+              "reasons": [],
+              "severity": {
+                "band": "critical",
+                "score": 9.8,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "verification": {
+                "verified": "device",
+                "basis": "device_version",
+                "by": null,
+                "at": "2026-10-20T09:00:00.000Z"
+              },
+              "fix": {
+                "key": "Microsoft Outlook|update|16.0.2",
+                "kind": "update",
+                "product": "Microsoft Outlook",
+                "version": "16.0.2",
+                "ref": null,
+                "url": null
+              },
+              "first_seen": "2026-09-01T09:00:00.000Z"
+            },
+            {
+              "finding_id": "f-win",
+              "cve": "CVE-2024-38063",
+              "device": {
+                "id": "a-ws",
+                "name": "ws-accounting-07",
+                "added": true
+              },
+              "product": "Windows 11 23H2",
+              "version": "22631.3880",
+              "status": "update_recommended",
+              "reasons": [],
+              "severity": {
+                "band": "critical",
+                "score": 9.8,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "verification": {
+                "verified": "device",
+                "basis": "device_version",
+                "by": null,
+                "at": "2026-10-20T09:00:00.000Z"
+              },
+              "fix": {
+                "key": "microsoft|windows_11|os_update|",
+                "kind": "os_update",
+                "product": "Windows 11 23H2",
+                "version": null,
+                "ref": "KB5041585",
+                "url": null
+              },
+              "first_seen": "2026-11-10T06:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "key": "a-lap",
+          "label": "laptop-sales-12",
+          "status": "exploited",
+          "items": [
+            {
+              "finding_id": "f-7zip",
+              "cve": "CVE-2025-0411",
+              "device": {
+                "id": "a-lap",
+                "name": "laptop-sales-12",
+                "added": false
+              },
+              "product": "7-Zip",
+              "version": "24.07",
+              "status": "exploited",
+              "reasons": [
+                {
+                  "layer": 2,
+                  "source": "cisa-kev",
+                  "name": "CISA KEV",
+                  "date": "2025-02-06",
+                  "url": null,
+                  "detail": null,
+                  "due": "2025-02-27"
+                }
+              ],
+              "severity": {
+                "band": "high",
+                "score": 7,
+                "version": "3.1",
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "verification": {
+                "verified": "device",
+                "basis": "device_version",
+                "by": null,
+                "at": "2026-10-20T09:00:00.000Z"
+              },
+              "fix": {
+                "key": "7-Zip|update|24.09",
+                "kind": "update",
+                "product": "7-Zip",
+                "version": "24.09",
+                "ref": null,
+                "url": null
+              },
+              "first_seen": "2026-11-09T15:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "more": 0
+    },
+    "new": {
+      "total": 2,
+      "items": [
+        {
+          "finding_id": "f-7zip",
+          "cve": "CVE-2025-0411",
+          "device": {
+            "id": "a-lap",
+            "name": "laptop-sales-12",
+            "added": false
+          },
+          "product": "7-Zip",
+          "version": "24.07",
+          "status": "exploited",
+          "reasons": [
+            {
+              "layer": 2,
+              "source": "cisa-kev",
+              "name": "CISA KEV",
+              "date": "2025-02-06",
+              "url": null,
+              "detail": null,
+              "due": "2025-02-27"
+            }
+          ],
+          "severity": {
+            "band": "high",
+            "score": 7,
+            "version": "3.1",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "verification": {
+            "verified": "device",
+            "basis": "device_version",
+            "by": null,
+            "at": "2026-10-20T09:00:00.000Z"
+          },
+          "fix": {
+            "key": "7-Zip|update|24.09",
+            "kind": "update",
+            "product": "7-Zip",
+            "version": "24.09",
+            "ref": null,
+            "url": null
+          },
+          "first_seen": "2026-11-09T15:00:00.000Z"
+        },
+        {
+          "finding_id": "f-win",
+          "cve": "CVE-2024-38063",
+          "device": {
+            "id": "a-ws",
+            "name": "ws-accounting-07",
+            "added": true
+          },
+          "product": "Windows 11 23H2",
+          "version": "22631.3880",
+          "status": "update_recommended",
+          "reasons": [],
+          "severity": {
+            "band": "critical",
+            "score": 9.8,
+            "version": "3.1",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "verification": {
+            "verified": "device",
+            "basis": "device_version",
+            "by": null,
+            "at": "2026-10-20T09:00:00.000Z"
+          },
+          "fix": {
+            "key": "microsoft|windows_11|os_update|",
+            "kind": "os_update",
+            "product": "Windows 11 23H2",
+            "version": null,
+            "ref": "KB5041585",
+            "url": null
+          },
+          "first_seen": "2026-11-10T06:00:00.000Z"
+        }
+      ],
+      "more": 0
+    },
+    "exposure": {
+      "module_on": true,
+      "targets": [
+        {
+          "target_id": "t-1",
+          "kind": "domain",
+          "value": "example.com",
+          "parent": null,
+          "proof": "proven",
+          "last_scan_at": "2026-11-10T02:30:00.000Z",
+          "services": [
+            {
+              "ip": "198.51.100.10",
+              "port": 443,
+              "proto": "tcp",
+              "name": "https",
+              "product": "nginx",
+              "version": "1.24.0",
+              "change": null,
+              "cert_expires_at": "2026-11-23T00:00:00.000Z"
+            },
+            {
+              "ip": "198.51.100.10",
+              "port": 10443,
+              "proto": "tcp",
+              "name": "https",
+              "product": "GitLab",
+              "version": null,
+              "change": "new",
+              "cert_expires_at": null
+            },
+            {
+              "ip": "198.51.100.10",
+              "port": 21,
+              "proto": "tcp",
+              "name": "ftp",
+              "product": "vsftpd",
+              "version": "3.0.5",
+              "change": "closed",
+              "cert_expires_at": null
+            }
+          ],
+          "issues": [
+            {
+              "engine": "zap",
+              "severity": "medium",
+              "open": 3,
+              "new": 1
+            }
+          ]
+        }
+      ]
+    },
+    "detections": {
+      "module_on": true,
+      "by_kind": [
+        {
+          "kind": "intrusion",
+          "n": 2,
+          "last_at": "2026-11-10T08:00:00.000Z"
+        },
+        {
+          "kind": "trap",
+          "n": 1,
+          "last_at": "2026-11-09T22:00:00.000Z"
+        }
+      ],
+      "top": [
+        {
+          "kind": "intrusion",
+          "title": "Exploit attempt for CVE-2021-41773 against web-01",
+          "severity": "critical",
+          "device": {
+            "id": "a-web",
+            "name": "web-01",
+            "added": true
+          },
+          "at": "2026-11-10T08:00:00.000Z"
+        },
+        {
+          "kind": "trap",
+          "title": "A device touched the SSH trap",
+          "severity": "high",
+          "device": {
+            "id": "a-lap",
+            "name": "laptop-sales-12",
+            "added": false
+          },
+          "at": "2026-11-09T22:00:00.000Z"
+        }
+      ]
+    },
+    "coverage": {
+      "devices": 4,
+      "with_agent": 3,
+      "not_added": 1,
+      "sources": [
+        {
+          "id": "sensor-passive",
+          "on": true
+        },
+        {
+          "id": "sensor-active",
+          "on": true
+        },
+        {
+          "id": "agent-intake",
+          "on": true
+        },
+        {
+          "id": "honeypot",
+          "on": true
+        },
+        {
+          "id": "logs",
+          "on": true
+        },
+        {
+          "id": "exposure",
+          "on": true
+        },
+        {
+          "id": "ids",
+          "on": false
+        }
+      ],
+      "feeds": [
+        {
+          "id": "cisa-kev",
+          "name": "CISA KEV",
+          "last_ok_at": "2026-11-11T09:00:00.000Z",
+          "stale": false
+        },
+        {
+          "id": "nvd",
+          "name": "NVD",
+          "last_ok_at": "2026-11-07T09:00:00.000Z",
+          "stale": true
+        }
+      ]
+    },
+    "ai_summary": null
+  },
+  "mail": {
+    "Title": "Security report: 4 open, 3 handled (4 Nov to 11 Nov 2026)",
+    "What": "Open now: 4 (4 at the start of the period). New: 2. Handled: 3.\nUnder attack here: 1, Exploited in the wild: 2, Update recommended: 1.\nDetections: 3 incidents.",
+    "Action": "Do first: Under attack here: CVE-2021-41773 in Apache HTTP Server on web-01: update to 2.4.51",
+    "Items": [
+      "Exploited in the wild: CVE-2023-23397 in Microsoft Outlook on ws-accounting-07: update to 16.0.2",
+      "Exploited in the wild: CVE-2025-0411 in 7-Zip on laptop-sales-12: update to 24.09",
+      "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)",
+      "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov): Checked on the machine.",
+      "Apache Log4j on web-01: Mitigated by it@acme.example (6 Nov): JNDI lookups turned off until the vendor update."
+    ],
+    "Path": "/reports/sent/rep-1"
+  }
+}

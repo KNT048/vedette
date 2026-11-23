@@ -1,10 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -12,7 +14,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/jobs"
-	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -28,16 +29,17 @@ var (
 	reportsServices = map[*store.DB]*reports.Service{}
 )
 
-// reportsService builds the reports service once per database, so the handlers and the weekly-send job share it (and its
-// one-send-at-a-time lock). It reads every other module through the adapters below (reports FORBID-4).
+// reportsService builds the reports service once per database, so the handlers, the send job and the schedule share it (and its
+// one-send-at-a-time lock); its schedule owner registers with core/schedule then. It reads every other module through the adapters
+// below (reports FORBID-4).
 func reportsService(d deps) *reports.Service {
 	reportsMu.Lock()
 	defer reportsMu.Unlock()
 	if s := reportsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings, &d}, KEV: reportsKEV{&d},
-		Remedies: reportsRemedies{d: &d, feed: findingsFeeds{cache: &vulnCache{}}}, Incidents: reportsIncidents{&d},
+	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings, &d},
+		Views: reportsViews{d.Findings}, KEV: reportsKEV{&d}, Exposure: reportsExposure{&d}, Detections: reportsDetections{&d}, Feeds: reportsFeeds{&d},
 		Mail: reportsMailer{newNotify(&d)}, AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg
@@ -45,6 +47,11 @@ func reportsService(d deps) *reports.Service {
 	svc, err := reports.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
+	}
+	if d.Schedules != nil {
+		if err := d.Schedules.Register(svc.ScheduleOwner()); err != nil {
+			panic("vedette: " + err.Error()) // the owner is a constant of the package: registered once per database
+		}
 	}
 	reportsServices[d.DB] = svc
 	return svc
@@ -57,6 +64,7 @@ func reportsJobs(d deps) []jobs.Job { return reports.Jobs(reportsService(d)) }
 
 type reportsInventory struct{ inv *inventory.Service }
 
+// Devices lists the devices a person did not ignore, as the Devices page counts them (the box included).
 func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error) {
 	devs, err := a.inv.AllDevices(ctx)
 	if err != nil {
@@ -67,13 +75,7 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 		if d.IgnoredAt != nil {
 			continue // A device a person ignored is in no count of the Devices page, so in none of a report
 		}
-		// The box is listed: the weekly report counts what the Devices page counts; the PDPL report leaves it out.
-		name := deviceLabel(d)
-		r := reports.Device{ID: d.ID, Name: name, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox,
-			NoDevice: strings.HasSuffix(name, inventory.NoDevice)}
-		if t, err := time.Parse(time.RFC3339, d.FirstSeen); err == nil {
-			r.FirstSeen = t
-		}
+		r := reports.Device{ID: d.ID, Name: deviceLabel(d), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox}
 		if d.OS != nil {
 			r.OS = d.OS.Value
 		}
@@ -85,8 +87,11 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 		for _, s := range d.Services {
 			r.Ports = append(r.Ports, s.Port)
 		}
-		for _, sw := range d.Running() {
-			r.KevKeys = append(r.KevKeys, sw.Kev...)
+		for _, sw := range d.Software { // an agent (osquery, Wazuh, the box's own host agent) reports the software of the device
+			if sw.Source == "agent" {
+				r.Agent = true
+				break
+			}
 		}
 		out = append(out, r)
 	}
@@ -95,6 +100,7 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 
 // ---- findings -> reports ----
 
+// reportsFindings is the PDPL assessment's read of findings (its rows keep the assessment's own status words).
 type reportsFindings struct {
 	svc *findings.Service
 	d   *deps
@@ -105,8 +111,8 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A device a person ignored is in no report, its findings neither (ignoring closes nothing, so it never reads as "resolved":
-	// nobody fixed anything). A device list that cannot be read fails the report, never a report with them in.
+	// A device a person ignored is in no report, its findings neither. A device list that cannot be read fails the report, never a
+	// report with them in.
 	ignored := map[string]bool{}
 	if a.d != nil && a.d.Inventory != nil {
 		ids, err := a.d.Inventory.IgnoredIDs(ctx)
@@ -118,178 +124,306 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 		}
 	}
 	recs = slices.DeleteFunc(recs, func(r findings.Record) bool { return ignored[r.AssetID] })
-	source := a.vulnCheckCVEs(ctx, recs)
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {
-		out[i] = reports.Finding{Source: source[r.CVE], ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy, AcceptedUntil: r.AcceptedUntil,
-			Agent: r.Evidence != nil && r.Evidence.Agent, Urgency: r.Row.Urgency}
+		out[i] = reports.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen,
+			Agent: r.Evidence != nil && r.Evidence.Agent}
 	}
 	return out, nil
 }
 
-// vulnCheckCVEs is the CVEs of these findings that only VulnCheck KEV lists, so the report can name it among its sources.
-// A feeds store that cannot be read gives none: the report is then missing a source line, never wrong about a figure.
-func (a reportsFindings) vulnCheckCVEs(ctx context.Context, recs []findings.Record) map[string]string {
-	out := map[string]string{}
-	if a.d == nil || (a.d.Reg != nil && !a.d.Reg.Enabled("feeds")) {
-		return out
-	}
-	fs, err := feedsService(*a.d)
+// reportsViews reads findings.View for the periodic report: the same status, severity, verification, fix and handled line as every
+// findings page, and the state events of each finding (fnd_finding_event) that say how it was handled in the period. findings.Views
+// leaves out the findings of a device a person ignored, as every list does.
+type reportsViews struct{ svc *findings.Service }
+
+func (a reportsViews) Views(ctx context.Context) ([]reports.FindingView, error) {
+	vs, err := a.svc.Views(ctx, findings.ViewFilter{})
 	if err != nil {
-		return out
+		return nil, err
 	}
-	seen := map[string]bool{}
-	var cves []string
-	for _, r := range recs {
-		if !seen[r.CVE] {
-			seen[r.CVE] = true
-			cves = append(cves, r.CVE)
+	out := make([]reports.FindingView, 0, len(vs))
+	for _, v := range vs {
+		out = append(out, reportView(v))
+	}
+	return out, nil
+}
+
+// reportView maps one view through its API shape (View.JSON), so the report and the findings pages cannot disagree.
+func reportView(v findings.View) reports.FindingView {
+	j := v.JSON()
+	r := reports.FindingView{ID: j.ID, CVE: j.CVE, Device: reports.DeviceRef{ID: j.Device.ID, Name: j.Device.Name, Added: j.Device.Added},
+		Status: j.Status, Urgency: v.Finding.Urgency, FirstSeen: v.Finding.FirstSeen,
+		Verification: reports.Verification{Verified: j.Verification.Verified, Basis: j.Verification.Basis, By: j.Verification.By, At: j.Verification.At},
+		Fix:          reports.Fix{Key: j.Fix.Key, Kind: j.Fix.Kind, Product: j.Fix.Product, Version: j.Fix.Version, Ref: j.Fix.Ref, URL: j.Fix.URL}}
+	if j.Software != nil {
+		r.Product = j.Software.Name
+		if j.Software.Version != nil {
+			r.Version = *j.Software.Version
 		}
 	}
-	rows, err := fs.Store().KevVulnsByCVE(ctx, cves)
-	if err != nil {
-		return out
+	if c := j.Severity; c != nil {
+		r.Severity = &reports.CveSeverity{Band: c.Band, Score: c.Score, Version: c.Version, Vector: c.Vector}
 	}
-	for _, v := range rows {
-		if v.SourceID == "vulncheck-kev" {
-			out[v.CVE] = v.SourceID
+	if h := j.Handled; h != nil {
+		r.Handled = &reports.Handled{Resolution: h.Resolution, Via: h.Via, By: h.By, At: h.At, Note: h.Note, AcceptedUntil: h.AcceptedUntil,
+			FromVersion: h.FromVersion, ToVersion: h.ToVersion}
+	}
+	for _, e := range v.Events {
+		ev := reports.FindingEvent{At: e.TS, Kind: string(e.Kind)}
+		switch e.Kind {
+		case findings.EvCreated, findings.EvReopened, findings.EvAcceptanceExpire:
+		case findings.EvHandled:
+			if !e.Detail.Resolution.Valid() {
+				continue
+			}
+			via := e.Detail.Via
+			if !via.Valid() {
+				via = findings.ViaPerson
+			}
+			ev.Handled = &reports.Handled{Resolution: string(e.Detail.Resolution), Via: string(via), By: e.Actor, At: store.FormatTS(e.TS),
+				Note: optionalText(e.Detail.Note), FromVersion: optionalText(e.Detail.FromVersion), ToVersion: optionalText(e.Detail.ToVersion)}
+			if _, err := time.Parse(time.DateOnly, e.Detail.AcceptedUntil); err == nil {
+				ev.Handled.AcceptedUntil = optionalText(e.Detail.AcceptedUntil)
+			}
+		default:
+			continue
 		}
+		r.Events = append(r.Events, ev)
 	}
-	return out
+	return r
+}
+
+func optionalText(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// Reasons reads the urgency reasons of the findings the report lists, from the finding's own read (findings.Service.View), so the
+// reasons line is the finding page's.
+func (a reportsViews) Reasons(ctx context.Context, ids []string) (map[string][]reports.Reason, error) {
+	out := make(map[string][]reports.Reason, len(ids))
+	for _, id := range ids {
+		v, err := a.svc.View(ctx, id)
+		if err != nil {
+			return out, err
+		}
+		rs := []reports.Reason{}
+		for _, x := range v.JSON().Urgency.Reasons {
+			if x.Layer < 1 || x.Layer > 4 {
+				continue
+			}
+			rs = append(rs, reports.Reason{Layer: x.Layer, Source: x.Source, Name: x.Name, Date: x.Date, URL: x.URL, Detail: x.Detail, Due: x.Due})
+		}
+		out[id] = rs
+	}
+	return out, nil
 }
 
 // ---- feeds -> reports ----
 
 type reportsKEV struct{ d *deps }
 
-func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time, error) {
+// Entries is CISA's list only (VulnCheck KEV stays on the box: a report is a document that may be shared).
+func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, error) {
 	if a.d.Reg != nil && !a.d.Reg.Enabled("feeds") {
-		return nil, time.Time{}, nil // feeds is off: the report has no exploited-list figures, and says so by their source time
+		return nil, nil
 	}
 	fs, err := feedsService(*a.d)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
-	st := fs.Store()
-	rows, err := st.KevVulns(ctx)
+	rows, err := fs.Store().KevVulns(ctx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
 	out := make([]reports.KEVEntry, 0, len(rows))
 	for _, v := range rows {
-		if v.SourceID != "cisa-kev" {
-			continue // VulnCheck KEV stays on the box: a report is a document that may be shared
+		if v.SourceID == "cisa-kev" {
+			out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product)})
 		}
-		day, err := time.Parse(time.DateOnly, v.DateAdded)
-		if err != nil {
-			continue // a row with an odd date is not counted in any week
-		}
-		out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product), Key: productid.Key(v.Vendor, v.Product), DateAdded: day})
 	}
-	at, err := st.KevPulledAt(ctx)
-	return out, at, err
+	return out, nil
 }
 
-// NewlyExploited is the Home headline (feeds.Service.NewlyExploited), so the report and Home agree.
-func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
-	if a.d.Reg != nil && !a.d.Reg.Enabled("feeds") {
-		return 0, 0, nil
-	}
-	fs, err := feedsService(*a.d)
-	if err != nil {
-		return 0, 0, err
-	}
-	return fs.NewlyExploited(ctx)
-}
+// reportsFeeds is the health of the enabled vulnerability feeds, read through the feeds module's own API answers (GET /feeds/sources
+// for the feeds and their schedule, GET /feeds/status for each one's last good pull), so Coverage and Settings, Feeds agree.
+type reportsFeeds struct{ d *deps }
 
-// ---- findings + inventory -> reports ----
-
-// reportsRemedies says the one release that closes each installed software on each device, with findings.FixedInForAll, the sibling of the
-// function behind the "What to do" part of a finding page. It informs the text only: a device it cannot read is skipped.
-// The report asks only for the findings of the products its page names.
-type reportsRemedies struct {
-	d    *deps
-	feed findingsFeeds // st is set at first use (feeds is built after reports on some paths)
-}
-
-func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[string]reports.Fix, error) {
-	if a.d.Inventory == nil || (a.d.Reg != nil && !a.d.Reg.Enabled("feeds")) {
-		return nil, nil
-	}
-	svc, err := feedsService(*a.d)
+func (a reportsFeeds) Health(ctx context.Context) ([]reports.FeedHealth, error) {
+	h := feedsHandlers(*a.d)
+	srcs, err := h.FeedsGetFeedsSources(ctx)
 	if err != nil {
 		return nil, err
 	}
-	feed := a.feed
-	feed.st = svc.Store()
-	vulns, err := feed.Vulns(ctx)
+	st, err := h.FeedsGetFeedsStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
-	byCVE := make(map[string]findings.Vuln, len(vulns))
-	for _, v := range vulns {
-		byCVE[v.CVE] = v
+	var list struct {
+		Items []struct {
+			ID            string `json:"id"`
+			Name          string `json:"name"`
+			Kind          string `json:"kind"`
+			Enabled       bool   `json:"enabled"`
+			IntervalHours int    `json:"interval_hours"`
+		} `json:"items"`
 	}
-	inv := findingsInventory{a.d.Inventory}
-	type device struct {
-		vulns []findings.Vuln
-		ids   map[string]string // finding id -> CVE
+	var status struct {
+		Sources []struct {
+			Name      string    `json:"name"`
+			FetchedAt time.Time `json:"fetched_at"`
+		} `json:"sources"`
 	}
-	devs := map[string]*device{}
-	var order []string
-	for _, f := range fs {
-		v, ok := byCVE[f.CVE]
-		if !ok {
+	if err := reencode(srcs, &list); err != nil {
+		return nil, err
+	}
+	if err := reencode(st, &status); err != nil {
+		return nil, err
+	}
+	ok := map[string]time.Time{}
+	for _, s := range status.Sources {
+		ok[s.Name] = s.FetchedAt
+	}
+	now := clockOf(a.d)
+	var out []reports.FeedHealth
+	for _, f := range list.Items {
+		if !f.Enabled || f.Kind != string(feeds.KindVulnerabilities) || !feedSlug.MatchString(f.ID) {
 			continue
 		}
-		d := devs[f.AssetID]
-		if d == nil {
-			d = &device{ids: map[string]string{}}
-			devs[f.AssetID] = d
-			order = append(order, f.AssetID)
-		}
-		d.vulns = append(d.vulns, v)
-		d.ids[f.ID] = f.CVE
+		last := ok[f.Name]
+		out = append(out, reports.FeedHealth{ID: f.ID, Name: f.Name, LastOK: last, Stale: feeds.IsStale(now, last, f.IntervalHours)})
 	}
-	out := map[string]reports.Fix{}
-	for _, id := range order {
-		d := devs[id]
-		as, ok, err := inv.MatchInput(ctx, id)
-		if err != nil || !ok {
+	return out, nil
+}
+
+// feedSlug is the shape of a feed id the report's contract accepts.
+var feedSlug = regexp.MustCompile(`^[a-z0-9-]{1,40}$`)
+
+// clipRunesN cuts s to at most n characters (a banner a service sent is not bounded).
+func clipRunesN(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
+}
+
+// reencode reads a generated API answer as the plain struct it is written into.
+func reencode(v json.Marshaler, into any) error {
+	b, err := v.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, into)
+}
+
+// ---- exposure -> reports ----
+
+type reportsExposure struct{ d *deps }
+
+// Targets is every enabled target with its open services, the services closed in the period, and its open issues by engine and
+// severity: "what changed" is the rows' first_seen, last_seen and state (exposure 3.6), never a diff of two scans.
+func (a reportsExposure) Targets(ctx context.Context, from, to time.Time) ([]reports.ExposureTarget, error) {
+	svc := exposureService(*a.d)
+	tree, err := svc.Tree(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in := func(s string) bool {
+		t, err := time.Parse(time.RFC3339Nano, s)
+		return err == nil && t.After(from) && !t.After(to)
+	}
+	values := map[string]string{}
+	for _, n := range tree.Items {
+		values[n.ID] = n.Value
+	}
+	out := []reports.ExposureTarget{}
+	for _, n := range tree.Items {
+		if !n.Enabled {
 			continue
 		}
-		groups := findings.FixedInForAll(as, d.vulns) // by CVE: one group per software of the device
-		for fid, cve := range d.ids {
-			if g := groups[cve]; g != nil {
-				// Closed only for a CVE the software itself is inside a ranged entry for (GroupFix.Ranged), as the Findings list groups
-				// it: "fixes N" never counts a CVE the upgrade proves nothing about.
-				out[fid] = reports.Fix{Kind: g.Kind, Group: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, Closed: g.Ranged[cve]}
+		t := reports.ExposureTarget{TargetID: n.ID, Kind: string(n.Kind), Value: n.Value, Proof: n.Proof.State, Services: []reports.ExposureService{}, Issues: []reports.ExposureIssues{}}
+		if n.ParentID != nil {
+			if v, ok := values[*n.ParentID]; ok {
+				t.Parent = &v
 			}
 		}
+		if s := n.LastScan; s != nil {
+			t.LastScanAt = cmp.Or(s.EndedAt, s.StartedAt)
+		}
+		services, err := svc.Services(ctx, n.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range services {
+			if (s.Proto != "tcp" && s.Proto != "udp") || s.Port < 1 || s.Port > 65535 {
+				continue
+			}
+			x := reports.ExposureService{IP: s.IP, Port: s.Port, Proto: s.Proto, Name: optionalText(clipRunesN(s.Name, 80)), Product: optionalText(clipRunesN(s.Product, 200)),
+				Version: optionalText(clipRunesN(s.Version, 80))}
+			switch {
+			case s.State == "open" && in(s.FirstSeen):
+				x.Change = optionalText("new")
+			case s.State == "closed" && in(s.LastSeen):
+				x.Change = optionalText("closed")
+			case s.State != "open":
+				continue // closed before the period
+			}
+			if s.Cert != nil {
+				if _, err := time.Parse(time.RFC3339Nano, s.Cert.ExpiresAt); err == nil {
+					x.CertExpiresAt = optionalText(s.Cert.ExpiresAt)
+				}
+			}
+			t.Services = append(t.Services, x)
+		}
+		issues, err := svc.Issues(ctx, n.ID)
+		if err != nil {
+			return nil, err
+		}
+		type key struct{ engine, severity string }
+		at := map[key]int{}
+		for _, is := range issues {
+			if is.State != "open" || !is.Engine.Valid() {
+				continue
+			}
+			k := key{string(is.Engine), is.Severity}
+			i, ok := at[k]
+			if !ok {
+				i = len(t.Issues)
+				at[k] = i
+				t.Issues = append(t.Issues, reports.ExposureIssues{Engine: k.engine, Severity: k.severity})
+			}
+			t.Issues[i].Open++
+			if in(is.FirstSeen) {
+				t.Issues[i].New++
+			}
+		}
+		out = append(out, t)
 	}
 	return out, nil
 }
 
 // ---- notify -> reports ----
 
-type reportsIncidents struct{ d *deps }
+type reportsDetections struct{ d *deps }
 
-// Week counts the incidents of notify last seen since the time, all of them, and names the first few (notify.IncidentsSince reads
-// the class of each, so a busy week is not cut at the list size).
-func (a reportsIncidents) Week(ctx context.Context, since time.Time, top int) (reports.IncidentWeek, bool, error) {
-	if a.d.Reg != nil && !a.d.Reg.Enabled("notify") {
-		return reports.IncidentWeek{}, false, nil
-	}
-	w, err := newNotify(a.d).IncidentsSince(ctx, since, top)
+// Period counts the incidents of notify with activity in the period, every kind whole, and names the top few by severity.
+func (a reportsDetections) Period(ctx context.Context, from, to time.Time, top int) ([]reports.DetectionCount, []reports.Detection, error) {
+	p, err := newNotify(a.d).IncidentsIn(ctx, from, to, top)
 	if err != nil {
-		return reports.IncidentWeek{}, false, err
+		return nil, nil, err
 	}
-	out := reports.IncidentWeek{Traps: w.Counts["trap"], FailedLogins: w.Counts["failed_logins"], AcceptedLogins: w.Counts["login_accepted"],
-		BadConnections: w.Counts["bad_connection"], Other: w.Counts["anomaly"]}
-	for _, b := range w.Top {
-		out.Top = append(out.Top, reports.Incident{Kind: b.Class, Severity: string(b.Severity), Title: b.Title, LastSeen: b.LastSeen})
+	var counts []reports.DetectionCount
+	for _, k := range p.Kinds {
+		counts = append(counts, reports.DetectionCount{Kind: string(k.Kind), N: k.Incidents, LastAt: k.LastSeenAt})
 	}
-	return out, true, nil
+	var tops []reports.Detection
+	for _, x := range p.Top {
+		tops = append(tops, reports.Detection{Kind: string(x.Kind), Title: x.Title, Severity: string(x.Severity), DeviceID: x.DeviceID, DeviceName: x.DeviceName, At: x.LastSeen})
+	}
+	return counts, tops, nil
 }
 
 type reportsMailer struct{ svc *notify.Service }

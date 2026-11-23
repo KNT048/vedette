@@ -11,6 +11,7 @@ import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
+import { hasOpenFindings } from './deviceQuery'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceAddress, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
@@ -482,7 +483,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     (r.ignored_at !== null) === (ignored === true) // An ignored device only when asked for
     && (approved === null || (approved ? r.approved || r.quiet : !r.approved && !r.quiet))
     && (fragile === null || r.fragile === fragile)
-    && (hasFindings === null || (r.findings_count > 0) === hasFindings)
+    && (hasFindings === null || hasOpenFindings(r) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
     && (!risks.length || risks.includes(r.risk?.code ?? 'none'))

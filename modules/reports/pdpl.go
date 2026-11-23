@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"regexp"
 	"sort"
 	"time"
 
@@ -43,10 +44,7 @@ func buildPdpl(in pdplInput) PdplReport {
 	r := computePdpl(in)
 	a := r
 	if r.Inventory.Unapproved > 0 {
-		w := approvedOnly(weeklyInput{devices: in.devices, findings: in.findings})
-		sub := in
-		sub.devices, sub.findings = w.devices, w.findings
-		a = computePdpl(sub)
+		a = computePdpl(approvedOnly(in))
 		// Leaving the devices out of the view does not approve them: the measure stays the full report's.
 		for i, m := range a.Measures {
 			if m.ID != "unapproved" {
@@ -95,15 +93,13 @@ func computePdpl(in pdplInput) PdplReport {
 			}
 		}
 	}
-	w := computeWeekly(weeklyInput{devices: in.devices, findings: in.findings, kev: in.kev, now: in.now})
-	var risks []FindingRow
 	var cves []string
 	for _, f := range in.findings {
 		if (f.Status == "confirmed" || f.Status == "suspected") && !f.FirstSeen.After(in.now) {
 			cves = append(cves, clip(f.CVE, 40))
 		}
 	}
-	risks = capRows(w.Open) // already ordered; the approved-only view is computed and cut on its own
+	risks := pdplRisks(in)
 
 	m := func(id, status string, list []string) Measure {
 		n := len(list)
@@ -212,4 +208,76 @@ func nonNilS(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+var eolOS = regexp.MustCompile(`(?i)windows 10|server 2016`)
+
+// approvedOnly is in without the devices not approved yet and their findings (a finding whose device is unknown stays, as its row
+// says approved).
+func approvedOnly(in pdplInput) pdplInput {
+	out := in
+	out.devices, out.findings = nil, nil
+	left := map[string]bool{}
+	for _, d := range in.devices {
+		if d.Approved {
+			out.devices = append(out.devices, d)
+		} else {
+			left[d.ID] = true
+		}
+	}
+	for _, f := range in.findings {
+		if !left[f.AssetID] {
+			out.findings = append(out.findings, f)
+		}
+	}
+	return out
+}
+
+// pdplRisks are the open findings, the most severe first, then the newest, at most MaxRows. A product is named as Findings names it
+// (the exploited list's display name), else by its CVE.
+func pdplRisks(in pdplInput) []FindingRow {
+	names := make(map[string]string, len(in.devices))
+	unapproved := map[string]bool{}
+	for _, d := range in.devices {
+		names[d.ID] = clip(d.Name, 80)
+		unapproved[d.ID] = !d.Approved
+	}
+	products := make(map[string]string, len(in.kev))
+	for _, k := range in.kev {
+		name := k.Display
+		if name == "" {
+			name = k.Vendor + " " + k.Product
+		}
+		products[k.CVE] = clip(name, 80)
+	}
+	rows := []FindingRow{}
+	for _, f := range in.findings {
+		if (f.Status != "confirmed" && f.Status != "suspected") || f.FirstSeen.After(in.now) {
+			continue
+		}
+		dev, ok := names[f.AssetID]
+		if !ok {
+			dev = clip(f.AssetID, 80)
+		}
+		prod, ok := products[f.CVE]
+		if !ok {
+			prod = clip(f.CVE, 40)
+		}
+		rows = append(rows, FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: f.Status, Severity: f.Severity,
+			Since: ts(f.FirstSeen), Agent: f.Agent, DeviceApproved: !unapproved[f.AssetID]})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		if severityRank[a.Severity] != severityRank[b.Severity] {
+			return severityRank[a.Severity] < severityRank[b.Severity]
+		}
+		if a.Since != b.Since {
+			return a.Since > b.Since
+		}
+		return a.ID < b.ID
+	})
+	if len(rows) > MaxRows {
+		rows = rows[:MaxRows]
+	}
+	return rows
 }

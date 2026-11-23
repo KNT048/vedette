@@ -1,14 +1,14 @@
 id: reports            # same as the folder name
 name: { en: "Reports" }
-summary: { en: "One-page weekly report (scheduled) and a personal-data-protection self-assessment under Law 91/2025/QH15 and Decree 356/2025/NĐ-CP, printable to PDF." }
+summary: { en: "Periodic security report (weekly or monthly, sent by email, every sent report kept as sent) and a personal-data-protection self-assessment under Law 91/2025/QH15 and Decree 356/2025/NĐ-CP, printable to PDF." }
 tier: optional
 default: off
 depends: [core, inventory, feeds]
-soft_depends: [notify, ai, scan, logs, honeypot]   # notify: sends the scheduled email (not yet listed in MODULES.md); ai: commentary; scan/logs/honeypot: sources of figures when present
+soft_depends: [notify, exposure, ai, scan, logs, honeypot, sensor-passive, ids]   # notify: sends the email and holds the incidents; exposure: the External exposure section; ai: the assessment commentary; the rest: what Coverage and Detections report when present
 permissions: []
 ports: []
 container: core        # the browser prints the PDF (CSS @media print), no server-side PDF library
 tables_prefix: rep_
-tables: [rep_schedule, rep_history, rep_weekly_ai, rep_pdpl]
+tables: [rep_definition, rep_history, rep_pdpl]
 stories: [S-REP-1, S-REP-2]
 milestone: M7

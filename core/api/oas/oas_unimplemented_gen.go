@@ -3246,42 +3246,6 @@ func (UnimplementedHandler) ReportsGetReportsPdpl(ctx context.Context) (r *Repor
 	return r, ht.ErrNotImplemented
 }
 
-// ReportsGetReportsSchedule implements reports_get_reports_schedule operation.
-//
-// Weekly report schedule and recipients.
-//
-// GET /reports/schedule
-func (UnimplementedHandler) ReportsGetReportsSchedule(ctx context.Context) (r *ReportsGetReportsScheduleOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// ReportsGetReportsWeeklyHistory implements reports_get_reports_weekly_history operation.
-//
-// History of sent weekly reports.
-//
-// GET /reports/weekly/history
-func (UnimplementedHandler) ReportsGetReportsWeeklyHistory(ctx context.Context) (r *ReportsGetReportsWeeklyHistoryOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// ReportsGetReportsWeeklyHistoryID implements reports_get_reports_weekly_history_id operation.
-//
-// One sent report with the original figures of that week, for reprinting.
-//
-// GET /reports/weekly/history/{id}
-func (UnimplementedHandler) ReportsGetReportsWeeklyHistoryID(ctx context.Context, params ReportsGetReportsWeeklyHistoryIDParams) (r *ReportsGetReportsWeeklyHistoryIDOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// ReportsGetReportsWeeklyPreview implements reports_get_reports_weekly_preview operation.
-//
-// One-page weekly report, figures computed when opened.
-//
-// GET /reports/weekly/preview
-func (UnimplementedHandler) ReportsGetReportsWeeklyPreview(ctx context.Context) (r *ReportsGetReportsWeeklyPreviewOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // ReportsPostReportsPdplAiSummary implements reports_post_reports_pdpl_ai_summary operation.
 //
 // Draft a commentary for the assessment report with the customer AI.
@@ -3309,24 +3273,6 @@ func (UnimplementedHandler) ReportsPostReportsSend(ctx context.Context) (r *Repo
 	return r, ht.ErrNotImplemented
 }
 
-// ReportsPostReportsWeeklyAiSummary implements reports_post_reports_weekly_ai_summary operation.
-//
-// Draft a commentary for the weekly report with the customer AI.
-//
-// POST /reports/weekly/ai-summary
-func (UnimplementedHandler) ReportsPostReportsWeeklyAiSummary(ctx context.Context) (r *ReportsPostReportsWeeklyAiSummaryOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// ReportsPostReportsWeeklySend implements reports_post_reports_weekly_send operation.
-//
-// Send the weekly report now to the scheduled recipients.
-//
-// POST /reports/weekly/send
-func (UnimplementedHandler) ReportsPostReportsWeeklySend(ctx context.Context) (r *ReportsPostReportsWeeklySendOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // ReportsPutReportsDefinition implements reports_put_reports_definition operation.
 //
 // Save the report name, options and recipients (emails validated, max 20).
@@ -3342,15 +3288,6 @@ func (UnimplementedHandler) ReportsPutReportsDefinition(ctx context.Context, req
 //
 // PUT /reports/pdpl/org
 func (UnimplementedHandler) ReportsPutReportsPdplOrg(ctx context.Context, req *ReportsPutReportsPdplOrgReq) (r *ReportsPutReportsPdplOrgOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// ReportsPutReportsSchedule implements reports_put_reports_schedule operation.
-//
-// Save schedule and recipients (emails validated, max 20).
-//
-// PUT /reports/schedule
-func (UnimplementedHandler) ReportsPutReportsSchedule(ctx context.Context, req *ReportsPutReportsScheduleReq) (r *ReportsPutReportsScheduleOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

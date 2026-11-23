@@ -571,9 +571,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
 					return err
 				}
-				// the entries this pull announces as new (below, after the commit) are recorded with it
-				if src.ID == kevFeedID && !baseline {
-					if err := markAnnounced(ctx, tx, fresh, p.out.Finished); err != nil {
+				// the entries this pull announces as new (below, after the commit and after the pulls the list brings next) are
+				// recorded with it: a stop before the events go out leaves the record for the subscribers' catch-up (NewKEVSince)
+				if isKEVSource(src.ID) && !baseline {
+					if err := markAnnounced(ctx, tx, listOf(src.ID), fresh, p.out.Finished); err != nil {
 						return err
 					}
 				}
@@ -701,7 +702,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 //
 // The events of the CISA list (new_kev, baseline, updated) go out only after those pulls: the devices are matched
 // once, against the new entry's NVD versions, so a ransomware CVE inside the range alerts as critical at once, and a
-// device outside every range gets no alert at all. The events of the other pulls follow those of the list.
+// device outside every range gets no alert at all. The events of the other pulls follow those of the list. The list's rows
+// are committed before those pulls, so a stop in between loses the events but never the news: every new_kev entry is
+// recorded in the list's transaction (markAnnounced) for scan's catch-up, and findings' reconcile matches the devices
+// again (and announces a recent entry) at its next run, which a start runs at once.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
 	if err == nil && isKEVSource(id) && row.Status == "ok" {

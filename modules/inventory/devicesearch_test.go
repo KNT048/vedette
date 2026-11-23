@@ -33,7 +33,8 @@ type searchFleet struct {
 //   - prn: a printer found by a scan, fragile, pending.
 func newSearchFleet(t *testing.T) (*env, searchFleet) {
 	t.Helper()
-	e := newEnv(t, withKEV(fakeKEV{}), withWazuh([]string{"192.168.1.30"}, nil))
+	risk := fakeRisk{}
+	e := newEnv(t, withKEV(fakeKEV{}), withWazuh([]string{"192.168.1.30"}, nil), withRisk(risk))
 	var f searchFleet
 	f.fw = e.addDevice(inventory.AddInput{CatalogID: "fortigate", Name: "Branch FW", IP: "192.168.1.1"})
 	rec := func(ip, mac, agent string, src observe.Source, kv ...string) string {
@@ -74,7 +75,8 @@ func newSearchFleet(t *testing.T) (*env, searchFleet) {
 			t.Fatal(err)
 		}
 	}
-	e.findg[f.sw] = 2
+	e.findg[f.sw] = 2                                        // has findings: an open one, so a status
+	risk[f.sw] = inventory.Risk{Code: "exploited", Count: 1} // has_findings reads the open findings from the status
 	return e, f
 }
 

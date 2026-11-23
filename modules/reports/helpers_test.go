@@ -28,15 +28,51 @@ type fakeFindings struct {
 
 func (f *fakeFindings) All(context.Context) ([]Finding, error) { return f.fs, f.err }
 
-type fakeKEV struct {
-	es           []KEVEntry
-	at           time.Time
-	newN, inUseN int
+type fakeViews struct {
+	vs      []FindingView
+	reasons map[string][]Reason
+	err     error
+	asked   []string
 }
 
-func (f *fakeKEV) Entries(context.Context) ([]KEVEntry, time.Time, error) { return f.es, f.at, nil }
+func (f *fakeViews) Views(context.Context) ([]FindingView, error) { return f.vs, f.err }
+func (f *fakeViews) Reasons(_ context.Context, ids []string) (map[string][]Reason, error) {
+	f.asked = append(f.asked, ids...)
+	out := map[string][]Reason{}
+	for _, id := range ids {
+		if r, ok := f.reasons[id]; ok {
+			out[id] = r
+		}
+	}
+	return out, nil
+}
 
-func (f *fakeKEV) NewlyExploited(context.Context) (int, int, error) { return f.newN, f.inUseN, nil }
+type fakeKEV struct{ es []KEVEntry }
+
+func (f *fakeKEV) Entries(context.Context) ([]KEVEntry, error) { return f.es, nil }
+
+type fakeExposure struct {
+	ts       []ExposureTarget
+	from, to time.Time
+}
+
+func (f *fakeExposure) Targets(_ context.Context, from, to time.Time) ([]ExposureTarget, error) {
+	f.from, f.to = from, to
+	return f.ts, nil
+}
+
+type fakeDetections struct {
+	counts []DetectionCount
+	top    []Detection
+}
+
+func (f *fakeDetections) Period(context.Context, time.Time, time.Time, int) ([]DetectionCount, []Detection, error) {
+	return f.counts, f.top, nil
+}
+
+type fakeFeeds struct{ hs []FeedHealth }
+
+func (f *fakeFeeds) Health(context.Context) ([]FeedHealth, error) { return f.hs, nil }
 
 type fakeMail struct {
 	mu    sync.Mutex
@@ -101,7 +137,11 @@ type env struct {
 	clock *clockT
 	inv   *fakeInv
 	fnd   *fakeFindings
+	views *fakeViews
 	kev   *fakeKEV
+	exp   *fakeExposure
+	det   *fakeDetections
+	feeds *fakeFeeds
 	mail  *fakeMail
 	ai    *fakeAI
 	mods  fakeMods
@@ -118,10 +158,18 @@ func newDB(t *testing.T) *store.DB {
 	return db
 }
 
+// allModules is every module the report reads, on.
+func allModules() fakeMods {
+	return fakeMods{"feeds": true, "notify": true, "exposure": true, "honeypot": true, "logs": true, "sensor-passive": true, "sensor-active": true,
+		"agent-intake": true, "ids": false, "scan": true}
+}
+
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	e := &env{t: t, db: newDB(t), clock: &clockT{now: t0}, inv: &fakeInv{}, fnd: &fakeFindings{}, kev: &fakeKEV{}, mail: &fakeMail{ready: true}, ai: &fakeAI{on: true}, mods: fakeMods{"logs": true}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Findings: e.fnd, KEV: e.kev, Mail: e.mail, AI: e.ai, Modules: e.mods,
+	e := &env{t: t, db: newDB(t), clock: &clockT{now: t0}, inv: &fakeInv{}, fnd: &fakeFindings{}, views: &fakeViews{}, kev: &fakeKEV{},
+		exp: &fakeExposure{}, det: &fakeDetections{}, feeds: &fakeFeeds{}, mail: &fakeMail{ready: true}, ai: &fakeAI{on: true}, mods: allModules()}
+	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Findings: e.fnd, Views: e.views, KEV: e.kev,
+		Exposure: e.exp, Detections: e.det, Feeds: e.feeds, Mail: e.mail, AI: e.ai, Modules: e.mods,
 		OrgName: func(context.Context) (string, error) { return "Acme Ltd", nil }, Zone: func(context.Context) string { return "UTC" },
 		Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
@@ -129,6 +177,15 @@ func newEnv(t *testing.T) *env {
 	}
 	e.svc = svc
 	return e
+}
+
+// seed fills every port with the fixtures: the network of the golden report and the PDPL sample.
+func (e *env) seed() {
+	f := fixture()
+	e.inv.devs, e.views.vs, e.views.reasons = f.devices, f.views, f.reasons
+	e.exp.ts, e.det.counts, e.det.top, e.feeds.hs = f.targets, f.counts, f.top, f.feeds
+	p := pdplSample()
+	e.fnd.fs, e.kev.es = p.findings, p.kev
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -158,6 +215,15 @@ func (e *env) auditActions() []string {
 		out = append(out, a)
 	}
 	return out
+}
+
+// saveRecipients saves the definition with these recipients and the other fields as they are.
+func (e *env) saveRecipients(to ...string) {
+	e.t.Helper()
+	d, err := e.svc.Definition(e.ctx())
+	mustNoErr(e.t, err)
+	_, err = e.svc.SaveDefinition(e.ctx(), "admin@acme.example", DefinitionInput{Name: d.Name, Options: d.Options, Recipients: to})
+	mustNoErr(e.t, err)
 }
 
 func mustNoErr(t *testing.T, err error) {

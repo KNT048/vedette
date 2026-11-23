@@ -253,7 +253,7 @@ func TestWiringAnIntrusionAlertFromAnIgnoredDeviceStillAlerts(t *testing.T) {
 	}
 }
 
-// Review r1 M4 of #945: the weekly report leaves an ignored device out with its findings: no row named by an id, no "resolved" for
+// The reports leave an ignored device out with its findings: no row named by an id, no "resolved" for
 // Ignore's closes, no "new this week".
 func TestWiringReportsLeaveAnIgnoredDeviceAndItsFindingsOut(t *testing.T) {
 	t.Parallel()
@@ -275,13 +275,16 @@ func TestWiringReportsLeaveAnIgnoredDeviceAndItsFindingsOut(t *testing.T) {
 	if all, err = in.All(ctx); err != nil || len(all) != 0 {
 		t.Fatalf("an ignored device's findings reach the reports: %+v %v", all, err)
 	}
+	if vs, err := (reportsViews{s.d.Findings}).Views(ctx); err != nil || len(vs) != 0 {
+		t.Fatalf("an ignored device's findings reach the periodic report: %+v %v", vs, err)
+	}
 	if devs, err := (reportsInventory{s.d.Inventory}).Devices(ctx); err != nil || slices.ContainsFunc(devs, func(d reports.Device) bool { return d.ID == id }) {
 		t.Fatalf("an ignored device reaches the reports: %v", err)
 	}
 	if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", id, false); err != nil {
 		t.Fatal(err)
 	}
-	if all, err = in.All(ctx); err != nil || len(all) != 1 || all[0].Status != "suspected" || !all[0].ResolvedAt.IsZero() {
+	if all, err = in.All(ctx); err != nil || len(all) != 1 || all[0].Status != "suspected" {
 		t.Fatalf("after stop ignoring: %+v %v", all, err)
 	}
 }

@@ -1,6 +1,7 @@
 package opstest
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -180,7 +181,8 @@ type SUWorld struct {
 	dirs       []string // the temp folders of the hosts' sockets (the first also holds the audit chain)
 	hosts      []string // the version of each host started, in order
 	dispatches [][]string
-	applierBin [][]byte // what selfupdate/applier held at each dispatch
+	applierBin [][]byte     // what selfupdate/applier held at each dispatch
+	hostLog    lockedBuffer // what the hosts logged; printed when the test fails
 	ctx        context.Context
 	exe        string
 	watchDone  chan struct{}
@@ -205,6 +207,11 @@ func NewSUWorld(t testing.TB, from, to string) *SUWorld {
 		T: t, M: m, Rel: NewRelease(t), Clock: NewClock(time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)),
 		From: from, To: to, Pkg: HostPackage(to), OldExe: []byte("vedette-host " + from + " binary"), watchDone: make(chan struct{}),
 	}
+	t.Cleanup(func() { // registered first, so it runs after the hosts stopped
+		if t.Failed() {
+			t.Logf("host log:\n%s", w.hostLog.String())
+		}
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 	w.ctx = ctx
 	w.exe = filepath.Join(m.Rec, "self-exe")
@@ -325,8 +332,12 @@ func (w *SUWorld) startHost(version string) *SUHost {
 		PeerCheck: func(net.Conn) (peer.Info, error) {
 			return peer.Info{UID: 10001, PID: 4242, Unit: "vedette-core.service"}, nil
 		},
-		OSReleasePath: osrel, Logger: slog.New(slog.DiscardHandler), RequestsPerMinute: 100_000, WritesPerMinute: 100_000,
+		OSReleasePath: osrel, Logger: slog.New(slog.NewTextHandler(&w.hostLog, nil)), RequestsPerMinute: 100_000, WritesPerMinute: 100_000,
 		OwnerUID: os.Getuid(), Exit: func(int) {},
+		// The check runs the fake dpkg, dpkg-query and systemctl scripts; on a loaded test machine they can take longer than the
+		// production bound, which made the first request fail with "could not check the command preconditions". The bound
+		// itself is tested in host/server.
+		CheckTimeout: time.Minute,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -560,4 +571,22 @@ func (w *SUWorld) RunEnded(id string) api.Run {
 // Send starts host.self_update on the current host.
 func (w *SUWorld) Send(a api.HostSelfUpdateArgs) (api.Run, error) {
 	return w.Client().SelfUpdate(context.Background(), a, "0000aaaa-5555-4555-8555-555555555555", "admin@example.com")
+}
+
+// lockedBuffer is a bytes.Buffer safe for the concurrent writes of a logger.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }

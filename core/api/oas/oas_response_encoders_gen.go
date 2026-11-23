@@ -4007,58 +4007,6 @@ func encodeReportsGetReportsPdplResponse(response *ReportsGetReportsPdplOK, w ht
 	return nil
 }
 
-func encodeReportsGetReportsScheduleResponse(response *ReportsGetReportsScheduleOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeReportsGetReportsWeeklyHistoryResponse(response *ReportsGetReportsWeeklyHistoryOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeReportsGetReportsWeeklyHistoryIDResponse(response *ReportsGetReportsWeeklyHistoryIDOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeReportsGetReportsWeeklyPreviewResponse(response *ReportsGetReportsWeeklyPreviewOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeReportsPostReportsPdplAiSummaryResponse(response *ReportsPostReportsPdplAiSummaryOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -4098,32 +4046,6 @@ func encodeReportsPostReportsSendResponse(response *ReportsPostReportsSendOK, w 
 	return nil
 }
 
-func encodeReportsPostReportsWeeklyAiSummaryResponse(response *ReportsPostReportsWeeklyAiSummaryOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeReportsPostReportsWeeklySendResponse(response *ReportsPostReportsWeeklySendOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeReportsPutReportsDefinitionResponse(response *ReportsPutReportsDefinitionOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -4138,19 +4060,6 @@ func encodeReportsPutReportsDefinitionResponse(response *ReportsPutReportsDefini
 }
 
 func encodeReportsPutReportsPdplOrgResponse(response *ReportsPutReportsPdplOrgOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeReportsPutReportsScheduleResponse(response *ReportsPutReportsScheduleOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

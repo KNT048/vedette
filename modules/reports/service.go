@@ -16,31 +16,30 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Job names of the ai module (CONTRACT INV-5).
-const (
-	jobWeekly = "weekly-report"
-	jobPdpl   = "pdpl-assessment"
-)
+// Job name of the ai module (CONTRACT INV-5).
+const jobPdpl = "pdpl-assessment"
 
 // MaxHistory is how many sent reports are kept; older ones are removed when a new one is recorded.
 const MaxHistory = 52
 
-// Config is what NewService needs. Mail, AI, Modules, OrgName, Zone and Clock may be nil.
+// Config is what NewService needs. Exposure, Detections, Feeds, Mail, AI, Modules, OrgName, Zone and Clock may be nil.
 type Config struct {
-	DB        *store.DB
-	Audit     *audit.Log
-	Inventory Inventory
-	Findings  Findings
-	KEV       KEV
-	Remedies  Remedies  // optional: without it the actions name no fixed version
-	Incidents Incidents // optional: without it the report has no "what happened" section
-	Mail      Mailer
-	AI        AI
-	Modules   Modules
-	OrgName   func(context.Context) (string, error)
-	Zone      func(context.Context) string // IANA name of the box time zone; "" or an unknown name = UTC
-	Log       *slog.Logger
-	Clock     func() time.Time
+	DB         *store.DB
+	Audit      *audit.Log
+	Inventory  Inventory
+	Findings   Findings     // the PDPL assessment's risks
+	Views      FindingViews // the periodic report's findings
+	KEV        KEV
+	Exposure   Exposure   // without it the External exposure section says the module is off
+	Detections Detections // without it the Detections section says detection is off
+	Feeds      Feeds      // without it Coverage lists no feed
+	Mail       Mailer
+	AI         AI
+	Modules    Modules
+	OrgName    func(context.Context) (string, error)
+	Zone       func(context.Context) string // IANA name of the organisation's time zone; "" or an unknown name = UTC
+	Log        *slog.Logger
+	Clock      func() time.Time
 }
 
 // Service owns the rep_ tables. Every mutation runs in one transaction with its core_audit row (SYS-3).
@@ -51,10 +50,10 @@ type Service struct {
 	sendMu sync.Mutex // one send at a time: the job and a person's click must not mail the same report twice
 }
 
-// NewService returns the service. DB, Audit, Inventory, Findings, KEV and Log are required.
+// NewService returns the service. DB, Audit, Inventory, Findings, Views, KEV and Log are required.
 func NewService(cfg Config) (*Service, error) {
-	if cfg.DB == nil || cfg.Audit == nil || cfg.Inventory == nil || cfg.Findings == nil || cfg.KEV == nil || cfg.Log == nil {
-		return nil, errors.New("reports: creating service: DB, Audit, Inventory, Findings, KEV and Log are required")
+	if cfg.DB == nil || cfg.Audit == nil || cfg.Inventory == nil || cfg.Findings == nil || cfg.Views == nil || cfg.KEV == nil || cfg.Log == nil {
+		return nil, errors.New("reports: creating service: DB, Audit, Inventory, Findings, Views, KEV and Log are required")
 	}
 	now := cfg.Clock
 	if now == nil {
@@ -76,79 +75,254 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 	return time.UTC
 }
 
+func (s *Service) on(module string) bool {
+	return s.cfg.Modules == nil || s.cfg.Modules.Enabled(module)
+}
+
 func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, user, action, target, detail string) error {
 	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: target, Detail: detail})
 }
 
-// ---- weekly report ----
+// coverageSources are the modules that see the network, in the order Coverage lists them.
+var coverageSources = []string{"sensor-passive", "sensor-active", "agent-intake", "honeypot", "logs", "exposure", "ids"}
 
-func (s *Service) weeklyInput(ctx context.Context, now time.Time) (weeklyInput, error) {
-	devs, err := s.cfg.Inventory.Devices(ctx)
+// detectionModules are the modules whose detections become incidents.
+var detectionModules = []string{"honeypot", "logs", "sensor-passive", "ids"}
+
+// Document is GET /reports/document: the report of the current period, made now with the saved definition (INV-1). Each section
+// reads its own source; a source that cannot be read fails the document rather than show a section that is not true.
+func (s *Service) Document(ctx context.Context) (Document, error) {
+	def, err := s.Definition(ctx)
 	if err != nil {
-		return weeklyInput{}, fmt.Errorf("reports: reading devices: %w", err)
+		return Document{}, err
 	}
-	fs, err := s.cfg.Findings.All(ctx)
-	if err != nil {
-		return weeklyInput{}, fmt.Errorf("reports: reading findings: %w", err)
-	}
-	kev, at, err := s.cfg.KEV.Entries(ctx)
-	if err != nil {
-		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
-	}
-	kevNew, kevInUse, err := s.cfg.KEV.NewlyExploited(ctx)
-	if err != nil {
-		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
-	}
-	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, kevNew: kevNew, kevInUse: kevInUse, now: now}, nil
+	return s.document(ctx, def)
 }
 
-// fill adds what the weekly report reads beyond the figures: the way to read the fixed releases and the week's incidents. Both only
-// inform the text, so a failed read is logged and the report goes on without it (an honest "check the vendor advisory").
-func (s *Service) fill(ctx context.Context, in *weeklyInput) {
-	if s.cfg.Remedies != nil {
-		in.fixesFor = func(fs []Finding) map[string]Fix {
-			fx, err := s.cfg.Remedies.Fixes(ctx, fs)
-			if err != nil {
-				s.cfg.Log.WarnContext(ctx, "reports: the fixed releases could not be read", "error", err)
+func (s *Service) document(ctx context.Context, def Definition) (Document, error) {
+	now, loc := s.clock(), s.loc(ctx)
+	in := docInput{def: def, now: now, loc: loc}
+	if s.cfg.OrgName != nil {
+		if n, err := s.cfg.OrgName(ctx); err == nil {
+			in.org = n
+		}
+	}
+	sec := def.Options.Sections
+	var err error
+	if sec.Summary || sec.Handled || sec.Open || sec.New {
+		if in.findings, err = s.cfg.Views.Views(ctx); err != nil {
+			return Document{}, fmt.Errorf("reports: reading findings: %w", err)
+		}
+		in.reasons = func(ids []string) map[string][]Reason {
+			rs, err := s.cfg.Views.Reasons(ctx, ids)
+			if err != nil { // the status stands on the stored layer; only the reasons line is missing
+				s.cfg.Log.WarnContext(ctx, "reports: the urgency reasons could not be read", "error", err)
 			}
-			return fx
+			return rs
 		}
 	}
-	if s.cfg.Incidents != nil {
-		w, ok, err := s.cfg.Incidents.Week(ctx, in.now.Add(-7*day), maxHappened)
+	if sec.Coverage || sec.Detections {
+		if in.devices, err = s.cfg.Inventory.Devices(ctx); err != nil {
+			return Document{}, fmt.Errorf("reports: reading devices: %w", err)
+		}
+	}
+	from, to := periodOf(def.Options.Period, now, loc)
+	if sec.Exposure {
+		in.exposure = &ReportExposure{ModuleOn: s.cfg.Exposure != nil && s.on("exposure"), Targets: []ExposureTarget{}}
+		if in.exposure.ModuleOn {
+			targets, err := s.cfg.Exposure.Targets(ctx, from, to)
+			if err != nil {
+				return Document{}, fmt.Errorf("reports: reading external exposure: %w", err)
+			}
+			if targets != nil {
+				in.exposure.Targets = targets
+			}
+		}
+	}
+	if sec.Detections {
+		watch := false
+		for _, m := range detectionModules {
+			watch = watch || s.on(m)
+		}
+		in.detections.on = s.cfg.Detections != nil && s.on("notify") && watch
+		if in.detections.on {
+			if in.detections.counts, in.detections.top, err = s.cfg.Detections.Period(ctx, from, to, maxTop*2); err != nil {
+				return Document{}, fmt.Errorf("reports: reading incidents: %w", err)
+			}
+		}
+	}
+	if sec.Coverage {
+		for _, m := range coverageSources {
+			in.sources = append(in.sources, SourceOn{ID: m, On: s.cfg.Modules != nil && s.cfg.Modules.Enabled(m)})
+		}
+		if s.cfg.Feeds != nil && s.on("feeds") {
+			if in.feeds, err = s.cfg.Feeds.Health(ctx); err != nil {
+				return Document{}, fmt.Errorf("reports: reading the feeds: %w", err)
+			}
+		}
+	}
+	return buildDocument(in), nil
+}
+
+// ---- sending and the sent documents ----
+
+const (
+	errNotReady = "The email channel is not ready, so nothing was sent. Check Settings, Alert channels, then send again."
+	errBuild    = "The report could not be made, so nothing was sent. Try again in a few minutes."
+	errSendFail = "The mail server did not accept the message. Check the email settings under Alert channels, then send again."
+)
+
+func errNoRecipients() *apierr.Error {
+	return bad("no_recipients", "There is no recipient. Add an email in Settings, then send again.")
+}
+
+// SendNow is POST /reports/send: the report goes to the saved recipients (FORBID-2) and the document is kept as sent.
+func (s *Service) SendNow(ctx context.Context, actor string) (SentItem, error) {
+	def, err := s.Definition(ctx)
+	if err != nil {
+		return SentItem{}, err
+	}
+	if len(def.Recipients) == 0 {
+		return SentItem{}, errNoRecipients()
+	}
+	if s.cfg.Mail == nil {
+		return SentItem{}, apierr.New(409, "email_not_ready", errNotReady)
+	}
+	if ok, _ := s.cfg.Mail.Ready(ctx); !ok {
+		return SentItem{}, apierr.New(409, "email_not_ready", errNotReady)
+	}
+	return s.send(ctx, triggerManual, actor)
+}
+
+// send makes the document, mails it and records the attempt with the document. The recipients are read again under the lock, so an
+// address an admin removed while this send waited behind another is not mailed (FORBID-2). Whatever happens once there is a
+// recipient, one history row is written, even if the document could not be made or the caller has gone (POST-1). by is the person
+// for a manual send, "" for the schedule.
+func (s *Service) send(ctx context.Context, trigger, by string) (SentItem, error) {
+	s.sendMu.Lock()
+	defer s.sendMu.Unlock()
+	def, err := s.Definition(ctx)
+	if err != nil {
+		return SentItem{}, err
+	}
+	to := def.Recipients
+	if len(to) == 0 {
+		return SentItem{}, errNoRecipients()
+	}
+	now := s.clock()
+	id := store.NewID("rep")
+	status, errText := "sent", ""
+	doc, berr := s.document(ctx, def)
+	switch {
+	case berr != nil:
+		s.cfg.Log.WarnContext(ctx, "reports: the report could not be made", "error", berr)
+		from, to := periodOf(def.Options.Period, now, s.loc(ctx))
+		doc = Document{DefinitionID: def.ID, Title: clip(def.Name, 120), GeneratedAt: ts(now), Period: DocPeriod{Kind: def.Options.Period, From: ts(from), To: ts(to), TZ: s.loc(ctx).String()}, Options: def.Options}
+		status, errText = "failed", errBuild
+	case s.cfg.Mail == nil:
+		status, errText = "failed", errNotReady
+	default:
+		if ok, _ := s.cfg.Mail.Ready(ctx); !ok {
+			status, errText = "failed", errNotReady
+		} else if err := s.cfg.Mail.Send(ctx, to, digest(doc, id)); err != nil {
+			s.cfg.Log.WarnContext(ctx, "reports: the report could not be sent", "error", err)
+			status, errText = "failed", errSendFail
+		}
+	}
+	item := SentItem{ID: id, DefinitionID: def.ID, Title: doc.Title, SentAt: ts(now), Period: SentPeriod{From: doc.Period.From, To: doc.Period.To},
+		Trigger: trigger, Recipients: append([]string{}, to...), Status: status}
+	if errText != "" {
+		item.Error = &errText
+	}
+	if by != "" {
+		item.SentBy = &by
+	}
+	raw, _ := json.Marshal(doc)
+	rec, _ := json.Marshal(to)
+	actor := by
+	if actor == "" {
+		actor = "system"
+	}
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second) // the mail may be gone already: the row is written
+	defer cancel()
+	err = s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(wctx, `INSERT INTO rep_history (id, definition_id, ts, title, period_from, period_to, trigger, recipients, status, error, sent_by, document)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.DefinitionID, item.SentAt, item.Title, item.Period.From, item.Period.To, trigger, string(rec), status, item.Error, item.SentBy, string(raw)); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(wctx, `DELETE FROM rep_history WHERE id NOT IN (SELECT id FROM rep_history ORDER BY ts DESC, id DESC LIMIT ?)`, MaxHistory); err != nil {
+			return err
+		}
+		return s.auditTx(wctx, tx, actor, "report.send", def.ID, fmt.Sprintf("%s, %s, %d recipients", trigger, status, len(to)))
+	})
+	if err != nil {
+		return SentItem{}, fmt.Errorf("reports: recording the send: %w", err)
+	}
+	return item, nil
+}
+
+const sentCols = `id, definition_id, ts, title, period_from, period_to, trigger, recipients, status, error, sent_by`
+
+func scanSent(sc interface{ Scan(...any) error }, extra ...any) (SentItem, error) {
+	var h SentItem
+	var rec string
+	var e, by sql.NullString
+	dest := append([]any{&h.ID, &h.DefinitionID, &h.SentAt, &h.Title, &h.Period.From, &h.Period.To, &h.Trigger, &rec, &h.Status, &e, &by}, extra...)
+	if err := sc.Scan(dest...); err != nil {
+		return h, err
+	}
+	if err := json.Unmarshal([]byte(rec), &h.Recipients); err != nil {
+		return h, err
+	}
+	if h.Recipients == nil {
+		h.Recipients = []string{}
+	}
+	if e.Valid {
+		h.Error = &e.String
+	}
+	if by.Valid {
+		h.SentBy = &by.String
+	}
+	return h, nil
+}
+
+// History is GET /reports/history, newest first.
+func (s *Service) History(ctx context.Context) ([]SentItem, error) {
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT `+sentCols+` FROM rep_history ORDER BY ts DESC, id DESC LIMIT ?`, MaxHistory)
+	if err != nil {
+		return nil, fmt.Errorf("reports: reading the history: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []SentItem{}
+	for rows.Next() {
+		h, err := scanSent(rows)
 		if err != nil {
-			s.cfg.Log.WarnContext(ctx, "reports: the incidents could not be read", "error", err)
+			return nil, fmt.Errorf("reports: reading the history: %w", err)
 		}
-		in.week, in.incidentsOn = w, ok && err == nil
+		out = append(out, h)
 	}
+	return out, rows.Err()
 }
 
-// Weekly computes the report now (INV-1) and attaches the last AI commentary when it is from this week.
-func (s *Service) Weekly(ctx context.Context) (WeeklyReport, error) {
-	in, err := s.weeklyInput(ctx, s.clock())
+// Sent is GET /reports/history/{id}: the document exactly as it was sent (INV-2).
+func (s *Service) Sent(ctx context.Context, id string) (SentReport, error) {
+	var doc string
+	h, err := scanSent(s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT `+sentCols+`, document FROM rep_history WHERE id = ?`, id), &doc)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SentReport{}, apierr.New(404, "not_found", "This report is not in the history.")
+	}
 	if err != nil {
-		return WeeklyReport{}, err
+		return SentReport{}, fmt.Errorf("reports: reading a sent report: %w", err)
 	}
-	s.fill(ctx, &in)
-	r := buildWeekly(in)
-	sum, err := s.loadWeeklyAI(ctx)
-	if err != nil {
-		return WeeklyReport{}, err
+	out := SentReport{SentItem: h}
+	if err := json.Unmarshal([]byte(doc), &out.Document); err != nil {
+		return SentReport{}, fmt.Errorf("reports: reading a sent report: %w", err)
 	}
-	if sum != nil && sum.GeneratedAt > r.Period.From {
-		r.AISummary = sum
-	}
-	return r, nil
+	return out, nil
 }
 
-// Preview is GET /reports/weekly/preview.
-func (s *Service) Preview(ctx context.Context) (WeeklyPreview, error) {
-	r, err := s.Weekly(ctx)
-	if err != nil {
-		return WeeklyPreview{}, err
-	}
-	return WeeklyPreview{Report: r, AIAvailable: s.aiOn(jobWeekly)}, nil
-}
+// ---- PDPL ----
 
 func (s *Service) aiOn(job string) bool { return s.cfg.AI != nil && s.cfg.AI.Available(job) }
 
@@ -156,371 +330,11 @@ func errAIUnavailable() *apierr.Error {
 	return apierr.New(409, "ai_unavailable", "The AI assistant is off or no AI profile is assigned to this task. An administrator can turn it on or assign one in Settings, AI assistant.")
 }
 
-func (s *Service) loadWeeklyAI(ctx context.Context) (*AiSummary, error) {
-	var raw string
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT summary FROM rep_weekly_ai WHERE id = 1`).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("reports: reading the AI commentary: %w", err)
-	}
-	var out AiSummary
-	if err := json.Unmarshal([]byte(raw), &out); err != nil {
-		return nil, fmt.Errorf("reports: reading the AI commentary: %w", err)
-	}
-	return &out, nil
-}
-
-func weeklyFacts(r WeeklyReport) string {
-	var b strings.Builder
-	c := r.Counts
-	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNewly exploited in the last 7 days: %d, products in use among them: %d\n",
-		r.Period.From, r.Period.To, c.NewFindings, c.Resolved, c.OpenConfirmed, c.OpenSuspected, c.Devices, c.DevicesUnapprove, c.DevicesNew, c.KevNew, c.KevMatched)
-	b.WriteString("Top risks (product, number of devices, open findings, confirmed, worst severity):\n")
-	for _, r := range r.TopRisks { // no device names in the prompt
-		fmt.Fprintf(&b, "- %s | %d | %d | %d | %s\n", r.Product, r.Devices, r.Open, r.Confirmed, r.Severity)
-	}
-	b.WriteString("Open findings (CVE, product, status, severity):\n")
-	for i, f := range r.Open {
-		if i == 20 {
-			break
-		}
-		fmt.Fprintf(&b, "- %s | %s | %s | %s\n", f.CVE, f.Product, f.Status, f.Severity)
-	}
-	return b.String()
-}
-
-const weeklyTask = `Write a short commentary on one week of a small company's network security report. Use only the figures and findings in the data block. Write at most 3 short paragraphs of plain English: what changed this week, what to do first, and what is still open. Never change or invent a figure, a CVE or a device. Reply with one JSON object only.`
-
-const pdplTask = `Write a short commentary on a personal-data-protection self-assessment of a small company's network. Use only the facts in the data block, which are what the Vedette box could see. Write at most 3 short paragraphs of plain English: what the technical picture shows, which weaknesses to close first, and that duties about dossiers, procedures and contracts are outside what the box can see and need a responsible person. Do not say the company complies or does not comply with the law, and give no legal advice. Reply with one JSON object only.`
-
-// WeeklyAI drafts the commentary of the weekly report with the customer's AI and keeps it for the preview and the next send.
-func (s *Service) WeeklyAI(ctx context.Context, actor string) (AiSummary, error) {
-	if !s.aiOn(jobWeekly) {
-		return AiSummary{}, errAIUnavailable()
-	}
-	r, err := s.Weekly(ctx)
-	if err != nil {
-		return AiSummary{}, err
-	}
-	res, err := s.cfg.AI.Summarize(ctx, actor, jobWeekly, weeklyTask, []Block{{Source: "weekly report figures", Text: weeklyFacts(r)}})
-	if err != nil {
-		return AiSummary{}, err
-	}
-	sum := summaryOf(res, s.clock())
-	raw, _ := json.Marshal(sum)
-	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO rep_weekly_ai (id, summary) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET summary = excluded.summary`, string(raw)); err != nil {
-			return err
-		}
-		return s.auditTx(ctx, tx, actor, "report.ai_summary", "weekly", "")
-	})
-	if err != nil {
-		return AiSummary{}, fmt.Errorf("reports: saving the AI commentary: %w", err)
-	}
-	return sum, nil
-}
-
-func summaryOf(r Summary, at time.Time) AiSummary {
+func summaryOfAI(r Summary, at time.Time) AiSummary {
 	return AiSummary{Paragraphs: r.Paragraphs, Model: r.Model, Profile: r.Profile, Tokens: Tokens{Input: r.TokensIn, Output: r.TokensOut}, GeneratedAt: ts(at)}
 }
 
-// ---- schedule ----
-
-type scheduleRow struct {
-	enabled    bool
-	zone       string
-	day, hour  int
-	recipients []string
-	armedAt    time.Time
-	lastSlot   time.Time
-}
-
-func (s *Service) loadSchedule(ctx context.Context, q interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}) (scheduleRow, error) {
-	var r scheduleRow
-	var rec, armed string
-	var last sql.NullString
-	err := q.QueryRowContext(ctx, `SELECT enabled, zone, day, hour, recipients, armed_at, last_slot_at FROM rep_schedule WHERE id = 1`).Scan(&r.enabled, &r.zone, &r.day, &r.hour, &rec, &armed, &last)
-	if errors.Is(err, sql.ErrNoRows) {
-		return scheduleRow{day: 1, hour: 8, recipients: []string{}}, nil // never saved: off, no recipients (a clean install sends nothing)
-	}
-	if err != nil {
-		return r, fmt.Errorf("reports: reading the schedule: %w", err)
-	}
-	if err := json.Unmarshal([]byte(rec), &r.recipients); err != nil {
-		return r, fmt.Errorf("reports: reading the schedule: %w", err)
-	}
-	if r.armedAt, err = time.Parse(tsLayout, armed); err != nil {
-		return r, fmt.Errorf("reports: reading the schedule: %w", err)
-	}
-	if last.Valid {
-		if r.lastSlot, err = time.Parse(tsLayout, last.String); err != nil {
-			return r, fmt.Errorf("reports: reading the schedule: %w", err)
-		}
-	}
-	return r, nil
-}
-
-func (s *Service) scheduleView(ctx context.Context, r scheduleRow) Schedule {
-	v := Schedule{Enabled: r.enabled, Day: r.day, Hour: r.hour, Recipients: nonNilS(r.recipients)}
-	if r.enabled {
-		n := ts(nextRun(s.clock(), s.loc(ctx), r.day, r.hour))
-		v.NextRun = &n
-	}
-	return v
-}
-
-// Schedule is GET /reports/schedule.
-func (s *Service) Schedule(ctx context.Context) (Schedule, error) {
-	r, err := s.loadSchedule(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return Schedule{}, err
-	}
-	return s.scheduleView(ctx, r), nil
-}
-
-// SaveSchedule is PUT /reports/schedule (admin). Saving re-arms the schedule: a slot that has already passed is not sent late.
-func (s *Service) SaveSchedule(ctx context.Context, actor string, in ScheduleInput) (Schedule, error) {
-	in, aerr := checkSchedule(in)
-	if aerr != nil {
-		return Schedule{}, aerr
-	}
-	rec, _ := json.Marshal(in.Recipients)
-	now := s.clock()
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO rep_schedule (id, enabled, zone, day, hour, recipients, armed_at) VALUES (1, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT (id) DO UPDATE SET enabled = excluded.enabled, zone = excluded.zone, last_slot_at = NULL, day = excluded.day, hour = excluded.hour, recipients = excluded.recipients, armed_at = excluded.armed_at`,
-			in.Enabled, s.loc(ctx).String(), in.Day, in.Hour, string(rec), ts(now)); err != nil {
-			return err
-		}
-		state := "off"
-		if in.Enabled {
-			state = "on"
-		}
-		return s.auditTx(ctx, tx, actor, "report.schedule", "weekly", fmt.Sprintf("%s, day %d, %02d:00, %d recipients", state, in.Day, in.Hour, len(in.Recipients)))
-	})
-	if err != nil {
-		return Schedule{}, fmt.Errorf("reports: saving the schedule: %w", err)
-	}
-	return s.scheduleView(ctx, scheduleRow{enabled: in.Enabled, day: in.Day, hour: in.Hour, recipients: in.Recipients}), nil
-}
-
-// ---- history and sending ----
-
-const (
-	errNotReady = "The email channel is not ready, so nothing was sent. Check Settings, Alert channels, then send again."
-	errBuild    = "The report could not be built, so nothing was sent. Try again in a few minutes."
-	errSendFail = "The mail server did not accept the message. Check the email settings under Alert channels, then send again."
-)
-
-func historyItem(id string, at time.Time, trigger string, to []string, status, errText string) HistoryItem {
-	return HistoryItem{ID: id, TS: ts(at), Trigger: trigger, Recipients: nonNilS(to), Status: status, Error: errText}
-}
-
-// History is GET /reports/weekly/history, newest first.
-func (s *Service) History(ctx context.Context) ([]HistoryItem, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, trigger, recipients, status, error FROM rep_history ORDER BY ts DESC, id DESC LIMIT ?`, MaxHistory)
-	if err != nil {
-		return nil, fmt.Errorf("reports: reading the history: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := []HistoryItem{}
-	for rows.Next() {
-		var h HistoryItem
-		var rec string
-		var e sql.NullString
-		if err := rows.Scan(&h.ID, &h.TS, &h.Trigger, &rec, &h.Status, &e); err != nil {
-			return nil, fmt.Errorf("reports: reading the history: %w", err)
-		}
-		if err := json.Unmarshal([]byte(rec), &h.Recipients); err != nil {
-			return nil, fmt.Errorf("reports: reading the history: %w", err)
-		}
-		h.Error = e.String
-		out = append(out, h)
-	}
-	return out, rows.Err()
-}
-
-// HistoryEntry is GET /reports/weekly/history/{id}: the figures of that week as they were (INV-2).
-func (s *Service) HistoryEntry(ctx context.Context, id string) (HistoryEntry, error) {
-	var h HistoryEntry
-	var rec, rep string
-	var e sql.NullString
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT id, ts, trigger, recipients, status, error, report FROM rep_history WHERE id = ?`, id).Scan(&h.ID, &h.TS, &h.Trigger, &rec, &h.Status, &e, &rep)
-	if errors.Is(err, sql.ErrNoRows) {
-		return h, apierr.New(404, "not_found", "This report is not in the history.")
-	}
-	if err != nil {
-		return h, fmt.Errorf("reports: reading a sent report: %w", err)
-	}
-	h.Error = e.String
-	if err := json.Unmarshal([]byte(rec), &h.Recipients); err != nil {
-		return h, fmt.Errorf("reports: reading a sent report: %w", err)
-	}
-	if err := json.Unmarshal([]byte(rep), &h.Report); err != nil {
-		return h, fmt.Errorf("reports: reading a sent report: %w", err)
-	}
-	return h, nil
-}
-
-// SendNow is POST /reports/weekly/send: the report goes to the saved recipients (FORBID-2) and the attempt is recorded.
-func (s *Service) SendNow(ctx context.Context, actor string) (HistoryItem, error) {
-	sc, err := s.loadSchedule(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return HistoryItem{}, err
-	}
-	if len(sc.recipients) == 0 {
-		return HistoryItem{}, bad("no_recipients", "There is no recipient. Add an email under Schedule and recipients, then send again.")
-	}
-	if s.cfg.Mail == nil {
-		return HistoryItem{}, apierr.New(409, "email_not_ready", errNotReady)
-	}
-	if ok, _ := s.cfg.Mail.Ready(ctx); !ok {
-		return HistoryItem{}, apierr.New(409, "email_not_ready", errNotReady)
-	}
-	return s.send(ctx, actor, "manual", time.Time{})
-}
-
-// send mails the report and records the attempt. The recipients are read again under the lock, so an address an admin removed
-// while this send waited behind another is not mailed (FORBID-2). slot is the scheduled slot being sent (zero for a manual send):
-// if the schedule was saved again since, the slot is dropped. Whatever happens, one history row is written, even if the report
-// could not be built or the caller has gone (POST-1).
-func (s *Service) send(ctx context.Context, actor, trigger string, slot time.Time) (HistoryItem, error) {
-	s.sendMu.Lock()
-	defer s.sendMu.Unlock()
-	sc, err := s.loadSchedule(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return HistoryItem{}, err
-	}
-	to := sc.recipients
-	if trigger == "scheduled" && (!sc.enabled || !slot.After(sc.armedAt)) {
-		return HistoryItem{}, nil
-	}
-	if len(to) == 0 {
-		return HistoryItem{}, bad("no_recipients", "There is no recipient. Add an email under Schedule and recipients, then send again.")
-	}
-	now := s.clock()
-	status, errText := "sent", ""
-	rep, berr := s.Weekly(ctx)
-	switch {
-	case berr != nil:
-		s.cfg.Log.WarnContext(ctx, "reports: the weekly report could not be built", "error", berr)
-		rep, status, errText = buildWeekly(weeklyInput{now: now}), "failed", errBuild
-	case s.cfg.Mail == nil:
-		status, errText = "failed", errNotReady
-	default:
-		if ok, _ := s.cfg.Mail.Ready(ctx); !ok {
-			status, errText = "failed", errNotReady
-		} else if err := s.cfg.Mail.Send(ctx, to, digest(rep)); err != nil {
-			s.cfg.Log.WarnContext(ctx, "reports: the weekly report could not be sent", "error", err)
-			status, errText = "failed", errSendFail
-		}
-	}
-	h := historyItem(store.NewID("rep"), now, trigger, to, status, errText)
-	raw, _ := json.Marshal(rep)
-	rec, _ := json.Marshal(to)
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second) // the mail may be gone already: the row is written
-	defer cancel()
-	err = s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(wctx, `INSERT INTO rep_history (id, ts, trigger, recipients, status, error, report) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			h.ID, h.TS, trigger, string(rec), status, nullIfEmpty(errText), string(raw)); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(wctx, `DELETE FROM rep_history WHERE id NOT IN (SELECT id FROM rep_history ORDER BY ts DESC, id DESC LIMIT ?)`, MaxHistory); err != nil {
-			return err
-		}
-		return s.auditTx(wctx, tx, actor, "report.send", "weekly", fmt.Sprintf("%s, %s, %d recipients", trigger, status, len(to)))
-	})
-	if err != nil {
-		return HistoryItem{}, fmt.Errorf("reports: recording the send: %w", err)
-	}
-	return h, nil
-}
-
-func nullIfEmpty(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-// RunSchedule is the body of the weekly-send job: when the latest slot has passed and was not handled, send once (POST-2). The
-// slot is marked handled before the send, so a crash cannot send it twice; a failed send is in the history and is not retried
-// by itself (a person sends again).
-func (s *Service) RunSchedule(ctx context.Context) error {
-	sc, err := s.loadSchedule(ctx, s.cfg.DB.Reader())
-	if err != nil || !sc.enabled {
-		return err
-	}
-	now := s.clock()
-	loc := s.loc(ctx)
-	if sc.zone != loc.String() { // the box time zone changed: the slots move, so start again from now instead of risking a second send this week
-		err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(ctx, `UPDATE rep_schedule SET zone = ?, armed_at = ?, last_slot_at = NULL WHERE id = 1`, loc.String(), ts(now))
-			return err
-		})
-		return err
-	}
-	slot := slotAt(now, loc, sc.day, sc.hour)
-	if !slot.After(sc.armedAt) || (!sc.lastSlot.IsZero() && !slot.After(sc.lastSlot)) {
-		return nil
-	}
-	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE rep_schedule SET last_slot_at = ? WHERE id = 1`, ts(slot))
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("reports: marking the slot: %w", err)
-	}
-	if now.Sub(slot) > catchUp || len(sc.recipients) == 0 {
-		return nil
-	}
-	_, err = s.send(ctx, "system", "scheduled", slot)
-	return err
-}
-
-// digest is the email: it leads with what to do this week (the same actions as page 1) and what happened (the same sentence), then
-// the figures, with a link to the full page. Names come from the network, so they were cleaned by buildWeekly and notify cleans
-// them again.
-func digest(r WeeklyReport) Mail {
-	c := r.Counts
-	m := Mail{Path: "/reports"}
-	var what []string
-	if r.Happened != nil {
-		what = append(what, r.Happened.Summary)
-		for _, h := range r.Happened.Top {
-			what = append(what, h.Title)
-		}
-	}
-	what = append(what, fmt.Sprintf("%d devices, %d not approved. %d vulnerabilities newly exploited in the last 7 days; products you use among them: %d.",
-		c.Devices, c.DevicesUnapprove, c.KevNew, c.KevMatched))
-	m.What = strings.Join(what, "\n")
-	var items []string
-	for _, a := range r.Actions {
-		switch a.Kind {
-		case "fix", "verify":
-			t := a.Text
-			if t == "" { // a report built by an older release
-				t = fmt.Sprintf("Check %s on %s (%d open, first %s)", a.Product, a.Device, a.Count, a.CVE)
-			}
-			items = append(items, t)
-		case "review_devices":
-			items = append(items, fmt.Sprintf("Review %d devices waiting for approval", a.Count))
-		case "plan_os":
-			items = append(items, fmt.Sprintf("Plan to replace %d devices on an operating system that is no longer updated", a.Count))
-		}
-	}
-	if len(items) > 0 {
-		m.Action, m.Items = items[0], items[1:]
-	}
-	m.Title = fmt.Sprintf("Weekly report: %s this week, %d open findings", plural(len(items), "thing to do", "things to do"), c.OpenConfirmed+c.OpenSuspected)
-	return m
-}
-
-// ---- PDPL ----
+const pdplTask = `Write a short commentary on a personal-data-protection self-assessment of a small company's network. Use only the facts in the data block, which are what the Vedette box could see. Write at most 3 short paragraphs of plain English: what the technical picture shows, which weaknesses to close first, and that duties about dossiers, procedures and contracts are outside what the box can see and need a responsible person. Do not say the company complies or does not comply with the law, and give no legal advice. Reply with one JSON object only.`
 
 // Pdpl is GET /reports/pdpl.
 func (s *Service) Pdpl(ctx context.Context) (PdplState, error) {
@@ -591,17 +405,25 @@ func (s *Service) GeneratePdpl(ctx context.Context, actor string) (PdplReport, e
 	if org == nil {
 		return PdplReport{}, apierr.New(409, "org_required", "Fill in and save the organisation details first, then create the report.")
 	}
-	in, err := s.weeklyInput(ctx, s.clock())
+	all, err := s.cfg.Inventory.Devices(ctx)
 	if err != nil {
-		return PdplReport{}, err
+		return PdplReport{}, fmt.Errorf("reports: reading devices: %w", err)
+	}
+	fs, err := s.cfg.Findings.All(ctx)
+	if err != nil {
+		return PdplReport{}, fmt.Errorf("reports: reading findings: %w", err)
+	}
+	kev, err := s.cfg.KEV.Entries(ctx)
+	if err != nil {
+		return PdplReport{}, fmt.Errorf("reports: reading the exploited list: %w", err)
 	}
 	var devs []Device // the PDPL inventory is the customer's network: this box is not in it
-	for _, d := range in.devices {
+	for _, d := range all {
 		if !d.Box {
 			devs = append(devs, d)
 		}
 	}
-	rep := buildPdpl(pdplInput{devices: devs, findings: in.findings, kev: in.kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: in.now})
+	rep := buildPdpl(pdplInput{devices: devs, findings: fs, kev: kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: s.clock()})
 	raw, _ := json.Marshal(rep)
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE rep_pdpl SET report = ? WHERE id = 1`, string(raw)); err != nil {
@@ -649,7 +471,7 @@ func (s *Service) PdplAI(ctx context.Context, actor string) (AiSummary, error) {
 	if err != nil {
 		return AiSummary{}, err
 	}
-	sum := summaryOf(res, s.clock())
+	sum := summaryOfAI(res, s.clock())
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		var raw string
 		if err := tx.QueryRowContext(ctx, `SELECT report FROM rep_pdpl WHERE id = 1`).Scan(&raw); err != nil {

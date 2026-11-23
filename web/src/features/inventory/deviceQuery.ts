@@ -30,6 +30,9 @@ export const softwareValues = (q: string) => parseQuery(q, DEVICE_KEYS).tokens.f
 export const RISKS = ['exploited', 'update', 'none'] as const
 
 const DAY = 24 * 60 * 60 * 1000
+
+/** Open findings, as the device's status says (one of the five layers); needs_input alone is none, and findings_count counts every state. */
+export const hasOpenFindings = (d: Pick<DeviceRow, 'risk'>) => d.risk != null && d.risk.code !== 'needs_input'
 export const APPROVED_WITHIN = { '24h': DAY, '7d': 7 * DAY } as const
 
 /** Whether a row is of `type`: a type id, a category id, or the kind it acts as (`type:server` holds every server type). */
@@ -56,7 +59,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
     case 'source': return feedsOfRow(d).has(value as SourceToken)
     case 'fragile': return d.fragile
     case 'suspicious': return d.suspicious
-    case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software_count > 0 : value === 'ports' ? d.service_count > 0 : false
+    case 'has': return value === 'findings' ? hasOpenFindings(d) : value === 'software' ? d.software_count > 0 : value === 'ports' ? d.service_count > 0 : false
     case 'software': return !!value && matchSoftware(d, [value], matches).length > 0
     case 'possible': return value === 'same' && same.has(d.id)
     case 'risk': return (d.risk?.code ?? 'none') === value // the device statuses, none (GET /inventory/devices?risk= reads the same words)

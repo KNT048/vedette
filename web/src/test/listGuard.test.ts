@@ -1,6 +1,7 @@
-// The list guard: every list that pages goes through the one shared table (DataTable) and its shared search box and pager
-// (components/common/Pager.tsx). A page of its own pager, its own slice of rows into pages, or a list with the table's search box
-// turned off and no search of the page's own fails here.
+// The list guard: every list goes through the one shared table (DataTable) and its shared search box and pager
+// (components/common/Pager.tsx): a table, or a list of cards (DataTable list={…}). A page of its own pager, its own slice of rows into
+// pages, a list with the table's search box turned off and no search of the page's own, or a list of the box's records drawn as a
+// <ul> of its own (rows with their own buttons, mapped from a query's items) fails here.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +21,36 @@ const OWN_PAGING: { name: string; re: RegExp }[] = [
   { name: 'rows sliced into pages by hand', re: /\.slice\(\s*\w+\s*\*\s*\w+/ },
   { name: 'a list page number of its own in the URL', re: /(?:params|searchParams|p)\.(?:get|set)\(\s*['"]page['"]/ },
 ]
+
+/** Lists of the box's records drawn as a <ul> of their own that may stay so, with the reason (an entry that no longer matches fails). */
+const OWN_LIST_ALLOWED: { file: string; why: string }[] = [
+  { file: 'features/ai/LogsPanel.tsx', why: 'the findings inside one AI answer, part of the answer text' },
+  { file: 'features/inventory/NetworkForm.tsx', why: 'the at most 16 ranges of the scan scope, edited in the form and saved together' },
+  { file: 'features/honeypot/DevicePanel.tsx', why: 'the latest few hits of one device on its page, each a link to the hit; the full list is Internal traps › Hits' },
+  { file: 'features/response/NeverTouch.tsx', why: 'the rows of one settings form being edited, saved together' },
+  { file: 'features/response/RulesTab.tsx', why: 'the fixed catalogue of rule templates, as cards to pick from' },
+  { file: 'features/scanning/RunPage.tsx', why: 'the items of one run on its own page, in the order the run worked' },
+  { file: 'components/common/PageFrame.tsx', why: 'the KPI strip: at most four numbers, not a list of records' },
+]
+
+/** Each <ul> of the source that maps a query's items (items, d.items, data.items) into rows that carry a button, a link or a switch. */
+export function ownRecordLists(text: string): number[] {
+  const out: number[] = []
+  for (const m of text.matchAll(/<ul\b[^>]*>/g)) {
+    let depth = 0
+    let end = text.length
+    const re = /<ul\b|<\/ul>/g
+    re.lastIndex = m.index!
+    for (let x = re.exec(text); x; x = re.exec(text)) {
+      if (x[0] !== '</ul>') depth++
+      else if (--depth === 0) { end = x.index; break }
+    }
+    const body = text.slice(m.index! + m[0].length, end)
+    const own = body.replace(/<ul\b[\s\S]*?<\/ul>/g, '')
+    if (/\b(?:items|[a-z]\.items|data\.items)\b[^\n]{0,80}\.map\(/.test(body) && /<(?:Button|Link|Switch|DropdownMenu)\b/.test(own)) out.push(text.slice(0, m.index).split('\n').length)
+  }
+  return out
+}
 
 /** The opening tags of the DataTables in a source text (the text of each tag, props and all). */
 function tables(text: string): string[] {
@@ -79,7 +110,17 @@ describe('list guard: one shared search box and pager', () => {
     expect(bad, 'A bare "?tab=…" link replaces the whole query and drops every list page: use KpiTile/KpiStrip, or useKeepListParams()').toEqual([])
   })
 
+  it('a list of the box\'s records (rows with their own buttons) goes through DataTable, as a table or with list={…}, so it has the search and the pager', () => {
+    const hits = files.filter((f) => !SHARED.has(f.file)).flatMap((f) => ownRecordLists(f.text).map((line) => ({ file: f.file, line })))
+    const bad = hits.filter((h) => !OWN_LIST_ALLOWED.some((a) => a.file === h.file)).map((h) => `${h.file}:${h.line}`)
+    expect(bad, 'Draw the list with <DataTable list={(row) => …} columns={what the search reads}>').toEqual([])
+    const stale = OWN_LIST_ALLOWED.filter((a) => !hits.some((h) => h.file === a.file)).map((a) => a.file)
+    expect(stale, 'allowed lists that are gone: remove them').toEqual([])
+  })
+
   it('the guard catches what it must', () => {
+    expect(ownRecordLists('<ul aria-label="x">{d.items.map((r) => <li key={r.id}>{r.name}<Button>Delete</Button></li>)}</ul>')).toEqual([1])
+    expect(ownRecordLists('<ul>{steps.map((r) => <li key={r}>{r}</li>)}</ul>')).toEqual([])
     expect(tables('<DataTable caption="x" data={d} />')).toHaveLength(1)
     expect(tables('<DataTable<Row> urlKey="a" caption={t(\'x\')} data={d.map((r) => <b key={r.id}>{r.n}</b>)} />')[0]).toMatch(/urlKey="a"/)
     expect(/<Link\b[^>]*\bto=(?:"|\{["'`])\?[^"'`#]*["'`]/.test('<Link to="?tab=software">x</Link>')).toBe(true)

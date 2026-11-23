@@ -27,10 +27,11 @@ function useNarrow() {
 /**
  * The table is the main component (FRONTEND §3): 40px rows, sticky header, sorting, text filter, 50 per page.
  * `rowTone` paints a left border on rows that need attention (for example "You have it" + being exploited).
- * A list that pages has a search box and the same pager above and below it (First, Previous, numbered pages, Next, Last, Go to
- * page, rows per page); the search, the page and the size live in the URL under `urlKey`, so back, reload and a shared link keep them.
+ * Every list with rows has a search box, and a list that pages has the same pager above and below it (First, Previous, numbered
+ * pages, Next, Last, Go to page, rows per page); the search, the page and the size live in the URL under `urlKey`, so back, reload
+ * and a shared link keep them. A list of cards (`list`) goes through the same search and pager: its columns name what the search reads.
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns, fillColumn, search = true, urlKey, resetPageOn, server }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, list: listRow, sortSelect, hiddenColumns, fillColumn, search = true, urlKey, resetPageOn, server }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
@@ -50,6 +51,9 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   caption: string
   /** Narrow screen (< 768 px): show a list instead of the table. The content handles its own links/buttons; filtering, sorting and paging are shared. */
   mobileRow?: (row: T) => ReactNode
+  /** Every width: show the rows as a list of these items instead of a table (a list of cards with their own buttons). The columns
+   *  are then not drawn: they name the text the search reads (an `accessorFn` returning a string) and the sort. */
+  list?: (row: T) => ReactNode
   /** "Sort by" select on the table (every width): sortable columns have a text heading, hidden columns included, each in the direction of its first click.
    *  A narrow screen has no column headers to click; a hidden column can only be sorted from here. Turned on per page (#825: the finding list sorts by CVSS). */
   sortSelect?: boolean
@@ -118,8 +122,9 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   const setSize = (n: number) => list.set({ size: n === pageSize ? undefined : n, page: 0 })
   const sizeChanged = list.size !== undefined && list.size !== pageSize
   const paged = pages > 1 || sizeChanged
-  // A list that pages has a search box (and keeps it while a search is on); a short list has none unless the page asks for one
-  const showSearch = !server && search && (!!filterPlaceholder || data.length > pageSize || !!list.q)
+  // Every list with rows has a search box (and keeps it while a search is on, also when nothing matches): a person finds the search
+  // in the same place on every list, however long it is. A list the server pages searches on the server, with the page's own box.
+  const showSearch = !server && search && (data.length > 0 || !!list.q)
   const noMatch = filtered || (data.length > 0 && !!filter)
   const clear = () => { list.set({ q: '', page: 0 }); onClearFilters?.() }
   const none = noMatch
@@ -132,7 +137,8 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
     : (empty ?? t('table.empty'))
   // Build only ONE layout (a list on a narrow screen, a table on a wide one): no duplicate buttons in the DOM.
   const narrow = useNarrow()
-  const asList = !!mobileRow && narrow
+  const rowItem = listRow ?? mobileRow
+  const asList = !!listRow || (!!mobileRow && narrow)
   const sortable = sortSelect ? table.getAllLeafColumns().filter((c) => c.getCanSort() && typeof c.columnDef.header === 'string') : []
 
   return (
@@ -156,11 +162,11 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
           {sortable.map((c) => <option key={c.id} value={c.id}>{t('table.sortOption', { column: c.columnDef.header as string })}</option>)}
         </Select>
       ) : null}
-      {asList && mobileRow ? (
+      {asList && rowItem ? (
         <ul aria-label={caption} className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
           {rows.length === 0 ? <li className="px-4 py-6 text-center text-muted">{none}</li> : rows.map((r) => {
             const tone = rowTone?.(r.original)
-            return <li key={r.id} className={cn('px-4 py-3', tone && TONE_BAR[tone])}>{mobileRow(r.original)}</li>
+            return <li key={r.id} className={cn('px-4 py-3', tone && TONE_BAR[tone])}>{rowItem(r.original)}</li>
           })}
         </ul>
       ) : (

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/knt048/vedette/internal/httpenc"
 )
 
 // CSP is the Envelope's policy (core/server) plus three additions, found by `make webui-csp-check` in a real browser on the release build:
@@ -78,37 +80,22 @@ var gzipExt = map[string]bool{
 
 // gzipped returns the gzip form of body when the client accepts it and the file is a compressible text format of a useful size.
 func (h handler) gzipped(r *http.Request, name string, body []byte) ([]byte, bool) {
-	if len(body) < 1024 || !gzipExt[strings.ToLower(path.Ext(name))] || r.Header.Get("Range") != "" || !acceptsGzip(r.Header.Get("Accept-Encoding")) {
+	if len(body) < 1024 || !gzipExt[strings.ToLower(path.Ext(name))] || r.Header.Get("Range") != "" || !httpenc.AcceptsGzip(r.Header.Get("Accept-Encoding")) {
 		return nil, false
 	}
 	if v, ok := h.gz.Load(name); ok {
-		return v.([]byte), true
+		zb := v.([]byte)
+		return zb, len(zb) > 0 // an empty entry: gzip was not smaller, do not try again
 	}
 	var buf bytes.Buffer
 	zw, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
 	_, _ = zw.Write(body)
 	if zw.Close() != nil || buf.Len() >= len(body) {
+		h.gz.Store(name, []byte{})
 		return nil, false
 	}
 	v, _ := h.gz.LoadOrStore(name, buf.Bytes())
 	return v.([]byte), true
-}
-
-// acceptsGzip reports whether an Accept-Encoding value allows gzip (q=0 refuses it).
-func acceptsGzip(v string) bool {
-	for _, part := range strings.Split(v, ",") {
-		name, params, _ := strings.Cut(strings.TrimSpace(part), ";")
-		if !strings.EqualFold(strings.TrimSpace(name), "gzip") {
-			continue
-		}
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(params), "q="); ok {
-			if f, err := strconv.ParseFloat(rest, 64); err == nil && f <= 0 {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -187,8 +174,12 @@ func (h handler) serve(w http.ResponseWriter, r *http.Request, name string, body
 	}
 	if h.fsys != nil {
 		if zb, ok := h.gzipped(r, name, body); ok {
-			if ct := mime.TypeByExtension(path.Ext(name)); ct != "" && w.Header().Get("Content-Type") == "" {
-				w.Header().Set("Content-Type", ct) // ServeContent would sniff the compressed bytes otherwise
+			if w.Header().Get("Content-Type") == "" { // ServeContent would sniff the compressed bytes otherwise
+				ct := mime.TypeByExtension(path.Ext(name))
+				if ct == "" {
+					ct = http.DetectContentType(body)
+				}
+				w.Header().Set("Content-Type", ct)
 			}
 			w.Header().Set("Content-Encoding", "gzip")
 			if e := w.Header().Get("ETag"); e != "" { // another representation: another strong validator

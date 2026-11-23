@@ -14,7 +14,7 @@ func big() string { return `{"items":[` + strings.Repeat(`{"name":"device","ok":
 
 func get(t *testing.T, h http.Handler, method, accept string, hdr map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
-	r := httptest.NewRequest(method, "/x", nil)
+	r := httptest.NewRequestWithContext(t.Context(), method, "/x", nil)
 	if accept != "" {
 		r.Header.Set("Accept-Encoding", accept)
 	}
@@ -112,5 +112,104 @@ func TestCompressJSONSkipsNonJSONStreamsAndEncodedBodies(t *testing.T) {
 	nc := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	if w := get(t, compressJSON(nc), "GET", "gzip", nil); w.Code != 204 || w.Header().Get("Content-Encoding") != "" {
 		t.Error("204 changed")
+	}
+}
+
+func TestCompressJSONFlushPushesGzipData(t *testing.T) {
+	h := compressJSON(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, big()) // past the hold-back: gzip is active
+		w.(http.Flusher).Flush()
+		// the handler is still running: what was written must already be decodable
+		zr, err := gzip.NewReader(bytes.NewReader(w.(*compressWriter).ResponseWriter.(*httptest.ResponseRecorder).Body.Bytes()))
+		if err != nil {
+			t.Errorf("header: %v", err)
+			return
+		}
+		buf := make([]byte, 100)
+		if n, _ := io.ReadFull(zr, buf); n != 100 {
+			t.Errorf("only %d bytes readable after Flush", n)
+		}
+	}))
+	w := get(t, h, "GET", "gzip", nil)
+	if w.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatal("not gzipped")
+	}
+}
+
+func TestCompressJSONPanicWritesNoTrailerAndKeepsTheStatusOpen(t *testing.T) {
+	// after the gzip commit: the stream ends without a trailer
+	h := compressJSON(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, big())
+		panic(http.ErrAbortHandler)
+	}))
+	rec := httptest.NewRecorder()
+	func() {
+		defer func() {
+			if recover() != http.ErrAbortHandler { //nolint:errorlint // net/http documents comparing the value itself
+				t.Error("the panic was swallowed")
+			}
+		}()
+		r := httptest.NewRequestWithContext(t.Context(), "GET", "/x", nil)
+		r.Header.Set("Accept-Encoding", "gzip")
+		h.ServeHTTP(rec, r)
+	}()
+	zr, err := gzip.NewReader(rec.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadAll(zr); err == nil {
+		t.Error("a truncated body ended as a complete gzip stream")
+	}
+	// before the hold-back is full: nothing is committed, so an outer layer can still answer 500
+	small := compressJSON(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"a":`)
+		panic("boom")
+	}))
+	outer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recover() != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		}()
+		small.ServeHTTP(w, r)
+	})
+	if w := get(t, outer, "GET", "gzip", nil); w.Code != 500 || w.Body.Len() != 0 {
+		t.Errorf("got %d with %d body bytes", w.Code, w.Body.Len())
+	}
+}
+
+type statusLog struct {
+	http.ResponseWriter
+	codes []int
+}
+
+func (s *statusLog) WriteHeader(c int) { s.codes = append(s.codes, c) }
+
+func TestCompressJSONInformationalStatusKeepsTheFinalOne(t *testing.T) {
+	h := compressJSON(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusEarlyHints)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, big())
+	}))
+	rec := httptest.NewRecorder()
+	sl := &statusLog{ResponseWriter: rec}
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/x", nil)
+	r.Header.Set("Accept-Encoding", "gzip")
+	h.ServeHTTP(sl, r)
+	if len(sl.codes) != 2 || sl.codes[0] != 103 || sl.codes[1] != 404 || rec.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("statuses %v, encoding %q", sl.codes, rec.Header().Get("Content-Encoding"))
+	}
+}
+
+func TestCompressJSONHonoursQParameters(t *testing.T) {
+	h := compressJSON(jsonHandler(big()))
+	for _, v := range []string{"gzip;Q=0", "gzip;foo=1;q=0"} {
+		if w := get(t, h, "GET", v, nil); w.Header().Get("Content-Encoding") != "" {
+			t.Errorf("%q was compressed", v)
+		}
 	}
 }

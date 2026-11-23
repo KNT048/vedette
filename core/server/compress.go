@@ -5,9 +5,10 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/knt048/vedette/internal/httpenc"
 )
 
 // compressMin is the smallest JSON body worth compressing: below it the gzip header and the CPU cost outweigh the saving.
@@ -25,32 +26,20 @@ var gzipPool = sync.Pool{New: func() any {
 func compressJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Accept-Encoding")
-		if r.Method == http.MethodHead || r.Header.Get("Range") != "" || !acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		if r.Method == http.MethodHead || r.Header.Get("Range") != "" || !httpenc.AcceptsGzip(r.Header.Get("Accept-Encoding")) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		cw := &compressWriter{ResponseWriter: w}
-		defer cw.finish()
+		defer func() {
+			if p := recover(); p != nil {
+				cw.abort() // nothing more is written: a truncated body must not end as a complete gzip stream
+				panic(p)
+			}
+			cw.finish()
+		}()
 		next.ServeHTTP(cw, r)
 	})
-}
-
-// acceptsGzip reports whether an Accept-Encoding value allows gzip (a q=0 refuses it).
-func acceptsGzip(v string) bool {
-	for _, part := range strings.Split(v, ",") {
-		name, params, _ := strings.Cut(strings.TrimSpace(part), ";")
-		if !strings.EqualFold(strings.TrimSpace(name), "gzip") {
-			continue
-		}
-		q := strings.TrimSpace(params)
-		if rest, ok := strings.CutPrefix(q, "q="); ok {
-			if f, err := strconv.ParseFloat(rest, 64); err == nil && f <= 0 {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 type compressWriter struct {
@@ -67,7 +56,11 @@ func (c *compressWriter) WriteHeader(code int) {
 	if c.decided || c.status != 0 {
 		return
 	}
-	if code < 200 || code == http.StatusNoContent || code == http.StatusNotModified {
+	if code < 200 {
+		c.ResponseWriter.WriteHeader(code) // an informational status: the final one is still to come
+		return
+	}
+	if code == http.StatusNoContent || code == http.StatusNotModified {
 		c.decided = true // no body: pass through
 		c.ResponseWriter.WriteHeader(code)
 		return
@@ -100,6 +93,9 @@ func (c *compressWriter) Flush() {
 		}
 		c.commit(false)
 	}
+	if c.zw != nil {
+		_ = c.zw.Flush() // push what the gzip writer holds, or the client sees only its header
+	}
 	if f, ok := c.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
@@ -119,10 +115,19 @@ func (c *compressWriter) finish() {
 	}
 }
 
+// abort drops what is held back and returns the gzip writer without closing it, so no trailer is written.
+func (c *compressWriter) abort() {
+	if c.zw != nil {
+		gzipPool.Put(c.zw)
+		c.zw = nil
+	}
+	c.buf.Reset()
+}
+
 // commit sends the status and the held-back bytes, gzipped when allowed and the body is JSON.
 func (c *compressWriter) commit(allow bool) {
 	c.decided = true
-	h := c.ResponseWriter.Header()
+	h := c.Header()
 	if allow && h.Get("Content-Encoding") == "" && isJSON(h.Get("Content-Type")) {
 		h.Set("Content-Encoding", "gzip")
 		h.Del("Content-Length")

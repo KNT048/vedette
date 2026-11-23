@@ -102,3 +102,28 @@ func TestSmallAndAlreadyCompressedFilesAreNotEncoded(t *testing.T) {
 		t.Errorf("range: %d %v", rec.Code, rec.Header())
 	}
 }
+
+func TestIncompressibleTextIsServedPlainAndTypeSurvivesWithoutAMapping(t *testing.T) {
+	t.Parallel()
+	rnd := make([]byte, 4000)
+	x := uint32(1)
+	for i := range rnd {
+		x = x*1664525 + 1013904223
+		rnd[i] = byte(x >> 24)
+	}
+	var fsys fs.FS = fstest.MapFS{
+		"index.html":      {Data: []byte("<p>x</p>")},
+		"assets/noise.js": {Data: rnd},
+		"assets/a.map":    {Data: []byte(strings.Repeat(`{"version":3}`, 300))},
+	}
+	h := webui.Handler(fsys)
+	for range 2 {
+		if rec := fetch(t, h, "/assets/noise.js", "gzip"); rec.Header().Get("Content-Encoding") != "" || !bytes.Equal(rec.Body.Bytes(), rnd) {
+			t.Fatal("incompressible file was encoded")
+		}
+	}
+	rec := fetch(t, h, "/assets/a.map", "gzip")
+	if rec.Header().Get("Content-Encoding") != "gzip" || strings.Contains(rec.Header().Get("Content-Type"), "gzip") {
+		t.Errorf("map: %v", rec.Header())
+	}
+}

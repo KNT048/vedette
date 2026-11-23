@@ -119,14 +119,19 @@ func (r *sameRow) addressless() bool {
 }
 
 // osWhy is the reason to offer x and y as one machine because they run the same OS at the same release: one is a hand-added row
-// with no address, the other a device found on the network. Never when two agents report from them or they state another model or
-// OS; the person's name for the hand-added row is a label, not the machine's own name, so it is not held against the pair.
+// with no address, the other a device found on the network, and the only one found running that release (osFound): a fleet of hosts
+// at one build is normal, and pointing at one of them would be a guess. Never when two agents report from them or they state another
+// model or OS; the person's name for the hand-added row is a label, not the machine's own name, so it is not held against the pair.
 func osWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, key string) (string, error) {
 	if y.addressless() {
 		x, y = y, x
 	}
 	if !x.addressless() || y.addressless() || y.origin == "manual" {
 		return "", nil
+	}
+	found, apart, err := osFound(ctx, tx, x)
+	if err != nil || len(found) != 1 || found[0] != y.id {
+		return "", err
 	}
 	fx, err := facts(ctx, tx, x.id)
 	if err != nil {
@@ -145,5 +150,63 @@ func osWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, key string) (string, 
 	if what == "" {
 		what = x.osNames[key]
 	}
-	return "Both run " + what + ", and " + deviceName(ctx, tx, x.id) + " was added by hand without an address: it may be this device.", nil
+	same := "the same OS and version"
+	for k := range x.osNames {
+		if _, ok := y.osNames[k]; ok && strings.Contains(k, "#build ") {
+			same = "the same OS, version and build"
+		}
+	}
+	only := "the only device found running it"
+	if apart {
+		only = "the only device found running it that was not kept separate"
+	}
+	return "Both run " + what + ": " + same + ". " + deviceName(ctx, tx, x.id) + " was added by hand without an address, and " + deviceName(ctx, tx, y.id) +
+		" is " + only + ", so they may be one machine.", nil
+}
+
+// osFound lists the found devices (not added by hand, not the box) that run one of the OS releases of x, a hand-added row without
+// an address, but the ones a person kept separate from x; apart says a person did keep one separate.
+func osFound(ctx context.Context, tx *sql.Tx, x *sameRow) (found []string, apart bool, err error) {
+	keys := map[string]bool{}
+	for k := range x.osNames {
+		p, _, _ := strings.Cut(k, "#")
+		keys[p] = true
+	}
+	if len(keys) == 0 {
+		return nil, false, nil
+	}
+	args := []any{x.id}
+	for k := range keys {
+		args = append(args, k)
+	}
+	//nolint:gosec // q is only placeholders and constants
+	q := `SELECT s.asset_id, s.product_key, ifnull(s.version, ''), s.display, ifnull(s.cpe, ''),
+		EXISTS (SELECT 1 FROM inv_separate p WHERE p.a = min(s.asset_id, ?1) AND p.b = max(s.asset_id, ?1))
+		FROM inv_software s JOIN inv_asset a ON a.id = s.asset_id
+		WHERE s.state = 'present' AND a.origin <> 'manual' AND a.is_box = 0 AND NOT ` + guessLine + `
+		AND s.product_key IN (` + strings.TrimSuffix(strings.Repeat("?,", len(keys)), ",") + `) ORDER BY s.asset_id`
+	rows, err := tx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, false, fmt.Errorf("inventory: read software: %w", err)
+	}
+	for rows.Next() {
+		var id, key, version, display, cpe string
+		var separate bool
+		if err := rows.Scan(&id, &key, &version, &display, &cpe, &separate); err != nil {
+			_ = rows.Close()
+			return nil, false, fmt.Errorf("inventory: read software: %w", err)
+		}
+		if slices.Contains(found, id) || !slices.ContainsFunc(machineKeys(key, version, display, cpe), func(k string) bool { _, ok := x.osNames[k]; return ok }) {
+			continue
+		}
+		if separate {
+			apart = true
+			continue
+		}
+		found = append(found, id)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, false, fmt.Errorf("inventory: read software: %w", err)
+	}
+	return found, apart, nil
 }

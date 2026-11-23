@@ -65,7 +65,7 @@ const (
 	ReasonRotatingName     = "rotating_name"       // one name, a private Wi-Fi address, never online at once
 	ReasonRotatingModel    = "rotating_model"      // one stated model, a private Wi-Fi address, never online at once
 	ReasonMACAtAddedDevice = "mac_at_added_device" // a MAC seen at the address of a device added by hand
-	ReasonSameOS           = "same_os"             // a device added by hand without an address runs the OS a found device runs, at the same release
+	ReasonSameOS           = "same_os"             // a device added by hand without an address runs the OS the only found device running that release runs
 )
 
 // SamePairs is GET /inventory/possible-same.

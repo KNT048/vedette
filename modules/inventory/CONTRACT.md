@@ -45,11 +45,17 @@ detail is in its doc comment.
   that is a burned-in MAC, the address was confirmed by a person within 72 hours, and it is the first and only MAC seen there.
 - **INV-34** What the join rules cannot decide, a person does: "possibly the same device" pairs, merge, and keep separate
   (`inv_separate`; a kept pair is never offered again). A device added by hand without any address and a found device that run
-  the same OS or firmware at the same version or build are offered as such a pair (`same_os`): nothing on the wire ties them.
+  the same OS or firmware at the same version or build are offered as such a pair (`same_os`): nothing on the wire ties them. It
+  is offered only when that found device is the only one running that release (devices a person kept separate from it left out):
+  a fleet of hosts at one build is normal, and the reason says what matched (the same OS, version and build).
 - **INV-57** A device has one main address (`inv_asset.ip`/`mac`) and any number of other addresses (`inv_asset_address`). An IP or
   a MAC has one home (selfcheck `inventory.address_has_one_home`). A person can merge devices (preview first) and split an
-  address off into its own device. A person's merge keeps what each merged device brought (`inv_merged_from`): splitting off that
-  device's interface gives it back with its id, its name in Vedette and its maker, model, host name, type and OS. The preview lists
+  address off into its own device. A person's merge keeps what each merged device brought (`inv_merged_from`,
+  `inv_merged_reading`): splitting off that device's interface gives it back with its id, its origin (a device added by hand
+  stays added by hand), its name in Vedette, its maker, model, host name, type and OS (at least the strongest observation of each
+  series when there are more than the record holds), and its software readings (a line it brought whole goes back whole, with its
+  id and history), so its findings follow its software again; the kept device gets back its own name, and the type and OS a person
+  set on it, when the merge changed them and nobody changed them since. The preview lists
   the type and OS rows also when only one device states them (the other's type as the rules guess it, or none).
 - **INV-53** A merge or delete calls every `core/lifecycle` participant inside inventory's write transaction, so every module's
   rows change with the device or none do. A merge folds colliding rows instead of dropping them.

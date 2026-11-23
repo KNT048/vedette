@@ -16,13 +16,21 @@ const (
 	esxiBanner = "VMware ESXi 8.0 Update 3 (build 24022510)"
 )
 
-// esxiHost records a server found on the network at ip that states VMware ESXi 8.0 Update 3, build 24022510: its card, the maker of
-// the card, the OS the scan read and the ESXi line of that banner. It returns the device id.
-func esxiHost(e *env, ip string) string {
+// esxiHost records a server found on the network at 192.0.2.67 that states VMware ESXi 8.0 Update 3, build 24022510: its card, the
+// maker of the card, the OS the scan read and the ESXi line of that banner. It returns the device id.
+func esxiHost(e *env) string {
 	e.t.Helper()
-	h := observe.AssetHint{MAC: hpMAC, IP: netip.MustParseAddr(ip)}
-	e.record(append(dhcp(hpMAC, ip, ""),
-		observe.Observation{AssetHint: h, Field: observe.Vendor, Value: "Hewlett Packard", Source: observe.Passive, Confidence: 0.4},
+	h := observe.AssetHint{MAC: hpMAC, IP: netip.MustParseAddr("192.0.2.67")}
+	e.record(observe.Observation{AssetHint: h, Field: observe.Vendor, Value: "Hewlett Packard", Source: observe.Passive, Confidence: 0.4})
+	return esxiHostWith(e, "192.0.2.67", hpMAC)
+}
+
+// esxiHostWith records a server found at ip with the card mac that states VMware ESXi 8.0 Update 3, build 24022510: the OS the scan
+// read and the ESXi line of that banner. It returns the device id.
+func esxiHostWith(e *env, ip, mac string) string {
+	e.t.Helper()
+	h := observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}
+	e.record(append(dhcp(mac, ip, ""),
 		observe.Observation{AssetHint: h, Field: observe.OS, Value: esxiBanner, Source: observe.Nmap, Confidence: 0.95})...)
 	sw := []observe.Software{{Display: esxiBanner, Vendor: "vmware", Product: "esxi", Version: "8.0", CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.9, Instance: "tcp/443"}}
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap, nil, sw); err != nil {
@@ -39,7 +47,7 @@ func TestMergeReview_TypeAndOSRowsWhenOnlyOneDeviceStatesThem(t *testing.T) {
 	e := newEnv(t)
 	hand := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "8.0.3 build 24022510", Name: "esxi-01"})
 	e.tick(time.Minute)
-	host := esxiHost(e, "192.0.2.67")
+	host := esxiHost(e)
 	p, err := e.svc.MergePreview(e.ctx(), hand, []string{host})
 	if err != nil {
 		t.Fatal(err)
@@ -86,13 +94,13 @@ func TestSameDevice_AHandAddedRowWithoutAnAddressAndAFoundDeviceOfOneOS(t *testi
 	other := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "7.0.3 build 21930508", Name: "esxi-02"})
 	twin := e.addDevice(inventory.AddInput{Vendor: "VMware", Product: "ESXi", Version: "8.0.3 build 24022510", Name: "esxi-03", IP: "192.0.2.90"})
 	e.tick(time.Minute)
-	host := esxiHost(e, "192.0.2.67")
+	host := esxiHost(e)
 	got := e.sameAs(host)
 	ids := []string{}
 	for _, p := range got {
 		ids = append(ids, p.ID)
 		// the release is named once, as the banner states it, not again as the version the line was filed under
-		if want := "Both run " + esxiBanner + ", and esxi-01 was added by hand without an address: it may be this device."; p.Reason != inventory.ReasonSameOS || p.Why != want {
+		if want := "Both run " + esxiBanner + ": the same OS, version and build. esxi-01 was added by hand without an address, and Hewlett Packard is the only device found running it, so they may be one machine."; p.Reason != inventory.ReasonSameOS || p.Why != want {
 			t.Errorf("offer %+v", p)
 		}
 	}

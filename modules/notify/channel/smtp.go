@@ -374,19 +374,43 @@ func buildMIME(from string, to []string, m Message, link string, now time.Time) 
 	h("Subject", foldSubject(emailSubject(m)))
 	h("Message-ID", "<"+hex.EncodeToString(id[:])+"@"+domain+">")
 	h("MIME-Version", "1.0")
-	h("Content-Type", "text/plain; charset=utf-8")
-	h("Content-Transfer-Encoding", "quoted-printable")
 	h("Auto-Submitted", "auto-generated")
 	h("X-Auto-Response-Suppress", "All")
-	b.WriteString("\r\n")
-	qp := quotedprintable.NewWriter(&b)
-	if _, err := qp.Write([]byte(emailBody(m, link))); err != nil {
-		return nil, fmt.Errorf("notify: email: encode body: %w", err)
+	if m.Doc == nil {
+		h("Content-Type", "text/plain; charset=utf-8")
+		h("Content-Transfer-Encoding", "quoted-printable")
+		b.WriteString("\r\n")
+		if err := writeQP(&b, emailBody(m, link)); err != nil {
+			return nil, err
+		}
+		return b.Bytes(), nil
+	}
+	// A document (the periodic report): the same content as plain text and as HTML, the text first (RFC 2046: the last part is the
+	// richest the reader can show).
+	text, page, _ := m.Doc.render(link)
+	boundary := "vedette-" + hex.EncodeToString(id[:])
+	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
+	b.WriteString("\r\nThis is a message in MIME format.\r\n")
+	for _, part := range []struct{ typ, body string }{{"text/plain", "Hello,\n\n" + text}, {"text/html", page}} {
+		b.WriteString("\r\n--" + boundary + "\r\n")
+		b.WriteString("Content-Type: " + part.typ + "; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
+		if err := writeQP(&b, part.body); err != nil {
+			return nil, err
+		}
+	}
+	b.WriteString("\r\n--" + boundary + "--\r\n")
+	return b.Bytes(), nil
+}
+
+func writeQP(b *bytes.Buffer, s string) error {
+	qp := quotedprintable.NewWriter(b)
+	if _, err := qp.Write([]byte(s)); err != nil {
+		return fmt.Errorf("notify: email: encode body: %w", err)
 	}
 	if err := qp.Close(); err != nil {
-		return nil, fmt.Errorf("notify: email: encode body: %w", err)
+		return fmt.Errorf("notify: email: encode body: %w", err)
 	}
-	return b.Bytes(), nil
+	return nil
 }
 
 // deliver runs one SMTP session.

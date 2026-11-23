@@ -2,6 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/mail"
 	"strings"
 	"testing"
 	"time"
@@ -114,5 +119,67 @@ func TestParseParagraphs(t *testing.T) {
 	long := strings.Repeat("é", 3000)
 	if got, err := parseParagraphs(`{"paragraphs":["` + long + `"]}`); err != nil || len([]rune(got[0])) != 1200 {
 		t.Fatalf("long paragraph: %d, %v", len([]rune(got[0])), err)
+	}
+}
+
+// The report mail carries the report itself: HTML with a plain-text alternative, its sections in the page's words, a still-open finding
+// with its badge, reasons line and verification line, and the link to the sent report. Before, it was a plain-text digest of figures.
+func TestWiringReportMailCarriesTheReport(t *testing.T) {
+	t.Parallel()
+	s, sink := linkStack(t, false, []string{"vedette.office.example"}, "0.0.0.0:8443") // the box has an address: the mail links to the sent report
+	s.setModule("reports", true)
+	s.kev("CVE-2026-4001", "Fortinet", "FortiOS")
+	s.addFortiGate()
+	code, def := s.do("GET", "/reports/definition", "viewer", "")
+	if code != 200 {
+		t.Fatalf("definition: %d %v", code, def)
+	}
+	opts, _ := json.Marshal(def["options"])
+	if code, b := s.do("PUT", "/reports/definition", "admin", `{"name":"Security report","options":`+string(opts)+`,"recipients":["boss@acme.example"]}`); code != 200 {
+		t.Fatalf("save definition: %d %v", code, b)
+	}
+	before := len(sink.messages())
+	code, sent := s.do("POST", "/reports/send", "operator", "")
+	if code != 200 || sent["status"] != "sent" {
+		t.Fatalf("send: %d %v", code, sent)
+	}
+	msgs := sink.messages()[before:]
+	if len(msgs) != 1 {
+		t.Fatalf("%d mails, want the report", len(msgs))
+	}
+	m, err := mail.ReadMessage(strings.NewReader(msgs[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mt, params, err := mime.ParseMediaType(m.Header.Get("Content-Type"))
+	if err != nil || mt != "multipart/alternative" {
+		t.Fatalf("the report mail is %q, want HTML with a text alternative", m.Header.Get("Content-Type"))
+	}
+	parts := map[string]string{}
+	r := multipart.NewReader(m.Body, params["boundary"])
+	for {
+		p, err := r.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(p)
+		pt, _, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
+		parts[pt] = string(b)
+	}
+	link := "/reports/sent/" + sent["id"].(string)
+	for _, typ := range []string{"text/plain", "text/html"} {
+		body := parts[typ]
+		for _, want := range []string{"Summary", "Handled this period", "Still open", "New this period", "External exposure", "Detections", "Coverage",
+			"CVE-2026-4001", "Exploited in the wild: CISA KEV (", "Not confirmed yet: based on a version someone entered", link} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s part: %q missing", typ, want)
+			}
+		}
+	}
+	if t.Failed() {
+		t.Logf("text part:\n%s", parts["text/plain"])
 	}
 }

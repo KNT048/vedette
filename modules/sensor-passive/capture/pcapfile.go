@@ -12,7 +12,7 @@ import (
 )
 
 // FileSource replays a pcap or pcapng recording (pure Go, no libpcap). It is what development on macOS and
-// every test use: fixtures replace the real network (agent-safety). It is read-only by construction: it
+// every test use: fixtures replace the real network. It is read-only by construction: it
 // holds an io.Reader.
 type FileSource struct {
 	r      *bufio.Reader

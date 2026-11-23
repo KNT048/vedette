@@ -1,4 +1,4 @@
-// Gói module chọn lúc cài đặt ban đầu (spec A6 bước 3). FE và mock dùng chung để không lệch nhau.
+// Module bundles chosen at initial setup (spec A6 step 3). The FE and the mock share this so they do not drift apart.
 import type { ModuleId } from '@/lib/modules'
 import type { BundleId } from './types'
 
@@ -12,7 +12,7 @@ export const BUNDLES: Record<Exclude<BundleId, 'custom'>, ModuleId[]> = { smb: S
 
 export interface ModuleDef { id: ModuleId; tier: 'core' | 'standard' | 'optional'; depends: ModuleId[] }
 
-/** Chọn thêm `id` thì kéo theo các module nó cần (hiện rõ trên giao diện, không bật ngầm). */
+/** Choosing `id` also pulls in the modules it needs (shown plainly in the UI, never turned on silently). */
 export function closure(id: ModuleId, all: ModuleDef[], picked: Set<ModuleId>): Set<ModuleId> {
   const next = new Set(picked)
   const visit = (m: ModuleId) => {
@@ -24,7 +24,7 @@ export function closure(id: ModuleId, all: ModuleDef[], picked: Set<ModuleId>): 
   return next
 }
 
-/** Bỏ `id` thì bỏ cả module phụ thuộc vào nó. */
+/** Removing `id` removes the modules that depend on it too. */
 export function without(id: ModuleId, all: ModuleDef[], picked: Set<ModuleId>): Set<ModuleId> {
   const next = new Set(picked)
   const drop = (m: ModuleId) => {

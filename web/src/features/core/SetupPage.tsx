@@ -143,7 +143,7 @@ export default function SetupPage() {
       if (err instanceof ApiError && LAN_ERRORS.has(err.code)) { setErrors({ lanAll: errMsg(err, t) }); setStep('network'); return }
       setFormError(errMsg(err, t)); return
     }
-    // Đã đăng nhập bằng tài khoản quản trị: ghi phạm vi quét vào module kiểm kê (nơi lưu xác nhận phạm vi và người xác nhận).
+    // Signed in with the admin account: write the scan scope into the inventory module (where the scope confirmation and who confirmed it are stored).
     try {
       await saveInventoryScope(s.lan.map((x) => x.trim()).filter(Boolean), s.commitment)
     } catch (err) { toast.error(t('setup.network.saveFailed', { message: errMsg(err, t) })) }

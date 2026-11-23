@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { fmtNumber } from '@/lib/format'
 
 /**
- * Mọi output AI: viền chấm + nhãn "AI tạo, cần người xác nhận" (S-AI-6, rule legal.md: không gỡ nhãn).
- * `origin` phân biệt AI của khách (BYOK) với gói dự án Vedette soạn bằng AI — không bao giờ trộn.
+ * Every AI output: dotted border + the label "AI generated, needs a person to confirm" (S-AI-6, legal rule: never remove the label).
+ * `origin` tells the customer's own AI (BYOK) apart from the pack the Vedette project drafted with AI; the two are never mixed.
  */
 export function AiBlock({ children, model, tokens, origin = 'customer', citations }: { children: ReactNode; model?: string; tokens?: { input: number; output: number }; origin?: 'customer' | 'project'; citations?: { title: string; url?: string }[] }) {
   const { t } = useTranslation()

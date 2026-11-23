@@ -1,6 +1,6 @@
 // Mock API module notify (S-ALERT-1, S-ALERT-3, S-NOT-1). Incidents: trap, bad address, log anomaly, unknown device. Vulnerability notices stay with the finding.
-// Bí mật (token, mật khẩu) chỉ lưu phía mock và không bao giờ trả ra: API chỉ trả 4 ký tự cuối (SYS-4). Mọi văn bản người dùng thấy bằng tiếng Anh.
-// Không hỗ trợ nhiều site/MSP (quyết định của chủ dự án): không có tin gộp nhiều khách.
+// Secrets (tokens, passwords) are kept only on the mock side and never returned: the API returns only the last 4 characters (SYS-4). All text the user sees is English.
+// Multiple sites/MSP are not supported (a product decision): there are no messages that combine several customers.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, DOMAIN_RE, EMAIL_RE, fail, guard, IPV4_RE } from '@/mocks/http'
@@ -17,7 +17,7 @@ import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Groupin
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
-// approvals: module khác (response) đọc bằng peek('notify_channels'): mỗi kênh có approvals?: boolean và approvers?: {user_id, address}[]. Giữ nguyên hình dạng này.
+// approvals: other modules (response) read it with peek('notify_channels'): each channel has approvals?: boolean and approvers?: {user_id, address}[]. Keep this shape.
 interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string; secret_key?: string; refresh_token?: string }
 const blank = (type: ChannelType): StoredChannel => ({ type, configured: false, enabled: false, fields: {}, secret: '', min_severity: 'medium', last_test: null })
 // The webhook URL is a bearer secret (SYS-4): the mock keeps it apart from `fields`, as the backend seals it, and shows only scheme://host/… and its last 4 characters.
@@ -152,8 +152,8 @@ const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x
 const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, secret_key: _k, refresh_token, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(refresh_token || secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
-// Quy tắc kênh (đối chiếu 2026-11): Telegram Bot API (token <số bot>:<chuỗi>; chat_id số, nhóm/kênh siêu nhóm bắt đầu -100, kênh công khai @tên);
-// SMTP: 465 = TLS ngầm (SSL/TLS), 587 = STARTTLS; Zalo OA API: gửi tin tới user_id của người đã quan tâm hoặc nhắn OA, kèm OA access token.
+// Channel rules (checked 2026-11): Telegram Bot API (token <bot number>:<string>; chat_id a number, a group/supergroup channel starts with -100, a public channel @name);
+// SMTP: 465 = implicit TLS (SSL/TLS), 587 = STARTTLS; Zalo OA API: sends a message to the user_id of a person who followed or messaged the OA, with an OA access token.
 const ADDRESS: Record<string, { re: RegExp; msg: string }> = {
   slack: { re: /^[UW][A-Z0-9]{8,12}$/, msg: 'A Slack member ID looks like U04ABCD1234 (Profile, More, Copy member ID).' },
   telegram: { re: /^\d{5,15}$/, msg: 'A Telegram user ID is a number of 5 to 15 digits. A bot such as @userinfobot can show it.' },
@@ -316,7 +316,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   }
   if (type === 'slack') {
     let u: URL | null = null
-    try { u = new URL(secret) } catch { /* không phải URL */ }
+    try { u = new URL(secret) } catch { /* not a URL */ }
     if (!cur.secret && !secret) return fail(400, 'secret_required', 'Enter the Incoming Webhook URL.')
     if (secret && (!u || u.protocol !== 'https:' || u.hostname !== 'hooks.slack.com' || !u.pathname.startsWith('/services/'))) return fail(400, 'bad_webhook', 'A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app.')
     if ((f.label ?? '').trim().length > 80) return fail(400, 'bad_label', 'The channel label can be at most 80 characters.')
@@ -356,7 +356,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   }
   if (type === 'email') return validateEmail(f, secret, cur)
   let u: URL | null = null
-  try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
+  try { u = new URL(webhookUrl(f, cur)) } catch { /* not a URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   // The API answers the adapter's blocked_host and insecure_url as bad_url (channels.go apiConfigCode); blocked_host comes first (webhook.go).
   if (ownHost(u.hostname)) return fail(400, 'bad_url', OWN_TEXT)
@@ -366,7 +366,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   return need('webhook signing key')
 }
 
-/** Mô phỏng một lần gửi: host đuôi .invalid/.test không tới được; token Telegram/Zalo chứa "invalid" bị từ chối. Các trường hợp còn lại thành công. */
+/** Simulate one send: a host ending in .invalid/.test cannot be reached; a Telegram/Zalo token that contains "invalid" is refused. Every other case succeeds. */
 function deliver(c: StoredChannel): { ok: boolean; detail: string } {
   const host = c.type === 'email' ? c.fields.host ?? '' : c.type === 'webhook' ? (() => { try { return new URL(c.url ?? '').hostname } catch { return '' } })() : ''
   if (/\.(invalid|test)$/.test(host)) return { ok: false, detail: `Could not connect to ${host}. Check the host name, the port and any firewall between the box and that machine.` }

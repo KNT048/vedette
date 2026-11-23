@@ -1,5 +1,5 @@
-// Hợp đồng API module core, gồm cả các endpoint nền ở src/mocks/core.ts: /me, /setup, /auth/*, /modules.
-// Kiểu UI suy ra từ schema ở đây (types.ts).
+// API contract of the core module, including the base endpoints in src/mocks/core.ts: /me, /setup, /auth/*, /modules.
+// UI types are derived from the schema here (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { ConnectionKind, KIND_AUTH } from '@/lib/connections'
@@ -14,7 +14,7 @@ const Ok = z.object({ ok: z.literal(true) })
 const Tier = z.enum(['core', 'standard', 'optional'])
 export const TwofaMethod = z.enum(['app', 'email']).describe('app = authenticator app (TOTP), email = 6-digit code sent to the sign-in email')
 
-// ---- nền ----
+// ---- base ----
 export const Me = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, org: z.string(), twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), password_change_required: z.boolean().describe('The password was set by an administrator: until the user changes it, every call except GET /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the GUI shows the Choose a new password screen') })
 export const SetupStatus = z.object({ complete: z.boolean(), org: z.string(), data_mode: z.enum(['sample', 'clean']).describe('sample = trial build with sample data; clean = real install, every table starts empty') })
 export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
@@ -25,7 +25,7 @@ export const ModuleState = z.object({ id: ModuleId, enabled: z.boolean(), tier: 
 export const ModulesResponse = z.object({ modules: z.array(ModuleState), install: InstallKind })
 export const ToggleResponse = z.object({ modules: z.array(ModuleState), affected: z.array(ModuleId).describe('Enabled modules that depend on the module just turned off') })
 
-// ---- cài đặt ban đầu ----
+// ---- initial setup ----
 export const BundleId = z.enum(['smb', 'mid', 'custom'])
 export const SetupModule = z.object({ id: ModuleId, tier: Tier, depends: z.array(ModuleId), available })
 export const SetupPayload = z.object({
@@ -54,7 +54,7 @@ export const TermsState = z.object({
 export const GeneralSettings = z.object({ name: z.string(), timezone: z.string() })
 export const AuthOptions = z.object({ oidc: z.boolean() })
 
-// ---- tài khoản ----
+// ---- account ----
 export const AccountSession = z.object({ id: z.string(), device: z.string(), ip: z.string(), started_at: ts, last_seen: ts, current: z.boolean() })
 export const Account = z.object({
   user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('The account signs in only through SSO: no Vedette password, two-step sign-in is the identity provider\'s') }),
@@ -67,7 +67,7 @@ export const Account = z.object({
 })
 export const TotpStart = z.object({ secret: z.string().describe('20-byte base32 key (RFC 4648), typed by hand into the authenticator app'), otpauth: z.string().describe('URI otpauth://totp/Vedette:<email>?secret=…&issuer=Vedette&algorithm=SHA1&digits=6&period=30') })
 
-// ---- người dùng, OIDC ----
+// ---- users, OIDC ----
 export const AdminUser = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), disabled: z.boolean(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('Created by an SSO sign-in: signs in only through the identity provider; its role follows the IdP groups at every sign-in, so it cannot be changed here (409 sso_user), nor can its password be reset') })
 export const UserCreated = z.object({ user: AdminUser, temp_password: z.string().describe('Returned once only') })
 const OidcRoleRow = z.object({ group: z.string(), role: Role })
@@ -103,7 +103,7 @@ export const AuditListQuery = AuditQuery.extend({
 export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(), users: z.array(z.string()), groups: z.array(z.string()),
   names: z.record(z.string(), z.string()).describe('Display names of the devices and findings whose ids appear in the target or detail of these rows (id to name); an id the box no longer has is left out') })
 
-// ---- cập nhật ----
+// ---- updates ----
 export const UpdateChannel = z.enum(['stable', 'beta'])
 export const UpdateComponent = z.object({ id: z.string().describe('"host": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand'), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']),
   rollback_restores_data: z.boolean().describe('Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss') })
@@ -142,7 +142,7 @@ export const UpdatesState = z.object({
   stale_since: ts.nullable().describe('The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle'),
 })
 
-// ---- hệ điều hành của hộp. Chạy qua trình trợ giúp đặc quyền `vedette-host`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----
+// ---- the box's operating system. Runs through the privileged helper `vedette-host`: a fixed list of apt commands, the web never runs a shell (SYS-1). ----
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const MaintenanceWindow = z.object({
   mode: z.enum(['always', 'window']).describe('"always" = no restriction; "window" = only on the days and hours below'),
@@ -199,7 +199,7 @@ export const OsRebootBody = z.object({ when: z.enum(['now', 'window', 'custom'])
 export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('Items installed automatically in automatic mode') })
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
-// ---- quyền riêng tư ----
+// ---- privacy ----
 export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(16), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
   flows: z.array(PrivacyFlow).describe('Exactly the 16 flows listed in PRIVACY.md'),
@@ -207,7 +207,7 @@ export const PrivacyState = z.object({
   update_check: z.boolean(),
 })
 
-// ---- kết nối tới thiết bị (S-AI-7, S-RESP-4) ----
+// ---- connections to devices (S-AI-7, S-RESP-4) ----
 // Generic kinds only: src/lib/connections.ts. No vendor field: brand knowledge is template data.
 export const ConnectorKind = ConnectionKind
 export const CONNECTOR_AUTH = KIND_AUTH
@@ -252,7 +252,7 @@ export const McpTokenCreated = z.object({ token: z.string().describe('Returned o
 const id = z.object({ id: z.string() })
 
 
-// ---- mạng của hộp (S-CORE-8) ----
+// ---- the box's network (S-CORE-8) ----
 export const IfaceRole = z.enum(['management', 'span', 'unused'])
 export const NetInterface = z.object({ name: z.string(), role: IfaceRole, link: z.boolean(), speed: z.string().nullable(), mac: z.string(), address: z.string().nullable().describe('address/prefix, only on the management interface') })
 export const Management = z.object({ mode: z.enum(['dhcp', 'static']), address: z.string().nullable(), prefix: z.number().int().nullable(), gateway: z.string().nullable(), dns: z.array(z.string()) })
@@ -340,7 +340,7 @@ export const SchedulePreview = z.object({ zone: z.string(), upcoming: z.array(ts
 const scheduleKey = z.object({ owner_key: z.string().max(160).regex(/^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$/) })
 
 export const endpoints = defineEndpoints([
-  // nền
+  // base
   { method: 'get', path: '/me', summary: 'The signed-in user (401 when not signed in)', stories: ['S-CORE-3'], role: 'viewer', response: Me },
   { method: 'get', path: '/setup', summary: 'Whether first-run setup is done', stories: ['S-CORE-1'], role: 'public', response: SetupStatus },
   { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: Ok },
@@ -349,7 +349,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/modules', summary: 'On/off state of every module', stories: ['S-CORE-1'], role: 'viewer', response: ModulesResponse },
   { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance', stories: ['S-CORE-1'], role: 'admin',
     params: id, body: z.object({ enabled: z.boolean(), with_dependencies: z.boolean().optional() }), response: ToggleResponse },
-  // cài đặt ban đầu
+  // initial setup
   { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind, lan: z.string().nullable().describe('The network of the box\'s management address (CIDR, like 192.168.18.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address') }) },
   { method: 'post', path: '/core/setup/restore/upload', summary: 'First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB', stories: ['S-CORE-1'], role: 'public',
     headers: z.object({ 'X-Setup-Code': z.string().optional().describe('The setup code from the box\'s log, as for POST /core/setup') }), body: 'file', response: BackupUpload },
@@ -364,7 +364,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/terms', summary: 'The terms of use this box ships and who accepted them, when and which version; the text is TERMS.md, which the interface carries', stories: ['S-CORE-1'], role: 'viewer', response: TermsState },
   { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
   { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
-  // tài khoản
+  // account
   { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
   { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },
   { method: 'post', path: '/core/account/password', summary: 'Change password (needs the current password). The same call ends the temporary-password limit: the new password must differ from the temporary one', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ current: z.string(), next: z.string() }), response: Ok },
@@ -375,7 +375,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/core/account/2fa/disable', summary: 'Turn off two-step sign-in (needs the password)', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ password: z.string() }), response: Ok },
   { method: 'delete', path: '/core/account/sessions/{id}', summary: 'End one of my other sessions', stories: ['S-CORE-3'], role: 'viewer', params: id, response: null },
   { method: 'post', path: '/core/account/sessions/revoke-others', summary: 'End all my other sessions', stories: ['S-CORE-3'], role: 'viewer', response: z.object({ ok: z.literal(true), revoked: z.number() }) },
-  // người dùng, OIDC
+  // users, OIDC
   { method: 'get', path: '/core/users', summary: 'List users', stories: ['S-CORE-3'], role: 'admin', response: z.object({ items: z.array(AdminUser) }) },
   { method: 'post', path: '/core/users', status: 201, summary: 'Create a user with a role; returns a temporary password once. The user must change it at first sign-in and it expires after 72 hours', stories: ['S-CORE-3'], role: 'admin', body: z.object({ name: z.string(), email: z.string(), role: Role }), response: UserCreated },
   { method: 'patch', path: '/core/users/{id}', summary: 'Change role or disable/re-enable; blocks disabling yourself and removing the last administrator', stories: ['S-CORE-3'], role: 'admin',
@@ -388,7 +388,7 @@ export const endpoints = defineEndpoints([
   // audit
   { method: 'get', path: '/core/audit', summary: 'Audit log filtered by text, user, group and date, newest first, one page of at most 200 rows (offset, limit); total counts every matching row', stories: ['S-CORE-3'], role: 'admin', query: AuditListQuery, response: AuditResult, example: { query: { group: 'core' } } },
   { method: 'get', path: '/core/audit/export', summary: 'Export the audit log to CSV with the same filters', stories: ['S-CORE-3'], role: 'admin', query: AuditQuery, response: 'file' },
-  // cập nhật
+  // updates
   { method: 'get', path: '/core/updates', summary: 'Versions, new builds, history and security advisories of Vedette', stories: ['S-CORE-2'], role: 'viewer', response: UpdatesState },
   { method: 'patch', path: '/core/updates', summary: 'Change channel (stable/beta) and mode (automatic/manual)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ channel: UpdateChannel.optional(), mode: z.enum(['auto', 'manual']).optional() }), response: UpdatesState },
   { method: 'post', path: '/core/updates/check', summary: 'Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source publishes no release)', stories: ['S-CORE-2'], role: 'operator', response: UpdateCheck },
@@ -403,7 +403,7 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/core/updates/os/reboot', summary: 'Cancel a scheduled reboot', stories: ['S-CORE-7'], role: 'admin', response: OsState },
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
-  // quyền riêng tư
+  // privacy
   { method: 'get', path: '/core/privacy', summary: 'The 14 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
@@ -415,7 +415,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/mcp', summary: 'MCP server state, tokens (last 4 characters only) and the read-only tool list. The server is the mcp-server module: turn it on and off with PATCH /modules/mcp-server; while it is off every /core/mcp path answers 404', stories: ['S-MCP-1'], role: 'admin', response: McpState },
   { method: 'post', path: '/core/mcp/tokens', status: 201, summary: 'Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many)', stories: ['S-MCP-1'], role: 'admin', body: z.object({ name: z.string(), scopes: z.array(z.string()) }), response: McpTokenCreated },
   { method: 'delete', path: '/core/mcp/tokens/{id}', summary: 'Revoke an MCP token', stories: ['S-MCP-1'], role: 'admin', params: id, response: null },
-  // dữ liệu
+  // data
   { method: 'get', path: '/core/data/backup', summary: 'Download a backup (password hashes, never passwords or keys)', stories: ['S-CORE-1'], role: 'admin', response: 'file' },
   { method: 'get', path: '/core/logs/export', summary: 'Download the box logs (audit, AI activity, response, scan probes, alerts, device logs, known-bad connections, honeypot hits) as one JSON or CSV file; secrets are removed, hash-chained logs keep their hashes for offline verification; a category whose module has no log source yet is listed as missing; chained categories (audit, response, AI activity) are exported unscrubbed with their chain anchor and head; one download at a time (409 busy), at most one a minute (429 rate_limited), over 128 MB is refused (413 logs_too_large); the download, and a refusal, are audited', stories: ['S-CORE-6'], role: 'admin', query: z.object({ categories: z.string().optional().describe('Comma list: audit, ai_activity, response, scan_probes, alerts, device_logs, known_bad, honeypot; none or an unknown one is 400 invalid_categories'), from: z.string().optional().describe('Start date, YYYY-MM-DD, inclusive, in the organization time zone'), to: z.string().optional().describe('End date, YYYY-MM-DD, inclusive, in the organization time zone; before from is 400 invalid_range'), format: z.string().optional().describe('json (default) or csv; anything else is 400 invalid_format') }), response: 'file', example: { query: { categories: 'audit,ai_activity', format: 'json' } } },
   { method: 'get', path: '/core/data/backups', summary: 'Backups the operating system helper keeps on this box; 409 not_appliance on a container-only install', stories: ['S-CORE-1'], role: 'admin', response: BoxBackups },

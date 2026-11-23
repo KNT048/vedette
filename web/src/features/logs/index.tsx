@@ -2,7 +2,7 @@ import { ScrollText } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 import SiemSettings from './SiemSettings'
 
-// Module logs (S-LOG-1..4). Cắm slot `logs.panels` ở LogsPage (module ai đặt digest AI vào đó).
+// The logs module (S-LOG-1..4). Plugs into the slot `logs.panels` in LogsPage (the ai module puts the AI digest there).
 export const feature: Feature = {
   id: 'logs',
   routes: [{ path: 'logs', lazy: () => import('./LogsPage').then((m) => ({ Component: m.default })) }],

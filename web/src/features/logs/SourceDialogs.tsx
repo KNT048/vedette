@@ -24,7 +24,7 @@ type FormField = 'name' | 'ip' | 'proto' | 'port' | 'cert'
 // The box names the wrong field by its code: the message goes under that field (a phone may have the top of the dialog scrolled away).
 const FIELD_OF: Record<string, FormField> = { bad_name: 'name', bad_ip: 'ip', duplicate: 'ip', bad_proto: 'proto', tls_unavailable: 'proto', bad_port: 'port', bad_client_cert: 'cert' }
 
-/** Chọn loại thiết bị: ô tìm + danh sách theo nhóm. Enter chọn kết quả đầu tiên khi chỉ còn một. */
+/** Pick the device type: a search box + a list by group. Enter picks the first result when only one is left. */
 function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: string) => void; onPick: (k: SourceKind) => void }) {
   const { t } = useTranslation('logs')
   const hits = searchCatalog(find)

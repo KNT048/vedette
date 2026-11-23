@@ -449,7 +449,7 @@ func connKey(parts ...string) string {
 // plausible says whether a log line can come from a connection to a trap: the source is no address the box or the traps
 // own, no loopback and no network address; the target is a trap address that listens now; the service has its trap on;
 // the time is within a day in the past and a few minutes in the future. A compromised container can still forge a line
-// that passes (CONTRACT, "Giới hạn").
+// that passes (CONTRACT, limits).
 func (env *ingestEnv) plausible(r Record, svc ServiceName, scan bool) bool {
 	w := env.w
 	switch {

@@ -1,5 +1,5 @@
-// Mã đăng nhập hai bước qua email, phía mock. Backend thật sinh/kiểm cùng quy tắc: 6 số, hết hạn 10 phút,
-// dùng 1 lần, 5 lần nhập sai huỷ mã, gửi lại sau 60 giây, tối đa 5 lần gửi mỗi giờ cho mỗi người dùng.
+// Two-step sign-in codes by email, the mock side. The real backend generates/checks with the same rules: 6 digits, expires in 10 minutes,
+// single use, 5 wrong entries cancel the code, resend after 60 seconds, at most 5 sends per hour per user.
 import { HttpResponse } from 'msw'
 import { collection } from '@/mocks/db'
 import { fail } from '@/mocks/http'
@@ -13,7 +13,7 @@ interface Pending { code: string; expires: number; tries: number; sent_at: numbe
 interface Slot { pending: Pending | null; sends: number[] }
 export const emailCodes = collection<Record<string, Slot>>('core_email_codes', () => ({}))
 
-/** a•••@acme.example: chỉ chữ đầu và tên miền, đủ để người dùng nhận ra hộp thư của mình. */
+/** a•••@acme.example: only the first letter and the domain, enough for the user to recognise their own mailbox. */
 export const maskEmail = (email: string) => { const [local = '', domain = ''] = email.split('@'); return `${local.slice(0, 1)}•••@${domain}` }
 
 const randomCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0')
@@ -21,7 +21,7 @@ const tooSoon = (wait: number) => HttpResponse.json({ error: { code: 'resend_too
 
 export type Issued = { code: string; resend_after: number } | { error: Response }
 
-/** Gửi mã mới. `reuseFresh`: lúc đăng nhập, nếu mã vừa gửi chưa đầy 60 giây thì giữ mã đó (tải lại trang không tốn lượt gửi). */
+/** Send a new code. `reuseFresh`: at sign-in, if the code was sent less than 60 seconds ago keep that code (reloading the page does not cost a send). */
 export function issueCode(userId: string, reuseFresh = false): Issued {
   const all = emailCodes.get()
   const now = Date.now()
@@ -44,7 +44,7 @@ export function clearCode(userId: string) {
   if (slot) emailCodes.set({ ...all, [userId]: { ...slot, pending: null } })
 }
 
-/** null = mã đúng (và đã dùng hết); còn lại là phản hồi lỗi. */
+/** null = the code is right (and used up); anything else is an error response. */
 export function checkCode(userId: string, input: string): Response | null {
   const all = emailCodes.get()
   const p = all[userId]?.pending
@@ -62,5 +62,5 @@ export function checkCode(userId: string, input: string): Response | null {
   return null
 }
 
-/** Phản hồi thành công của "gửi mã": preview_code chỉ có trong bản xem thử (mock), backend thật không bao giờ gửi. */
+/** The successful response of "send code": preview_code exists only in the preview (mock) build; the real backend never sends it. */
 export const sentBody = (email: string, i: { code: string; resend_after: number }) => ({ sent_to: maskEmail(email), resend_after: i.resend_after, preview_code: i.code })

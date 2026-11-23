@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-const webcrypto = globalThis.crypto // Web Crypto có sẵn trong Node 20+ và jsdom
+const webcrypto = globalThis.crypto // Web Crypto is available in Node 20+ and jsdom
 import { sessionStore } from '@/mocks/stores'
 import { activityStore, canonical, GENESIS, recordActivity, sha256, verifyChain } from './activity'
 

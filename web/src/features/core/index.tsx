@@ -2,7 +2,7 @@ import { lazy, Suspense, type ComponentType } from 'react'
 import type { Feature } from '@/app/feature'
 import { Loading } from '@/components/common/States'
 
-// Module core: khung Cài đặt, cài đặt ban đầu, tài khoản (S-CORE-1..4, S-MCP-1). Các mục Cài đặt nạp lười để không phình gói chính.
+// The core module: the Settings frame, initial setup, account (S-CORE-1..4, S-MCP-1). Settings sections load lazily so the main bundle does not grow.
 const section = (load: () => Promise<{ default: ComponentType }>) => {
   const C = lazy(load)
   return <Suspense fallback={<Loading />}><C /></Suspense>

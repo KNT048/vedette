@@ -285,7 +285,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
       }
       const r501 = await post(s.findingId, { action: 'mitigated', note: 'x'.repeat(501) })
       expect(r501.status).toBe(400)
-      expect(r501.body).toMatchObject({ error: { code: 'invalid' } }) // exact: the OpenAPI schema (maxLength 500) refuses it before the handler, as the "Không khớp" section of findings CONTRACT says; INV-3's `note_too_long` is reachable only for a note of <= 500 characters but > 500 UTF-16 units
+      expect(r501.body).toMatchObject({ error: { code: 'invalid' } }) // exact: the OpenAPI schema (maxLength 500) refuses it before the handler, as the non-match section of findings CONTRACT says; INV-3's `note_too_long` is reachable only for a note of <= 500 characters but > 500 UTF-16 units
       expect((await post(s.findingId, { action: 'delete', note: '' })).status).toBe(400) // an action that does not exist
       expect((await post(s.findingId, { note: 'no action' })).status).toBe(400)
       const open = await post(s.findingId, { action: 'reopen', note: '' })

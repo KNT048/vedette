@@ -1,11 +1,11 @@
-id: ids                # trùng tên thư mục
-name: { vi: "Phát hiện xâm nhập", en: "Intrusion detection" }
-summary: { vi: "Đọc sự kiện IPS/IDS trong log tường lửa gửi về hộp, nối mã CVE trong sự kiện với thiết bị bị nhắm đang có lỗ hổng đó.", en: "Reads the IPS and IDS events in the logs your firewalls send to the box and links the CVEs they name to the attacked device's vulnerabilities." }
+id: ids                # same as the folder name
+name: { en: "Intrusion detection" }
+summary: { en: "Reads the IPS and IDS events in the logs your firewalls send to the box and links the CVEs they name to the attacked device's vulnerabilities." }
 tier: optional
 default: off
 depends: [core, inventory, logs]
 soft_depends: [notify, findings]   # notify: incident kind intrusion; findings: the attacked device's findings for the CVEs
-permissions: []        # không cổng, không tiến trình, không kết nối ra ngoài: chỉ đọc dòng log module logs đã lưu
+permissions: []        # no port, no process, no outgoing connection: it only reads log lines the logs module has stored
 ports: []
 container: core
 tables_prefix: ids_

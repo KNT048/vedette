@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [needCode, setNeedCode] = useState(false)
-  // Bước hai: ứng dụng xác thực hay mã gửi qua email; với email thì biết mã đã gửi tới đâu.
+  // Second step: an authenticator app or a code sent by email; with email, the user is told where the code was sent.
   const [second, setSecond] = useState<{ method: 'app' | 'email'; sentTo?: string; preview?: string; resent?: boolean }>({ method: 'app' })
   const cooldown = useCountdown()
   // Which request is waiting on the box: signing in, sending a new code, or starting single sign-on (one at a time).
@@ -37,7 +37,7 @@ export default function LoginPage() {
     window.addEventListener('pageshow', back)
     return () => window.removeEventListener('pageshow', back)
   }, [])
-  // Gợi ý tài khoản mẫu chỉ khi đang chạy dữ liệu mẫu (cài sạch không có các tài khoản này).
+  // Hint the sample accounts only when running on sample data (a clean install does not have these accounts).
   const setup = useSetup()
   const mock = import.meta.env.VITE_API_MOCK !== 'off' && setup.data?.data_mode === 'sample'
   const sso = useAuthOptions().data?.oidc === true
@@ -48,7 +48,7 @@ export default function LoginPage() {
     setError(null)
     try {
       await api.post('/auth/login', needCode ? { email, password, code } : { email, password })
-      qc.removeQueries({ queryKey: ['me'] }) // /me đã được lưu là "chưa đăng nhập"; bỏ hẳn để trang đích chờ dữ liệu mới thay vì bật về /login
+      qc.removeQueries({ queryKey: ['me'] }) // /me was cached as "not signed in"; drop it entirely so the target page waits for fresh data instead of bouncing back to /login
       await qc.invalidateQueries()
       navigate(safeNext(params.get('next')), { replace: true })
     } catch (err) {

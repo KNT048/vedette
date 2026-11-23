@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { sampleStart } from './clean'
 
-// S-UI-1: một khung trang (tiêu đề, dải số, hàng tab ở ?tab=) trên Scans, Response, Reports, Honeypot, chi tiết thiết bị.
-// Chạy: pnpm exec playwright test e2e/qa/frame.spec.ts
+// S-UI-1: one page frame (heading, KPI strip, tab row at ?tab=) on Scans, Response, Reports, Honeypot, device detail.
+// Run: pnpm exec playwright test e2e/qa/frame.spec.ts
 test.describe.configure({ timeout: 120_000 })
 
 const PAGES = [
@@ -49,7 +49,7 @@ test.describe('page frame (S-UI-1)', () => {
       await expect(page).toHaveURL(new RegExp(`\\?tab=${p.id}$`))
       await expect(page.getByRole('tab', { name: p.second, exact: true })).toHaveAttribute('aria-selected', 'true')
       await noHScroll(page, p.path)
-      // tab đang mở nằm trong phần thấy được của hàng tab (điện thoại: hàng tab tự cuộn tới nó)
+      // the open tab sits in the visible part of the tab row (phone: the tab row scrolls to it by itself)
       const inView = await page.evaluate(() => {
         const row = document.querySelector('[role="tablist"]')!.getBoundingClientRect()
         const tab = document.querySelector('[role="tab"][aria-selected="true"]')!.getBoundingClientRect()

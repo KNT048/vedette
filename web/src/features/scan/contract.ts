@@ -1,4 +1,4 @@
-// Hợp đồng API module scan. Kiểu UI suy ra từ schema ở đây (types.ts).
+// API contract of the scan module. UI types are derived from the schema here (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { TYPE_IDS } from '@/lib/deviceTypes'

@@ -31,7 +31,7 @@ func Printable(s string) bool { return printable(s) }
 // router at 0.5. Nothing else is a passive kind.
 var kindCap = map[string]float64{"ap": ConfLLDPKind, "switch": ConfLLDPKind, "router": ConfLLDPKind, "printer": ConfMDNSKind, "iot": ConfLLDPKind}
 
-// MaxConfidence is the highest confidence a passive observation of field with value may have (INV-5, "Thang tin cậy" of the
+// MaxConfidence is the highest confidence a passive observation of field with value may have (INV-5, confidence scale of the
 // CONTRACT): the highest of the Conf constants any parser of this package gives to that field (for a kind, to that kind). Core
 // clamps what a sensor says to it; ok is false for a value a passive sensor cannot report at all (a kind no parser emits).
 func MaxConfidence(f observe.Field, value string) (limit float64, ok bool) {

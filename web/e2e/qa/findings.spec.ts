@@ -1,12 +1,12 @@
-// QA như người dùng thật cho module findings (UI chỉ tiếng Anh): IT operator, director (viewer), first-time clean install.
-// Spec độc lập, tự dựng dữ liệu; chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/findings.spec.ts
+// QA as a real user for the findings module (English-only UI): IT operator, director (viewer), first-time clean install.
+// Independent spec that builds its own data; run: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/findings.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 
 const DB = 'vedette-mock-db-v4'
 const DIACRITICS = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
 
-/** Cài đặt ban đầu bằng dữ liệu mẫu (bản local của helper: nhãn tiếng Anh). */
+/** First-time setup with sample data (a local copy of the helper: English labels). */
 async function sample(page: Page) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
@@ -18,7 +18,7 @@ async function sample(page: Page) {
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
 }
-/** Cài sạch: tạo tổ chức + quản trị, một dải mạng, KHÔNG đánh dấu cam kết quét, bỏ qua kênh. */
+/** Clean install: create the organisation + admin, one network range, do NOT mark the scan commitment, skip the channel. */
 async function clean(page: Page) {
   await page.goto('/setup')
   await page.evaluate(() => localStorage.clear())
@@ -37,7 +37,7 @@ async function clean(page: Page) {
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
 }
-/** Sửa thẳng kho mock trong trình duyệt (giả lập trạng thái hệ thống) rồi tải lại. */
+/** Edit the mock store in the browser directly (simulates a system state), then reload. */
 async function patchDb(page: Page, patch: Record<string, unknown>) {
   await page.evaluate(([k, p]) => {
     const db = JSON.parse(localStorage.getItem(k as string) ?? '{}')

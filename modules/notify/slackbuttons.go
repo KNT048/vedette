@@ -13,7 +13,7 @@ import (
 )
 
 // Removing the Approve/Reject buttons of a Slack approval message once its request is finally decided or has ended (slice 3b,
-// spec approval-tokens.md 5 "cập nhật tin gốc (chat.update) để bỏ nút"). The Slack analogue of tgbuttons.go: the event handler only
+// spec approval-tokens.md 5 update the original message (chat.update) to remove the buttons). The Slack analogue of tgbuttons.go: the event handler only
 // marks rows; the deliver job rewrites the messages with the bot token, keeping their text and adding one fixed line saying how the
 // request ended. Who decided is not written: it would put a Vedette user's email into the Slack channel (the audit log has it).
 

@@ -1,4 +1,4 @@
-// Sinh ../api/openapi.json từ hợp đồng Zod của các module. Chạy: `pnpm openapi`.
+// Generates ../api/openapi.json from the modules' Zod contracts. Run: `pnpm openapi`.
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { createServer } from 'vite'
 
@@ -10,7 +10,7 @@ try {
   mkdirSync(dir, { recursive: true })
   writeFileSync(new URL('openapi.json', dir), JSON.stringify(doc, null, 2) + '\n')
   const ops = Object.values(doc.paths).reduce((n, p) => n + Object.keys(p).length, 0)
-  console.log(`api/openapi.json: ${Object.keys(doc.paths).length} đường dẫn, ${ops} thao tác`)
+  console.log(`api/openapi.json: ${Object.keys(doc.paths).length} paths, ${ops} operations`)
 } finally {
   await server.close()
 }

@@ -163,6 +163,6 @@ export function intervalText(p: { min: number } | { max: number }, l: ScheduleLi
 
 /** "02:30" of an instant in a zone. */
 export function clockIn(iso: string, zone: string): string {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso))
-  return `${parts.find((x) => x.type === 'hour')?.value ?? '00'}:${parts.find((x) => x.type === 'minute')?.value ?? '00'}`
+  const w = wallIn(Date.parse(iso), zone)
+  return `${String(w.h).padStart(2, '0')}:${String(w.min).padStart(2, '0')}`
 }

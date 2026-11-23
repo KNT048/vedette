@@ -13,7 +13,7 @@ import (
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
-// registerLifecycle adds the modules' parts of a device merge or delete to d.Lifecycle (core/lifecycle): the inventory runs them
+// registerLifecycle adds the modules' parts of a device merge, split or delete to d.Lifecycle (core/lifecycle): the inventory runs them
 // inside its own write, so every module's rows change with the device or none does. They run whether or not their module is on: the
 // rows exist either way. Sensor-active adds its own when its service is built (sensorActiveService). Exposure keeps no device id (the
 // gateway link is read from the inventory); agent-intake's only one is the device a token was made for (a delete clears it by its foreign key).
@@ -23,8 +23,9 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 		return
 	}
 	if d.Findings != nil {
-		h.Register(lifecycle.Participant{Name: "findings", DeviceMerged: d.Findings.DeviceMerged, DeviceDeleted: d.Findings.DeviceDeleted,
-			LinesDeleted: d.Findings.LinesDeleted, MergeCommitted: d.Findings.MergeCommitted, DeleteCommitted: d.Findings.DeleteCommitted})
+		h.Register(lifecycle.Participant{Name: "findings", DeviceMerged: d.Findings.DeviceMerged, DeviceSplit: d.Findings.DeviceSplit,
+			DeviceDeleted: d.Findings.DeviceDeleted, LinesDeleted: d.Findings.LinesDeleted, MergeCommitted: d.Findings.MergeCommitted,
+			DeleteCommitted: d.Findings.DeleteCommitted})
 	}
 	h.Register(lifecycle.Participant{Name: "mitigation", FindingFolded: mitigation.FindingFolded})
 	if notifySvc != nil {

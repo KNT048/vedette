@@ -44,7 +44,9 @@ func (s *Service) FindingFolded(ctx context.Context, tx *sql.Tx, f lifecycle.Fin
 
 // FindingMoved is response's part of a finding that went to another device with its software line (findings, inside its match write):
 // the events the rules have not run on yet follow it to f.Into, with that device's name when the directory knows it (a finding event
-// also takes the device's kind, name and address, which a rule reads). Its plan is retired, not moved: its proposals hold values built
+// also takes the device's kind, name and address, which a rule reads). When the directory does not know f.Into (a split runs this
+// inside the write that creates the device, which a reader does not see yet), a waiting finding event keeps no name, kind or address
+// of the device the finding left: a rule that names the address is refused as having no target, never run on the old device's. Its plan is retired, not moved: its proposals hold values built
 // for the old device's address, so it is deleted (logged and audited) and the planner writes a new plan for the finding on its new
 // device. A pending request is withdrawn, not moved: its items hold the values it was rendered with (the old device's address), so
 // approving it would act on the old device under the new one's name. It ends expired with the reason, keeps the device it was made
@@ -55,12 +57,14 @@ func (s *Service) FindingMoved(ctx context.Context, tx *sql.Tx, f lifecycle.Find
 		return nil
 	}
 	var name, kind, ip sql.NullString
+	known := false
 	if s.cfg.Directory != nil {
 		d, ok, err := s.cfg.Directory.Device(ctx, f.Into)
 		if err != nil {
 			return fmt.Errorf("response: name the device a finding moved to: %w", err)
 		}
 		if ok {
+			known = true
 			name = nullIfEmpty(oneLine(firstNonEmpty(d.Name, d.IP), 120))
 			kind, ip = nullIfEmpty(d.Kind), nullIfEmpty(d.IP)
 		}
@@ -78,11 +82,12 @@ func (s *Service) FindingMoved(ctx context.Context, tx *sql.Tx, f lifecycle.Find
 	}
 	for _, q := range []string{
 		`UPDATE resp_events SET asset_id = ?3 WHERE finding_id = ?1 AND asset_id = ?2 AND processed = 0 AND trigger <> 'finding'`,
-		`UPDATE resp_events SET asset_id = ?3, device_kind = coalesce(?5, device_kind),
-			fields = CASE WHEN ?4 IS NULL THEN fields ELSE json_set(fields, '$.device', substr(?4, 1, 100), '$.ip', coalesce(?6, '')) END
+		`UPDATE resp_events SET asset_id = ?3, device_kind = CASE WHEN ?7 THEN coalesce(?5, device_kind) END,
+			fields = CASE WHEN NOT ?7 THEN json_set(fields, '$.device', '', '$.ip', '') WHEN ?4 IS NULL THEN fields
+				ELSE json_set(fields, '$.device', substr(?4, 1, 100), '$.ip', coalesce(?6, '')) END
 			WHERE finding_id = ?1 AND asset_id = ?2 AND processed = 0 AND trigger = 'finding'`,
 	} {
-		if _, err := tx.ExecContext(ctx, q, f.Finding, f.From, f.Into, name, kind, ip); err != nil {
+		if _, err := tx.ExecContext(ctx, q, f.Finding, f.From, f.Into, name, kind, ip, known); err != nil {
 			return fmt.Errorf("response: follow a finding to another device: %w", err)
 		}
 	}

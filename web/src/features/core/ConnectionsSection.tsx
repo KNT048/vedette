@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
-import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
@@ -48,6 +48,8 @@ export default function ConnectionsSection() {
   const [del, setDel] = useState<Connector | null>(null)
   const [result, setResult] = useState<{ id: string; ok?: string; error?: string } | null>(null)
   const fail = (e: unknown) => toast.error(errMsg(e, t))
+  // what the list's search reads: the name, the kind, the address and the tools
+  const searchCols: ColumnDef<Connector>[] = [{ id: 'text', accessorFn: (c) => [c.name, t(`connections.kind.${c.kind}`), c.target, c.tools.map((x) => x.name).join(' ')].join(' ') }]
   function runTest(c: Connector) {
     setResult(null)
     test.mutate(c.id, { onSuccess: (r) => setResult({ id: c.id, ok: r.message }), onError: (e) => setResult({ id: c.id, error: errMsg(e, t) }) })
@@ -68,13 +70,12 @@ export default function ConnectionsSection() {
             <span className="text-meta text-muted tabular-nums">{t('connections.count', { count: items.length })}</span>
             <Button id="connections-add" variant="primary" className="ml-auto" onClick={() => setEdit('new')}>{t('connections.add')}</Button>
           </div>
-          <ul aria-label={t('connections.title')} className="grid gap-4">
-            {items.map((c) => {
+          <DataTable urlKey="connections" caption={t('connections.title')} data={items} columns={searchCols} pageSize={25}
+            list={(c) => {
               const unsupported = c.kind === 'mcp-stdio'
               const mcp = c.kind === 'mcp-http'
               return (
-                <li key={c.id}>
-                  <Card className={`grid gap-3 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
+                <div className={`grid gap-3 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="grid min-w-0 gap-1">
                         <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">{c.name} <Chip tone="off">{t(`connections.kind.${c.kind}`)}</Chip>
@@ -124,11 +125,9 @@ export default function ConnectionsSection() {
                         {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-meta text-muted">{t('connections.writeOnlyApproved')}</p> : null}
                       </div>
                     ) : null}
-                  </Card>
-                </li>
+                </div>
               )
-            })}
-          </ul>
+            }} />
           </>
         )}
       </QueryState>

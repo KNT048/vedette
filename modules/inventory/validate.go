@@ -92,8 +92,8 @@ func normMAC(s string) (string, bool) {
 	return hw.String(), true
 }
 
-// Adjustment says a range was written with host bits and was reduced to its network ("192.168.18.5/24" to
-// "192.168.18.0/24"); the response of PUT /inventory/settings lists them (SettingsSaved.adjusted, as the mock does).
+// Adjustment says a range was written with host bits and was reduced to its network ("192.168.142.5/24" to
+// "192.168.142.0/24"); the response of PUT /inventory/settings lists them (SettingsSaved.adjusted, as the mock does).
 type Adjustment struct {
 	From string `json:"from"`
 	To   string `json:"to"`

@@ -745,7 +745,7 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 		lan  func(context.Context) (netip.Prefix, bool)
 		want any
 	}{
-		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.18.141/24"), true }, "192.168.18.0/24"},
+		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.142.141/24"), true }, "192.168.142.0/24"},
 		{"shared", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.65.254.17/24"), true }, "100.65.254.0/24"},
 		{"public", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("203.0.113.5/24"), true }, nil},
 		{"public 100/8", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.128.4.5/24"), true }, nil},

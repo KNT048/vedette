@@ -164,7 +164,7 @@ func TestContract_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
 func TestContract_INV1_AReadableHostnameBeatsAUUID(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.18.40")
+	ip := netip.MustParseAddr("192.168.142.40")
 	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "annas-macbook-air", observe.Passive, 0.6))
 	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "FBAF5191-CC17-4626-A85B-812BC3D7B83B", observe.Agent, 0.95))
 	id := e.idByMAC("aa:bb:cc:00:00:40")

@@ -119,7 +119,7 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 			}{
 				{`DELETE FROM inv_asset`, nil},
 				{`INSERT INTO inv_asset (id, kind, origin, ip, mac, approved, suspicious, first_seen, last_seen, ignored_at)
-					VALUES ('a-kept', 'server', 'discovered', '192.168.18.50', '00:1b:21:aa:bb:cc', 0, 0, ?, ?, ?)`, []any{old, old, old}},
+					VALUES ('a-kept', 'server', 'discovered', '192.168.142.50', '00:1b:21:aa:bb:cc', 0, 0, ?, ?, ?)`, []any{old, old, old}},
 				{`INSERT INTO inv_asset (id, kind, origin, approved, approved_at, first_seen, last_seen) VALUES ('a-agent', 'server', 'discovered', 1, ?, ?, ?)`,
 					[]any{enrolled, newer, newer}},
 			} {
@@ -174,7 +174,7 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 				t.Errorf("%s: %d merge audit rows say the approval was kept, want %d", c.name, n, carried)
 			}
 			got := read(tx, "a-kept")
-			if watch != EventAssetUnignored || got.ignored || read(tx, "a-agent").alive || got.ip != "192.168.18.50" {
+			if watch != EventAssetUnignored || got.ignored || read(tx, "a-agent").alive || got.ip != "192.168.142.50" {
 				t.Errorf("%s: watch %q, kept %+v", c.name, watch, got)
 			}
 			if got.approved != c.wantApproved || (c.wantApproved && got.approvedAt.String != enrolled) || (!c.wantApproved && got.approvedAt.Valid) {

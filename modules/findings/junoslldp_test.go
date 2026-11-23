@@ -21,7 +21,7 @@ func TestPlatform_LLDPJunosOnAJuniperCard(t *testing.T) {
 		{"LLDP Junos OS Evolved on a Juniper card", "JUNOS 21.4R1.12-EVO", "", "", "3c:8a:b0:9c:85:ff", false},
 		{"LLDP Junos on a Juniper card, an agent reports Alpine", lldp, "", "Alpine Linux v3.23", "3c:8a:b0:9c:85:ff", false},
 	} {
-		a := Asset{ID: "sw", Name: "192.168.18.47", OS: "Juniper EX2200 switch (JUNOS 12)", StatedOS: tc.stated, SNMPOS: tc.snmp, AgentOS: tc.agent, MAC: tc.mac,
+		a := Asset{ID: "sw", Name: "192.168.142.47", OS: "Juniper EX2200 switch (JUNOS 12)", StatedOS: tc.stated, SNMPOS: tc.snmp, AgentOS: tc.agent, MAC: tc.mac,
 			Software: []Software{sshRow("7.5", "", "nmap")}}
 		res := MatchAsset(a, []Vuln{sshhole()}, map[string]bool{"CVE-2026-123158": true}, t0)
 		got := len(res.NotAffected) == 1 && len(res.Existing) == 0

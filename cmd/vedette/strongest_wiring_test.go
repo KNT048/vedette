@@ -309,7 +309,7 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	sshFeeds(t, s)
-	id := addSSHDevice(t, s, "192.168.18.40", sshRows{os: "Alpine Linux 3.23", banner: "10.2", manual: "pkg", manualPkg: "10.2_p1-r1", agent: "packaged",
+	id := addSSHDevice(t, s, "192.168.142.40", sshRows{os: "Alpine Linux 3.23", banner: "10.2", manual: "pkg", manualPkg: "10.2_p1-r1", agent: "packaged",
 		agentVersion: "10.2p1", agentPkg: "10.2_p1-r1"})
 	for _, j := range findingsJobs(*s.d)[:2] { // reconcile (the exploited finding), then the plan pass
 		if err := j.Run(ctx); err != nil {
@@ -388,8 +388,8 @@ func TestWiringPersonsUbuntuReleaseUsesUbuntusData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	noble := addSSHDevice(t, s, "192.168.18.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
-	jammy := addSSHDevice(t, s, "192.168.18.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+	noble := addSSHDevice(t, s, "192.168.142.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
+	jammy := addSSHDevice(t, s, "192.168.142.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
 	dist, err := feedsInventory{inv: s.d.Inventory}.Distros(ctx)
 	if err != nil || !dist["ubuntu"]["openssh"] {
 		t.Fatalf("Distros = %v %v, want ubuntu openssh (the person's row names its source by its product)", dist, err)
@@ -422,8 +422,8 @@ func TestWiringAssistantKeepsAnotherInstall(t *testing.T) {
 	s := newStack(t)
 	ctx := t.Context()
 	sshFeeds(t, s)
-	other := addSSHDevice(t, s, "192.168.18.61", sshRows{os: "Ubuntu 24.04 LTS", banner: "8.9p1", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
-	same := addSSHDevice(t, s, "192.168.18.62", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
+	other := addSSHDevice(t, s, "192.168.142.61", sshRows{os: "Ubuntu 24.04 LTS", banner: "8.9p1", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
+	same := addSSHDevice(t, s, "192.168.142.62", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", agent: "packaged", agentVersion: "10.2p1", agentPkg: "1:10.2p1-2ubuntu3.8"})
 	sshRowsOf := func(id string) (rows []inventory.Software, banner string) {
 		t.Helper()
 		dev, err := s.d.Inventory.Device(ctx, id)

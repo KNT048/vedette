@@ -173,14 +173,14 @@ func TestWebhookVedetteItself(t *testing.T) {
 	s := &Service{interfaceFn: func() ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("10.88.0.5")}, nil
 	}, cfg: Config{
-		MachineAddrs: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("192.168.18.141")}, known },
-		SelfAddrs:    func() ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("192.168.18.200")}, selfErr },
+		MachineAddrs: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("192.168.142.141")}, known },
+		SelfAddrs:    func() ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("192.168.142.200")}, selfErr },
 	}}
 	for u, own := range map[string]bool{
-		"https://192.168.18.141/hook": false, "https://192.168.18.141:5678/hook": false, // another program on the machine
-		"https://192.168.18.141:8443/api": true, "https://192.168.18.141:6514/": true,
-		"https://10.88.0.5:5678/": true, "https://192.168.18.200/": true, // core's container, a decoy
-		"https://127.0.0.1:5678/": true, "https://localhost/": true, "https://[::ffff:192.168.18.141]:8444/": true,
+		"https://192.168.142.141/hook": false, "https://192.168.142.141:5678/hook": false, // another program on the machine
+		"https://192.168.142.141:8443/api": true, "https://192.168.142.141:6514/": true,
+		"https://10.88.0.5:5678/": true, "https://192.168.142.200/": true, // core's container, a decoy
+		"https://127.0.0.1:5678/": true, "https://localhost/": true, "https://[::ffff:192.168.142.141]:8444/": true,
 	} {
 		_, err := s.checkWebhookURL(u)
 		if got := err != nil && err.Error() == netguard.OwnText; got != own || (!own && err != nil) {
@@ -188,15 +188,15 @@ func TestWebhookVedetteItself(t *testing.T) {
 		}
 	}
 	dial := dialControl(s.refusedTarget)
-	if dial("tcp", "192.168.18.141:8443", nil) == nil || dial("tcp", "192.168.18.141:5678", nil) != nil || dial("tcp", "10.88.0.5:5678", nil) == nil {
+	if dial("tcp", "192.168.142.141:8443", nil) == nil || dial("tcp", "192.168.142.141:5678", nil) != nil || dial("tcp", "10.88.0.5:5678", nil) == nil {
 		t.Error("the dial-time check differs from the save-time check")
 	}
 	selfErr = errors.New("the decoy record cannot be read")
-	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
+	if _, err := s.checkWebhookURL("https://192.168.142.50:5678/"); err == nil || dial("tcp", "192.168.142.50:5678", nil) == nil {
 		t.Error("an unreadable decoy record must refuse every webhook")
 	}
 	selfErr, known = nil, false
-	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
+	if _, err := s.checkWebhookURL("https://192.168.142.50:5678/"); err == nil || dial("tcp", "192.168.142.50:5678", nil) == nil {
 		t.Error("unknown machine addresses must refuse every webhook (fail closed, #157)")
 	}
 }

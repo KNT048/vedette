@@ -137,7 +137,7 @@ const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
 const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
 const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
-/** Đọc cài đặt; dải lưu với bit máy ("192.168.18.5/24") được đưa về địa chỉ mạng. Dải thiếu /prefix giữ nguyên để UI báo lỗi trên dòng đó, không kẹt các thao tác khác. */
+/** Đọc cài đặt; dải lưu với bit máy ("192.168.142.5/24") được đưa về địa chỉ mạng. Dải thiếu /prefix giữ nguyên để UI báo lỗi trên dòng đó, không kẹt các thao tác khác. */
 /** A short hash of a string (FNV-1a), for the mock's versions. */
 export function hashOf(s: string): string {
   let h = 0x811c9dc5
@@ -1453,7 +1453,7 @@ export const handlers = [
     const b = await body<SettingsInput>(request)
     if (b.version && b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED)
     const adjusted: { from: string; to: string }[] = []
-    // "192.168.18.5/24" được đưa về "192.168.18.0/24" (phản hồi nói rõ đã đổi gì); địa chỉ không có /prefix bị từ chối bên dưới, không đoán.
+    // "192.168.142.5/24" được đưa về "192.168.142.0/24" (phản hồi nói rõ đã đổi gì); địa chỉ không có /prefix bị từ chối bên dưới, không đoán.
     const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
     if (!ranges) return fail(400, 'bad_ranges', 'The list of network ranges is missing.')
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')

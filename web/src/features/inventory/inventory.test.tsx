@@ -1200,9 +1200,9 @@ describe('inventory: catalog', () => {
 
 describe('inventory: range validation helpers', () => {
   it('normalizeRange: only host bits are cleared; a bare address is never guessed', () => {
-    expect(normalizeRange('192.168.18.0')).toEqual({ value: '192.168.18.0', note: null }) // no prefix: kept as typed, reported by rangeProblem
-    expect(normalizeRange('192.168.18.5')).toEqual({ value: '192.168.18.5', note: null })
-    expect(normalizeRange('192.168.18.5/24')).toEqual({ value: '192.168.18.0/24', note: 'network' })
+    expect(normalizeRange('192.168.142.0')).toEqual({ value: '192.168.142.0', note: null }) // no prefix: kept as typed, reported by rangeProblem
+    expect(normalizeRange('192.168.142.5')).toEqual({ value: '192.168.142.5', note: null })
+    expect(normalizeRange('192.168.142.5/24')).toEqual({ value: '192.168.142.0/24', note: 'network' })
     expect(normalizeRange('  10.0.0.0/8 ')).toEqual({ value: '10.0.0.0/8', note: null })
     expect(normalizeRange('abc')).toEqual({ value: 'abc', note: null })
     expect(normalizeRange('10.0.5.0/99')).toEqual({ value: '10.0.5.0/99', note: null })
@@ -1210,8 +1210,8 @@ describe('inventory: range validation helpers', () => {
 
   it('rangeProblem: no prefix, format, host bits, not private, overlap, or fine', () => {
     expect(rangeProblem('abc', [])).toBe('format')
-    expect(rangeProblem('192.168.18.0', [])).toBe('noPrefix')
-    expect(rangeProblem('192.168.18.5/24', [])).toBe('hostBits')
+    expect(rangeProblem('192.168.142.0', [])).toBe('noPrefix')
+    expect(rangeProblem('192.168.142.5/24', [])).toBe('hostBits')
     expect(rangeProblem('8.8.8.0/24', [])).toBe('notPrivate')
     expect(rangeProblem('10.0.0.0/7', [])).toBe('notPrivate')
     expect(rangeProblem('192.168.10.0/25', ['192.168.10.0/24', '192.168.10.0/25'])).toBe('overlap')
@@ -1302,17 +1302,17 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const user = userEvent.setup()
     renderApp('/devices/setup')
     const input = await openAdd(user)
-    await user.type(input, '192.168.18.0')
+    await user.type(input, '192.168.142.0')
     await submitDialog(user)
-    expect(await screen.findByText('"192.168.18.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.18.0/24 or 192.168.18.0/25.', undefined, T)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Remove range 192\.168\.18\.0/ })).not.toBeInTheDocument()
+    expect(await screen.findByText('"192.168.142.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.142.0/24 or 192.168.142.0/25.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Remove range 192\.168\.142\.0/ })).not.toBeInTheDocument()
     await user.type(input, '/25')
     await submitDialog(user)
-    expect(screen.getByRole('button', { name: 'Remove range 192.168.18.0/25' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove range 192.168.142.0/25' })).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await scopeSaved()
-    expect((await call('GET', '/settings')).json!.lan_ranges).toContain('192.168.18.0/25')
+    expect((await call('GET', '/settings')).json!.lan_ranges).toContain('192.168.142.0/25')
   })
 
   it('host bits are cut with a visible note and the prefix the user typed is kept', async () => {
@@ -1381,29 +1381,29 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(inventorySettingsStore.get().active.exclusions).toContain('192.168.10.40')
   })
 
-  it('regression: a range stored without a prefix ("192.168.18.0") shows an error on its row and never blocks add, edit or remove', async () => {
-    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.18.0'], scope_confirmed_at: null, scope_confirmed_by: null }))
+  it('regression: a range stored without a prefix ("192.168.142.0") shows an error on its row and never blocks add, edit or remove', async () => {
+    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.142.0'], scope_confirmed_at: null, scope_confirmed_by: null }))
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    const row = (await screen.findByRole('button', { name: 'Remove range 192.168.18.0' }, T)).closest('li')!
-    expect(within(row).getByRole('alert')).toHaveTextContent('"192.168.18.0" has no prefix length')
+    const row = (await screen.findByRole('button', { name: 'Remove range 192.168.142.0' }, T)).closest('li')!
+    expect(within(row).getByRole('alert')).toHaveTextContent('"192.168.142.0" has no prefix length')
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
-    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.18.0']) // kept as stored, not guessed
+    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.142.0']) // kept as stored, not guessed
     // add another range: allowed
     await openAdd(user)
     await user.type(screen.getByLabelText('Add a network range'), '10.9.0.0/16')
     await submitDialog(user)
     // edit the bad one: it opens in a dialog, the owner types the size and saves it
-    await user.click(screen.getByRole('button', { name: 'Edit range 192.168.18.0' }))
+    await user.click(screen.getByRole('button', { name: 'Edit range 192.168.142.0' }))
     const input = await screen.findByLabelText('Add a network range')
-    expect(input).toHaveValue('192.168.18.0')
+    expect(input).toHaveValue('192.168.142.0')
     await user.type(input, '/24')
     await submitDialog(user)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await scopeSaved()
-    expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.18.0/24', '10.9.0.0/16'])
+    expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.142.0/24', '10.9.0.0/16'])
   })
 
   it('the scope confirmation sits right above Save and asks for a tick inline only when the ranges changed', async () => {
@@ -1423,10 +1423,10 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   })
 
   it('a stored bare range can simply be removed', async () => {
-    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.18.0', '192.168.20.0/24'] }))
+    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.142.0', '192.168.20.0/24'] }))
     const user = userEvent.setup()
     renderApp('/devices/setup')
-    await user.click(await screen.findByRole('button', { name: 'Remove range 192.168.18.0' }, T))
+    await user.click(await screen.findByRole('button', { name: 'Remove range 192.168.142.0' }, T))
     expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled()
   })
 
@@ -1434,22 +1434,22 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     asAdmin()
     const got = (await call('GET', '/settings')).json!
     const { adjusted: _a, ...base } = got
-    const bare = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0'], scope_confirmed: true })
+    const bare = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0'], scope_confirmed: true })
     expect(bare.status).toBe(400)
     expect(bare.json!.error.code).toBe('no_prefix')
-    expect(bare.json!.error.message).toBe('"192.168.18.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.18.0/24 or 192.168.18.0/25.')
-    const put2 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.5/24', '192.168.20.0/24'], scope_confirmed: true })
+    expect(bare.json!.error.message).toBe('"192.168.142.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.142.0/24 or 192.168.142.0/25.')
+    const put2 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.5/24', '192.168.20.0/24'], scope_confirmed: true })
     expect(put2.status).toBe(200)
-    expect(put2.json!.lan_ranges).toEqual(['192.168.18.0/24', '192.168.20.0/24'])
-    expect(put2.json!.adjusted).toEqual([{ from: '192.168.18.5/24', to: '192.168.18.0/24' }])
-    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true, version: put2.json!.version })
+    expect(put2.json!.lan_ranges).toEqual(['192.168.142.0/24', '192.168.20.0/24'])
+    expect(put2.json!.adjusted).toEqual([{ from: '192.168.142.5/24', to: '192.168.142.0/24' }])
+    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true, version: put2.json!.version })
     expect(put3.json!.adjusted).toEqual([]) // already normal: nothing adjusted
     // #860: the version the page read is checked when it is sent; an older one is 409 safety_changed
-    const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })
+    const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true })
     expect(stale.status).toBe(409)
     expect(stale.json!.error.code).toBe('safety_changed')
     const { version: _v, ...noVersion } = base
-    expect((await call('PUT', '/settings', { ...noVersion, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })).status).toBe(200) // left out: no check
+    expect((await call('PUT', '/settings', { ...noVersion, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true })).status).toBe(200) // left out: no check
   })
 
   it('a stored invalid range shows an error on its own row, blocks Save, and does not block removing or adding others', async () => {

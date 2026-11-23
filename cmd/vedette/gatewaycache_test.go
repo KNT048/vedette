@@ -13,17 +13,17 @@ import (
 func TestGatewayCache(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
-	net := &fakeNet{st: api.NetState{DefaultRoute: &api.NetRoute{Gateway: "192.168.18.1"}}}
+	net := &fakeNet{st: api.NetState{DefaultRoute: &api.NetRoute{Gateway: "192.168.142.1"}}}
 	g := &gatewayCache{state: net, now: func() time.Time { return now }}
-	if ip := g.Get(t.Context()); ip.String() != "192.168.18.1" {
+	if ip := g.Get(t.Context()); ip.String() != "192.168.142.1" {
 		t.Fatalf("gateway = %v", ip)
 	}
-	net.st.DefaultRoute.Gateway = "192.168.18.254"
-	if ip := g.Get(t.Context()); ip.String() != "192.168.18.1" {
+	net.st.DefaultRoute.Gateway = "192.168.142.254"
+	if ip := g.Get(t.Context()); ip.String() != "192.168.142.1" {
 		t.Fatalf("within a minute the cached gateway is kept, got %v", ip)
 	}
 	now = now.Add(2 * time.Minute)
-	if ip := g.Get(t.Context()); ip.String() != "192.168.18.254" {
+	if ip := g.Get(t.Context()); ip.String() != "192.168.142.254" {
 		t.Fatalf("after a minute the gateway is read again, got %v", ip)
 	}
 	down := &fakeNet{err: errors.New("host down")}

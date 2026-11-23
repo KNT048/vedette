@@ -13,8 +13,8 @@ import (
 func TestContract_INV51_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
-	id := e.idOf("192.168.18.205")
+	e.record(dhcp(burnt1, "192.168.142.205", "switch")...)
+	id := e.idOf("192.168.142.205")
 	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestContract_INV51_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
 	}
 	e.record(seen...)
 	e.tick(2 * 3600 * 1e9)
-	e.record(dhcp(burnt1, "192.168.18.77", "switch")...) // the same machine at another address
+	e.record(dhcp(burnt1, "192.168.142.77", "switch")...) // the same machine at another address
 	if n := e.devices(); n != 1 {
 		t.Fatalf("%d devices after the ignored one was seen again, want 1", n)
 	}
@@ -48,13 +48,13 @@ func TestContract_INV51_IgnoredDeviceStaysIgnoredWhenSeenAgain(t *testing.T) {
 func TestContract_INV51_IgnoredDeviceFoldsAPrivateAddressChange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.18.137", "studio-mac.local")...)
-	id := e.idOf("192.168.18.137")
+	e.record(dhcp(privMac1, "192.168.142.137", "studio-mac.local")...)
+	id := e.idOf("192.168.142.137")
 	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(3 * 3600 * 1e9)
-	e.record(dhcp(privMac2, "192.168.18.138", "studio-mac.local")...)
+	e.record(dhcp(privMac2, "192.168.142.138", "studio-mac.local")...)
 	if n := e.devices(); n != 1 {
 		t.Fatalf("%d devices, want the ignored one only", n)
 	}
@@ -70,8 +70,8 @@ func TestContract_INV51_IgnoredDeviceFoldsAPrivateAddressChange(t *testing.T) {
 func TestContract_INV51_ApproveRefusesAnIgnoredDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
-	id := e.idOf("192.168.18.205")
+	e.record(dhcp(burnt1, "192.168.142.205", "switch")...)
+	id := e.idOf("192.168.142.205")
 	if err := e.svc.SetIgnored(e.ctx(), "user-a", id, true); err != nil {
 		t.Fatal(err)
 	}

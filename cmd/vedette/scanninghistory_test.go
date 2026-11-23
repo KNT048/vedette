@@ -22,28 +22,28 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 		j                             sensoractive.JobRow
 		trigger, label, outcome, text string
 	}{
-		{"sweep, one batch", job("sweep", "done", "", "", 254, 2, p("192.168.18.0/24", "ok: 12 hosts up")), "sweep", "LAN sweep of 192.168.18.0/24", "ok", "Swept 254 addresses: 12 hosts answered, 2 new devices"},
+		{"sweep, one batch", job("sweep", "done", "", "", 254, 2, p("192.168.142.0/24", "ok: 12 hosts up")), "sweep", "LAN sweep of 192.168.142.0/24", "ok", "Swept 254 addresses: 12 hosts answered, 2 new devices"},
 		// #940 review r1 M3: every batch counts, and a stopped sweep says what it did before it stopped
-		{"sweep, batches", job("sweep", "done", "", "", 128, 1, p("192.168.18.0/26", "ok: 3 hosts up"), p("192.168.18.64/26", "ok: 2 hosts up")), "sweep", "LAN sweep in 2 batches", "ok", "Swept 128 addresses in 2 batches: 5 hosts answered, 1 new device"},
-		{"sweep stopped", job("sweep", "stopped", "", "outside the window", 64, 0, p("192.168.18.0/26", "ok: 3 hosts up")), "sweep", "LAN sweep of 192.168.18.0/26", "stopped", "Stopped: outside the window. Swept 64 addresses: 3 hosts answered, 0 new devices before it ended"},
+		{"sweep, batches", job("sweep", "done", "", "", 128, 1, p("192.168.142.0/26", "ok: 3 hosts up"), p("192.168.142.64/26", "ok: 2 hosts up")), "sweep", "LAN sweep in 2 batches", "ok", "Swept 128 addresses in 2 batches: 5 hosts answered, 1 new device"},
+		{"sweep stopped", job("sweep", "stopped", "", "outside the window", 64, 0, p("192.168.142.0/26", "ok: 3 hosts up")), "sweep", "LAN sweep of 192.168.142.0/26", "stopped", "Stopped: outside the window. Swept 64 addresses: 3 hosts answered, 0 new devices before it ended"},
 		{"sweep stopped at once", job("sweep", "stopped", "", "outside the window", 0, 0), "sweep", "LAN sweep", "stopped", "Stopped: outside the window. Nothing was sent"},
-		{"check now", job("device", "done", "check_now", "", 1, 0, p("192.168.18.20", "ok: 1 hosts up")), "person", "192.168.18.20", "ok", "Scanned 192.168.18.20: it answered (a check from before checks kept what they found)"},
-		{"no answer", job("device", "done", "discovered", "", 1, 0, p("192.168.18.21", "ok: 0 hosts up")), "automatic", "192.168.18.21", "ok", "Scanned 192.168.18.21: it did not answer"},
+		{"check now", job("device", "done", "check_now", "", 1, 0, p("192.168.142.20", "ok: 1 hosts up")), "person", "192.168.142.20", "ok", "Scanned 192.168.142.20: it answered (a check from before checks kept what they found)"},
+		{"no answer", job("device", "done", "discovered", "", 1, 0, p("192.168.142.21", "ok: 0 hosts up")), "automatic", "192.168.142.21", "ok", "Scanned 192.168.142.21: it did not answer"},
 		{"scan now failed", job("device", "failed", "scan_now", "nmap exited 1", 1, 0), "scan_now", "A device", "failed", "Failed: nmap exited 1. Nothing was sent"},
 		// #940 review r2: only what is stored; a running sweep has not swept its planned size, a failed probe found nothing
-		{"sweep running", job("sweep", "running", "", "", 1024, 0, p("192.168.18.0/24", "ok: 4 hosts up")), "sweep", "LAN sweep of 192.168.18.0/24", "running", "Running: 1 batch finished: 4 hosts answered so far"},
+		{"sweep running", job("sweep", "running", "", "", 1024, 0, p("192.168.142.0/24", "ok: 4 hosts up")), "sweep", "LAN sweep of 192.168.142.0/24", "running", "Running: 1 batch finished: 4 hosts answered so far"},
 		{"sweep running, no batch yet", job("sweep", "running", "", "", 1024, 0), "sweep", "LAN sweep", "running", "Running: sweeping"},
-		{"sweep, only batch failed", job("sweep", "done", "", "", 254, 0, p("192.168.18.0/24", "failed: nmap exited 1")), "sweep", "LAN sweep of 192.168.18.0/24", "failed", "Failed: nmap exited 1."},
+		{"sweep, only batch failed", job("sweep", "done", "", "", 254, 0, p("192.168.142.0/24", "failed: nmap exited 1")), "sweep", "LAN sweep of 192.168.142.0/24", "failed", "Failed: nmap exited 1."},
 		{"device probe failed", job("device", "done", "check_now", "", 1, 0, p("10.0.0.5", "failed: nmap gave up")), "person", "10.0.0.5", "failed", "Failed: nmap gave up."},
 		{"done, nothing sent", job("sweep", "done", "", "", 0, 0), "sweep", "LAN sweep", "partial", "Nothing was sent"},
 		// #940 review r1 H1: an SNMP read says how many answered, from its probes, never only how many it asked
-		{"snmp, none answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1,192.168.18.2,192.168.18.3", "ok: 0 of 3 answered")), "automatic", "SNMP read", "failed", "Failed: no device answered over SNMP."},
+		{"snmp, none answered", job("snmp", "done", "window", "", 3, 0, p("192.168.142.1,192.168.142.2,192.168.142.3", "ok: 0 of 3 answered")), "automatic", "SNMP read", "failed", "Failed: no device answered over SNMP."},
 		// a test of one device that got no answer read nothing: failed, never "partly done"
-		{"snmp test, no answer", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.1", "ok: 0 of 1 answered")), "test", "SNMP test", "failed", "Failed: the device did not answer over SNMP."},
-		{"snmp check, answered", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.1", "ok: 1 of 1 answered")), "test", "SNMP test", "ok", "The device answered over SNMP"},
-		{"snmp, some answered", job("snmp", "done", "window", "", 3, 0, p("192.168.18.1-192.168.18.3", "ok: 2 of 3 answered")), "automatic", "SNMP read", "partial", "2 of 3 devices answered over SNMP"},
-		{"snmp, all answered", job("snmp", "done", "snmp_read", "", 2, 0, p("192.168.18.1", "ok: 1 of 1 answered"), p("192.168.18.2", "ok: 1 of 1 answered")), "person", "SNMP read", "ok", "2 of 2 devices answered over SNMP"},
-		{"snmp test, read failed", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.18.30", "failed: the read did not finish")), "test", "SNMP test", "failed", "Failed: the read did not finish."},
+		{"snmp test, no answer", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.142.1", "ok: 0 of 1 answered")), "test", "SNMP test", "failed", "Failed: the device did not answer over SNMP."},
+		{"snmp check, answered", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.142.1", "ok: 1 of 1 answered")), "test", "SNMP test", "ok", "The device answered over SNMP"},
+		{"snmp, some answered", job("snmp", "done", "window", "", 3, 0, p("192.168.142.1-192.168.142.3", "ok: 2 of 3 answered")), "automatic", "SNMP read", "partial", "2 of 3 devices answered over SNMP"},
+		{"snmp, all answered", job("snmp", "done", "snmp_read", "", 2, 0, p("192.168.142.1", "ok: 1 of 1 answered"), p("192.168.142.2", "ok: 1 of 1 answered")), "person", "SNMP read", "ok", "2 of 2 devices answered over SNMP"},
+		{"snmp test, read failed", job("snmp", "done", "snmp_test", "", 1, 0, p("192.168.142.30", "failed: the read did not finish")), "test", "SNMP test", "failed", "Failed: the read did not finish."},
 		{"snmp, one batch failed", job("snmp", "done", "window", "", 4, 0, p("a", "ok: 2 of 2 answered"), p("b", "failed: the read did not finish")), "automatic", "SNMP read", "partial", "2 of 2 devices answered over SNMP; 1 part failed"},
 	} {
 		r, ok := jobHistory(c.j, nil)

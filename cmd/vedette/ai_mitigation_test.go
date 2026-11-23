@@ -45,7 +45,7 @@ func vectorOf(v string) *feeds.BriefCVSS {
 func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	ver, http := "15.1R7.9", "J-Web"
 	host := "core-switch"
-	fc := caseOf(aiSubject{CVE: "CVE-2023-36845", Vendor: "Juniper", Product: "Junos OS", AssetName: "Juniper Networks EX4200-48T", AssetIP: "192.0.2.47",
+	fc := caseOf(aiSubject{CVE: "CVE-2023-36845", SoftwareID: "s1", Vendor: "Juniper", Product: "Junos OS", AssetName: "Juniper Networks EX4200-48T", AssetIP: "192.0.2.47",
 		Evidence: "Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9. Its version is inside the range affected by CVE-2023-36845 (before 20.4)."})
 	fc.View.Finding.Fix = findings.Fix{Kind: findings.FixUpdate, Version: "21.2R3-S7"}
 	fc.View.Finding.MatchedVersion = ver
@@ -59,7 +59,7 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, FindingID: "f1"}
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.0.2.47", Hostname: &host, Kind: "switch", Vendor: obs("Juniper Networks"), Model: obs("EX4200-48T"), OS: obs("JUNOS 15.1R7.9"),
 		Services: []inventory.ServiceRow{{Port: 443, Proto: "tcp", Name: "https", Product: &http}, {Port: 22, Proto: "tcp", Name: "ssh"}}},
-		Software: []inventory.Software{{Display: "Juniper Junos OS", Version: &ver}}}
+		Software: []inventory.Software{{ID: "s1", Display: "Juniper Junos OS", Version: &ver}}}
 	walls := []inventory.Device{
 		{AssetCore: inventory.AssetCore{IP: "192.0.2.2", Kind: "firewall", Vendor: obs("Fortinet"), Model: obs("FortiGate 60F"), OS: obs("FortiOS 7.2.5")}},
 		{AssetCore: inventory.AssetCore{IP: "192.0.2.1", Kind: "firewall"}},
@@ -228,20 +228,24 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	}
 }
 
-// #897 r2: trusted addresses come from structured fields only (not a banner), and a short software name inside the Evidence is not the
-// finding's software.
+// #897 r2: trusted addresses come from structured fields only (not a banner), and the finding's software is its line, never a name
+// read from the evidence sentence.
 func TestAITrustedAndMatched_R2(t *testing.T) {
 	banner := "Apache httpd 10.66.6.6"
 	goV, apV := "1.22", "2.4.58"
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.0.2.5", Services: []inventory.ServiceRow{{Port: 80, Proto: "tcp", Name: "http", Product: &banner}}},
-		Software: []inventory.Software{{Display: "Go", Version: &goV}, {Display: "Apache HTTP Server", Version: &apV}}}
-	row := aiSubject{AssetIP: "192.0.2.5", Evidence: "web-01 runs Apache HTTP Server 2.4.58. Going by the version, it is affected."}
+		Software: []inventory.Software{{ID: "sw-go", Display: "Go", Version: &goV}, {ID: "sw-apache", Display: "Apache HTTP Server", Version: &apV}}}
+	row := aiSubject{AssetIP: "192.0.2.5", SoftwareID: "sw-apache", Evidence: "web-01 runs Go 1.22 next to Apache HTTP Server 2.4.58. Going by the version, it is affected."}
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.0.2.1"}}, {AssetCore: inventory.AssetCore{IP: "not an ip"}}}
 	if got := fmt.Sprint(aiTrusted(row, &dev, aiFirewalls{Walls: walls})); got != "[192.0.2.5 192.0.2.1]" {
 		t.Fatalf("trusted = %s", got)
 	}
 	if got := aiMatched(row, dev); got != "Apache HTTP Server 2.4.58" {
 		t.Fatalf("matched = %q", got)
+	}
+	row.SoftwareID = "sw-gone" // the line is gone: no name is read from the evidence
+	if got := aiMatched(row, dev); got != "" {
+		t.Fatalf("matched with the line gone = %q, want none", got)
 	}
 }
 

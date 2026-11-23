@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
@@ -387,12 +386,6 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	if a != nil {
 		aa := shownAsset(*a)
 		row.Asset = &aa
-		// Findings created by older versions named a device without hostname or IP by its id in the evidence.
-		if row.Evidence != nil && r.AssetID != "" && strings.Contains(row.Evidence.Summary, r.AssetID) {
-			ev := *row.Evidence
-			ev.Summary = strings.ReplaceAll(ev.Summary, r.AssetID, aa.Name)
-			row.Evidence = &ev
-		}
 	}
 	return row
 }

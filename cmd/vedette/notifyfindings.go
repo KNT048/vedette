@@ -25,8 +25,8 @@ const (
 )
 
 // notifyFindings implements notify.FindingDirectory (S-ALERT-1): one finding as findings.View reads it now. The status name, its
-// meaning and the reasons are the ones the finding page shows (findings.StatusName, StatusMeaning, View.ReasonsLine); the feeds' KEV
-// entry adds the product name and the action CISA requires, and the inventory the device names through notifyDevices. findings and
+// meaning and the reasons are the ones the finding page shows (findings.StatusName, StatusMeaning, View.ReasonsLine); the brief of the
+// CVE (feeds.Brief) adds, when the CVE is on an exploited list, the product name and the action the list requires, and the inventory the device names through notifyDevices. findings and
 // feeds are read through deps at call time: notify is built before them (see buildServices).
 type notifyFindings struct{ d *deps }
 
@@ -45,19 +45,26 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		return notify.FindingInfo{}, false, nil
 	}
 	f := v.Finding
-	var kev findings.KevInfo
+	var product, action string // the brief of the CVE: its product in plain words and the action its exploited list requires
 	if fs, err := feedsService(*n.d); err == nil {
-		got, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{f.CVE})
+		b, ok, err := fs.Store().Brief(ctx, f.CVE)
 		if err != nil {
 			return notify.FindingInfo{}, false, err
 		}
-		kev = got[f.CVE]
+		if ok && len(b.Lists) > 0 {
+			product = b.Display
+			for _, l := range b.Lists {
+				if action = l.RequiredAction; action != "" {
+					break
+				}
+			}
+		}
 	}
 	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
 		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax)}
-	info.Product = cmp.Or(plainText(kev.Display, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
-	info.Action = cmp.Or(plainText(kev.RequiredAction, noticeActionMax),
+	info.Product = cmp.Or(plainText(product, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
+	info.Action = cmp.Or(plainText(action, noticeActionMax),
 		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")
 	if n.d.Inventory == nil {
 		return info, true, nil // no device name: notify sends nothing for a finding that matched no device

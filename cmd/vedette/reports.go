@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +37,7 @@ func reportsService(d deps) *reports.Service {
 	if s := reportsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings, &d},
+	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings},
 		Views: reportsViews{d.Findings}, KEV: reportsKEV{&d}, Exposure: reportsExposure{&d}, Detections: reportsDetections{&d}, Feeds: reportsFeeds{&d},
 		Mail: reportsMailer{newNotify(&d)}, AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
@@ -100,34 +99,30 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 
 // ---- findings -> reports ----
 
-// reportsFindings is the PDPL assessment's read of findings (its rows keep the assessment's own status words).
-type reportsFindings struct {
-	svc *findings.Service
-	d   *deps
-}
+// reportsFindings is the PDPL assessment's read of findings: the open findings as findings.View reads them (a device a person ignored
+// is left out with its findings, as on every list), in the assessment's own status words: "confirmed" when a scan or a person
+// confirmed it, "suspected" otherwise; the severity is the CVSS band of the CVE as every page shows it ("medium" while it has no score).
+type reportsFindings struct{ svc *findings.Service }
 
 func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
-	recs, err := a.svc.List(ctx, "")
+	vs, err := a.svc.Views(ctx, findings.ViewFilter{OpenOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	// A device a person ignored is in no report, its findings neither. A device list that cannot be read fails the report, never a
-	// report with them in.
-	ignored := map[string]bool{}
-	if a.d != nil && a.d.Inventory != nil {
-		ids, err := a.d.Inventory.IgnoredIDs(ctx)
-		if err != nil {
-			return nil, err
+	out := make([]reports.Finding, len(vs))
+	for i, v := range vs {
+		f := v.Finding
+		status, severity := "suspected", "medium"
+		if f.Confirmed() {
+			status = "confirmed"
 		}
-		for _, id := range ids {
-			ignored[id] = true
+		if v.Severity != nil {
+			if severity = findings.SeverityBand(*v.Severity); severity == "none" { // a score of 0: the assessment's lowest word
+				severity = "info"
+			}
 		}
-	}
-	recs = slices.DeleteFunc(recs, func(r findings.Record) bool { return ignored[r.AssetID] })
-	out := make([]reports.Finding, len(recs))
-	for i, r := range recs {
-		out[i] = reports.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen,
-			Agent: r.Evidence != nil && r.Evidence.Agent}
+		out[i] = reports.Finding{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Status: status, Severity: severity, FirstSeen: f.FirstSeen,
+			Agent: f.Evidence != nil && f.Evidence.Agent}
 	}
 	return out, nil
 }

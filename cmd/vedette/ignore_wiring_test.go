@@ -264,7 +264,7 @@ func TestWiringReportsLeaveAnIgnoredDeviceAndItsFindingsOut(t *testing.T) {
 	if n := s.nf(id, ""); n != 1 {
 		t.Fatalf("findings = %d", n)
 	}
-	in := reportsFindings{s.d.Findings, s.d}
+	in := reportsFindings{s.d.Findings}
 	all, err := in.All(ctx)
 	if err != nil || len(all) != 1 {
 		t.Fatalf("before: %+v %v", all, err)

@@ -36,7 +36,7 @@
 
 ## Modifying: the PDPL assessment (`GeneratePdpl`, `buildPdpl`, `Regime`)
 - **HTTP** `/reports/pdpl/generate`. Changing the rule of `regime` or `measures` changes legal content: check it again against the
-  official sources and record the date in CONTRACT. It reads `Findings.All` (the legacy finding projection) and `KEV.Entries`.
+  official sources and record the date in CONTRACT. It reads `Findings.All` (the open findings as `findings.View` reads them, in the assessment's status words) and `KEV.Entries`.
 
 ## Disabling this module
 - The Reports page and the scheduled sends stop; recipients get no report (no error on their side). `rep_*` are kept.

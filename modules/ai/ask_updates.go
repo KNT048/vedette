@@ -28,7 +28,7 @@ const (
 	deviceUpdatesDesc   = "What to install on one device to clear its CVEs, in one call (device: IP, name or asset_id): open exploited findings grouped by the update that fixes them, those with no named update, and recommended updates. Use it for what to upgrade; part and offset page one list. status: detected = the agent reported the version (never say it needs confirming); suspected = a network guess."
 	deviceUpdatesSchema = `{"type":"object","properties":{"device":{"type":"string","minLength":1,"maxLength":96},"part":{"type":"string","enum":["exploited","no_named_update","recommended"]},"offset":{"type":"integer","minimum":0,"maximum":1000}},"required":["device"],"additionalProperties":false}`
 	// statusWords is sent with the first call of a device, so the model reads the words from the data and not only from the description.
-	statusWords = "confirmed = a scan proved it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
+	statusWords = "confirmed = a safe check Vedette ran or a person on this box confirmed it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
 	// updatesRowsMax is how many rows of one list a call returns at most, before what fits askResultBytes.
 	updatesRowsMax = askRowsMax
 )

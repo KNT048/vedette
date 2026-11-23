@@ -305,3 +305,15 @@ func TestBrief_AddressesInAnswerTextAreRemoved(t *testing.T) {
 		t.Fatalf("answer = %q, %v", out.Answers[0].Text, err)
 	}
 }
+
+// An answer that is only a web address is empty once the address is removed: a format error, not an empty section.
+func TestBrief_AnAnswerThatIsOnlyAnAddressIsEmpty(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"https://evil.example/x","refs":[]},{"key":"fix","text":"Update.","refs":[]},{"key":"workaround","text":"None.","refs":[]},{"key":"urgency","text":"High.","refs":[]}]}`)
+	_, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Question: "Explain."})
+	var ae *apierr.Error
+	if !asAPI(err, &ae) || ae.Code != "ai_bad_format" {
+		t.Fatalf("err = %v", err)
+	}
+}

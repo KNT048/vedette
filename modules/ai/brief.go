@@ -191,7 +191,7 @@ func parseBrief(text string, job Job) (briefBody, error) {
 func validAnswers(in []briefAnswerIn) bool {
 	seen := map[string]bool{}
 	for _, x := range in {
-		if !slices.Contains(AnswerKeys, x.Key) || seen[x.Key] || cleanText(x.Text) == "" {
+		if !slices.Contains(AnswerKeys, x.Key) || seen[x.Key] || withoutAddresses(cleanText(x.Text)) == "" {
 			return false
 		}
 		seen[x.Key] = true

@@ -212,3 +212,22 @@ func TestMCPEntryOfABriefWithAndWithoutAList(t *testing.T) {
 		t.Fatalf("entry with a list = %+v", e)
 	}
 }
+
+// The facts of a CVE the catalogue holds but no exploited list has are not listed: no source, no date, so the assistant never reads "on the
+// list" for it; with a list entry they are listed.
+func TestAIFactsCVEListedOnlyWithAList(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.kev("CVE-2026-6101", "Fortinet", "FortiOS")
+	s.exec(`INSERT INTO feeds_cve (cve, title, description, updated_at) VALUES ('CVE-2026-6102', 'A flaw only the catalogue knows', 'Described by NVD.', '2026-11-20T00:00:00.000Z')`)
+	facts := aiFacts{feeds: feedsStore(*s.d), cases: caseSource{findings: s.d.Findings, feeds: feedsStore(*s.d)}}
+	listed, ok, err := facts.CVE(ctx, "CVE-2026-6101")
+	if err != nil || !ok || !listed.Listed() {
+		t.Fatalf("listed CVE: %+v %v %v", listed, ok, err)
+	}
+	only, ok, err := facts.CVE(ctx, "CVE-2026-6102")
+	if err != nil || !ok || only.Listed() || only.Source != "" || only.DateAdded != "" || only.Name != "A flaw only the catalogue knows" {
+		t.Fatalf("catalogue-only CVE: %+v %v %v", only, ok, err)
+	}
+}

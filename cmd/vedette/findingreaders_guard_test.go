@@ -14,13 +14,15 @@ import (
 func TestGuard_FindingReadersReadTheViewNotTheOlderModel(t *testing.T) {
 	t.Parallel()
 	older := []string{"findings.Row", "findings.Record", "findings.FixedIn", "findings.KevInfo", "FixedInFor", "RowFixes", "LegacyStatus", "ShownConfidence",
-		"findings.UpdateAction", ".ToFix(", "findings.RowFix", "findings.Guide"}
+		"findings.UpdateAction", ".ToFix(", "findings.RowFix", "findings.Guide",
+		// the older one-finding and list reads of the service
+		"fnd.Get(", "fnd.List(", "finding.Get(", "finding.List(", "findings.Get(", "findings.List(", "Findings.Get(", "Findings.List("}
 	// the allowed uses: Provider.Guidance is called by the finding page's older read (GET /findings/{id}) with the older row, and the
 	// action handlers read the record that read hands them; both move with the finding page.
 	allowed := map[string][]string{
 		"modules/mitigation/guidance.go":  {"findings.Row", "findings.Guide"},
 		"modules/mitigation/hardening.go": {"findings.Row"},
-		"modules/mitigation/handlers.go":  {"findings.Record"},
+		"modules/mitigation/handlers.go":  {"findings.Record", "finding.Get("},
 	}
 	root := filepath.Join("..", "..")
 	checked := []string{"cmd/vedette/ai.go", "cmd/vedette/ai_plan.go", "cmd/vedette/mcpserver.go", "cmd/vedette/response.go", "cmd/vedette/findingcase.go"}

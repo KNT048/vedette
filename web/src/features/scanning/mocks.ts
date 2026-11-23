@@ -19,7 +19,8 @@ type Id = z.infer<typeof EngineId>
 type Run = z.infer<typeof RunningJob>
 
 const checkRate = collection<{ requests_per_s: number }>('scanning_check_rate', () => ({ requests_per_s: 5 }))
-const runs = collection<Array<Run & { ends_ms: number }>>('scanning_runs', () => [], () => [])
+// starts_ms/behind: a run a person asked for while another one held the scanner waits behind it (the box's queue), saying so
+const runs = collection<Array<Run & { ends_ms: number; starts_ms?: number; behind?: string }>>('scanning_runs', () => [], () => [])
 const RUN_MS = 20_000
 type HistoryRow = z.infer<typeof HistoryRun>
 const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
@@ -62,8 +63,12 @@ function discoveryRuns(): Run[] {
   const now = Date.now()
   const kept = runs.get().filter((r) => r.ends_ms > now)
   if (kept.length !== runs.get().length) runs.set(kept)
-  return kept.map(({ ends_ms, ...r }) => {
-    const started = Date.parse(r.started_at)
+  return kept.map(({ ends_ms, starts_ms, behind, ...r }) => {
+    if (starts_ms && behind && now < starts_ms) {
+      const p = mockDeviceProgress(now, 0, now)
+      return { ...r, progress: { ...p, message: `Queued behind “${behind}”; it starts when that run ends` } }
+    }
+    const started = starts_ms ?? Date.parse(r.started_at)
     return { ...r, progress: mockDeviceProgress(started, (now - started) / (ends_ms - started), now) }
   })
 }
@@ -515,10 +520,12 @@ export const handlers = [
     if (!isOn('sensor-active')) return fail(409, 'module_off', 'Active discovery (module sensor-active) is off. An admin can turn it on in Settings, Scanning.')
     if (!st.active.enabled) return fail(409, 'engine_off', 'Network discovery is off. Turn it on in Settings, Scanning first.')
     if (!st.scope_confirmed_at) return fail(400, 'scope_not_confirmed', 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.')
-    if (discoveryRuns().length) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
     const targets = b.targets ?? []
+    const going = discoveryRuns()
+    // never refused because the scanner is busy (the box queues it); a second LAN sweep while one goes on is the one refusal
+    if (targets.length === 0 && going.some((r) => r.target_id === null && r.label.startsWith('LAN sweep'))) return fail(409, 'busy', 'Discovery is running nmap now (the window\'s sweep or a device scan). Try again when it ends.')
     const assets = assetsStore.get()
-    const picked = []
+    const picked: typeof assets = []
     for (const t of targets) {
       const a = assets.find((x) => x.id === t || x.ip === t)
       if (!a) return fail(400, 'unknown_device', `No device has the address or id ${t.slice(0, 40)}. Let discovery find it first, or add it under Devices.`, { target: t })
@@ -527,11 +534,16 @@ export const handlers = [
       if (st.active.exclusions.includes(a.ip)) return fail(400, 'out_of_scope', `${a.ip} is outside the confirmed scope or excluded.`, { target: t })
       picked.push(a)
     }
+    const same = picked.length === 1 ? runs.get().find((r) => r.target_id === picked[0]!.id && r.ends_ms > Date.now()) : undefined
+    if (same) return HttpResponse.json(going.find((r) => r.id === same.id) ?? same, { status: 202 }) // asked again: the run it has
     const started = nowIso()
-    const run: Run & { ends_ms: number } = {
+    const last = runs.get().filter((r) => r.ends_ms > Date.now()).at(-1)
+    const begins = Math.max(Date.parse(started), last?.ends_ms ?? 0)
+    const run: Run & { ends_ms: number; starts_ms?: number; behind?: string } = {
       engine: 'nmap-discovery', id: newId('sar'), started_at: started, progress: null,
       label: picked.length === 0 ? `LAN sweep ${st.lan_ranges.join(', ')}` : picked.length === 1 ? `Check ${picked[0]!.ip}` : `Check ${picked.length} devices`,
-      target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: Date.parse(started) + RUN_MS * Math.max(1, picked.length),
+      target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: begins + RUN_MS * Math.max(1, picked.length),
+      ...(last ? { starts_ms: begins, behind: last.label } : {}),
     }
     runs.set([...runs.get(), run])
     // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
@@ -540,7 +552,6 @@ export const handlers = [
       : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
     historyStore.set([...rows, ...historyStore.get()])
     rows.forEach((r) => { if (r.kind === 'device') markReached(r.id, [r.label]) })
-    const { ends_ms: _, ...out } = run
-    return HttpResponse.json(out, { status: 202 })
+    return HttpResponse.json(discoveryRuns().find((r) => r.id === run.id), { status: 202 })
   }),
 ]

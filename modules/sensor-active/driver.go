@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/run"
@@ -41,10 +42,7 @@ func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
 	if err != nil {
 		return err
 	}
-	wait := s.windowWait(st)
-	if _, ok := s.windowNow(ctx, st); ok {
-		wait = "its turn in the scan window"
-	}
+	wait := s.queueWait(ctx, st)
 	lbl := s.deviceLabel(ctx, assetID)
 	parent := ""
 	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Status == run.Running && s.clock().Before(s.sweepUntil(*sw)) {
@@ -64,6 +62,49 @@ func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
 			Steps: []run.StepPlan{{Name: lbl, Total: 1}}, WaitingFor: wait})
 		return err
 	})
+}
+
+// What a check of the window that waits for its turn really waits for, besides the window itself (windowWait).
+const (
+	waitTurn   = "its turn in the scan window"
+	waitWorker = "the scan worker to be available"
+)
+
+// queueWait is what a check of the window waits for now: the next window while it is closed; inside it, the scan worker while it
+// is not ready (after a restart, until it reports), else its turn.
+func (s *Service) queueWait(ctx context.Context, st Settings) string {
+	if _, ok := s.windowNow(ctx, st); !ok {
+		return s.windowWait(st)
+	}
+	if s.available(ctx) != nil {
+		return waitWorker
+	}
+	return waitTurn
+}
+
+// refreshWaits makes the window's waiting checks say what they wait for now (queueWait): the reason changes while they wait (the
+// window opened while the scan worker was not ready, the window closed before their turn came). Only the reasons of the window's
+// own queue are touched: a check that waits for the settings (scanning off, the scope) keeps its reason.
+func (s *Service) refreshWaits(ctx context.Context, st Settings) {
+	want := s.queueWait(ctx, st)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, waiting_for FROM core_run WHERE module = ? AND kind = ? AND status = 'waiting'
+		AND trigger <> 'manual' AND waiting_for <> ?`, ModuleID, RunCheck, want)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id, w string
+		if rows.Scan(&id, &w) == nil && (w == waitTurn || w == waitWorker || w == waitWorkerBack || strings.HasPrefix(w, "the scan window")) {
+			ids = append(ids, id)
+		}
+	}
+	if rows.Close() != nil || len(ids) == 0 {
+		return
+	}
+	if err := s.runs.Rewait(ctx, want, ids...); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: saying what the waiting checks wait for failed", "error", err)
+	}
 }
 
 // QueueLen is the number of device checks waiting for their turn in the window.
@@ -129,6 +170,7 @@ func (s *Service) Tick(ctx context.Context) error {
 	if st.allowed() != nil {
 		return nil
 	}
+	s.refreshWaits(ctx, st)
 	start, _, ok := st.window(s.local())
 	if !ok {
 		s.resumeYielded(ctx, "") // a person's pass that gave way goes on within its hour (after a restart too)
@@ -459,7 +501,9 @@ func (s *Service) scanResult(ctx context.Context, err error) run.Result {
 	case errors.Is(err, ErrScopeNotConfirmed), errors.Is(err, ErrNoRanges):
 		return run.Result{Status: run.Waiting, WaitingFor: "the scan scope to be confirmed"}
 	case errors.Is(err, ErrUnavailable):
-		return run.Result{Status: run.Waiting, WaitingFor: "the scan worker to be available"}
+		return run.Result{Status: run.Waiting, WaitingFor: waitWorker}
+	case errors.Is(err, ErrWorkerLost): // the worker restarted under it (an update of Vedette does): the window tries it again
+		return run.Result{Status: run.Waiting, WaitingFor: waitWorkerBack}
 	case errors.Is(err, ErrOutsideWindow), errors.Is(err, errDeadline):
 		if st, serr := s.inv.Settings(context.WithoutCancel(ctx)); serr == nil {
 			return run.Result{Status: run.Waiting, WaitingFor: s.windowWait(st)}
@@ -474,7 +518,30 @@ func (s *Service) scanResult(ctx context.Context, err error) run.Result {
 		}
 		return run.Result{Status: run.Partial, Error: "Stopped: the device or the settings changed while it was checked"}
 	}
-	return run.Result{Status: run.Failed, Error: err.Error()}
+	return run.Result{Status: run.Failed, Error: failWords(err)}
+}
+
+// waitWorkerBack is what a check of the window waits for after the scan worker stopped under it.
+const waitWorkerBack = "the scan worker, which stopped during the check (it restarts when Vedette is updated or restarted)"
+
+// failWords is why a device run failed, in words for the run page: the scan worker's failures say what happened; any other error
+// loses the package prefixes of its Go text.
+func failWords(err error) string {
+	switch {
+	case errors.Is(err, ErrWorkerLost):
+		return "The scan worker stopped during the check (it restarts when Vedette is updated or restarted). Check the device again"
+	case errors.Is(err, ErrWorkerRefused):
+		return "The scan worker refused the job"
+	case errors.Is(err, ErrResultRejected):
+		return "The scan worker's result could not be read (too large or malformed)"
+	case errors.Is(err, ErrUnavailable):
+		return "The scan worker is not available"
+	}
+	t := err.Error()
+	for strings.HasPrefix(t, "sensoractive: ") {
+		t = strings.TrimPrefix(t, "sensoractive: ")
+	}
+	return t
 }
 
 // identResult is how a person's check ended, from the identification.
@@ -483,7 +550,7 @@ func identResult(got Identification, err error) run.Result {
 	case errors.Is(err, ErrStopped):
 		return run.Result{Status: run.Partial, Error: "stopped"}
 	case err != nil:
-		return run.Result{Status: run.Failed, Error: err.Error()}
+		return run.Result{Status: run.Failed, Error: failWords(err)}
 	case got.Why == WhyUnavailable:
 		return run.Result{Status: run.Failed, Error: "The scan worker is not available"}
 	case got.Why == WhyHostDown:

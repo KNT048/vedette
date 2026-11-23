@@ -160,7 +160,7 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     expect(auditStore.get().length).toBeGreaterThanOrEqual(0)
   })
 
-  it('"Scan the LAN now" sends no targets (the server sweeps the confirmed scope); a second run is locked with the reason and a link', async () => {
+  it('"Scan the LAN now" sends no targets (the server sweeps the confirmed scope); a check asked while it runs is queued behind it and says so', async () => {
     let sent: unknown = null
     const { server } = await import('@/test/server')
     server.events.on('request:start', async ({ request }) => {
@@ -170,8 +170,21 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     await userEvent.click(await screen.findByRole('button', { name: 'Scan the LAN now' }))
     await waitFor(() => expect(sent).toEqual({}))
     server.events.removeAllListeners()
-    expect(await screen.findByText('Another scan is running.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Scan selected (2)' })).toBeDisabled()
+    // a busy scanner never locks a person's ask: the check is accepted and waits behind the sweep, saying so
+    const selected = await screen.findByRole('button', { name: 'Scan selected (2)' })
+    await waitFor(() => expect(selected).toBeEnabled())
+    await userEvent.click(selected)
+    expect(await screen.findByText(/^Queued behind “LAN sweep /)).toBeInTheDocument()
+    expect(screen.queryByText('Another scan is running.')).toBeNull()
+  })
+
+  it('a second "Scan the LAN now" while a LAN sweep goes on points at that sweep instead', async () => {
+    renderHere(<ScanNowButton targets="lan" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan the LAN now' }))
+    await screen.findByRole('progressbar')
+    const view = renderHere(<ScanNowButton targets="lan" />)
+    expect(await within(view.container).findByText('A LAN scan is going on now.')).toBeInTheDocument()
+    expect(within(view.container).getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
   })
 
   it('what it needs, where it is (§0): no commitment opens the scope dialog; an operator is told it needs an admin', async () => {

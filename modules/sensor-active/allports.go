@@ -124,6 +124,15 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 // allPortsResult is how an all_ports run ends, from scanDevice's error.
 func (s *Service) allPortsResult(ctx context.Context, err error) run.Result {
 	switch {
+	case err == nil: // the device answered and what it said is recorded: its one device is counted
+		if x := execOf(ctx); x != nil {
+			s.stepProgress(ctx, x, 1, 1, 1)
+		}
+		return run.Result{}
+	case errors.Is(err, errNoAnswer):
+		return run.Result{Status: run.Failed, Error: weeklyNoAnswer}
+	case errors.Is(err, errHostTimedOut):
+		return run.Result{Status: run.Failed, Error: fmt.Sprintf(weeklyTimedOutAt, roundWords(nmapargv.AllPortsHostTimeout))}
 	case errors.Is(err, errAnswersEverywhere):
 		return run.Result{Status: run.Partial, Error: "The device answers on every port (a firewall or a SYN proxy): this scan learns nothing"}
 	case errors.Is(err, ErrStopped) && ctx.Err() == nil:

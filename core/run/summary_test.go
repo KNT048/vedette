@@ -29,7 +29,9 @@ func TestTheSummaryOfARunAndTheRunAQueuedOneWaitsFor(t *testing.T) {
 	}
 	check := create(t, p, spec("sensor-active", "device_check", "Check of printer"))
 	r := b.get(p, check)
-	if r.BlockedBy == nil || r.BlockedBy.ID != first || r.Summary != "Queued behind “LAN sweep of 10.20.0.0/16”; it starts when that run ends" {
+	// the run in its way says how long it has left: the queued one starts roughly then
+	if r.BlockedBy == nil || r.BlockedBy.ID != first ||
+		r.Summary != "Queued behind “LAN sweep of 10.20.0.0/16”, which has about 9 more windows at 50 packets/s; it starts when that run ends" {
 		t.Fatalf("queued: %+v", r.Run)
 	}
 	if r := b.get(p, first); r.Summary != "6,272 of 65,534 addresses; about 9 more windows at 50 packets/s" || r.BlockedBy != nil {
@@ -90,5 +92,43 @@ func TestARunMadeWaitingTheRunInTheContextAndTheSubjectRules(t *testing.T) {
 	if r := b.get(p, other); r.Status != run.Stopped || r.StopReason == nil || *r.StopReason != "The device was deleted" {
 		t.Fatalf("the waiting run of a deleted device: %+v", r.Run)
 	}
+	b.invariantsHold()
+}
+
+// What a waiting run waits for can change while it waits (the window opened while the scan worker is not ready yet): Rewait says
+// the new reason on the run and in its log, leaves a run that waits for it already as it is, and never touches a run that is not
+// waiting.
+func TestRewaitChangesOnlyWhatAWaitingRunWaitsFor(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p := b.process(nil, g.kind("sensor-active", "device_check", "nmap", true))
+	p.start(t)
+	s := spec("sensor-active", "device_check", "Check of printer")
+	s.WaitingFor = "its turn in the scan window"
+	waiting := create(t, p, s)
+	queued := create(t, p, spec("sensor-active", "device_check", "Check of router"))
+	g.waitStarted(t)
+	if err := p.Rewait(t.Context(), "the scan worker to be available", waiting, queued, "run_missing"); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Rewait(t.Context(), "the scan worker to be available", waiting); err != nil { // the same reason again: nothing new
+		t.Fatal(err)
+	}
+	r := b.get(p, waiting)
+	if r.Status != run.Waiting || r.Summary != "Waiting for the scan worker to be available" {
+		t.Fatalf("the waiting run: %+v", r.Run)
+	}
+	if got := strings.Count(b.logText(p, waiting), "Waiting for the scan worker to be available"); got != 1 {
+		t.Fatalf("the log says the new reason %d times, want once:\n%s", got, b.logText(p, waiting))
+	}
+	if r := b.get(p, queued); r.Status != run.Running || r.WaitingFor != nil {
+		t.Fatalf("a run that was not waiting changed: %+v", r.Run)
+	}
+	if err := p.Rewait(t.Context(), "", waiting); err == nil {
+		t.Fatal("an empty reason was accepted")
+	}
+	g.release <- run.Result{}
+	p.waitEnded(t, queued)
 	b.invariantsHold()
 }

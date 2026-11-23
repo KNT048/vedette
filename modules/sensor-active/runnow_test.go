@@ -156,13 +156,14 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 		t.Fatalf("a refused run sent %d nmap commands", n)
 	}
 
-	// one run at a time: a second one is refused while the first goes on (its nmap does not end by itself)
+	// a second run while the first goes on (its nmap does not end by itself) is queued behind it, never refused (INV-28)
 	slow := newEnv(t, fakeOpts{slowFrom: 1}, outsideWindow)
-	if _, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", []string{"a-web"}, nil); err != nil {
+	first, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", []string{"a-web"}, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", nil, nil); !errors.Is(err, sa.ErrManualBusy) {
-		t.Fatalf("second run: %v", err)
+	if m, err := slow.svc.StartManual(slow.ctx(), "admin@example.com", nil, nil); err != nil || m.ID == first.ID {
+		t.Fatalf("second run: %+v, %v", m, err)
 	}
 	slow.svc.Stop()
 	waitManual(t, slow)

@@ -48,8 +48,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version. A person's correction of what a source reads is not an update (`data_corrected`, no credit).
 - **M-6 Device lifecycle.** Findings take part in inventory's merge and delete inside inventory's transaction (`lifecycle.go`): a
   merge moves findings to the kept device and line and folds two findings of one (CVE, line) into one, keeping events; a delete
-  removes findings, events and questions. Lines inventory deletes for good are settled first (`LinesDeleted`). Ignoring a device
-  changes no finding; lists, Home, the AI context and reports leave its findings out.
+  removes findings, events and questions. Lines inventory deletes for good are settled first (`LinesDeleted`). A software line
+  inventory gives to another device with its id (a split gives a merged device its software back whole) takes its findings and
+  questions with it at the next match write of either device (`followline.go`): the same finding id, handling, notes, events and the
+  rows other modules keep by its id, never a handled copy left behind and a new finding opened; two findings of one (CVE, line) fold
+  as in a merge (audit `findings.moved_with_line`; selfcheck `findings.line_on_its_device`). Ignoring a device changes no finding;
+  lists, Home, the AI context and reports leave its findings out.
 - **M-7 One match pass.** Reconcile reads every device and asks feeds once for the match set (`Feeds.MatchSet`). A CVE that matches
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects
   goes away the way the data says. A pass that changes nothing writes nothing; a device whose inputs did not move is not matched

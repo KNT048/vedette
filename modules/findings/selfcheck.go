@@ -56,6 +56,12 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id AND f.matched_version IN (ifnull(s.version, ''), ifnull(s.pkg_version, '')))
 			AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = f.software_id AND f.matched_version IN (ifnull(r.version, ''), ifnull(r.pkg_version, '')))`,
 	},
+	{ // a finding and a question name a software line of their own device: a line inventory gave to another device took them with it
+		// (followLines), a merge moved them with the device (DeviceMerged)
+		Name: "findings.line_on_its_device",
+		Query: `SELECT (SELECT count(*) FROM fnd_finding f JOIN inv_software s ON s.id = f.software_id WHERE s.asset_id <> f.asset_id)
+			+ (SELECT count(*) FROM fnd_question q JOIN inv_software s ON s.id = q.software_id WHERE s.asset_id <> q.asset_id)`,
+	},
 	{ // every finding's CVE is in the catalogue (the catalogue keeps a finding's CVE whatever its age)
 		Name:  "findings.cve_in_catalogue",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,

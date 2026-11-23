@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -280,12 +281,40 @@ func (f *fakeInv) markedIDs() []string {
 
 // sink records what the module reports to the inventory.
 type sink struct {
-	mu   sync.Mutex
-	obs  []observe.Observation
-	sw   map[string][]observe.Software // by IP
-	svc  map[string][]observe.Service  // by IP
-	adds int                           // AddServices calls
-	fail error
+	mu     sync.Mutex
+	obs    []observe.Observation
+	sw     map[string][]observe.Software // by IP
+	svc    map[string][]observe.Service  // by IP
+	adds   int                           // AddServices calls
+	scopes []observe.ServiceScope        // the scope of every ReplaceServices call
+	fail   error
+	// read is when each port was last read with versions, by IP, as the inventory keeps inv_service.read_at: set on every listed port
+	// of a list that read versions and on a port that names a product; a removed port loses it. now is the clock it is set by,
+	// ipOf the address of a device id (PortReadTimes).
+	read map[string]map[int]time.Time
+	now  func() time.Time
+	ipOf func(id string) string
+}
+
+// markRead sets a port's read time (s.mu held).
+func (s *sink) markRead(ip string, port int) {
+	if s.read == nil {
+		s.read = map[string]map[int]time.Time{}
+	}
+	if s.read[ip] == nil {
+		s.read[ip] = map[int]time.Time{}
+	}
+	s.read[ip][port] = s.now()
+}
+
+// PortReadTimes is the read time of each port of a device, as the inventory answers it.
+func (s *sink) PortReadTimes(_ context.Context, id string, src observe.Source) (map[int]time.Time, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if src != observe.Nmap {
+		return nil, fmt.Errorf("source %q", src)
+	}
+	return maps.Clone(s.read[s.ipOf(id)]), nil
 }
 
 // AddServices merges like the inventory: a new port is added, a listed one keeps what it had unless the item names a product
@@ -303,6 +332,9 @@ func (s *sink) AddServices(_ context.Context, h observe.AssetHint, src observe.S
 	k := h.IP.String()
 	for _, it := range items {
 		i := slices.IndexFunc(s.svc[k], func(x observe.Service) bool { return x.Port == it.Port && x.Proto == it.Proto })
+		if it.Proto == "tcp" && it.Product != "" {
+			s.markRead(k, it.Port)
+		}
 		switch {
 		case i < 0:
 			s.svc[k] = append(s.svc[k], it)
@@ -314,7 +346,10 @@ func (s *sink) AddServices(_ context.Context, h observe.AssetHint, src observe.S
 	return nil
 }
 
-func (s *sink) ReplaceServices(_ context.Context, h observe.AssetHint, src observe.Source, items []observe.Service) error {
+// ReplaceServices replaces like the inventory: inside the scope the listed ports are written and the other rows removed; a row
+// outside it stays (scope.KeepFor aside, which this fake does not age); with scope.NoVersions a listed port keeps what it had
+// unless the item names a product.
+func (s *sink) ReplaceServices(_ context.Context, h observe.AssetHint, src observe.Source, scope observe.ServiceScope, items []observe.Service) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if src != observe.Nmap {
@@ -323,7 +358,42 @@ func (s *sink) ReplaceServices(_ context.Context, h observe.AssetHint, src obser
 	if s.svc == nil {
 		s.svc = map[string][]observe.Service{}
 	}
-	s.svc[h.IP.String()] = items
+	k := h.IP.String()
+	in := func(sv observe.Service) bool {
+		return scope.Ports == nil || sv.Proto == "tcp" && slices.ContainsFunc(scope.Ports, func(r observe.PortRange) bool { return sv.Port >= r.From && sv.Port <= r.To })
+	}
+	for _, it := range items {
+		if !in(it) {
+			return fmt.Errorf("service %d/%s is outside the scope", it.Port, it.Proto)
+		}
+	}
+	for _, it := range items {
+		if it.Proto == "tcp" && (!scope.NoVersions || it.Product != "") {
+			s.markRead(k, it.Port)
+		}
+	}
+	var out []observe.Service // a row keeps its place; a new port goes last
+	for _, old := range s.svc[k] {
+		if i := slices.IndexFunc(items, func(x observe.Service) bool { return x.Port == old.Port && x.Proto == old.Proto }); i >= 0 {
+			it := items[i]
+			if scope.NoVersions && it.Product == "" {
+				it.Name, it.Product, it.Version, it.Confidence = old.Name, old.Product, old.Version, old.Confidence
+				it.Detail = cmp.Or(it.Detail, old.Detail)
+			}
+			out = append(out, it)
+		} else if !in(old) {
+			out = append(out, old)
+		} else if old.Proto == "tcp" {
+			delete(s.read[k], old.Port)
+		}
+	}
+	for _, it := range items {
+		if !slices.ContainsFunc(s.svc[k], func(x observe.Service) bool { return x.Port == it.Port && x.Proto == it.Proto }) {
+			out = append(out, it)
+		}
+	}
+	s.scopes = append(s.scopes, scope)
+	s.svc[k] = out
 	return nil
 }
 
@@ -337,7 +407,8 @@ func (s *sink) Record(_ context.Context, o []observe.Observation) error {
 	return nil
 }
 
-func (s *sink) ReplaceSoftware(_ context.Context, h observe.AssetHint, src observe.Source, _ []string, items []observe.Software) error {
+// ReplaceSoftware replaces like the inventory: a nil scope is the whole list, otherwise only the readings of the scope's instances.
+func (s *sink) ReplaceSoftware(_ context.Context, h observe.AssetHint, src observe.Source, scope []string, items []observe.Software) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if src != observe.Nmap {
@@ -346,7 +417,19 @@ func (s *sink) ReplaceSoftware(_ context.Context, h observe.AssetHint, src obser
 	if s.sw == nil {
 		s.sw = map[string][]observe.Software{}
 	}
-	s.sw[h.IP.String()] = items
+	in := func(inst string) bool { return scope == nil || slices.Contains(scope, inst) }
+	var out []observe.Software
+	for _, old := range s.sw[h.IP.String()] {
+		if !in(old.Instance) {
+			out = append(out, old)
+		}
+	}
+	for _, it := range items {
+		if in(it.Instance) {
+			out = append(out, it)
+		}
+	}
+	s.sw[h.IP.String()] = out
 	return nil
 }
 
@@ -417,6 +500,12 @@ func newEnv(t *testing.T, o fakeOpts, mut ...func(*env)) *env {
 	}
 	runViews(t, db)
 	e := &env{t: t, db: db, sink: &sink{}, ev: &events{}, base: local(9, 2, 0), t0: time.Now()}
+	e.sink.now = e.clock
+	e.sink.ipOf = func(id string) string {
+		e.inv.mu.Lock()
+		defer e.inv.mu.Unlock()
+		return e.inv.assets[id].String()
+	}
 	e.inv = &fakeInv{
 		st: sa.Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"192.168.10.0/26"}, Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "01:00", To: "05:00", Rate: 100},
 		assets: map[string]netip.Addr{

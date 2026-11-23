@@ -53,7 +53,7 @@ func TestMCPServerOnTheRealWiring(t *testing.T) {
 	if err != nil || len(recs) != 1 {
 		t.Fatalf("findings = %v, %v", recs, err)
 	}
-	if _, err := s.d.Findings.SetStatus(t.Context(), recs[0].ID, findings.ActionMitigated, "NOTE-of-the-admin: VPN portal turned off", "admin@acme.example"); err != nil {
+	if _, _, err := s.d.Findings.Handle(t.Context(), []string{recs[0].ID}, findings.ResolutionMitigated, "NOTE-of-the-admin: VPN portal turned off", time.Time{}, "admin@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 

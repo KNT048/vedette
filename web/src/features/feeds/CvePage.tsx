@@ -16,8 +16,7 @@ import { ApiError } from '@/lib/api'
 import { TierCvePage, TierDevices } from './TierCvePage'
 import { YouHaveCell } from './YouHaveCell'
 import { useModuleEnabled } from '@/lib/modules'
-import { useFindings } from '@/features/findings/api'
-import { isOpen } from '@/features/findings/basis'
+import { useCveFindings } from '@/features/findings/api'
 import { briefReasons, briefSentence, briefSources, briefStatus, fixLink, fixRows } from './brief'
 import { AffectedAll, BriefFacts, BriefRemedy, BriefSources, FixTable } from './BriefParts'
 import type { CveDetail } from './types'
@@ -126,7 +125,7 @@ function Devices({ b }: { b: CveDetail }) {
   const { t } = useTranslation('feeds')
   // "See findings" only when this CVE has open findings (a matched device may not be a finding, or all are closed)
   const findingsOn = useModuleEnabled('findings') === true
-  const openFindings = useFindings(undefined, findingsOn).data?.items.filter((f) => f.cve === b.cve && isOpen(f.status)).length ?? 0
+  const openFindings = useCveFindings(b.cve, findingsOn).hits.length
   return (
     <>
       {b.matched === null ? <ModuleOff module="inventory" /> : b.matched.length === 0 && b.not_affected ? (

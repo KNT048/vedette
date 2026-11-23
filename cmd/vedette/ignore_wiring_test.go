@@ -55,7 +55,7 @@ func TestWiringIgnoredDeviceKeepsItsFindingsAsTheyAre(t *testing.T) {
 		t.Fatalf("findings before = %d", len(recs))
 	}
 	// a person's decision on one of them
-	if _, err := s.d.Findings.SetStatus(ctx, recs["CVE-2026-1002"].ID, findings.ActionFalsePositive, "not this model", "it@acme.example"); err != nil {
+	if _, _, err := s.d.Findings.Handle(ctx, []string{recs["CVE-2026-1002"].ID}, findings.ResolutionFalsePositive, "not this model", time.Time{}, "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 	notices := pendingNotices(s)

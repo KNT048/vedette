@@ -173,6 +173,23 @@ func (h *FindingHandlers) FindingsPostFindingsIDVerify(ctx context.Context, req 
 	return Into[oas.FindingsPostFindingsIDVerifyOK](v.JSON())
 }
 
+// FindingsPostFindingsIDUnverify implements findings_post_findings_id_unverify (admin): Undo of a person's Confirm vulnerability. A
+// finding a scan or the device itself confirmed is refused (409 not_confirmed_by_person).
+func (h *FindingHandlers) FindingsPostFindingsIDUnverify(ctx context.Context, params oas.FindingsPostFindingsIDUnverifyParams) (*oas.FindingsPostFindingsIDUnverifyOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if _, err := h.svc.Unverify(ctx, params.ID, p.Email); err != nil {
+		return nil, ToAPIError(err)
+	}
+	v, err := h.svc.View(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsPostFindingsIDUnverifyOK](v.JSON())
+}
+
 // FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer: not affected (operator) closes the
 // question; affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does.
 func (h *FindingHandlers) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *oas.FindingsPostFindingsQuestionsIDAnswerReq, params oas.FindingsPostFindingsQuestionsIDAnswerParams) (*oas.FindingsPostFindingsQuestionsIDAnswerOK, error) {

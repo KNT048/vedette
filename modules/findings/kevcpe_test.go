@@ -43,9 +43,6 @@ func TestMatchAsset_910_ChromiumV8OnChrome(t *testing.T) {
 	if f := FixedInFor(a, v); f == nil || f.Kind != "fixed" || f.Fixed != "153.0.8010.36" {
 		t.Errorf("fixed_in: %+v", f)
 	}
-	if r := RowFixes(a, []Vuln{v})[v.CVE]; r == nil || r.Fixed != "153.0.8010.36" || r.Software != "Google Chrome" {
-		t.Errorf("row fix: %+v", r)
-	}
 	if got := matchedOn(a, KevInfo{Vendor: v.Vendor, Product: v.Product}, &v); got != "Google Chrome" {
 		t.Errorf("matchedOn = %q, want the Chrome row", got)
 	}
@@ -111,9 +108,6 @@ func TestMatchAsset_910_IGELEntryOnWindowsServer2025(t *testing.T) {
 	}
 	if f := FixedInFor(a, v); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.26100.6899" {
 		t.Errorf("fixed_in: %+v", f)
-	}
-	if r := RowFixes(a, []Vuln{v})[v.CVE]; r == nil || !r.Windows || r.Fixed != "10.0.26100.6899" {
-		t.Errorf("row fix: %+v", r)
 	}
 }
 

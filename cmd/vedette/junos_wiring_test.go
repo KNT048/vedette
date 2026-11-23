@@ -161,7 +161,7 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 		t.Fatalf("findings of the LLDP row: %d (%v)", len(recs), err)
 	}
 	fp := recs[0]
-	if _, err := s.d.Findings.SetStatus(ctx, fp.ID, findings.ActionFalsePositive, "J-Web is off on this switch", "anna"); err != nil {
+	if _, _, err := s.d.Findings.Handle(ctx, []string{fp.ID}, findings.ResolutionFalsePositive, "J-Web is off on this switch", time.Time{}, "anna"); err != nil {
 		t.Fatal(err)
 	}
 	h := observe.AssetHint{MAC: mgmt, IP: netip.MustParseAddr(ip)}

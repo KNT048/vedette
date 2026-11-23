@@ -2,7 +2,6 @@ package findings
 
 import (
 	"context"
-	"time"
 )
 
 // Event names published by this module (CONTRACT, Events).
@@ -187,24 +186,6 @@ type CVSS struct {
 	Vector  string  `json:"vector"`  // NVD's vector string ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…")
 }
 
-// TierStatus is what the tier feeds of feeds hold: "off", "loading" or "ready" for epss-all and nvd-recent,
-// the day of the EPSS scores and the first published day nvd-recent covers (zero unless ready).
-type TierStatus struct {
-	EPSS, Recent          string
-	EPSSDate, RecentSince time.Time
-}
-
-// DistroTier is the distributions' data for "Updates to plan" (Feeds.TierDistro, feeds' TierDistro).
-type DistroTier struct {
-	// Vulns are the tier CVEs (as TierVulns: published in the last 12 months, EPSS) for which a distribution feed that is on has a row
-	// (fixed, not affected, open) of one of the packages, each with those rows in Distro and no Affected.
-	Vulns []TierVuln
-	// Covered holds the releases ("ubuntu/24.04"; "alpine/" for a package asked with no release) the feeds stored rows for in a pull
-	// made for the devices' packages; Known the packages ("alpine/openssh") a feed that is on has any row of; Loading the distributions
-	// whose feed is on but holds no row yet.
-	Covered, Known, Loading map[string]bool
-}
-
 // Feeds is what findings reads from the feeds module (WP-20; not built yet). findings never reads
 // feeds_* tables (FORBID-5 of feeds).
 type Feeds interface {
@@ -219,16 +200,4 @@ type Feeds interface {
 	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
 	// the scope's packages. None while the feeds module is off.
 	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
-	// TierStatus says what the tier feeds hold, for GET /findings/plan.
-	TierStatus(ctx context.Context) (TierStatus, error)
-	// TierVulns returns the CVEs of the tier data (nvd-recent, with the EPSS of epss-all) published in the last 12 months whose NVD
-	// affected entries name a CPE keep accepts, each with those entries only. None while nvd-recent is not ready or the feeds
-	// module is off; no EPSS while epss-all is not ready.
-	TierVulns(ctx context.Context, keep func(cpe string) bool) ([]TierVuln, error)
-	// TierDistro returns the distributions' data of pkgs for the plan (DistroTier). Nothing while the feeds module is off; only Loading
-	// while nvd-recent is not ready.
-	TierDistro(ctx context.Context, pkgs []DistroPackage) (DistroTier, error)
-	// TierStamp changes whenever what TierVulns or TierDistro returns may have changed: a pull or switch of epss-all, nvd-recent,
-	// nvd-kev, ubuntu-osv or debian-tracker, or the feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).
-	TierStamp(ctx context.Context) (string, error)
 }

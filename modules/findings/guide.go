@@ -267,9 +267,6 @@ type Row struct {
 	Asset         *AssetView   `json:"asset"`
 	Kev           *KevInfo     `json:"kev"`
 	CVSS          *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
-	// Fix is the one update that fixes this finding together with the device's other open findings of the same software:
-	// set on the list only, for an open finding; nil when Vedette cannot name one.
-	Fix *RowFix `json:"fix"`
 	// Known is the version of the software the finding was matched on, set by Detail for the guidance (Guidance reads the Row); the
 	// page reads Detail.KnownVersion.
 	Known *KnownVersion `json:"-"`

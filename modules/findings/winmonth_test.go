@@ -310,8 +310,8 @@ func TestReconcile_BuildMonthFromTheWholeList(t *testing.T) {
 	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("October 2024 entry on a build from August: %+v %v", r.Row, err)
 	}
-	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
-	if err != nil || !slices.ContainsFunc(rows, func(u UncheckedRow) bool { return u.CVE == "CVE-2024-90023" }) {
-		t.Fatalf("October 2024 entry not under could not be checked: %+v %v", rows, err)
+	qs, err := e.svc.Questions(t.Context(), dev.ID)
+	if err != nil || !slices.ContainsFunc(qs, func(q Question) bool { return q.CVE == "CVE-2024-90023" }) {
+		t.Fatalf("October 2024 entry not a question: %+v %v", qs, err)
 	}
 }

@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { assetsStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { records } from '@/features/findings/modelMocks'
 import { scannerStore } from '@/features/scan/mocks'
 import type { ScanRun } from '@/features/scan/types'
 import { historyStore, markReached } from './mocks'
@@ -18,11 +19,16 @@ const run = (over: Partial<ScanRun>): ScanRun => ({
   id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
   status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
 })
-/** A suspected finding a vulnerability check can confirm (its CVE has a safe check): the device page offers the run. */
-const checkableOn = (asset: string) => {
-  const tpl = findingsStore.get()[0]!
-  findingsStore.update((l) => [...l, { ...tpl, id: `f-chk-${asset}`, asset_id: asset, cve: 'CVE-2026-97229', status: 'suspected' as const }])
+/** An open finding of the device in the findings model (what By device lists): not confirmed yet unless `verified` says so. */
+const openOn = (asset: string, cve: string, i: number, verified: 'no' | 'device' = 'no') => {
+  const tpl = records.get()[0]!
+  records.update((l) => [...l, { ...tpl, id: `fv-t-${asset}-${i}`, asset_id: asset, cve, software: null, verified, verified_by: null, verified_at: null, layer: 5,
+    fix: { ...tpl.fix, key: `t|${cve}` }, state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null, reopened: null }])
 }
+/** CVE-2024-4577 has a safe check in the sample data; CVE-2024-27834 and CVE-2026-97229 have none. */
+const CHECKABLE = 'CVE-2024-4577'
+/** A suspected finding a vulnerability check can confirm (its CVE has a safe check): the device page offers the run. */
+const checkableOn = (asset: string) => openOn(asset, CHECKABLE, 0)
 const result = (target: string, cve: string) => ({ target_id: target, label: target, ip: '192.168.10.21', template: null, result: 'no_template' as const, finding_id: null, note: cve })
 
 describe('the device page says what each check does and when each last ran', () => {
@@ -200,16 +206,13 @@ describe('Last checks never points at a button the device page does not show', (
     expect(within(section).queryByText(/above/)).toBeNull()
   })
 
-  // The run can only confirm the findings whose CVE has a safe check (the KEV entry's has_template)
-  const suspect = (cves: string[]) => {
-    const tpl = findingsStore.get()[0]!
-    findingsStore.update((l) => [...l, ...cves.map((cve, i) => ({ ...tpl, id: `f-man-${i}`, asset_id: 'a-man1', cve, status: 'suspected' as const }))])
-  }
+  // The run can only confirm the findings whose CVE has a safe check (CveRow.safe_check)
+  const suspect = (cves: string[], verified: 'no' | 'device' = 'no') => cves.forEach((cve, i) => openOn('a-man1', cve, i, verified))
 
   it('0 of 2 suspected findings have a safe check: no run is offered; why and what decides them is behind the row\'s info icon', async () => {
     noRuns()
     addDevice({ ip: '192.168.10.241' })
-    suspect(['CVE-2024-27834', 'CVE-2026-119977'])
+    suspect(['CVE-2024-27834', 'CVE-2026-97229'])
     renderApp('/devices/a-man1')
     const section = await lastChecks()
     const vuln = await within(section).findByRole('group', { name: VULN }, T)
@@ -220,7 +223,7 @@ describe('Last checks never points at a button the device page does not show', (
   it('1 of 2 suspected findings has a safe check: the run is offered and the note says 1 of 2', async () => {
     noRuns()
     addDevice({ ip: '192.168.10.241' })
-    suspect(['CVE-2024-27834', 'CVE-2026-97229'])
+    suspect(['CVE-2024-27834', CHECKABLE])
     renderApp('/devices/a-man1')
     const section = await lastChecks()
     expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 of 2 suspected findings can be checked\./)
@@ -229,8 +232,7 @@ describe('Last checks never points at a button the device page does not show', (
   it('every finding confirmed and none with a safe check: no run is offered, the note says why, the row never names the button', async () => {
     noRuns()
     addDevice({ ip: '192.168.10.241' })
-    suspect(['CVE-2024-27834', 'CVE-2026-119977'])
-    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'confirmed' as const } : f)))
+    suspect(['CVE-2024-27834', 'CVE-2026-97229'], 'device')
     renderApp('/devices/a-man1')
     const section = await lastChecks()
     expect(await within(section).findByText(/No suspected finding on this device has a safe check: nothing on it is suspected/, undefined, T)).toBeInTheDocument()
@@ -241,22 +243,10 @@ describe('Last checks never points at a button the device page does not show', (
   it('a confirmed finding with a safe check: the run is offered to check it again', async () => {
     noRuns()
     addDevice({ ip: '192.168.10.241' })
-    suspect(['CVE-2026-97229'])
-    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'confirmed' as const } : f)))
+    suspect([CHECKABLE], 'device')
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 confirmed or mitigated finding can be checked again, to see whether a fix or mitigation holds\./)
-  })
-
-  it('a mitigated finding with a safe check is its only one: the run is offered to see whether the mitigation holds', async () => {
-    noRuns()
-    addDevice({ ip: '192.168.10.241' })
-    suspect(['CVE-2026-97229'])
-    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-man1' ? { ...f, status: 'mitigated' as const } : f)))
-    renderApp('/devices/a-man1')
-    const section = await lastChecks()
-    expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 confirmed or mitigated finding can be checked again/)
-    expect(within(section).queryByText(/a run would do nothing/)).toBeNull()
+    expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 confirmed finding can be checked again, to see whether a fix holds\./)
   })
 
   it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {

@@ -185,7 +185,7 @@ func TestMatchStamp_EveryChangeMatchesTheDeviceAgain(t *testing.T) {
 			if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = 'eq-office' AND state = 'open' ORDER BY cve LIMIT 1`).Scan(&id); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := svc.SetStatus(t.Context(), id, ActionFalsePositive, "not exposed on this device", "anna"); err != nil {
+			if _, err := svc.mark(t.Context(), id, "false_positive", "not exposed on this device", "anna"); err != nil {
 				t.Fatal(err)
 			}
 		})

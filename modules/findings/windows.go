@@ -655,45 +655,6 @@ func windowsFixedIn(in swInfo, v Vuln) (*FixedIn, bool) {
 	return nil, true
 }
 
-// windowsGroupFix is groupFixOf for a Windows release row: one monthly update fixes every entry it is affected by through a range
-// with an end, the latest of those ends (kind fixed, or esu when that needs Extended Security Updates), raised to the newest monthly
-// update Microsoft lists for the release when that is newer (winLatest: NVD has not analysed the newest month's CVEs yet). When one
-// of them can only be fixed by a feature update, the line is that (kind feature_update, Fixed the release that has the fix): no
-// monthly update clears the device. now dates the count's lag (winLatest; zero: none, for exploited findings, whose count is theirs).
-// nil when none.
-func windowsGroupFix(in swInfo, vulns []Vuln, now time.Time) *GroupFix {
-	d, _ := winDevice(in)
-	closed := map[string]bool{}
-	fixed, kind, branch := "", "fixed", ""
-	for _, v := range vulns {
-		w, ok := windowsDecide(in, v, true, time.Time{})
-		if !ok || w.t != Yes || w.within.EndExcl == "" {
-			continue
-		}
-		closed[v.CVE] = true
-		k, _, b := winFix(w, d)
-		switch {
-		case k == "feature_update":
-			kind, branch = k, b
-		case k == "esu" && kind == "fixed":
-			kind = k
-		}
-		if c, ok := compareBound(w.within.EndExcl, fixed); fixed == "" || ok && c > 0 {
-			fixed = w.within.EndExcl
-		}
-	}
-	if len(closed) == 0 {
-		return nil
-	}
-	lag, kb := false, ""
-	if kind == "feature_update" {
-		fixed = branch
-	} else {
-		fixed, kb, lag = winLatest(d, fixed, kind, now)
-	}
-	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed, Ranged: maps.Clone(closed), NVDLag: lag, KB: kb}
-}
-
 // winNVDLagWindow is how long after Microsoft publishes a monthly update the count of its release's item still says "at least": NVD
 // analyses a Patch Tuesday's CVEs over days to weeks (hundreds of them each month), so one analysed CVE of the newest month says nothing
 // about the rest. About six weeks: by then the next month's update is out, and NVD has usually caught up with the one before.

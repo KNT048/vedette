@@ -25,9 +25,8 @@ func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Del
 	return err
 }
 
-// DeleteCommitted forgets the deleted device's plan items.
-func (s *Service) DeleteCommitted(_ context.Context, d lifecycle.Delete) {
-	s.dropPlan(d.Device)
+// DeleteCommitted drops the kept Home answer (overview.go): the deleted device's findings are gone.
+func (s *Service) DeleteCommitted(_ context.Context, _ lifecycle.Delete) {
 	s.gen.Add(1)
 }
 
@@ -181,10 +180,8 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into, Detail: detail})
 }
 
-// MergeCommitted forgets From's plan items and marks Into's to compare again.
-func (s *Service) MergeCommitted(_ context.Context, m lifecycle.Merge) {
-	s.dropPlan(m.From)
-	s.markPlan(m.Into)
+// MergeCommitted drops the kept Home answer (overview.go): the merged devices' findings changed.
+func (s *Service) MergeCommitted(_ context.Context, _ lifecycle.Merge) {
 	s.gen.Add(1)
 }
 

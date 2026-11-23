@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { collection } from '@/mocks/db'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { records } from '@/features/findings/modelMocks'
 import kevProducts from '../../../../content/catalog/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
 import { catalogPath, CATALOG_Q_MAX } from './api'
@@ -846,8 +847,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(within(row8080).getByText('5.1.0')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: /^Software/ }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
-    // The row says what it needs, linked to the device's To fix
-    expect(await within(sw).findByRole('link', { name: '1 exploited CVE' }, T)).toHaveAttribute('href', '/findings?tab=open&device=a-nas02')
+    // The row says what it needs: its open findings, as the device's Findings tab lists them
+    expect(await within(sw).findByText('1 open finding', undefined, T)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -855,31 +856,31 @@ describe('inventory: device detail (S-INV-1)', () => {
   // The row is looked up on every try: the table re-renders when the module list and the findings arrive.
   const photoStation = () => within(screen.getByRole('table', { name: 'Software on the device' })).getByText('QNAP Photo Station').closest('tr')!
   const openSoftwareTab = () => renderApp('/devices/a-nas02?tab=software')
-  it('an open finding shows on the software row as what it needs, linked to the device\'s To fix', async () => {
+  it('an open finding shows on the software row as what it needs, with its status', async () => {
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toHaveAttribute('href', '/findings?tab=open&device=a-nas02'), T)
+    await waitFor(() => expect(within(photoStation()).getByText('1 open finding')).toBeInTheDocument(), T)
   })
 
   it('an exploited CVE of the product without an open finding on the device is not shown', async () => {
-    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-nas02' ? { ...f, status: 'not_relevant' as const } : f)))
+    records.update((l) => l.map((r) => (r.asset_id === 'a-nas02' ? { ...r, state: 'handled' as const, resolution: 'not_relevant' as const, via: 'person' as const, resolved_by: 'admin@acme.example', resolved_at: r.last_seen } : r)))
     openSoftwareTab()
     await screen.findByRole('table', { name: 'Software on the device' }, T)
     await waitFor(() => expect(screen.queryByText('Checking findings')).toBeNull(), T)
-    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull() // nothing on a clean row
+    expect(within(photoStation()).queryByText(/open finding/)).toBeNull() // nothing on a clean row
   })
 
   it('with findings off the column says so instead of listing the product\'s exploited CVEs', async () => {
     enableModule('findings', false)
     openSoftwareTab()
     await waitFor(() => expect(within(photoStation()).getByText('Findings are off')).toBeInTheDocument(), T)
-    expect(within(photoStation()).queryByRole('link', { name: /exploited CVE/ })).toBeNull()
+    expect(within(photoStation()).queryByText(/open finding/)).toBeNull()
   })
 
   it('INV-41 (6): a row a scan reported is marked Not installed after one confirmation; it shows as the person said, with Clear', async () => {
     const user = userEvent.setup()
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'suspected' as const, basis: 'version' as const } : f)))
     openSoftwareTab()
-    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T) // the row is settled: findings arrived
+    await waitFor(() => expect(within(photoStation()).getByText('1 open finding')).toBeInTheDocument(), T) // the row is settled: findings arrived
     // an unmarked row offers the action in its menu; no status text until a person marks it
     expect(within(photoStation()).queryByText(/^Not installed/)).toBeNull()
     await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
@@ -908,7 +909,7 @@ describe('inventory: device detail (S-INV-1)', () => {
   it('INV-41 (6): the toast says when a finding stays open, and why (a scan confirmed it)', async () => {
     const user = userEvent.setup()
     openSoftwareTab() // f-1 on Photo Station is confirmed by a scan
-    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: '1 exploited CVE' })).toBeInTheDocument(), T)
+    await waitFor(() => expect(within(photoStation()).getByText('1 open finding')).toBeInTheDocument(), T)
     await user.click(within(photoStation()).getByRole('button', { name: 'Actions for QNAP Photo Station' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Mark not installed…' }, T))
     await user.click(within(await screen.findByRole('dialog', undefined, T)).getByRole('button', { name: 'Not installed' }))

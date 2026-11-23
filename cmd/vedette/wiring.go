@@ -340,9 +340,8 @@ func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 
 type findingsFeeds struct {
 	st    *feeds.Store
-	cache *vulnCache       // nil: read the list every time
-	on    func() bool      // whether the feeds module is on (TierVulns reads nothing while it is off); nil: on
-	clock func() time.Time // nil: time.Now
+	cache *vulnCache  // nil: read the list every time
+	on    func() bool // whether the feeds module is on (MatchSet reads nothing while it is off); nil: on
 }
 
 // vulnCache keeps the last list for matching with the feeds stamp it was read under (a rematch of every
@@ -393,76 +392,6 @@ func (a findingsFeeds) CVSS(ctx context.Context, cves []string) (map[string]find
 		out[cve] = findings.CVSS{Score: c.Score, Version: c.Version, Source: c.Source, Vector: c.Vector}
 	}
 	return out, nil
-}
-
-// TierStatus is feeds' state of the tier feeds for GET /findings/plan.
-func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, error) {
-	st, err := a.st.TierStatus(ctx, time.Now())
-	if err != nil {
-		return findings.TierStatus{}, err
-	}
-	return findings.TierStatus{EPSS: string(st.EPSS), Recent: string(st.Recent), EPSSDate: st.EPSSDate, RecentSince: st.RecentSince}, nil
-}
-
-// TierStamp is feeds' stamp of the tier data (Store.TierStamp) with the feeds module's switch: the plan job compares every device again
-// when it changes.
-func (a findingsFeeds) TierStamp(ctx context.Context) (string, error) {
-	if a.on != nil && !a.on() {
-		return "feeds-off", nil
-	}
-	return a.st.TierStamp(ctx)
-}
-
-// TierVulns is feeds' tier data for "Updates to plan": nothing while the feeds module is off (modules.md: its data is not read).
-func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool) ([]findings.TierVuln, error) {
-	if a.on != nil && !a.on() {
-		return nil, nil
-	}
-	now := time.Now()
-	if a.clock != nil {
-		now = a.clock()
-	}
-	recs, err := a.st.TierRecords(ctx, now, keep)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]findings.TierVuln, len(recs))
-	for i, r := range recs {
-		out[i] = findings.TierVuln{CVE: r.CVE, Tier: r.Tier, Published: r.Published, Severity: strings.ToLower(r.Severity), Score: r.Score, EPSS: r.EPSS, Percentile: r.Percentile,
-			Affected: make([]findings.Affected, len(r.Affected)), Platforms: r.Platforms}
-		for j, af := range r.Affected {
-			out[i].Affected[j] = findings.Affected{CPE: af.CPE, Range: findings.VersionRange{StartIncl: af.StartIncl, StartExcl: af.StartExcl, EndIncl: af.EndIncl, EndExcl: af.EndExcl}}
-		}
-	}
-	return out, nil
-}
-
-// TierDistro is the distributions' tier data for "Updates to plan": nothing while the feeds module is off.
-func (a findingsFeeds) TierDistro(ctx context.Context, pkgs []findings.DistroPackage) (findings.DistroTier, error) {
-	if a.on != nil && !a.on() {
-		return findings.DistroTier{}, nil
-	}
-	now := time.Now()
-	if a.clock != nil {
-		now = a.clock()
-	}
-	in := make([]feeds.DistroPackage, len(pkgs))
-	for i, p := range pkgs {
-		in[i] = feeds.DistroPackage{Distro: p.Distro, Release: p.Release, Package: p.Package}
-	}
-	td, err := a.st.TierDistroRecords(ctx, now, in)
-	if err != nil {
-		return findings.DistroTier{}, err
-	}
-	out := make([]findings.TierVuln, len(td.Records))
-	for i, r := range td.Records {
-		out[i] = findings.TierVuln{CVE: r.CVE, Tier: r.Tier, Published: r.Published, Severity: strings.ToLower(r.Severity), Score: r.Score, EPSS: r.EPSS, Percentile: r.Percentile,
-			Distro: make([]findings.DistroFix, len(r.Distro))}
-		for j, d := range r.Distro {
-			out[i].Distro[j] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
-		}
-	}
-	return findings.DistroTier{Vulns: out, Covered: td.Covered, Known: td.Known, Loading: td.Loading}, nil
 }
 
 // Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev), or
@@ -890,7 +819,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("feeds: %w", err)
 	}
 	inv := findingsInventory{d.Inventory}
-	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}, clock: d.Clock}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
 	if d.Reg != nil {
 		feed.on = func() bool { return d.Reg.Enabled("feeds") }
 	}
@@ -919,7 +848,6 @@ func buildServices(ctx context.Context, d *deps) error {
 		home.Devices = d.Inventory.DeviceCounts
 	}
 	d.FindingHandlers.SetHome(home)
-	d.FindingHandlers.SetAgents(agentReports(d))
 	d.FindingHandlers.SetScanReach(scanReach(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
@@ -937,7 +865,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if err != nil {
 		return err
 	}
-	provider.SetAgents(agentReports(d)) // the same agent check as Updates to plan: "How to check" never promises a gone agent
+	provider.SetAgents(agentReports(d)) // "How to check" never promises an agent that no longer reports the device
 	d.FindingHandlers.SetGuidance(provider)
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
@@ -1016,19 +944,6 @@ func subscribe(d deps) {
 		}
 		return err
 	}))
-	// "Updates to plan" compares a device again on any change of its software (a version upgrade, a new
-	// product without an exploited-list key, a removed row: inventory.match.changed covers only exploited-list keys) and on any
-	// discovered or updated device (its agent's OS decides platform-limited CVEs). Only a mark: the plan job does the work.
-	for _, name := range []string{inventory.EventSoftwareChanged, inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
-		d.Bus.Subscribe(name, on("findings", func(_ context.Context, data any) error {
-			ev, ok := data.(inventory.AssetEvent)
-			if !ok {
-				return fmt.Errorf("unexpected payload %T", data)
-			}
-			d.Findings.MarkPlan(ev.AssetID)
-			return nil
-		}))
-	}
 	// An ignored device's findings stay as they are: ignoring is an attribute of the device, and every list leaves its findings out
 	// (while it is ignored nothing new is made: MatchInput says it is not there, AssetIDs leaves it out). It is silent too: the urgency
 	// pass does not rate its findings, so no rise of them reaches notify, response, the SIEM export or To review. Stop ignoring sends

@@ -1354,7 +1354,8 @@ type Handler interface {
 	FeedsPutFeedsSourcesID(ctx context.Context, req *FeedsPutFeedsSourcesIDReq, params FeedsPutFeedsSourcesIDParams) (*FeedsPutFeedsSourcesIDOK, error)
 	// FindingsGetFindings implements findings_get_findings operation.
 	//
-	// List findings (CVE x device), optionally for one device.
+	// The findings of one device in every state, newest first, each with its history: what a version
+	// entry, "I updated it" or "Not installed" changed on the device.
 	//
 	// GET /findings
 	FindingsGetFindings(ctx context.Context, params FindingsGetFindingsParams) (*FindingsGetFindingsOK, error)
@@ -1405,20 +1406,6 @@ type Handler interface {
 	//
 	// GET /findings/overview
 	FindingsGetFindingsOverview(ctx context.Context) (*FindingsGetFindingsOverviewOK, error)
-	// FindingsGetFindingsPlan implements findings_get_findings_plan operation.
-	//
-	// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
-	// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
-	//
-	// GET /findings/plan
-	FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (*FindingsGetFindingsPlanOK, error)
-	// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
-	//
-	// To fix: every device that needs an update or an action, the most urgent first, each with its actions
-	// in plain sentences (findings.DeviceUpdates), at most 500 devices.
-	//
-	// GET /findings/to-fix
-	FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (*FindingsGetFindingsToFixOK, error)
 	// FindingsPostFindingsHandle implements findings_post_findings_handle operation.
 	//
 	// Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -1439,33 +1426,19 @@ type Handler interface {
 	//
 	// POST /findings/{id}/applied
 	FindingsPostFindingsIDApplied(ctx context.Context, req *FindingsPostFindingsIDAppliedReq, params FindingsPostFindingsIDAppliedParams) (*FindingsPostFindingsIDAppliedOK, error)
-	// FindingsPostFindingsIDConfirm implements findings_post_findings_id_confirm operation.
-	//
-	// Confirm a suspected finding on your own word (admin): basis person, status confirmed; a note is
-	// required and goes into the history as "Confirmed by : ".
-	//
-	// POST /findings/{id}/confirm
-	FindingsPostFindingsIDConfirm(ctx context.Context, req *FindingsPostFindingsIDConfirmReq, params FindingsPostFindingsIDConfirmParams) (*FindingsPostFindingsIDConfirmOK, error)
 	// FindingsPostFindingsIDReopen implements findings_post_findings_id_reopen operation.
 	//
 	// Open a handled finding again (a person's handling was a mistake); history and audit.
 	//
 	// POST /findings/{id}/reopen
 	FindingsPostFindingsIDReopen(ctx context.Context, req *FindingsPostFindingsIDReopenReq, params FindingsPostFindingsIDReopenParams) (*FindingsPostFindingsIDReopenOK, error)
-	// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
+	// FindingsPostFindingsIDUnverify implements findings_post_findings_id_unverify operation.
 	//
-	// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
-	// with a note.
+	// Undo Confirm vulnerability: a finding a person confirmed is not confirmed again (one a scan or the
+	// device confirmed is refused, 409 not_confirmed_by_person); history and audit.
 	//
-	// POST /findings/{id}/status
-	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
-	// FindingsPostFindingsIDUnconfirm implements findings_post_findings_id_unconfirm operation.
-	//
-	// Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan
-	// confirmed is refused.
-	//
-	// POST /findings/{id}/unconfirm
-	FindingsPostFindingsIDUnconfirm(ctx context.Context, params FindingsPostFindingsIDUnconfirmParams) (*FindingsPostFindingsIDUnconfirmOK, error)
+	// POST /findings/{id}/unverify
+	FindingsPostFindingsIDUnverify(ctx context.Context, params FindingsPostFindingsIDUnverifyParams) (*FindingsPostFindingsIDUnverifyOK, error)
 	// FindingsPostFindingsIDVerify implements findings_post_findings_id_verify operation.
 	//
 	// Confirm vulnerability on your own word: verified by a person; the note says what makes you sure;

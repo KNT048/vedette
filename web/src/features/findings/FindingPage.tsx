@@ -18,7 +18,7 @@ import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
-import { useFinding, useSetStatus } from './api'
+import { useFinding, useReopen } from './api'
 import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
@@ -29,7 +29,7 @@ import { SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
-import { StatusDialog } from './Handle'
+import { HandleDialog } from './HandleDialog'
 import { CveBriefCard } from './CveBrief'
 
 function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
@@ -158,7 +158,7 @@ function ClosedNotice({ f, reopen }: { f: FindingDetail; reopen: ReactNode }) {
 function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: string }[] }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
-  const set = useSetStatus(f.id)
+  const reopen = useReopen()
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const opener = useRef<HTMLButtonElement>(null)
@@ -169,7 +169,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const agentGone = useFindingAgentGone(f)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const reopenButton = (
-    <Button disabled={!can} busy={set.isPending} busyLabel={t('status.reopening')} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
+    <Button disabled={!can} busy={reopen.isPending} busyLabel={t('status.reopening')} title={needRole} onClick={() => reopen.mutate({ id: f.id, note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
   )
   const open_ = isOpen(f.status)
   const body = (
@@ -230,7 +230,10 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
         </div>
         <Aside f={f} />
       </div>
-      <StatusDialog f={f} open={open} onOpenChange={setOpen} opener={opener} />
+      {open ? (
+        <HandleDialog onClose={() => { setOpen(false); opener.current?.focus() }} rows={[{ id: f.id, cve: f.cve }]}
+          device={{ id: f.asset?.id ?? f.asset_id, name, ip: f.asset && hasIp(f.asset) ? f.asset.ip : null, kind: f.asset?.kind ?? 'unknown', added: f.asset?.approved ?? true, ignored: f.asset?.ignored ?? false }} />
+      ) : null}
       {confirming ? <ConfirmDialog f={f} onClose={() => setConfirming(false)} opener={confirmOpener} /> : null}
     </>
   )

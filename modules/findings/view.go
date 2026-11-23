@@ -21,6 +21,8 @@ type View struct {
 	Device   AssetView // the device as the Devices page names it
 	Line     *Line     // the software line; nil when the finding is on no line or the line is gone
 	Severity *CVSS     // the CVE's CVSS base score; nil when not scored yet
+	// SafeCheck: a safe vulnerability check exists for the CVE (ServiceConfig.SafeCheck) and the device has an address to run it on.
+	SafeCheck bool
 
 	// Only on the finding's own read (Service.View):
 	Reasons []ViewReason // every layer of 1..4 that applies at or below the stored layer, most urgent first
@@ -85,6 +87,7 @@ func (s *Service) views(ctx context.Context, fs []Finding) ([]View, error) {
 	out := make([]View, len(fs))
 	for i, f := range fs {
 		out[i] = ref.view(f)
+		out[i].SafeCheck = s.cfg.SafeCheck != nil && s.cfg.SafeCheck(f.CVE) && out[i].Device.HasIP()
 	}
 	return out, nil
 }
@@ -312,10 +315,12 @@ type cveRowJS struct {
 	Status   string         `json:"status"`
 	Severity *cveSeverityJS `json:"severity"`
 	Verified string         `json:"verified"`
+	Check    bool           `json:"safe_check"`
 }
 
 func cveRow(v View) cveRowJS {
-	return cveRowJS{ID: v.Finding.ID, CVE: v.Finding.CVE, Status: v.Status(), Severity: severityJS(v.Severity), Verified: string(v.Finding.Verified)}
+	return cveRowJS{ID: v.Finding.ID, CVE: v.Finding.CVE, Status: v.Status(), Severity: severityJS(v.Severity), Verified: string(v.Finding.Verified),
+		Check: v.SafeCheck}
 }
 
 type reasonJS struct {

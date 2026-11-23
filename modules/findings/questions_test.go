@@ -128,62 +128,6 @@ func TestUnchecked_910_OnePlacePerDeviceAndCVE(t *testing.T) {
 	}
 }
 
-// Rule 3: add_version only for not_comparable on a row a person typed; rule 4: no software id for the OS a device states; rule 5:
-// the advisory is the first KEV link; rule 6: devices by name, software by display, CVEs newest first; a CVE no longer on the list
-// is left out.
-func TestUnchecked_910_ItemsActionAndOrder(t *testing.T) {
-	t.Parallel()
-	row := func(asset, sw, display, ver, src string, r UncheckedReason, cve string) UncheckedRow {
-		return UncheckedRow{AssetID: asset, Unchecked: Unchecked{CVE: cve, SoftwareID: sw, Software: display, Version: ver, Source: src, Reason: r}}
-	}
-	rows := []UncheckedRow{
-		row("a2", "s1", "Zeta App", "1.0", "manual", UncheckedNotComparable, "CVE-2026-0001"),
-		row("a2", "s1", "Zeta App", "1.0", "manual", UncheckedNotComparable, "CVE-2026-0003"),
-		row("a2", "s1", "Zeta App", "1.0", "manual", UncheckedNotComparable, "CVE-2026-0002"),
-		row("a2", "s2", "alpha tool", "", "manual", UncheckedNotNamed, "CVE-2026-0001"),
-		row("a1", "os:a1", "Cisco IOS", "15.2(4)M3", "snmp", UncheckedNotComparable, "CVE-2026-0002"),
-		row("a1", "s3", "Beta", "2", "agent", UncheckedNotComparable, "CVE-2026-0009"), // not on the list any more
-	}
-	kev := map[string]KevInfo{
-		"CVE-2026-0001": {Name: "One", DateAdded: "2026-01-05", Links: []string{"https://vendor.example/a1", "https://nvd.example"}},
-		"CVE-2026-0002": {Name: "Two", DateAdded: "2026-03-01", Ransomware: true},
-		"CVE-2026-0003": {Name: "Three", DateAdded: "2026-02-01", Links: []string{"not a url"}},
-	}
-	assets := map[string]AssetView{"a1": {ID: "a1", Name: "Zulu"}, "a2": {ID: "a2", Name: "alpha"}}
-	items := UncheckedItems(rows, kev, assets, nil)
-	type got struct {
-		asset, sw, action string
-		swID              bool
-		cves              []string
-	}
-	var g []got
-	for _, it := range items {
-		x := got{asset: it.AssetID, sw: it.Software, action: it.Action, swID: it.SoftwareID != nil}
-		for _, c := range it.CVEs {
-			x.cves = append(x.cves, c.CVE)
-		}
-		g = append(g, x)
-	}
-	want := []got{
-		{"a2", "alpha tool", "none", true, []string{"CVE-2026-0001"}},
-		{"a2", "Zeta App", "add_version", true, []string{"CVE-2026-0002", "CVE-2026-0003", "CVE-2026-0001"}},
-		{"a1", "Cisco IOS", "none", false, []string{"CVE-2026-0002"}},
-	}
-	if !slices.EqualFunc(g, want, func(a, b got) bool {
-		return a.asset == b.asset && a.sw == b.sw && a.action == b.action && a.swID == b.swID && slices.Equal(a.cves, b.cves)
-	}) {
-		t.Fatalf("items = %+v", g)
-	}
-	cves := items[1].CVEs
-	if cves[2].Advisory == nil || *cves[2].Advisory != "https://vendor.example/a1" || cves[1].Advisory != nil || cves[0].Advisory != nil ||
-		!cves[0].Ransomware || cves[0].Name != "Two" || cves[0].DateAdded != "2026-03-01" {
-		t.Fatalf("cves = %+v", cves)
-	}
-	if items[0].Version != nil || items[1].Version == nil || *items[1].Version != "1.0" {
-		t.Fatalf("versions = %+v", items)
-	}
-}
-
 // #919 r1: CISA keys CVE-2018-0171 "IOS and IOS XE" but NVD lists only classic cisco:ios; on an IOS XE device that states its
 // (orderable) version it is not a finding but could not be checked: NVD names another product, so not_named, action none.
 func TestUnchecked_910_NetworkOSNVDOtherProductIsNotNamed(t *testing.T) {
@@ -223,20 +167,12 @@ func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 	}
 }
 
-// A platform-limited CVE only a person's answer decides is its own item with the question and the answers that settle it:
+// A platform-limited CVE only a person's answer decides gets the question and the answers that settle it (Needs your input):
 // one click sets the device's OS (per Alpine branch), or the person types the OS or the package release.
-func TestUncheckedItems_Question(t *testing.T) {
+func TestPlatformQuestion_AnswersThatSettleIt(t *testing.T) {
 	t.Parallel()
-	kev := map[string]KevInfo{"CVE-2026-123158": {Name: "OpenBSD OpenSSH", DateAdded: "2026-11-06"}, "CVE-2099-0001": {Name: "x", DateAdded: "2026-01-01"}}
-	assets := map[string]AssetView{"a-1": {ID: "a-1", Name: "gw-alpine"}}
-	row := func(cve string, r UncheckedReason) UncheckedRow {
-		return UncheckedRow{AssetID: "a-1", Unchecked: Unchecked{CVE: cve, SoftwareID: "s-1", Software: "OpenSSH", Version: "10.2", Source: "nmap", Reason: r}}
-	}
-	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
-	if len(items) != 2 || items[0].Reason != UncheckedPlatformUnknown || items[0].Action != "answer_platform" || items[1].Question != nil || items[1].Action != "none" {
-		t.Fatalf("items %+v", items)
-	}
-	q := items[0].Question
+	feed := alpineSSH()
+	q := platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPlatformUnknown, "", feed)
 	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on gw-alpine Alpine Linux's openssh-server package") || q.Command == nil || *q.Command != "cat /etc/alpine-release" {
 		t.Fatalf("question %+v", q)
 	}
@@ -246,25 +182,26 @@ func TestUncheckedItems_Question(t *testing.T) {
 		q.Answers[8].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
 		t.Fatalf("answers %+v", q.Answers)
 	}
-	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
-	q = items[0].Question
+	if q := platformQuestion("CVE-2099-0001", "gw-alpine", UncheckedNoNVDVersions, "", nil); q != nil {
+		t.Fatalf("a CVE that is not platform-limited asked %+v", q)
+	}
+	q = platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPackageUnknown, "", feed)
 	if q == nil || q.Command == nil || *q.Command != "apk info -e -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
 		!strings.Contains(q.Text, "Which openssh-server package release does gw-alpine have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
 		t.Fatalf("package question %+v", q)
 	}
-	bad := row("CVE-2026-123158", UncheckedPackageUnknown)
-	bad.Answer = "10.2p1" // review r1 M2 of #961: a release Vedette could not read is said
-	q = UncheckedItems([]UncheckedRow{bad}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})[0].Question
+	// review r1 M2 of #961: a release Vedette could not read is said
+	q = platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPackageUnknown, "10.2p1", feed)
 	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.3_p1-r2") {
 		t.Fatalf("unreadable answer %+v", q)
 	}
 	// without the feed's rows (a package question stays only while alpine-osv is on and not loaded) the
 	// question says so and lists no release; the platform question offers only Alpine Linux and another system, never releases made up
-	if q := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, nil)[0].Question; q == nil ||
+	if q := platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPackageUnknown, "", nil); q == nil ||
 		!strings.HasPrefix(q.Text, "Alpine Linux's fixed releases of CVE-2026-123158 are not loaded yet") || strings.Contains(q.Text, "_p") || q.Command == nil {
 		t.Fatalf("package question without rows %+v", q)
 	}
-	q = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown)}, kev, assets, nil)[0].Question
+	q = platformQuestion("CVE-2026-123158", "gw-alpine", UncheckedPlatformUnknown, "", nil)
 	if q == nil || len(q.Answers) != 2 || q.Answers[0].Label != "Alpine Linux" {
 		t.Fatalf("platform question without rows %+v", q)
 	}

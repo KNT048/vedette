@@ -32,7 +32,7 @@ func NewProvider(db *store.DB, vendors Vendors, ai AI) (*Provider, error) {
 	return &Provider{db: db, vendors: vendors, ai: ai}, nil
 }
 
-// SetAgents registers whether an agent of this box reads a device now: the same check as Updates to plan and the finding page's
+// SetAgents registers whether an agent of this box reads a device now: the same check as the finding page's
 // "No agent reports" line (cmd/vedette agentReports), so the steps never promise an agent that no longer reports (INV-7).
 func (p *Provider) SetAgents(f findings.AgentReports) { p.agents = f }
 

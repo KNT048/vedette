@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// Review r2 L4 of #935: device_updates' door reads the feeds switch as GET /findings/plan does: feeds off, no recommended update
+// Review r2 L4 of #935: device_updates' door reads the feeds switch: feeds off, no recommended update
 // (PlanOff), feeds on or no gate, they are listed.
 func TestAIDeviceUpdatesFollowsTheFeedsSwitch(t *testing.T) {
 	t.Parallel()

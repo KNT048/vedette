@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Textarea } from '@/components/ui/input'
 import { useCan } from '@/lib/session'
-import { useConfirmFinding, useUnconfirmFinding } from './api'
+import { useUnverify, useVerify } from './api'
 import { errMsg } from './errors'
 import type { FindingRow } from './types'
 
@@ -19,13 +19,13 @@ export const canUndo = (f: Pick<FindingRow, 'status' | 'basis'>) => f.status ===
 /** The small dialog of Confirm: what the person checked, required, goes into the history next to their name. */
 export function ConfirmDialog({ f, onClose, opener }: { f: Target; onClose: () => void; opener?: RefObject<HTMLElement | null> }) {
   const { t } = useTranslation('findings')
-  const confirm = useConfirmFinding(f.id)
+  const confirm = useVerify()
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | undefined>()
   function submit() {
     if (note.trim().length < 3) { setError(t('confirm.noteRequired')); return }
     setError(undefined)
-    confirm.mutate({ note: note.trim() }, { onSuccess: () => { toast.success(t('confirm.done')); onClose() }, onError: (e) => setError(errMsg(e)) })
+    confirm.mutate({ id: f.id, note: note.trim() }, { onSuccess: () => { toast.success(t('confirm.done')); onClose() }, onError: (e) => setError(errMsg(e)) })
   }
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
@@ -47,11 +47,11 @@ export function ConfirmDialog({ f, onClose, opener }: { f: Target; onClose: () =
 export function UndoButton({ f, size }: { f: Target; size?: 'sm' }) {
   const { t } = useTranslation('findings')
   const can = useCan('admin')
-  const undo = useUnconfirmFinding(f.id)
+  const undo = useUnverify()
   return (
     <Button size={size} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })} busy={undo.isPending} busyLabel={t('confirm.undoing')}
       aria-label={size ? t('confirm.undoFor', { cve: f.cve }) : undefined}
-      onClick={() => undo.mutate(undefined, { onSuccess: () => toast.success(t('confirm.undone')), onError: (e) => toast.error(errMsg(e)) })}>{t('confirm.undo')}</Button>
+      onClick={() => undo.mutate({ id: f.id }, { onSuccess: () => toast.success(t('confirm.undone')), onError: (e) => toast.error(errMsg(e)) })}>{t('confirm.undo')}</Button>
   )
 }
 

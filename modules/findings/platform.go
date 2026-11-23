@@ -722,16 +722,6 @@ func (k askKind) reason() UncheckedReason {
 	return UncheckedPlatformUnknown
 }
 
-// platformSettled says whether the platform condition of a CVE is no longer open for the row: the CVE is not platform-limited, or the
-// row's evidence names a platform it affects (an agent reporting Alpine). The plan lists only such CVEs.
-func platformSettled(in swInfo, cve string) bool {
-	l, ok := platformLimits[cve]
-	if !ok {
-		return true
-	}
-	return slices.ContainsFunc(evidenceOf(in).ids, l.affects)
-}
-
 // AskedWhy is, for a match of MatchResult.Asked, why no row decides it ("CVE-… affects only …; nothing … says which …: check …"); ""
 // otherwise. Exposure gives it as the reason a public port is not listed.
 func (m Match) AskedWhy() string {

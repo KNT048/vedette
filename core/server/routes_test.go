@@ -96,7 +96,7 @@ func TestModuleOfOverrides(t *testing.T) {
 		path, tag, want string
 	}{
 		{"/findings", "findings", "findings"},
-		{"/findings/{id}/status", "findings", "findings"},
+		{"/findings/{id}/reopen", "findings", "findings"},
 		{"/scans/runs", "scan", "scan"},
 		{"/scans", "scan", "scan"},
 		{"/scans/credentialed", "scan", "scan-credentialed"},

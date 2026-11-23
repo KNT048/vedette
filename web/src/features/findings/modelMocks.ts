@@ -1,6 +1,7 @@
 // Mock of the findings model API (contract.ts, "The findings model"): lists grouped by device and by fix, Needs your input,
-// Handled, a finding's View, handling and Home. Rows live in fnd_finding_model and fnd_question, apart from the older
-// endpoints' findingsStore, until the backend replaces those endpoints. Every string shown is English.
+// Handled, a finding's View, handling and Home. Rows live in fnd_finding_model and fnd_question, apart from findingsStore, which the
+// finding page's detail (GET /findings/{id}) and the per-device list (GET /findings?asset=) read; a write on an id of findingsStore
+// passes through to mocks.ts. Every string shown is English.
 import { http, HttpResponse, type JsonBodyType } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
@@ -60,7 +61,7 @@ function rows(): (FindingRecord & { asset: Asset })[] {
 }
 const openRows = (ignored = false) => rows().filter((r) => r.state === 'open' && isIgnored(r.asset_id) === ignored)
 
-const cveRow = (r: FindingRecord): CveRow => ({ id: r.id, cve: r.cve, status: statusOf(r), severity: severityOf(r.cve), verified: r.verified })
+const cveRow = (r: FindingRecord): CveRow => ({ id: r.id, cve: r.cve, status: statusOf(r), severity: severityOf(r.cve), verified: r.verified, safe_check: SAFE_CHECKS.has(r.cve) })
 const bySeverity = (a: FindingRecord, b: FindingRecord) => sevRank(a.cve) - sevRank(b.cve) || a.layer - b.layer || a.cve.localeCompare(b.cve)
 function severityCounts(l: FindingRecord[]): SeverityCounts {
   const c: SeverityCounts = { critical: 0, high: 0, medium: 0, low: 0, none: 0, unscored: 0 }
@@ -256,7 +257,8 @@ export const modelHandlers = [
 
   http.post(`${API}/findings/handle`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
-    const b = await body<HandleBody>(request)
+    const b = await body<HandleBody>(request.clone())
+    if (Array.isArray(b.ids) && b.ids.length && !b.ids.some((id) => records.get().some((r) => r.id === id))) return undefined // the finding page's older ids: mocks.ts
     if (!RESOLUTIONS.includes(b.resolution as Resolution) || (b.note !== undefined && (typeof b.note !== 'string' || b.note.length > 500))) return fail(400, 'invalid', 'The request is not valid.')
     const byIds = b.ids !== undefined, byFix = b.device !== undefined || b.fix !== undefined
     if (byIds === byFix || (byFix && (!b.device || !b.fix)) || (byIds && (!Array.isArray(b.ids) || b.ids.length < 1 || b.ids.length > MAX_HANDLE)))
@@ -282,7 +284,7 @@ export const modelHandlers = [
   http.post(`${API}/findings/:id/reopen`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const r = one(String(params.id))
-    if (!r) return fail(404, 'not_found', 'This finding does not exist.')
+    if (!r) return undefined // not a row of this store: mocks.ts answers (the finding page's older ids, or 404)
     const b = await body<{ note: string }>(request)
     if (b.note !== undefined && (typeof b.note !== 'string' || b.note.length > 500)) return fail(400, 'invalid', 'The request is not valid.')
     if (r.state === 'open') return fail(409, 'already_open', 'This finding is already open.')
@@ -295,7 +297,7 @@ export const modelHandlers = [
   http.post(`${API}/findings/:id/verify`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const r = one(String(params.id))
-    if (!r) return fail(404, 'not_found', 'This finding does not exist.')
+    if (!r) return undefined // not a row of this store: mocks.ts answers (the finding page's older ids, or 404)
     const b = await body<{ note: string }>(request)
     if (typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
     const note = b.note.trim()
@@ -304,6 +306,17 @@ export const modelHandlers = [
     const user = who()
     patch([r.id], (x) => ({ ...x, verified: 'person', verified_by: user, verified_at: nowIso(), events: [...x.events, event(user, 'confirmed', { note })] }))
     audit('findings.verify', r.id, `${r.cve}: ${note}`)
+    return HttpResponse.json(view(one(r.id)!))
+  }),
+
+  http.post(`${API}/findings/:id/unverify`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const r = one(String(params.id))
+    if (!r) return undefined // not a row of this store: mocks.ts answers (the finding page's older ids, or 404)
+    if (r.verified !== 'person') return fail(409, 'not_confirmed_by_person', 'Only a confirmation a person made can be undone; a scan or the device itself confirmed this one.')
+    const user = who()
+    patch([r.id], (x) => ({ ...x, verified: 'no', verified_by: null, verified_at: null, events: [...x.events, event(user, 'unconfirmed')] }))
+    audit('findings.unconfirm', r.id, `${r.cve}: confirmation undone by ${user}`)
     return HttpResponse.json(view(one(r.id)!))
   }),
 

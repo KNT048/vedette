@@ -23,19 +23,6 @@ func linuxDistro(osName string) string {
 	return ""
 }
 
-// distroLabel names a distribution in "Install <name>'s security updates"; "" for one the page calls "the distribution".
-func distroLabel(id string) string {
-	switch id {
-	case "alpine":
-		return "Alpine Linux"
-	case "ubuntu":
-		return "Ubuntu"
-	case "debian":
-		return "Debian"
-	}
-	return ""
-}
-
 var (
 	debEpoch   = regexp.MustCompile(`^[0-9]+:`)
 	debPkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]+$`)

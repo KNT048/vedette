@@ -44,3 +44,11 @@ func loadAliases(products []productid.Product) map[identity][]identity {
 	}
 	return out
 }
+
+// productKey is a software row's identity across devices: "vendor|product" in lower case, "" for none.
+func productKey(s Software) string {
+	if s.Vendor == "" && s.Product == "" {
+		return ""
+	}
+	return productid.Key(s.Vendor, s.Product)
+}

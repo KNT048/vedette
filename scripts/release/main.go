@@ -300,7 +300,9 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	if e := res.Epoch; e != nil {
 		say(stderr, "note: this release starts schema epoch %d (release %s has %d). Core refuses a database of an earlier epoch, so a box "+
 			"running %s or earlier cannot update to it in place: the update fails its health check and the host puts the previous "+
-			"release and its database back. Say so in the notes: such a box installs this release fresh.", e.To, e.Since, e.From, e.Since)
+			"release and its database back. Say so in the notes: such a box installs this release fresh. Set min_upgrade_from to %s "+
+			"(RELEASE_MIN_UPGRADE_FROM of make release-in) so such a box says so at its update check instead of downloading the release.",
+			e.To, e.Since, e.From, e.Since, inputs.Version)
 	}
 	if !inputs.Rollback.Safe && len(res.Findings) > 0 {
 		say(stderr, "rollback.safe=false is right: the migrations since rollback.min_version are not add-only:")

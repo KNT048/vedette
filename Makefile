@@ -538,8 +538,9 @@ release-verify:
 #                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
 #                     dist/release/images.json. Each platform image must carry the version label VERSION and be the one dist/release/gates.json
 #                     of release-gates names (config digest), all four checked before anything is pushed. The real registry needs a clean tree at
-#                     the release tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; Linux only:
-#                     podman machine on macOS cannot reach the Mac's 127.0.0.1); a rehearsal needs a gates.json too.
+#                     the release tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; on macOS
+#                     run the registry as a container of the podman machine, published on 127.0.0.1:<port>, so both the machine and the Mac reach
+#                     it); a rehearsal needs a gates.json too.
 #   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
 #                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand.
 #                     Each .deb (sha256), each image of images.json and of the local lists (config digest) must be what gates.json names

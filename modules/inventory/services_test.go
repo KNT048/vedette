@@ -349,3 +349,106 @@ func TestScopedReplaceServicesAgesOutOthersAndTheirSoftware(t *testing.T) {
 		t.Fatal("the software read on the port that went is still there")
 	}
 }
+
+// read_at (INV-23) is when the source last read a port's name, product and version: a list that read versions sets it on every port
+// it lists (one that named no product too), a scan that only found open ports leaves it, and a port that names a product in such a
+// scan or in an added list sets it. PortReadTimes gives it by port. The 90 days of PruneServices still count from seen_at.
+func TestContract_INV23_ReadAtMovesOnlyOnAVersionRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	e.record(obs(ipSvc, macA, observe.MAC, macA, observe.Passive, 0.9))
+	id := e.idByMAC(macA)
+	hint := observe.AssetHint{IP: ipSvc}
+	reads := func() map[int]time.Time {
+		t.Helper()
+		m, err := e.svc.PortReadTimes(ctx, id, observe.Nmap)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	same := func(got, want map[int]time.Time) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for p, w := range want {
+			if !got[p].Equal(w) {
+				return false
+			}
+		}
+		return true
+	}
+	t0 := e.now
+	normal := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 1000}}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, normal, []observe.Service{
+		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95},
+		{Port: 23, Proto: "tcp", Name: "tcpwrapped", Confidence: 0.5}, // read, named nothing
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t0}) {
+		t.Fatalf("after a scan with versions: %v", got)
+	}
+	// the weekly discovery of every port reads no versions: it keeps the read times and adds 40000 unread
+	e.tick(24 * time.Hour)
+	disc := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 65535}}, NoVersions: true}
+	found := []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}, {Port: 23, Proto: "tcp", Name: "telnet", Confidence: 0.5}, {Port: 40000, Proto: "tcp", Name: "unknown", Confidence: 0.5}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t0}) {
+		t.Fatalf("after a discovery: %v", got)
+	}
+	// its follow-up reads 40000 and 23 with versions: both move, the one that names nothing too, and 22 keeps its time
+	e.tick(time.Hour)
+	t1 := e.now
+	follow := observe.ServiceScope{Ports: []observe.PortRange{{From: 23, To: 23}, {From: 40000, To: 40000}}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, follow, []observe.Service{
+		{Port: 23, Proto: "tcp", Name: "tcpwrapped", Confidence: 0.5},
+		{Port: 40000, Proto: "tcp", Name: "http", Product: "Acme admin", Version: "1.0", Confidence: 0.8},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1, 40000: t1}) {
+		t.Fatalf("after the follow-up: %v", got)
+	}
+	// a gentle look names no product and moves nothing; a discovery whose port names a product moves that port
+	e.tick(time.Hour)
+	t2 := e.now
+	if err := e.svc.AddServices(ctx, hint, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.3}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, []observe.Service{found[0], found[1], {Port: 40000, Proto: "tcp", Name: "http", Product: "Acme admin", Version: "1.1", Confidence: 0.8}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1, 40000: t2}) {
+		t.Fatalf("after a gentle look and a discovery that named a product: %v", got)
+	}
+	// a port that closes takes its read time with it; the other source's rows and an unknown device have none
+	e.tick(time.Hour)
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found[:2]); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1}) {
+		t.Fatalf("after 40000 closed: %v", got)
+	}
+	if m, err := e.svc.PortReadTimes(ctx, id, observe.Agent); err != nil || len(m) != 0 {
+		t.Fatalf("agent read times %v, %v", m, err)
+	}
+	if m, err := e.svc.PortReadTimes(ctx, "no-such-device", observe.Nmap); err != nil || len(m) != 0 {
+		t.Fatalf("unknown device: %v, %v", m, err)
+	}
+	// 91 days after 22 was read but a day after a discovery saw it, the prune keeps it: it counts from seen_at
+	e.tick(89 * 24 * time.Hour)
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found[:2]); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(24 * time.Hour)
+	if n, err := e.svc.PruneServices(ctx); err != nil || n != 0 {
+		t.Fatalf("prune removed %d (%v), want 0", n, err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1}) {
+		t.Fatalf("after the prune: %v", got)
+	}
+}

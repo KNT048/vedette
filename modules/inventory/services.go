@@ -136,6 +136,31 @@ func (s *Service) AddServices(ctx context.Context, hint observe.AssetHint, sourc
 	return s.services(ctx, hint, source, nil, items, false)
 }
 
+// PortReadTimes is when source last read each open TCP port of a device with version detection (inv_service.read_at, INV-23), by
+// port; a port only found open is not in it. sensor-active's weekly version read picks its ports by it. An unknown device has none.
+func (s *Service) PortReadTimes(ctx context.Context, assetID string, source observe.Source) (map[int]time.Time, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT port, read_at FROM inv_service
+		WHERE asset_id = ? AND source = ? AND proto = 'tcp' AND read_at IS NOT NULL`, assetID, string(source))
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the port read times: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[int]time.Time{}
+	for rows.Next() {
+		var port int
+		var at string
+		if err := rows.Scan(&port, &at); err != nil {
+			return nil, fmt.Errorf("inventory: read the port read times: %w", err)
+		}
+		t, err := time.Parse(time.RFC3339Nano, at)
+		if err != nil {
+			return nil, fmt.Errorf("inventory: port %d read time %q: %w", port, at, err)
+		}
+		out[port] = t
+	}
+	return out, rows.Err()
+}
+
 // services writes a list: scope is nil for a whole list (or an added one), replace says rows of the source not listed go.
 func (s *Service) services(ctx context.Context, hint observe.AssetHint, source observe.Source, scope *observe.ServiceScope, items []observe.Service, replace bool) error {
 	ip, mac, err := checkHint(hint)
@@ -190,32 +215,45 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 	})
 }
 
-// upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at.
+// upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at. The
+// last parameter is read_at: the item's seen time when the write reads the port's name, product and version, else NULL; a row
+// keeps its read_at when the write does not read it (coalesce).
 const (
-	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
-	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
+	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at, read_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
+	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at,
+		read_at = coalesce(excluded.read_at, read_at)`
 	// a gentle look with titles adds what a port said; a partial look that read a product (the -sV follow-up of the weekly scan
 	// of every port) updates the name, product, version and confidence of that port; one that did not (a gentle
 	// scan) keeps them
 	addSet = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail), product = coalesce(excluded.product, product),
 		version = CASE WHEN excluded.product IS NULL THEN version ELSE excluded.version END,
 		name = CASE WHEN excluded.product IS NULL THEN name ELSE excluded.name END,
-		confidence = CASE WHEN excluded.product IS NULL THEN confidence ELSE excluded.confidence END`
+		confidence = CASE WHEN excluded.product IS NULL THEN confidence ELSE excluded.confidence END,
+		read_at = coalesce(excluded.read_at, read_at)`
 )
 
 // replaceServicesTx writes a list and returns the TCP ports whose rows it removed. replace removes the rows of source that the list
 // does not hold, inside scope when there is one (a nil scope, or one without ports, is the source's whole list); a scope that says
 // the scan read no versions only updates a port that names a product, as an added list does.
+//
+// read_at (INV-23) moves to seenAt on every row a write reads: each listed row of a list that read versions (a replace whose scope
+// does not say NoVersions), and a listed row that names a product in the others; an added or NoVersions row that names none keeps
+// its read_at (NULL for a new row).
 func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool, scope *observe.ServiceScope, now time.Time) ([]int, error) {
+	versions := replace && (scope == nil || !scope.NoVersions)
 	q := upsertService + addSet
-	if replace && (scope == nil || !scope.NoVersions) {
+	if versions {
 		q = upsertService + replaceSet
 	}
 	keep := map[[2]any]bool{}
 	for _, it := range items {
 		keep[[2]any{it.Port, it.Proto}] = true
-		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt)
+		var readAt any
+		if versions || it.Product != "" {
+			readAt = seenAt
+		}
+		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt, readAt)
 		if err != nil {
 			return nil, fmt.Errorf("inventory: store service: %w", err)
 		}

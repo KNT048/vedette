@@ -24,7 +24,10 @@ CREATE TABLE inv_service (
     source     TEXT    NOT NULL CHECK (source IN ('manual', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
     confidence REAL    NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     seen_at    TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, detail TEXT CHECK (detail IS NULL OR length(detail) <= 200));
+, detail TEXT CHECK (detail IS NULL OR length(detail) <= 200),
+    -- when the source last read the port's name, product and version (a scan with version detection, an agent's report); NULL: only
+    -- found open. A scan that only finds open ports leaves it; the weekly version read picks the ports read longest ago by it.
+    read_at TEXT CHECK (read_at IS NULL OR read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'));
 
 -- One row per installed software line of a device: one product (core/productid), or one release train of a product whose trains
 -- install side by side (line '8' and line '21' of Java). What the sources read are its readings (inv_software_reading); the

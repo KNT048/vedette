@@ -119,7 +119,7 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_trap_ips":                  {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":                    {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at user_name scan_source snmp_source agent_source ignored_at review_earned_at"},
 	"inv_observation":              {export: "id asset_id field value source confidence seen_at evidence first_seen"},
-	"inv_service":                  {export: "id asset_id port proto name product version detail source confidence seen_at"},
+	"inv_service":                  {export: "id asset_id port proto name product version detail source confidence seen_at read_at"},
 	"inv_setting":                  {export: "key updated_at updated_by", json: "value"},
 	"inv_software":                 {export: "id asset_id product_key line display vendor product cpe version pkg_version pkg_source packaged source set_by confidence seen_at differs state not_installed_by not_installed_at first_seen last_seen removed_at"},
 	"inv_software_reading":         {export: "software_id source instance display version pkg_version pkg_source packaged cpe confidence set_by first_seen seen_at"},
@@ -180,7 +180,6 @@ var exportPolicy = map[string]tablePolicy{
 	"resp_link_codes":              {skipAll: true, skip: "user_id channel address code_hash expires_at sent_at tries"},
 	"resp_tokens":                  {skipAll: true, skip: "token_hash kind decision action_id user_id address channel key_id expires_at used_at"},
 	"sa_all_ports":                 {export: "asset_id last_at outcome"},
-	"sa_port_read":                 {export: "asset_id port read_at"},
 	"sa_probe":                     {export: "id time run_id shape rate hosts flags targets result"},
 	"sa_snmp_device":               {export: "asset_id read_from read_from_default version username auth priv secret_last4 priv_last4 port created_at updated_at last_checked_at last_status last_answer_at answer", skip: "secret_id priv_secret_id"}, // the community and v3 passwords stay in core_secret
 	"sa_snmp_notice":               {export: "id at text"},                                                                                                                                                                                             // which SNMP settings a merge of two devices kept

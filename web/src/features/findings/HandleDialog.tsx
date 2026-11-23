@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Textarea } from '@/components/ui/input'
-import { SeverityBadge, StatusBadge } from '@/components/common/status'
+import { SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
 import { FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { AcceptUntil } from './AcceptRisk'
 import { untilOk } from './accept'
@@ -35,7 +35,10 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
   const { t } = useTranslation('findings')
   const handle = useHandle()
   const id = useId()
-  const [resolution, setResolution] = useState<Resolution>(resolutions[0]!)
+  const label = useStatusLabel()
+  // nothing is chosen for the person: "Patched" ticked in advance on findings with no fix was a claim nobody made
+  const [resolution, setResolution] = useState<Resolution | null>(resolutions.length === 1 ? resolutions[0]! : null)
+  const [howError, setHowError] = useState<string | undefined>()
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set(rows.map((r) => r.id)))
   const [note, setNote] = useState('')
   const [until, setUntil] = useState('')
@@ -43,7 +46,7 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
   const [untilError, setUntilError] = useState<string | undefined>()
   const [pickError, setPickError] = useState<string | undefined>()
   const accept = resolution === 'accepted'
-  const needNote = NOTE_NEEDED.includes(resolution)
+  const needNote = !!resolution && NOTE_NEEDED.includes(resolution)
   const chosen = rows.filter((r) => picked.has(r.id))
   const cves = new Set(chosen.map((r) => r.cve)).size
   const all = chosen.length === rows.length
@@ -57,12 +60,14 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
     setUntilError(badUntil ? t('accept.untilRequired') : undefined)
     const badNote = needNote && note.trim().length < 3
     setError(badNote ? t('handle.noteRequired') : undefined)
-    if (noPick || tooMany || badUntil || badNote) return
+    setHowError(resolution ? undefined : t('handle.pickHow'))
+    if (noPick || tooMany || badUntil || badNote || !resolution) return
     const target = fix && complete && all ? { device: device.id, fix, ...(software ? { software } : {}) } : { ids: chosen.map((r) => r.id) }
     const body: HandleInput = { ...target, resolution, note: note.trim(), ...(accept ? { until } : {}) }
     handle.mutate(body, {
       onSuccess: (r) => {
-        const done = t('handle.done', { count: r.handled, status: t(`handle.option.${resolution}`) })
+        // the status as its badge says it: "Risk accepted until 31 Dec 2026", not the option's "Accept the risk until…"
+        const done = t('handle.done', { count: r.handled, status: label(resolution, { until: accept ? until : null }) })
         toast.success(r.skipped > 0 ? `${done} ${t('handle.skipped', { count: r.skipped })}` : done)
         onClose()
       },
@@ -90,8 +95,8 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
             {pickError ? <p role="alert" className="text-meta text-danger">{pickError}</p> : null}
           </fieldset>
         ) : null}
-        <RadioGroup value={resolution} aria-label={t('handle.how')}
-          onValueChange={(v) => { setResolution(v as Resolution); setError(undefined); setUntilError(undefined) }}>
+        <RadioGroup value={resolution ?? ''} aria-label={t('handle.how')} aria-invalid={!!howError}
+          onValueChange={(v) => { setResolution(v as Resolution); setError(undefined); setUntilError(undefined); setHowError(undefined) }}>
           {resolutions.map((r) => (
             <div key={r} className="flex items-start gap-2.5">
               <RadioItem id={`${id}-r-${r}`} value={r} className="mt-1" />
@@ -102,6 +107,7 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
             </div>
           ))}
         </RadioGroup>
+        {howError ? <p role="alert" className="text-meta text-danger">{howError}</p> : null}
         {accept ? <AcceptUntil id={`${id}-until`} value={until} onChange={(v) => { setUntil(v); setUntilError(undefined) }} error={untilError} /> : null}
         <Field htmlFor={`${id}-note`} label={needNote ? t('handle.noteRequiredLabel') : t('handle.noteLabel')} error={error}>
           <Textarea id={`${id}-note`} value={note} maxLength={500} onChange={(e) => { setNote(e.target.value); setError(undefined) }}

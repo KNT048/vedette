@@ -4,6 +4,8 @@
 // This guard reads every non-test .tsx under features/, components/ and app/ and counts each <form> that is not hosted by a dialog:
 // - inside a <DialogContent> … </DialogContent> region of its own file, or
 // - in a component (`function XForm`) that is rendered inside a <DialogContent> region of any file.
+// It also counts an edit in place without a <form>: a component that keeps or takes an editing state (editing, renaming, isEditing) and
+// swaps a field (Input, Textarea) into the page for it, with no dialog of its own (a title or a row that turns into a field).
 // Every other <form> must be named in ALLOWED (file, how many forms it covers, why), or carry an `inline-form-guard: <reason>`
 // comment on its line or one of the two lines above. An entry that covers more or fewer forms than the file has fails too.
 //
@@ -33,14 +35,13 @@ const ALLOWED: { file: string; count: number; why: string }[] = [
   { file: 'features/core/UsersSection.tsx', count: 1, why: SETTINGS },
   { file: 'features/feeds/HomePage.tsx', count: 1, why: SEARCH },
   { file: 'features/feeds/LookupPage.tsx', count: 1, why: SEARCH },
-  { file: 'features/inventory/NetworkForm.tsx', count: 1, why: 'edits the one scan-scope settings object in place; adding and editing a range or an exclusion opens a dialog' },
   { file: 'features/logs/SiemSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/notify/ChannelsSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/reports/PdplTab.tsx', count: 1, why: SETTINGS },
   { file: 'features/reports/SettingsTab.tsx', count: 1, why: SETTINGS },
   { file: 'features/response/ApproverIdentities.tsx', count: 1, why: 'is the code step that links an approver identity on its own row, not an add/edit form' },
   { file: 'features/response/ResponseSettings.tsx', count: 1, why: SETTINGS },
-  { file: 'features/scanning/SafetyTab.tsx', count: 1, why: SETTINGS },
+  { file: 'features/scanning/SafetyTab.tsx', count: 1, why: 'edits the one scan-scope settings object in place; adding and editing a range or an exclusion opens a dialog' },
   { file: 'components/common/Pager.tsx', count: 1, why: SEARCH },
   { file: 'app/LoginPage.tsx', count: 1, why: OWN_PAGE },
 ]
@@ -103,7 +104,32 @@ export function inlineForms() {
   return found
 }
 
+/** Components that edit in place: an editing state and a field outside any dialog, in a component not hosted by a dialog. */
+export function editsInPlace(all = sources()) {
+  const out: string[] = []
+  for (const { file, text } of all) {
+    const regions = dialogRegions(text)
+    const starts = [...text.matchAll(/^(?:export\s+)?(?:default\s+)?(?:function\s+([A-Z]\w*)|const\s+([A-Z]\w*)\s*=)/gm)].map((m) => ({ at: m.index, name: m[1] ?? m[2]! }))
+    starts.forEach((c, i) => {
+      const end = starts[i + 1]?.at ?? text.length
+      const body = text.slice(c.at, end)
+      const state = /const \[(?:editing|renaming|isEditing|inlineEdit)\w*, set\w+\] = useState/.test(body) || /\b(?:editing|renaming)\??:\s*boolean/.test(body)
+      if (!state || /<Dialog\b/.test(body)) return
+      const field = [...body.matchAll(/<(?:Input|Textarea)\b/g)].find((m) => !within(regions, c.at + m.index))
+      if (field) out.push(`${file}: ${c.name}`)
+    })
+  }
+  return out
+}
+
 describe('inline form guard', () => {
+  it('nothing is edited in place: an editing state opens a dialog (or its own page), not a field inside the page', () => {
+    expect(editsInPlace(), 'Open the edit in a dialog over the page').toEqual([])
+    const src = (text: string) => editsInPlace([{ file: 'x.tsx', text }])
+    expect(src('function Title() {\n  const [editing, setEditing] = useState(false)\n  return editing ? <Input value={v} /> : <h1>{v}</h1>\n}\n')).toEqual(['x.tsx: Title'])
+    expect(src('function Title() {\n  const [editing, setEditing] = useState(false)\n  return <Dialog open={editing}><DialogContent title="x"><Input /></DialogContent></Dialog>\n}\n')).toEqual([])
+  })
+
   const found = inlineForms()
   const open = found.filter((f) => !f.marked)
 

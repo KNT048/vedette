@@ -215,7 +215,7 @@
     "info": "A Trap IP is an address in {{lan}} that no device uses, with a name and what it should look like. Test trap makes sure the trap is recording; from then on every connection to a Trap IP shows up under Hits.",
     "action": "Add a Trap IP"
   },
-  "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
+  "lanUnknown": "your LAN (add it first under Settings, Scanning, Safety)",
   "trapIp": {
     "title": "Trap IPs",
     "description": "Fake machines on {{lan}}, each on an address no device uses.",
@@ -323,8 +323,8 @@
     },
     "detailsLabel": "Details of Trap IP {{name}}",
     "noLan": "Vedette does not know your LAN range yet, so no Trap IP can go on it.",
-    "noLanLink": "Add your LAN range in Devices, Scope and sensors",
-    "noLanAskAdmin": "Ask an administrator to add it in Devices, Scope and sensors."
+    "noLanLink": "Add your LAN range in Settings, Scanning, Safety",
+    "noLanAskAdmin": "Ask an administrator to add it in Settings, Scanning, Safety."
   },
   "token": {
     "title": "Honey tokens",

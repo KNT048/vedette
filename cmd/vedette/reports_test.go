@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/reports"
 )
 
 // The periodic report reads the real modules through its ports: a device on the CISA list is open in Still open, a package an agent
@@ -181,5 +183,16 @@ func TestWiringReportMailCarriesTheReport(t *testing.T) {
 	}
 	if t.Failed() {
 		t.Logf("text part:\n%s", parts["text/plain"])
+	}
+}
+
+// An open finding's fix in the report is the block release the Findings lists name, with the finding's own product and advisory.
+func TestReportListedFixIsTheBlockRelease(t *testing.T) {
+	t.Parallel()
+	url, v := "https://www.vmware.example/advisory", "9.0.2.0100"
+	own := reports.Fix{Key: "vmware|vcenter|update|9.0.2.0100", Kind: "update", Product: "VMware vCenter Server", Version: &v, URL: &url}
+	got := listedFix(own, findings.ListedFix{Key: "vmware|vcenter|update|9.0.2.0200", Fix: findings.Fix{Kind: findings.FixUpdate, Version: "9.0.2.0200"}})
+	if got.Key != "vmware|vcenter|update|9.0.2.0200" || got.Version == nil || *got.Version != "9.0.2.0200" || got.Product != own.Product || got.URL != &url || got.Kind != "update" {
+		t.Fatalf("listed fix %+v", got)
 	}
 }

@@ -6,8 +6,11 @@
 //    as a box. Notices of other tones (warn, danger, accent) state a condition the reader must know and are not counted;
 //  - an h2–h5 heading whose block holds only prose. The block is the heading's own wrapper, widened to the largest
 //    ancestor that holds no other heading.
+//  - a paragraph of the page that is one long t('…') line (more than LONG_WORDS words in English) outside an info icon, a dialog,
+//    a fold (details), a notice or an empty state: a block of explanation set in the page instead of behind ⓘ.
 // Anything that is a control or data counts as content: button, a, input, select, textarea, details, table, form, any other
-// component (Button, Link, DataTable, CodeBlock, Field …) and any `{expression}` that is not a t('…') line.
+// component (Button, Link, DataTable, CodeBlock, Field …) and any `{expression}` that is not a t('…') line. A bulleted list of
+// t('…') lines is prose too.
 // A named exception is listed in ALLOWED with the reason; an entry that no longer matches fails too, so the list cannot rot.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -17,7 +20,7 @@ const SRC = resolve(process.cwd(), 'src') // vitest runs from web/
 const ROOTS = ['features', 'components', 'app']
 const HEADINGS = new Set(['h2', 'h3', 'h4', 'h5'])
 /** Tags that are controls or data wherever they appear (also inside an attribute or an expression). */
-const CONTENT_TAG = /<(?!\/)(?!(?:p|span|div|strong|em|b|i|br|code|small|time|InfoTip|Card|Trans|StoryTag|Notice|h[2-5]|section|header)\b)[A-Za-z]/
+const CONTENT_TAG = /<(?!\/)(?!(?:p|span|div|strong|em|b|i|br|code|small|time|ul|ol|li|InfoTip|Card|Trans|StoryTag|Notice|h[2-5]|section|header)\b)[A-Za-z]/
 
 /** The named exceptions: file, the heading's text, and why it stays. */
 const ALLOWED: { file: string; heading: string; why: string }[] = [
@@ -29,6 +32,25 @@ const ALLOWED: { file: string; heading: string; why: string }[] = [
 ]
 
 type Hit = { file: string; line: number; heading: string }
+
+/** A paragraph longer than this in English is an explanation (the page shows a title and one short line, about 12 words). */
+const LONG_WORDS = 30
+/** Where a long text belongs: behind ⓘ, in a dialog, folded, in a notice or an empty state, or a field's help. */
+const HOLDS_TEXT = new Set(['InfoTip', 'DialogContent', 'details', 'Notice', 'EmptyState', 'Field', 'AiBlock', 'Dialog'])
+/** Long paragraphs in the page that predate this rule: each moves behind an info icon in its own change; a fixed one must leave. */
+const LONG_KNOWN: string[] = [
+  'features/findings/IgnoredTab.tsx long: ignoredTab.intro',
+  'features/reports/PdplDocument.tsx long: doc.pdpl.regimeNote', // a printed document: its text is the content
+]
+const LOCALES = join(SRC, 'locales/en')
+const words: Record<string, unknown> = Object.fromEntries(readdirSync(LOCALES).map((f) => [f.replace(/\.json$/, ''), JSON.parse(readFileSync(join(LOCALES, f), 'utf8'))]))
+/** The English text of a key ('ns:a.b' or 'a.b' of the file's own namespace); a plural key reads its _other form. */
+function english(key: string, own: string): string | null {
+  const [ns, path] = key.includes(':') ? key.split(':') as [string, string] : [own, key]
+  const at = (p: string) => p.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), words[ns])
+  const v = at(path) ?? at(`${path}_other`)
+  return typeof v === 'string' ? v : null
+}
 
 function sources() {
   return ROOTS.flatMap((root) => readdirSync(join(SRC, root), { recursive: true, encoding: 'utf8' })
@@ -100,7 +122,7 @@ function hasContent(slice: string): boolean {
       const close = openEnd(slice, i)
       const open = slice.slice(i, close + 1)
       if (/^<\//.test(open)) { i = close; continue }
-      if (CONTENT_TAG.test(open) && /^<(?!\/)/.test(open) && !/^<(?:p|span|div|strong|em|b|i|br|code|small|time|InfoTip|Card|Trans|StoryTag|Notice|h[2-5]|section|header|>)(?![\w.])/.test(open)) return true
+      if (CONTENT_TAG.test(open) && /^<(?!\/)/.test(open) && !/^<(?:p|span|div|strong|em|b|i|br|code|small|time|ul|ol|li|InfoTip|Card|Trans|StoryTag|Notice|h[2-5]|section|header|>)(?![\w.])/.test(open)) return true
       if (/\bactions=/.test(open)) return true
       // attributes: a control or data component passed as a prop
       const attrs = open.replace(/^<\w*/, '')
@@ -109,6 +131,9 @@ function hasContent(slice: string): boolean {
     } else if (slice[i] === '{') {
       const end = braceEnd(slice, i)
       const expr = slice.slice(i + 1, end - 1).trim()
+      // a list of t('…') lines ({KEYS.map((k) => <li key={k}>{t(`x.${k}`)}</li>)}) is prose too
+      const mapped = /\.map\(\s*\(?[\w\s,]*\)?\s*=>\s*\(?\s*(<[\s\S]*>)\s*\)?\s*\)$/.exec(expr)
+      if (mapped && !hasContent(mapped[1]!.replace(/\bkey=\{[^}]*\}/g, ''))) { i = end - 1; continue }
       if (CONTENT_TAG.test(expr)) return true
       if (expr && !/^t\(/.test(expr) && !/^\/\*/.test(expr)) return true
       i = end - 1
@@ -140,6 +165,13 @@ export function scan(files: { file: string; text: string }[]): Hit[] {
         if (/\btone="off"/.test(head) && !/\bactions=/.test(head) && !hasContent(body) && !CONTENT_TAG.test(attrs) && !/=\{(?!t\()/.test(attrs)) {
           hits.push({ file, line: lineOf(e.start), heading: /title=\{([^}]*)\}/.exec(head)?.[1] ?? 'Notice' })
         }
+      } else if (e.tag === 'p' && !text.slice(e.start, e.open).endsWith('/>') && !/\brole=/.test(text.slice(e.start, e.open))) { // a status line is a state
+        const m = /^\s*\{t\(\s*'([\w.:-]+)'[^{}]*(?:\{[^{}]*\}[^{}]*)*\)\}\s*$/.exec(text.slice(e.open, text.lastIndexOf('</p>', e.end)))
+        const own = /useTranslation\(\s*\[?\s*'([\w-]+)'/.exec(text)?.[1] ?? 'common'
+        const en = m ? english(m[1]!, own) : null
+        let held = false
+        for (let a = e.parent; a && !held; a = a.parent) held = HOLDS_TEXT.has(a.tag) || /\binfo=\{/.test(text.slice(a.start, a.open)) && a.tag === ''
+        if (en && en.split(/\s+/).length > LONG_WORDS && !held) hits.push({ file, line: lineOf(e.start), heading: `long: ${m![1]}` })
       } else if (HEADINGS.has(e.tag)) {
         // the heading's wrapper, widened while no other heading is inside
         let block = e
@@ -155,7 +187,7 @@ export function scan(files: { file: string; text: string }[]): Hit[] {
 
 describe('explanation-only blocks', () => {
   const hits = scan(sources())
-  const allowed = (h: Hit) => ALLOWED.some((a) => a.file === h.file && h.heading.includes(a.heading))
+  const allowed = (h: Hit) => ALLOWED.some((a) => a.file === h.file && h.heading.includes(a.heading)) || LONG_KNOWN.includes(`${h.file} ${h.heading}`)
 
   it('a heading or section has something to act on or read besides prose', () => {
     const bad = hits.filter((h) => !allowed(h)).map((h) => `${h.file}:${h.line} ${h.heading}`)
@@ -167,5 +199,14 @@ describe('explanation-only blocks', () => {
   it('every allowed entry still matches a block', () => {
     const stale = ALLOWED.filter((a) => !hits.some((h) => h.file === a.file && h.heading.includes(a.heading))).map((a) => `${a.file} ${a.heading}`)
     expect(stale).toEqual([])
+    expect(LONG_KNOWN.filter((k) => !hits.some((h) => `${h.file} ${h.heading}` === k)), 'long paragraphs that moved: remove them').toEqual([])
+  })
+
+  it('the guard catches what it must', () => {
+    const one = (text: string) => scan([{ file: 'x.tsx', text }]).map((h) => h.heading)
+    expect(one("<Section title={t('a')}><Card><ul>{K.map((k) => <li key={k}>{t(`b.${k}`)}</li>)}</ul></Card></Section>")).toHaveLength(1)
+    const long = "const { t } = useTranslation('scanning'); <div><p>{t('safety.appliesTo')}</p></div>"
+    expect(one(long)).toEqual(['long: safety.appliesTo'])
+    expect(one("const { t } = useTranslation('scanning'); <InfoTip topic=\"x\"><p>{t('safety.appliesTo')}</p></InfoTip>")).toEqual([])
   })
 })

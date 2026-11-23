@@ -199,6 +199,9 @@ type ReportHandled struct {
 	Devices    []HandledDevice `json:"devices"`
 	More       int             `json:"more"`
 	MedianDays *float64        `json:"median_days"`
+	// NotRelevantLeftOut: findings closed as not relevant in the period that the report leaves out ("Include not relevant" off), so
+	// the report says why its count is lower than Findings › Handled. Absent in documents sent before it existed.
+	NotRelevantLeftOut int `json:"not_relevant_left_out,omitempty"`
 }
 
 // OpenGroup is one device or one CVE of Still open.

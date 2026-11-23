@@ -24,7 +24,8 @@ import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
-import { MAX_UPLOAD, compareVersion, sha256Hex, toBase64 } from './util'
+import { MAX_UPLOAD, compareVersion, releaseUrl, sha256Hex, toBase64 } from './util'
+import { cn } from '@/lib/utils'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 /**
@@ -80,6 +81,32 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
   )
 }
 
+const norm = (x: string) => x.replace(/\s+/g, ' ').trim().replace(/[.\s]+$/, '').toLowerCase()
+/** "120 MB", "1.4 GB" (decimal, as every size on the screens). */
+const fmtSize = (kb: number) => (kb * 1024 >= 1e9 ? `${((kb * 1024) / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round((kb * 1024) / 1e6))} MB`)
+/** The box sends at most this many characters of a release's notes (the rest is on the release page). */
+const NOTE_MAX = 500
+
+/** A release's notes: two lines, then "Show all" opens the rest; notes the box cut (NOTE_MAX) end at a word, with a link to the
+ *  release page where the whole text is. `open`: shown whole from the start (the update dialog). */
+function ReleaseNote({ a, className, open = false }: { a: UpdateAvailable; className?: string; open?: boolean }) {
+  const { t } = useTranslation('core')
+  const [whole, setWhole] = useState(open)
+  const cut = [...a.note].length >= NOTE_MAX
+  const text = cut ? `${a.note.slice(0, a.note.lastIndexOf(' ') > 0 ? a.note.lastIndexOf(' ') : a.note.length).replace(/[\s,;:]+$/, '')}…` : a.note
+  const long = text.length > 140
+  if (!text) return null
+  return (
+    <span className={cn('grid justify-items-start gap-0.5', className)}>
+      <span className={whole || !long ? 'whitespace-pre-line' : 'line-clamp-2'}>{text}</span>
+      <span className="flex flex-wrap gap-x-3">
+        {long && !open ? <button type="button" className="text-accent underline-offset-4 hover:underline" aria-expanded={whole} onClick={() => setWhole((v) => !v)}>{t(whole ? 'updates.notes.less' : 'updates.notes.all')}</button> : null}
+        {cut ? <a className="text-accent underline-offset-4 hover:underline" href={releaseUrl(a.version)} target="_blank" rel="noreferrer">{t('updates.notes.page', { version: a.version })}</a> : null}
+      </span>
+    </span>
+  )
+}
+
 /** memo: the page title also reads the OS query; without it every OS refresh re-renders this body and the table cells remount under the user's click. */
 const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; reconnecting?: boolean }) {
   const { t } = useTranslation('core')
@@ -89,6 +116,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const [rollback, setRollback] = useState<UpdateComponent | null>(null)
   const [dataLossOk, setDataLossOk] = useState(false)
   const [after, setAfter] = useState<string | null | undefined>(undefined) // see RunPanel; undefined until Apply
+  // The software update restarts every part of Vedette: it asks first, with the version, what restarts and about how long
+  const [asking, setAsking] = useState<UpdateAvailable | null>(null)
+  const askApply = (a: UpdateAvailable) => (a.component === 'software' ? setAsking(a) : void apply(a.component))
   const running = s.run?.status === 'running' // only the software waits for its run; data and packs still update
   const askRollback = (c: UpdateComponent) => { setDataLossOk(false); setRollback(c) }
   const file = useRef<HTMLInputElement>(null)
@@ -154,8 +184,8 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       if (!a) return <span className="text-muted">{t('updates.latest')}</span>
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="grid"><span className="font-mono text-meta">{a.version}</span><span className="max-w-xs text-caption text-muted">{a.note}</span>{includesHost(a)}</div>
-          <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
+          <div className="grid"><span className="font-mono text-meta">{a.version}</span><ReleaseNote a={a} className="max-w-xs text-caption text-muted" />{includesHost(a)}</div>
+          <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => askApply(a)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
         </div>
       )
     } },
@@ -235,7 +265,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
                 {c.id === 'host' ? hostHow : null}
                 <span className="font-mono text-meta">{c.version} <span className="font-sans text-caption text-muted">{fmtDateTime(c.installed_at)}</span></span>
                 {c.id === 'host' ? (hostNext ? <span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-meta text-muted">{t('updates.latest')}</span>)
-                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
+                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => askApply(a)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
                 {a ? includesHost(a) : null}
                 {c.previous ? <div><Button size="sm" disabled={admin.disabled || (running && c.id === 'software')} title={admin.title} onClick={() => askRollback(c)}>{t('updates.rollbackTo', { version: c.previous })} <span className="sr-only">{comp(c.id)}</span></Button></div> : null}
               </div>
@@ -253,7 +283,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
                 {a.status === 'affected' ? <Chip tone="danger">{t('updates.advisoryAffected')}</Chip> : <Chip tone="ok">{t('updates.advisoryFixed')}</Chip>}
               </div>
               <p className="mt-1 text-meta text-muted">{a.id}, {fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
-              <p className="mt-1">{a.summary}</p>
+              {/* what to do is for a box it affects; a fixed box reads the title and "Fixed in your build", and a summary that only
+                  repeats the title is not said twice */}
+              {a.status === 'affected' && norm(a.summary) !== norm(a.title) ? <p className="mt-1">{a.summary}</p> : null}
             </Card></li>
           ))}
         </ul>
@@ -274,6 +306,25 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <DataTable urlKey="updates-history" data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}
           mobileRow={(h) => <div className="grid gap-0.5"><span className="font-medium">{comp(h.component)}, {t(`updates.act.${h.action}`)}</span><span className="font-mono text-caption [overflow-wrap:anywhere]">{h.from ?? '–'} {'>'} {h.to}</span><span className="text-caption text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('updates.hist.system') : h.user}</span></div>} />
       </Section>
+
+      <Dialog open={!!asking} onOpenChange={(o) => !o && setAsking(null)}>
+        {asking ? (
+          <DialogContent title={t('updates.applyAsk.title', { version: asking.version })} description={t('updates.applyAsk.restart')}>
+            <ul className="grid list-disc gap-1 pl-5 text-sm">
+              <li>{t('updates.applyAsk.time')}</li>
+              {asking.host_version ? <li>{t('updates.applyAsk.host', { version: asking.host_version })}</li> : null}
+              <li>{t('updates.applyAsk.backup', { from: s.components.find((c) => c.id === 'software')?.version ?? '' })}</li>
+              {asking.size_kb > 0 ? <li>{t('updates.applyAsk.size', { size: fmtSize(asking.size_kb) })}</li> : null}
+            </ul>
+            {asking.note ? <ReleaseNote a={asking} className="text-meta text-muted" open /> : null}
+            <DialogFooter>
+              <Button onClick={() => setAsking(null)}>{t('common:cancel')}</Button>
+              <Button variant="primary" disabled={running} busy={m.apply.isPending} busyLabel={t('common:busy.updating')}
+                onClick={() => { const a = asking; setAsking(null); void apply(a.component) }}>{t('updates.applyAsk.confirm', { version: asking.version })}</Button>
+            </DialogFooter>
+          </DialogContent>
+        ) : null}
+      </Dialog>
 
       <Dialog open={!!rollback} onOpenChange={(o) => !o && setRollback(null)}>
         <DialogContent title={t('updates.rollbackAsk.title', { name: rollback ? comp(rollback.id) : '' })} description={rollback ? t('updates.rollbackAsk.body', { from: rollback.version, to: rollback.previous ?? '' }) : undefined} info={t('updates.rollbackAsk.manualInfo')}>

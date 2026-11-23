@@ -20,11 +20,12 @@ export function useHome(enabled: boolean) {
 /** A box with no device but itself and nothing open: Home shows the first-run path instead of tiles of zeros. */
 export const isFirstRun = (o: Overview) => o.devices.total <= 1 && o.open.findings === 0
 
-/** Devices with an open finding: each is counted once, under its most urgent status (needs_input is a question, not a finding). */
-export const affectedDevices = (o: Overview) => OPEN_FINDING_STATUSES.reduce((n, s) => n + o.devices.by_status[s], 0)
+/** Devices with an open finding: each is counted once, under its most urgent status, the Vedette box included (it carries no badge,
+ *  but "3 open findings on 0 devices" next to its three findings was wrong). */
+export const affectedDevices = (o: Overview) => OPEN_FINDING_STATUSES.reduce((n, s) => n + o.devices.affected[s], 0)
 
-/** Devices whose most urgent finding is one attackers use: under attack here, or exploited in the wild. */
-export const exploitedDevices = (o: Overview) => o.devices.by_status.under_attack + o.devices.by_status.exploited
+/** Devices whose most urgent finding is one attackers use: under attack here, or exploited in the wild (the box included). */
+export const exploitedDevices = (o: Overview) => o.devices.affected.under_attack + o.devices.affected.exploited
 
 export const SCANNING_KEY = ['scanning'] as const
 

@@ -29,7 +29,7 @@ const shownOf = (s: Safety): Shown => ({ ranges: s.scope.lan_ranges, at: s.scope
  * current list and asks again. The ranges stay editable under Settings › Scanning › Safety and Devices › Scope and sensors.
  */
 export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenChange: (v: boolean) => void; /** Runs after the save, e.g. to retry the switch that needed it (review r2 N1). */ onSaved?: () => void }) {
-  const { t } = useTranslation('scanning')
+  const { t } = useTranslation(['scanning', 'inventory'])
   const q = useScanning()
   const add = useAddRange()
   const s = q.data?.safety

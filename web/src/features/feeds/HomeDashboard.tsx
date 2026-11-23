@@ -12,9 +12,9 @@ import { Sparkline } from '@/components/common/Sparkline'
 import { Illustration } from '@/components/common/Illustration'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
-import { CveList, StatusBadge } from '@/components/common/status'
+import { CveList, FindingStatusLines, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
-import { dayOf as orgDay, fmtDateTime, fmtDayMonth } from '@/lib/format'
+import { dayOf as orgDay, fmtDate, fmtDateTime, fmtDayMonth } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
@@ -38,21 +38,28 @@ const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ defa
 function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   const { t } = useTranslation('feeds')
   const admin = useCan('admin') // the history of sent messages is on an administrator's page
-  const { open, trend } = o
-  const first = trend[0]!, last = trend[trend.length - 1]!
-  const delta = last - first
-  const days = trend.length
+  const { open } = o
+  const all = o.trend.length
   // The server counts the organization's days: step calendar days back from its day of generated_at (24 h steps miss a day at a
   // daylight-saving change).
   const [y, m, d] = orgDay(o.generated_at).split('-').map(Number) as [number, number, number]
-  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(new Date(Date.UTC(y, m - 1, d - (days - 1 - i))).toISOString().slice(0, 10)))
+  const isoOf = (i: number) => new Date(Date.UTC(y, m - 1, d - (all - 1 - i))).toISOString().slice(0, 10)
+  // Days before the box began keeping findings are not data: the trend starts on trend_start ("was 0 on 25 Oct" on a box installed
+  // today was a claim about days it never saw).
+  const from = Math.max(0, Math.min(all - 1, Array.from({ length: all }, (_, i) => i).find((i) => isoOf(i) >= o.trend_start) ?? all - 1))
+  const trend = o.trend.slice(from)
+  const first = trend[0]!, last = trend[trend.length - 1]!
+  const delta = last - first
+  const days = trend.length
+  const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(isoOf(from + i)))
+  const since = fmtDate(o.trend_start)
   const affected = affectedDevices(o)
   const notify = !!o.alerts && !!o.incidents
   const link = 'text-accent underline-offset-4 hover:underline'
   return (
     <KpiGrid label={t('dash.label')} className={notify ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}>
       <KpiTile className="col-span-2" to="/findings?tab=device" value={open.findings} tone={open.findings ? 'danger' : noClaim ? undefined : 'ok'}
-        label={open.findings ? t('dash.open', { count: open.findings, devices: affected }) : t('dash.openNone')}
+        label={open.findings ? t('dash.open', { count: open.findings, devices: t('dash.onDevices', { count: affected }) }) : t('dash.openNone')}
         sub={open.findings ? OPEN_FINDING_STATUSES.filter((s) => open.by_status[s] > 0).map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5 tabular-nums">
             <StatusBadge code={s} to={`/findings?tab=device&status=${s}`} />{open.by_status[s]}
@@ -64,7 +71,8 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
               point={(i) => t('dash.trendDay', { day: dayOf(i), count: trend[i] })} start={dayOf(0)} end={dayOf(days - 1)} />
             {/* "49 more than 30 days ago" in red read like an alarm about old findings; it is the change since the first day */}
             <p className="text-meta text-muted sm:pb-5">
-              {delta === 0 ? t('dash.trendSame', { since: dayOf(0) }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), since: dayOf(0), first })}
+              {days < 2 ? t('dash.trendStart', { since })
+                : delta === 0 ? t('dash.trendSame', { since }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), since, first })}
             </p>
           </div>
         )} />
@@ -108,6 +116,7 @@ function FixRow({ item, rank }: { item: FirstItem; rank: number }) {
   const title = useFixTitle()
   const { device, block } = item
   const what = title(block.fix, block.software)
+  const cause = block.findings.find((f) => f.cve === block.cause)
   return (
     <RankedRow rank={rank}
       title={<Link to={`/findings?tab=device&device=${encodeURIComponent(device.id)}`} className="underline-offset-4 hover:underline">{what}</Link>}
@@ -115,6 +124,8 @@ function FixRow({ item, rank }: { item: FirstItem; rank: number }) {
         <>
           <Link to={`/devices/${encodeURIComponent(device.id)}`} className="text-ink underline-offset-4 hover:underline [overflow-wrap:anywhere]">{device.name}</Link>
           {block.findings.length > 1 ? <span>{t('dash.cause', { cve: block.cause })}</span> : null}
+          {/* the badge beside the block is its cause's status: its reasons and confirmation lines, as on the finding's page */}
+          {cause ? <FindingStatusLines badge={false} className="basis-full" value={{ status: cause.status, urgency: cause.urgency, verification: cause.verification }} /> : null}
           <CveList className="basis-full" label={t('dash.cvesOf', { fix: what })}
             items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, to: `/findings/${encodeURIComponent(f.id)}` }))} />
         </>

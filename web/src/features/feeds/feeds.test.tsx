@@ -65,8 +65,35 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
       return HttpResponse.json({ ...v, trend: v.trend.map((_, i) => (i === v.trend.length - 1 ? 49 : 0)) })
     }))
     renderApp('/')
-    expect(await screen.findByText(/^Up 49 since \d{1,2} [A-Z][a-z]{2} \(was 0\)$/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Up 49 since \d{1,2} [A-Z][a-z]{2} \d{4} \(was 0\)$/)).toBeInTheDocument()
     expect(screen.queryByText(/more than 30 days ago/)).toBeNull()
+  })
+
+  it('a box installed today has no trend before its install: no "was 0 on 25 Oct"', async () => {
+    const { overview } = await import('@/features/findings/modelMocks')
+    const { dayOf } = await import('@/lib/format')
+    server.use(http.get('*/api/v1/findings/overview', () => {
+      const v = overview()
+      // the box began keeping findings today (the organization's day of the answer)
+      return HttpResponse.json({ ...v, trend: v.trend.map((_, i) => (i === v.trend.length - 1 ? 3 : 0)), trend_start: dayOf(v.generated_at) })
+    }))
+    renderApp('/')
+    expect(await screen.findByText(/^Counting since \d{1,2} [A-Z][a-z]{2} \d{4}, when this box began keeping findings$/)).toBeInTheDocument()
+    expect(screen.queryByText(/^Up 3 since/)).toBeNull()
+    expect(screen.queryByRole('img', { name: /^Open findings over/ })).toBeNull()
+  })
+
+  it('the open findings tile and the headline count the box: 3 findings on the box are "on 1 device", never "on 0 devices"', async () => {
+    const { overview } = await import('@/features/findings/modelMocks')
+    server.use(http.get('*/api/v1/findings/overview', () => {
+      const v = overview()
+      const none = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0 }
+      return HttpResponse.json({ ...v, open: { findings: 3, by_status: { ...none, critical_edge: 3 } },
+        devices: { ...v.devices, by_status: { ...none, needs_input: 0 }, affected: { ...none, critical_edge: 1 } } })
+    }))
+    renderApp('/')
+    expect(await screen.findByText('open findings on 1 device')).toBeInTheDocument()
+    expect(screen.getByText('Today: 1 of your devices has updates to install')).toBeInTheDocument()
   })
 
   it('the trend reads day by day from the keyboard (#825)', async () => {

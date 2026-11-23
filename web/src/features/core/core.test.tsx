@@ -1180,6 +1180,7 @@ describe('core: updates (S-CORE-2)', () => {
     expect(banner).toHaveTextContent('1 known vulnerability')
     expect(banner).toHaveTextContent('Update the software to get the fix for VSA-2026-003 (fixed in 0.9.4).')
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     // The software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
     expect(screen.getByText(/^Step 1 of 4: update the system helper/)).toBeInTheDocument() // The release brings a newer helper
@@ -1187,6 +1188,38 @@ describe('core: updates (S-CORE-2)', () => {
     expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(screen.getByRole('table', { name: 'Versions in use' })).toHaveTextContent('0.9.4')
+  })
+
+  it('Update asks first: the version, what restarts, about how long, the backup; Cancel changes nothing', async () => {
+    const u = user()
+    sessionStore.set({ userId: 'u-admin' })
+    const base = await (await fetch(`${location.origin}/api/v1/core/updates`)).json() as { available: { component: string; note: string; version: string }[] }
+    const long = `${'Changes in this release. '.repeat(30)}Rolling back restores the database backup taken just bef`
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, available: base.available.map((a) => (a.component === 'software' ? { ...a, note: long.slice(0, 500) } : a)) })))
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Update Vedette to 0.9.4?' })
+    expect(dlg).toHaveTextContent('Every part of Vedette restarts')
+    expect(dlg).toHaveTextContent(/about 4 minutes/)
+    expect(dlg).toHaveTextContent(/backed up first/)
+    // the notes the box cut end at a word and link to the release page where the whole text is
+    expect(dlg).not.toHaveTextContent(/just bef/)
+    expect(within(dlg).getByRole('link', { name: 'Full notes of 0.9.4' })).toHaveAttribute('href', 'https://github.com/KNT048/vedette/releases/tag/v0.9.4')
+    await u.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeNull()
+    // in the table the notes are two lines with Show all
+    await u.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('an advisory on a box already fixed shows its title and "Fixed in your build", never the same sentence twice', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const base = await (await fetch(`${location.origin}/api/v1/core/updates`)).json() as Record<string, unknown>
+    const same = 'Vedette 0.1.1 needs a fresh install: back up what you need, uninstall, then install 0.1.1 with install.sh'
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, advisories: [{ id: 'VED-2026-001', title: same, severity: 'high', published: '2026-11-23', fixed_in: '0.1.1', summary: `${same}.`, status: 'fixed' }] })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText('Fixed in your build')).toBeInTheDocument()
+    expect(screen.getAllByText((_, el) => el?.textContent === same || el?.textContent === `${same}.`).length).toBe(1)
   })
 
   it('the advisory banner points to the advisory when no software update reaches the fix', async () => {
@@ -1204,6 +1237,7 @@ describe('core: updates (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     await u.click(await screen.findByRole('button', { name: /^Back to 0\.9\.3/ }))
     const dlg = await screen.findByRole('dialog')
@@ -1221,6 +1255,7 @@ describe('core: updates (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     const r = await fetch(`${location.origin}/api/v1/core/updates/rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ component: 'software' }) })
     expect(r.status).toBe(409)
@@ -1245,6 +1280,7 @@ describe('core: updates (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.error(), { once: true }))
     expect(await screen.findByText('Reconnecting to Vedette…', undefined, { timeout: 4000 })).toBeInTheDocument()
@@ -1258,6 +1294,7 @@ describe('core: updates (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
     const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1/core/updates/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
     const again = await post('apply', { component: 'software' })
@@ -1872,7 +1909,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
     renderApp('/settings/updates')
     expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
-    expect(osSection().getByRole('button', { name: 'Check now' })).toBeInTheDocument()
+    expect(osSection().getByRole('button', { name: 'Check for OS updates' })).toBeInTheDocument()
     expect(await screen.findByText('Not built yet.')).toBeInTheDocument()
   })
 
@@ -1884,7 +1921,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     const u = user()
     renderApp('/settings/updates')
     expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
-    await u.click(osSection().getByRole('button', { name: 'Check now' }))
+    await u.click(osSection().getByRole('button', { name: 'Check for OS updates' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
     expect(osSection().getByRole('table', { name: 'Pending operating system updates' })).toBeInTheDocument()
   })
@@ -2015,7 +2052,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     renderApp('/settings/updates', { role: 'viewer' })
     const os = osSection
     await screen.findByRole('heading', { level: 1, name: /security updates waiting/ }, T)
-    for (const n of [/^Install security updates/, 'Install all updates', 'Reboot now', 'Schedule reboot', 'Check now']) expect(os().getByRole('button', { name: n })).toBeDisabled()
+    for (const n of [/^Install security updates/, 'Install all updates', 'Reboot now', 'Schedule reboot', 'Check for OS updates']) expect(os().getByRole('button', { name: n })).toBeDisabled()
     expect(os().getByRole('switch', { name: 'Automatic security updates' })).toBeDisabled()
     expect(os().getByRole('button', { name: 'Save window' })).toBeDisabled()
     expect(os().getByRole('button', { name: 'Install all updates' })).toHaveAttribute('title', expect.stringMatching(/admin/i))
@@ -2032,7 +2069,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   it('check now refreshes the time; refused when update checks are off under Privacy', async () => {
     const u = user()
     renderApp('/settings/updates')
-    await u.click(await screen.findByRole('button', { name: 'Check now' }, T))
+    await u.click(await screen.findByRole('button', { name: 'Check for OS updates' }, T))
     expect(await screen.findByText('Checked the package mirrors.', undefined, T)).toBeInTheDocument()
     asAdmin()
     await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ update_check: false }) })
@@ -2044,7 +2081,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   it('automatic security updates switch is saved and audited', async () => {
     const u = user()
     renderApp('/settings/updates')
-    await screen.findByRole('button', { name: 'Check now' }, T)
+    await screen.findByRole('button', { name: 'Check for OS updates' }, T)
     const sw = await osSection().findByRole('switch', { name: 'Automatic security updates' }, T)
     await u.click(sw)
     expect(await screen.findByText('Automatic security updates are off.')).toBeInTheDocument()
@@ -2092,7 +2129,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   it('saving a window warns first and says so when it cancelled the scheduled reboot (QA b3)', async () => {
     const u = user()
     renderApp('/settings/updates')
-    await screen.findByRole('button', { name: 'Check now' }, T)
+    await screen.findByRole('button', { name: 'Check for OS updates' }, T)
     const os = osSection()
     await u.click(await os.findByRole('button', { name: 'Schedule reboot' }, T))
     const d = within(await screen.findByRole('dialog', { name: 'Schedule a reboot' }))
@@ -2109,7 +2146,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   describe('form matrix: schedule a reboot', () => {
     const open = async (u: ReturnType<typeof user>) => {
-      await screen.findByRole('button', { name: 'Check now' }, T)
+      await screen.findByRole('button', { name: 'Check for OS updates' }, T)
       await u.click(await osSection().findByRole('button', { name: 'Schedule reboot' }, T))
       return screen.findByRole('dialog', { name: 'Schedule a reboot' })
     }

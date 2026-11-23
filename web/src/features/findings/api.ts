@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PAGE_MAX } from './contract'
-import type { ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Resolution, View } from './types'
+import type { AnsweredList, ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Resolution, View } from './types'
 
 /** GET /findings?asset=: one device's findings in every state, each with its history (what a version entry, "I updated it" or
  *  "Not installed" changed). */
@@ -86,6 +86,11 @@ export const useInputList = (f: { device?: string }, page: Page, enabled = true)
   const path = `/findings/input${qs({ device: f.device, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('input', path), queryFn: () => api.get<InputList>(path), enabled, placeholderData: keepPreviousData })
 }
+/** The questions answered "not affected": each can be asked again (useUnanswer). */
+export const useAnswered = (f: { device?: string }, page: Page, enabled = true) => {
+  const path = `/findings/answered${qs({ device: f.device, offset: page.offset, limit: page.limit })}`
+  return useQuery({ queryKey: model('answered', path), queryFn: () => api.get<AnsweredList>(path), enabled, placeholderData: keepPreviousData })
+}
 export const useHandledList = (f: { q?: string; resolution?: string; device?: string; from?: string }, page: Page, enabled = true) => {
   const path = `/findings/handled${qs({ q: f.q, resolution: f.resolution, device: f.device, from: f.from, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('handled', path), queryFn: () => api.get<HandledList>(path), enabled, placeholderData: keepPreviousData })
@@ -116,3 +121,7 @@ export const useVerify = () => useModelWrite((v: { id: string; note: string }) =
 export const useUnverify = () => useModelWrite((v: { id: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/unverify`, {}))
 export const useAnswer = () => useModelWrite((v: { id: string; answer: 'affected' | 'not_affected'; note: string }) =>
   api.post<{ finding: string | null }>(`/findings/questions/${encodeURIComponent(v.id)}/answer`, { answer: v.answer, note: v.note }))
+export const useUnanswer = () => useModelWrite((v: { id: string }) => api.post<{ id: string }>(`/findings/questions/${encodeURIComponent(v.id)}/unanswer`, {}))
+/** A view of one finding: its status, the reasons of its urgency and how it is known, as every list row says them. */
+export const useView = (id: string, enabled = true) =>
+  useQuery({ queryKey: model('view', id), queryFn: () => api.get<View>(`/findings/${encodeURIComponent(id)}/view`), enabled, retry: false })

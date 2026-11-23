@@ -134,3 +134,35 @@ export function describeRule(r: ScheduleRule, t: TFunction<'schedule'>, when: (i
   const zone = r.tz === 'org' ? '' : ` (${r.tz})`
   return `${main}${win ? `, ${win}` : ''}${zone}`
 }
+
+/** An interval the owner does not allow (0, below its minimum, above its maximum) is said in the form, in the same plain words for
+ *  every value, before anything is asked of the box: the box's own answer to 0 names an API field. null when it is allowed or the
+ *  rule is not an interval. */
+export function intervalProblem(d: Draft, l: ScheduleLimits): { min: number } | { max: number } | null {
+  if (d.freq !== 'interval') return null
+  const n = Number(d.every)
+  const minutes = Number.isFinite(n) ? Math.round(n * UNIT_MINUTES[d.unit]) : 0
+  const min = Math.max(1, l.min_every_minutes)
+  if (minutes < min) return { min }
+  if (l.max_every_minutes > 0 && minutes > l.max_every_minutes) return { max: l.max_every_minutes }
+  return null
+}
+
+/** "1 hour", "6 hours", "3 days". */
+export function spanText(minutes: number, t: TFunction<'schedule'>): string {
+  const { every, unit } = split(minutes, ['minutes', 'hours', 'days'])
+  return `${every} ${t(`unit.${unit}`, { count: every })}`
+}
+
+/** The plain sentence for an interval the owner does not allow, with the owner's reason: "The interval is at least 1 hour. Sources ask
+ *  clients not to poll more often." */
+export function intervalText(p: { min: number } | { max: number }, l: ScheduleLimits, t: TFunction<'schedule'>): string {
+  const main = 'min' in p ? t('limit.atLeast', { span: spanText(p.min, t) }) : t('limit.atMost', { span: spanText(p.max, t) })
+  return l.reason ? `${main} ${l.reason}` : main
+}
+
+/** "02:30" of an instant in a zone. */
+export function clockIn(iso: string, zone: string): string {
+  const w = wallIn(Date.parse(iso), zone)
+  return `${String(w.h).padStart(2, '0')}:${String(w.min).padStart(2, '0')}`
+}

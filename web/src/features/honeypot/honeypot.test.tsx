@@ -482,9 +482,9 @@ describe('honeypot: the LAN range is not known yet (#875)', () => {
       const v = render(<QueryClientProvider client={qc}><MemoryRouter><TrapIpsTab hits={[]} lan="" lanKnown={false} smbName={null} /></MemoryRouter></QueryClientProvider>)
       await waitFor(() => expect(qc.getQueryData(['me'])).toBeTruthy())
       if (admin) {
-        expect(await screen.findByRole('link', { name: 'Add your LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
+        expect(await screen.findByRole('link', { name: 'Add your LAN range in Settings, Scanning, Safety' })).toHaveAttribute('href', '/settings/scanning?tab=safety#range-input')
       } else {
-        expect(await screen.findByText(/Ask an administrator to add it in Devices, Scope and sensors\./)).toBeInTheDocument()
+        expect(await screen.findByText(/Ask an administrator to add it in Settings, Scanning, Safety\./)).toBeInTheDocument()
         expect(screen.queryByRole('link', { name: /LAN range/ })).toBeNull()
       }
       v.unmount()

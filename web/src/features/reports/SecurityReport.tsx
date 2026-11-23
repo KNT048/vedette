@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
-import { HandledLine, SeverityBadge, StatusBadge, useStatusLabel, VerificationLine } from '@/components/common/status'
+import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
 import { Logo } from '@/components/brand/Logo'
 import { NotAddedChip } from '@/features/findings/NotAdded'
 import { useFixTitle } from '@/features/findings/parts'
@@ -70,7 +70,9 @@ export function SecurityReport({ doc }: { doc: ReportDocument }) {
   const handledN = s?.handled ?? (doc.handled ? doc.handled.totals.reduce((n, x) => n + x.n, 0) : null)
   const o = doc.options
   return (
-    <article aria-label={doc.title} className="grid grid-cols-[minmax(0,1fr)] gap-8 text-sm">
+    // every name in a report comes from the network (a signature, a device, a product): an unbroken one wraps rather than widening
+    // the page past a phone's width
+    <article aria-label={doc.title} className="grid grid-cols-[minmax(0,1fr)] gap-8 text-sm [overflow-wrap:anywhere]">
       <header className="grid gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="grid gap-0.5">
@@ -191,6 +193,8 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
   return (
     <section aria-labelledby="sr-handled">
       <Heading id="sr-handled" n={n} aside={total ? t('sr.groupCount', { count: total }) : undefined}>{t('sr.section.handled')}</Heading>
+      {/* Findings › Handled lists every closure; the report leaves out what was found not relevant unless asked: it says how many */}
+      {h.not_relevant_left_out ? <p className="mb-2 text-meta text-muted" data-testid="not-relevant-left-out">{t('sr.notRelevantLeftOut', { count: h.not_relevant_left_out })}</p> : null}
       {total === 0 ? <p className="text-muted">{t('sr.handledNone')}</p> : (
         <div className="grid gap-4">
           <div className="report-block grid gap-2">
@@ -220,7 +224,7 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><CveLink cve={i.cve} finding={i.finding_id} /><SeverityBadge severity={i.severity} compact /></div>
                         <div className="text-meta text-muted">{i.product}</div>
                       </td>
-                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine handled={i.handled} software={i.product} className="mt-1 block" /></td>
+                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -234,17 +238,9 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
   )
 }
 
-/** A finding's status with how Vedette knows, and the day a list asks for the fix (CISA KEV). */
+/** A finding's status as every screen says it: the badge, why (the reasons, with the day a list asks for the fix) and how Vedette knows. */
 function StatusCell({ f }: { f: ReportFinding }) {
-  const { t } = useTranslation()
-  const due = f.reasons.map((r) => r.due).filter((d): d is string => !!d).sort()[0]
-  return (
-    <div className="grid gap-1">
-      <StatusBadge code={f.status} />
-      <VerificationLine verified={f.verification.verified} basis={f.verification.basis} by={f.verification.by} at={f.verification.at} />
-      {due ? <span className="text-meta font-medium text-danger">{t('reasons.due', { date: fmtDate(due) })}</span> : null}
-    </div>
-  )
+  return <FindingStatusLines value={{ status: f.status, urgency: { reasons: f.reasons, internet: null }, verification: f.verification }} />
 }
 
 function Open({ open, n }: { open: ReportOpen; n: number }) {
@@ -447,7 +443,7 @@ function Detections({ d, charts, n }: { d: ReportDetections; charts: boolean; n:
                 <ul className="grid gap-2">
                   {d.top.map((x, i) => (
                     <li key={i} className="report-block grid gap-0.5 border-l-2 border-rule pl-3">
-                      <span className="flex flex-wrap items-center gap-2"><SeverityBadge severity={x.severity} compact /><span className="font-medium">{x.title}</span></span>
+                      <span className="flex min-w-0 flex-wrap items-center gap-2"><SeverityBadge severity={x.severity} compact /><span className="min-w-0 font-medium">{x.title}</span></span>
                       <span className="text-meta text-muted">{[t(`sr.dkind.${x.kind}`), x.device?.name, fmtDateTime(x.at)].filter(Boolean).join(' · ')}</span>
                     </li>
                   ))}

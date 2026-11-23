@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Counter } from './Counter'
 import { useKeepListParams } from './listParams'
+import { setShownTabs, useIsHere } from './here'
 
 // Page frame (S-UI-1): PageHeader > KpiStrip (optional) > PageTabs. Settings keeps its vertical menu.
 
@@ -19,13 +20,15 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
   if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items, got ${all.length}; the rest are dropped`)
   const items = all.slice(0, 4)
   const keep = useKeepListParams()
+  const isHere = useIsHere()
   return (
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
         <li key={k.label} className="bg-surface [&:last-child:nth-child(odd)]:col-span-2 sm:[&:last-child:nth-child(odd)]:col-span-1">
           {/* The whole cell is a link (not text in a paragraph): no underline on the number or the label; hover gives a background and underlines the label.
               A 0 opens nothing (a link to an empty list is an action with nothing behind it), so it is plain text. */}
-          {isZero(k.value) ? (
+          {/* A link to the tab already shown would lead nowhere: plain text, as a 0 is */}
+          {isZero(k.value) || isHere(k.to) ? (
             <div className="grid h-full gap-0.5 px-3 py-2">
               <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
               <span className="text-meta text-muted">{k.label}</span>
@@ -52,6 +55,10 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   const raw = params.get('tab')
   const open = tabs.find((x) => x.id === raw) ?? tabs[0]
   const list = useRef<HTMLDivElement>(null)
+  const { pathname } = useLocation()
+  // the tab shown, for the links of the page that would point at it (a stat tile above the tabs): see here.ts
+  useLayoutEffect(() => { setShownTabs(pathname, open && tabs.length > 1 ? { shown: open.id, first: tabs[0]!.id } : null) }, [pathname, open, tabs])
+  useLayoutEffect(() => () => setShownTabs(pathname, null), [pathname])
   // On a phone the open tab may sit outside the visible part of the tab row: scroll it into view (only the tab row, not the page).
   useEffect(() => {
     const row = list.current

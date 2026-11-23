@@ -4,17 +4,20 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ShieldCheck } from 'lucide-react'
 import { Card } from '@/components/common/Card'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
+import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { BEHAVIOUR_KINDS, kindLabel } from '@/lib/deviceTypes'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { ApiError } from '@/lib/api'
+import { rangeProblem } from '@/features/inventory/validate'
 import { useSaveSafety, useScopeCost } from './api'
-import type { Safety, SafetyInput } from './types'
+import { ExclusionList, RangeList, useSettled } from './ScopeLists'
+import type { Safety, SafetyInput, ScopeCost } from './types'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
 const PPS = [10, 50, 100, 300, 1000]
@@ -69,7 +72,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
   merged: Merge | null; devices: number; onSaved: (r: Safety) => void
   /** 409 safety_changed: the block stored now (null: read it again) and what was typed, to build the form again on both (#860). */ onChanged: (current: Safety | null, typed: Vals) => void
 }) {
-  const { t } = useTranslation('scanning')
+  const { t } = useTranslation(['scanning', 'inventory', 'scan'])
   const admin = useCan('admin')
   const save = useSaveSafety()
   const [ranges, setRanges] = useState(start.ranges)
@@ -85,6 +88,16 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const dis = !admin
   const rangesChanged = lines(ranges).join() !== s.scope.lan_ranges.join()
+  const rangeList = lines(ranges)
+  const badRanges = rangeList.filter((r) => rangeProblem(r, rangeList) !== null).length
+  // What one pass of the scope as it is in the form costs (the box's numbers), shown under the ranges and in the Add range dialog
+  const costOf = (r: string[]) => ({ lan_ranges: r.slice(0, 16), exclusions: lines(excl).slice(0, 400), window: { days, from, to }, packets_per_s: pps })
+  const costQuery = useScopeCost(useSettled(costOf(rangeList)), rangeList.length > 0)
+  const cost = rangeList.length > 0 ? costQuery.data : undefined
+  // A scope that does not fit a week of windows is refused on save: the button says so before, instead of a refusal after
+  const refused = !!cost && cost.addresses > 0 && !cost.fits_week
+  const blocked = badRanges > 0 ? t('safety.saveBlocked.bad', { count: badRanges }) : refused ? t('safety.saveBlocked.tooLarge') : null
+  const widen = () => document.getElementById('win-from')?.focus()
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -104,16 +117,15 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
       {dis ? <Notice tone="off" className="mb-0" title={t('safety.adminOnly')} /> : null}
       {merged ? <MergeNotice m={merged} now={s} /> : null}
-      <p className="text-sm">{t('safety.appliesTo')}</p>
-
-      <Section id="scope" title={t('safety.scopeTitle')} description={t('safety.scopeDescription')} info={t('safety.scopeInfo')} stories={['S-INV-1']}>
+      <Section id="scope" title={t('safety.scopeTitle')} description={t('safety.scopeDescription')} info={<><p>{t('safety.scopeInfo')}</p><p>{t('safety.appliesTo')}</p></>} stories={['S-INV-1', 'S-SCAN-4']}>
         <Card className="grid gap-4">
-          <Field htmlFor="scope-ranges" label={t('scope.ranges')} hint={t('scope.rangesHint')}>
-            <Textarea id="scope-ranges" rows={3} spellCheck={false} value={ranges} placeholder="192.168.10.0/24" disabled={dis} onChange={(e) => { setRanges(e.target.value); setConfirmed(false) }} />
-          </Field>
+          <RangeList items={rangeList} disabled={dis} onChange={(v) => { setRanges(v.join('\n')); setConfirmed(false) }}
+            cost={(r) => <DraftCost input={costOf(r)} pps={pps} />} />
+          {cost ? <SweepCost c={cost} pps={pps} admin={admin} onPps={setPps} onWiden={widen} /> : null}
           <div className="flex items-start gap-3">
             <Checkbox id="scope-confirm" className="mt-0.5" checked={confirmed} disabled={dis} onCheckedChange={(v) => setConfirmed(v === true)} aria-describedby="scope-status" />
             <Label htmlFor="scope-confirm" className="font-normal">{t('inventory:scope.confirm')}</Label>
+            <InfoTip topic={t('inventory:scope.title')}>{t('inventory:scope.asIs')}</InfoTip>
           </div>
           <p id="scope-status" className={s.scope.confirmed_at && !rangesChanged ? 'text-meta text-muted' : 'text-meta text-warn'}>
             {s.scope.confirmed_at && !rangesChanged ? t('safety.confirmedBy', { date: fmtDate(s.scope.confirmed_at), by: s.scope.confirmed_by ?? '' }) : rangesChanged ? t('safety.confirmAgain') : t('safety.notConfirmed')}
@@ -156,12 +168,8 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
         </div>
       </Section>
 
-      <SweepCost ranges={lines(ranges)} excl={lines(excl)} days={days} from={from} to={to} pps={pps} />
-
       <Section id="exclusions" title={t('safety.exclTitle')} description={t('safety.exclDescription')}>
-        <Field htmlFor="excl" label={t('safety.exclLabel')} hint={t('safety.exclHint')} info={t('safety.exclInfo')}>
-          <Textarea id="excl" value={excl} onChange={(e) => setExcl(e.target.value)} disabled={dis} spellCheck={false} rows={4} />
-        </Field>
+        <ExclusionList items={lines(excl)} disabled={dis} onChange={(v) => setExcl(v.join('\n'))} />
       </Section>
 
       <Section id="fragile" title={t('safety.fragileTitle')} description={t('safety.fragileDescription')} info={t('safety.fragileInfo')}>
@@ -190,36 +198,49 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
         </Card>
       </Section>
 
-      <Section id="never" title={t('scan:safety.neverTitle')} description={t('scan:safety.neverDescription')}
-        info={(['exploit', 'write', 'tags'] as const).map((k) => <p key={k}>{t(`scan:safety.never.${k}Info`)}</p>)}>
-        <Card className="grid gap-2">
-          <p className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="size-4 text-ok" aria-hidden />{t('scan:safety.neverHeadline')}</p>
-          <ul className="grid list-disc gap-1 pl-9 text-sm">
+      {/* What the engines never do: one line, the list behind the info icon (an explanation, not something to set) */}
+      <p id="never" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        <ShieldCheck className="size-4 text-ok" aria-hidden />{t('scan:safety.neverHeadline')}
+        <InfoTip topic={t('scan:safety.neverTitle')}>
+          <ul className="grid list-disc gap-1 pl-4">
             {(['exploit', 'dos', 'brute', 'write', 'tags'] as const).map((k) => <li key={k}>{t(`scan:safety.never.${k}`)}</li>)}
           </ul>
-          <p className="text-meta text-muted">{t('scan:safety.neverLocked')}</p>
-        </Card>
-      </Section>
+          {(['exploit', 'write', 'tags'] as const).map((k) => <p key={k} className="mt-1">{t(`scan:safety.never.${k}Info`)}</p>)}
+          <p className="mt-1">{t('scan:safety.neverLocked')}</p>
+        </InfoTip>
+      </p>
 
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <div><Button type="submit" variant="primary" disabled={dis} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('safety.save')}</Button></div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="primary" disabled={dis || !!blocked} aria-describedby={blocked ? 'safety-blocked' : undefined} busy={save.isPending} busyLabel={t('common:busy.saving')}>{t('safety.save')}</Button>
+        {blocked ? <span id="safety-blocked" role="status" className="text-meta text-danger">{blocked}</span> : null}
+      </div>
     </form>
   )
 }
 
 /** What one pass of discovery over the scope as typed costs, from the box (POST /scanning/safety/estimate): the addresses and the time
- *  of one pass, and whether it fits one window. A pass that needs several windows is one run over several nights; the choices to make
- *  it fit one are named. A scope that does not fit a week is refused on save, and the card says so before. */
-function SweepCost({ ranges, excl, days, from, to, pps }: { ranges: string[]; excl: string[]; days: number[]; from: string; to: string; pps: number }) {
+ *  of one pass, and whether it fits one window. A pass that needs several windows is one run over several nights; the ways to make it
+ *  fit are buttons (a faster speed that fits, the window), not prose. A scope that does not fit a week is refused on save, and the
+ *  card says so before (the Save button is off with the reason). */
+function SweepCost({ c, pps, admin, onPps, onWiden }: { c: ScopeCost; pps: number; admin?: boolean; onPps?: (n: number) => void; onWiden?: () => void }) {
   const { t } = useTranslation('scanning')
-  const q = useScopeCost({ lan_ranges: ranges.slice(0, 16), exclusions: excl.slice(0, 400), window: { days, from, to }, packets_per_s: pps }, ranges.length > 0)
-  const c = q.data
-  if (!c || c.addresses === 0) return null
+  if (c.addresses === 0) return null
   const pass = fmtDuration(c.pass_seconds)
   const win = fmtDuration(c.window_seconds)
   const line = t('safety.cost.line', { addresses: c.addresses.toLocaleString('en-US'), pass, pps })
+  // The pass time scales with the speed: the slowest offered speed above this one that makes the pass fit (one window, else the week)
+  const passAt = (n: number) => (c.pass_seconds * pps) / n
+  const windowsAt = (n: number) => (c.window_seconds > 0 ? Math.ceil(passAt(n) / c.window_seconds) : Infinity)
+  const faster = c.fits_window ? undefined : PPS.find((n) => n > pps && windowsAt(n) <= 1) ?? (c.fits_week ? undefined : PPS.find((n) => n > pps && windowsAt(n) <= c.week_windows))
+  const actions = admin && !c.fits_window && (onPps || onWiden) ? (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {faster && onPps ? <Button size="sm" onClick={() => onPps(faster)}>{t('safety.cost.useSpeed', { count: faster })}</Button> : null}
+      {onWiden ? <Button size="sm" onClick={onWiden}>{t('safety.cost.widen')}</Button> : null}
+    </div>
+  ) : null
   return (
-    <Notice tone={!c.fits_week ? 'danger' : c.fits_window ? 'off' : 'warn'} className="mb-0" title={line} role="status">
+    <Notice tone={!c.fits_week ? 'danger' : c.fits_window ? 'off' : 'warn'} className="mb-0" title={line} role="status" actions={actions ?? undefined}>
       {!c.fits_week ? t('safety.cost.tooLarge', { windows: c.windows, week: c.week_windows, window: win })
         : c.fits_window ? t('safety.cost.fits', { window: win })
           : t('safety.cost.nights', { windows: c.windows, window: win })}
@@ -227,17 +248,28 @@ function SweepCost({ ranges, excl, days, from, to, pps }: { ranges: string[]; ex
   )
 }
 
-/** "6 h 12 min", "40 min", "less than a minute". */
+/** The cost of the scope with the range typed in the Add range dialog (no buttons there: the dialog adds a range, nothing else). */
+function DraftCost({ input, pps }: { input: Parameters<typeof useScopeCost>[0]; pps: number }) {
+  const c = useScopeCost(input).data
+  return c ? <SweepCost c={c} pps={pps} /> : null
+}
+
+/** "6 h 12 min", "40 min", "less than a minute"; from two days on, in days: "66 days", "2 days 4 h". */
 function fmtDuration(seconds: number): string {
   const m = Math.round(seconds / 60)
   if (m < 1) return 'less than a minute'
   if (m < 60) return `${m} min`
+  const h = Math.round(m / 60)
+  if (h >= 48) {
+    const d = Math.floor(h / 24)
+    return d >= 7 || h % 24 === 0 ? `${Math.round(h / 24)} days` : `${d} days ${h % 24} h`
+  }
   return m % 60 === 0 ? `${m / 60} h` : `${Math.floor(m / 60)} h ${m % 60} min`
 }
 
 /** #877 r1 M4: after a 409, what someone else changed (its value stored now) and that the person's own edits are kept, to save again. */
 function MergeNotice({ m, now }: { m: Merge; now: Safety }) {
-  const { t } = useTranslation('scanning')
+  const { t } = useTranslation(['scanning', 'scan'])
   const days = [...now.window.days].sort().map((d) => t(`scan:days.${d}`)).join(', ')
   const value: Record<Part, string> = {
     scope: now.scope.lan_ranges.join(', ') || t('safety.merge.none'),

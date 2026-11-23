@@ -1,4 +1,4 @@
-import { memo, useRef, useState, type RefObject } from 'react'
+import { memo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -15,7 +15,8 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { Slot } from '@/components/common/Slot'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Input, Select, Textarea, Label } from '@/components/ui/input'
+import { Field, Input, Select, Textarea, Label } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
@@ -44,6 +45,7 @@ import { MergeFlow } from './MergeDialog'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
 import type { AlsoSeen, DeviceDetail, Observation, RegularScan, SoftwareLine } from './types'
+import { InfoLine } from '@/components/common/InfoLine'
 import { badgeOfRisk, DeviceBadge, riskDescription, riskWord } from './RiskMarker'
 
 /** #944: the fragile line promises a scan only when Vedette may scan the device now, by the one rule
@@ -58,7 +60,7 @@ function scanHint(a: DeviceDetail['asset'], scanning: Scanning | undefined, t: (
 }
 
 function Overview({ d }: { d: DeviceDetail }) {
-  const { t } = useTranslation('inventory')
+  const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
@@ -167,51 +169,55 @@ function HostName({ d }: { d: DeviceDetail }) {
   )
 }
 
-/** Rename the device in Vedette where its name is, next to the page title. The name wins on every page (nameOf,
- *  inventory.DisplayName); empty goes back to the default name. Enter saves, Escape cancels. The host name the network reports is not
- *  changed. `editing` false: the Rename button; true: the field that takes the title's place. */
-function RenameDevice({ d, editing, setEditing, button }: { d: DeviceDetail; editing: boolean; setEditing: (v: boolean) => void; button: RefObject<HTMLButtonElement | null> }) {
+/** Rename the device in Vedette: the pencil next to the page title opens a short dialog over the page (an edit never opens inside the
+ *  page). The name wins on every page (nameOf, inventory.DisplayName); empty goes back to the default name. The host name the network
+ *  reports is not changed. */
+function RenameDevice({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button size="icon" variant="ghost" className="ml-1" disabled={!can} aria-label={t('detail.renameDevice')} title={can ? t('detail.renameDevice') : t('common:needRole', { role: t('common:role.operator') })}
+        onClick={() => setOpen(true)}><Pencil /></Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        {open ? <RenameForm d={d} onClose={() => setOpen(false)} /> : null}
+      </Dialog>
+    </>
+  )
+}
+
+function RenameForm({ d, onClose }: { d: DeviceDetail; onClose: () => void }) {
+  const { t } = useTranslation('inventory')
   const act = useDeviceAction(d.asset.id)
   const saved = d.asset.name ?? ''
-  const [text, setText] = useState(saved) // the field mounts on Rename, so it starts from the saved name
+  const [text, setText] = useState(saved)
   const fallback = nameOf({ ...d.asset, name: null }, kindLabel(d.asset.kind)) // the default name: what an empty name shows
   const next = text.trim()
   const bad = badUserName(next) // the characters the backend refuses (#929)
-  const [refused, setRefused] = useState('') // why the server refused the last save, next to the field (#929)
-  const field = useRef<HTMLInputElement>(null)
-  const close = () => { setEditing(false); requestAnimationFrame(() => button.current?.focus()) } // focus back on Rename, which comes back
-  const save = () => {
+  const [refused, setRefused] = useState('') // why the server refused the last save, under the field (#929)
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
     if (bad || act.patch.isPending) return
-    if (next === saved) { close(); return }
+    if (next === saved) { onClose(); return }
     act.patch.mutate({ name: next }, {
-      onSuccess: () => { toast.success(next ? t('detail.renamed', { name: next }) : t('detail.renameReset', { name: fallback })); close() },
-      // the field stays focused and says why next to it, for keyboard and screen-reader users
-      onError: (e) => { setRefused(errMsg(e)); requestAnimationFrame(() => field.current?.focus()) },
+      onSuccess: () => { toast.success(next ? t('detail.renamed', { name: next }) : t('detail.renameReset', { name: fallback })); onClose() },
+      onError: (err) => { setRefused(errMsg(err)); requestAnimationFrame(() => document.getElementById('device-name')?.focus()) }, // the field keeps the focus and says why
     })
   }
-  if (!editing) {
-    return (
-      <Button ref={button} size="icon" variant="ghost" className="ml-1" disabled={!can} aria-label={t('detail.renameDevice')} title={can ? t('detail.renameDevice') : t('common:needRole', { role: t('common:role.operator') })}
-        onClick={() => setEditing(true)}><Pencil /></Button>
-    )
-  }
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      {/* readOnly, not disabled, while saving: a disabled field would drop the keyboard focus to the page */}
-      <Input ref={field} id="device-name" autoFocus className="w-80 max-w-full" value={text} maxLength={64} aria-label={t('detail.renameLabel')}
-        aria-invalid={bad || !!refused || undefined} aria-describedby={refused || bad ? 'device-name-error device-name-hint' : 'device-name-hint'} placeholder={fallback}
-        readOnly={act.patch.isPending} aria-busy={act.patch.isPending || undefined}
-        onChange={(e) => { setText(e.target.value); setRefused('') }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); save() }
-          if (e.key === 'Escape') { e.preventDefault(); close() }
-        }} />
-      <Button size="sm" variant="primary" disabled={bad} busy={act.patch.isPending} busyLabel={t('common:busy.saving')} onClick={save}>{t('detail.renameSave')}</Button>
-      <Button size="sm" variant="ghost" disabled={act.patch.isPending} onClick={close}>{t('common:cancel')}</Button>
-      {bad || refused ? <span id="device-name-error" role="alert" className="w-full text-caption text-danger">{bad ? t('detail.renameBad') : refused}</span> : null}
-    </span>
+    <DialogContent title={t('detail.renameDevice')}>
+      <form onSubmit={submit} noValidate className="grid gap-4">
+        <Field label={t('detail.renameLabel')} htmlFor="device-name" hint={t('detail.renameHint', { name: fallback })} error={bad ? t('detail.renameBad') : refused || undefined}>
+          <Input id="device-name" autoFocus value={text} maxLength={64} placeholder={fallback} aria-invalid={bad || !!refused || undefined}
+            aria-describedby={bad || refused ? 'device-name-error' : 'device-name-hint'} onChange={(e) => { setText(e.target.value); setRefused('') }} />
+        </Field>
+        <DialogFooter>
+          <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
+          <Button type="submit" variant="primary" disabled={bad} busy={act.patch.isPending} busyLabel={t('common:busy.saving')}>{t('detail.renameSave')}</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   )
 }
 
@@ -247,7 +253,7 @@ const Observations = memo(function Observations({ list }: { list: Observation[] 
 type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
 const Services = memo(function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset'] }) {
-  const { t } = useTranslation('inventory')
+  const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const scanning = useScanning().data
   // On the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
   const source = (sv: Service) => (by === 'box' && sv.source === 'agent' ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={sv.source} confidence={sv.confidence} />)
@@ -296,7 +302,7 @@ function AlsoSeenLine({ also }: { also: AlsoSeen[] }) {
 // The tables' cells are drawn by functions made on each render, so a table drawn again mounts its cells again (an open row menu
 // closes). The page's header and tab counts change as the findings answer arrives: the tables are drawn again only when their device does.
 const SoftwareList = memo(function SoftwareList({ d }: { d: DeviceDetail }) {
-  const { t } = useTranslation('inventory')
+  const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
   const [editing, setEditing] = useState<SoftwareLine | null>(null)
@@ -479,7 +485,7 @@ function Approval({ d }: { d: DeviceDetail }) {
 }
 
 function Body() {
-  const { t } = useTranslation('inventory')
+  const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const { id = '' } = useParams()
   const q = useDevice(id)
   const can = useCan('operator')
@@ -488,10 +494,8 @@ function Body() {
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
   const [ign, setIgn] = useState(false)
-  const [renaming, setRenaming] = useState(false)
   const [merging, setMerging] = useState(false)
   const admin = useCan('admin')
-  const renameButton = useRef<HTMLButtonElement>(null)
   const findingsOn = useModuleEnabled('findings') === true
   const summary = useDeviceFindingsSummary(id)
   // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
@@ -516,16 +520,13 @@ function Body() {
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
-        meta={renaming
-          ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
-          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
-        titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
-        editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined} />
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        titleAction={<RenameDevice d={d} />} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} onMerged={onMerged} />
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
-      {a.private_mac ? <p className="text-meta text-muted" data-testid="private-mac-note">{t('privateMac.note')}</p> : null}
+      {a.private_mac ? <div data-testid="private-mac-note"><InfoLine className="text-meta text-muted" topic={t('privateMac.note')} info={t('privateMac.noteInfo')}>{t('privateMac.note')}</InfoLine></div> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
@@ -555,15 +556,16 @@ function Body() {
           </Section>
         ) },
       ]} />
-      {/* Ignore and Remove live in one place: a waiting device has them in its notice above, every other device here */}
-      {a.approved || a.ignored_at || a.is_box ? (
+      {/* Ignore and Remove live in one place: a waiting device has them in its notice above, every other device here; the box has
+          neither (Vedette runs on it), so no menu that offers only a refusal */}
+      {(a.approved || a.ignored_at) && !a.is_box ? (
         <div className="mt-8 flex justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button><MoreHorizontal />{t('detail.more')}</Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {a.is_box ? null : <DropdownMenuItem disabled={!admin} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} onSelect={() => setMerging(true)}><GitMerge />{t('merge.withMenu')}</DropdownMenuItem>}
-              {a.approved && !a.ignored_at && !a.is_box ? <DropdownMenuItem disabled={!can} onSelect={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</DropdownMenuItem> : null}
-              <DropdownMenuItem disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : undefined} onSelect={() => setDel(true)}><Trash2 />{t('detail.delete')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={!admin} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} onSelect={() => setMerging(true)}><GitMerge />{t('merge.withMenu')}</DropdownMenuItem>
+              {a.approved && !a.ignored_at ? <DropdownMenuItem disabled={!can} onSelect={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</DropdownMenuItem> : null}
+              <DropdownMenuItem disabled={!can} onSelect={() => setDel(true)}><Trash2 />{t('detail.delete')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

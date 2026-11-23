@@ -48,7 +48,8 @@ function Actions({ r }: { r: RunDetail }) {
     <div className="flex flex-wrap items-center gap-2">
       {r.can_resume ? (
         <Button busy={act.isPending && act.variables?.action === 'resume'} busyLabel={t('common:busy.starting')} onClick={() => run('resume')}>
-          <Play />{t('runs.resume')}
+          {/* a run that waits has not stopped: the button starts it now instead of at its turn, "Resume" is for a stopped run */}
+          <Play />{t(r.status === 'waiting' ? 'runs.startNow' : 'runs.resume')}
         </Button>
       ) : null}
       {r.can_stop ? (

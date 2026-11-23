@@ -13,6 +13,7 @@ import { kindLabel } from '@/lib/deviceTypes'
 import { useDeviceAction, useIgnoredDevices } from './api'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
+import { InfoLine } from '@/components/common/InfoLine'
 import type { DeviceDetail, DeviceRow } from './types'
 
 /** A private (locally administered) MAC: the 0x02 bit of the first byte. Phones and laptops pick one per network and change it. */
@@ -91,7 +92,7 @@ export function IgnoredPanel() {
     <section aria-labelledby="ignored-title" className="mb-8 grid min-w-0 gap-3">
       <div className="grid gap-0.5">
         <h2 id="ignored-title" className="text-base font-semibold">{t('ignored.listTitle')}</h2>
-        <p className="max-w-3xl text-meta text-muted">{t('ignored.description')}</p>
+        <InfoLine className="max-w-3xl text-meta text-muted" topic={t('ignored.listTitle')} info={t('ignored.descriptionInfo')}>{t('ignored.description')}</InfoLine>
       </div>
       <QueryState query={q}>
         {(r) => r.items.length ? (

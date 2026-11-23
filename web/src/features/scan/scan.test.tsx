@@ -275,7 +275,7 @@ describe('scan: schedule and safety (S-SCAN-4)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText(/Someone else saved these settings/)).toBeInTheDocument()
     expect(puts[0]?.version).toEqual(expect.any(String))
-    await waitFor(() => expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.40')) // the form was built again on the stored values
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove exclusion 192.168.10.40' })).toBeInTheDocument()) // the form was built again on the stored values
     expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('2') // and keeps what was typed (#877)
     await userEvent.selectOptions(screen.getByLabelText('Vulnerability checks on the LAN'), '2')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
@@ -289,9 +289,14 @@ describe('scan: schedule and safety (S-SCAN-4)', () => {
   it('saves the rate and exclusions: stored durably, audited, still there after reopening', async () => {
     const view = renderApp('/settings/scanning?tab=safety')
     await userEvent.selectOptions(await screen.findByLabelText('Vulnerability checks on the LAN'), '2')
-    const ex = screen.getByLabelText('One IP or network per line')
-    await userEvent.clear(ex)
-    await userEvent.type(ex, '192.168.10.250{enter}192.168.20.0/24')
+    const { inventorySettingsStore } = await import('@/features/inventory/mocks')
+    for (const x of inventorySettingsStore.get().active.exclusions) await userEvent.click(screen.getByRole('button', { name: `Remove exclusion ${x}` }))
+    for (const x of ['192.168.10.250', '192.168.20.0/24']) {
+      await userEvent.click(screen.getByRole('button', { name: 'Add exclusion' }))
+      const dlg = within(await screen.findByRole('dialog', { name: 'Add an exclusion' }))
+      await userEvent.type(dlg.getByLabelText('IP address or network'), x)
+      await userEvent.click(dlg.getByRole('button', { name: 'Add exclusion' }))
+    }
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()
     as('u-admin')
@@ -304,14 +309,17 @@ describe('scan: schedule and safety (S-SCAN-4)', () => {
     expect(await screen.findByLabelText('Vulnerability checks on the LAN')).toHaveValue('2')
   })
 
-  it('a wrong exclusion says which line and how to fix it', async () => {
+  it('a wrong exclusion is refused in its dialog, which says how to write it; the box refuses it too', async () => {
     renderApp('/settings/scanning?tab=safety')
-    const ex = await screen.findByLabelText('One IP or network per line')
-    await userEvent.type(ex, 'may-in')
-    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Exclusion "may-in" is not valid')
-    expect(alert).toHaveTextContent('Enter an IP (192.168.10.10)')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add exclusion' }))
+    const dlg = within(await screen.findByRole('dialog', { name: 'Add an exclusion' }))
+    await userEvent.type(dlg.getByLabelText('IP address or network'), 'may-in')
+    await userEvent.click(dlg.getByRole('button', { name: 'Add exclusion' }))
+    expect(await dlg.findByText(/Enter one IP \(192\.168\.10\.10\)/)).toBeInTheDocument()
+    as('u-admin')
+    const sf = (await (await fetch(`${base()}/scanning`)).json()).safety as { scope: { lan_ranges: string[] }; window: { days: number[]; from: string; to: string }; speed: unknown; fragile: { kinds: string[]; regular_scan_kinds: string[] }; version: string }
+    const r = await fetch(`${base()}/scanning/safety`, json('PUT', { scope: { lan_ranges: sf.scope.lan_ranges, confirmed: true }, window: { days: sf.window.days, from: sf.window.from, to: sf.window.to }, speed: sf.speed, exclusions: ['may-in'], fragile: sf.fragile, version: sf.version }))
+    expect(((await r.json()) as { error: { message: string } }).error.message).toMatch(/Exclusion "may-in" is not valid/)
   })
 
   it('the day of week is 1 to 7 (Monday = 1, Sunday = 7)', async () => {

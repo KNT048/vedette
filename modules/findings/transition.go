@@ -49,7 +49,7 @@ type Trigger struct {
 	Corrected bool
 
 	Resolution Resolution // TrHandle
-	Note       string     // TrHandle, TrReopen, TrVerify
+	Note       string     // TrHandle, TrReopen, TrVerify; TrGone: Vedette's reason from the match's proof (shown as the closing note)
 	Until      time.Time  // TrHandle accepted: the last day
 
 	Layer int // TrUrgency
@@ -292,11 +292,15 @@ func (t *transition) gone(tr Trigger) error {
 	if via.Credit() {
 		res = ResolutionPatched
 	}
+	note := "" // Vedette's own reason, when the match's proof gives one (the distribution's fixed release); never for a person's close
+	if by == SystemUser {
+		note = tr.Note
+	}
 	switch was := t.before; {
 	case was.State == StateOpen:
-		t.close(res, via, by, "", time.Time{}, from, to)
+		t.close(res, via, by, note, time.Time{}, from, to)
 	case was.Via == ViaPerson && (was.Resolution == ResolutionMitigated || was.Resolution == ResolutionAccepted) && via.Credit():
-		t.close(res, via, by, "", time.Time{}, from, to) // the flaw is gone: the workaround or the accepted risk no longer matters
+		t.close(res, via, by, note, time.Time{}, from, to) // the flaw is gone: the workaround or the accepted risk no longer matters
 	default:
 		t.emit(SystemUser, EvNoLongerDetected, EventDetail{Via: via, FromVersion: from, ToVersion: to})
 	}

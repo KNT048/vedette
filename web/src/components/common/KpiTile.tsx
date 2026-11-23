@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { cn } from '@/lib/utils'
 import { useKeepListParams } from './listParams'
+import { useIsHere } from './here'
 
 /**
  * A row of stat tiles divided by rules, like one table row, not separate cards (docs/UI.md §3, §5; the KpiStrip look). Its `label` names
@@ -28,6 +29,8 @@ export function KpiTile({ value, label, to, tone, sub, chart, className }: {
   className?: string
 }) {
   const keep = useKeepListParams()
+  const isHere = useIsHere()
+  const link = to && !isHere(to) ? to : undefined // a tile of the list already shown is not a link to itself
   const body = (
     <>
       <span className={cn('block text-lg font-semibold tabular-nums', tone === 'danger' && 'text-danger', tone === 'ok' && 'text-ok')}>{value}</span>{' '}
@@ -35,10 +38,10 @@ export function KpiTile({ value, label, to, tone, sub, chart, className }: {
     </>
   )
   return (
-    <li className={cn('group relative grid min-w-0 content-start gap-1 bg-surface px-4 py-3', to && 'hover:bg-sunken', className)}>
-      {to ? (
+    <li className={cn('group relative grid min-w-0 content-start gap-1 bg-surface px-4 py-3', link && 'hover:bg-sunken', className)}>
+      {link ? (
         // The ::after covers the tile; the focus ring is drawn on it, inside the tile (the grid clips anything outside).
-        <Link to={keep(to)} className="no-underline outline-none after:absolute after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-focus">{body}</Link>
+        <Link to={keep(link)} className="no-underline outline-none after:absolute after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-focus">{body}</Link>
       ) : <div>{body}</div>}
       {sub ? <div className="relative flex flex-wrap gap-x-3 gap-y-0.5 text-meta text-muted">{sub}</div> : null}
       {chart ? <div className="relative mt-1">{chart}</div> : null}

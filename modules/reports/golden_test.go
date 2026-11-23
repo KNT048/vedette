@@ -76,15 +76,15 @@ func TestDocumentWinRARIsPatchedByVedette(t *testing.T) {
 		if h.Resolution != "patched" || h.Via != "version_moved" || h.By != "system" || *h.FromVersion != "6.24" || *h.ToVersion != "7.23" {
 			t.Fatalf("%s handled = %+v", it.CVE, h)
 		}
-		if line := HandledLine(h, it.Product, time.UTC); !strings.HasPrefix(line, "Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)") {
+		if line := HandledLine(h, it.Product, time.UTC); !strings.HasPrefix(line, "Patched by Vedette: version moved 6.24 → 7.23 (9 Nov 2026)") {
 			t.Fatalf("handled line = %q", line)
 		}
 	}
 	m := digest(doc, "rep-1")
-	if !slices.Contains(m.Items, "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov)") {
+	if !slices.Contains(m.Items, "Handled: CVE-2023-38831, WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Nov 2026)") {
 		t.Fatalf("mail items = %q", m.Items)
 	}
-	if !slices.ContainsFunc(m.Items, func(s string) bool { return strings.Contains(s, "6.24 → 7.23 (9 Nov): Checked on the machine.") }) {
+	if !slices.ContainsFunc(m.Items, func(s string) bool { return strings.Contains(s, "6.24 → 7.23 (9 Nov 2026): Checked on the machine.") }) {
 		t.Fatalf("the person's note joins Vedette's credit: %q", m.Items)
 	}
 	if m.Path != "/reports/sent/rep-1" {
@@ -226,7 +226,47 @@ func TestDigestWritesDatesInTheOrganisationZone(t *testing.T) {
 	if !strings.Contains(m.Title, "(1 Oct to 31 Oct 2026)") {
 		t.Fatalf("mail title = %q", m.Title)
 	}
-	if !slices.Contains(m.Items, "WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Oct)") {
+	if !slices.Contains(m.Items, "Handled: CVE-2024-0002, WinRAR on ws-accounting-07: Patched by Vedette: version moved 6.24 → 7.23 (9 Oct 2026)") {
 		t.Fatalf("mail items = %q", m.Items)
+	}
+}
+
+// The mail's own heading says "What to do first": the first thing follows it without a second "Do first", the others are marked
+// "Then", every handled line says it is one and names its CVE, and an accepted risk's last day is written as the pages write it.
+func TestDigestHeadsItsLines(t *testing.T) {
+	t.Parallel()
+	doc := Document{Title: "Security report", Period: DocPeriod{From: "2026-11-01T00:00:00.000Z", To: "2026-11-08T00:00:00.000Z", TZ: "UTC"},
+		Summary: &ReportSummary{OpenByStatus: []StatusCount{}, First: []FirstThing{
+			{Status: "exploited", CVE: "CVE-2026-1", Product: "vCenter", Devices: []DeviceRef{{Name: "vcenter-01"}}, DeviceCount: 1, Fix: Fix{Kind: "update", Version: sp("9.0.2.0200")}},
+			{Status: "exploited", CVE: "CVE-2026-2", Product: "Junos", Devices: []DeviceRef{{Name: "ex4200"}}, DeviceCount: 1, Fix: Fix{Kind: "none_yet"}}}},
+		Handled: &ReportHandled{Totals: []HandledTotal{{Resolution: "accepted", Via: "person", N: 1}}, Devices: []HandledDevice{{Device: DeviceRef{Name: "ex4200"},
+			Items: []HandledItem{{CVE: "CVE-2020-1631", Product: "Junos", Handled: Handled{Resolution: "accepted", Via: "person", By: "ana@example.com",
+				At: "2026-11-05T10:00:00.000Z", AcceptedUntil: sp("2026-12-24")}}}}}}}
+	m := digest(doc, "rep-1")
+	if strings.Contains(m.Action, "Do first") || !strings.HasPrefix(m.Action, "Exploited in the wild: CVE-2026-1") {
+		t.Errorf("action = %q", m.Action)
+	}
+	want := []string{"Then: Exploited in the wild: CVE-2026-2 in Junos on ex4200: no fix is published yet; follow the vendor advisory",
+		"Handled: CVE-2020-1631, Junos on ex4200: Risk accepted until 24 Dec 2026 by ana@example.com (5 Nov 2026)"}
+	if !slices.Equal(m.Items, want) {
+		t.Errorf("items = %q\nwant  %q", m.Items, want)
+	}
+}
+
+// "Include not relevant" off leaves Vedette's not-relevant closures out of Handled; the section says how many, so its count is not
+// taken for a smaller Findings › Handled. With the option on, nothing is left out.
+func TestHandledSaysWhatNotRelevantLeftOut(t *testing.T) {
+	t.Parallel()
+	f := FindingView{ID: "f", CVE: "CVE-2026-46300", Device: devWS, Product: "Linux kernel", Status: "not_relevant", Urgency: 5, FirstSeen: at("2026-11-02T09:00:00Z"),
+		Events: []FindingEvent{created("2026-11-02T09:00:00Z"), handledEv("2026-11-09T09:00:00Z", "not_relevant", "data_corrected", "system", nil, nil, nil, nil)}}
+	def := defaultDefinition()
+	doc := buildDocument(docInput{def: def, now: t0, loc: time.UTC, findings: []FindingView{f}})
+	if doc.Handled == nil || doc.Handled.NotRelevantLeftOut != 1 || countHandled(doc.Handled) != 0 {
+		t.Fatalf("option off: %+v", doc.Handled)
+	}
+	def.Options.IncludeNotRelevant = true
+	doc = buildDocument(docInput{def: def, now: t0, loc: time.UTC, findings: []FindingView{f}})
+	if doc.Handled.NotRelevantLeftOut != 0 || countHandled(doc.Handled) != 1 {
+		t.Fatalf("option on: %+v", doc.Handled)
 	}
 }

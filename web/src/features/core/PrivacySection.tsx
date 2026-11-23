@@ -77,7 +77,8 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 11 && oidcShown ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules#module-auth-oidc">{t('privacy.flow.11.link')}</Link> : null}
           {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network?tab=time#ntp-mode">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
-          {f.id === 15 || f.id === 16 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
+          {f.id === 15 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t('privacy.flow.15.link')}</Link> : null}
+          {f.id === 16 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure?tab=settings#greenbone">{t('privacy.flow.16.link')}</Link> : null}
         </span>
       )
   }

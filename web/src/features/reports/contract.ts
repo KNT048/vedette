@@ -175,6 +175,7 @@ export const ReportHandled = z.object({
   devices: z.array(z.object({ device: DeviceRef, items: z.array(HandledItem) })),
   more: z.number().int().describe('Handled findings not listed (a report lists 100 at most)'),
   median_days: z.number().min(0).nullable().describe('Median days from first seen to handled, of the findings patched or mitigated in the period; null when none'),
+  not_relevant_left_out: z.number().int().min(0).optional().describe('Findings closed as not relevant in the period that this report leaves out ("Include not relevant" off): why its count is lower than Findings › Handled. Absent when none, and in documents sent before it existed'),
 })
 export const ReportOpen = z.object({
   grouping: z.enum(['device', 'cve']), total: z.number().int(),

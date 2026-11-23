@@ -11,9 +11,9 @@ the product reads findings from.
 
 | Route | Minimum role |
 |---|---|
-| `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
+| `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
-| `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer` | operator |
+| `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer` | operator |
 | `POST /findings/{id}/verify`, `POST /findings/{id}/unverify` | admin |
 
 `POST /findings/{id}/applied` and `POST /findings/{id}/ai` are served by mitigation under the same prefix. Shapes:
@@ -36,7 +36,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   mitigated, accepted, false positive and not relevant hold while detected; an accepted risk reopens after its last day. "Gone"
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
   `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
-  (`not_installed`). A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
+  (`not_installed`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
+  the proof's sentence is the closing note, so the handled line says the real reason. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
   versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).
@@ -63,8 +64,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. A distribution's
   fix for a package the device runs is compared before NVD's product ranges.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
-  urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. By device and By fix group the same open
-  rows in SQL, so their totals always agree. The Needs your input queue is computed from rows, never stored.
+  urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
+  tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
+  draws one status the same way; `View.ReasonsLine` and `View.VerificationLine` are those lines as text for notices, mails and reports.
+  By device and By fix group the same open rows in SQL, so their totals always agree. The Needs your input queue is computed from
+  rows, never stored; a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
 
 ## Invariants
 
@@ -115,7 +119,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-8** A finding's exploited-list facts come from feeds, never from mitigation's packs.
 - **INV-12** A device is named as on the Devices page, never by an internal id.
 - **INV-22** Every finding row carries the CVE's base CVSS as feeds picks it (`Feeds.CVSS`).
-- **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's.
+- **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's. `devices.affected` counts every device with an
+  open finding (the Vedette box included, which carries no badge); the trend starts at `trend_start`, the day this box began keeping
+  findings when that is inside the 30 days.
 - **INV-30** Findings of a device not yet added show, marked; an ignored device's findings are listed only under Ignored, and readers
   of one finding outside its page answer "not found" for them.
 

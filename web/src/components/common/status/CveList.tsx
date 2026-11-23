@@ -3,13 +3,19 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { FINDING_STATUSES, type FindingStatusCode } from '@/lib/statusCodes'
+import type { Urgency, Verification } from '@/features/findings/types'
+import { FindingStatusLines } from './FindingStatusLines'
 import { SeverityBadge } from './SeverityBadge'
 import { StatusBadge } from './StatusBadge'
 import { asSeverity, BANDS, severityRank, type Band, type SeverityValue } from './severity'
 
 /** One CVE of a list. `severity` undefined: the list has no severity data; null: the CVE is not scored yet. `to` defaults to the
- *  CVE page; a finding's list links to the finding. */
-export type CveItem = { cve: string; id?: string; severity?: SeverityValue | Band | null; status?: FindingStatusCode; to?: string }
+ *  CVE page; a finding's list links to the finding. `urgency` and `verification` (a finding's row): its status lines, drawn under
+ *  the row in `rows` mode with its status, as on the finding's page. */
+export type CveItem = {
+  cve: string; id?: string; severity?: SeverityValue | Band | null; status?: FindingStatusCode; to?: string
+  urgency?: Pick<Urgency, 'reasons' | 'internet'>; verification?: Verification
+}
 
 /** Without severities, how many CVEs show before "+N more". */
 export const CVE_FIRST = 8
@@ -54,6 +60,9 @@ export function CveList({ items, label, rows = false, showStatus = false, action
             {i.severity !== undefined ? <SeverityBadge severity={i.severity} compact /> : null}
             {showStatus && i.status ? <StatusBadge code={i.status} /> : null}
             {action ? action(i) : null}
+            {rows && showStatus && i.status && (i.urgency || i.verification)
+              ? <FindingStatusLines badge={false} className="basis-full" value={{ status: i.status, urgency: i.urgency, verification: i.verification }} />
+              : null}
           </li>
         ))}
       </ul>

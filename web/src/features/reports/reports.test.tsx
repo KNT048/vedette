@@ -29,8 +29,8 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(doc).getByText(/^8 findings are open\. 5 need action now\. 6 were handled in this period\.$/)).toBeInTheDocument()
     expect(within(doc).getAllByRole('heading', { level: 3 }).map((h) => h.textContent?.replace(/^\d+/, ''))).toEqual(['Summary', 'Handled this period', 'Still open', 'New this period', 'External exposure', 'Detections', 'Coverage'])
     const handled = within(doc).getByRole('region', { name: 'Handled this period' })
-    expect(within(handled).getAllByText(/^Patched by Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)
-    expect(within(handled).getByText(/^Patched by Vedette: Notepad\+\+ was removed/)).toBeInTheDocument()
+    expect(within(handled).getAllByText(/^By Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)
+    expect(within(handled).getByText(/^By Vedette: Notepad\+\+ was removed/)).toBeInTheDocument()
     expect(within(handled).getByText('Vedette saw 3 of them itself, without anyone telling it.')).toBeInTheDocument()
     expect(within(handled).queryByText(/Not relevant/)).toBeNull() // left out by default
     expect(within(doc).getAllByText('Not added yet').length).toBeGreaterThan(0) // the laptop nobody added, included by default
@@ -62,6 +62,12 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(exp).getByText('Closed')).toBeInTheDocument()
     expect(within(exp).getByText(/^Expires /)).toBeInTheDocument() // the certificate that ends in 12 days
     expect(within(exp).getByText('ZAP')).toBeInTheDocument()
+  })
+
+  it('Handled says how many not-relevant closures it leaves out, so its count is not read as a smaller Findings › Handled', async () => {
+    renderApp('/reports')
+    const doc = await report()
+    expect(within(doc).getByTestId('not-relevant-left-out')).toHaveTextContent(/^1 finding closed as not relevant in this period is left out \(Settings: Include not relevant\)\.$/)
   })
 
   it('the figures add up: open at the start + new - handled = open now, and new counts the New section, with or without not relevant', async () => {
@@ -113,7 +119,7 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(doc).queryByRole('img', { name: /^Open at the start/ })).toBeNull()
     const open = within(doc).getByRole('region', { name: 'Still open' })
     expect(within(open).getByRole('columnheader', { name: 'Device' })).toBeInTheDocument() // grouped by CVE: one row per device
-    expect(within(within(doc).getByRole('region', { name: 'Handled this period' })).getByText(/^Not relevant by Vedette: the match was corrected/)).toBeInTheDocument()
+    expect(within(within(doc).getByRole('region', { name: 'Handled this period' })).getByText(/^By Vedette: the match was corrected/)).toBeInTheDocument()
     expect(within(doc).getByText(/Includes findings handled as not relevant\. Open findings grouped by CVE\./)).toBeInTheDocument()
   })
 
@@ -190,7 +196,10 @@ describe('reports: the security report (S-REP-1)', () => {
     await userEvent.click(within(table).getAllByRole('link', { name: /^Open the report sent / })[0]!)
     const doc = await report()
     expect(within(doc).getByText(/^Last 7 days · /)).toBeInTheDocument() // as sent, not today's 30 days
-    expect(screen.getByText(/^Exactly as it was sent to director@acme\.example, it@acme\.example\.$/)).toBeInTheDocument()
+    // the page says what the e-mail carried (its summary and this link), not "exactly as it was sent"
+    expect(screen.getByText(/^The report as it stood when it was sent to director@acme\.example, it@acme\.example\. The e-mail carried its summary and a link to this page\.$/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports')
+    expect(screen.queryByText('nav.reports')).toBeNull()
     expect(doc.closest('.print-report')).not.toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Print / Save PDF' }))
     expect(print).toHaveBeenCalledTimes(1)

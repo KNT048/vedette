@@ -120,7 +120,9 @@ export function LastChecks(props: Record<string, unknown>) {
     : checkable.none ? <Never info={checkable.suspected === 0 ? t('hint.vulnNoneSuspected') : t('hint.vulnNone', { count: checkable.suspected })}>{blockReason}</Never>
     : <Never info={operator ? t('lastChecks.neverVuln') : t('lastChecks.neverVulnRole')}>{blockReason}</Never>
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
-  const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
+  // "Set it up in Sources" leads to that card's Set up button, which an approved device with an address has (SNMP reads approved
+  // devices only; a device not added yet offers Add device there instead)
+  const snmpCard = !!a && a.approved && !!a.ip && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (
     <Section id="last-checks" title={t('lastChecks.title')} stories={['S-INV-1', 'S-SCAN-4']}
       actions={<Link to={runsHref({ device: assetId })} className={`text-meta ${link}`}>{t('lastChecks.allRuns')}</Link>}>

@@ -356,7 +356,7 @@
     "openLabel": "Open the report sent {{time}}",
     "page": {
       "title": "{{title}}, sent {{time}}",
-      "meta": "Exactly as it was sent to {{to}}.",
+      "meta": "The report as it stood when it was sent to {{to}}. The e-mail carried its summary and a link to this page.",
       "failed": "This report was not delivered: {{error}}",
       "notFound": "This report is not in the history."
     }
@@ -464,6 +464,8 @@
     "firstFindings_other": "{{count}} findings",
     "handledTotals": "Handled, by outcome",
     "handledNone": "Nothing was handled in this period.",
+    "notRelevantLeftOut_one": "{{count}} finding closed as not relevant in this period is left out (Settings: Include not relevant).",
+    "notRelevantLeftOut_other": "{{count}} findings closed as not relevant in this period are left out (Settings: Include not relevant).",
     "via": {
       "person_one": "{{count}} marked by a person",
       "person_other": "{{count}} marked by people",

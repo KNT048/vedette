@@ -47,12 +47,12 @@ func TestReasonsLine(t *testing.T) {
 		{Reason: Reason{Layer: UrgencyExploited, Source: "mandiant", Since: day(19)}, Name: "Mandiant"},
 		{Reason: Reason{Layer: UrgencyPublicExploit, Source: "github-poc", Since: day(18)}, Name: "GitHub", Detail: "244 stars"},
 	}}
-	want := "Exploited in the wild: Rapid7, Mandiant (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)"
+	want := "Exploited in the wild: Rapid7, Mandiant (19 Nov 2026); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov 2026)"
 	if got := v.ReasonsLine(); got != want {
 		t.Errorf("reasons line = %q, want %q", got, want)
 	}
 	v.Reasons = []ViewReason{{Reason: Reason{Layer: UrgencyExploited, Source: "cisa-kev", Since: day(19)}, Name: "CISA KEV", Due: "2026-12-03"}}
-	if got := v.ReasonsLine(); got != "Exploited in the wild: CISA KEV (19 Nov); fix by 3 Dec 2026" {
+	if got := v.ReasonsLine(); got != "Exploited in the wild: CISA KEV (19 Nov 2026); fix by 3 Dec 2026" {
 		t.Errorf("listed: %q", got)
 	}
 	if got := (View{}).ReasonsLine(); got != "" {
@@ -78,8 +78,56 @@ func TestReasonsWordsMatchTheWeb(t *testing.T) {
 	}
 	day := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
 	got := View{Reasons: []ViewReason{{Reason: Reason{Layer: UrgencyExploited, Source: "rapid7-blog", Since: day}, Name: "Rapid7", Due: "2026-12-03"}}}.ReasonsLine()
-	want := "Exploited in the wild: Rapid7 (19 Nov); " + loc.Reasons["notInKev"] + "; " + strings.Replace(loc.Reasons["due"], "{{date}}", "3 Dec 2026", 1)
+	want := "Exploited in the wild: Rapid7 (19 Nov 2026); " + loc.Reasons["notInKev"] + "; " + strings.Replace(loc.Reasons["due"], "{{date}}", "3 Dec 2026", 1)
 	if got != want {
 		t.Errorf("reasons line = %q, the page's words give %q", got, want)
+	}
+}
+
+// The confirmation line an alert or a report says is the one under the status on every screen: the page's locale is the reference.
+func TestVerificationLineMatchesTheWeb(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../web/src/locales/en/common.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var loc struct {
+		Verification struct {
+			Scan          string            `json:"scan"`
+			Device        string            `json:"device"`
+			Person        string            `json:"person"`
+			PersonUnnamed string            `json:"personUnnamed"`
+			NotYetBasis   string            `json:"notYetBasis"`
+			Basis         map[string]string `json:"basis"`
+		} `json:"verification"`
+	}
+	if err := json.Unmarshal(raw, &loc); err != nil {
+		t.Fatal(err)
+	}
+	w := loc.Verification
+	day := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
+	created := []Event{{Kind: EvCreated, TS: day, Actor: "system"}}
+	cases := []struct {
+		f    Finding
+		evs  []Event
+		want string
+	}{
+		{Finding{Verified: VerifiedScan, Basis: DetectScan, FirstSeen: day}, created, w.Scan},
+		{Finding{Verified: VerifiedDevice, Basis: DetectDeviceVersion, FirstSeen: day}, created, w.Device},
+		{Finding{Verified: VerifiedPerson, Basis: DetectPerson, FirstSeen: day}, []Event{{Kind: EvConfirmed, TS: day, Actor: "it@acme.example"}},
+			strings.Replace(w.Person, "{{by}}", "it@acme.example", 1)},
+		{Finding{Verified: VerifiedPerson, Basis: DetectPerson, FirstSeen: day}, nil, w.PersonUnnamed},
+	}
+	for _, b := range DetectionBases {
+		cases = append(cases, struct {
+			f    Finding
+			evs  []Event
+			want string
+		}{Finding{Verified: VerifiedNo, Basis: b, FirstSeen: day}, nil, strings.Replace(w.NotYetBasis, "{{basis}}", w.Basis[string(b)], 1)})
+	}
+	for _, c := range cases {
+		if got := (View{Finding: c.f, Events: c.evs}).VerificationLine(); got != c.want {
+			t.Errorf("%s/%s: line = %q, the page says %q", c.f.Verified, c.f.Basis, got, c.want)
+		}
 	}
 }

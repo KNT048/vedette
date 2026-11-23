@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -539,7 +540,7 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 	if err != nil {
 		return nil, err
 	}
-	vs, err := s.views(ctx, fs)
+	vs, err := s.listViews(ctx, fs)
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +589,62 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 		})
 		out = append(out, c)
 	}
+	var fxs []*fixJS
+	var causes []string
+	for i := range out {
+		for j := range out[i].Blocks {
+			fxs, causes = append(fxs, &out[i].Blocks[j].Fix), append(causes, out[i].Blocks[j].Cause)
+		}
+	}
+	s.linkAdvisories(ctx, fxs, causes)
 	return out, nil
+}
+
+// noFix reports whether a fix names no release to install: the block says "No fix known yet" or "No fix data", and its link is the
+// vendor's advisory.
+func noFix(kind string) bool { return kind == string(FixNoneYet) || kind == string(FixUnknown) }
+
+// linkAdvisories gives each fix with no release and no link the vendor's advisory of its cause CVE (fixes[i] is caused by causes[i]),
+// as the exploited list links it: the same advisory the finding's page links. Best-effort: without the list a fix keeps no link.
+func (s *Service) linkAdvisories(ctx context.Context, fixes []*fixJS, causes []string) {
+	want := map[string]bool{}
+	for i, fx := range fixes {
+		if noFix(fx.Kind) && fx.URL == nil {
+			want[causes[i]] = true
+		}
+	}
+	if len(want) == 0 {
+		return
+	}
+	kev, err := s.cfg.Feeds.KevInfo(ctx, keys(want))
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: the advisories of fixes could not be read", "error", err)
+		return
+	}
+	for i, fx := range fixes {
+		if !noFix(fx.Kind) || fx.URL != nil {
+			continue
+		}
+		if u := vendorLink(kev[causes[i]].Links); u != "" {
+			fx.URL = &u
+		}
+	}
+}
+
+// vendorLink is the first of an exploited-list entry's links that is the vendor's page: not CISA's pages and not NVD's entry.
+func vendorLink(links []string) string {
+	for _, l := range links {
+		u, err := url.Parse(strings.TrimSpace(l))
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			continue
+		}
+		h := strings.ToLower(u.Hostname())
+		if h == "nvd.nist.gov" || h == "cisa.gov" || strings.HasSuffix(h, ".cisa.gov") {
+			continue
+		}
+		return u.String()
+	}
+	return ""
 }
 
 // FixDeviceJS is contract.ts FixDevice.
@@ -731,6 +787,12 @@ func (s *Service) byFix(ctx context.Context, f ListFilter, p Page) (FixCards, er
 		})
 		out.Items = append(out.Items, card)
 	}
+	var fxs []*fixJS
+	var causes []string
+	for i := range out.Items {
+		fxs, causes = append(fxs, &out.Items[i].Fix), append(causes, out.Items[i].Cause)
+	}
+	s.linkAdvisories(ctx, fxs, causes)
 	return out, nil
 }
 
@@ -862,4 +924,39 @@ func (s *Service) DeviceStatuses(ctx context.Context) (map[string]DeviceStatus, 
 		out[id] = *st
 	}
 	return out, nil
+}
+
+// ListedFix is the fix an open finding is listed under in By device and By fix: its block's combined release (the newest release of
+// its product on its line), which can be newer than the finding's own stored fix ("Update to 9.0.2.0200: fixes 3 CVEs", not 9.0.2.0100
+// for one of them). A reader that lists fixes (the report's "Do these first" and "Still open") uses it, so it names the fix the
+// Findings lists name.
+type ListedFix struct {
+	Key string // the block key, By fix's group
+	Fix Fix
+}
+
+// ListedFixes are the listed fixes of every open finding by its id (ignored devices left out, as in the lists).
+func (s *Service) ListedFixes(ctx context.Context) (map[string]ListedFix, error) {
+	out := map[string]ListedFix{}
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		gs, err := s.lineGroups(ctx, ListFilter{})
+		if err != nil {
+			return err
+		}
+		rows, args, _, _, err := s.where(ctx, StateOpen, ListFilter{})
+		if err != nil {
+			return err
+		}
+		fs, err := selectFindings(ctx, s.rd(ctx), rows+` ORDER BY id`, args...)
+		if err != nil {
+			return err
+		}
+		blocks := blocksOf(gs)
+		for _, f := range fs {
+			key, fx := blocks.of(f)
+			out[f.ID] = ListedFix{Key: clipBytes(key, 400), Fix: fx}
+		}
+		return nil
+	})
+	return out, err
 }

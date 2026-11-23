@@ -11,7 +11,7 @@ import { fmtRelative } from '@/lib/format'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
 import { GreenboneSetting } from './GreenbonePanel'
-import { InfoLine } from './InfoLine'
+import { InfoLine } from '@/components/common/InfoLine'
 import { IssuesCell, ProofChip, ScanCell, ServicesCell } from './NodeParts'
 import { AddTargetDialog } from './TargetDialogs'
 import { useTree } from './api'
@@ -51,9 +51,9 @@ function ExposureView() {
         {(d) => {
           const last = d.items.map((n) => n.last_scan?.started_at).filter((x): x is string => !!x).sort().at(-1)
           const kpis = d.items.length > 0 ? [
-            { value: d.items.length, label: t('kpi.targets'), to: '?tab=targets' },
-            { value: services, label: t('kpi.services'), to: '?tab=targets' },
-            { value: issues, label: t('kpi.issues'), to: '?tab=targets' },
+            { value: d.items.length, label: t('kpi.targets', { count: d.items.length }), to: '?tab=targets' },
+            { value: services, label: t('kpi.services', { count: services }), to: '?tab=targets' },
+            { value: issues, label: t('kpi.issues', { count: issues }), to: '?tab=targets' },
             { value: last ? fmtRelative(last) : t('kpi.never'), label: t('kpi.scan'), to: '?tab=targets' },
           ] : []
           return (

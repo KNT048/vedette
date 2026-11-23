@@ -133,9 +133,10 @@
 ## Modifying: `DeviceMerged`, `FindingFolded`, `FindingMoved` (`devicelifecycle.go`, core/lifecycle)
 - **inventory** calls them inside its merge transaction (registered in `cmd/vedette/devicelifecycle.go`): `resp_plans`, `resp_events` and `resp_actions` follow the device (and the finding a merge folded) by id and keep the name they stored. A new table with an `asset_id` or `finding_id` must be added here, or its rows point at a device or finding that is gone. A deleted device needs nothing: these rows are a log kept with the stored name.
 - **findings** calls `FindingMoved` inside its match write when a finding follows its software line to another device (`followline.go`
-  `moveFinding`, before a fold): only plans, `pending` requests and unprocessed events move (with the new device's name, and for a
-  waiting finding event its kind and `fields.device`/`fields.ip`, read through `Directory.Device`). A new request status that is still
-  waiting for a decision, or a new table with a device id next to a finding id, must be added there. The wiring test
+  `moveFinding`, before a fold): only plans and unprocessed events move (with the new device's name, and for a waiting finding event
+  its kind and `fields.device`/`fields.ip`, read through `Directory.Device`); `pending` requests are withdrawn on the old device
+  (`withdrawMoved`: expired with the reason, logged and audited), never moved, because their items carry the old device's values. A
+  new request status that is still waiting for a decision, or a new table with a device id next to a finding id, must be added there. The wiring test
   `TestWiringSplitMovesTheFindingWithItsLine` (cmd/vedette) covers it end to end.
 
 - `FindingInfo.KEV` is "exploited in the wild" (findings' layer 1 or 2), set by `cmd/vedette/response.go`; `PlanTarget.Urgency` carries the status code of the finding's layer into the plan job's data.

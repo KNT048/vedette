@@ -86,8 +86,9 @@ func TestWiringSplitMovesTheFindingWithItsLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-pending' AND asset_id = ?`, back); n != 1 {
-		t.Error("the request still waiting for a decision did not follow the finding to the restored device")
+	// its items hold the kept device's address: approving it would act there under the restored device's name, so it is withdrawn
+	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-pending' AND asset_id = ? AND status = 'expired' AND note LIKE 'Withdrawn:%'`, vm); n != 1 {
+		t.Error("the request still waiting for a decision was not withdrawn on the device it was made for")
 	}
 	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-executed' AND asset_id = ?`, vm); n != 1 {
 		t.Error("the request already carried out left the device it acted on")

@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -8,49 +9,10 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 )
 
-// The snapshot of a deep scan (testing terms accepted, nuclei deep rows with a name and a severity and no CVE) is read
-// through the real handler and the generated encoder: 200 with the rows, not 500 "does not fit the API schema".
-func TestSnapshotOfADeepScanFitsTheAPISchema(t *testing.T) {
-	t.Parallel()
-	e, f := tplEnv(t)
-	no := false
-	e.terms = &no
-	f.results = []TemplateResult{
-		{Port: 80, Template: "git-config", Outcome: OutcomeMatched, Name: "Git Configuration - Detect", Severity: "medium"},
-		{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched, Name: "Apache 2.4.49 - Path Traversal", Severity: "critical"},
-	}
-	s := e.scanIP(Content{})
-	h := httpOn(e)
-	code, b := h.call("GET", "/exposure/targets", "viewer", "")
-	items := list(b, "items")
-	if code != 200 || len(items) != 1 {
-		t.Fatalf("targets: %d %v", code, b)
-	}
-	id, _ := items[0].(map[string]any)["id"].(string)
-	code, b = h.call("GET", "/exposure/targets/"+id+"/snapshots/"+s.Date, "viewer", "")
-	if code != 200 {
-		t.Fatalf("snapshot of a deep scan: %d %v", code, b)
-	}
-	var deep map[string]any
-	for _, r := range list(b, "templates") {
-		if m, _ := r.(map[string]any); m["template"] == "git-config" {
-			deep = m
-		}
-	}
-	if deep["name"] != "Git Configuration - Detect" || deep["severity"] != "medium" || deep["cve"] != "" || deep["outcome"] != "matched" {
-		t.Fatalf("deep row %v (all %v)", deep, list(b, "templates"))
-	}
-}
-
-// Every field a stored snapshot or a target can carry fits the API schema: a field added on the Go side without contract.ts,
+// Every field a target, a run or a row can carry fits the API schema: a field added on the Go side without contract.ts,
 // api/openapi.json and core/api/oas fails here, not as a 500 on the customer's box.
 func TestEveryFieldFitsTheAPISchema(t *testing.T) {
 	t.Parallel()
-	var s Snapshot
-	fillAll(reflect.ValueOf(&s).Elem(), "")
-	if _, err := into[oas.ExposureGetExposureTargetsIDSnapshotsDateOK](s); err != nil {
-		t.Fatalf("snapshot: %v", err)
-	}
 	var v TargetView
 	fillAll(reflect.ValueOf(&v).Elem(), "")
 	if _, err := into[oas.ExposureGetExposureTargetsIDOK](v); err != nil {
@@ -62,11 +24,54 @@ func TestEveryFieldFitsTheAPISchema(t *testing.T) {
 	if _, err := into[oas.ExposurePostExposureTargetsIDOpenvasAccepted](r); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	var d Diff
-	fillAll(reflect.ValueOf(&d).Elem(), "")
-	if _, err := into[oas.ExposureGetExposureTargetsIDDiffOK](d); err != nil {
-		t.Fatalf("diff: %v", err)
+	for name, check := range map[string]func() error{
+		"scan": func() error {
+			var v ScanView
+			fillAll(reflect.ValueOf(&v).Elem(), "")
+			v.Status, v.Trigger, v.Mode = "done", "manual", "deep"
+			return fits[oas.ExposurePostExposureTreeIDScanAccepted](v)
+		},
+		"host": func() error {
+			var v HostView
+			fillAll(reflect.ValueOf(&v).Elem(), "")
+			v.Source, v.FirstSeen, v.LastSeen = SourceCT, "2026-11-14T10:00:00.000Z", "2026-11-14T10:00:00.000Z"
+			return fits[oas.ExposureGetExposureTreeIDHostsOK](items[HostView]{[]HostView{v}})
+		},
+		"address": func() error {
+			var v AddressView
+			fillAll(reflect.ValueOf(&v).Elem(), "")
+			v.Family, v.Class, v.FirstSeen, v.LastSeen = "ipv4", ClassBox, "2026-11-14T10:00:00.000Z", "2026-11-14T10:00:00.000Z"
+			return fits[oas.ExposureGetExposureTreeIDAddressesOK](items[AddressView]{[]AddressView{v}})
+		},
+		"service": func() error {
+			var v ServiceView
+			fillAll(reflect.ValueOf(&v).Elem(), "")
+			v.Proto, v.Ident, v.State, v.FirstSeen, v.LastSeen = "tcp", identProbed, ServiceOpen, "2026-11-14T10:00:00.000Z", "2026-11-14T10:00:00.000Z"
+			return fits[oas.ExposureGetExposureTreeIDServicesOK](items[ServiceView]{[]ServiceView{v}})
+		},
+		"issue": func() error {
+			var v IssueView
+			fillAll(reflect.ValueOf(&v).Elem(), "")
+			v.Engine, v.Severity, v.State, v.CVEs = EngineZAP, "high", IssueHandled, []IssueCVE{{CVE: "CVE-2024-1234", Severity: []byte("null")}}
+			v.FirstSeen, v.LastSeen = "2026-11-14T10:00:00.000Z", "2026-11-14T10:00:00.000Z"
+			r := "patched"
+			v.Resolution = &r
+			return fits[oas.ExposureGetExposureTreeIDIssuesOK](items[IssueView]{[]IssueView{v}})
+		},
+	} {
+		if err := check(); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
+}
+
+// fits says v encodes into the generated response type T.
+func fits[T any, P interface {
+	*T
+	json.Unmarshaler
+}](v any) error {
+	_, err := into[T, P](v)
+	return err
 }
 
 // fillAll sets every exported field that JSON writes (one element in each list, every pointer set) so that omitempty fields are
@@ -102,6 +107,8 @@ func fillAll(v reflect.Value, name string) {
 
 func sampleOf(name string) string {
 	switch {
+	case name == "accepted_until":
+		return "2026-11-14"
 	case name == "at" || strings.HasSuffix(name, "_at") || name == "last_deep" || name == "last_tried":
 		return "2026-11-14T10:00:00.000Z"
 	case name == "date" || name == "date_added" || name == "last_seen" || name == "from" || name == "to":

@@ -81,7 +81,7 @@ func TestEveryOwnerOfTheSpecTableIsRegistered(t *testing.T) {
 		"scan.vuln":          {"scan.go", "svc.ScheduleOwner()"},
 		"inventory.sweep":    {"sensoractive.go", "s.ScheduleOwner()"},
 		"feeds.source":       {"feeds.go", "s.ScheduleOwner()"},
-		"exposure.public_ip": {"exposure.go", "svc.PublicIPScheduleOwner()"},
+		"exposure.public_ip": {filepath.Join("..", "..", "modules", "exposure", "schedule.go"), "s.PublicIPScheduleOwner()"},
 		"agent-intake.wazuh": {"wiring.go", "d.AgentIntake.ScheduleOwner()"},
 	}
 	for key, w := range wired {

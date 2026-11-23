@@ -61,7 +61,10 @@ readers until they read the view of the finding; nothing of it is stored.
   (`matchSet.forDevice`). A CVE that matches with version evidence is a finding whatever its urgency; a catalogue CVE on no list is
   matched only through the rows its NVD list names, and only on a bounded range. Every finding whose CVE is in the set and that the
   pass no longer detects goes away the way the data says, also when no device runs the product any more. A pass that changes nothing
-  writes nothing (`last_seen` moves once a day, `lastSeenStep`). Feeds keeps the CVEs of open or detected findings (`PinnedCVEs`,
+  writes nothing (`last_seen` moves once a day, `lastSeenStep`). A device for which nothing its match reads moved since its last full match (its input, the entries that
+  can concern it, its findings and questions, Home's scope, the learned Windows releases, every rule that reads the clock, the
+  calendar day) is not matched again (`matchstamp.go`, stamps in memory: the first pass after a start matches every device);
+  `TestMatchStamp_*` checks each change against a full pass. Feeds keeps the CVEs of open or detected findings (`PinnedCVEs`,
   feeds `Deps.Pins`). `TestMatchPass_*`.
 - **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding (update, distro_update, os_update with
   its KB, feature_update, none_yet, unknown); the match write stores it with `fix_key` and `range_origin`. `TestFixCount_FindingsWithTwoFixedVersions`

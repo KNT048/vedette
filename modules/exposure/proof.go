@@ -8,18 +8,20 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/domainfence/proofat"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Ownership proof of a domain, the way Google Search Console's domain properties, Detectify and Tenable work:
 //
 //   - A TXT record vedette-verify=<token> proves the name it sits on and every name under it, down to any depth. A verified
-//     beyondnetglobal.com covers git.beyondnetglobal.com: no second record.
-//   - The record may also sit at _vedette-verify.<name>: a name that is a CNAME (git.beyondnetglobal.com CNAME beyondhcm.ddns.net)
-//     can hold no other record, so DNS providers refuse a TXT beside it, but _vedette-verify.git.beyondnetglobal.com is a name of its
+//     example.org covers git.example.org: no second record.
+//   - The record may also sit at _vedette-verify.<name>: a name that is a CNAME (git.example.org CNAME example.ddns.net)
+//     can hold no other record, so DNS providers refuse a TXT beside it, but _vedette-verify.git.example.org is a name of its
 //     own and takes one.
 //   - A proof never covers across a public suffix, ICANN's (com, co.uk) or a private one (ddns.net, github.io, herokuapp.com): those
 //     are names many customers register under, and one customer must never cover another's. The registered domain is the name one
@@ -48,8 +50,8 @@ const verifyLabel = domainfence.VerifyLabel
 // that is proved by a record at one of its nearest parents, at itself or at its registered domain.
 const maxProofLevels = 8
 
-// registered is the registered domain of name ("beyondnetglobal.com" for git.beyondnetglobal.com, "beyondhcm.ddns.net" for
-// x.beyondhcm.ddns.net); ok is false when name is a public suffix or not under any.
+// registered is the registered domain of name ("example.org" for git.example.org, "example.ddns.net" for
+// x.example.ddns.net); ok is false when name is a public suffix or not under any.
 func registered(name string) (string, bool) { return proofat.Registered(name) }
 
 // IsPublicSuffix says whether name is itself a public suffix of the list (co.uk, ddns.net, github.io): never a target.
@@ -132,7 +134,7 @@ func proofHint(t Target, others []Target) *ProofHint {
 // proof is the result of looking for a record that proves a domain target.
 type proof struct {
 	found  bool
-	at     string // the name the record sits on ("_vedette-verify.git.beyondnetglobal.com", "beyondnetglobal.com")
+	at     string // the name the record sits on ("_vedette-verify.git.example.org", "example.org")
 	proven string // the name it proves: the value of the target whose record it is (the checked one, or a parent that covers it)
 	via    string // that target's value when it is not the checked one
 	// owner and token are that target's id and token: the domain and token the executors' fence checks for the scan.
@@ -524,4 +526,75 @@ func proofMessage(t Target, p proof, when string) string {
 		return fmt.Sprintf("Found the TXT record of %s on %s: it proves %s and every name under it, %s included.", p.via, p.at, p.proven, t.Value)
 	}
 	return fmt.Sprintf("Found the TXT record %s on %s.", txtRecord(t.Token), p.at)
+}
+
+// coveredByAncestor says the record that proved t (p, after stillOwner) is the own record, on its own name, of a target that is an
+// ancestor of t in the tree as stored in tx: t is then covered by that ancestor and has no method of its own (exp_target.method NULL).
+// t's own token (on its name or on a parent name) and another target's token on a name above both prove t by itself (dns_txt).
+func coveredByAncestor(ctx context.Context, tx *sql.Tx, id string, p proof) (bool, error) {
+	if !p.found || p.own || p.reused || p.via == "" || p.proven != p.via {
+		return false, nil
+	}
+	all, err := listTargets(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	byID := map[string]Target{}
+	for _, o := range all {
+		byID[o.ID] = o
+	}
+	for _, a := range ancestors(byID[id], byID) {
+		if a.ID == p.owner && a.Value == p.via {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// recordDomainMethod writes how a domain target is proved after a check that found its record: dns_txt by itself, NULL when an
+// ancestor's record covers it.
+func recordDomainMethod(ctx context.Context, tx *sql.Tx, id string, covered bool) error {
+	m := methodDNS
+	if covered {
+		m = ""
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET method = ? WHERE id = ? AND kind = 'domain'`, nullString(m), id); err != nil {
+		return fmt.Errorf("recording how %s is proved: %w", id, err)
+	}
+	return nil
+}
+
+// settleMethod records, in tx, how the domain target id is proved after a check that found p.
+func settleMethod(ctx context.Context, tx *sql.Tx, id string, p proof) error {
+	if !p.found {
+		return nil
+	}
+	covered, err := coveredByAncestor(ctx, tx, id, p)
+	if err != nil {
+		return err
+	}
+	return recordDomainMethod(ctx, tx, id, covered)
+}
+
+// uncover records, in the transaction that removes the domain target gone, that the targets its record proved at their last check are
+// proved no more: their scans were refused from their next start anyway (the token went with the target), and the page says so now.
+func (s *Service) uncover(ctx context.Context, tx *sql.Tx, gone Target) error {
+	if gone.Kind != KindDomain {
+		return nil
+	}
+	all, err := listTargets(ctx, tx)
+	if err != nil {
+		return err
+	}
+	now := s.clock()
+	for _, o := range all {
+		if o.Kind != KindDomain || o.LastCheck == nil || !o.LastCheck.OK || o.LastCheck.Via != gone.Value {
+			continue
+		}
+		msg := fmt.Sprintf("The TXT record of %s proved this name, and %s was removed from the box, so it needs its own proof: add the record shown, then check again.", gone.Value, gone.Value)
+		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: false, Message: msg}, time.Time{}, ""); err != nil {
+			return err
+		}
+	}
+	return nil
 }

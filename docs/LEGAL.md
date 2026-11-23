@@ -13,8 +13,8 @@ Everything related to law, licences and cookies must be clear, transparent and c
 ## 2. Personal data (Law 91/2025, Decree 356/2025, Decree 330/2026)
 
 - Vedette runs **at the customer**; the customer is the data controller. Vedette processes: device IP/MAC/hostname, network logs (which may contain user names and emails in the logs). All of it is on the customer's box.
-- The Vedette project receives only an **anonymous signal** (`PRIVACY.md` §2), from which no person or organisation can be identified. It keeps aggregates; raw data is deleted after 30 days.
-- The customer can: turn off the signal; set log retention; turn on PII redaction before sending to the AI; export/delete all data (`vedette data export|purge`).
+- The Vedette project receives **no data from the box**: the anonymous signal is not sent and the project runs no server that could receive it (`PRIVACY.md` §2). The only connections the box makes are the ones listed in `PRIVACY.md`.
+- The customer can: choose which outbound connections are on (Settings → Privacy); set log retention; turn on PII redaction before sending to the AI; export/delete all data (`vedette data export|purge`).
 - When the customer turns on BYOK AI: data goes to the **customer's** provider under their contract with that provider; Vedette says this plainly at the configuration step and lets the customer choose redaction.
 - The PDPL report Vedette generates (S-REP-2) is an **assessment aid**, not legal advice; the report says so. Apache-2.0 §7-8: no warranty, the authors are not liable.
 

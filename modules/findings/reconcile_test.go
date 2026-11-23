@@ -355,3 +355,61 @@ func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
 		t.Fatalf("%d findings, want none (no version, no finding)", n)
 	}
 }
+
+// A pass splits every device's entries into backlog and recent news at one time: an entry that ages out of RecentKEV while the pass
+// runs is in the same part for the device's two writes and for the CVEs each write judges. Otherwise the recent write judges a CVE
+// whose entry the device's split already moved to the backlog write, finds no match for it and closes a finding the data still
+// detects.
+func TestReconcile_AnEntryAgingDuringThePassStaysInOnePart(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	second := nas("6.1.1")
+	second.ID = "a-2"
+	e.inv.match["a-2"] = second
+	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.0.2.22", Kind: "nas", Display: "Photo Station"}
+	news := kevVuln("CVE-2026-0002", t0.Add(-RecentKEV+time.Hour)) // recent at t0, backlog two hours later
+	e.feeds.vulns = []Vuln{kevVuln("CVE-2022-0001", t0.AddDate(-4, 0, 0)), news}
+	if _, err := e.reconciler(&markPub{}, e.inv).Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-0002' AND detected = 1 AND state = 'open'`); n != 2 {
+		t.Fatalf("%d open findings of the recent entry after the first pass, want 2", n)
+	}
+	// The next pass runs slowly: two hours pass during the first device's backlog write, so the entry ages out of RecentKEV between
+	// the first device and the second.
+	var once sync.Once
+	svc, err := NewService(ServiceConfig{DB: e.db, Audit: audit.New(func() time.Time { return *e.clock }), Publisher: &markPub{}, Inventory: e.inv,
+		Feeds: e.feeds, Log: slog.New(slog.DiscardHandler), Clock: func() time.Time { return *e.clock },
+		Backlog: func(ctx context.Context) context.Context {
+			once.Do(func() { e.advance(2 * time.Hour) })
+			return context.WithValue(ctx, baselineKey{}, true)
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-0002' AND detected = 1 AND state = 'open'`); n != 2 {
+		t.Fatalf("%d open findings of the entry that aged during the pass, want 2 (the data still detects it on both devices)", n)
+	}
+}
+
+// A device none of whose entries is in the backlog still gets an empty backlog write when the catalogue's backlog is all elsewhere
+// (a catalogue CVE on no list naming another vendor): that write must match nothing, not the device's whole list. Otherwise this
+// week's exploited entry is created by the silent backlog write and never announced.
+func TestReconcile_AnEmptyBacklogPartMatchesNothing(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	news := kevVuln("CVE-2026-0002", t0.Add(-48*time.Hour))
+	elsewhere := Vuln{CVE: "CVE-2025-0003", Affected: []Affected{{CPE: "cpe:2.3:a:acme:widget:*:*:*:*:*:*:*:*"}}, NVDAnswered: true}
+	e.feeds.vulns = []Vuln{news, elsewhere}
+	pub := &markPub{}
+	res, err := e.reconciler(pub, e.inv).Reconcile(t.Context())
+	if err != nil || res.Created != 1 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if marked, ok := pub.marked["CVE-2026-0002"]; !ok || marked {
+		t.Fatalf("this week's entry was announced: %v, marked as backlog: %v; want it announced as news", ok, marked)
+	}
+}

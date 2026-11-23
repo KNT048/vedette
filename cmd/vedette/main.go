@@ -384,7 +384,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	d.BoxAddr.Invalidate() //nolint:contextcheck // one bounded read (boxAddrTimeout) before the listener serves: a saved name is answered to from the first request (review L2)
 	defer d.OS.Close()
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
-	defer exposureService(d).Close() //nolint:contextcheck // INV-18: the run that runs ends with its audit row before the database closes; the shutdown outlives every request, so Close uses the Service's own context
+	defer exposureService(d).Close() // OpenVAS's start and feed update end with the box; the run manager ends the scan that runs
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
 	scanService(d)                   // builds the scan module's service, which registers its kind of run before the manager starts
 	if d.SensorDispatcher != nil {   // the same for active discovery: its sweeps, checks and reads are runs

@@ -131,7 +131,7 @@ Each check writes `core_audit` (who, when, version, sha256) as in UPDATES §5.
 
 ## 6. Cohort and batch rollout
 
-- `install_id` = a random 256-bit string generated at install (also the `install_id` of the anonymous signal); it is **not sent out** only for rollout. `cohort = uint32(SHA-256(install_id || "vedette-cohort")[0:4]) mod 100`, computed locally.
+- `install_id` = a random 256-bit string generated at install (used only for rollout); it is **never sent out**. `cohort = uint32(SHA-256(install_id || "vedette-cohort")[0:4]) mod 100`, computed locally.
 - A box is **eligible** for a release when `cohort < rollout.percent` of that release in `index.json`. Default schedule: 10 % → 50 % → 100 %, each later step after ≥ 24 hours with no error reports (UPDATES §2). Software: `beta` before `stable` for at least 7 days.
 - The admin's "Check now" still respects the cohort; there is **no** "Install anyway" button for a release whose cohort has not arrived (to avoid a global switch-on through a button; open question §15).
 - Lowering `percent` (pausing a rollout): boxes that have not updated will not receive it; boxes that have updated are not forced back (to force a rollback use `revoked`, §8).
@@ -281,7 +281,7 @@ Threats and measures: (a) taking over the GitHub repository/registry → it cann
 2. **The image registry and where `index.json` is stored**: the design uses GitHub only to publish software; GHCR is reasonable but not settled. A test box needs a read token while the repository is still private (where does the credential live?). Should `channels.json` + the second mirror of UPDATES §6 be kept now that the builder/Cloudflare has been dropped for data?
 3. ~~**Updating `vedette-host` itself**~~ **Decided:** the `.deb` signed on the GitHub Release, the host upgrades itself; the command is not yet in the allowlist (left for later).
 4. Should there be an "Install anyway" button for a release whose cohort has not arrived (spec: no)?
-5. The key `K_cohort`/`install_id`: shared with the anonymous signal or separate, so turning off the signal does not change the cohort.
+5. The key `K_cohort`/`install_id`: it is local only and used for the rollout cohort; no anonymous signal exists, so nothing else shares it.
 6. Automatic `rollback_if_possible`: on by default or always needing an admin?
 7. The health-check time, check frequency and bundle cap are starting points, not measured.
 8. Signatures of third-party dependencies in the image (nuclei, OpenCanary; nmap is in no signed image, it is installed when `scan` is built on the box): Vedette packages and signs the **whole image**; how they are used (a separate process in a container) must be recorded in `THIRD_PARTY_NOTICES` when building (rule `legal.md`).

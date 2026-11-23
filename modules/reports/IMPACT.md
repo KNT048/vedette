@@ -1,40 +1,40 @@
 # Reports — Change Impact Map
 
-> Mã Go ở `modules/reports` (service.go, weekly.go, pdpl.go); chữ ký dưới đây là chữ ký thật. Cổng sang module khác nằm ở `ports.go`, bộ chuyển ở `cmd/vedette/reports.go`.
+> Go code in `modules/reports` (service.go, weekly.go, pdpl.go); the signatures below are the real ones. The gates to other modules are in `ports.go`, the adapters in `cmd/vedette/reports.go`.
 
-## Modifying: `Service.Weekly(ctx) (WeeklyReport, error)` (`buildWeekly`) — 3 người gọi
-- **`Preview`** (`/reports/weekly/preview`), **`WeeklyAI`** (`/reports/weekly/ai-summary`), **`send`** (job gửi theo lịch và `/reports/weekly/send`): đổi cấu trúc `counts`/`actions` → GUI `WeeklyDocument` + trang in + email đều đổi; lịch sử cũ (`HistoryEntry.report`) phải đọc được (số liệu lưu theo phiên bản schema).
+## Modifying: `Service.Weekly(ctx) (WeeklyReport, error)` (`buildWeekly`) — 3 callers
+- **`Preview`** (`/reports/weekly/preview`), **`WeeklyAI`** (`/reports/weekly/ai-summary`), **`send`** (the scheduled send job and `/reports/weekly/send`): changing the structure of `counts`/`actions` → the GUI `WeeklyDocument` + the print page + the email all change; old history (`HistoryEntry.report`) must remain readable (the figures are stored by schema version).
 
 ## Modifying: `buildWeekly` / `buildPdpl` → `computeWeekly` / `computePdpl` + `approvedOnly(weeklyInput)` (INV-16)
-- `buildWeekly`/`buildPdpl` tính hai lần khi có thiết bị chưa duyệt: bản đầy đủ và `approved_only` (không thiết bị chưa duyệt, không finding của chúng). Lần hai đọc lại bản sửa (`fixesFor`) cho top risks của nó; không có thiết bị chưa duyệt thì không tính lại. `buildPdpl` gọi `computeWeekly` (không cần khung nhìn tuần).
-- **web** `features/reports/filters.tsx` (`weeklyView`, `pdplView`) đọc `approved_only`, `device_approved`, `not_relevant*`: đổi tên/nghĩa các trường này → công tắc trên trang, trang in và lịch sử lọc sai mà không báo lỗi.
-- Đổi nghĩa `Device.Approved` ở adapter `cmd/vedette/reports.go` (từ `inventory` `Approved`) → "devices not in the Devices list" đổi theo.
+- `buildWeekly`/`buildPdpl` compute twice when there are unapproved devices: the full version and `approved_only` (no unapproved devices, no findings of theirs). The second pass reads the fixes again (`fixesFor`) for its top risks; with no unapproved devices it does not recompute. `buildPdpl` calls `computeWeekly` (it does not need the weekly view).
+- **web** `features/reports/filters.tsx` (`weeklyView`, `pdplView`) reads `approved_only`, `device_approved`, `not_relevant*`: changing the names/meaning of these fields → the switch on the page, the print page and the history filter wrongly without an error.
+- Changing the meaning of `Device.Approved` in the adapter `cmd/vedette/reports.go` (from `inventory` `Approved`) → "devices not in the Devices list" changes accordingly.
 
-## Modifying: `Service.GeneratePdpl(ctx, actor) (PdplReport, error)` (`buildPdpl`, `Regime`) — 1 người gọi
-- **HTTP** `/reports/pdpl/generate`. Đổi luật/quy tắc tính `regime`, `measures` → nội dung pháp lý thay đổi: phải kiểm lại với nguồn chính thức và ghi ngày vào CONTRACT.
+## Modifying: `Service.GeneratePdpl(ctx, actor) (PdplReport, error)` (`buildPdpl`, `Regime`) — 1 caller
+- **HTTP** `/reports/pdpl/generate`. Changing the rule/computation of `regime`, `measures` → the legal content changes: re-check it against the official source and record the date in CONTRACT.
 
-## Modifying: interface đọc dữ liệu (`inventory.AllDevices`, `findings.List`, `feeds.Store.KevVulns` / `KevPulledAt`, `feeds.Service.NewlyExploited`, `feeds.DisplayOf`)
-- `kev_new`/`kev_matched` là `feeds.Service.NewlyExploited` (cùng số với trang chủ), tên sản phẩm là `feeds.DisplayOf` (cùng tên với Findings), `devices` đếm cả hộp như trang Devices. Đổi một trong ba ở module kia là đổi báo cáo theo, đúng ý.
-- Finding `patched` do Vedette đóng vì thiết bị được cập nhật (`fixed_by_update`, `resolved_by=system`) được tính là đã xử lý và dòng ghi `by` = "Vedette" (INV-13); đổi `resolved_by` của đóng tự động ⇒ sửa `weekly.go`.
-- Reports là **người tiêu thụ** của `inventory`, findings (core), `feeds`; đổi ngữ nghĩa trạng thái finding (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` là đã đóng nhưng **không** tính vào "đã xử lý" của tuần: `Counts.Accepted`/`AcceptedUntil` và dòng "Risk accepted: N (until …)"; cần `Finding.AcceptedUntil` do adapter `cmd/vedette/reports.go` điền từ findings) hoặc loại thiết bị → báo cáo đếm sai nhưng không báo lỗi. Cần test hợp đồng ở `inventory`.
+## Modifying: the data-reading interfaces (`inventory.AllDevices`, `findings.List`, `feeds.Store.KevVulns` / `KevPulledAt`, `feeds.Service.NewlyExploited`, `feeds.DisplayOf`)
+- `kev_new`/`kev_matched` are `feeds.Service.NewlyExploited` (the same number as the home page), the product name is `feeds.DisplayOf` (the same name as Findings), and `devices` counts the whole box like the Devices page. Changing one of the three in the other module changes the report accordingly, as intended.
+- A `patched` finding that Vedette closed because the device was updated (`fixed_by_update`, `resolved_by=system`) counts as handled and the row's `by` says "Vedette" (INV-13); changing the `resolved_by` of automatic closure → edit `weekly.go`.
+- Reports is a **consumer** of `inventory`, findings (core) and `feeds`; changing the semantics of a finding state (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` is closed but does **not** count towards the week's "handled": `Counts.Accepted`/`AcceptedUntil` and the line "Risk accepted: N (until …)"; needs `Finding.AcceptedUntil`, filled by the adapter `cmd/vedette/reports.go` from findings) or a device type → the report counts wrongly without an error. A contract test is needed in `inventory`.
 
-- `reportsFindings.All` (`cmd/vedette/reports.go`) bỏ finding của thiết bị đã bỏ qua và finding `ClosedForIgnore`; `reportsInventory.Devices` bỏ thiết bị đã bỏ qua; `reportsKEV.Entries` chỉ giữ danh sách `cisa-kev`. Đổi một trong ba là đổi số của báo cáo.
-- `Finding.Agent` do `cmd/vedette/reports.go` điền từ `findings.Record.Evidence.Agent`; mất ⇒ dòng báo cáo lại nói "Suspected" cho phát hiện của agent.
+- `reportsFindings.All` (`cmd/vedette/reports.go`) skips findings of ignored devices and `ClosedForIgnore` findings; `reportsInventory.Devices` skips ignored devices; `reportsKEV.Entries` keeps only the `cisa-kev` list. Changing one of the three changes the report's figures.
+- `Finding.Agent` is filled by `cmd/vedette/reports.go` from `findings.Record.Evidence.Agent`; if lost → the report row says "Suspected" again for an agent's finding.
 
 ## Modifying: `notify.Service.IncidentsSince` (class of an incident) / `findings.FixedInForAll` (via `reportsRemedies`, `reportsIncidents`)
 - **reports**: `modules/logs/authfail.go` titles ("N failed logins from …", "A login from … was ACCEPTED after …") are how notify's `incidentClass` tells failed-login from accepted-login incidents (`TestIncidentsSinceCountsEveryClassBeyondTheListCap`); `findings.GroupFix` kinds `fixed|none|up_to|distro|feature_update|esu` feed the action sentence (`todo.go`; the last two from a Windows release row: "Move … to a Windows release Microsoft still services", "Install the Extended Security Update …"; each its own `class()` and counted as a "fix" step).
 
 ## Modifying: `notify.Service.SendReport(ctx, to, ReportMail) error` / `EmailReady`
-- **notify**: đổi chữ ký/lỗi → `status`/`error` trong lịch sử sai.
+- **notify**: changing the signature/error → the `status`/`error` in the history are wrong.
 
 ## Modifying: `ai.Service.RunJob(weekly-report | pdpl-assessment)` (qua `reportsAI`)
-- **ai**: đổi `JobResult` → khối nhận xét AI vỡ; đổi `data: internal` của hai việc này → có thể gửi dữ liệu tổ chức tới cloud.
+- **ai**: changing `JobResult` → the AI comment block breaks; changing the `data: internal` of these two jobs → organisation data could be sent to the cloud.
 
 ## Disabling this module
-- Trang Reports và lịch gửi biến mất; người nhận không còn nhận báo cáo tuần (không báo lỗi phía họ).
-- Không module nào phụ thuộc vào `reports`. `rep_*` giữ nguyên.
+- The Reports page and the send schedule disappear; recipients no longer receive the weekly report (no error on their side).
+- No module depends on `reports`. `rep_*` is kept.
 
-## Modifying: loại thiết bị (`content/devicetypes`)
-- **Loại thiết bị**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). PDPL so loại hành xử như (`ActsAs`): VPN gateway là firewall, máy ảo là hệ thống chính (server); đếm theo loại giữ id loại.
+## Modifying: the device type (`content/devicetypes`)
+- **Device type**: reads `content/devicetypes` (a leaf package, standard library only). PDPL compares the type it behaves as (`ActsAs`): a VPN gateway is a firewall, a virtual machine is a main system (server); counting by type keeps the type id.
 
 - `Finding.Urgency` (findings' layer, 0 = not stated, reads as exploited): an action sentence says "exploited vulnerabilit(y/ies)" only while every finding of its line is layer 1 or 2, else "vulnerabilit(y/ies)"; the PDPL facts say "Open vulnerability findings". Adapter: `cmd/vedette/reports.go`.

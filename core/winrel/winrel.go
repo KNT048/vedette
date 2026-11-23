@@ -94,6 +94,13 @@ var releases = []Release{
 // learned are the releases Learn was last given that the table does not have; nil before the first call.
 var learned atomic.Pointer[[]Release]
 
+// generation counts the calls of Learn and LearnUpdates.
+var generation atomic.Uint64
+
+// Generation changes whenever what Learn or LearnUpdates set may have changed (it counts their calls): a reader that keeps an answer
+// built from the releases or the updates builds it again when it moves.
+func Generation() uint64 { return generation.Load() }
+
 // learnedProduct is the NVD name a learned release may have: Windows 11 by its version ("windows_11_26h2") or a Windows Server by
 // its year ("windows_server_2028"), the two shapes NVD gives every release of the table since 2021.
 var learnedProduct = regexp.MustCompile(`^windows_(11_[0-9]{2}h[12]|server_20[2-9][0-9])$`)
@@ -113,6 +120,7 @@ func Learn(rs []Release) int {
 		keep = append(keep, r)
 	}
 	learned.Store(&keep)
+	generation.Add(1)
 	return len(keep)
 }
 
@@ -264,6 +272,7 @@ func LearnUpdates(us []Update) int {
 		}
 	}
 	updates.Store(&l)
+	generation.Add(1)
 	return n
 }
 

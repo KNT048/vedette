@@ -73,6 +73,10 @@ function Body({ r }: { r: RunDetail }) {
   const count = useRunCount()
   const subject = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
   const crumbs = [{ label: t('page.title'), to: '/settings/scanning' }, { label: t('page.tab.runs'), to: runsHref() }]
+  // A public scan's items of kind "port" record which ports its service step checked, for the next scan; they are not devices or
+  // addresses, so they are neither listed nor counted (the count can only leave out the ones among the items read).
+  const items = r.items.filter((it) => it.subject_kind !== 'port')
+  const itemsTotal = r.items_total - (r.items.length - items.length)
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={r.title} meta={`${kindLabel(r.kind)} · ${startedBy(r)}`} actions={<Actions r={r} />} stories={['S-SCAN-4']} />
@@ -128,11 +132,11 @@ function Body({ r }: { r: RunDetail }) {
           </Card>
         </Section>
       ) : null}
-      {r.items.length ? (
-        <Section id="run-items" title={t('runs.items', { count: r.items_total })}>
+      {items.length ? (
+        <Section id="run-items" title={t('runs.items', { count: itemsTotal })}>
           <Card flush>
             <ul className="divide-y divide-rule">
-              {r.items.map((it) => {
+              {items.map((it) => {
                 const to = subjectHref(it.subject_kind, it.subject_id)
                 return (
                   <li key={it.seq} className="grid gap-0.5 px-4 py-2 text-meta">
@@ -146,7 +150,7 @@ function Body({ r }: { r: RunDetail }) {
               })}
             </ul>
           </Card>
-          {r.items_total > r.items.length ? <p className="mt-2 text-meta text-muted">{t('runs.itemsFirst', { shown: fmtNumber(r.items.length), total: fmtNumber(r.items_total) })}</p> : null}
+          {itemsTotal > items.length ? <p className="mt-2 text-meta text-muted">{t('runs.itemsFirst', { shown: fmtNumber(items.length), total: fmtNumber(itemsTotal) })}</p> : null}
         </Section>
       ) : null}
       {r.log.length ? (

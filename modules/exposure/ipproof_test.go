@@ -85,12 +85,8 @@ func newIPWorld(t *testing.T) *ipWorld {
 	t.Helper()
 	e, c := newProofEnv(t)
 	w := &ipWorld{env: e, dns: &ptrDNS{cnameDNS: c, ptr: map[string][]string{}, a: map[string][]netip.Addr{}}, files: &fileSite{files: map[string]string{}}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: w.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler),
+	e.useService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: w.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler),
 		Clock: e.clock.Now, Location: time.UTC, IPFetch: w.files})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.svc = svc
 	return w
 }
 

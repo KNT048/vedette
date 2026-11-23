@@ -22,7 +22,7 @@ func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 		{"Office firewall", "fw-core", "Fortinet", "FortiGate 60F", "192.168.142.1", "discovered", "", "Office firewall"},
 		{"  Office firewall ", "", "", "", "192.168.142.1", "discovered", "", "Office firewall"},
 		{"Accounting PC", "", "", "", "—", "manual", "Microsoft Office", "Accounting PC"}, // no "(no device)" once a person named it
-		{"", "fw-core", "Fortinet", "", "192.168.142.1", "discovered", "", "fw-core"},      // empty: the naming rule
+		{"", "fw-core", "Fortinet", "", "192.168.142.1", "discovered", "", "fw-core"},     // empty: the naming rule
 		{" ", "", "", "", "192.168.142.1", "discovered", "", "192.168.142.1"},
 	} {
 		if got := inventory.DisplayName(c.name, c.host, c.vendor, c.model, c.ip, c.origin, c.product); got != c.want {

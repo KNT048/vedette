@@ -25829,6 +25829,14 @@ func (s *Server) handleFindingsGetFindingsDevicesRequest(args [0]string, argsEsc
 					In:   "query",
 				}: params.Device,
 				{
+					Name: "devices",
+					In:   "query",
+				}: params.Devices,
+				{
+					Name: "cve",
+					In:   "query",
+				}: params.Cve,
+				{
 					Name: "ignored",
 					In:   "query",
 				}: params.Ignored,

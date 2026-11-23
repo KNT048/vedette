@@ -5,13 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/common/status'
 import { useModuleEnabled } from '@/lib/modules'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
-import { useDeviceCards, useInputList } from './api'
-import { PAGE_MAX } from './contract'
+import { useAllInput, useDeviceCards } from './api'
 import { useFixTitle } from './parts'
 import type { FixBlock, OpenStatus } from './types'
 
 const ONE = { offset: 0, limit: 1 }
-const QUEUE = { offset: 0, limit: PAGE_MAX }
 
 /** What one software line needs: its fix blocks (open findings) and the items of Needs your input about it. */
 type Needs = { blocks: FixBlock[]; check: number }
@@ -24,7 +22,7 @@ const findingsOf = (blocks: FixBlock[]) => blocks.reduce((s, b) => s + b.finding
 export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 'pending' | 'error' {
   const on = useModuleEnabled('findings')
   const cards = useDeviceCards({ device: assetId }, ONE, on === true)
-  const input = useInputList({ device: assetId }, QUEUE, on === true)
+  const input = useAllInput(assetId, on === true) // every page: a device can have more items than one page holds
   if (on === false) return 'off'
   if (cards.isError || input.isError) return 'error'
   if (on === undefined || cards.isPending || input.isPending) return 'pending'

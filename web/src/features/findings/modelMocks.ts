@@ -166,8 +166,9 @@ function read(fn: () => JsonBodyType) {
 
 export function deviceCards(p: URLSearchParams): DeviceCards {
   const slice = page(p)
-  const device = p.get('device')
-  const l = filtered(p, p.get('ignored') === 'true').filter((r) => !device || r.asset_id === device)
+  const device = p.get('device'), cve = p.get('cve'), devices = p.get('devices')?.split(',')
+  if (devices && devices.length > PAGE_MAX) throw new Bad(fail(400, 'bad_filter', 'The filter has a value the list does not know.'))
+  const l = filtered(p, p.get('ignored') === 'true').filter((r) => (!device || r.asset_id === device) && (!cve || r.cve === cve) && (!devices || devices.includes(r.asset_id)))
   const cards = [...groupBy(l, (r) => r.asset_id).values()].map((g) => card(g[0]!.asset, g))
     .sort((a, b) => byUrgency({ layer: Math.min(...a.blocks.map((x) => layerOf(x.status))), n: a.findings, name: a.device.name }, { layer: Math.min(...b.blocks.map((x) => layerOf(x.status))), n: b.findings, name: b.device.name }))
   return { items: slice(cards), total: cards.length, findings: l.length }

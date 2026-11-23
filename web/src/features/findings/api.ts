@@ -43,11 +43,41 @@ function qs(p: Record<string, string | number | undefined | null>): string {
 export type Page = { offset: number; limit: number }
 const model = (...k: unknown[]) => ['findings', 'model', ...k]
 
-/** By device: one card per device, its fix blocks inside; `ignored` lists only the ignored devices. */
-export const useDeviceCards = (f: { q?: string; status?: string; device?: string; ignored?: boolean }, page: Page, enabled = true) => {
-  const path = `/findings/devices${qs({ q: f.q, status: f.status, device: f.device, ignored: f.ignored ? 'true' : undefined, offset: page.offset, limit: page.limit })}`
+/** By device: one card per device, its fix blocks inside; `ignored` lists only the ignored devices; `cve` keeps only that CVE's
+ *  findings; `devices` (comma-separated, at most PAGE_MAX) only those devices. */
+type DeviceFilter = { q?: string; status?: string; device?: string; devices?: string; cve?: string; ignored?: boolean }
+const devicesPath = (f: DeviceFilter, page: Page) =>
+  `/findings/devices${qs({ q: f.q, status: f.status, device: f.device, devices: f.devices, cve: f.cve, ignored: f.ignored ? 'true' : undefined, offset: page.offset, limit: page.limit })}`
+export const useDeviceCards = (f: DeviceFilter, page: Page, enabled = true) => {
+  const path = devicesPath(f, page)
   return useQuery({ queryKey: model('devices', path), queryFn: () => api.get<DeviceCards>(path), enabled, placeholderData: keepPreviousData })
 }
+/** Every page of a paged list in one answer: the first page gives the total, the other pages are read after it. */
+async function allPages<T extends { items: unknown[]; total: number }>(pathOf: (page: Page) => string): Promise<T> {
+  const first = await api.get<T>(pathOf({ offset: 0, limit: PAGE_MAX }))
+  const items = [...first.items]
+  for (let offset = PAGE_MAX; offset < first.total; offset += PAGE_MAX) items.push(...(await api.get<T>(pathOf({ offset, limit: PAGE_MAX }))).items)
+  return { ...first, items }
+}
+/** Open findings per device for these devices, however many: By device filtered by device ids, PAGE_MAX ids a request. */
+export const useOpenFindingsOf = (ids: readonly string[], enabled = true) => {
+  const sorted = [...new Set(ids)].sort()
+  return useQuery({
+    queryKey: model('devices', 'open-of', sorted.join(',')),
+    enabled: enabled && sorted.length > 0,
+    queryFn: async () => {
+      const out = new Map<string, number>()
+      for (let i = 0; i < sorted.length; i += PAGE_MAX) {
+        const page = await api.get<DeviceCards>(devicesPath({ devices: sorted.slice(i, i + PAGE_MAX).join(',') }, { offset: 0, limit: PAGE_MAX }))
+        for (const c of page.items) out.set(c.device.id, c.findings)
+      }
+      return out
+    },
+  })
+}
+/** One device's whole Needs your input queue, every page. */
+export const useAllInput = (device: string, enabled = true) =>
+  useQuery({ queryKey: model('input', 'all', device), enabled, queryFn: () => allPages<InputList>((p) => `/findings/input${qs({ device, offset: p.offset, limit: p.limit })}`) })
 export const useFixCards = (f: { q?: string; status?: string }, page: Page, enabled = true) => {
   const path = `/findings/fixes${qs({ q: f.q, status: f.status, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('fixes', path), queryFn: () => api.get<FixCards>(path), enabled, placeholderData: keepPreviousData })
@@ -60,13 +90,16 @@ export const useHandledList = (f: { q?: string; resolution?: string; device?: st
   const path = `/findings/handled${qs({ q: f.q, resolution: f.resolution, device: f.device, from: f.from, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('handled', path), queryFn: () => api.get<HandledList>(path), enabled, placeholderData: keepPreviousData })
 }
-/** The open findings of one CVE, each with its device and the fix block it is in: By device searched for the CVE id, keeping
- *  only the rows of exactly that CVE (the search also matches longer ids and device or software names that contain it). */
+/** The open findings of one CVE on every device, each with its device and the fix block it is in: By device filtered by the CVE,
+ *  every page. */
 export const useCveFindings = (cve: string, enabled = true) => {
-  const q = useDeviceCards({ q: cve }, { offset: 0, limit: PAGE_MAX }, enabled)
-  const hits = q.data?.items.flatMap((card) => card.blocks.flatMap((block) => block.findings.filter((f) => f.cve === cve).map((finding) => ({ device: card.device, block, finding })))) ?? []
+  const q = useQuery({ queryKey: model('devices', 'cve', cve), enabled, queryFn: () => allPages<DeviceCards>((p) => devicesPath({ cve }, p)) })
+  const hits = q.data?.items.flatMap((card) => card.blocks.flatMap((block) => block.findings.map((finding) => ({ device: card.device, block, finding })))) ?? []
   return { query: q, hits }
 }
+/** How many open findings one CVE has on all devices (By device filtered by the CVE: its total, one small request). */
+export const useCveOpenCount = (cve: string, enabled = true): number | undefined =>
+  useDeviceCards({ cve }, { offset: 0, limit: 1 }, enabled).data?.findings
 export const useOverview = (enabled = true) =>
   useQuery({ queryKey: model('overview'), queryFn: () => api.get<Overview>('/findings/overview'), enabled })
 

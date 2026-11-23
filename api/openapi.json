@@ -51202,6 +51202,27 @@
             }
           },
           {
+            "name": "devices",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated device ids, at most 100: only these devices (more: 400 bad_filter)",
+              "type": "string",
+              "maxLength": 9700,
+              "pattern": "^[^,]{1,96}(,[^,]{1,96})*$"
+            }
+          },
+          {
+            "name": "cve",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only the open findings of exactly this CVE, in the blocks the list shows without it",
+              "type": "string",
+              "pattern": "^CVE-\\d{4}-\\d{4,}$"
+            }
+          },
+          {
             "name": "ignored",
             "in": "query",
             "required": false,

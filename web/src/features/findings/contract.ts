@@ -451,7 +451,10 @@ const idParams = z.object({ id: findingId })
 export const endpoints = defineEndpoints([
   // The findings model: lists grouped on the server, the finding's View, handling, Home.
   { method: 'get', path: '/findings/devices', summary: 'By device: one card per device with open findings (devices not added yet included, ignored ones only with ignored=true), the most urgent first; inside, one block per fix with its CVEs', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
-    query: z.object({ q, status: statusFilter, device: deviceFilter.describe('One device: its Findings tab'), ignored: z.enum(['true', 'false']).optional().describe('true: only ignored devices (the Ignored devices tab); default false: none of them'), offset, limit }),
+    query: z.object({ q, status: statusFilter, device: deviceFilter.describe('One device: its Findings tab'),
+      devices: z.string().max(PAGE_MAX * 97).regex(/^[^,]{1,96}(,[^,]{1,96})*$/).optional().describe(`Comma-separated device ids, at most ${PAGE_MAX}: only these devices (more: 400 bad_filter)`),
+      cve: cve.optional().describe('Only the open findings of exactly this CVE, in the blocks the list shows without it'),
+      ignored: z.enum(['true', 'false']).optional().describe('true: only ignored devices (the Ignored devices tab); default false: none of them'), offset, limit }),
     response: DeviceCards, example: { query: {} } },
   { method: 'get', path: '/findings/fixes', summary: 'By fix: one card per fix across devices (ignored devices left out), the most urgent first, each with the devices it applies to', stories: ['S-MIT-1', 'S-TIER-1'], role: 'viewer',
     query: z.object({ q, status: statusFilter, offset, limit }), response: FixCards, example: { query: {} } },

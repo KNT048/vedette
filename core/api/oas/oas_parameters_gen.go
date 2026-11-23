@@ -6771,6 +6771,8 @@ type FindingsGetFindingsDevicesParams struct {
 	Q       OptString                            `json:",omitempty,omitzero"`
 	Status  OptString                            `json:",omitempty,omitzero"`
 	Device  OptString                            `json:",omitempty,omitzero"`
+	Devices OptString                            `json:",omitempty,omitzero"`
+	Cve     OptString                            `json:",omitempty,omitzero"`
 	Ignored OptFindingsGetFindingsDevicesIgnored `json:",omitempty,omitzero"`
 	Offset  OptString                            `json:",omitempty,omitzero"`
 	Limit   OptString                            `json:",omitempty,omitzero"`
@@ -6802,6 +6804,24 @@ func unpackFindingsGetFindingsDevicesParams(packed middleware.Parameters) (param
 		}
 		if v, ok := packed[key]; ok {
 			params.Device = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "devices",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Devices = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "cve",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Cve = v.(OptString)
 		}
 	}
 	{
@@ -7036,6 +7056,142 @@ func decodeFindingsGetFindingsDevicesParams(args [0]string, argsEscaped bool, r 
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "device",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: devices.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "devices",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotDevicesVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotDevicesVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Devices.SetTo(paramsDotDevicesVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Devices.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     9700,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         regexMap["^[^,]{1,96}(,[^,]{1,96})*$"],
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "devices",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: cve.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "cve",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotCveVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCveVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Cve.SetTo(paramsDotCveVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Cve.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     0,
+							MaxLengthSet:  false,
+							Email:         false,
+							Hostname:      false,
+							Regex:         regexMap["^CVE-\\d{4}-\\d{4,}$"],
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "cve",
 			In:   "query",
 			Err:  err,
 		}

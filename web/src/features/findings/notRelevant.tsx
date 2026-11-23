@@ -1,6 +1,5 @@
 import { useModuleEnabled } from '@/lib/modules'
-import { useDeviceCards } from './api'
-import { PAGE_MAX } from './contract'
+import { useDeviceCards, useOpenFindingsOf } from './api'
 
 // Open-finding counts for pages outside the Findings screen, from the By device cards (GET /findings/devices): the same numbers
 // the Findings screen and the device's Findings tab show. A finding closed as not relevant is handled, so it is never counted.
@@ -15,10 +14,11 @@ export function useDeviceFindingCounts(assetId: string): { open: number; cves: s
   return { open: card.findings, cves: [...new Set(card.blocks.flatMap((b) => b.findings.map((f) => f.cve)))] }
 }
 
-/** Open findings per device: what a "N findings" link that opens the findings of a device must count. The most urgent devices
- *  first, at most one page of By device (PAGE_MAX devices); undefined while loading or off. */
-export function useOpenFindingsByAsset(enabled: boolean): Map<string, number> | undefined {
-  const q = useDeviceCards({}, { offset: 0, limit: PAGE_MAX }, enabled)
-  if (!enabled || !q.data) return undefined
-  return new Map(q.data.items.map((c) => [c.device.id, c.findings]))
+/** Open findings of these devices: what a "N findings" link that opens the findings of a device must count, exact for any number
+ *  of devices (a device with none is not in the map); undefined while loading or off. */
+export function useOpenFindingsByAsset(ids: readonly string[], enabled: boolean): Map<string, number> | undefined {
+  const q = useOpenFindingsOf(ids, enabled)
+  if (!enabled) return undefined
+  if (ids.length === 0) return new Map()
+  return q.data
 }

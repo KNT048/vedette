@@ -9,6 +9,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/host/api"
 )
 
 // The automatic side of the software update (S-CORE-2; update-manifest.md §6): a job of core checks for
@@ -124,9 +125,14 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 	if err != nil || !in {
 		return err
 	}
-	if st, err := h.hostState(ctx); err != nil {
+	st, err := h.hostState(ctx)
+	if isNoCheck(err) { // the host never looked for operating system updates: it has scheduled no reboot either
+		st, err = api.OSState{}, nil
+	}
+	if err != nil {
 		return err
-	} else if at := st.RebootScheduledAt; at != nil && at.Before(h.now().Add(updateRunMax)) {
+	}
+	if at := st.RebootScheduledAt; at != nil && at.Before(h.now().Add(updateRunMax)) {
 		h.skipOnce(ctx, "auto-reboot", "a reboot is scheduled", "reboot_at", *at)
 		return nil
 	}

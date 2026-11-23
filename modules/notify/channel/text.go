@@ -11,7 +11,7 @@ import (
 const (
 	maxTitle  = 200
 	maxLine   = 1000
-	maxItem   = 200
+	maxItem   = 320 // a digest line: product, CVE, devices and the finding's reasons line
 	maxItems  = 20
 	maxDevice = 200
 )

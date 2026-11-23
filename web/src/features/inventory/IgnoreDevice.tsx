@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Notice } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -66,7 +67,7 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
   const act = useDeviceAction(d.id)
   const name = nameOf(d, kindLabel(d.kind))
   return (
-    <li className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
+    <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
       <div className="grid gap-0.5">
         <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
         <p className="text-meta text-muted">
@@ -77,7 +78,7 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
         <Button size="sm" disabled={!can || act.ignore.isPending} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
           onClick={() => void act.ignore.mutateAsync(false).then(() => toast.success(t('ignored.undone', { name })), (e: unknown) => toast.error(errMsg(e)))}>{t('ignored.stop')}</Button>
       </div>
-    </li>
+    </div>
   )
 }
 
@@ -85,6 +86,8 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
 export function IgnoredPanel() {
   const { t } = useTranslation('inventory')
   const q = useIgnoredDevices()
+  // what the list's search reads: the name, the address, the MAC and the type
+  const searchCols: ColumnDef<DeviceRow>[] = [{ id: 'text', accessorFn: (d) => [nameOf(d, kindLabel(d.kind)), d.ip, d.mac, kindLabel(d.kind)].join(' ') }]
   return (
     <section aria-labelledby="ignored-title" className="mb-8 grid min-w-0 gap-3">
       <div className="grid gap-0.5">
@@ -93,11 +96,8 @@ export function IgnoredPanel() {
       </div>
       <QueryState query={q}>
         {(r) => r.items.length ? (
-          <Card flush>
-            <ul className="divide-y divide-rule" aria-label={t('ignored.listTitle')}>
-              {[...r.items].sort((a, b) => (b.ignored_at ?? '').localeCompare(a.ignored_at ?? '')).map((d) => <IgnoredItem key={d.id} d={d} />)}
-            </ul>
-          </Card>
+          <DataTable urlKey="ignored-devices" caption={t('ignored.listTitle')} columns={searchCols} pageSize={25}
+            data={[...r.items].sort((a, b) => (b.ignored_at ?? '').localeCompare(a.ignored_at ?? ''))} list={(d) => <IgnoredItem d={d} />} />
         ) : <Card className="py-6 text-center text-muted">{t('ignored.none')}</Card>}
       </QueryState>
     </section>

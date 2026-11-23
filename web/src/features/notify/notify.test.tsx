@@ -312,11 +312,34 @@ describe('notify: delivery history (S-NOT-1)', () => {
   })
 
   it('nothing skipped (a box with no device): the meta line says only what the count proves, and that the first download is not counted', async () => {
-    server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], suppressed: { count: 0, days: 7 } })))
+    server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], not_sent: [], suppressed: { count: 0, days: 7 } })))
     renderChannels()
-    expect(await screen.findByText('No new vulnerability was skipped in the last 7 days.')).toBeInTheDocument()
+    expect(await screen.findByText('In the last 7 days, no new vulnerability was left out for matching none of your devices.')).toBeInTheDocument()
+    expect(screen.getByText('Every vulnerability alert of the last 7 days was delivered.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About History' })).toHaveAccessibleDescription(/^Vedette only alerts for products you own.*The first download of the vulnerability lists is not counted\./)
     expect(screen.queryByText(/already has a notice/)).toBeNull()
+  })
+})
+
+describe('notify: History names every vulnerability alert that was not sent', () => {
+  it('lists each one with the box\'s sentence, a Waiting or Not sent chip, its finding and, for an admin, where to fix it', async () => {
+    const notSent = [
+      { id: 'nt-f-1-created', at: '2026-11-23T16:47:19.219Z', what: 'Example Hypervisor on hypervisor-01: exploited in the wild (CVE-2025-22224)', link: '/findings/f-1',
+        not_sent: { reason: 'grouped', text: 'Waiting to go out at 17:47 with the other alerts about the same product (grouping). It goes out by itself then.', until: '2026-11-23T17:47:19.219Z' } },
+      { id: 'nt-f-2-created', at: '2026-11-23T16:47:19.238Z', what: 'Example Hypervisor on hypervisor-01: public exploit available (CVE-2026-41709)', link: '/findings/f-2',
+        not_sent: { reason: 'below_min_severity', text: 'Not sent: it is rated high for alerts, and your channels only send critical and above.', channel: 'email' } },
+    ]
+    server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], not_sent: notSent, suppressed: { count: 0, days: 7 } })))
+    renderChannels()
+    const table = await screen.findByRole('table', { name: 'Vulnerability alerts not sent' })
+    const waiting = within(table).getByText(/CVE-2025-22224/).closest('tr')!
+    expect(within(waiting).getByText('Waiting')).toBeInTheDocument()
+    expect(within(waiting).getByText(/Waiting to go out at 17:47/)).toBeInTheDocument()
+    expect(within(waiting).getByRole('link', { name: 'Grouping settings' })).toHaveAttribute('href', '/settings/channels#grouping')
+    expect(within(waiting).getByRole('link', { name: /CVE-2025-22224/ })).toHaveAttribute('href', '/findings/f-1')
+    const skipped = within(table).getByText(/CVE-2026-41709/).closest('tr')!
+    expect(within(skipped).getByText('Not sent')).toBeInTheDocument()
+    expect(within(skipped).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels#channel-email')
   })
 })
 

@@ -7,6 +7,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { DependencyLink } from '@/components/common/DependencyLink'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -62,6 +63,8 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   const firstSmb = smbName ? data.items.find((x) => x.enabled && x.name === smbName && x.services.includes('smb')) : undefined
 
   const open = (e: Editing) => setEditing(e)
+  // what the list's search reads: the name, the address, the vendor and the services
+  const searchCols: ColumnDef<TrapIP>[] = [{ id: 'text', accessorFn: (d) => [d.name, d.ip, d.vendor ?? '', d.services.join(' '), d.reason ?? ''].join(' ') }]
 
   return (
     <div className="grid gap-4">
@@ -94,10 +97,9 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
       </Dialog>
 
       {data.items.length ? (
-        <Card flush>
-        <ul className="grid divide-y divide-rule" aria-label={t('trapIp.listLabel')}>
-          {data.items.map((d) => (
-            <li key={d.id} className="grid gap-2 px-4 py-3 text-sm">
+        <DataTable urlKey="trap-ips" caption={t('trapIp.listLabel')} data={data.items} columns={searchCols} pageSize={25}
+          list={(d) => (
+            <div className="grid gap-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="grid min-w-0">
                   <span className="font-medium">{d.name} <span className="text-meta font-normal text-muted tabular-nums">{d.ip}</span></span>
@@ -114,10 +116,8 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
                 </span>
               </div>
               <TrapIpDetails d={d} />
-            </li>
-          ))}
-        </ul>
-        </Card>
+            </div>
+          )} />
       ) : <div className="flex items-center gap-1 text-sm text-muted"><p>{t('trapIp.none')}</p><InfoTip topic={t('trapIp.title')}>{t('trapIp.noneInfo')}</InfoTip></div>}
       {!admin ? <p className="text-meta text-muted">{t('needAdmin')}</p> : null}
 

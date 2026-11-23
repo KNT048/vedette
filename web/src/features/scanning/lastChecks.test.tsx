@@ -87,7 +87,21 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
     expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
     // the device's own SNMP card is on this page (admin)
-    expect(within(snmp).getByRole('link', { name: 'Set it up in Sources' })).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
+    expect(await within(snmp).findByRole('link', { name: 'Set it up in Sources' }, T)).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
+  })
+
+  it('a device whose Sources SNMP row offers no Set up (SNMP turned off for it) gets no "Set it up in Sources" link to a row without it', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+    server.use(http.get('*/api/v1/inventory/devices/a-nas01/sources', () => HttpResponse.json({ only: null, manual_at: null, rows: [
+      { source: 'scan', state: 'working', dot: 'green', last_at: null, switch: 'on', action: null, agent: null, token: null },
+      { source: 'snmp', state: 'off', dot: 'grey', last_at: null, switch: 'off', action: 'check_now', agent: null, token: null },
+      { source: 'agent', state: 'never_reported', dot: 'amber', last_at: null, switch: null, action: 'create_token', agent: 'none', token: null },
+    ] })))
+    renderApp('/devices/a-nas01')
+    const snmp = await screen.findByRole('group', { name: SNMP }, T)
+    expect(await within(snmp).findByText('Never', {}, T)).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 300))
+    expect(within(snmp).queryByRole('link', { name: 'Set it up in Sources' })).toBeNull()
   })
 
   it('SNMP set up and not read yet: the row follows the set-up ("Not read yet"), never "Set it up in Sources"', async () => {

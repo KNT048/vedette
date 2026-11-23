@@ -422,6 +422,21 @@ describe('findings: the device page\'s Findings tab', () => {
     expect(screen.queryByText(/^First seen|, last seen /)).not.toBeInTheDocument()
   })
 
+  it('is searched like every other list: the CVE id or the software narrows the card, a search that finds nothing says so', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const u = userEvent.setup()
+    renderApp('/devices/a-fw01?tab=findings')
+    expect(await screen.findByRole('link', { name: 'CVE-2026-123159' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'CVE-2024-21762' })).toBeInTheDocument()
+    const search = screen.getByRole('searchbox', { name: "Search this device's findings" })
+    await u.type(search, 'CVE-2024-21762')
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'CVE-2026-123159' })).toBeNull())
+    expect(screen.getByRole('link', { name: 'CVE-2024-21762' })).toBeInTheDocument()
+    await u.clear(search)
+    await u.type(search, 'no-such-thing')
+    expect(await screen.findByText('No open finding of this device matches “no-such-thing”.')).toBeInTheDocument()
+  })
+
   it('a device with no open finding says so', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-srvfile?tab=findings')

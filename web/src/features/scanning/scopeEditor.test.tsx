@@ -109,13 +109,27 @@ describe('scan scope: one editor, ranges in a dialog', () => {
     expect(await within(dlg).findByText(/^One pass: 66,048 addresses/, undefined, T)).toBeInTheDocument() // 2 × 256 + 65,536
   })
 
-  it('a scope too large for a week turns Save off with the reason, offers a faster speed that fits, and shows long passes in days', async () => {
+  it('the Add range dialog keeps Add off while its cost panel says the save would be refused, and on again once the range fits', async () => {
     const user = userEvent.setup()
     renderApp(PAGE)
     await user.selectOptions(await screen.findByLabelText('Discovery and SNMP', undefined, T), '10')
     const input = await openAdd(user)
     await user.type(input, '10.0.0.0/8')
-    await submitDialog(user)
+    const dlg = screen.getByRole('dialog', { name: 'Add a network range' })
+    expect(await within(dlg).findByText(/Saving is refused: raise the scan rate/, undefined, T)).toBeInTheDocument()
+    await waitFor(() => expect(within(dlg).getByRole('button', { name: 'Add range' })).toBeDisabled(), T)
+    await user.click(within(dlg).getByRole('button', { name: 'Add range' }))
+    expect(screen.queryByRole('button', { name: 'Remove range 10.0.0.0/8' })).toBeNull()
+    await user.clear(input)
+    await user.type(input, '10.40.0.0/24')
+    await waitFor(() => expect(within(dlg).getByRole('button', { name: 'Add range' })).toBeEnabled(), T)
+  })
+
+  it('a scope too large for a week turns Save off with the reason, offers a faster speed that fits, and shows long passes in days', async () => {
+    const user = userEvent.setup()
+    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: [...s.lan_ranges, '10.0.0.0/8'] })) // stored before the dialog refused it
+    renderApp(PAGE)
+    await user.selectOptions(await screen.findByLabelText('Discovery and SNMP', undefined, T), '10')
     expect(await screen.findByText(/Saving is refused: raise the scan rate/, undefined, T)).toBeInTheDocument()
     expect(screen.getByText(/at least \d+ days at 10 packets\/s/)).toBeInTheDocument()
     await user.click(confirm())

@@ -27,6 +27,8 @@
     "watching": "Names and addresses seen in {{sources}} are matched against the bad-address lists.",
     "quiet": "Nothing new from {{sources}}: names and addresses are not checked until it sends again.",
     "not_set_up": "Needs a mirror port, or a firewall or DNS log source: the box does not read the names your devices look up by itself.",
+    "dnsGap": "Without a mirror port, the names the box and the devices on your LAN look up (DNS) are checked only when a DNS server or firewall log is among the log sources.",
+    "dnsGapAction": "Add a DNS log source",
     "source": { "mirror_port": "the mirror port", "logs": "received logs" },
     "and": " and ",
     "view": "Open the log digest",

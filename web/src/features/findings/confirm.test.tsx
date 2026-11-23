@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
-import { auditStore, findingsStore } from '@/mocks/stores'
+import { server } from '@/test/server'
+import { api } from '@/lib/api'
+import { auditStore, findingsStore, sessionStore } from '@/mocks/stores'
 import { basisLabel } from './basis'
+import type { FindingDetail } from './types'
 
 const T = { timeout: 5000 }
 const row = (id: string) => findingsStore.get().find((f) => f.id === id)!
@@ -69,6 +73,28 @@ describe('a person confirms a suspected finding', () => {
     }
   })
 
+})
+
+describe('an update-recommended finding asks for no confirmation', () => {
+  it('offers no Confirm anywhere on its page, no "confirm it yourself", and its title says an update is recommended', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const real = await api.get<FindingDetail>('/findings/f-2')
+    server.use(http.get('*/api/v1/findings/f-2', () => HttpResponse.json({ ...real, urgency: 5 })))
+    renderApp('/findings/f-2')
+    expect(await screen.findByRole('heading', { level: 1, name: /may be affected by CVE-2026-119977: an update is recommended$/ }, T)).toBeInTheDocument()
+    expect(await screen.findByTestId('suspected-why', undefined, T)).not.toHaveTextContent(/confirm it yourself/)
+    expect(screen.queryByTestId('confirm-ways')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirm vulnerability' })).toBeNull()
+  })
+
+  it('a layer that asks for one (exploited) still offers it', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const real = await api.get<FindingDetail>('/findings/f-2')
+    server.use(http.get('*/api/v1/findings/f-2', () => HttpResponse.json({ ...real, urgency: 2 })))
+    renderApp('/findings/f-2')
+    expect(await screen.findByRole('heading', { level: 1, name: /needs checking$/ }, T)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm vulnerability' })).toBeInTheDocument()
+  })
 })
 
 describe('a version the device itself reports', () => {

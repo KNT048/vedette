@@ -272,6 +272,7 @@
       "add": "Add range",
       "addTitle": "Add a network range",
       "save": "Save range",
+      "refused": "The scope with this range would be refused on save: change the scan rate, the window or the ranges first.",
       "label": "Network range",
       "hint": "With its prefix length, for example 192.168.10.0/24.",
       "hintInfo": "Internal addresses only: 10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127. Other prefix lengths work too, for example 192.168.10.0/25. At most 16 ranges.",

@@ -42,6 +42,7 @@
     "tzOrg": "Organization's ({{zone}})",
     "window": "When it may start",
     "scanWindowLink": "Change the scan window",
+    "windowNoDay": "Pick at least one day: with no day chosen it never starts.",
     "resumeOn": "Pause until",
     "resumeOnHint": "It starts again on this day. Empty: not paused."
   },

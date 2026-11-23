@@ -104,7 +104,8 @@
   "settingsOf": "Settings of {{name}}",
   "adminOnly": "Only an administrator can turn engines on or off.",
   "box": {
-    "memory": "The engines that are on can use up to {{used}} of this box's {{total}} of memory (upper limits, Vedette's core included).",
+    "memory": "Engines that are on: up to {{used}} of this box's {{total}} of memory.",
+    "memoryInfo": "Upper limits, Vedette's core included: the engines use less most of the time.",
     "overTitle": "The engines' memory limits add up to more than this box has",
     "over": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down or a scan stops for lack of memory, turn off an engine you do not need.",
     "overViewer": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down, an administrator can turn off an engine that is not needed.",
@@ -511,6 +512,7 @@
     "stopConfirm": "Stop the run",
     "stopped": "Run stopped",
     "resume": "Resume",
+    "startNow": "Start now",
     "resumed": "Run queued again: it goes on from where it stopped",
     "goneTitle": "Run not found",
     "gone": "This run is not kept: it does not exist, or it ended more than 400 days ago.",

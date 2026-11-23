@@ -86,7 +86,16 @@ function SourcesSection() {
   const { t } = useTranslation('logs')
   const q = useSources()
   const isAdmin = useCan('admin')
-  const [adding, setAdding] = useState(false)
+  // ?add=source (a "Add a log source" button on another page) opens the add dialog here at once, for someone who may add; the
+  // parameter then leaves the URL so Back and a reload do not open it again
+  const [params, setParams] = useSearchParams()
+  const [adding, setAdding] = useState(() => isAdmin && params.get('add') === 'source')
+  useEffect(() => {
+    if (!params.has('add')) return
+    const p = new URLSearchParams(params)
+    p.delete('add')
+    setParams(p, { replace: true })
+  }, [params, setParams])
   const [addFrom, setAddFrom] = useState<{ ip: string; proto: Proto } | null>(null)
   const [editing, setEditing] = useState<LogSource | null>(null)
   const [deleting, setDeleting] = useState<LogSource | null>(null)

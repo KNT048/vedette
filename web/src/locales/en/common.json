@@ -351,8 +351,6 @@
   "codeBlock": "Code snippet",
   "scope": {
     "preview": "Preview",
-    "previewLine": "Not part of the v1 promise yet.",
-    "previewInfo": "Preview modules ship off by default. They work, but v1 is judged on finding exploited vulnerabilities in what you own and telling you what to do. A preview fault is fixed before v1 only when it is a security fault, loses data or breaks that path.",
     "leaving": "Not in this release",
     "leavingLine": "This feature is not part of this release. Its settings are kept and shown read-only.",
     "leavingInfo": "This box turned it on before this release left it out. It keeps working as set and its data is kept. You can turn it off; once off it is hidden and cannot be turned on again here. A later release brings it back.",

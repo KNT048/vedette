@@ -17,7 +17,7 @@ import { useDeviceAction, useDevices } from './api'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { declaredSoftwareOnly } from './nameOf'
-import type { DeviceRow } from './types'
+import type { DeviceRow, ListSoftware } from './types'
 import { VersionDialog } from './VersionDialog'
 
 // Settings › Declared software (#849): products someone said they run with no device and no address (the weekly "I have this", a CSV
@@ -34,7 +34,7 @@ function IconButton({ label, needRole, onClick, children }: { label: string; nee
   )
 }
 
-type Row = { d: DeviceRow; sw: DeviceRow['software'][number] | undefined }
+type Row = { d: DeviceRow; sw: ListSoftware | undefined }
 
 function Remove({ r, onDone }: { r: Row; onDone: () => void }) {
   const { t } = useTranslation('inventory')
@@ -57,7 +57,7 @@ function Body() {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Row | null>(null)
   const [removing, setRemoving] = useState<Row | null>(null)
-  const rows = useMemo<Row[]>(() => (q.data?.items ?? []).filter(declaredSoftwareOnly).map((d) => ({ d, sw: d.software[0] })), [q.data])
+  const rows = useMemo<Row[]>(() => (q.data?.items ?? []).filter(declaredSoftwareOnly).map((d) => ({ d, sw: d.product ?? undefined })), [q.data])
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const columns: ColumnDef<Row>[] = [
     { id: 'name', header: t('declaredPage.col.product'), accessorFn: (r) => r.sw?.display ?? '', cell: ({ row }) => {

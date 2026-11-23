@@ -1,7 +1,9 @@
 import i18n from '@/lib/i18n'
 import type { Asset } from '@/lib/types'
 
-type Named = Pick<Asset, 'hostname' | 'vendor' | 'model' | 'ip'> & { name?: Asset['name']; origin?: Asset['origin']; software?: { display: string; not_installed?: boolean }[] }
+/** `software`: the device's lines (the device page); `product`: the one line the Devices list sends for a hand-added device (its first
+ *  installed line by name), since the list carries no lines. */
+type Named = Pick<Asset, 'hostname' | 'vendor' | 'model' | 'ip'> & { name?: Asset['name']; origin?: Asset['origin']; software?: { display: string; not_installed?: boolean }[]; product?: { display: string } | null }
 
 /** The name a person gave the device in Vedette, trimmed; '' when none. */
 const userName = (a: Named) => a.name?.trim() ?? ''
@@ -16,7 +18,7 @@ export function displayName(a: Named): string {
   if (a.hostname) return a.hostname
   // The backend lists software by display name (ORDER BY display): the first of them, whatever order this array has.
   // what it runs: never a line a person said is not installed
-  const product = a.origin === 'manual' ? a.software?.filter((s) => !s.not_installed).map((s) => s.display.trim()).filter(Boolean).sort()[0] : undefined
+  const product = a.origin !== 'manual' ? undefined : a.software ? a.software.filter((s) => !s.not_installed).map((s) => s.display.trim()).filter(Boolean).sort()[0] : a.product?.display.trim() || undefined
   if (product) return hasIp(a) ? product : i18n.t('inventory:noDevice', { product })
   // A maker or model read from a person's declared OS row (software_id) is not the observations' (inventory INV-45): the backend's
   // naming rule leaves it out, and so does this one, so a device has one name on every page.

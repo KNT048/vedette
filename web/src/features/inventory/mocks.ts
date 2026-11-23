@@ -16,11 +16,11 @@ import type {
   AddDeviceInput, AddDeviceResult, AgentNode, AgentReport, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
   InventorySettings, KeepSeparateInput, MergeInput, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
   DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpSimilarResponse, SnmpVersion,
-  DeviceSourceRow, DeviceSourcesView, SoftwareLine, WazuhConnection, WazuhInput,
+  DeviceSourceRow, DeviceSourcesView, SoftwareLine, SoftwareName, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
-import { badUserName, nameOf } from './nameOf'
+import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { deviceRisk } from '@/features/findings/mocks'
 import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
@@ -427,12 +427,34 @@ export function linesOf(a: Asset): SoftwareLine[] {
   })
   return lines.sort((x, y) => x.display.localeCompare(y.display) || x.id.localeCompare(y.id))
 }
-/** A line as a row of the device list (contract Software). */
+/** A line as the device list's matched_software and product carry it (contract Software). */
 const listRowOf = (a: Asset) => linesOf(a).map((l) => {
   const top = a.software.find((s) => s.id === l.id) ?? a.software.find((s) => s.display === l.display)
   return { id: l.id, display: l.display, vendor: l.vendor, product: l.product, version: l.version, kev: l.not_installed ? [] : (top?.kev ?? []), source: l.source, confidence: l.confidence, not_installed: l.not_installed }
 })
-const toRow = (a: Asset): DeviceRow => ({ ...live(a), software: listRowOf(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a) })
+/** A row of the device list: no software lines and no ports, only how many (inventory devicelist.go); a hand-added device's first
+ *  installed line by name (product); with a software filter (`words`), the lines that hold one of the words. */
+const toRow = (a: Asset, words: string[] = []): DeviceRow => {
+  const { software: _software, services, ...rest } = live(a)
+  const lines = listRowOf(a)
+  const holds = (s: { display: string; vendor: string; product: string }) => words.some((w) => `${s.display} ${s.vendor} ${s.product}`.toLowerCase().includes(w))
+  return {
+    ...rest, ...scanInfo(a), software_count: lines.length, service_count: services.length,
+    product: a.origin === 'manual' ? lines.find((l) => !l.not_installed) ?? null : null,
+    ...(words.length ? { matched_software: lines.filter(holds) } : {}),
+    sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), summary: summaryOf(a),
+  }
+}
+/** The suggestions of the search's software: over the listed devices (inventory devicelist.go topNames): the 12 names most devices
+ *  run, most first, then by name; declared software with no device left out. */
+function topSoftware(assets: Asset[]): SoftwareName[] {
+  const n = new Map<string, SoftwareName>()
+  for (const a of assets) for (const k of new Set(listRowOf(a).map((l) => l.display.toLowerCase()))) {
+    const label = a.software.find((s) => s.display.toLowerCase() === k)?.display ?? k
+    n.set(k, { name: n.get(k)?.name ?? label, count: (n.get(k)?.count ?? 0) + 1 })
+  }
+  return [...n].sort((x, y) => y[1].count - x[1].count || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)).slice(0, 12).map(([, v]) => v)
+}
 
 /** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
  * a boolean that is not true or false 400 invalid (the schema's enum). Returns the filter, or the error response. */
@@ -464,7 +486,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
     && (!risks.length || risks.includes(r.risk?.code ?? 'none'))
-    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.filter((x) => !x.not_installed).map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+    && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.product?.display ?? '' : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
@@ -909,11 +931,20 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
     if (keep instanceof Response) return keep
-    const rows = allAssets().map(toRow)
+    const p = new URL(request.url).searchParams
+    if ((p.get('software') ?? '').length > 400) return fail(400, 'invalid', 'The parameter "software" is not valid.')
+    const words = [...new Set((p.get('software') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))]
+    if (words.some((w) => w.length > 80)) return fail(400, 'bad_filter', 'Search software for at most 80 characters.')
+    const assets = allAssets()
+    const rows = assets.map((a) => toRow(a, words))
     const all = rows.filter((a) => a.ignored_at === null) // An ignored device is in no count but its own
+    const kept = rows.filter((r) => keep(r) && (!words.length || !!r.matched_software?.length))
+    const byId = new Map(assets.map((a) => [a.id, a]))
+    const listed = (inList: (r: DeviceRow) => boolean) => kept.filter((r) => !declaredSoftwareOnly(r) && inList(r)).map((r) => byId.get(r.id)!)
     return HttpResponse.json({
-      items: rows.filter(keep),
-      counts: { all: all.length, pending: all.filter((a) => !a.approved && !isQuiet(a)).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
+      items: kept,
+      top_software: { devices: topSoftware(listed((r) => r.approved || r.quiet)), review: topSoftware(listed((r) => !r.approved && !r.quiet)) },
+      counts: { all: all.length, pending: all.filter((a) => !a.approved && !a.quiet).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
       risk_unavailable: false,

@@ -11,9 +11,10 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// A finding that goes to another device with its software line takes what is still to be decided about it there: its plans and the
-// events the rules have not run on yet name the device the finding is on now (and that device's name). Its pending request is
-// withdrawn on the device it was made for (TestFindingMovedWithdrawsThePendingRequest). What was already decided or done keeps the
+// A finding that goes to another device with its software line takes what is still to be decided about it there: the events the rules
+// have not run on yet name the device the finding is on now (and that device's name). Its plan is retired
+// (TestFindingMovedRetiresThePlanAndANewOneIsWritten) and its pending request is withdrawn on the device it was made for
+// (TestFindingMovedWithdrawsThePendingRequest). What was already decided or done keeps the
 // device it was about: an approved, executed, rejected or expired request and an event the rules already ran on are history. Rows of
 // another finding, or of this finding on a third device, do not move.
 func TestFindingMovedTakesWhatIsPendingAndKeepsHistory(t *testing.T) {
@@ -61,7 +62,6 @@ func TestFindingMovedTakesWhatIsPendingAndKeepsHistory(t *testing.T) {
 		return asset
 	}
 	for _, c := range []struct{ table, id, want string }{
-		{"resp_plans", "plan-f1", "a-new/web-02"},
 		{"resp_plans", "plan-f2", "a-old/nas-01"},
 		{"resp_actions", "r-pending", "a-old/nas-01"},
 		{"resp_actions", "r-approved", "a-old/nas-01"},
@@ -80,20 +80,24 @@ func TestFindingMovedTakesWhatIsPendingAndKeepsHistory(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-waiting' AND device_kind = 'server'`); n != 1 {
 		t.Error("the waiting event kept the kind of the device the finding left")
 	}
+	if n := e.count(`SELECT count(*) FROM resp_plans WHERE id = 'plan-f1'`); n != 0 {
+		t.Error("the plan written for the device the finding left was kept")
+	}
 }
 
-// When the device the finding went to cannot be named (no directory row), the rows still follow it and keep the name they stored.
+// When the device the finding went to cannot be named (no directory row), the waiting events still follow it and keep the name they
+// stored.
 func TestFindingMovedKeepsTheStoredNameWhenTheDeviceIsUnknown(t *testing.T) {
 	e := newEnv(t)
-	e.exec1(`INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES
-		('plan-f1','f1','CVE-2024-0001','a-old','nas-01','2026-11-09T09:00:00.000Z','m','p','path','[]','[]')`)
+	e.exec1(`INSERT INTO resp_events (id, trigger, ts, summary, fields, asset_id, finding_id, cve, processed) VALUES
+		('ev-waiting','finding','2026-11-09T09:00:00.000Z','s','{"device":"nas-01","ip":"192.0.2.10","cve":"CVE-2024-0001"}','a-old','f1','CVE-2024-0001',0)`)
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		return e.svc.FindingMoved(e.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-gone"})
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM resp_plans WHERE id = 'plan-f1' AND asset_id = 'a-gone' AND asset_name = 'nas-01'`); n != 1 {
-		t.Fatal("the plan did not follow the finding with its stored name")
+	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-waiting' AND asset_id = 'a-gone' AND fields ->> '$.device' = 'nas-01'`); n != 1 {
+		t.Fatal("the waiting event did not follow the finding with its stored name")
 	}
 }
 
@@ -172,5 +176,68 @@ func TestFindingMovedWhileTheRulesRunUsesTheMovedEvent(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM resp_actions WHERE finding_id = 'f1' AND asset_id = 'a-new' AND items LIKE '%web-02 192.0.2.42%'`); n != 1 {
 		t.Fatal("the rule did not run on the moved event (the finding's new device and its address)")
+	}
+}
+
+// The plan of a finding holds proposals built for the address of the device it was written for. When the finding moves to another
+// device, that plan is retired (logged and audited) in the same write: its proposals can no longer be requested, and the planner writes
+// a new plan for the finding on its new device through the normal path, whose proposal is requested against the new device.
+func TestFindingMovedRetiresThePlanAndANewOneIsWritten(t *testing.T) {
+	t.Parallel()
+	e, fp, targets := aiPlanEnv(t)
+	e.turnOn()
+	_, err := e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	pl, err := e.svc.Plans(e.ctx(), "f2")
+	e.must(err)
+	if len(pl.Items) != 1 || pl.Items[0].Steps[0].Proposal == nil {
+		t.Fatalf("no plan with a proposal for f2: %+v", pl)
+	}
+	oldPlan, oldProp := pl.Items[0].ID, pl.Items[0].Steps[0].Proposal.ID
+	old, err := e.svc.RequestProposal(e.ctx(), oper, oldProp)
+	e.must(err)
+
+	e.dir.devices["a2"] = response.DeviceInfo{ID: "a2", Name: "web-02", IP: "192.0.2.42", Approved: true}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		return e.svc.FindingMoved(e.ctx(), tx, lifecycle.FindingMove{Finding: "f2", From: "a1", Into: "a2"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.dir.findings["f2"] = response.FindingInfo{ID: "f2", AssetID: "a2", CVE: "CVE-2024-0002", Severity: "critical", Status: "confirmed"}
+	for i := range *targets {
+		if (*targets)[i].FindingID == "f2" {
+			(*targets)[i].AssetID, (*targets)[i].AssetName, (*targets)[i].AssetIP, (*targets)[i].AssetKind = "a2", "web-02", "192.0.2.42", "server"
+		}
+	}
+	fp.steps = func(t response.PlanTarget) []response.DraftStep {
+		return []response.DraftStep{{Kind: "contain", Title: "Block the address", Detail: "Add it to the block list.", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: t.AssetIP}}}}
+	}
+
+	if n := e.count(`SELECT count(*) FROM resp_plans WHERE id = ?`, oldPlan); n != 0 {
+		t.Fatal("the plan written for the old device was kept")
+	}
+	if !e.logHas("proposal", "moved to web-02") || e.count(`SELECT count(*) FROM core_audit WHERE action = 'response.plan_retired' AND target = ?`, oldPlan) != 1 {
+		t.Error("retiring the plan is not in the response log and the audit")
+	}
+	var note string
+	e.must(e.db.Reader().QueryRowContext(e.ctx(), `SELECT note FROM resp_actions WHERE id = ? AND status = 'expired'`, old.ID).Scan(&note))
+	if !strings.Contains(note, "new plan") {
+		t.Errorf("the withdrawal note does not point at the new plan: %q", note)
+	}
+	_, err = e.svc.RequestProposal(e.ctx(), oper, oldProp)
+	wantCode(t, err, 404, "not_found")
+
+	_, err = e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	pl, err = e.svc.Plans(e.ctx(), "f2")
+	e.must(err)
+	if len(pl.Items) != 1 || pl.Items[0].AssetID != "a2" || pl.Items[0].Steps[0].Proposal == nil {
+		t.Fatalf("no new plan for the finding on its new device: %+v", pl)
+	}
+	req, err := e.svc.RequestProposal(e.ctx(), oper, pl.Items[0].Steps[0].Proposal.ID)
+	e.must(err)
+	if req.Status != response.StatusPending || req.AssetID == nil || *req.AssetID != "a2" ||
+		e.count(`SELECT count(*) FROM resp_actions WHERE id = ? AND items LIKE '%192.0.2.42%'`, req.ID) != 1 {
+		t.Fatalf("the request from the new plan is not about the new device: %+v", req)
 	}
 }

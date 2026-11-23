@@ -80,7 +80,7 @@ func TestCosignPlanSignsAndAttests(t *testing.T) {
 	}
 	bin := `'/opt/cosign v2/cosign'`
 	for i, im := range doc.Images {
-		want := bin + " sign --key /keys/cosign.key --new-bundle-format=false --use-signing-config=false --upload=false --tlog-upload=false" +
+		want := bin + " sign --key /keys/cosign.key --new-bundle-format=false --use-signing-config=false --upload=true --tlog-upload=false" +
 			" --output-payload dist/release/cosign/" + im.Service + ".payload.json --output-signature dist/release/cosign/" + im.Service + ".sig " +
 			im.Repo + "@" + im.IndexDigest
 		if lines[2+i] != want {
@@ -212,5 +212,39 @@ func TestAttestArgv(t *testing.T) {
 	argv, err := AttestArgv("cosign", "k", "scan", d, "dist/sbom/scan-base-amd64.cdx.json")
 	if err != nil || argv[len(argv)-1] != release.RegistryPrefix+"scan@"+d {
 		t.Fatal(argv, err)
+	}
+}
+
+// TestDocumentedVerifyMatchesSigning ties every `cosign verify --key` command a person is told to run (the container-only guide,
+// the update page, the release docs) to the way the plan signs: the sign line uploads the signature to the registry, and since it
+// records nothing in the Rekor transparency log, a verify command without --insecure-ignore-tlog=true would fail with "signature
+// not found in transparency log" (measured with the pinned cosign against a local registry).
+func TestDocumentedVerifyMatchesSigning(t *testing.T) {
+	argv, err := CosignArgv("cosign", "/keys/cosign.key", "dist/release/cosign", "core", digestOf("core"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(argv, "--upload=true") || slices.Contains(argv, "--upload=false") {
+		t.Fatalf("the sign line must upload the signature that cosign verify reads: %q", argv)
+	}
+	noTlog := slices.Contains(argv, "--tlog-upload=false")
+	n := 0
+	for _, f := range []string{"docs/INSTALL-CONTAINER.md", "docs/RELEASE_KEYS.md", "docs/specs/update-manifest.md", "web/src/features/core/ContainerOnly.tsx"} {
+		raw, err := os.ReadFile("../../" + f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(raw), "\n") {
+			if !strings.Contains(line, "cosign verify --key") {
+				continue
+			}
+			n++
+			if strings.Contains(line, "--insecure-ignore-tlog=true") != noTlog {
+				t.Errorf("%s:%d: --insecure-ignore-tlog=true must be there exactly when the plan signs with --tlog-upload=false: %s", f, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+	if n < 4 {
+		t.Errorf("found %d cosign verify commands, want at least 4 (has one moved?)", n)
 	}
 }

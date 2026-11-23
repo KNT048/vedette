@@ -39,7 +39,7 @@ repository, no tag, no digest. cosign writes exactly that when it signs a `<repo
 `--sign-container-identity`, so the job signs each image like this (cosign pinned, legacy format):
 
 ```sh
-cosign sign --key cosign.key --new-bundle-format=false --use-signing-config=false --upload=false \
+cosign sign --key cosign.key --new-bundle-format=false --use-signing-config=false --upload=true --tlog-upload=false \
   --output-payload payload.json --output-signature sig.b64 ghcr.io/knt048/vedette-<service>@sha256:<digest>
 # images[].cosign = { "payload": base64(payload.json), "signature": contents of sig.b64 }
 ```

@@ -30,6 +30,8 @@ var rules = []rule{
 	{"docs/brand/", Result{Web: true}},                                     // web/src/components/brand/Logo.test.tsx holds Logo.tsx to the brand SVGs
 	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env
 	{"docs/SCHEMA.sql", Result{Go: true}},                                  // cmd/vedette/schema_test.go holds it to the migrations (make schema)
+	{"docs/RELEASE_KEYS.md", Result{Go: true}},                             // scripts/release/cosignplan_test.go: its cosign verify line matches the sign flags
+	{"docs/specs/update-manifest.md", Result{Go: true}},                    // the same test
 	{"modules/response/data/triggers.json", Result{true, true}},            // web/src/features/response/triggers.test.ts holds data.ts to it
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files

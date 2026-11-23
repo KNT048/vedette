@@ -212,7 +212,7 @@ function whySuspected(f: Finding, kv: KnownVersion | null, k: KevInfo | null): s
     : "Product match only: the device runs the product, but its version is not known, so it could not be compared with NVD's affected range."
   const device = byDevice ? '' : ' It is confirmed by itself once the device reports its version: turn on SNMP for the device, or install the agent on it.'
   const check = !k ? '' : !k.has_template ? ' No safe vulnerability check exists for this CVE.' : ' A safe vulnerability check exists for this CVE: run the check to confirm it.'
-  return `${head}${device}${check} Last, confirm it yourself.`
+  return `${head}${device}${check}`
 }
 
 function detail(f: Finding): FindingDetail {

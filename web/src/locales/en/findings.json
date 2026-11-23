@@ -120,7 +120,8 @@
     "noIpScan": "No IP address in your inventory, so Vedette cannot scan it.",
     "noIpScanInfo": "Add its IP on the device page to scan it.",
     "openDevice": "Open the device",
-    "rescanIdentify": "Check this device again (identifies it only)"
+    "rescanIdentify": "Check this device again (identifies it only)",
+    "confirmYourself": "Last, confirm it yourself."
   },
   "rec": {
     "title": "What to do",

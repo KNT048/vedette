@@ -58,14 +58,16 @@ export function UndoButton({ f, size }: { f: Target; size?: 'sm' }) {
 /**
  * The ways to confirm a suspected finding, in order (as Qualys confirms from an authenticated version check and keeps "potential" for
  * the rest): first the automatic ones, the device reporting its version itself (SNMP, or the agent: skipped when it already does) and a
- * safe vulnerability check (only when one exists for the CVE and the device can be scanned), last a person (children: Confirm on the
- * finding page, the CVE links in Needs your input). The device page holds SNMP and "Run vulnerability checks now"; agents are set up
+ * safe vulnerability check (only when one exists for the CVE and the device can be scanned), last a person, shown only to an admin, the
+ * one role that can confirm (children: Confirm on the finding page, the CVE links in Needs your input). The device page holds SNMP and "Run vulnerability checks now"; agents are set up
  * in Devices › Set up.
  */
 export function ConfirmWays({ assetId, deviceStated, checkable, children, list = false }: { assetId: string; deviceStated: boolean; checkable: boolean; children?: ReactNode; list?: boolean }) {
   const { t } = useTranslation('findings')
+  const admin = useCan('admin') // only an admin can confirm: the last way is not offered to anyone else
   const device = `/devices/${encodeURIComponent(assetId)}`
   const link = 'text-accent underline underline-offset-4'
+  if (!admin && deviceStated && !checkable) return null // no way left that this person can take
   return (
     <div className="grid gap-1" data-testid="confirm-ways">
       <h3 className="text-sm font-semibold">{t('confirm.ways.title')}</h3>
@@ -85,9 +87,11 @@ export function ConfirmWays({ assetId, deviceStated, checkable, children, list =
             <Link to={device} className={link}>{t('confirm.ways.runCheck')}</Link>
           </li>
         ) : null}
-        <li>
-          <span className="inline-flex flex-wrap items-center gap-2">{t(list ? 'confirm.ways.personList' : 'confirm.ways.person')}{children}</span>
-        </li>
+        {admin ? (
+          <li>
+            <span className="inline-flex flex-wrap items-center gap-2">{t(list ? 'confirm.ways.personList' : 'confirm.ways.person')}{children}</span>
+          </li>
+        ) : null}
       </ol>
     </div>
   )

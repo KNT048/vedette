@@ -36,11 +36,12 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
   const scanOn = useModuleEnabled('scan') === true
   const { t } = useTranslation('findings')
+  const admin = useCan('admin') // only an admin can confirm: the sentence offers it to no one else
   const ev = f.evidence
   return (
     <Section id="evidence" title={t('evidence.title')} description={t('evidence.description')} stories={['S-SCAN-3']}>
       <Card className="grid gap-4">
-        {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{f.suspected_why}</p> : null}
+        {f.suspected_why ? <p className="max-w-3xl text-sm text-muted" data-testid="suspected-why">{admin ? `${f.suspected_why} ${t('evidence.confirmYourself')}` : f.suspected_why}</p> : null}
         {canConfirm(f) && f.asset ? (
           <ConfirmWays assetId={f.asset.id} deviceStated={f.known_version?.source === 'snmp' || f.known_version?.source === 'agent'} checkable={!!f.kev?.has_template && hasIp(f.asset)}>
             {confirm}

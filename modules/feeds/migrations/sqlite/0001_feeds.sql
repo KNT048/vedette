@@ -160,8 +160,8 @@ CREATE TABLE feeds_cve_range (
 );
 
 -- The references of a CVE's record (the CNA's, then the ADPs'), with the tags their publisher gave them (vendor-advisory, patch,
--- mitigation, exploit …; read whole). Kept only for the CVEs that matter to the box: an exploited-list entry, a qualifying signal or an
--- open finding; source is cna or adp. Written only by the CVE records pull, replaced whole with each record read.
+-- mitigation, exploit …; read whole). Kept for every CVE the catalogue holds and gone with it (cascade); source is cna, adp or nvd.
+-- Written by the CVE records pull (replaced whole with each record read) and, once NVD has tagged them, by the NVD pull.
 CREATE TABLE feeds_cve_ref (
     cve    TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,
     url    TEXT NOT NULL CHECK (length(url) BETWEEN 9 AND 500 AND (url GLOB 'https://*' OR url GLOB 'http://*')),

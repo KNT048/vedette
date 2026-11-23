@@ -9,8 +9,8 @@ import { sessionStore } from '@/mocks/stores'
 import { BOX_ID, ensureBox } from './mocks'
 import type { DeviceRow } from './types'
 
-// Every list shows which devices carry risk, read from what Findings › To fix shows for each device (one rule): red = open
-// exploited findings To fix lists (with the count), amber = a recommended update for a likely-exploited or High+ CVE, nothing when clean.
+// Every list shows each device's badge, the device status of the findings lists (one function): its most urgent open status with the
+// distinct CVEs at it, else Needs your input, nothing when it has none.
 
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => { ensureBox(); sessionStore.set({ userId: 'u-admin' }) })
@@ -24,90 +24,72 @@ const get = async (path: string) => {
 const rows = async () => (await get('/inventory/devices')).json.items as DeviceRow[]
 
 describe('inventory: risk marker', () => {
-  it('the marker agrees with To fix for every device: red counts the findings To fix lists, amber a likely or High+ update', async () => {
+  it('the badge is the device status of the findings lists for every device: the most urgent status with its distinct CVEs', async () => {
     const list = await rows()
-    const toFix = (await get('/findings/to-fix')).json.devices as { asset: { id: string }; exploited: { cves: string[]; finding_ids: string[] }[]; no_update: { cves: string[]; finding_ids: string[]; confirmed: number; detected: number }[]; planned: { likely: number; worst: string }[] }[]
-    const sev = ['info', 'low', 'medium', 'high', 'critical']
+    const cards = (await get('/findings/devices?limit=100')).json.items as { device: { id: string }; status: { code: string; count: number } | null }[]
     for (const d of list) {
-      const card = toFix.find((x) => x.asset.id === d.id)
-      const acts = card ? [...card.exploited, ...card.no_update.filter((x) => x.confirmed + x.detected > 0)] : []
-      const exploited = acts.reduce((n, a) => n + Math.max(a.finding_ids.length, a.cves.length), 0)
-      const updates = card ? card.planned.filter((p) => p.likely > 0 || sev.indexOf(p.worst) >= 3).length : 0
-      const want = exploited ? { level: 'exploited', exploited, updates } : updates ? { level: 'update', exploited: 0, updates } : null
-      expect(d.risk, d.id).toEqual(want)
+      const card = cards.find((c) => c.device.id === d.id)
+      if (card && d.id !== BOX_ID) expect(d.risk, d.id).toEqual(card.status)
     }
-    expect(list.some((d) => d.risk?.level === 'exploited')).toBe(true) // the sample data shows both levels and clean devices
-    expect(list.some((d) => d.risk?.level === 'update')).toBe(true)
+    expect(list.some((d) => d.risk?.code === 'exploited')).toBe(true) // the sample data shows several statuses and devices without one
     expect(list.some((d) => !d.risk)).toBe(true)
   })
 
   it('GET /inventory/devices?risk= filters by level (none = clean), unknown words are 400 bad_filter', async () => {
     const all = await rows()
-    for (const level of ['exploited', 'update', 'none'] as const) {
+    for (const level of ['exploited', 'update_recommended', 'none'] as const) {
       const got = (await get(`/inventory/devices?risk=${level}`)).json.items as DeviceRow[]
-      expect(got.map((d) => d.id).sort()).toEqual(all.filter((d) => (d.risk?.level ?? 'none') === level).map((d) => d.id).sort())
+      expect(got.map((d) => d.id).sort()).toEqual(all.filter((d) => (d.risk?.code ?? 'none') === level).map((d) => d.id).sort())
     }
     const bad = await get('/inventory/devices?risk=high')
     expect([bad.status, bad.json.error.code]).toEqual([400, 'bad_filter'])
   })
 
-  it('Devices: a Risk column with words, linked to the device\'s To fix, sortable worst first and filtered by its chips; no a11y violations', async () => {
+  it('Devices: a Risk column with words, linked to the device\'s findings with that status, sortable worst first and filtered by its chips; no a11y violations', async () => {
     const user = userEvent.setup()
     const list = await rows()
-    const red = list.find((d) => d.risk?.level === 'exploited')!
+    const red = list.find((d) => d.risk?.code === 'exploited')!
     renderApp('/devices')
     const table = await screen.findByRole('table', { name: 'Device list' }, T)
-    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.exploited} exploited: ${red.risk!.exploited} open exploited finding`) }).find((a) => a.getAttribute('href') === `/findings?tab=fix&device=${red.id}`)!, T)
-    expect(marker).toHaveTextContent(`${red.risk!.exploited} exploited`)
-    expect(within(table).getAllByRole('link', { name: /^Update recommended: / }).length).toBeGreaterThan(0)
+    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.count} exploited: open its findings`) }).find((a) => a.getAttribute('href') === `/devices/${red.id}?tab=findings&status=exploited`)!, T)
+    expect(marker).toHaveTextContent(`${red.risk!.count} exploited`)
     await expectNoA11yViolations()
     // sort: worst first on the first click
     await user.click(within(table).getByRole('button', { name: /Risk/ }))
-    await waitFor(() => expect(within(within(table).getAllByRole('row')[1]!).getByRole('link', { name: /open exploited finding/ })).toBeInTheDocument(), T)
+    await waitFor(() => expect(within(within(table).getAllByRole('row')[1]!).getByRole('link', { name: /^\d+ (under attack|exploited): / })).toBeInTheDocument(), T)
     // the Exploited chip keeps the red devices only
     await toggleFilter(user, /^Exploited/)
-    await waitFor(() => expect(within(table).getAllByRole('row').length - 1).toBe(list.filter((d) => d.approved && d.risk?.level === 'exploited').length), T)
+    await waitFor(() => expect(within(table).getAllByRole('row').length - 1).toBe(list.filter((d) => d.approved && d.risk?.code === 'exploited').length), T)
   })
 
-  it('the device page shows the marker next to the title; a clean device shows none', async () => {
+  it('the device page shows the badge next to the title, a link to its Findings tab with that status; a clean device shows none', async () => {
     const list = await rows()
-    const red = list.find((d) => d.risk?.level === 'exploited')!
+    const red = list.find((d) => d.risk?.code === 'exploited')!
     const first = renderApp(`/devices/${red.id}`)
-    expect(await screen.findByRole('link', { name: /open exploited finding/ }, T)).toHaveAttribute('href', `/findings?tab=fix&device=${red.id}`)
+    const title = (await screen.findByRole('heading', { level: 1 }, T)).closest('header') ?? document.body
+    expect(await within(title as HTMLElement).findByRole('link', { name: /exploited/ }, T)).toHaveAttribute('href', `/devices/${red.id}?tab=findings&status=exploited`)
     first.unmount()
-    const clean = list.find((d) => !d.risk && !d.is_box)!
+    // clean on both reads: no marker, and no card of the findings model (no open finding) and no question
+    const cards = (await get('/findings/devices?limit=100')).json.items as { device: { id: string } }[]
+    const asked = (await get('/findings/input?limit=100')).json.items as { device: { id: string } }[]
+    const busy = new Set([...cards, ...asked].map((c) => c.device.id))
+    const clean = list.find((d) => !d.risk && !d.is_box && !busy.has(d.id))!
     renderApp(`/devices/${clean.id}`)
     await screen.findByRole('heading', { level: 1 }, T)
-    expect(screen.queryByRole('link', { name: /open exploited finding|recommended update/ })).toBeNull()
-  })
-
-  it('Findings › To fix: each device card carries its marker', async () => {
-    const list = await rows()
-    const red = list.find((d) => d.risk?.level === 'exploited')!
-    renderApp('/findings?tab=fix')
-    const card = await screen.findByRole('listitem', { name: new RegExp(red.name ?? red.hostname ?? red.ip) }, T)
-    expect(await within(card).findByRole('link', { name: /open exploited finding/ }, T)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /open its findings|exploited$|^Update recommended/ })).toBeNull()
   })
 
   it('the CSV export has a risk column in the marker\'s words', async () => {
-    const red = (await rows()).find((d) => d.risk?.level === 'exploited')!
+    const red = (await rows()).find((d) => d.risk?.code === 'exploited')!
     const csv = await (await fetch(`${location.origin}/api/v1/inventory/export.csv`)).text()
     expect(csv).toContain('name_in_vedette,risk\r\n')
-    expect(csv).toContain(`,${red.risk!.exploited} exploited\r\n`)
+    expect(csv).toContain(`,${red.risk!.count} exploited\r\n`)
   })
 
   it('the Vedette box itself is never marked, and is in risk=none', async () => {
     const box = (await rows()).find((d) => d.id === BOX_ID)!
     expect(box.risk).toBeNull()
     expect(((await get('/inventory/devices?risk=none')).json.items as DeviceRow[]).some((d) => d.id === BOX_ID)).toBe(true)
-  })
-
-  it('Recommended updates and the To fix cards read the marker from their own answer, never the device list', async () => {
-    const seen: string[] = []
-    server.events.on('request:start', ({ request }) => { seen.push(new URL(request.url).pathname) })
-    renderApp('/plan?tier=all')
-    expect((await screen.findAllByRole('link', { name: /^(\d+ exploited|Update recommended): / }, T)).length).toBeGreaterThan(0)
-    expect(seen).not.toContain('/api/v1/inventory/devices')
   })
 
   it('a list whose risk marks could not be read says so quietly and shows none', async () => {

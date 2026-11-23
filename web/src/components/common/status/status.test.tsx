@@ -1,0 +1,147 @@
+// The status model's components: one look and one wording per status, severity, verification, handling and CVE list.
+import { describe, expect, it } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
+import type { ReactNode } from 'react'
+import '@/lib/i18n'
+import { FINDING_STATUSES } from '@/lib/statusCodes'
+import { CveList, HandledLine, ReasonsLine, SeverityBadge, StatusBadge, VerificationLine, bandOf, type CveItem } from '.'
+
+const inRouter = (ui: ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>)
+
+describe('StatusBadge', () => {
+  it('every finding status has its own words, icon and meaning, and only "Under attack here" is filled', () => {
+    const labels = new Set<string>()
+    for (const code of FINDING_STATUSES) {
+      const { container, unmount } = render(<StatusBadge code={code} />)
+      const badge = container.querySelector(`[data-status="${code}"]`)!
+      expect(badge.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+      expect(badge.getAttribute('title')).toMatch(/\w/)
+      expect(badge.className.includes('bg-danger ')).toBe(code === 'under_attack')
+      labels.add(badge.textContent!)
+      unmount()
+    }
+    expect(labels.size).toBe(FINDING_STATUSES.length)
+    render(<StatusBadge code="exploited" />)
+    expect(screen.getByText('Exploited in the wild')).toBeInTheDocument()
+  })
+
+  it('a device badge counts its CVEs, and links to that device\'s findings with that status', () => {
+    inRouter(<><StatusBadge code="exploited" count={2} to="/findings?tab=device&device=d1&status=exploited" /><StatusBadge code="update_recommended" count={5} /><StatusBadge code="needs_input" count={1} /></>)
+    expect(screen.getByRole('link', { name: '2 exploited' })).toHaveAttribute('href', '/findings?tab=device&device=d1&status=exploited')
+    expect(screen.getByText('Update recommended')).toBeInTheDocument()
+    expect(screen.getByText('Needs your input')).toBeInTheDocument()
+  })
+
+  it('an accepted risk says until when', () => {
+    render(<StatusBadge code="accepted" until="2027-03-03" />)
+    expect(screen.getByText(/^Risk accepted until .*2027$/)).toBeInTheDocument()
+  })
+})
+
+describe('SeverityBadge', () => {
+  it('the band and the score, with a level meter of its own; no score is "Not scored yet", never 0', () => {
+    const { container } = render(<><SeverityBadge severity={{ band: 'critical', score: 9.8, version: '3.1', vector: 'CVSS:3.1/AV:N' }} /><SeverityBadge severity="high" /><SeverityBadge severity={null} /></>)
+    const [crit, high, none] = [...container.querySelectorAll('[data-band]')]
+    expect(crit!.textContent).toBe('Critical9.8')
+    expect(crit!.querySelector('svg')!.getAttribute('data-level')).toBe('4')
+    expect(crit!.getAttribute('title')).toContain('CVSS:3.1/AV:N')
+    expect(high!.textContent).toBe('High')
+    expect(high!.querySelector('svg')!.getAttribute('data-level')).toBe('3')
+    expect(none!.textContent).toBe('Not scored yet')
+    expect(crit!.className).not.toContain('bg-danger ') // never the filled "Under attack here"
+  })
+
+  it('FIRST bands, and NVD\'s three for CVSS 2.0', () => {
+    expect([0, 3.9, 4, 6.9, 7, 8.9, 9].map((s) => bandOf(s, '3.1'))).toEqual(['none', 'low', 'medium', 'medium', 'high', 'high', 'critical'])
+    expect([3.9, 4, 7, 10].map((s) => bandOf(s, '2.0'))).toEqual(['low', 'medium', 'high', 'high'])
+  })
+})
+
+describe('VerificationLine', () => {
+  it('a second line, not a chip: confirmed how, or not confirmed yet and on what', () => {
+    render(<>
+      <VerificationLine verified="scan" basis="scan" />
+      <VerificationLine verified="device" basis="device_version" />
+      <VerificationLine verified="person" basis="person" by="ana" />
+      <VerificationLine verified="no" basis="banner_version" />
+      <VerificationLine verified="no" />
+    </>)
+    for (const s of ['Confirmed by a safe check', 'Confirmed: the device reports this version', 'Confirmed by ana', 'Not confirmed yet: based on a scan banner', 'Not confirmed yet']) {
+      expect(screen.getByText(s)).toBeInTheDocument()
+    }
+  })
+})
+
+describe('HandledLine', () => {
+  const base = { by: 'system', at: '2026-11-18T08:00:00Z', note: null, accepted_until: null, from_version: null, to_version: null } as const
+  it('who and how, from the stored fields', () => {
+    render(<>
+      <HandledLine handled={{ ...base, resolution: 'patched', via: 'version_moved', from_version: '6.24', to_version: '7.23' }} />
+      <HandledLine handled={{ ...base, resolution: 'patched', via: 'software_removed' }} software="WinRAR" />
+      <HandledLine handled={{ ...base, resolution: 'mitigated', via: 'person', by: 'ana', note: 'firewall rule on port 443' }} />
+      <HandledLine handled={{ ...base, resolution: 'accepted', via: 'person', by: 'ana', accepted_until: '2027-03-03' }} />
+    </>)
+    expect(screen.getByText('Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)')).toBeInTheDocument()
+    expect(screen.getByText('Patched by Vedette: WinRAR was removed (18 Nov)')).toBeInTheDocument()
+    expect(screen.getByText('Mitigated by ana (18 Nov): firewall rule on port 443')).toBeInTheDocument()
+    expect(screen.getByText(/^Risk accepted until .*2027 by ana \(18 Nov\)$/)).toBeInTheDocument()
+  })
+})
+
+describe('ReasonsLine', () => {
+  const r = (layer: number, source: string, name: string, date: string, extra: { url?: string; detail?: string; due?: string } = {}) =>
+    ({ layer, source, name, date, url: extra.url ?? null, detail: extra.detail ?? null, due: extra.due ?? null })
+  it('every layer that applies, with sources, date and link; a layer 2 without CISA KEV says so', () => {
+    const { container } = render(<ReasonsLine urgency={{ internet: null, reasons: [r(2, 'rapid7', 'Rapid7', '2026-11-19'), r(2, 'gti', 'Mandiant', '2026-11-20'), r(3, 'github-poc', 'GitHub', '2026-11-18', { detail: '244 stars', url: 'https://github.com/example/poc' })] }} />)
+    expect(container.textContent).toBe('Exploited in the wild: Rapid7, Mandiant (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)')
+    expect(screen.getByRole('link', { name: 'GitHub, 244 stars' })).toHaveAttribute('href', 'https://github.com/example/poc')
+  })
+  it('CISA KEV with its due date; nothing for an update that is only recommended', () => {
+    const { container } = render(<ReasonsLine urgency={{ internet: null, reasons: [r(2, 'cisa-kev', 'CISA KEV', '2026-11-10', { due: '2026-12-01' })] }} />)
+    expect(container.textContent).toMatch(/^Exploited in the wild: CISA KEV \(10 Nov\); fix by 1 Dec 2026$/)
+    expect(render(<ReasonsLine urgency={{ internet: null, reasons: [] }} />).container).toBeEmptyDOMElement()
+  })
+})
+
+describe('CveList', () => {
+  const sev = (band: 'critical' | 'high' | 'medium' | 'low', score: number) => ({ band, score })
+  const items: CveItem[] = [
+    { cve: 'CVE-2024-0003', severity: sev('medium', 5.3), to: '/findings/f3' },
+    { cve: 'CVE-2024-0001', severity: sev('critical', 9.8), to: '/findings/f1' },
+    { cve: 'CVE-2024-0004', severity: null },
+    { cve: 'CVE-2024-0002', severity: sev('high', 7.5) },
+    { cve: 'CVE-2024-0005', severity: sev('low', 2.1) },
+  ]
+
+  it('most severe first, each with its severity, a count line, and Critical and High shown with the rest one click away', async () => {
+    const u = userEvent.setup()
+    inRouter(<CveList items={items} label="CVEs fixed by this update" />)
+    expect(screen.getByText('1 Critical · 1 High · 1 Medium · 1 Low · 1 not scored yet')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'CVEs fixed by this update' })
+    expect(within(list).getAllByRole('link').map((a) => a.textContent)).toEqual(['CVE-2024-0001', 'CVE-2024-0002'])
+    expect(within(list).getByRole('link', { name: 'CVE-2024-0001' })).toHaveAttribute('href', '/findings/f1')
+    expect(within(list).getByRole('link', { name: 'CVE-2024-0002' })).toHaveAttribute('href', '/cve/CVE-2024-0002')
+    await u.click(screen.getByRole('button', { name: '+3 Medium/Low' }))
+    expect(within(list).getAllByRole('link').map((a) => a.textContent)).toEqual(['CVE-2024-0001', 'CVE-2024-0002', 'CVE-2024-0003', 'CVE-2024-0005', 'CVE-2024-0004'])
+    expect(within(list).getByRole('link', { name: 'CVE-2024-0003' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Show fewer' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('without severity data the order stays and the first eight show', () => {
+    const ids = Array.from({ length: 11 }, (_, i) => ({ cve: `CVE-2025-${String(1000 + i)}` }))
+    inRouter(<CveList items={ids} label="CVEs" />)
+    expect(screen.getAllByRole('link')).toHaveLength(8)
+    expect(screen.getByRole('button', { name: '+3 more' })).toBeInTheDocument()
+    expect(screen.queryByText(/Critical|not scored/)).toBeNull()
+  })
+
+  it('rows with the status and an action of each CVE; all of them on paper', () => {
+    inRouter(<CveList rows showStatus all label="CVEs" items={[{ cve: 'CVE-2024-0009', id: 'f9', status: 'exploited', severity: sev('low', 3) }]}
+      action={(i) => <button type="button">Mark {i.id} as handled</button>} />)
+    expect(screen.getByText('Exploited in the wild')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark f9 as handled' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /more/ })).toBeNull()
+  })
+})

@@ -557,7 +557,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		publish(t, bus, siemEventIncident, map[string]any{"id": "i-1", "kind": "trap", "severity": "high"})
 		publish(t, bus, siemEventBadAddress, map[string]any{"id": "b-1", "src_ip": "10.0.0.9", "dest": "evil.example", "dest_kind": "domain"})
 		publish(t, bus, siemEventFindingStatus, map[string]any{"finding_id": "f-1", "from": "not_relevant", "to": "suspected", "reason": "matches_again"})
-		publish(t, bus, siemEventFindingRaised, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from_severity": "medium", "to_severity": "critical", "basis": "version"})
+		publish(t, bus, siemEventFindingUrgency, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from": 2, "to": 1, "basis": "version"})
 	}
 	queued := func() int { r, _ := e.svc.siemQ.peek(100); return len(r) }
 
@@ -590,7 +590,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 			t.Fatalf("sent only %v", names)
 		}
 	}
-	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.severity_raised]" {
+	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.urgency_raised]" {
 		t.Fatalf("forwarded %v", names)
 	}
 	fields := func(r siemRecord) map[string]string {
@@ -600,8 +600,8 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		}
 		return m
 	}
-	if r := got["finding.severity_raised"]; r.Severity != "critical" || fields(r)["from_severity"] != "medium" || fields(r)["to_severity"] != "critical" || fields(r)["basis"] != "version" || fields(r)["cve"] != "CVE-2022-27593" {
-		t.Fatalf("severity_raised record = %+v", r)
+	if r := got["finding.urgency_raised"]; r.Severity != "critical" || fields(r)["from"] != "2" || fields(r)["to"] != "1" || fields(r)["basis"] != "version" || fields(r)["cve"] != "CVE-2022-27593" {
+		t.Fatalf("urgency_raised record = %+v", r)
 	}
 	if fields(got["finding.status_changed"])["reason"] != "matches_again" {
 		t.Fatalf("status_changed record = %+v", got["finding.status_changed"])
@@ -926,5 +926,30 @@ func TestOwnAddress_SiemSelfOnEveryPort(t *testing.T) {
 		if err := e.svc.siemControl(false)("udp", net.JoinHostPort("10.89.0.5", strconv.Itoa(port)), nil); !errors.Is(err, errSiemOwn) {
 			t.Errorf("socket on port %d: %v", port, err)
 		}
+	}
+}
+
+// A finding that rises to exploited or under attack here (its CVE joined an exploited list) is forwarded once, as finding.urgency_raised;
+// a rise to a public exploit or a critical flaw on an edge device is not a finding record of its own.
+func TestSiemForwardsAFindingThatBecomesExploited(t *testing.T) {
+	e := newSiemEnv(t)
+	bus := events.NewBus(slog.New(slog.DiscardHandler))
+	e.svc.Subscribe(bus)
+	e.saveSiem(SiemInput{Enabled: true, Format: "syslog", Host: "192.168.10.50", Port: 514, Proto: "udp", Events: []string{"findings"}})
+	e.svc.siemRunning.Store(true)
+	row, err := e.svc.loadSiem(t.Context(), e.cfg.Reader(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.siemCache.Store(&row)
+	e.svc.siemQ.clear()
+	for _, to := range []int{3, 4, 2, 1} {
+		publish(t, bus, siemEventFindingUrgency, map[string]any{"finding_id": fmt.Sprintf("f-%d", to), "asset_id": "a-1", "cve": "CVE-2026-50003",
+			"basis": "version", "from": 5, "to": to, "at": "2026-11-21T10:00:00Z"})
+	}
+	r, _ := e.svc.siemQ.peek(100)
+	if len(r) != 2 || r[0].Name != "finding.urgency_raised" || r[0].Fields[0].Val != "f-2" || r[0].Severity != "high" ||
+		r[1].Fields[0].Val != "f-1" || r[1].Severity != "critical" {
+		t.Fatalf("records: %+v", r)
 	}
 }

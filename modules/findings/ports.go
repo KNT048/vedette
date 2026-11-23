@@ -9,48 +9,41 @@ import (
 const (
 	EventCreated       = "findings.finding.created"
 	EventStatusChanged = "findings.finding.status_changed"
-	// EventSeverityRaised: a repeated match raised the severity of an open finding (review H2, M-a of #663): a
-	// product finding whose NVD ranges arrived and put its version inside (basis version), so it may now be critical.
-	EventSeverityRaised = "findings.finding.severity_raised"
-	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time
-	// (#939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
-	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
-	EventUncheckedAdded = "findings.unchecked.added"
-	// EventDeviceBackfill: the one summary of the open findings the first full match pass after the device-version rule arrived
-	// confirmed only because of that rule (they were already open; each was recorded in its history, none sent its own notice).
-	EventDeviceBackfill = "findings.device_version.backfilled"
+	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 (UrgencyRaisedEvent; the finding's urgency_changed). Published
+	// under the Backlog mark for old news (counted, never sent). notify tells a finding again only at a more urgent layer than any it was
+	// told at, so a rise into a layer it was told at is no second alert.
+	EventUrgencyRaised = "findings.finding.urgency_raised"
+	// EventFirstRun: the rises of one first-run window in one pass (a signal source's first load, or the box's own first discovery),
+	// told as one summary (FirstRunEvent); none of them sends an alert of its own (their urgency_raised go under the Backlog mark).
+	EventFirstRun = "findings.urgency.first_run"
 )
 
-// DeviceBackfillEvent is the payload of findings.device_version.backfilled: how many findings, devices and CVEs, and up to
-// MaxBackfillListed of the findings and CVEs, worst first.
-type DeviceBackfillEvent struct {
+// UrgencyRaisedEvent is the payload of findings.finding.urgency_raised. At is the rise's time (RFC 3339).
+type UrgencyRaisedEvent struct {
+	FindingID string   `json:"finding_id"`
+	AssetID   string   `json:"asset_id"`
+	CVE       string   `json:"cve"`
+	Severity  Severity `json:"severity"`
+	Basis     Basis    `json:"basis"`
+	From      int      `json:"from"`
+	To        int      `json:"to"`
+	At        string   `json:"at"`
+}
+
+// FirstRunEvent is the payload of findings.urgency.first_run: one first-run window's rises in one pass. Key names the window ("install",
+// or a source and the day of its first load); Layer is the most urgent of them; the lists hold up to MaxBackfillListed.
+type FirstRunEvent struct {
+	Key        string   `json:"key"`
+	At         string   `json:"at"` // the pass's time (RFC 3339): each pass's summary is its own notice; a later one says "N more"
 	Findings   int      `json:"findings"`
 	Devices    int      `json:"devices"`
-	CVEs       int      `json:"cves"`
-	Severity   Severity `json:"severity"` // the worst of them
+	Layer      int      `json:"layer"`
 	FindingIDs []string `json:"finding_ids"`
 	CVEList    []string `json:"cve_list"`
 }
 
-// MaxBackfillListed caps the lists of a DeviceBackfillEvent.
+// MaxBackfillListed caps the lists of a FirstRunEvent.
 const MaxBackfillListed = 50
-
-// UncheckedAddedEvent is the payload of findings.unchecked.added.
-type UncheckedAddedEvent struct {
-	AssetID   string              `json:"asset_id"`
-	AssetName string              `json:"asset_name"` // the name the matcher gives the device (Asset.Name)
-	CVEs      []UncheckedAddedCVE `json:"cves"`       // in list order, each once
-}
-
-// UncheckedAddedCVE is one CVE of an UncheckedAddedEvent: the row it is listed on and why it could not be checked.
-type UncheckedAddedCVE struct {
-	CVE        string          `json:"cve"`
-	SoftwareID string          `json:"software_id"` // "os:<asset>" for the network OS a device states without a software row
-	Software   string          `json:"software"`
-	Version    string          `json:"version"`
-	Reason     UncheckedReason `json:"reason"`
-	NVDPending bool            `json:"nvd_pending,omitempty"` // no_nvd_data while NVD has not answered yet: say "waiting for NVD's data"
-}
 
 // CreatedEvent is the payload of findings.finding.created.
 type CreatedEvent struct {
@@ -86,15 +79,9 @@ const ReasonDeviceVersion = "device_version"
 // entry again after Vedette had closed it as not affected.
 const ReasonMatchesAgain = "matches_again"
 
-// SeverityRaisedEvent is the payload of findings.finding.severity_raised. The status is unchanged (still open).
-type SeverityRaisedEvent struct {
-	FindingID    string   `json:"finding_id"`
-	AssetID      string   `json:"asset_id"`
-	CVE          string   `json:"cve"`
-	FromSeverity Severity `json:"from_severity"`
-	ToSeverity   Severity `json:"to_severity"`
-	Basis        Basis    `json:"basis"` // the basis after the raise (version)
-}
+// ReasonStillDetected is the StatusChangedEvent reason of a finding a person marked patched that Vedette reopened because a newer reading
+// of the device still shows the flaw.
+const ReasonStillDetected = "still_detected"
 
 // Publisher is the event bus as this module needs it. core/events is not built yet; the real bus
 // satisfies this by adapting its Publish. Events go out after the transaction commits, and a failed
@@ -142,6 +129,15 @@ type Inventory interface {
 	// agent > a person's entry > SNMP > a scan banner, a weaker less precise form of the same release being the same release. Every
 	// reader that says what version a device runs reads this, never a single source's row.
 	EffectiveSoftware(ctx context.Context, assetID string) ([]EffectiveSoftware, error)
+	// Lines returns the software lines with these ids, in any state (a finding keeps naming a line that was removed); unknown ids are
+	// absent. The lists name each finding's line with it and search it by name.
+	Lines(ctx context.Context, ids []string) (map[string]Line, error)
+}
+
+// Line is a software line as the lists of findings name it (inventory.LineRef).
+type Line struct {
+	ID, AssetID, Display, ProductKey string
+	Version                          string // "" when the line has no version
 }
 
 // EffectiveSoftware is one software of a device as inventory's effective row gives it (inventory.EffectiveSoftware).
@@ -218,6 +214,11 @@ type Feeds interface {
 	CVSS(ctx context.Context, cves []string) (map[string]CVSS, error)
 	// Vulns returns the exploited-vulnerability list with the NVD affected ranges, for matching.
 	Vulns(ctx context.Context) ([]Vuln, error)
+	// MatchSet returns what the match pass compares the devices with: every exploited-list entry (as Vulns) and every other catalogue
+	// CVE whose ranges name a product of scope (MatchScope.Keep) or that scope pins, each with its ranges as the catalogue's precedence
+	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
+	// the scope's packages. None while the feeds module is off.
+	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
 	// TierStatus says what the tier feeds hold, for GET /findings/plan.
 	TierStatus(ctx context.Context) (TierStatus, error)
 	// TierVulns returns the CVEs of the tier data (nvd-recent, with the EPSS of epss-all) published in the last 12 months whose NVD

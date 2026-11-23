@@ -14,13 +14,13 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// Every list shows which devices carry risk. Inventory reads it from findings through Config.Risk (RiskSource), never
-// from fnd_* tables: exploited = open exploited findings, update = none of those but a likely-exploited or High+ Recommended update,
-// nil when clean. The Devices search filters on it.
+// Every list shows each device's badge. Inventory reads it from findings' device status through Config.Risk (RiskSource), never
+// from fnd_* tables: the most urgent open status with its distinct CVEs, else needs_input, nil when none. The Devices search filters
+// on it.
 
-type fakeRisk map[string]inventory.RiskCounts
+type fakeRisk map[string]inventory.Risk
 
-func (f fakeRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+func (f fakeRisk) DeviceStatuses(context.Context) (map[string]inventory.Risk, error) {
 	return f, nil
 }
 
@@ -31,7 +31,7 @@ type countingRisk struct {
 	m     fakeRisk
 }
 
-func (c *countingRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+func (c *countingRisk) DeviceStatuses(context.Context) (map[string]inventory.Risk, error) {
 	c.calls.Add(1)
 	if c.err != nil {
 		return nil, c.err
@@ -55,9 +55,8 @@ func TestContract_RiskMarkerOnRowsAndDetail(t *testing.T) {
 	risk := fakeRisk{}
 	e := newEnv(t, withRisk(risk))
 	x, u, c := riskDevices(e)
-	risk[x] = inventory.RiskCounts{Exploited: 2, Updates: 1}
-	risk[u] = inventory.RiskCounts{Updates: 3}
-	risk[c] = inventory.RiskCounts{} // counts of zero are clean
+	risk[x] = inventory.Risk{Code: "exploited", Count: 2}
+	risk[u] = inventory.Risk{Code: "update_recommended", Count: 3}
 	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatal(err)
@@ -66,17 +65,17 @@ func TestContract_RiskMarkerOnRowsAndDetail(t *testing.T) {
 	for _, d := range l.Items {
 		got[d.ID] = d.Risk
 	}
-	if r := got[x]; r == nil || *r != (inventory.Risk{Level: "exploited", Exploited: 2, Updates: 1}) {
+	if r := got[x]; r == nil || *r != (inventory.Risk{Code: "exploited", Count: 2}) {
 		t.Errorf("exploited: %+v", r)
 	}
-	if r := got[u]; r == nil || *r != (inventory.Risk{Level: "update", Updates: 3}) {
+	if r := got[u]; r == nil || *r != (inventory.Risk{Code: "update_recommended", Count: 3}) {
 		t.Errorf("update: %+v", r)
 	}
 	if got[c] != nil {
 		t.Errorf("clean: %+v", got[c])
 	}
 	d, err := e.svc.DetailPage(e.ctx(), x)
-	if err != nil || d.Risk == nil || d.Risk.Level != "exploited" {
+	if err != nil || d.Risk == nil || d.Risk.Code != "exploited" {
 		t.Errorf("detail: %+v, %v", d.Risk, err)
 	}
 	// No RiskSource (findings off): nothing is marked.
@@ -95,7 +94,7 @@ func TestContract_TheRiskFilter(t *testing.T) {
 	risk := fakeRisk{}
 	e := newEnv(t, withRisk(risk))
 	x, u, c := riskDevices(e)
-	risk[x], risk[u] = inventory.RiskCounts{Exploited: 1}, inventory.RiskCounts{Updates: 1}
+	risk[x], risk[u] = inventory.Risk{Code: "exploited", Count: 1}, inventory.Risk{Code: "update_recommended", Count: 1}
 	ids := func(risks string) map[string]bool {
 		t.Helper()
 		f, err := inventory.ParseDeviceSearch("", "", "", "", "", "", risks, "")
@@ -115,7 +114,7 @@ func TestContract_TheRiskFilter(t *testing.T) {
 		return out
 	}
 	for risks, want := range map[string][]string{
-		"exploited": {x}, "update": {u}, "none": {c}, "exploited,update": {x, u}, "update,none": {u, c}, "EXPLOITED, none": {x, c}, "": {x, u, c},
+		"exploited": {x}, "update_recommended": {u}, "none": {c}, "exploited,update_recommended": {x, u}, "update_recommended,none": {u, c}, "EXPLOITED, none": {x, c}, "": {x, u, c},
 	} {
 		got := ids(risks)
 		if len(got) != len(want) {
@@ -163,7 +162,7 @@ func TestContract_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
 	src := &countingRisk{m: fakeRisk{}}
 	e := newEnv(t, withRisk(src))
 	x, _, c := riskDevices(e)
-	src.m[x] = inventory.RiskCounts{Exploited: 1}
+	src.m[x] = inventory.Risk{Code: "exploited", Count: 1}
 	if _, err := e.svc.Devices(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +221,7 @@ func TestContract_TheCSVHasTheRisk(t *testing.T) {
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
 	x, u, c := riskDevices(e)
-	src[x], src[u] = inventory.RiskCounts{Exploited: 2, Updates: 1}, inventory.RiskCounts{Updates: 3}
+	src[x], src[u] = inventory.Risk{Code: "exploited", Count: 2}, inventory.Risk{Code: "update_recommended", Count: 3}
 	rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatal(err)
@@ -252,7 +251,7 @@ func TestContract_TheBoxIsNeverMarked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src[box] = inventory.RiskCounts{Exploited: 1, Updates: 3}
+	src[box] = inventory.Risk{Code: "exploited", Count: 1}
 	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatal(err)

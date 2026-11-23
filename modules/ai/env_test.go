@@ -421,12 +421,12 @@ func (f *fakeFacts) AffectedAssets(_ context.Context, cve string) ([]ai.AssetFac
 	return append([]ai.AssetFact(nil), f.assets[cve]...), nil
 }
 
-const goodExplain = `{"why":"NAS-PHOTOS runs the affected product.","patch_steps":["Update to the fixed build."],"temp_mitigations":["Remove the port forward."],"detection_hints":["Check the access log."]}`
+const goodExplain = `{"answers":[{"key":"affected","text":"NAS-PHOTOS runs the affected product.","refs":[]},{"key":"fix","text":"Update to the fixed build.","refs":[]},{"key":"workaround","text":"Remove the port forward.","refs":[]},{"key":"urgency","text":"Check the access log.","refs":[]}]}`
 
 func newFacts() *fakeFacts {
 	return &fakeFacts{
 		cves: map[string]ai.CVEFacts{"CVE-2022-27593": {CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Photo Station", Name: "QNAP Photo Station External Reference", Description: "An externally controlled reference allows remote attackers to modify system files.",
-			RequiredAction: "Apply updates per vendor instructions.", DateAdded: "2022-09-08", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24", "javascript:alert(1)", "ftp://files.example.com/patch.txt", "https://nvd.nist.gov/vuln/detail/CVE-2022-27593", "https://example.com/third"}, Ransomware: true}},
+			RequiredAction: "Apply updates per vendor instructions.", DateAdded: "2022-09-08", Source: "cisa-kev", Links: []string{"https://www.qnap.com/en/security-advisory/qsa-22-24", "javascript:alert(1)", "ftp://files.example.com/patch.txt", "https://nvd.nist.gov/vuln/detail/CVE-2022-27593", "https://example.com/third"}, Ransomware: true}},
 		assets: map[string][]ai.AssetFact{"CVE-2022-27593": {{Name: "NAS-PHOTOS", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}},
 	}
 }

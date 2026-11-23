@@ -24,15 +24,15 @@ func TestAskDeviceUpdates_OneCallByIP(t *testing.T) {
 		}
 		return out
 	}
-	a.data.updates = map[string]ai.DeviceUpdates{"a-ws07": {Open: 41, PlanRan: true,
-		Exploited: []ai.UpdateRow{{Action: "Upgrade Mozilla Firefox from 115.0 to 128.1 or later", Software: "Mozilla Firefox", Version: "115.0", Fixed: "128.1", CVEs: cves(38), Worst: "critical", Ransomware: 2, Detected: 38}},
+	a.data.updates = map[string]ai.DeviceUpdates{"a-ws07": {Open: 41,
+		Exploited: []ai.UpdateRow{{Action: "Upgrade Mozilla Firefox from 115.0 to 128.1 or later", Software: "Mozilla Firefox", Version: "115.0", Fixed: "128.1", CVEs: cves(38), Worst: "critical", Detected: 38}},
 		NoUpdate:  []ai.UpdateRow{{Action: "No update is named that fixes these: follow the vendor's advice for Microsoft Office", Software: "Microsoft Office", CVEs: cves(3), Worst: "high", Suspected: 3}},
-		Planned: []ai.UpdateRow{{Action: "Upgrade 7-Zip from 23.01 to 24.07 or later", Software: "7-Zip", CVEs: cves(2), Worst: "high", Likely: 1},
+		Planned: []ai.UpdateRow{{Action: "Upgrade 7-Zip from 23.01 to 24.07 or later", Software: "7-Zip", CVEs: cves(2), Worst: "high"},
 			// Microsoft's newest update is newer than every fix NVD names: the count is a floor, in the plan's words
 			{Action: "Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later)", Software: "Windows Server 2025",
-				CVEs: cves(5), Worst: "critical", Likely: 1, NVDLag: true},
+				CVEs: cves(5), Worst: "critical"},
 			// Microsoft's newest update with none of its CVEs analysed yet: named, no count
-			{Action: "Install the latest cumulative update for Windows Server 2022 (from build 20348.85761 to 20348.85870 or later; KB5131090)", Software: "Windows Server 2022", NVDLag: true}}}}
+			{Action: "Install the latest cumulative update for Windows Server 2022 (from build 20348.85761 to 20348.85870 or later; KB5131090)", Software: "Windows Server 2022"}}}}
 	a.fake.play(turn{calls: []provider.ToolCall{call("device_updates", `{"device":"192.168.10.77"}`)}}, turn{text: "Upgrade Firefox first."})
 	got := a.ask("list CVE of ip 192.168.10.77 and list application affect (need upgrade)", 200, "")
 	res := toolResults(a.fake.askRequests()[1])
@@ -55,19 +55,19 @@ func TestAskDeviceUpdates_OneCallByIP(t *testing.T) {
 	if !out.Found || out.Device["asset_id"] != "a-ws07" || out.Open != 41 || len(out.Exploited) != 1 || len(out.NoUpdate) != 1 || len(out.Recommended) != 3 {
 		t.Fatalf("answer %s", body)
 	}
-	if x := out.Exploited[0]; x != "Upgrade Mozilla Firefox from 115.0 to 128.1 or later; 38 CVEs, worst critical, detected, 2 ransomware" {
+	if x := out.Exploited[0]; x != "Upgrade Mozilla Firefox from 115.0 to 128.1 or later; 38 CVEs, worst critical, detected" {
 		t.Fatalf("exploited row %q", x)
 	}
 	if !strings.HasSuffix(out.NoUpdate[0], ", suspected") || !strings.Contains(out.StatusWords, "do not say it needs confirming") {
 		t.Fatalf("the agent's version is detected, a guess suspected: %v", out.NoUpdate)
 	}
-	if out.Recommended[0] != "Upgrade 7-Zip from 23.01 to 24.07 or later; 2 CVEs, worst high, 1 likely exploited soon" {
+	if out.Recommended[0] != "Upgrade 7-Zip from 23.01 to 24.07 or later; 2 CVEs, worst high" {
 		t.Fatalf("recommended %q", out.Recommended[0])
 	}
-	if out.Recommended[1] != "Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later); fixes at least 5 CVEs, worst critical, 1 likely exploited soon; the newest update's CVEs are not yet analysed by NVD" {
+	if out.Recommended[1] != "Install the latest cumulative update for Windows Server 2025 (from build 26100.33650 to 26100.33822 or later); 5 CVEs, worst critical" {
 		t.Fatalf("recommended Windows update %q", out.Recommended[1])
 	}
-	if out.Recommended[2] != "Install the latest cumulative update for Windows Server 2022 (from build 20348.85761 to 20348.85870 or later; KB5131090); its CVEs are not yet analysed by NVD" {
+	if out.Recommended[2] != "Install the latest cumulative update for Windows Server 2022 (from build 20348.85761 to 20348.85870 or later; KB5131090); NVD lists no CVE of it for this release yet" {
 		t.Fatalf("recommended update with no CVE analysed %q", out.Recommended[2])
 	}
 	if c := list(got["tool_calls"]); len(c) != 1 {
@@ -76,9 +76,9 @@ func TestAskDeviceUpdates_OneCallByIP(t *testing.T) {
 	if rows := list(got["table"].(map[string]any)["rows"]); len(rows) != 5 || !strings.Contains(fmt.Sprint(rows[0]), "Mozilla Firefox") || !strings.Contains(fmt.Sprint(rows[2]), "recommended") {
 		t.Fatalf("table %v", got["table"])
 	}
-	// the table's CVE cell says what the line says: a floor while NVD lags, never "0 CVEs" for an update NVD has not analysed
+	// the table's CVE cell says what the line says: never "0 CVEs" for an update NVD lists no CVE for
 	if cells := fmt.Sprint(list(got["table"].(map[string]any)["rows"])); regexp.MustCompile(`\b0 CVEs`).MatchString(cells) ||
-		!strings.Contains(cells, "its CVEs are not yet analysed by NVD") || !strings.Contains(cells, "at least 5 CVEs") {
+		!strings.Contains(cells, "NVD lists no CVE of it for this release yet") || !strings.Contains(cells, "5 CVEs") {
 		t.Fatalf("table cells %s", cells)
 	}
 }
@@ -114,7 +114,7 @@ func TestAskDeviceUpdates_FortyUpdatesThroughTheLoop(t *testing.T) {
 	for i := range 12 {
 		rec = append(rec, ai.UpdateRow{Action: fmt.Sprintf("Upgrade %s (%d) from 1.%d to 2.%d or later", apps[i%len(apps)], i, i, i), CVEs: make([]string, 3), Worst: "high"})
 	}
-	a.data.updates = map[string]ai.DeviceUpdates{"a-ws07": {Open: 200, Exploited: ex, Planned: rec, PlanRan: true, PlanCompared: true}}
+	a.data.updates = map[string]ai.DeviceUpdates{"a-ws07": {Open: 200, Exploited: ex, Planned: rec}}
 	next := regexp.MustCompile(`part \\"exploited\\" and offset (\d+)`)
 	seen := map[string]bool{}
 	calls, refused := 0, 0

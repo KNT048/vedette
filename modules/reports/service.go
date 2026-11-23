@@ -626,7 +626,7 @@ func pdplFacts(r PdplReport) string {
 	for _, m := range r.Measures {
 		fmt.Fprintf(&b, "- %s: %s, %d\n", m.ID, m.Status, m.N)
 	}
-	fmt.Fprintf(&b, "Open exploited-vulnerability findings: %d\nDuties (id: applies, regime):\n", len(r.Risks))
+	fmt.Fprintf(&b, "Open vulnerability findings: %d\nDuties (id: applies, regime):\n", len(r.Risks))
 	for _, ob := range r.Obligations {
 		fmt.Fprintf(&b, "- %s: %t, %s\n", ob.ID, ob.Applies, ob.Regime)
 	}

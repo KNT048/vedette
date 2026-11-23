@@ -1,5 +1,5 @@
 // docs/UI.md §2 (#842): pinned entries, collapsible groups remembered per user, single-entry groups as plain items, the icon rail,
-// badges from GET /findings/summary.
+// badges from GET /findings/overview.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -12,17 +12,18 @@ import { modulesStore } from '@/mocks/stores'
 
 const mainNav = () => screen.findByRole('navigation', { name: 'Main navigation' })
 const off = (...ids: string[]) => modulesStore.update((l) => l.map((m) => (ids.includes(m.id) ? { ...m, enabled: false } : m)))
-// A nav link's name, its count badge allowed after it ("Incidents 2 high or critical open"): the mock box answers GET /findings/summary.
+// A nav link's name, its count badge allowed after it ("Incidents 2 high or critical open"): the mock box answers GET /findings/overview.
 const named = (label: string) => new RegExp(`^${label}( \\d+ .+)?$`)
 const region = (button: HTMLElement) => document.getElementById(button.getAttribute('aria-controls')!)!
 
 beforeEach(() => localStorage.clear())
 
 describe('sidebar groups (docs/UI.md §2)', () => {
-  it('Home, Findings, Recommended updates and Incidents are always there; other groups start closed and hidden, the current page opens its own', async () => {
+  it('Home, Findings and Incidents are always there (no Plan entry: its updates are findings); other groups start closed and hidden, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
-    for (const name of ['Home', 'Findings', 'Recommended updates', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
+    for (const name of ['Home', 'Findings', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
+    expect(nav.queryByRole('link', { name: named('Recommended updates'), hidden: true })).toBeNull()
     expect(nav.getByRole('link', { name: named('Incidents') }).closest('[role=group]')).toBeNull() // pinned, in no group
     const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
     expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing
@@ -86,12 +87,12 @@ describe('sidebar groups (docs/UI.md §2)', () => {
   })
 })
 
-describe('badges from one summary read', () => {
+describe('badges from the one overview read', () => {
   it('Findings and Incidents carry their counts; Devices has none, and a closed group sums only the urgent ones', async () => {
-    server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
+    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, needs_input: 0 } }, input: 0, first: [], trend: [], generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
     renderApp('/')
     const nav = within(await mainNav())
-    expect(await nav.findByRole('link', { name: 'Findings 3 confirmed to handle' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(await nav.findByRole('link', { name: 'Findings 3 urgent to handle' }, { timeout: 3000 })).toBeInTheDocument()
     const assets = nav.getByRole('button', { name: 'Assets' }) // no count and no "waiting" words: pending devices are not an alarm
     expect(assets).toHaveAttribute('aria-expanded', 'false')
     await userEvent.setup().click(assets)
@@ -106,7 +107,7 @@ describe('badges from one summary read', () => {
 
 describe('icon rail without a Devices count', () => {
   it('the collapsed Devices link carries no count either', async () => {
-    server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
+    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, needs_input: 0 } }, input: 0, first: [], trend: [], generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
     localStorage.setItem('vedette.nav.u-admin', JSON.stringify({ rail: true, open: [] }))
     renderApp('/')
     const nav = within(await mainNav())

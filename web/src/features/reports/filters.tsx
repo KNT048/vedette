@@ -2,13 +2,12 @@ import { useMemo, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { isNotRelevant } from '@/features/findings/notRelevant'
-import type { FindingRow, PdplReport, WeeklyReport } from './types'
+import type { PdplReport } from './types'
 
 /**
- * What a report view includes, chosen by the viewer and kept per browser: the devices not in the Devices list yet (not approved,
- * "To review" in Devices; included by default) and the findings closed as not relevant (left out by default). The page, the print
- * view (Save as PDF) and a reopened sent report all follow the same choice, and each document says which one it used.
+ * What the data protection assessment includes, chosen by the viewer and kept per browser: the devices not in the Devices list
+ * yet (not approved, "To review" in Devices; included by default). The tab and its print view follow the same choice, and the
+ * document says which one it used. (The security report keeps its choices in its own settings, saved on the box.)
  */
 export interface ReportFilters { unapproved: boolean; notRelevant: boolean }
 
@@ -56,39 +55,6 @@ export function useReportFilters(): [ReportFilters, (change: Partial<ReportFilte
  * before the choice existed keeps its devices), and an absent notRelevant means the choice does not apply to that report.
  */
 export interface LeftOut { devices: number | null; notRelevant?: number | null }
-
-/** A report view lists this many rows of each list at most (modules/reports MaxRows); its counts are of everything. */
-export const MAX_ROWS = 100
-
-const approvedRow =(r: FindingRow) => r.device_approved !== false
-
-/**
- * The weekly report as the filters show it. The counts, top risks and actions without the devices not approved yet come from the
- * box (approved_only); the lists are filtered by row. Not relevant findings are subtracted with the box's own counts; a report sent
- * before those counts falls back on its rows (a list cut at 100 rows may then keep a few in the totals).
- */
-export function weeklyView(full: WeeklyReport, f: ReportFilters): { report: WeeklyReport; left: LeftOut } {
-  let r = full
-  let devices: number | null = null
-  if (full.approved_only && !f.unapproved) {
-    devices = full.counts.devices_unapproved
-    const a = full.approved_only
-    r = { ...full, counts: a.counts, top_risks: full.top_risks ? a.top_risks : undefined, actions: a.actions,
-      new_findings: full.new_findings.filter(approvedRow), resolved: full.resolved.filter(approvedRow), open: full.open.filter(approvedRow) }
-  }
-  let notRelevant: number | null = null // included
-  if (!f.notRelevant) {
-    const c = r.counts
-    const nrNew = c.not_relevant_new ?? r.new_findings.filter(isNotRelevant).length
-    const nrDone = c.not_relevant_resolved ?? r.resolved.filter(isNotRelevant).length
-    notRelevant = c.not_relevant ?? new Set([...r.new_findings, ...r.resolved].filter(isNotRelevant).map((x) => x.id)).size
-    r = { ...r, counts: { ...c, new_findings: c.new_findings - nrNew, resolved: c.resolved - nrDone },
-      new_findings: r.new_findings.filter((x) => !isNotRelevant(x)), resolved: r.resolved.filter((x) => !isNotRelevant(x)) }
-  }
-  // The box sends the first MAX_ROWS rows of each view (weekly.go capViews), so a filtered list is never short; cut to the view.
-  r = { ...r, new_findings: r.new_findings.slice(0, MAX_ROWS), resolved: r.resolved.slice(0, MAX_ROWS), open: r.open.slice(0, MAX_ROWS) }
-  return { report: r, left: { devices, notRelevant } }
-}
 
 /**
  * The assessment as the filters show it. Its risks are open findings only, so the not relevant choice does not change it; the

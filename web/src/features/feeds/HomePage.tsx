@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Search } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { CveList } from '@/components/common/status'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,7 @@ import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
 import { HomeDashboard } from './HomeDashboard'
-import { isFirstRun, useHome } from './homeSummary'
+import { affectedDevices, exploitedDevices, isFirstRun, useHome } from './homeSummary'
 import { useModuleEnabled } from '@/lib/modules'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
@@ -119,9 +120,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
       )
     } },
     { id: 'cves', header: t('hot.col.cves'), accessorFn: (r) => r.cves.length, cell: ({ row }) => (
-      <div className="flex flex-wrap gap-x-2">
-        {row.original.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} onClick={(e) => e.stopPropagation()} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c.cve}</Link>)}
-      </div>
+      <CveList items={row.original.cves} label={t('hot.col.cves')} />
     ) },
     { id: 'epss', header: t('hot.col.epss'), accessorFn: (r) => r.max_epss ?? -1, cell: ({ row }) => {
       const d = row.original.max_epss_delta
@@ -148,9 +147,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
                   <span className="font-medium">{r.display}</span>
                   <YouHaveCell value={r.you_have} noDevices={noDevices} />
                 </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-meta">
-                  {r.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} className="text-accent">{c.cve}</Link>)}
-                </div>
+                <CveList items={r.cves} label={t('hot.col.cves')} />
                 <div className="flex flex-wrap gap-x-4 text-caption text-muted">
                   <span>{t('hot.col.epss')}: {fmtPercent(r.max_epss)}</span>
                   {r.ransomware ? <span className="font-medium text-danger">{t('hot.col.ransomware')}</span> : null}
@@ -225,8 +222,8 @@ export default function HomePage() {
   const matched = rows.filter((r) => r.you_have === 'yes').length
   const { never, notice: kevTitle, noClaim } = useKevNotice()
   const s = summary.data
-  // #825: with findings on, the headline answers "is anything I run being exploited?" from the summary; the week's new CVEs are the board below.
-  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : s.open.total ? t('home.titleOpen', { count: s.open.devices }) : t('home.titleClear')) : null
+  // With findings on, the headline answers "is anything I run being exploited?" from the findings overview; the week's new CVEs are the board below.
+  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : exploitedDevices(s) ? t('home.titleOpen', { count: exploitedDevices(s) }) : s.open.findings ? t('home.titleUpdates', { count: affectedDevices(s) }) : t('home.titleClear')) : null
   const loading = !hot.data || (findingsOn === true && summary.isPending)
   const title = loading ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : answer ? answer : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (

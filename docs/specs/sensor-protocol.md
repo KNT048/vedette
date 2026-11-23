@@ -1,95 +1,95 @@
-# Sensor protocol: `sensor`/`scan` ↔ `core` (hồ sơ appliance)
+# Sensor protocol: `sensor`/`scan` ↔ `core` (appliance profile)
 
-Trạng thái: **chốt trên giấy ở lát SP-0** (2026-11-10), **mã của SP-1** (`core/pki`, `core/sensorlink`; chưa nối module) làm rõ vài chỗ, đánh dấu "SP-1" dưới đây; thay bản nháp trước (2026-11-09). Văn xuôi tiếng Việt; tên trường, mã lỗi, đường dẫn bằng tiếng Anh.
-Truy vết: `ARCHITECTURE.md` §2, §6, TB-9; `DEPLOYMENT.md` §2.2, §2.4, §6.1; story S-INV-1, S-INV-3, S-SCAN-4.
+Status: **settled on paper** (2026-11-10); the first code (`core/pki`, `core/sensorlink`; not yet wired to modules) clarified a few points, marked "Clarified in code" below; replaces the earlier draft (2026-11-09). Field names, error codes and paths are in English.
+Traceability: `ARCHITECTURE.md` §2, §6, TB-9; `DEPLOYMENT.md` §2.2, §2.4, §6.1; stories S-INV-1, S-INV-3, S-SCAN-4.
 
-## 1. Mục đích và phạm vi
+## 1. Purpose and scope
 
-Hồ sơ **appliance**: hai container trên cùng một hộp nói với `core` qua `127.0.0.1:8444`:
+The **appliance** profile: two containers on the same box talk to `core` over `127.0.0.1:8444`:
 
-- `sensor`: bắt gói thụ động (nửa `capture` của module `sensor-passive`), mạng host, `NET_RAW`;
-- `scan`: worker nmap của module `sensor-active`, mạng host, `NET_RAW`.
+- `sensor`: passive packet capture (the `capture` half of the `sensor-passive` module), host network, `NET_RAW`;
+- `scan`: the nmap worker of the `sensor-active` module, host network, `NET_RAW`.
 
-Cả hai chạy cùng binary `vedette-sensor` (lệnh con `passive`, `active`, `healthcheck`). Chiều khởi tạo **chỉ một**: sensor gọi ra, `core` không bao giờ gọi vào sensor; lệnh từ `core` tới bằng long-poll.
+Both run the same `vedette-sensor` binary (subcommands `passive`, `active`, `healthcheck`). There is **only one** direction of initiation: the sensor calls out, `core` never calls into the sensor; commands from `core` arrive by long-poll.
 
-Ngoài phạm vi hồ sơ này:
-- sensor đặt ở máy khác, enroll, gia hạn qua mạng, thu hồi bằng tay (thiết kế cũ ở phụ lục A);
-- syslog (metadata SPAN đi trên dây từ §6.7, khớp ở `core` bởi `logs`), honeypot (đi qua tệp), osquery (`osquery-intake.md`). (Job nuclei của module `scan` là loại job thứ hai từ bản 2; đọc SNMP là loại thứ ba từ bản 5, xem khối "Đọc SNMP" ở §6.5.)
+Out of scope for this profile:
+- sensors on other machines, enrolment, renewal over the network, manual revocation (the old design is in appendix A);
+- syslog (SPAN metadata travels on the wire from §6.7, matched in `core` by `logs`), honeypot (goes through files), osquery (`osquery-intake.md`). (The nuclei job of the `scan` module is the second job type from version 2; SNMP reads are the third type from version 5, see the "SNMP reads" block in §6.5.)
 
-## 2. Actors và vai
+## 2. Actors and roles
 
-| Actor | Vai | Ghi chú |
+| Actor | Role | Notes |
 |---|---|---|
-| `core` | máy chủ giao thức; CA của sensor; giữ DB, chính sách, sự đồng ý quét | container `core`, listener thứ hai `:8444`, publish `127.0.0.1:8444` |
-| `sensor` | vai **`passive`**: nhận `config`, gửi quan sát và heartbeat | `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `NET_RAW` |
-| `scan` | vai **`active`**: nhận job nmap, gửi kết quả và heartbeat | như `sensor`; image dựng trên hộp |
-| `vedette-host` | dựng unit hằng gắn volume khoá theo vai | không bao giờ thấy khoá |
+| `core` | protocol server; the sensors' CA; holds the DB, policy, scan consent | the `core` container, a second listener `:8444`, published on `127.0.0.1:8444` |
+| `sensor` | role **`passive`**: receives `config`, sends observations and heartbeats | `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, only `NET_RAW` |
+| `scan` | role **`active`**: receives nmap jobs, sends results and heartbeats | like `sensor`; image built on the box |
+| `vedette-host` | builds constant units that mount the key volume per role | never sees the keys |
 
-Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên LAN, đọc gói và phản hồi do kẻ tấn công điều khiển). `core` tin **danh tính vai** sau mTLS, không tin **nội dung** (SYS-6): mọi thứ sensor gửi bị kiểm kích thước, kiểu, hạn mức và kẹp độ tin cậy ở `core`.
+Trust model: the sensor is **an attackable machine** (it sits on the LAN, reads packets and responses an attacker controls). `core` trusts the **role identity** after mTLS, not the **content** (SYS-6): everything the sensor sends is checked for size, type and quota, and its confidence is clamped in `core`.
 
 ## 3. Transport
 
-- HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
-- Listener riêng của `core`, bật bằng `-sensor-listen :8444` (trong container) cùng `-sensor-creds <thư mục>` (rỗng = không nghe), tách khỏi listener UI 8443; `core` mở PKI, ghi hai bó khoá, **rồi mới** nghe, và việc `sensor-cert-renew` hằng ngày gọi `Authority.Renew`; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
-- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 5` (bản 5: loại job `snmp`, `snmp` trong heartbeat `active` và trong kết quả, `running` tới 3 id; bản 4: `capture_error` trong heartbeat thụ động; bản 3: `host_errors` của kết quả nuclei; bản 2: loại job `nuclei`). `core` nhận bản của mình và **bản liền trước** (`4`), không bao giờ bản mới hơn. Bản 5 thêm một loại job vào **phản hồi** `jobs`, nhưng `core` chỉ gửi job `snmp` cho worker có heartbeat `"snmp": true` (trường của bản 5), nên worker bản 4 nhận phản hồi đúng dạng bản 4.
-- `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
-- Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
-- SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam; `ReadTimeout` toàn yêu cầu 15 s; 10 s cho 11 MiB tức ~9 Mbit/s, chỉ đúng cho sensor cục bộ, tính lại khi dựng sensor từ xa) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
-- Listener nhận tối đa **64 kết nối** cùng lúc (`PendingListener`, viết bằng thư viện chuẩn): **16 đang bắt tay** (chưa xác thực; đầy thì kết nối mới thay chỗ kết nối chờ lâu nhất nếu nó đã chờ ≥ 250 ms, không thì kết nối mới bị đóng ngay; mỗi kết nối chờ bị đóng sau 3 s bắt tay), rồi theo vai tại bắt tay TLS: `passive` ≤ 32, `active` ≤ 16; `ErrorLog` của `http.Server` đi qua slog như server 8443 (lỗi handshake bị từ chối vào log, không ra stderr). Client **không theo redirect**: một 3xx là lỗi của request, `Location` không được gọi (không đưa chứng chỉ client cho máy khác).
-- Sensor đọc phản hồi của `core` cũng có trần (config ≤ 64 KiB, jobs ≤ 64 KiB, phản hồi khác ≤ 16 KiB) và giải mã chặt như `core`.
+- HTTPS, JSON (`Content-Type: application/json`), no compression (any `Content-Encoding` → `400 invalid_request`). TLS **1.3** minimum; HTTP/2 when ALPN offers it, not required.
+- A separate `core` listener, turned on with `-sensor-listen :8444` (inside the container) together with `-sensor-creds <directory>` (empty = no listening), separate from the UI listener 8443; `core` opens the PKI, writes the two key bundles, **and only then** listens, and the daily `sensor-cert-renew` job calls `Authority.Renew`; on the appliance only `127.0.0.1:8444` is published (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, the pool contains only the sensor CA.
+- Prefix `/sensor/v1/`. Every request carries `X-Vedette-Proto: 5` (version 5: the `snmp` job type, `snmp` in the `active` heartbeat and in results, `running` up to 3 ids; version 4: `capture_error` in the passive heartbeat; version 3: `host_errors` in nuclei results; version 2: the `nuclei` job type). `core` accepts its own version and **the one right before it** (`4`), never a newer one. Version 5 adds a job type to the `jobs` **response**, but `core` only sends `snmp` jobs to a worker whose heartbeat has `"snmp": true` (a version 5 field), so a version 4 worker gets a response in version 4 shape.
+- `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll held for at most 30 s).
+- Body: `http.MaxBytesReader` at the route's cap (§9) **before** decoding; decoded with `internal/jsonstrict` (unknown fields, duplicate keys, keys duplicated after case folding, depth > 32 → `400 invalid_request`). Unknown query parameters → `400 invalid_request`.
+- Clarified in code: a POST body must have `Content-Type: application/json` (missing or different → `400 invalid_request`); the body is read for at most **10 s** (a socket clock, not a seam; whole-request `ReadTimeout` 15 s; 10 s for 11 MiB is ~9 Mbit/s, only right for a local sensor, to be recomputed when remote sensors are built) and the connection is closed when the body stalls midway or exceeds the cap (net/http has no body read deadline that does not break long-poll); `IdleTimeout` 2 minutes; `MaxHeaderBytes` 16 KiB. `If-None-Match` must have the form `"<1…64 characters [A-Za-z0-9._:-]>"`, otherwise `400`. `wait` is an integer 0…30 (one value, not repeated); `running` is 32 hex or empty.
+- The listener accepts at most **64 connections** at once (`PendingListener`, written with the standard library): **16 in handshake** (not yet authenticated; when full, a new connection replaces the longest-waiting one if it has waited ≥ 250 ms, otherwise the new connection is closed at once; each waiting connection is closed after 3 s of handshake), then by role at the TLS handshake: `passive` ≤ 32, `active` ≤ 16; the `http.Server`'s `ErrorLog` goes through slog like the 8443 server (refused handshake errors go to the log, not to stderr). The client **does not follow redirects**: a 3xx is a request error, and `Location` is not called (the client certificate is never presented to another machine).
+- The sensor's reading of `core`'s responses is also capped (config ≤ 64 KiB, jobs ≤ 64 KiB, other responses ≤ 16 KiB) and decoded strictly like `core` does.
 
-## 4. Chứng chỉ và danh tính
+## 4. Certificates and identity
 
-| Mục | Quy tắc |
+| Item | Rule |
 |---|---|
-| CA | ECDSA P-256, 10 năm, do `core` tạo lần đầu; khoá lưu qua `core/secrets` (AES-256-GCM, `master.key`). **Chỉ** ký lá cho listener 8444 và cho sensor; tách khỏi chứng chỉ 8443 và CA osquery tương lai (`osquery-intake.md` §4). Khôi phục không có `master.key` → CA mới, lá mới |
-| Lá máy chủ | EKU **chỉ** `serverAuth`; SAN `IP:127.0.0.1` và `DNS:core` (profile compose); 7 ngày |
-| Lá sensor | EKU **chỉ** `clientAuth`; **đúng một** URI SAN: `vedette:sensor:passive` hoặc `vedette:sensor:active`; không dùng CN để quyết định gì; 7 ngày; serial ghi ở `core_sensor_cert(role, serial, not_after, retired_at)` |
-| Xoay vòng | `core` kiểm lúc khởi động và mỗi ngày; lá còn ≤ 1/3 thời hạn thì cấp mới; serial cũ hơn "ngay trước" được đặt `retired_at` |
-| Giao khoá | lúc khởi động, **trước khi nghe**, và mỗi lần xoay: `core` sinh khoá, ghi **một** bó PEM (khoá, lá, CA) vào `<creds>/<role>/sensor.pem` qua `os.OpenRoot`, tệp tạm `O_EXCL\|O_NOFOLLOW`, fsync, `Rename`; mode `0640`, chủ `core_uid:sensor_gid`. `core` **không bao giờ đọc lại** tệp |
-| Phía sensor | gắn volume khoá của đúng vai **chỉ đọc**; đọc lại bó trong `GetClientCertificate` khi mtime đổi; sau khi đổi, đóng kết nối rảnh. Bó hỏng hoặc đang ghi dở → giữ bó cũ trong bộ nhớ, thử lại sau 5 s |
-| Phía sensor kiểm máy chủ | chuỗi tới CA trong bó, EKU `serverAuth`, tên `127.0.0.1` (hoặc `core` ở compose) |
+| CA | ECDSA P-256, 10 years, created by `core` the first time; the key is stored through `core/secrets` (AES-256-GCM, `master.key`). Signs leaves **only** for the 8444 listener and for sensors; separate from the 8443 certificate and the future osquery CA (`osquery-intake.md` §4). A restore without `master.key` → a new CA, new leaves |
+| Server leaf | EKU **only** `serverAuth`; SAN `IP:127.0.0.1` and `DNS:core` (compose profile); 7 days |
+| Sensor leaf | EKU **only** `clientAuth`; **exactly one** URI SAN: `vedette:sensor:passive` or `vedette:sensor:active`; the CN decides nothing; 7 days; the serial is recorded in `core_sensor_cert(role, serial, not_after, retired_at)` |
+| Rotation | `core` checks at start and daily; a leaf with ≤ 1/3 of its lifetime left gets a new one; serials older than "the one right before" get `retired_at` set |
+| Key delivery | at start, **before listening**, and at every rotation: `core` generates the key and writes **one** PEM bundle (key, leaf, CA) to `<creds>/<role>/sensor.pem` through `os.OpenRoot`, temporary file `O_EXCL\|O_NOFOLLOW`, fsync, `Rename`; mode `0640`, owner `core_uid:sensor_gid`. `core` **never reads** the file back |
+| Sensor side | mounts the key volume of its own role **read-only**; reloads the bundle in `GetClientCertificate` when the mtime changes; after a change, closes idle connections. A broken or half-written bundle → keeps the old bundle in memory, retries after 5 s |
+| Sensor side checks the server | chain to the CA in the bundle, EKU `serverAuth`, name `127.0.0.1` (or `core` in compose) |
 
-**SP-1 (làm rõ).** `core` luôn cấp lá mới cho máy chủ và hai vai ở lúc khởi động (`Authority.Start`), vì nó không bao giờ đọc lại bó nên không có khoá của lá lần trước; serial trước đó vẫn sống (là "ngay trước"). Việc hằng ngày (`Authority.Renew`) chỉ thay lá còn ≤ 1/3 thời hạn. Bó cấp rồi mà ghi không được (volume lỗi, thư mục vai bị đặt symlink) được giữ trong bộ nhớ và ghi lại ở lần `Renew` kế, không cấp lại. `NotBefore` lùi 1 phút so với giờ `core`. Handshake và mỗi request kiểm EKU **đúng** `[clientAuth]`, đúng một URI SAN, lá không phải CA; mỗi request còn kiểm `NotBefore ≤ giờ ≤ NotAfter` của lá (kết nối keep-alive sống lâu hơn chứng chỉ) → `403 cert_retired`.
+**Clarified in code.** `core` always issues new leaves for the server and both roles at start (`Authority.Start`), because it never reads the bundles back and so does not have the keys of the previous leaves; the previous serial stays alive (it is "the one right before"). The daily job (`Authority.Renew`) only replaces leaves with ≤ 1/3 of their lifetime left. A bundle that was issued but could not be written (volume error, the role directory replaced by a symlink) is kept in memory and written again at the next `Renew`, not reissued. `NotBefore` is set 1 minute before `core`'s clock. The handshake and every request check that the EKU is **exactly** `[clientAuth]`, exactly one URI SAN, the leaf is not a CA; every request also checks `NotBefore ≤ now ≤ NotAfter` of the leaf (a keep-alive connection can outlive the certificate) → `403 cert_retired`.
 
-**Kiểm của `core`** (thứ tự):
-1. Handshake: chuỗi tới CA sensor (hạn, chữ ký), EKU `clientAuth`, đúng một URI SAN thuộc hai vai, serial là serial **hiện hành hoặc ngay trước** của vai đó. Sai bất kỳ → handshake hỏng (không có phản hồi HTTP). `VerifyConnection` chạy cả trên kết nối nối lại (TLS 1.3 resumption).
-2. **Mỗi request**: kiểm lại serial (một kết nối keep-alive sống lâu hơn lần về hưu của serial) → `403 cert_retired`.
+**`core`'s checks** (in order):
+1. Handshake: chain to the sensor CA (validity, signature), EKU `clientAuth`, exactly one URI SAN belonging to the two roles, the serial is the **current or the one right before** for that role. Any failure → the handshake fails (no HTTP response). `VerifyConnection` also runs on resumed connections (TLS 1.3 resumption).
+2. **Every request**: checks the serial again (a keep-alive connection can outlive the serial's retirement) → `403 cert_retired`.
 
-**CA không dùng được thì thay (M2 của rà soát SP-1).** Hàng CA không giải mã được với `master.key` hiện tại (mất khoá, hoặc khôi phục bản sao lưu không kèm khoá lên khoá của hộp: `host-api.md` §16), hỏng, hết hạn hoặc chưa tới `NotBefore` → `pki.Open` tạo CA mới **trong cùng giao dịch ghi** đã phát hiện ra nó (ghi đè hàng `core_secret`), thu hồi mọi serial còn sống của CA cũ, ghi audit `sensor-ca.replace` (lý do: `cannot_decrypt`, `damaged`, `expired`, `not_yet_valid`) và log cảnh báo `sensor_ca_replaced`; `Start` cấp lại và ghi lại mọi bó. Lỗi của DB không phải lý do để bỏ CA.
+**An unusable CA is replaced (review finding).** A CA row that cannot be decrypted with the current `master.key` (key lost, or a backup without a key restored onto the box's key: `host-api.md` §16), is broken, expired or not yet at `NotBefore` → `pki.Open` creates a new CA **in the same write transaction** that detected it (overwriting the `core_secret` row), revokes every live serial of the old CA, writes the audit `sensor-ca.replace` (reason: `cannot_decrypt`, `damaged`, `expired`, `not_yet_valid`) and logs the warning `sensor_ca_replaced`; `Start` reissues and rewrites every bundle. A DB error is not a reason to drop the CA.
 
-**Audit.** Mọi thay đổi PKI là một hàng `core_audit` (người làm `system`) trong cùng giao dịch: `sensor-ca.create`, `sensor-ca.replace`, `sensor-cert.issue` (vai, serial, `not_after`), `sensor-cert.retire` (vai, serial). Tên nhóm dùng gạch nối vì `audit` không nhận dấu gạch dưới ở nhóm. Không bao giờ có khoá hay PEM trong audit hay log.
+**Audit.** Every PKI change is a `core_audit` row (actor `system`) in the same transaction: `sensor-ca.create`, `sensor-ca.replace`, `sensor-cert.issue` (role, serial, `not_after`), `sensor-cert.retire` (role, serial). Group names use hyphens because `audit` does not accept underscores in groups. There is never a key or PEM in the audit or the log.
 
-**Dọn và ghi bó (L3, L6).** `Start` xoá các tệp tạm `.sensor.pem.*` (tệp thường; thư mục, symlink và tên khác để nguyên) còn lại sau một lần sập giữa lúc ghi. Thư mục gốc và thư mục vai được kiểm không phải symlink **và**, sau khi mở, phải đúng là thư mục đã kiểm (`os.SameFile`): bị tráo ở giữa thì từ chối (`ErrCredsPath`). `ParseBundle` kiểm lá chuỗi tới chính CA trong bó (CA là gốc duy nhất, EKU `clientAuth`).
+**Cleaning up and writing bundles.** `Start` deletes the temporary files `.sensor.pem.*` (regular files; directories, symlinks and other names are left alone) left over after a crash in the middle of a write. The root directory and the role directories are checked not to be symlinks **and**, after opening, must be exactly the checked directory (`os.SameFile`): swapped in between → refused (`ErrCredsPath`). `ParseBundle` checks that the leaf chains to the CA in the bundle itself (the CA is the only root, EKU `clientAuth`).
 
-**Long-poll mở trước một lần xoay vòng.** Request đang giữ khi serial bị về hưu vẫn chạy tới hết (serial được kiểm lúc nó bắt đầu); request kế tiếp trên kết nối đó bị từ chối `403 cert_retired` (máy chủ đóng kết nối), client đọc lại bó và nối lại với chứng chỉ mới. Chừng đó là đủ: không có thao tác nào bị mất, vì sensor gửi lại cùng lô và long-poll tự lặp.
+**A long-poll opened before a rotation.** A request held open when its serial is retired runs to the end (the serial was checked when it started); the next request on that connection is refused with `403 cert_retired` (the server closes the connection), the client reloads the bundle and reconnects with the new certificate. That is enough: no operation is lost, because the sensor resends the same batch and the long-poll repeats by itself.
 
-Thu hồi chủ động không có giao diện; thu hồi = xoay vòng (serial cũ về hưu) cộng hạn 7 ngày (thu hồi thụ động).
+There is no interface for active revocation; revocation = rotation (the old serial retires) plus the 7-day lifetime (passive revocation).
 
-## 5. Quy ước chung
+## 5. Common conventions
 
-- Thời điểm: RFC 3339 UTC. Id job: 32 hex chữ thường (128 bit ngẫu nhiên). `epoch`: 32 hex chữ thường.
-- Lỗi: `{ "error": { "code": "snake_case", "message": "English text" } }`; `code` là hợp đồng, `message` chỉ để đọc. 429 và 503 có tiêu đề `Retry-After` (giây).
-- `version`: SemVer 2.0, ≤ 64 byte.
-- Tên card: `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`; MAC: `^([0-9a-f]{2}:){5}[0-9a-f]{2}$`; IP qua `netip` (IPv4/IPv6 unicast); địa chỉ của card dạng tiền tố (`192.168.10.5/24`) qua `netip.ParsePrefix`.
-- Chuỗi văn bản tự do: UTF-8 hợp lệ, không ký tự điều khiển C0/C1, bidi, phân cách dòng/đoạn, Unicode Cf (như sensor-passive INV-3); sai → mục bị từ chối, không cắt ở `core`.
+- Times: RFC 3339 UTC. Job id: 32 lowercase hex (128 random bits). `epoch`: 32 lowercase hex.
+- Errors: `{ "error": { "code": "snake_case", "message": "English text" } }`; `code` is the contract, `message` is for reading only. 429 and 503 carry a `Retry-After` header (seconds).
+- `version`: SemVer 2.0, ≤ 64 bytes.
+- Card name: `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$`; MAC: `^([0-9a-f]{2}:){5}[0-9a-f]{2}$`; IPs through `netip` (IPv4/IPv6 unicast); a card's address in prefix form (`192.168.10.5/24`) through `netip.ParsePrefix`.
+- Free-text strings: valid UTF-8, no C0/C1 control characters, bidi, line/paragraph separators, Unicode Cf (as in sensor-passive INV-3); invalid → the item is refused, `core` does not truncate.
 
-## 6. Route theo vai
+## 6. Routes by role
 
-| Vai | Route | Thân request (trần) | Trả |
+| Role | Route | Request body (cap) | Returns |
 |---|---|---|---|
-| `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` cấu hình + `ETag`, hoặc `304` |
+| `passive` | `GET /sensor/v1/config?wait=<0..30>` | — | `200` configuration + `ETag`, or `304` |
 | `passive` | `POST /sensor/v1/observations` | ≤ 1 MiB | `200 {ack_seq, rejected[]}` |
 | `passive` | `POST /sensor/v1/metadata` (§6.7) | ≤ 512 KiB | `204` |
 | `passive`, `active` | `POST /sensor/v1/heartbeat` | ≤ 64 KiB | `200 {instance}` |
-| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id[,id]>` (`running` rỗng hoặc bỏ trống khi rảnh; ≤ 2 id, bản 2) | — | `200 {instance, jobs[], cancel[]}` |
+| `active` | `GET /sensor/v1/jobs?wait=<0..30>&running=<id[,id]>` (`running` empty or omitted when idle; ≤ 2 ids, version 2) | — | `200 {instance, jobs[], cancel[]}` |
 | `active` | `POST /sensor/v1/jobs/{id}/result` | ≤ 11 MiB | `204` |
 
-Mọi cặp (method, đường dẫn) khác, kể cả route của vai kia → `403 forbidden_route`, kiểm **trước khi đọc thân**. Mỗi vai tối đa **một** long-poll đang mở; cái thứ hai → `409 poll_in_progress`. Module của vai tắt (`sensor-passive` cho `passive`, `sensor-active` cho `active`) → mọi route của vai `409 module_off`.
+Every other (method, path) pair, including the other role's routes → `403 forbidden_route`, checked **before reading the body**. Each role has at most **one** long-poll open; a second one → `409 poll_in_progress`. The role's module turned off (`sensor-passive` for `passive`, `sensor-active` for `active`) → every route of the role gives `409 module_off`.
 
 ### 6.1 `GET /sensor/v1/config` (passive)
 
-Long-poll có điều kiện: sensor gửi `If-None-Match: "<etag>"` của bản đang dùng (lần đầu không có). `core` trả ngay `200` khi ETag khác; còn lại giữ tới `wait` giây (mặc định 25) rồi trả `304` không thân. `SetInterface` (đổi card/SPAN ở Box network) và đổi bộ lọc đánh thức long-poll đang mở (thay kênh `reload` trong tiến trình).
+A conditional long-poll: the sensor sends `If-None-Match: "<etag>"` of the version in use (none the first time). `core` answers `200` at once when the ETag differs; otherwise it holds for up to `wait` seconds (default 25), then answers `304` with no body. `SetInterface` (changing the card/SPAN in Box network) and filter changes wake the open long-poll (replacing the in-process `reload` channel).
 
 ```json
 { "interface": "enp2s0", "span": true,
@@ -97,14 +97,14 @@ Long-poll có điều kiện: sensor gửi `If-None-Match: "<etag>"` của bản
   "filters": [ { "type": "cidr", "value": "10.0.5.0/24" }, { "type": "port", "value": "443" } ] }
 ```
 
-| Trường | Quy tắc |
+| Field | Rule |
 |---|---|
-| `interface` | tên card hoặc `""` = **không bắt gói** (module chưa cấu hình, hoặc fail-closed) |
-| `span` | card là cổng SPAN/TAP (không IP) |
-| `extract` | bốn công tắc trích metadata SPAN. sensor trích theo công tắc rồi gửi phần khớp cần qua `POST /metadata` (§6.7) |
-| `filters[]` | luật loại trừ `{type: cidr\|host\|port, value}` (sensor-passive INV-7) |
+| `interface` | card name, or `""` = **no capture** (module not configured yet, or fail-closed) |
+| `span` | the card is a SPAN/TAP port (no IP) |
+| `extract` | four switches for extracting SPAN metadata. The sensor extracts according to the switches, then sends what needs matching through `POST /metadata` (§6.7) |
+| `filters[]` | exclusion rules `{type: cidr\|host\|port, value}` (sensor-passive INV-7) |
 
-Fail-closed: `core` không đọc được bộ lọc → `interface: ""`. Sensor nhận `interface` khác bản đang chạy → đóng card cũ, mở card mới; `""` → dừng bắt gói ngay, không xả lô cuối.
+Fail-closed: `core` cannot read the filters → `interface: ""`. The sensor receives an `interface` different from the one running → closes the old card, opens the new card; `""` → stops capturing at once, without flushing the last batch.
 
 ### 6.2 `POST /sensor/v1/observations` (passive)
 
@@ -114,36 +114,36 @@ Fail-closed: `core` không đọc được bộ lọc → `interface: ""`. Senso
                "confidence": 0.6, "seen_at": "2026-11-10T08:00:01Z" } ] }
 ```
 
-| Trường | Quy tắc |
+| Field | Rule |
 |---|---|
-| `epoch` | 32 hex ngẫu nhiên, sinh mỗi lần tiến trình sensor khởi động |
-| `seq` | số nguyên 1 … 2^53−1, tăng dần trong một epoch |
-| `items` | 1 … 500 mục |
-| `items[].mac`, `.ip` | tuỳ chọn, ít nhất một trong hai; IP phải unicast |
+| `epoch` | 32 random hex, generated every time the sensor process starts |
+| `seq` | integer 1 … 2^53−1, increasing within an epoch |
+| `items` | 1 … 500 items |
+| `items[].mac`, `.ip` | optional, at least one of the two; the IP must be unicast |
 | `items[].field` | ∈ `observe.Field`: `hostname`, `mac`, `vendor`, `model`, `os`, `kind` |
-| `items[].value` | 1 … 200 byte, văn bản sạch (§5) |
-| `items[].confidence` | 0 … 1; `core` kẹp theo trần của thang thụ động cho từng trường (sensor-passive CONTRACT, "Thang tin cậy") |
-| `items[].seen_at` | RFC 3339 (sai định dạng hoặc kiểu → `400` cả lô, SP-1); trong khoảng 24 giờ trước tới 5 phút sau giờ `core` (ngoài → `out_of_window` từng mục) |
-| (không có) `source` | `core` đặt `passive` theo vai; trường `source` trong thân → `400 invalid_request` (trường lạ) |
+| `items[].value` | 1 … 200 bytes, clean text (§5) |
+| `items[].confidence` | 0 … 1; `core` clamps it to the cap of the passive scale for each field (sensor-passive CONTRACT, "Confidence scale") |
+| `items[].seen_at` | RFC 3339 (a wrong format or type → `400` for the whole batch, clarified in code); within 24 hours before to 5 minutes after `core`'s clock (outside → `out_of_window` per item) |
+| (absent) `source` | `core` sets `passive` by role; a `source` field in the body → `400 invalid_request` (unknown field) |
 
-**Epoch và seq**. `core` giữ `sp_seq(sensor_id, epoch, last_seq)` với `sensor_id = sn-local` (sensor của chính hộp) và chỉ **2 epoch mới nhất** (epoch thứ ba xoá cái cũ nhất). Lô có `seq ≤ last_seq` của epoch đó → `200`, `ack_seq = seq`, `rejected: []`, không ghi lại (POST-3). Không có `seq_gap`: seq chỉ chống phát lại, khoảng trống là bình thường (lô bị bỏ).
+**Epoch and seq**. `core` keeps `sp_seq(sensor_id, epoch, last_seq)` with `sensor_id = sn-local` (the box's own sensor) and only **the 2 newest epochs** (a third epoch deletes the oldest). A batch with `seq ≤ last_seq` of that epoch → `200`, `ack_seq = seq`, `rejected: []`, not written again (POST-3). There is no `seq_gap`: seq only guards against replay, and gaps are normal (dropped batches).
 
-**Xử lý** (một lô): (1) kiểm từng mục (§5, bảng trên) → mục sai vào `rejected[]`; (2) hạn mức chống ngập ở `core`: MAC chưa từng thấy ≤ 60 mỗi phút và ≤ 200 mỗi giờ, giá trị mới ≤ 4 mỗi (MAC, trường) mỗi giờ, map trong bộ nhớ theo MAC (lặp lại giá trị đã cho qua không tính là mới); vượt → `budget_exhausted`; (3) `SubmitBatch` với các mục còn lại; `observe.ErrRejected{Index}` của inventory → mục đó vào `rejected[]` với `refused`, gửi lại phần còn lại trong cùng request; (4) lưu `seq`.
+**Processing** (one batch): (1) check each item (§5, the table above) → invalid items go into `rejected[]`; (2) flood quotas in `core`: never-seen MACs ≤ 60 per minute and ≤ 200 per hour, new values ≤ 4 per (MAC, field) per hour, an in-memory map by MAC (repeating a value already let through does not count as new); exceeded → `budget_exhausted`; (3) `SubmitBatch` with the remaining items; an `observe.ErrRejected{Index}` from inventory → that item goes into `rejected[]` with `refused`, and the rest is resent within the same request; (4) store `seq`.
 
-Trả `200 { "ack_seq": 41, "rejected": [ { "index": 3, "code": "budget_exhausted" } ] }`: **thành công một phần, không bao giờ thử lại**. Mã của mục (tập đóng):
+Returns `200 { "ack_seq": 41, "rejected": [ { "index": 3, "code": "budget_exhausted" } ] }`: **partial success, never retried**. Item codes (closed set):
 
-| `code` | Nghĩa |
+| `code` | Meaning |
 |---|---|
-| `invalid_item` | sai kiểu/regex/trần, `field` lạ, thiếu cả `mac` lẫn `ip`, văn bản bẩn |
-| `out_of_window` | `seen_at` ngoài cửa sổ thời gian |
-| `budget_exhausted` | vượt hạn mức chống ngập của `core` |
-| `refused` | inventory từ chối ở biên (`observe.ErrRejected`) |
+| `invalid_item` | wrong type/regex/cap, unknown `field`, missing both `mac` and `ip`, dirty text |
+| `out_of_window` | `seen_at` outside the time window |
+| `budget_exhausted` | exceeds `core`'s flood quota |
+| `refused` | inventory refuses at its boundary (`observe.ErrRejected`) |
 
-Kho bận (SQLite busy, `Write` hết hạn, hay kết nối ghi bị giữ quá 5 s: `store.ErrBusy`) → `503 store_busy` cho cả lô, không mục nào được ghi hay tính hạn mức.
+Store busy (SQLite busy, `Write` timed out, or the write connection held for more than 5 s: `store.ErrBusy`) → `503 store_busy` for the whole batch, no item is written or counted toward the quota.
 
-### 6.3 `POST /sensor/v1/heartbeat` (cả hai vai)
+### 6.3 `POST /sensor/v1/heartbeat` (both roles)
 
-Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trường lạ):
+Every 30 s. The body depends on the role (strict decoding: the other role's fields are unknown fields):
 
 ```json
 { "version": "1.4.0",
@@ -159,32 +159,32 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
   "nuclei": { "present": true, "version": "v3.3.7", "pack": { "version": "2026.11.10", "sha256": "9f…(64 hex)" } } }
 ```
 
-| Trường | Quy tắc |
+| Field | Rule |
 |---|---|
-| `interfaces` (passive) | ≤ 32 card; `ipv4` ≤ 8 tiền tố mỗi card |
-| `span` (passive) | `pps` ≥ 0; `other_macs` = số MAC khác hộp thấy trong 5 phút (chỉ khung unicast giữa hai máy không phải hộp, sensor-passive INV-9); `last_packet_at` hoặc `null` |
-| `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; 35 khoá, danh sách ở khối "SP-4" của §6 và `sensorlink.DropKeys`); giá trị ≥ 0 |
+| `interfaces` (passive) | ≤ 32 cards; `ipv4` ≤ 8 prefixes per card |
+| `span` (passive) | `pps` ≥ 0; `other_macs` = number of MACs other than the box's seen in 5 minutes (only unicast frames between two machines that are not the box, sensor-passive INV-9); `last_packet_at` or `null` |
+| `drops` (passive) | ≤ 64 keys from the **closed set** of drop counters in `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; 35 keys, listed in the "Passive capture" block of §6 and `sensorlink.DropKeys`); values ≥ 0 |
 | `devices_seen` (passive) | ≥ 0 |
-| `capture_error` (passive, bản 4) | vì sao bắt gói trên card được chọn không chạy lúc này: tập đóng `sensorlink.CaptureErrors` = `no_permission` (mở socket bị EPERM/EACCES: không có `CAP_NET_RAW`, như container rootless), `no_interface` (card không có trên máy), `filters_invalid` (bộ lọc không đọc được), `capture_failed` (mọi lỗi khác); vắng hoặc `""` khi đang bắt gói hay không có card nào được chọn. Sensor đặt nó khi mở card hay một phiên hỏng, xoá khi card mở được hay khi thôi bắt gói. Không bao giờ là chữ của lỗi (chữ đó ở log của sensor). Dạng: chữ thường `[a-z][a-z0-9_]{0,47}`, khác dạng → `400`; đúng dạng mà `core` không biết → `core` hiện `capture_failed` và log một lần (giữ tối đa 64 tên lạ) |
-| `nmap` (active) | `present` = `/usr/bin/nmap` có và chạy được `--version`; `version` ≤ 32 byte; `full` (bản 5) = `true` khi nmap của worker đúng `nmapargv.ReviewedNmapVersion` (7.95) và worker chạy hai mẫu `external_full` và `external_disruptive` (sau rào IP của chính hộp), vắng = `false` (worker cũ hơn): `core` không bao giờ giao mẫu đó cho worker chưa nói `full` (`ErrFullUnsupported` trước khi xếp job; job đang chờ cũng bị giữ lại nếu heartbeat sau đó thôi nói `full`) |
-| `nuclei` (active, bản 2) | `present` = `/usr/local/bin/nuclei` có và chạy được `-version -duc` (nuclei in phiên bản ra stderr); `version` ≤ 32 byte; `pack` = `version` (`AAAA.M.N`) và `sha256` (64 hex) của chỉ mục gói mẫu nằm sẵn trong image, **cả hai rỗng** khi chưa có chỉ mục dùng được (không đọc được hoặc không qua `pack.Parse`); một rỗng một không → `400`; `own_ip` (bản 5) = `true` khi worker chạy job nuclei phạm vi `own_ip` (có rào IP của chính hộp), vắng = `false` (worker cũ hơn): `core` không bao giờ giao job `own_ip` cho worker chưa nói `own_ip`; `full` (bản 5, thêm trước lần phát hành đầu như `own_ip`) = `true` khi worker chạy job nuclei `depth` `full`, vắng = `false`: `core` không bao giờ giao job full cho worker chưa nói `full` |
-| `domain_ip` (active, bản 5) | `true` khi worker giữ khoá rào domain của hộp (vedette-host gắn chỉ đọc vào container scan, `/var/lib/vedette-fence/fence.key`) và tự kiểm rào domain; vắng = `false` (sensor từ xa, cài chỉ container, worker cũ): `core` không bao giờ gửi job `domain_ip` cho nó |
+| `capture_error` (passive, version 4) | why capture on the selected card is not running right now: the closed set `sensorlink.CaptureErrors` = `no_permission` (opening the socket got EPERM/EACCES: no `CAP_NET_RAW`, as in a rootless container), `no_interface` (the card is not on the machine), `filters_invalid` (the filters cannot be read), `capture_failed` (every other error); absent or `""` while capturing or when no card is selected. The sensor sets it when opening the card or when a session fails, and clears it when the card opens or capture stops. Never the error text (that text is in the sensor's log). Form: lowercase `[a-z][a-z0-9_]{0,47}`, another form → `400`; a well-formed value `core` does not know → `core` shows `capture_failed` and logs once (keeping at most 64 unknown names) |
+| `nmap` (active) | `present` = `/usr/bin/nmap` exists and `--version` runs; `version` ≤ 32 bytes; `full` (version 5) = `true` when the worker's nmap is exactly `nmapargv.ReviewedNmapVersion` (7.95) and the worker runs the two shapes `external_full` and `external_disruptive` (behind the box's own IP fence), absent = `false` (an older worker): `core` never hands those shapes to a worker that has not said `full` (`ErrFullUnsupported` before queueing the job; a waiting job is also held back if a later heartbeat stops saying `full`) |
+| `nuclei` (active, version 2) | `present` = `/usr/local/bin/nuclei` exists and `-version -duc` runs (nuclei prints its version to stderr); `version` ≤ 32 bytes; `pack` = the `version` (`YYYY.M.D`) and `sha256` (64 hex) of the template pack index shipped in the image, **both empty** when there is no usable index (unreadable or does not pass `pack.Parse`); one empty and one not → `400`; `own_ip` (version 5) = `true` when the worker runs nuclei jobs with `own_ip` scope (with the box's own IP fence), absent = `false` (an older worker): `core` never hands an `own_ip` job to a worker that has not said `own_ip`; `full` (version 5, added before the first release like `own_ip`) = `true` when the worker runs nuclei jobs with `depth` `full`, absent = `false`: `core` never hands a full job to a worker that has not said `full` |
+| `domain_ip` (active, version 5) | `true` when the worker holds the box's domain fence key (vedette-host mounts it read-only into the scan container, `/var/lib/vedette-fence/fence.key`) and checks the domain fence itself; absent = `false` (a remote sensor, a container-only install, an old worker): `core` never sends it a `domain_ip` job |
 
-Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `core` khởi động (lease của §6.4).
+Returns `200 { "instance": "<32 hex>" }`: a nonce generated every time the `core` process starts (the lease of §6.4).
 
-`core` dùng heartbeat cho:
-- `Sensor.status`: `online` khi có heartbeat trong **90 s**; `last_seen`, `version`, `devices_seen`, `interfaces` (tên card) của `GET /inventory/sensors` lấy từ heartbeat thụ động mới nhất; `capture_error` cũng vậy nhưng **chỉ khi `online`** (heartbeat cũ không nói gì về lúc này; giữ trong bộ nhớ, không vào DB; GUI: "Reporting, not capturing" kèm lý do);
-- `SpanStats()` / `span_status`: `off` (cấu hình `span=false`), `no_link` (card SPAN `link=false`), `no_traffic` (`last_packet_at` cũ hơn 30 s, `null`, hoặc sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
-- `SetInterface`: `interface` phải là một card của host; chỉ khi core chạy không có host thì là một card trong heartbeat thụ động mới nhất; `400 bad_interface` (sensor-passive INV-9); không có host và chưa có heartbeat → `bad_interface`;
-- địa chỉ của hộp (`ProtectedIPs` của sensor-active, kiểm IP bẫy của honeypot, `conn`) **tới khi** lát host 3-3 có `GET /v1/state/net`;
-- sức khoẻ `sensor-active`: `unavailable` khi 90 s không có heartbeat `active` hoặc `nmap.present=false` (INV-6);
-- sức khoẻ của máy quét nuclei (`scan`): `scanner_unavailable` (503 ở API) khi 90 s không có heartbeat `active`, `nuclei.present=false`, `nuclei.pack.sha256` rỗng, hoặc một job nuclei chạy quá hạn mà worker chưa dừng được; nmap và nuclei độc lập: thiếu cái này không làm cái kia `unavailable`.
+`core` uses heartbeats for:
+- `Sensor.status`: `online` when there is a heartbeat within **90 s**; the `last_seen`, `version`, `devices_seen`, `interfaces` (card names) of `GET /inventory/sensors` come from the latest passive heartbeat; `capture_error` too, but **only when `online`** (an old heartbeat says nothing about now; kept in memory, not in the DB; GUI: "Reporting, not capturing" with the reason);
+- `SpanStats()` / `span_status`: `off` (configuration `span=false`), `no_link` (SPAN card `link=false`), `no_traffic` (`last_packet_at` older than 30 s, `null`, or sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
+- `SetInterface`: `interface` must be one of the host's cards; only when core runs without a host is it a card from the latest passive heartbeat; `400 bad_interface` (sensor-passive INV-9); no host and no heartbeat yet → `bad_interface`;
+- the box's addresses (the `ProtectedIPs` of sensor-active, the honeypot's decoy IP check, `conn`) **until** the host's `GET /v1/state/net` existed;
+- `sensor-active` health: `unavailable` when there has been no `active` heartbeat for 90 s or `nmap.present=false` (INV-6);
+- health of the nuclei scanner (`scan`): `scanner_unavailable` (503 in the API) when there has been no `active` heartbeat for 90 s, `nuclei.present=false`, `nuclei.pack.sha256` is empty, or a nuclei job ran past its deadline and the worker could not stop it yet; nmap and nuclei are independent: a missing one does not make the other `unavailable`.
 
-Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạng thái hiển thị.
+No heartbeat within 90 s deletes no data; it only changes the displayed state.
 
-### 6.4 `GET /sensor/v1/jobs` (active): job, huỷ, lease
+### 6.4 `GET /sensor/v1/jobs` (active): jobs, cancellation, lease
 
-`core` giữ request tới `wait` giây (mặc định 25) và trả **ngay** khi có job mới hoặc lệnh huỷ; hết giờ trả mảng rỗng (luôn `200`, để worker luôn nhận `instance`).
+`core` holds the request for up to `wait` seconds (default 25) and answers **at once** when there is a new job or a cancel command; on timeout it returns empty arrays (always `200`, so the worker always gets `instance`).
 
 ```json
 { "instance": "9b1d…(32 hex)",
@@ -199,46 +199,46 @@ Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạ
   "cancel": [] }
 ```
 
-| Trường | Quy tắc |
+| Field | Rule |
 |---|---|
-| query `running` | id các job worker đang chạy, cách nhau bằng dấu phẩy: rỗng, một id, hai hay (bản 5) ba id (một nmap, một nuclei; bản 2; một snmp, bản 5), mỗi id 32 hex, không trùng; khác → `400` |
-| `jobs` | 0 … 3 phần tử, **tối đa một job mỗi loại** |
-| `jobs[].kind` | `nmap` \| `nuclei` (bản 2) \| `snmp` (bản 5, trường của nó ở khối "Đọc SNMP" §6.5). Thiếu `kind` = `nmap`. Loại lạ: giải mã chỉ lấy `id` và `kind`, worker trả `refused` (`invalid_job`) mà không làm hỏng cả poll |
-| `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (ba mẫu gốc) \| `versions` (`-sV` không `-O`: lượt chọn tay thiết bị chưa rõ loại; worker cũ không biết mẫu này từ chối job `invalid_job`, nhận dạng báo `unavailable`) \| `gentle_titles` (lần quét nhẹ của thiết bị chưa rõ loại không mong manh, cộng `--script http-title,ssl-cert,http-hp-ilo-info,vmware-version --script-timeout 20s`; như `versions`, worker cũ từ chối `invalid_job` trong lúc cập nhật, lần quét nhẹ đó chạy lại ở cửa sổ sau; không tăng proto) \| `external` (quét mặc định đúng IP công khai của chính hộp cho exposure, hai job cùng tên: **dò cổng** `--privileged -sS -Pn -n --max-rate 100 --max-retries 2 --host-timeout 2m --top-ports 1000` (job không mang `ports`; nmap tự chọn 1000 cổng từ `nmap-services` của nó, core đọc lại cổng đã dò từ `<scaninfo services>`), rồi **`-sV`** `--privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 --host-timeout 3m -p <ports>` (job mang `ports`: mọi cổng của `nmapargv.ExtraPortNumbers` (commonports và cổng quản trị đã rà) cộng tối đa 40 cổng lượt dò thấy mở ngoài đó, tăng dần; worker dựng `-p` từ đó và văn phạm từ chối danh sách khác); không `-O`, không `--script`; worker **tự kiểm** ngay trước nmap rằng hộp ra Internet qua địa chỉ đó (ba dịch vụ công khai, 2/3, tối đa 5 vòng, nhớ 5 phút; `core/egressip`; chỉ qua IPv4: `tcp4`), dịch vụ nêu địa chỉ khác → `refused`/`not_own_ip`, không vòng nào có câu trả lời (không tới được, TLS, không đồng thuận) → `refused`/`egress_unverified`, nmap không chạy; worker cũ không biết mẫu này → `invalid_job`; worker cũ biết mẫu chạy dòng cũ của nó (`-sV` trên 99 cổng) cho job dò, core nhận ra `<scaninfo>` đó và báo worker cũ, không gửi job `-sV`; exposure báo "may be older"; không tăng proto) \| `external_full`, `external_disruptive` (bản 5 trước lần phát hành đầu: quét sâu IP công khai của chính hộp khi điều khoản kiểm thử của mục tiêu đã được chấp nhận; `--privileged -sS -sV -Pn -n -p- --script "<danh sách>" --script-timeout 5m --max-rate 300 --max-retries 2 --host-timeout 60m`, danh sách là **đúng một** trong hai danh sách script cố định đã rà: `nmapargv.FullScripts` cho `external_full`, `nmapargv.DisruptiveScripts` cho `external_disruptive`; không `--script-args`; cùng luật đích và cùng rào own-IP của worker như `external`, và worker **hỏi lại rào đó mỗi 3 phút** trong lúc nmap chạy: lần đầu không phải "có" thì giết nmap, bỏ cả kết quả, trả `stopped`/`not_own_ip` hoặc `stopped`/`egress_unverified` (`stopped` vì nmap đã chạy, `refused` chỉ khi nmap chưa chạy); worker chỉ chạy mẫu sâu khi nmap của nó đúng `nmapargv.ReviewedNmapVersion` (khác → `invalid_job`); chỉ giao cho worker có heartbeat `nmap.full=true`). \| `extra_ports` (theo sau mỗi lần quét `normal`/`versions` của một thiết bị, cùng tốc độ: `--privileged -sS -sV --script <nmapargv.Scripts> -n --max-rate R --max-retries 3 -p <nmapargv.ExtraPorts: 98 cổng của commonports cộng danh sách cổng quản trị đã rà> --host-timeout 30m`, đích IP riêng như mẫu LAN) \| `all_ports` (chỉ dò mọi cổng TCP mỗi tuần một lần cho thiết bị không mong manh, `--privileged -sS -n --max-rate R --max-retries 1 -p- --host-timeout 90m`, `R` ≤ 100, không `-sV`, không script; đích IP riêng) \| `port_versions` (`-sV` sau `all_ports` trên đúng các cổng job mang: `--privileged -sS -sV --script <nmapargv.Scripts> -n --max-rate R --max-retries 3 -p <cổng> --host-timeout 30m`, đúng một đích IP riêng; job nmap mang thêm `ports` (1..20 số nguyên tăng dần ở mẫu này; cũng ở job `-sV` của `external` như trên; `omitempty` ở mọi job khác) và chỉ giao cho worker có heartbeat `nmap.ports=true`, như `nmap.full`). Như `gentle_titles`, `extra_ports` và `all_ports` không tăng proto: worker cũ từ chối `invalid_job` trong lúc cập nhật (lần `extra_ports` đó bỏ, kết quả top 1000 vẫn giữ; thiết bị của lần `all_ports` đó chờ cửa sổ sau); worker cũ không nói `nmap.ports` nên không bao giờ nhận `port_versions` (cổng được ghi không phiên bản). `normal` và `versions` mang đúng `--script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version` (`nmapargv.Scripts`: hai script NTLM type 1, không thông tin đăng nhập; tiêu đề trang và chủ thể chứng chỉ TLS); tên mẫu không đổi nên không tăng proto: worker của bản cũ dựng hai mẫu đó không script (chỉ trong lúc cập nhật; `sa_probe.flags` khi đó ghi thừa script, không bao giờ thiếu) |
-| `jobs[].rate` | (nmap) 1 … 1000; `gentle` luôn `1`; `external` luôn `100`; `external_full` và `external_disruptive` luôn `300` |
-| `jobs[].targets` | (nmap) 1 … 64 IPv4 riêng (RFC 1918 hoặc dải chung RFC 6598 100.64/10, `core/localnet.Addr`), chính tắc, không trùng (văn phạm `ValidateNmapArgs`); `external` (và `external_full`, `external_disruptive`): **đúng một** IPv4 công khai chính tắc (`egressip.IsPublicIPv4`: không riêng, CGNAT, loopback, link-local, tài liệu, multicast, dành riêng), và chỉ ba mẫu này nhận địa chỉ công khai |
-| `jobs[].timeout_s` | nmap: 1 … 7200 = min(hết cửa sổ, 2 giờ); nuclei: 1 … 3600 = min(hạn của ngữ cảnh probe, 1 giờ); do `core` tính lúc giao |
-| `jobs[].pack` (nuclei) | `{version, sha256}` của gói mẫu mà `core` đã chọn mẫu theo; worker từ chối khi chỉ mục trong image khác (`pack_mismatch`). `sha256` là **nhãn** do bộ dựng gói ghi trong chỉ mục (`pack.Index.SHA256`), không phải hàm băm worker tự tính; thứ được băm lại là từng tệp mẫu được chọn, so với `sha256` của mục tương ứng trong chỉ mục. `core` cũng so nhãn này với heartbeat **trước khi giao** (`ErrPackMismatch`, không thử lại); `pack_invalid` (băm lệch, link trong gói) là tín hiệu toàn vẹn: `ErrPackInvalid`, log ERROR, không thử lại |
-| `jobs[].templates` (nuclei) | 1 … 32 **id** mẫu (`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`), không trùng; không đường dẫn, không URL, không YAML. Worker đổi id thành đường dẫn bằng chỉ mục đã kiểm; id không có trong chỉ mục → `invalid_job` |
-| `jobs[].targets` (nuclei) | (phạm vi `lan`; `own_ip`: xem `scope`) 1 … 16 `{host, port, scheme}`: `host` là IPv4 riêng RFC 1918 hoặc RFC 6598 (100.64/10; trừ 100.100.100.200, metadata Alibaba Cloud) dạng chuẩn, không `.0`/`.255` (**không tên miền**, không IP công khai, phần 100/8 ngoài 100.64/10, loopback, link-local, benchmark, 240/4), `port` 1..65535, `scheme` `"http"` \| `"https"` \| `""` (mẫu mạng, `host:port`); không trùng |
+| query `running` | ids of the jobs the worker is running, comma-separated: empty, one id, two or (version 5) three ids (one nmap, one nuclei, version 2; one snmp, version 5), each id 32 hex, no duplicates; otherwise → `400` |
+| `jobs` | 0 … 3 elements, **at most one job per kind** |
+| `jobs[].kind` | `nmap` \| `nuclei` (version 2) \| `snmp` (version 5, its fields are in the "SNMP reads" block of §6.5). Missing `kind` = `nmap`. An unknown kind: decoding only takes `id` and `kind`, and the worker returns `refused` (`invalid_job`) without failing the whole poll |
+| `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (the three original shapes) \| `versions` (`-sV` without `-O`: a hand-picked pass over devices of unknown type; an old worker that does not know this shape refuses the job with `invalid_job`, and identification reports `unavailable`) \| `gentle_titles` (the gentle scan of a non-fragile device of unknown type, plus `--script http-title,ssl-cert,http-hp-ilo-info,vmware-version --script-timeout 20s`; like `versions`, an old worker refuses with `invalid_job` during an update, and that gentle scan runs again in the next window; no proto bump) \| `external` (the default scan of exactly the box's own public IP for exposure, two jobs with the same name: **port discovery** `--privileged -sS -Pn -n --max-rate 100 --max-retries 2 --host-timeout 2m --top-ports 1000` (the job carries no `ports`; nmap picks the 1000 ports from its own `nmap-services`, and core reads the probed ports back from `<scaninfo services>`), then **`-sV`** `--privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 --host-timeout 3m -p <ports>` (the job carries `ports`: every port of `nmapargv.ExtraPortNumbers` (commonports and the reviewed management ports) plus at most 40 ports the discovery found open outside those, ascending; the worker builds `-p` from that and the grammar refuses any other list); no `-O`, no `--script`; the worker **checks by itself** right before nmap that the box goes out to the Internet through that address (three public services, 2/3, at most 5 rounds, remembered for 5 minutes; `core/egressip`; IPv4 only: `tcp4`), a service reporting a different address → `refused`/`not_own_ip`, no round with an answer (unreachable, TLS, no agreement) → `refused`/`egress_unverified`, nmap does not run; an old worker that does not know this shape → `invalid_job`; an old worker that knows the shape runs its old line (`-sV` on 99 ports) for the discovery job, core recognizes that `<scaninfo>` and reports an old worker, and does not send the `-sV` job; exposure reports "may be older"; no proto bump) \| `external_full`, `external_disruptive` (version 5, before the first release: a deep scan of the box's own public IP once the target's testing terms have been accepted; `--privileged -sS -sV -Pn -n -p- --script "<list>" --script-timeout 5m --max-rate 300 --max-retries 2 --host-timeout 60m`, the list being **exactly one** of the two fixed reviewed script lists: `nmapargv.FullScripts` for `external_full`, `nmapargv.DisruptiveScripts` for `external_disruptive`; no `--script-args`; the same target rule and the same worker own-IP fence as `external`, and the worker **asks that fence again every 3 minutes** while nmap runs: the first answer that is not "yes" kills nmap, drops the whole result and returns `stopped`/`not_own_ip` or `stopped`/`egress_unverified` (`stopped` because nmap already ran, `refused` only when nmap has not run yet); the worker only runs the deep shapes when its nmap is exactly `nmapargv.ReviewedNmapVersion` (otherwise → `invalid_job`); only handed to a worker whose heartbeat has `nmap.full=true`). \| `extra_ports` (follows every `normal`/`versions` scan of a device, at the same rate: `--privileged -sS -sV --script <nmapargv.Scripts> -n --max-rate R --max-retries 3 -p <nmapargv.ExtraPorts: the 98 commonports ports plus the reviewed management port list> --host-timeout 30m`, private IP targets like the LAN shapes) \| `all_ports` (only probes every TCP port once a week for a non-fragile device, `--privileged -sS -n --max-rate R --max-retries 1 -p- --host-timeout 90m`, `R` ≤ 100, no `-sV`, no scripts; private IP targets) \| `port_versions` (`-sV` after `all_ports` on exactly the ports the job carries: `--privileged -sS -sV --script <nmapargv.Scripts> -n --max-rate R --max-retries 3 -p <ports> --host-timeout 30m`, exactly one private IP target; the nmap job also carries `ports` (1..20 ascending integers in this shape; also in the `external` `-sV` job as above; `omitempty` on every other job) and is only handed to a worker whose heartbeat has `nmap.ports=true`, like `nmap.full`). Like `gentle_titles`, `extra_ports` and `all_ports` do not bump the proto: an old worker refuses with `invalid_job` during an update (that `extra_ports` pass is dropped, the top-1000 result is kept; the device of that `all_ports` pass waits for the next window); an old worker does not say `nmap.ports`, so it never gets `port_versions` (ports are recorded without versions). `normal` and `versions` carry exactly `--script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version` (`nmapargv.Scripts`: two NTLM type 1 scripts, no credentials; the page title and the TLS certificate subject); the shape names do not change, so no proto bump: an old-release worker builds those two shapes without scripts (only during an update; `sa_probe.flags` then records scripts that did not run, never fewer) |
+| `jobs[].rate` | (nmap) 1 … 1000; `gentle` always `1`; `external` always `100`; `external_full` and `external_disruptive` always `300` |
+| `jobs[].targets` | (nmap) 1 … 64 private IPv4 addresses (RFC 1918 or the RFC 6598 shared range 100.64/10, `core/localnet.Addr`), canonical, no duplicates (the `ValidateNmapArgs` grammar); `external` (and `external_full`, `external_disruptive`): **exactly one** canonical public IPv4 (`egressip.IsPublicIPv4`: not private, CGNAT, loopback, link-local, documentation, multicast, reserved), and only these three shapes accept public addresses |
+| `jobs[].timeout_s` | nmap: 1 … 7200 = min(end of window, 2 hours); nuclei: 1 … 3600 = min(the probe context's deadline, 1 hour); computed by `core` when handing out the job |
+| `jobs[].pack` (nuclei) | `{version, sha256}` of the template pack `core` chose the templates from; the worker refuses when the index in the image differs (`pack_mismatch`). `sha256` is a **label** written into the index by the pack builder (`pack.Index.SHA256`), not a hash the worker computes; what is hashed again is each selected template file, compared with the `sha256` of the matching index entry. `core` also compares this label with the heartbeat **before handing out the job** (`ErrPackMismatch`, no retry); `pack_invalid` (hash mismatch, a link in the pack) is an integrity signal: `ErrPackInvalid`, log ERROR, no retry |
+| `jobs[].templates` (nuclei) | 1 … 32 template **ids** (`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`), no duplicates; no paths, no URLs, no YAML. The worker turns ids into paths with the checked index; an id not in the index → `invalid_job` |
+| `jobs[].targets` (nuclei) | (scope `lan`; `own_ip`: see `scope`) 1 … 16 `{host, port, scheme}`: `host` is a private RFC 1918 or RFC 6598 IPv4 address (100.64/10; except 100.100.100.200, Alibaba Cloud metadata) in canonical form, not `.0`/`.255` (**no domain names**, no public IPs, the part of 100/8 outside 100.64/10, loopback, link-local, benchmark, 240/4), `port` 1..65535, `scheme` `"http"` \| `"https"` \| `""` (network templates, `host:port`); no duplicates |
 | `jobs[].rate` / `max_host_errors` (nuclei) | `rate` 1 … 20 (`-rl`), `max_host_errors` 2 … 20 (`-mhe`) |
-| `jobs[].scope` (nuclei, bản 5) | vắng hoặc `"lan"` = các quy tắc trên (`scan`); `"own_ip"` = kiểm lỗ hổng an toàn của `exposure` trên IP công khai của chính hộp: **đúng một** đích, `host` là IPv4 công khai chính tắc (`localnet.Public`, cùng luật `egressip.IsPublicIPv4`), `port` là cổng của job, `rate` luôn `5`, 1 … 32 mẫu của gói đã kiểm (mỗi mẫu là mẫu của một CVE mà `core` đã khớp, không chọn theo tag), **mỗi mẫu phải được đánh dấu `own_ip: true` trong chỉ mục của image** (quyết lúc dựng gói từ chính tệp mẫu: chỉ yêu cầu chỉ đọc, GET hoặc HEAD không thân, không thông tin đăng nhập, không lệnh) và tệp mẫu phải qua `pack.OwnIPText` do worker tự đọc; `-etags` của argv thêm `default-login,brute-force,sqli,time-based-sqli,xss,injection,code-injection,argument-injection,ssti,file-upload,rce,authenticated,login` (chưa kiểm ở lab với `-t`, không dựa vào); giá trị khác → `invalid_job`. `core` **bỏ trống** `scope` ở job LAN, nên worker cũ hơn nhận đúng dạng nó biết; job `own_ip` chỉ giao cho worker có heartbeat `nuclei.own_ip=true`, và không xếp hàng sau job nuclei khác (khe bận → `ErrNucleiBusy`, không gửi gì). Worker cũ hơn nếu nhận được job có `scope` thì giải mã chặt báo lỗi: không chạy gì |
-| `jobs[].depth`, `jobs[].disruptive` (nuclei `own_ip`, bản 5) | vắng = job `own_ip` ở trên; `depth` `"full"` = quét sâu mục tiêu đã chấp nhận điều khoản kiểm thử (exposure): cùng **một** IPv4 công khai và cùng rào own-IP, `rate` luôn `20`, 1 … 200 mẫu, mỗi mẫu phải thuộc tập `deep` của chỉ mục **của image** (cộng `disruptive` khi `disruptive: true`; mẫu chỉ ở `kev`, như mẫu PUT/PATCH của KEV, không bao giờ), tệp mẫu (đã băm) phải qua `pack.FullText` (không method ghi, không ngoài băng); argv: cờ cố định như LAN trừ `-c 10`, `-etags dos,intrusive,fuzz,brute-force,default-login,authenticated` (với `disruptive`: `intrusive,fuzz`), thêm `-or -ot`; `disruptive` không có `depth` hay `depth` ngoài `own_ip` → `invalid_job`. `core` bỏ trống cả hai ở mọi job khác và chỉ giao job full cho worker có heartbeat `nuclei.full=true`; worker cũ hơn nhận được thì giải mã chặt báo lỗi: không chạy gì |
-| `jobs[].scope`, `jobs[].domain` (nmap full và nuclei `depth` `full`, bản 5) | `scope` `"domain_ip"` + `domain` `{domain, name, token, proof_at?}` = quét sâu **một** IPv4 công khai **không** phải IP ra Internet của hộp, vì một tên dưới domain đã xác thực phân giải ra nó: nmap chỉ dạng `external_full`/`external_disruptive`, nuclei chỉ `depth` `"full"` (argv là dạng full của `own_ip`); `domain` theo regex domain của exposure, `name` là domain hay tên dưới nó, `token` 16 hex; `proof_at` (tuỳ chọn) là một tên cha của `domain` (đỉnh zone) nơi bản ghi của chính `domain` nằm. Worker không biết trường này từ chối job; worker kiểm `proof_at` nằm giữa `domain` và tên miền đã đăng ký của nó (`proofat.Within`, PSL cả hai phần) trước rào, không thì `invalid_job`. Không job nào khác mang `scope`/`domain` của nmap hay `domain` của nuclei; `core` chỉ gửi cho worker có heartbeat `domain_ip` |
-| `cancel` | ≤ 8 id job phải dừng |
+| `jobs[].scope` (nuclei, version 5) | absent or `"lan"` = the rules above (`scan`); `"own_ip"` = `exposure`'s safe vulnerability check on the box's own public IP: **exactly one** target, `host` is a canonical public IPv4 (`localnet.Public`, the same rule as `egressip.IsPublicIPv4`), `port` is the job's port, `rate` always `5`, 1 … 32 templates from the checked pack (each one the template of a CVE `core` has matched, not chosen by tag), **each template must be marked `own_ip: true` in the image's index** (decided when the pack is built from the template file itself: read-only requests only, GET or HEAD without a body, no credentials, no commands) and the template file must pass `pack.OwnIPText`, which the worker reads itself; the argv's `-etags` adds `default-login,brute-force,sqli,time-based-sqli,xss,injection,code-injection,argument-injection,ssti,file-upload,rce,authenticated,login` (not yet checked in the lab with `-t`, not relied on); any other value → `invalid_job`. `core` **leaves `scope` empty** on LAN jobs, so an older worker gets exactly the shape it knows; `own_ip` jobs are only handed to a worker whose heartbeat has `nuclei.own_ip=true`, and are not queued behind another nuclei job (slot busy → `ErrNucleiBusy`, nothing is sent). An older worker that receives a job with `scope` fails strict decoding: nothing runs |
+| `jobs[].depth`, `jobs[].disruptive` (nuclei `own_ip`, version 5) | absent = the `own_ip` job above; `depth` `"full"` = a deep scan of a target whose testing terms have been accepted (exposure): the same **single** public IPv4 and the same own-IP fence, `rate` always `20`, 1 … 200 templates, each template must belong to the `deep` set of **the image's** index (plus `disruptive` when `disruptive: true`; templates only in `kev`, such as KEV PUT/PATCH templates, never), the template file (hashed) must pass `pack.FullText` (no write methods, no out-of-band); argv: fixed flags as for LAN except `-c 10`, `-etags dos,intrusive,fuzz,brute-force,default-login,authenticated` (with `disruptive`: `intrusive,fuzz`), plus `-or -ot`; `disruptive` without `depth`, or `depth` outside `own_ip` → `invalid_job`. `core` leaves both empty on every other job and only hands full jobs to a worker whose heartbeat has `nuclei.full=true`; an older worker that receives one fails strict decoding: nothing runs |
+| `jobs[].scope`, `jobs[].domain` (nmap full and nuclei `depth` `full`, version 5) | `scope` `"domain_ip"` + `domain` `{domain, name, token, proof_at?}` = a deep scan of **one** public IPv4 that is **not** the box's outgoing Internet IP, because a name under a verified domain resolves to it: nmap only in the `external_full`/`external_disruptive` shapes, nuclei only with `depth` `"full"` (the argv is the full form of `own_ip`); `domain` follows exposure's domain regex, `name` is the domain or a name under it, `token` 16 hex; `proof_at` (optional) is a parent name of `domain` (the zone apex) where the record of `domain` itself lives. A worker that does not know this field refuses the job; the worker checks that `proof_at` lies between `domain` and its registered domain (`proofat.Within`, PSL on both parts) before the fence, otherwise `invalid_job`. No other job carries the nmap `scope`/`domain` or the nuclei `domain`; `core` only sends them to a worker whose heartbeat has `domain_ip` |
+| `cancel` | ≤ 8 ids of jobs that must stop |
 
 **External -sV batches** (this supersedes what the `jobs[].shape` row says about the `external` -sV job): the default scan's -sV runs in batches, each its own nmap job (`nmapargv.BatchFlags`: `--privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 --host-timeout <N>s -p <ports>`, 1 to 40 ascending ports, N whole seconds from 60 to 120, never `--version-light`), because nmap's `--host-timeout` drops every result of a host that times out. An `external` job with `ports` is one batch and also carries `host_timeout_s` (60..120; only on this job, `omitempty` on every other); the worker builds the argv from both (`nmapargv.BuildBatch`) and refuses other values as `invalid_job`. A worker built before `host_timeout_s` decodes jobs strictly and fails its poll on it, so the batch job expires unread (`worker_lost`); only while the box updates.
 
-Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi: worker dựng argv bằng chính `buildNmapArgs` + `ValidateNmapArgs` (gói lá `modules/sensor-active/nmapargv`); với job nuclei bằng `nucleiargv.Build` + `Validate` (gói lá `modules/scan/nucleiargv`).
+There are **no** argv, flags, paths, URLs or ranges on the wire: the worker builds the argv with the same `buildNmapArgs` + `ValidateNmapArgs` (leaf package `modules/sensor-active/nmapargv`); for nuclei jobs with `nucleiargv.Build` + `Validate` (leaf package `modules/scan/nucleiargv`).
 
-**Bộ điều phối** (`core`, trong bộ nhớ):
-- `sensoractive` gọi `Prober` **sau khi** ghi dòng `sa_probe` (INV-9 giữ nguyên thứ tự); không có heartbeat `active` trong 90 s → `ErrUnavailable` ngay, không tạo job.
-- Hai **khe** riêng, nmap và nuclei (bản 2): mỗi khe một job đang chạy = một tiến trình trên hộp; một job nmap và một job nuclei chạy cùng lúc, nên "Scan now" và quét lại KEV không chờ sau một lượt quét dò 2 giờ. Job mới của một khe chỉ được giao khi khe đó rảnh và poll không còn nêu tên job vừa xong của khe đó hay một id mà `core` không biết (id lạ giữ cả hai khe tới khi worker hết báo nó); job thứ hai của cùng một loại chờ (vẫn chịu hạn của nó). Mọi quy tắc dưới đây (lease, chờ lấy, 30 s, hủy) áp cho từng khe.
-- Job chưa được lấy trong 60 s → probe `failed` (`worker_unavailable`). Job đã giao mà poll sau đó báo `running` khác id đó và chưa có kết quả → probe `failed` (`worker_lost`: sensor khởi động lại giữa chừng hoặc phản hồi bị mất).
-- Ngữ cảnh probe kết thúc (hết cửa sổ, `SettingsChanged`, hạ `rate`, thiết bị đổi, tắt module; INV-3) → job chưa giao thì bỏ; đã giao thì `cancel:[id]` ở long-poll kế tiếp (long-poll đang mở được đánh thức). `core` coi probe là `stopped` sau tối đa 30 s dù worker chưa xác nhận; job mới vẫn chờ `running` rỗng.
+**The dispatcher** (`core`, in memory):
+- `sensoractive` calls `Prober` **after** writing the `sa_probe` row (INV-9 keeps the order); no `active` heartbeat within 90 s → `ErrUnavailable` at once, no job is created.
+- Two separate **slots**, nmap and nuclei (version 2): each slot has one running job = one process on the box; one nmap job and one nuclei job run at the same time, so "Scan now" and KEV rescans do not wait behind a 2-hour discovery scan. A slot's new job is only handed out when that slot is free and the poll no longer names the slot's just-finished job or an id `core` does not know (an unknown id holds both slots until the worker stops reporting it); a second job of the same kind waits (still bound by its deadline). Every rule below (lease, pickup wait, 30 s, cancellation) applies per slot.
+- A job not picked up within 60 s → probe `failed` (`worker_unavailable`). A job handed out where a later poll reports a `running` other than that id with no result yet → probe `failed` (`worker_lost`: the sensor restarted midway or the response was lost).
+- The probe context ends (end of window, `SettingsChanged`, `rate` lowered, the device changes, module off; INV-3) → a job not yet handed out is dropped; one already handed out gets `cancel:[id]` at the next long-poll (an open long-poll is woken). `core` treats the probe as `stopped` after at most 30 s even if the worker has not confirmed; a new job still waits for an empty `running`.
 
-**Worker** (`vedette-sensor active`):
-- Kiểm lại job (văn phạm bảng trên, `ValidateNmapArgs` trên argv đã dựng, hạn ≤ 2 giờ); sai → kết quả `refused` (`invalid_job`), không chạy gì. Nhận job khi khe cùng loại đang chạy job khác → `refused` (`busy`); khe kia không bị đụng.
-- Chạy `/usr/bin/nmap` qua `core/exec` (allowlist binary + argv, không shell), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 8 MiB (`Truncated`).
-- Job `nuclei` (bản 2): kiểm lại bằng `nucleiargv` (số lượng, mục tiêu IPv4 riêng, `rate`, `max_host_errors`), `timeout_s` 1..3600, **gói** (`pack.version` và `pack.sha256` phải bằng chỉ mục trong image, không thì `refused`/`pack_mismatch`), từng id mẫu phải có trong chỉ mục (không thì `invalid_job`); rồi đi qua **cả cây gói** bằng `Lstat`: chỉ thư mục và tệp thường, một symlink, fifo, socket hay thiết bị ở bất cứ đâu → `refused`/`pack_invalid`; băm SHA-256 từng tệp mẫu được chọn (mở bằng `os.Root`) và so với chỉ mục (lệch → `pack_invalid`). Chạy `/usr/local/bin/nuclei` qua `core/exec` với argv của `nucleiargv.Build` (mỗi mẫu một `-t <TemplatesDir>/<đường dẫn>`, không bao giờ cả thư mục), **môi trường sạch** (chỉ `PATH`, `LANG=C` và `HOME` do `core/exec` đặt; không `*_PROXY`, `ENABLE_CLOUD_UPLOAD`, `PDCP_API_KEY`, không gì của tiến trình cha), `HOME` là thư mục rỗng mới trên tmpfs (xoá và tạo lại trước mỗi lần chạy; không có `~/.config/nuclei`), nhóm tiến trình riêng, hạn `timeout_s`, stdout trần 4 MiB (`Truncated`); **stderr không bao giờ gửi** (nó chứa nhật ký lỗi `-elog`; worker chỉ đếm timeout theo đích vào `host_errors`). Thiếu binary → `failed`/`nuclei_missing`. Kết quả là JSONL thô trong `jsonl_b64`; `core` phân tích đóng khi lỗi (`nucleiout`).
-- Job `nuclei` `own_ip` `depth` `full` (bản 5): văn phạm full của `nucleiargv`; mẫu ngoài tập mà độ sâu cho phép trong chỉ mục của image, hoặc tệp không qua `pack.FullText` → `invalid_job`; rồi đúng rào own-IP của job `own_ip` dưới đây. Job không full chỉ nhận mẫu tập `kev`.
-- Job `nuclei` mọi phạm vi: tệp mẫu (đã băm) không qua `pack.NoChangeText` (method ghi, `@Host:`, ghi đè method, `INTO OUTFILE`, `xp_cmdshell`, `file_put_contents`, tải tệp multipart, `gopher://`/`dict://`) → `invalid_job`; nuclei không chạy (không tăng proto: chỉ worker từ chối thêm).
-- Job `nuclei` phạm vi `own_ip` (bản 5): văn phạm `own_ip` của `nucleiargv` (một IPv4 công khai, `rate` 5, cờ cố định như LAN trừ `-etags`), mẫu không có `own_ip: true` trong chỉ mục của image hoặc tệp mẫu (đã băm) không qua `pack.OwnIPText` → `invalid_job`; rồi, **ngay trước nuclei**, worker tự kiểm rằng hộp ra Internet qua địa chỉ đó (cùng rào của mẫu nmap `external`: ba dịch vụ công khai, 2/3, tối đa 5 vòng, nhớ 5 phút, `core/egressip`): địa chỉ khác → `refused`/`not_own_ip`, không vòng nào trả lời → `refused`/`egress_unverified`; nuclei không chạy.
-- Job `domain_ip` (nmap full hay nuclei full, bản 5): **không** hỏi rào own-IP; ngay trước khi công cụ chạy worker tự kiểm rào domain (`core/domainfence`): văn phạm (sai → `invalid_job`), `token` phải bằng 16 ký tự hex đầu của HMAC-SHA256(khoá của worker, `"vedette-verify\x00"+domain`) (khác, hay `domain` không có trong bản chép danh sách của host `/var/lib/vedette-fence/domains`, đọc lại mỗi lần kiểm; bản chép không đọc được thì đọc lại một lần sau 1 s rồi mới từ chối → `token_foreign`), TXT của `domain` (hay của `proof_at` khi có; luật `domainfence.Owned`: cả `_vedette-verify.<tên>`, không qua CNAME, không wildcard, tên hỏi dạng gốc) chứa `vedette-verify=<token>` (không → `target_not_owned`), `name` phân giải A (resolver hệ thống, 10 s) ra tập có đích (không → `name_moved`), tra CNAME (job gây gián đoạn và tên chính tắc ra ngoài domain → `cname_outside`); lỗi DNS → `ownership_unchecked`; câu "có" giữ 5 phút cho mỗi `(domain, name, ip)`. Worker không có khoá → `invalid_job`. Job nmap sâu và job nuclei `domain_ip` kiểm lại (không cache) mỗi 3 phút khi công cụ chạy; câu không phải "có" → giết công cụ, `stopped` với mã đó, bỏ đầu ra. Mỗi lần từ chối/dừng là một dòng log của worker kèm chuỗi CNAME.
-- **Huỷ**: id có trong `cancel` → giết nhóm tiến trình, kết quả `stopped` (`cancelled`).
-- **Lease**: 60 s không có lần poll `200` nào, hoặc `instance` khác `instance` lúc nhận job → giết nhóm tiến trình và **bỏ** kết quả (bên giao job đã không còn). `core` sập không để lại nmap mồ côi.
-- Trong lúc chạy vẫn long-poll liên tục với `running=<id>` (bản 2: `running=<id>,<id>` khi cả hai khe bận).
-- Trong lúc một kết quả đang được gửi, vòng poll chờ (`waitPost`, tối đa bằng lease): khe kia không được poll trong thời gian đó, nên một job mới của nó chờ tới khi kết quả gửi xong (chấp nhận: kết quả ≤ 11 MiB, 60 s).
+**The worker** (`vedette-sensor active`):
+- Checks the job again (the grammar of the table above, `ValidateNmapArgs` on the built argv, deadline ≤ 2 hours); invalid → result `refused` (`invalid_job`), nothing runs. Receiving a job while the slot of the same kind is running another job → `refused` (`busy`); the other slot is not touched.
+- Runs `/usr/bin/nmap` through `core/exec` (binary + argv allow list, no shell), its own process group, deadline `timeout_s`, stdout capped at 8 MiB (`Truncated`).
+- `nuclei` jobs (version 2): checks again with `nucleiargv` (counts, private IPv4 targets, `rate`, `max_host_errors`), `timeout_s` 1..3600, the **pack** (`pack.version` and `pack.sha256` must equal the index in the image, otherwise `refused`/`pack_mismatch`), each template id must be in the index (otherwise `invalid_job`); then walks **the whole pack tree** with `Lstat`: only directories and regular files, a symlink, fifo, socket or device anywhere → `refused`/`pack_invalid`; hashes each selected template file with SHA-256 (opened through `os.Root`) and compares with the index (mismatch → `pack_invalid`). Runs `/usr/local/bin/nuclei` through `core/exec` with the argv from `nucleiargv.Build` (one `-t <TemplatesDir>/<path>` per template, never the whole directory), a **clean environment** (only `PATH`, `LANG=C` and `HOME` set by `core/exec`; no `*_PROXY`, `ENABLE_CLOUD_UPLOAD`, `PDCP_API_KEY`, nothing from the parent process), `HOME` is a new empty directory on tmpfs (deleted and recreated before every run; no `~/.config/nuclei`), its own process group, deadline `timeout_s`, stdout capped at 4 MiB (`Truncated`); **stderr is never sent** (it holds the `-elog` error log; the worker only counts per-target timeouts into `host_errors`). Missing binary → `failed`/`nuclei_missing`. The result is raw JSONL in `jsonl_b64`; `core` parses it fail-closed (`nucleiout`).
+- `nuclei` `own_ip` `depth` `full` jobs (version 5): the full grammar of `nucleiargv`; a template outside the set the depth allows in the image's index, or a file that does not pass `pack.FullText` → `invalid_job`; then exactly the own-IP fence of the `own_ip` job below. A non-full job only accepts templates from the `kev` set.
+- `nuclei` jobs of every scope: a template file (hashed) that does not pass `pack.NoChangeText` (write methods, `@Host:`, method override, `INTO OUTFILE`, `xp_cmdshell`, `file_put_contents`, multipart file upload, `gopher://`/`dict://`) → `invalid_job`; nuclei does not run (no proto bump: only the worker refuses more).
+- `nuclei` jobs with scope `own_ip` (version 5): the `own_ip` grammar of `nucleiargv` (one public IPv4, `rate` 5, fixed flags as for LAN except `-etags`), a template without `own_ip: true` in the image's index or a template file (hashed) that does not pass `pack.OwnIPText` → `invalid_job`; then, **right before nuclei**, the worker checks by itself that the box goes out to the Internet through that address (the same fence as the nmap `external` shape: three public services, 2/3, at most 5 rounds, remembered for 5 minutes, `core/egressip`): a different address → `refused`/`not_own_ip`, no round answers → `refused`/`egress_unverified`; nuclei does not run.
+- `domain_ip` jobs (nmap full or nuclei full, version 5): the own-IP fence is **not** asked; right before the tool runs, the worker checks the domain fence itself (`core/domainfence`): grammar (invalid → `invalid_job`), `token` must equal the first 16 hex characters of HMAC-SHA256(the worker's key, `"vedette-verify\x00"+domain`) (different, or `domain` not in the host's copy of the list `/var/lib/vedette-fence/domains`, read again at every check; an unreadable copy is read once more after 1 s before refusing → `token_foreign`), the TXT of `domain` (or of `proof_at` when present; the `domainfence.Owned` rule: also `_vedette-verify.<name>`, not through CNAME, no wildcard, the query name in its original form) contains `vedette-verify=<token>` (otherwise → `target_not_owned`), `name` resolves A (system resolver, 10 s) to a set containing the target (otherwise → `name_moved`), a CNAME lookup (a disruptive job and a canonical name outside the domain → `cname_outside`); DNS error → `ownership_unchecked`; a "yes" is cached for 5 minutes per `(domain, name, ip)`. A worker without the key → `invalid_job`. Deep nmap jobs and nuclei `domain_ip` jobs check again (no cache) every 3 minutes while the tool runs; an answer other than "yes" → kills the tool, `stopped` with that code, drops the output. Each refusal/stop is one worker log line with the CNAME chain.
+- **Cancellation**: an id in `cancel` → kills the process group, result `stopped` (`cancelled`).
+- **Lease**: 60 s without a single `200` poll, or an `instance` different from the `instance` at job pickup → kills the process group and **drops** the result (the side that handed out the job is gone). A `core` crash leaves no orphan nmap.
+- While running, it keeps long-polling continuously with `running=<id>` (version 2: `running=<id>,<id>` when both slots are busy).
+- While a result is being sent, the poll loop waits (`waitPost`, at most as long as the lease): the other slot is not polled during that time, so a new job for it waits until the result has been sent (accepted: results ≤ 11 MiB, 60 s).
 
 ### 6.5 `POST /sensor/v1/jobs/{id}/result` (active)
 
@@ -247,54 +247,54 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi: worker
 { "status": "done", "reason": "", "exit_code": 0, "truncated": false, "xml_b64": "", "jsonl_b64": "eyJ0ZW1w…" }
 ```
 
-| Trường | Quy tắc |
+| Field | Rule |
 |---|---|
 | `status` | `done` \| `failed` \| `stopped` \| `refused` |
-| `reason` | `""` hoặc một trong `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled`; bản 2 thêm `nuclei_missing`, `pack_mismatch`, `pack_invalid`; sau đó thêm `not_own_ip` và `egress_unverified` (chỉ cho job `external`, chỉ `core` cùng bản phát hành gửi job đó: không tăng proto); job nuclei `own_ip` dùng hai mã đó; job nmap sâu dùng chúng với `status` `stopped` khi worker kiểm lại giữa chừng một job nmap sâu và dừng nó (nmap đã chạy, đầu ra bị bỏ), với `refused` khi chưa chạy; `token_foreign`, `target_not_owned`, `name_moved`, `ownership_unchecked`, `cname_outside` là của job `domain_ip` (`refused` khi chưa chạy, `stopped` khi kiểm lại giữa chừng dừng nmap) |
-| `exit_code` | −1 … 255 (−1 = không chạy hoặc bị giết) |
-| `truncated` | stdout chạm trần (nmap 8 MiB, nuclei 4 MiB) |
-| `xml_b64` | base64 chuẩn của stdout nmap; sau giải mã ≤ 8 MiB; rỗng khi không phải `done` (khác → `400`); luôn có mặt, rỗng ở kết quả nuclei |
-| `jsonl_b64` (bản 2) | base64 chuẩn của stdout nuclei (`-jsonl`); sau giải mã ≤ 4 MiB; chỉ khi `done`, và **không cùng `xml_b64`** (cả hai → `400`); vượt 4 MiB → `413` |
-| `host_errors` (bản 3, nuclei) | tuỳ chọn, bỏ trống khi không đích nào có timeout: mảng ≤ 16 mục `{target "host:port", errors 1..1048576, unreachable bool}`, mỗi đích một mục, chỉ khi `done` (khác → `400`). Worker đếm từ nhật ký lỗi của nuclei (`-elog /dev/stderr`) các dòng `kind` = `network-temporary-error` của từng đích; `unreachable` = `errors` ≥ `max_host_errors` của job. `core` từ chối (`ErrResultRejected`) đích ngoài job, hay `unreachable` không đúng với `errors`; kết quả nmap mang `host_errors` cũng bị từ chối |
+| `reason` | `""` or one of `invalid_job`, `busy`, `nmap_missing`, `exec_failed`, `deadline`, `cancelled`; version 2 adds `nuclei_missing`, `pack_mismatch`, `pack_invalid`; later `not_own_ip` and `egress_unverified` were added (only for `external` jobs, only a `core` of the same release sends those jobs: no proto bump); nuclei `own_ip` jobs use those two codes; deep nmap jobs use them with `status` `stopped` when the worker re-checks a deep nmap job midway and stops it (nmap already ran, the output is dropped), and with `refused` when it has not run yet; `token_foreign`, `target_not_owned`, `name_moved`, `ownership_unchecked`, `cname_outside` belong to `domain_ip` jobs (`refused` when not run yet, `stopped` when a midway re-check stops nmap) |
+| `exit_code` | −1 … 255 (−1 = did not run or was killed) |
+| `truncated` | stdout hit the cap (nmap 8 MiB, nuclei 4 MiB) |
+| `xml_b64` | standard base64 of the nmap stdout; ≤ 8 MiB after decoding; empty when not `done` (otherwise → `400`); always present, empty in nuclei results |
+| `jsonl_b64` (version 2) | standard base64 of the nuclei stdout (`-jsonl`); ≤ 4 MiB after decoding; only when `done`, and **not together with `xml_b64`** (both → `400`); over 4 MiB → `413` |
+| `host_errors` (version 3, nuclei) | optional, left empty when no target had a timeout: an array of ≤ 16 entries `{target "host:port", errors 1..1048576, unreachable bool}`, one entry per target, only when `done` (otherwise → `400`). The worker counts the `kind` = `network-temporary-error` lines per target from nuclei's error log (`-elog /dev/stderr`); `unreachable` = `errors` ≥ the job's `max_host_errors`. `core` refuses (`ErrResultRejected`) targets outside the job, or an `unreachable` inconsistent with `errors`; an nmap result carrying `host_errors` is also refused |
 
-`{id}` phải là job **đang chạy** do chính `core` này giao cho vai `active`; còn lại (id lạ, job đã xong, gửi lại lần hai) → `404 unknown_job`. Thân > 11 MiB, XML giải mã > 8 MiB hoặc JSONL giải mã > 4 MiB → `413 payload_too_large` và probe `failed`. Trả `204`.
+`{id}` must be a **running** job handed by this same `core` to the `active` role; anything else (an unknown id, a finished job, a second resend) → `404 unknown_job`. A body > 11 MiB, decoded XML > 8 MiB or decoded JSONL > 4 MiB → `413 payload_too_large` and the probe `failed`. Returns `204`.
 
-`core` **không tin** `status` của worker: `done` mà `exit_code ≠ 0` hoặc `truncated` → probe `failed`, cả lô bị bỏ (INV-7); XML phân tích bằng `parseNmapXML` (đã fuzz) và `onlyTargets` trong `core`, nên quan sát và phần mềm từ nmap không bao giờ đi trên dây. `refused` → probe `failed` và log ERROR (worker và `core` bất đồng về văn phạm là lỗi hoặc bị chiếm); `nmap_missing` → sức khoẻ `unavailable` (INV-6).
+`core` **does not trust** the worker's `status`: `done` with `exit_code ≠ 0` or `truncated` → probe `failed`, the whole batch is dropped (INV-7); the XML is parsed with `parseNmapXML` (fuzzed) and `onlyTargets` inside `core`, so observations and software from nmap never travel on the wire. `refused` → probe `failed` and log ERROR (worker and `core` disagreeing about the grammar is a bug or a compromise); `nmap_missing` → health `unavailable` (INV-6).
 
-**SP-3b (bản 2, nuclei; mã `modules/sensor-active/{dispatch.go,nuclei.go,worker/}`, `core/sensorlink`).**
-- `Job` mang `kind`; hai khe trong `Dispatcher` (nmap, nuclei) và hai `cur` trong worker; `running` của poll là danh sách ≤ 2 id (`Backend.Jobs(ctx, wait, running []string)`, `Client.Jobs(ctx, running []string, wait)`). Một poll mà worker nêu id của một khe, id vừa xong của một khe, hay id lạ được xử lý như SP-3 nhưng theo từng khe; id lạ nhận `cancel` ngay lần đầu và giữ cả hai khe.
-- Giao hạn: nuclei `timeout_s` = min(hạn ctx còn lại, 3600); trần phía `core` `timeout_s` + 30 s như nmap, `Health` của nuclei nói "quá hạn" riêng.
-- Seam cho `scan`: `sensoractive.Scanner` (`Ready(ctx) error`, `RunNuclei(ctx, NucleiRequest) (nucleiout.Outcome, error)`), `*Dispatcher` thoả. `RunNuclei` kiểm văn phạm (như `nucleiargv.Build`) trước khi giao; trả `ErrScannerUnavailable` (và các lỗi bọc nó: `ErrScanWorkerUnavailable`, `ErrNucleiMissing`, `ErrPackMismatch`) khi máy quét không sẵn sàng (503 `scanner_unavailable`); `ErrWorkerLost`, `ErrWorkerRefused`, `ErrResultRejected` (kể cả JSONL bị `nucleiout` từ chối), `ErrOutputTruncated`, `*exec.ExitError` làm lượt chạy `failed`.
-- `core` chỉ tin mã thoát, `truncated` và các byte JSONL; mọi dòng ngoài mẫu hay đích (host:port) của job là cả lượt bị bỏ ((7)). Một kết quả nuclei có `xml_b64` (hay ngược lại) bị từ chối.
+**Nuclei jobs (version 2; code `modules/sensor-active/{dispatch.go,nuclei.go,worker/}`, `core/sensorlink`).**
+- `Job` carries `kind`; two slots in `Dispatcher` (nmap, nuclei) and two `cur` in the worker; the poll's `running` is a list of ≤ 2 ids (`Backend.Jobs(ctx, wait, running []string)`, `Client.Jobs(ctx, running []string, wait)`). A poll in which the worker names a slot's id, a slot's just-finished id, or an unknown id is handled as in the dispatcher block below, but per slot; an unknown id gets `cancel` on the first poll and holds both slots.
+- Deadline handed out: nuclei `timeout_s` = min(remaining ctx deadline, 3600); the `core`-side cap is `timeout_s` + 30 s as for nmap, and nuclei's `Health` reports "overdue" separately.
+- Seam for `scan`: `sensoractive.Scanner` (`Ready(ctx) error`, `RunNuclei(ctx, NucleiRequest) (nucleiout.Outcome, error)`), satisfied by `*Dispatcher`. `RunNuclei` checks the grammar (like `nucleiargv.Build`) before handing out; returns `ErrScannerUnavailable` (and the errors that wrap it: `ErrScanWorkerUnavailable`, `ErrNucleiMissing`, `ErrPackMismatch`) when the scanner is not ready (503 `scanner_unavailable`); `ErrWorkerLost`, `ErrWorkerRefused`, `ErrResultRejected` (including JSONL refused by `nucleiout`), `ErrOutputTruncated`, `*exec.ExitError` make the run `failed`.
+- `core` only trusts the exit code, `truncated` and the JSONL bytes; any line outside the job's templates or targets (host:port) drops the whole run ((7)). A nuclei result with `xml_b64` (or the reverse) is refused.
 
-**Đọc SNMP (bản 5; mã `core/sensorlink/wire.go`, `modules/sensor-active/{snmp_dispatch.go,snmp.go,worker/snmp.go}`).**
-- Heartbeat `active` thêm `"snmp": true` (worker bản 5 luôn gửi: gosnmp nằm trong binary). Thiếu = worker bản 4: `SNMPHealth` nói worker cũ hơn `core`, không job `snmp` nào được tạo.
-- Job (đổi trước lần phát hành đầu của bản 5): `{ "id", "kind": "snmp", "timeout_s" 1..3600, "rate" 1..1000, "targets": [ 1..64 × {"ip", "credential": {"version": "v2c", "community"} | {"version": "v3", "user", "auth": "sha"|"sha256", "auth_pass", "priv": "aes128"|"", "priv_pass"} (thêm `"port"` 1..65535 tuỳ chọn: cổng UDP của agent; vắng = 161)} ] }`. **Mỗi credential nằm trong đúng một đích**: không có danh sách credential chung, không chỉ số; worker chỉ gửi credential của một đích tới địa chỉ của chính đích đó (bí mật của một thiết bị chỉ đi tới địa chỉ đọc của nó; `core` từ chối dựng job cho địa chỉ khác địa chỉ đọc đã lưu của thiết bị, sensor-active INV-10 (d)). Community 1..64, user 1..64, mật khẩu v3 8..64 ký tự ASCII in được; không v1, MD5, DES, noAuthNoPriv. IP: IPv4 chính tắc, không trùng, local (`core/localnet`). `sensorlink.CheckSNMPJob` là văn phạm chung; `core` kiểm trước khi giao, worker kiểm lại (`refused`/`invalid_job`, không gói nào). **Không có OID trên dây**: worker luôn GET đúng danh sách của nó (sysDescr, sysObjectID, sysName, entPhysicalClass/ModelName/SoftwareRev/SerialNum.1, MIKROTIK-MIB mtxrLicVersion.0). Bí mật đi trên dây chỉ trong link mTLS này; `SNMPCredential` tự in ra `[redacted]`.
-- Worker: từng đích một, gửi credential của đích tới cổng UDP của nó (`port`, vắng = 161); timeout 2 s, thử lại 1; sau mỗi đích nghỉ `2/rate` giây (một lần đọc v3 là hai gói). Khe thứ ba (`slotSNMP`), job `snmp` thứ hai khi khe bận → `busy`. Hết `timeout_s` → `done` với `reason: "deadline"` và các đích đã xong.
-- Kết quả: `{"status": "done", …, "xml_b64": "", "snmp": [ ≤ 64 × {"target", "status": "ok"|"no_answer"|"auth_failed"|"unknown_user"|"error", "values": {"sys_descr", "sys_object_id", "sys_name", "ent_class", "ent_model", "ent_software", "ent_serial", "os_version" (MIKROTIK-MIB mtxrLicVersion.0; vắng khi rỗng)}} ]}`; mỗi giá trị ≤ 512 byte (worker cắt 255, UTF-8 hợp lệ), giá trị chỉ khi `ok`; `snmp` chỉ khi `done`, không cùng `xml_b64`/`jsonl_b64`/`host_errors` (khác → `400`). `core` từ chối câu trả lời cho đích job không nêu (`ErrResultRejected`) và tự phân tích giá trị (không tin cậy, sensor-active INV-10).
-- `core`: `sensoractive.Service` ghi dòng `sa_probe` (`shape` `snmp`) **trước** khi mở bí mật và giao job; một job snmp một lúc (`snmpMu`).
+**SNMP reads (version 5; code `core/sensorlink/wire.go`, `modules/sensor-active/{snmp_dispatch.go,snmp.go,worker/snmp.go}`).**
+- The `active` heartbeat adds `"snmp": true` (a version 5 worker always sends it: gosnmp is in the binary). Missing = a version 4 worker: `SNMPHealth` says the worker is older than `core`, and no `snmp` job is created.
+- Job (changed before the first release of version 5): `{ "id", "kind": "snmp", "timeout_s" 1..3600, "rate" 1..1000, "targets": [ 1..64 × {"ip", "credential": {"version": "v2c", "community"} | {"version": "v3", "user", "auth": "sha"|"sha256", "auth_pass", "priv": "aes128"|"", "priv_pass"} (plus an optional `"port"` 1..65535: the agent's UDP port; absent = 161)} ] }`. **Each credential sits inside exactly one target**: there is no shared credential list and no index; the worker only sends a target's credential to that target's own address (one device's secret only goes to its read address; `core` refuses to build a job for an address other than the device's stored read address, sensor-active INV-10 (d)). Community 1..64, user 1..64, v3 passwords 8..64 printable ASCII characters; no v1, MD5, DES, noAuthNoPriv. IP: canonical IPv4, no duplicates, local (`core/localnet`). `sensorlink.CheckSNMPJob` is the shared grammar; `core` checks before handing out, the worker checks again (`refused`/`invalid_job`, no packet sent). **No OIDs on the wire**: the worker always GETs exactly its own list (sysDescr, sysObjectID, sysName, entPhysicalClass/ModelName/SoftwareRev/SerialNum.1, MIKROTIK-MIB mtxrLicVersion.0). Secrets travel on the wire only inside this mTLS link; `SNMPCredential` prints itself as `[redacted]`.
+- Worker: one target at a time, sends the target's credential to its UDP port (`port`, absent = 161); timeout 2 s, 1 retry; after each target it pauses `2/rate` seconds (one v3 read is two packets). A third slot (`slotSNMP`); a second `snmp` job while the slot is busy → `busy`. `timeout_s` runs out → `done` with `reason: "deadline"` and the targets already finished.
+- Result: `{"status": "done", …, "xml_b64": "", "snmp": [ ≤ 64 × {"target", "status": "ok"|"no_answer"|"auth_failed"|"unknown_user"|"error", "values": {"sys_descr", "sys_object_id", "sys_name", "ent_class", "ent_model", "ent_software", "ent_serial", "os_version" (MIKROTIK-MIB mtxrLicVersion.0; absent when empty)}} ]}`; each value ≤ 512 bytes (the worker cuts at 255, valid UTF-8), values only when `ok`; `snmp` only when `done`, not together with `xml_b64`/`jsonl_b64`/`host_errors` (otherwise → `400`). `core` refuses answers for targets the job did not name (`ErrResultRejected`) and parses the values itself (untrusted, sensor-active INV-10).
+- `core`: `sensoractive.Service` writes the `sa_probe` row (`shape` `snmp`) **before** opening the secrets and handing out the job; one snmp job at a time (`snmpMu`).
 
-**SP-3 (làm rõ, mã `modules/sensor-active/{dispatch.go,worker/}`).**
-- `timeout_s` được tính lúc **giao** job (`min(hạn của ngữ cảnh probe còn lại, 7200)`, làm tròn lên), không phải lúc xếp hàng, để job chờ lấy lâu không chạy quá hạn của probe.
-- `wait` của worker tối thiểu 1 s: dây chỉ mang số giây nguyên, `wait=0` là poll trả ngay và sẽ lặp.
-- Reply `jobs` mang `cancel:[id]` **mỗi lần** cho tới khi worker báo xong, nhưng chỉ lần đầu đánh thức long-poll đang mở. Một poll còn gọi tên job **vừa xong** được trả lời ngay một lần (để worker poll lại với `running` rỗng; job kế tiếp không phải chờ hết `wait`).
-- Thân kết quả bị máy chủ từ chối (`413` hoặc `400`) khi `{id}` đang chạy: `Backend` được báo qua giao diện tùy chọn `sensorlink.ResultRejector` và probe `failed` ngay (worker không gửi lại kết quả); `404` không báo gì (không có job nào bị ảnh hưởng).
-- `cancel` đến cùng reply với job: worker không chạy nmap, gửi `stopped`/`cancelled`. Job thứ hai đến khi đang chạy job khác: `refused`/`busy`, gửi ngay, job đang chạy không bị đụng. Cả `refused` cũng giữ `running=<id>` trong các poll tới khi kết quả đã gửi xong, để `core` không báo nhầm `worker_lost`.
-- Worker không gửi kết quả khi bị giết vì lease, `instance` đổi, `409 module_off` hay tắt tiến trình; gửi `stopped`/`deadline` khi hết `timeout_s`.
-- Sống/chết của job đang chạy do **poll cuối nêu tên nó** quyết định (90 s không poll → `worker_lost`), cộng trần phía `core` `timeout_s` + 30 s. Poll nêu một `running` mà `core` không giữ (job đã bỏ, hoặc `core` vừa khởi động lại) nhận ngay `cancel:[id]`.
-- Worker gửi lại kết quả khi 429, 503 hoặc lỗi kết nối (sau `Retry-After`/quãng lùi, trong 60 s), không gửi lại khi 400, 403, 404, 409, 413; vòng poll chờ cho tới khi kết quả đã gửi xong. Id job không khớp `^[0-9a-f]{32}$` bị bỏ, không dùng trong URL hay log.
-- Bó khoá phải là tệp thường, trong thư mục không phải symlink, mode nằm trong `0640` (core ghi `0640`; bit nào ngoài đó, như nhóm ghi hay người khác đọc, bị từ chối); client mở qua `os.OpenRoot` của thư mục chứa.
-- Hậu quả của kết quả trong `core`: mã thoát `> 0` → probe `failed` (nmap thoát mã đó); `< 0` hoặc `status ≠ done` → `failed`; `refused` → `failed`, log ERROR; `reason=nmap_missing` → `unavailable` tới heartbeat kế tiếp. Dòng `sa_probe.result` ghi mã: `worker_unavailable`, `worker_lost`, `nmap_missing`.
+**The dispatcher (clarified in code, `modules/sensor-active/{dispatch.go,worker/}`).**
+- `timeout_s` is computed when the job is **handed out** (`min(remaining probe context deadline, 7200)`, rounded up), not when it is queued, so a job that waits long to be picked up does not run past the probe's deadline.
+- The worker's `wait` is at least 1 s: the wire only carries whole seconds, and `wait=0` is a poll that returns at once and would loop.
+- The `jobs` reply carries `cancel:[id]` **every time** until the worker reports it done, but only the first one wakes an open long-poll. A poll that still names a **just-finished** job is answered at once, once (so the worker polls again with an empty `running`; the next job does not have to wait out `wait`).
+- A result body refused by the server (`413` or `400`) while `{id}` is running: the `Backend` is told through the optional interface `sensorlink.ResultRejector` and the probe is `failed` at once (the worker does not resend the result); `404` reports nothing (no job is affected).
+- `cancel` arriving in the same reply as the job: the worker does not run nmap and sends `stopped`/`cancelled`. A second job arriving while another job runs: `refused`/`busy`, sent at once, the running job is not touched. `refused` also keeps `running=<id>` in the polls until the result has been sent, so `core` does not wrongly report `worker_lost`.
+- The worker sends no result when it was killed because of the lease, a changed `instance`, `409 module_off` or a process shutdown; it sends `stopped`/`deadline` when `timeout_s` runs out.
+- Whether a running job is alive is decided by **the last poll that names it** (90 s without a poll → `worker_lost`), plus the `core`-side cap of `timeout_s` + 30 s. A poll naming a `running` job `core` does not hold (a dropped job, or `core` just restarted) gets `cancel:[id]` at once.
+- The worker resends the result on 429, 503 or a connection error (after `Retry-After`/backoff, within 60 s), and does not resend on 400, 403, 404, 409, 413; the poll loop waits until the result has been sent. A job id that does not match `^[0-9a-f]{32}$` is dropped and never used in a URL or log.
+- The key bundle must be a regular file, in a directory that is not a symlink, with a mode within `0640` (core writes `0640`; any bit outside that, such as group write or other read, is refused); the client opens it through an `os.OpenRoot` of the containing directory.
+- Consequences of the result in `core`: exit code `> 0` → probe `failed` (nmap exited with that code); `< 0` or `status ≠ done` → `failed`; `refused` → `failed`, log ERROR; `reason=nmap_missing` → `unavailable` until the next heartbeat. The `sa_probe.result` row records the code: `worker_unavailable`, `worker_lost`, `nmap_missing`.
 
-**SP-4 (làm rõ, mã `modules/sensor-passive/{capture,backend.go}`).**
-- Mỗi lần gửi `observations` dùng một `seq` mới trong cùng một `epoch`, kể cả khi gửi lại các mục đã gửi hụt: lô gửi lại có thể là tập mục khác (đã chia đôi, đã bỏ mục độc), và `core` bỏ `seq` đã thấy. Sensor thử lại **sau** `Retry-After` của `core` nhưng không quá 60 s; một lỗi kết nối, `426`, `429`, `503` và `403 cert_retired` là "thử lại" (chỉ `503 store_busy` cùng một heartbeat vừa thành công mới dẫn tới chia lô; `503 not_ready` không bao giờ); `413` chia đôi (một mục vẫn `413` thì bỏ); mọi mã khác bỏ lô và đếm `batch_dropped`. Một lô hỏng 3 lần liên tiếp bị chia đôi cho tới khi một mục đứng riêng; mục đó bị bỏ (đếm `observation_failed`) chỉ khi một heartbeat vừa thành công.
-- Kiểm mục ở `core`: một dòng `mac` phải có `mac` và `value == mac`; `kind` chỉ nhận `ap`, `switch`, `router`, `printer`, `iot` (kẹp 0.6, 0.6, 0.6, 0.5, 0.3); mục có MAC hoặc IP của chính hộp (theo card của host) là `refused`; `mac` đúng dạng (chữ thường) và không phải địa chỉ nhóm hay toàn không; `ip` IPv4 unicast (IPv6 là `invalid_item`, vì tài sản chỉ có địa chỉ IPv4); `confidence` ngoài [0,1] là `invalid_item`, trong khoảng thì kẹp theo trần của trường: `mac` 0.9, `hostname` 0.7, `kind` 0.6, `model` 0.5, `vendor` 0.4, `os` 0.3; thiếu `seen_at` là `out_of_window`.
-- Bộ lọc lặp: cùng (MAC, IP, trường, giá trị) trong 15 phút được xác nhận mà không ghi (không nằm trong `rejected[]`); trần 6000 mục mỗi phút cho vai `passive` (phần vượt: `budget_exhausted`, không đọc). Thêm hạn mức 4 địa chỉ IP mới mỗi MAC mỗi giờ.
-- Hạn mức chống ngập tính **trước** khi ghi và áp vào hạn mức **sau** khi inventory nhận: kho lỗi (`503`) không tốn hạn mức. Mục không có MAC tính theo địa chỉ IP. "Hết hạn mức" được ghi log một lần mỗi phút.
-- `drops` mang **35 khoá đã biết**: `arp_mac_mismatch`, `batch_dropped`, `capture_failed`, `dhcp_mac_mismatch`, `dns_name_rejected`, `excluded`, `filters_invalid`, `flows_dropped`, `fragment_skipped`, `malformed_{arp,dhcp,dns,ethernet,http,ipv4,lldp,mdns,ssdp,tcp,tls,udp}`, `metadata_dropped`, `metadata_failed`, `new_macs_dropped`, `new_macs_unconfirmed`, `non_unicast_ip`, `observation_failed`, `observation_rejected`, `observations_dropped`, `unusable_record`, `value_empty`, `value_meaningless`, `value_truncated`, `values_dropped`, `vendor_rejected`; khoá lạ nhưng đúng dạng (`^[a-z][a-z0-9_]{0,47}$`) được `core` **bỏ qua và ghi log một lần mỗi khoá** (tương thích về sau); giá trị âm, kiểu sai hoặc khoá sai dạng là `400`; tên card trùng trong `interfaces` cũng `400`. Giá trị là bộ đếm cộng dồn từ lúc tiến trình sensor khởi động. `filters_invalid` tăng mỗi lần sensor nhận một bộ lọc nó không biên dịch được; lúc đó nó không bắt gói.
-- Sensor gửi heartbeat ngay khi khởi động và mỗi 30 s, kể cả khi `config` nói `interface ""`; trong lúc `module_off` nó không gửi. Danh sách `interfaces` bị lọc theo hình dạng của dây (tên card theo regex, MAC chữ thường, ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card).
-- `config` long-poll: `core` đọc lại cài đặt (bộ lọc của trang network) mỗi 5 s trong lúc giữ request, và `SetInterface` đánh thức ngay. Bộ lọc `core` không đọc được cho `interface ""` (cùng ETag với cấu hình "không bắt gói" thường).
-- `Client.PostObservations` là một lần thử, không lùi, không ngủ, và là đường duy nhất gửi quan sát (không còn `SendObservations`).
+**Passive capture (clarified in code, `modules/sensor-passive/{capture,backend.go}`).**
+- Every `observations` send uses a new `seq` within the same `epoch`, even when resending items that failed: a resent batch may be a different set of items (split in half, a poisonous item dropped), and `core` drops a `seq` it has already seen. The sensor retries **after** `core`'s `Retry-After` but no later than 60 s; a connection error, `426`, `429`, `503` and `403 cert_retired` mean "retry" (only a `503 store_busy` together with a heartbeat that just succeeded leads to splitting the batch; `503 not_ready` never does); `413` splits in half (a single item still `413` is dropped); every other code drops the batch and counts `batch_dropped`. A batch that fails 3 times in a row is split in half until an item stands alone; that item is dropped (counted as `observation_failed`) only when a heartbeat has just succeeded.
+- Item checks in `core`: a `mac` row must have `mac` and `value == mac`; `kind` only accepts `ap`, `switch`, `router`, `printer`, `iot` (clamped to 0.6, 0.6, 0.6, 0.5, 0.3); an item with the box's own MAC or IP (by the host's cards) is `refused`; `mac` well formed (lowercase) and not a group or all-zero address; `ip` unicast IPv4 (IPv6 is `invalid_item`, because assets only have IPv4 addresses); `confidence` outside [0,1] is `invalid_item`, inside the range it is clamped to the field's cap: `mac` 0.9, `hostname` 0.7, `kind` 0.6, `model` 0.5, `vendor` 0.4, `os` 0.3; a missing `seen_at` is `out_of_window`.
+- Repeat filter: the same (MAC, IP, field, value) within 15 minutes is acknowledged without being written (not in `rejected[]`); a cap of 6000 items per minute for the `passive` role (the excess: `budget_exhausted`, not read). Plus a quota of 4 new IP addresses per MAC per hour.
+- The flood quota is computed **before** writing and charged **after** inventory accepts: a store error (`503`) costs no quota. Items without a MAC count by IP address. "Quota exhausted" is logged once per minute.
+- `drops` carries **35 known keys**: `arp_mac_mismatch`, `batch_dropped`, `capture_failed`, `dhcp_mac_mismatch`, `dns_name_rejected`, `excluded`, `filters_invalid`, `flows_dropped`, `fragment_skipped`, `malformed_{arp,dhcp,dns,ethernet,http,ipv4,lldp,mdns,ssdp,tcp,tls,udp}`, `metadata_dropped`, `metadata_failed`, `new_macs_dropped`, `new_macs_unconfirmed`, `non_unicast_ip`, `observation_failed`, `observation_rejected`, `observations_dropped`, `unusable_record`, `value_empty`, `value_meaningless`, `value_truncated`, `values_dropped`, `vendor_rejected`; an unknown but well-formed key (`^[a-z][a-z0-9_]{0,47}$`) is **ignored by `core` and logged once per key** (forward compatibility); a negative value, a wrong type or a malformed key is `400`; a duplicate card name in `interfaces` is also `400`. Values are counters accumulated since the sensor process started. `filters_invalid` increases every time the sensor receives a filter it cannot compile; it does not capture while that is the case.
+- The sensor sends a heartbeat right at start and every 30 s, even when `config` says `interface ""`; during `module_off` it does not send. The `interfaces` list is filtered to the wire's shape (card names by regex, lowercase MACs, ≤ 32 cards, ≤ 8 IPv4 prefixes per card).
+- The `config` long-poll: `core` re-reads the settings (the network page's filters) every 5 s while holding the request, and `SetInterface` wakes it at once. Filters `core` cannot read give `interface ""` (the same ETag as the normal "no capture" configuration).
+- `Client.PostObservations` is a single attempt, no backoff, no sleep, and is the only path that sends observations (`SendObservations` no longer exists).
 
 ### 6.6 `POST /sensor/v1/jobs/{id}/progress` (active, #830)
 
@@ -315,34 +315,34 @@ The mirror-port metadata the capture extracted (DNS query names, TLS server name
 - Pacing: the capture loop only queues (at most 10,000 items; more are dropped); a goroutine of its own posts batches of at most 1000 items, at least 2.5 s apart (2 per 5 s), waiting as long as a `429`/`503` `Retry-After` asks (capped at 60 s) and doubling up to 60 s while core does not answer. `503 store_busy` is offered 5 times, then dropped; `400`, `403` and `413` drop the batch; `409 module_off` drops the queue. Every loss is counted as `metadata_failed`.
 - `core`: a Backend without the receiver answers `403 forbidden_route` before the body is read. `sensor-passive` hands the batch to the logs module's matching (`logs.MatchMirror`), which looks up each destination in the threat feeds as it does for a firewall line and stores only the matches (`logs_ioc_hits`, `seen_via` `span_dns`, `span_sni`, `span_http`, `span_flow`). With the logs module off the batch is answered `204` and dropped; a matching that cannot store its hits, or could not look at the whole batch (a feed lookup failed, or the batch reached the 50 new hits one batch stores), is `503 store_busy`: the sensor sends the batch again, and the pairs already stored are skipped as repeats.
 
-## 7. Bảng lỗi
+## 7. Error table
 
-| HTTP | `code` | Khi nào | Sensor làm gì |
+| HTTP | `code` | When | What the sensor does |
 |---|---|---|---|
-| — | (handshake hỏng) | sai CA, hết hạn/chưa hiệu lực, sai EKU, sai/thiếu URI SAN, serial về hưu, TLS < 1.3 | đọc lại bó khoá; lùi 1 → 60 s có jitter, thử lại |
-| 200 | `rejected[].code` | thành công một phần (§6.2) | **không thử lại** |
-| 304 | — | `config` không đổi | poll lại ngay |
-| 400 | `invalid_request` | không phải JSON, trường lạ, khoá trùng, quá sâu, thiếu/sai kiểu, query lạ, có `Content-Encoding` | bỏ lô, đếm, không thử lại |
-| 403 | `forbidden_route` | route không thuộc vai (trước khi đọc thân) | lỗi lập trình: log ERROR, không thử lại route đó |
-| 403 | `cert_retired` | serial của lá không còn là hiện hành/ngay trước (kiểm mỗi request) | đọc lại bó, đóng kết nối rảnh, lùi rồi thử lại |
-| 404 | `unknown_job` | kết quả cho job không đang chạy hoặc không do `core` này giao | bỏ kết quả |
-| 409 | `module_off` | module của vai tắt | **dừng ngay**, bỏ hàng đợi, không xả lô cuối (SYS-5); hỏi lại `config`/`jobs` mỗi 60 s (thường thì host đã dừng hẳn container) |
-| 409 | `poll_in_progress` | long-poll thứ hai của cùng vai | lỗi lập trình: đợi poll đang mở xong |
-| 413 | `payload_too_large` | thân vượt trần route; XML > 8 MiB | quan sát: chia đôi lô (lô một mục vẫn 413 → bỏ, đếm); kết quả job: không gửi lại (probe đã `failed`) |
-| 426 | `proto_unsupported` | thiếu `X-Vedette-Proto`, hoặc không phải bản của `core` hay bản liền trước (mới hơn `core`, hay cũ hơn hai bản) | giữ hàng đợi, lùi tới 60 s, thử lại (§10) |
-| 429 | `rate_limited` | quá 10 request/giây, burst 20, mỗi vai | chờ `Retry-After` |
-| 503 | `store_busy` | kho của `core` bận | chờ `Retry-After`, gửi lại **cùng** lô |
-| 503 | `not_ready` | `core` chưa đủ dữ kiện để xét lô: vai `passive` chưa biết card của chính hộp (host đã cấu hình mà chưa đưa danh sách; không có host và không có heartbeat dưới 90 s) | chờ `Retry-After` (5 s), gửi lại cả lô; **không** chia lô, không đổ cho mục nào |
-| 500 | `internal` | lỗi khác của `core` | bỏ lô, đếm (OTLP: không thử lại) |
-| — | (không có phản hồi) | lỗi kết nối, `core` đang khởi động lại | gửi lại cùng lô sau quãng lùi 1 → 60 s có jitter (`holdOff`); quá trần hàng đợi trong bộ nhớ thì bỏ cũ nhất và đếm |
+| — | (handshake failed) | wrong CA, expired/not yet valid, wrong EKU, wrong/missing URI SAN, retired serial, TLS < 1.3 | reload the key bundle; back off 1 → 60 s with jitter, retry |
+| 200 | `rejected[].code` | partial success (§6.2) | **no retry** |
+| 304 | — | `config` unchanged | poll again at once |
+| 400 | `invalid_request` | not JSON, unknown fields, duplicate keys, too deep, missing/wrong type, unknown query, a `Content-Encoding` present | drop the batch, count, no retry |
+| 403 | `forbidden_route` | the route does not belong to the role (before reading the body) | programming error: log ERROR, never retry that route |
+| 403 | `cert_retired` | the leaf's serial is no longer the current/previous one (checked on every request) | reload the bundle, close idle connections, back off, then retry |
+| 404 | `unknown_job` | a result for a job that is not running or was not handed out by this `core` | drop the result |
+| 409 | `module_off` | the role's module is off | **stop at once**, drop the queue, do not flush the last batch (SYS-5); ask `config`/`jobs` again every 60 s (usually the host has already stopped the container entirely) |
+| 409 | `poll_in_progress` | a second long-poll of the same role | programming error: wait for the open poll to finish |
+| 413 | `payload_too_large` | the body exceeds the route's cap; XML > 8 MiB | observations: split the batch in half (a one-item batch still 413 → drop, count); job results: do not resend (the probe is already `failed`) |
+| 426 | `proto_unsupported` | `X-Vedette-Proto` missing, or neither `core`'s version nor the one right before (newer than `core`, or more than two versions older) | keep the queue, back off up to 60 s, retry (§10) |
+| 429 | `rate_limited` | more than 10 requests/second, burst 20, per role | wait for `Retry-After` |
+| 503 | `store_busy` | `core`'s store is busy | wait for `Retry-After`, resend **the same** batch |
+| 503 | `not_ready` | `core` does not yet have enough facts to judge the batch: the `passive` role does not know the box's own cards yet (the host is configured but has not provided the list; no host and no heartbeat within 90 s) | wait for `Retry-After` (5 s), resend the whole batch; do **not** split the batch, do not blame any item |
+| 500 | `internal` | any other `core` error | drop the batch, count (OTLP: no retry) |
+| — | (no response) | connection error, `core` restarting | resend the same batch after a 1 → 60 s backoff with jitter (`holdOff`); beyond the in-memory queue cap, drop the oldest and count |
 
-SP-1 (làm rõ): chỉ request qua được bước 1 đến 3 (kể cả `module_off`) mới tiêu một token của nhịp; `Retry-After` của `429` là số giây tới token kế (làm tròn lên, ít nhất 1). Mọi mã trong bảng do `core/sensorlink/errors.go` (`codes`) định nghĩa; thân lỗi có thông điệp cố định theo mã. Bảng này **không** vào `API_CONVENTIONS` §3.3 (đó là API công khai của GUI; dây sensor là nội bộ).
+Clarified in code: only requests that pass steps 1 to 3 (including `module_off`) spend a rate token; the `Retry-After` of a `429` is the number of seconds until the next token (rounded up, at least 1). Every code in the table is defined by `core/sensorlink/errors.go` (`codes`); error bodies have a fixed message per code. This table does **not** go into `API_CONVENTIONS` §3.3 (that is the GUI's public API; the sensor wire is internal).
 
-Thứ tự kiểm ở `core` cho mỗi request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route theo vai (`403`) → module (`409 module_off`) → nhịp (`429`) → long-poll duy nhất (`409 poll_in_progress`) → (chỉ kết quả job) id đúng dạng (`400`) rồi là job đang chạy (`404 unknown_job`), **không đọc thân** → chỗ chứa thân của vai (`503 store_busy`, **không đọc thân**) → trần thân (`413`) → giải mã chặt (`400`) → handler.
+Check order in `core` for every request: serial (`cert_retired`) → `X-Vedette-Proto` (`426`) → route by role (`403`) → module (`409 module_off`) → rate (`429`) → single long-poll (`409 poll_in_progress`) → (job results only) a well-formed id (`400`), then a running job (`404 unknown_job`), **without reading the body** → the role's body slot (`503 store_busy`, **without reading the body**) → body cap (`413`) → strict decoding (`400`) → handler.
 
-**Thân trong bộ nhớ có trần theo vai (M1 của rà soát SP-1; SYS-6).** Tốc độ 10/s không giới hạn số thân `core` đang giữ cùng lúc: một chứng chỉ bị chiếm sẽ giữ hàng chục thân 11 MiB mở trong 10 s. Nên trước khi đọc **bất kỳ** thân nào, request lấy một chỗ: tối đa **2 thân đang đọc cùng lúc mỗi vai** (`MaxBodiesPerRole`), và **1** cho `POST /jobs/{id}/result` (`MaxResultBodies`; worker chạy một job một lần). Không có chỗ → `503 store_busy` với `Retry-After: 1`, thân không được đọc, kết nối bị đóng; chỗ trả lại khi request kết thúc (kể cả khi kết nối đứt hay thân quá hạn). Kết quả job: trước khi đọc thân, `core` hỏi `Backend.JobRunning(id)`; id sai dạng → `400`, job không đang chạy → `404 unknown_job`, cả hai không đọc thân và đóng kết nối. Sensor xử lý `503` như cũ: chờ `Retry-After`, gửi lại cùng lô.
+**In-memory bodies are capped per role (review finding; SYS-6).** A rate of 10/s does not limit how many bodies `core` holds at once: a compromised certificate could hold dozens of 11 MiB bodies open for 10 s. So before reading **any** body, a request takes a slot: at most **2 bodies being read at once per role** (`MaxBodiesPerRole`), and **1** for `POST /jobs/{id}/result` (`MaxResultBodies`; the worker runs one job at a time). No slot → `503 store_busy` with `Retry-After: 1`, the body is not read, the connection is closed; the slot is returned when the request ends (including when the connection drops or the body times out). Job results: before reading the body, `core` asks `Backend.JobRunning(id)`; a malformed id → `400`, a job not running → `404 unknown_job`, neither reads the body and both close the connection. The sensor handles `503` as before: waits for `Retry-After`, resends the same batch.
 
-**Một sensor không giữ được các chỗ kết nối (WP-31).** `MaxConns` = 64 = 16 chỗ cho kết nối đang bắt tay (`MaxPending`) + phần của vai **tại bắt tay TLS** (vai đọc từ chứng chỉ đã xác minh): `passive` tối đa 32, `active` tối đa 16 (`MaxConnsPassive`, `MaxConnsActive`); kết nối vượt phần của vai hỏng bắt tay, kể cả khi nó không gửi byte nào, trên HTTP/1 và h2. Trên HTTP/1 mọi từ chối trước khi đọc thân trả `Connection: close` kèm hạn đọc 1 s (`DrainGrace`) khi yêu cầu có thể mang thân (h2: không đóng cả kết nối); `GET` có thân = `400 invalid_request`. `ReadTimeout` toàn yêu cầu = `ReadHeaderTimeout + BodyTimeout` (15 s); long poll gỡ hạn đó cho chính nó. Giới hạn đã biết: dòng TCP/TLS chưa xác thực trước bắt tay chưa tính theo vai được.
+**One sensor cannot hold all the connection slots.** `MaxConns` = 64 = 16 slots for connections in handshake (`MaxPending`) + each role's share **at the TLS handshake** (the role is read from the verified certificate): `passive` at most 32, `active` at most 16 (`MaxConnsPassive`, `MaxConnsActive`); a connection beyond its role's share fails the handshake, even if it sends no byte, on HTTP/1 and h2. On HTTP/1 every refusal before reading the body returns `Connection: close` with a 1 s read deadline (`DrainGrace`) when the request may carry a body (h2: the whole connection is not closed); a `GET` with a body = `400 invalid_request`. The whole-request `ReadTimeout` = `ReadHeaderTimeout + BodyTimeout` (15 s); a long poll lifts that deadline for itself. Known limit: unauthenticated TCP/TLS streams before the handshake cannot be counted per role yet.
 
 ## 8. Sequence
 
@@ -352,124 +352,124 @@ sequenceDiagram
     participant C as core
     participant S as sensor (passive)
     participant W as scan (active)
-    H->>H: dựng unit hằng (volume khoá theo vai)
-    C->>C: CA + lá; ghi creds/passive/sensor.pem, creds/active/sensor.pem; rồi mới nghe 127.0.0.1:8444
-    S->>C: GET /config?wait=25 (mTLS vai passive)
+    H->>H: build constant units (key volume per role)
+    C->>C: CA + leaves; write creds/passive/sensor.pem, creds/active/sensor.pem; only then listen on 127.0.0.1:8444
+    S->>C: GET /config?wait=25 (mTLS, passive role)
     C-->>S: 200 {interface, span, extract, filters} ETag "e1"
-    loop mỗi 30 s
+    loop every 30 s
         S->>C: POST /heartbeat {interfaces, span, drops}
         W->>C: POST /heartbeat {nmap}
     end
     S->>C: POST /observations {epoch, seq 41, items}
     C-->>S: 200 {ack_seq 41, rejected [{3, budget_exhausted}]}
     W->>C: GET /jobs?wait=25&running=
-    Note over C: sensoractive ghi sa_probe, Prober giao job
+    Note over C: sensoractive writes sa_probe, Prober hands out the job
     C-->>W: 200 {instance, jobs [j1], cancel []}
     W->>C: GET /jobs?wait=25&running=j1
-    Note over C: cửa sổ đóng (INV-3)
+    Note over C: window closes (INV-3)
     C-->>W: 200 {instance, jobs [], cancel [j1]}
-    W->>W: giết nhóm tiến trình nmap
+    W->>W: kill the nmap process group
     W->>C: POST /jobs/j1/result {stopped, cancelled}
     C-->>W: 204
 ```
 
-## 9. Giới hạn
+## 9. Limits
 
-| Mục | Giới hạn |
+| Item | Limit |
 |---|---|
-| Thân `observations` | 1 MiB; 1 … 500 mục; `value` ≤ 200 byte |
-| Cửa sổ `seen_at` | 24 giờ trước … 5 phút sau giờ `core` |
-| Thân `heartbeat` | 64 KiB; ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card, ≤ 64 khoá `drops` |
-| Thân kết quả job | 11 MiB; XML ≤ 8 MiB, JSONL ≤ 4 MiB sau giải mã base64 |
-| Thân `metadata` (§6.7) | 512 KiB; 1 … 1000 mục; `dest` ≤ 253 byte; at most one request per 2.5 s, longer when core asks |
-| Thân `progress` (§6.6) | 1 KiB; at most one per job every 5 s (core drops one within 4 s of the last); a body slot taken without waiting, none free → `503`, dropped |
-| Job nmap | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200 |
-| Job nuclei (bản 2) | 1 … 32 id mẫu, 1 … 16 đích IPv4 riêng, `rate` 1 … 20, `max_host_errors` 2 … 20, `timeout_s` 1 … 3600; JSONL ≤ 1024 dòng |
-| Job chạy cùng lúc | một nmap và một nuclei (`running` ≤ 2 id); một job mỗi loại trong một reply |
-| `cancel` mỗi phản hồi | 8 |
-| Phản hồi `core` (sensor đọc) | `config`, `jobs` 64 KiB; khác 16 KiB |
-| `wait` | 0 … 30 s (mặc định 25) |
-| Nhịp request | 10/giây, burst 20, mỗi vai (long-poll cũng tính) |
-| Long-poll mở | 1 mỗi vai |
-| Thân đang đọc cùng lúc | 2 mỗi vai, 1 cho kết quả job; không có chỗ → `503 store_busy`, `Retry-After: 1` |
-| Kết nối cùng lúc | 64 cho cả listener (`PendingListener`: 16 đang bắt tay + 32 passive + 16 active) |
-| Hạn mức chống ngập (`core`) | MAC mới 60/phút và 200/giờ; giá trị mới và địa chỉ IP mới 4 mỗi (MAC, trường) mỗi giờ; 6000 mục/phút cho vai `passive`; lặp trong 15 phút không ghi |
-| Heartbeat | mỗi 30 s; `online` khi ≤ 90 s |
-| Lease của worker | 60 s không poll thành công |
-| Job chờ lấy | 60 s |
-| Chứng chỉ | 7 ngày; cấp mới khi còn ≤ 1/3 |
-| Epoch giữ lại | 2 mỗi sensor |
-| Timeout máy chủ | `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s |
+| `observations` body | 1 MiB; 1 … 500 items; `value` ≤ 200 bytes |
+| `seen_at` window | 24 hours before … 5 minutes after `core`'s clock |
+| `heartbeat` body | 64 KiB; ≤ 32 cards, ≤ 8 IPv4 prefixes per card, ≤ 64 `drops` keys |
+| Job result body | 11 MiB; XML ≤ 8 MiB, JSONL ≤ 4 MiB after base64 decoding |
+| `metadata` body (§6.7) | 512 KiB; 1 … 1000 items; `dest` ≤ 253 bytes; at most one request per 2.5 s, longer when core asks |
+| `progress` body (§6.6) | 1 KiB; at most one per job every 5 s (core drops one within 4 s of the last); a body slot taken without waiting, none free → `503`, dropped |
+| nmap job | 1 … 64 targets, `rate` 1 … 1000, `timeout_s` 1 … 7200 |
+| nuclei job (version 2) | 1 … 32 template ids, 1 … 16 private IPv4 targets, `rate` 1 … 20, `max_host_errors` 2 … 20, `timeout_s` 1 … 3600; JSONL ≤ 1024 lines |
+| Concurrent jobs | one nmap and one nuclei (`running` ≤ 2 ids); one job per kind in a reply |
+| `cancel` per response | 8 |
+| `core` responses (read by the sensor) | `config`, `jobs` 64 KiB; others 16 KiB |
+| `wait` | 0 … 30 s (default 25) |
+| Request rate | 10/second, burst 20, per role (long-polls count too) |
+| Open long-polls | 1 per role |
+| Bodies read at once | 2 per role, 1 for job results; no slot → `503 store_busy`, `Retry-After: 1` |
+| Concurrent connections | 64 for the whole listener (`PendingListener`: 16 in handshake + 32 passive + 16 active) |
+| Flood quota (`core`) | new MACs 60/minute and 200/hour; new values and new IP addresses 4 per (MAC, field) per hour; 6000 items/minute for the `passive` role; repeats within 15 minutes are not written |
+| Heartbeat | every 30 s; `online` when ≤ 90 s |
+| Worker lease | 60 s without a successful poll |
+| Job pickup wait | 60 s |
+| Certificates | 7 days; renewed when ≤ 1/3 is left |
+| Epochs kept | 2 per sensor |
+| Server timeouts | `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s |
 
-Các số là điểm xuất phát để đo lại khi có mã (ARCHITECTURE §11), không phải kết quả đo.
+The numbers are starting points to be measured again once there is code (ARCHITECTURE §11), not measured results.
 
 ## 10. Versioning
 
-- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `5` (bản 5: job `snmp`, và, trước lần phát hành đầu của bản 5, `scope` của job nuclei và `nuclei.own_ip` trong heartbeat, rồi `nmap.full` trong heartbeat và hai mẫu `external_full`, `external_disruptive`, theo cùng cách: chỉ giao cho worker đã nói `full`; rồi `port` của credential SNMP: `core` bỏ nó khi là 161, nên worker bản 5 dựng trước nhận đúng dạng nó biết cho mọi credential cổng mặc định; credential cổng khác gửi tới worker đó bị `refused`/`invalid_job` (giải mã chặt, không gói nào đi), chỉ trong cửa sổ cập nhật vì `core` và `scan` cùng một bản phát hành; bản 4: `capture_error` trong heartbeat thụ động; bản 3: `host_errors` trên kết quả nuclei; bản 2: `Job.kind`, job và kết quả nuclei, heartbeat `nuclei`, `running` nhiều id). Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto, **trừ** khi số đó chưa từng được phát hành (job nuclei `own_ip` được thêm vào bản 5 trước lần phát hành đầu của nó, xem gạch đầu dòng sau).
-- **Lệch bản (như version skew của Kubernetes: kubelet không bao giờ mới hơn kube-apiserver, được cũ hơn):** `core` nhận proto của mình (`sensorlink.ProtoVersion`) **và bản liền trước** (`sensorlink.ProtoPrevious`, hiện `4`; `TestProtoPreviousIsOneBelow` giữ nó đúng bằng bản trừ một); sensor hay worker **mới hơn** `core` và cũ hơn hai bản → `426`. Một lần tăng proto phải giữ cho `core` phục vụ được bên bản cũ: trường mới của request là tuỳ chọn (vắng = nghĩa cũ; proto 3 không có `capture_error` = không có lỗi bắt gói); đổi thứ `core` **trả** (reply) thì trước hết phải thêm cái chưa có: truyền proto của request vào handler và trả dạng cũ cho bên `ProtoPrevious`, kèm test. Bản 4 so với bản 3 chỉ thêm `capture_error` vào request, nên reply không khác. Job nuclei `own_ip` được thêm vào bản 5 **trước lần phát hành đầu của nó** (không tăng lên 6: bản phát hành mới nhất `v0.1.0-beta.1` nói 4, và một bản 6 sẽ không còn đường cập nhật từ nó): `own_ip` trong heartbeat là tuỳ chọn (vắng = `false`); `scope` chỉ có ở job `own_ip`, và `core` chỉ giao job đó cho worker có `own_ip=true`, nên worker bản 4 (và worker bản 5 dựng trước khi có `own_ip`) nhận đúng reply nó biết (`sensoractive` `TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP`).
-- **Thứ tự cập nhật:** Apply đổi `core` **trước** rồi mới `sensor`/`scan`/`honeypot` (`modules/core/updates_run.go` `planApply`, CONTRACT core INV-35): health check của sensor/worker là heartbeat được `core` nhận (`cmd/vedette-sensor/health.go`), nên chỉ được xét sau khi `core` đã ở bản mới; trong cửa sổ đó sensor cũ (N-1) vẫn được nhận. Rollback ngược lại: `sensor`/`scan` về trước (về proto mà `core` đang chạy vẫn nhận), `core` sau cùng, nên không lúc nào sensor mới hơn `core`. Sensor tự quay về sau một lần đổi hỏng ở lại N-1, vẫn được nhận. Một bản phát hành tăng proto lên N phải đặt `min_upgrade_from` (`update-manifest.md`) không thấp hơn bản phát hành đầu tiên có proto N-1, để không hộp nào nhảy hai bản proto một lần; `release-manifest` kiểm luật này từ git (proto ở tag của bản này và của mọi bản trước) và từ chối khi `min_upgrade_from` còn để lọt một bản có proto dưới N-1.
-- Giới hạn: kế hoạch cập nhật do bản **đang chạy** lập, nên chỉ cập nhật đi **từ** một bản đã có thứ tự này mới theo thứ tự này; hộp chạy bản cũ hơn (như `0.0.1-test.16`) vẫn đổi sensor trước và bị đặt lại khi proto tăng: cài lại bằng `install.sh` bản mới.
-- Sensor gặp `shape` hay trường không biết: `refused` (`invalid_job`) / `400` khi giải mã, không crash.
-- Nới tập đích của văn phạm mà không đổi dây (thêm 100.64/10) không tăng proto: dây giữ nguyên; trong cửa sổ cập nhật (core trước), worker cũ trả `refused`/`invalid_job` cho job có đích mới như mọi job sai văn phạm (không tiến trình nào chạy), không bao giờ quét gì ngoài văn phạm của nó. Vì `nextBatch` (`modules/sensor-active/service.go`) đi các dải đã gộp theo thứ tự địa chỉ, một lô quét dò trộn địa chỉ RFC 1918 và 100.64/10 bị từ chối **cả lô**: trong cửa sổ đó vài máy RFC 1918 chưa được quét dò tới lượt sau, mỗi job bị từ chối để lại một dòng log Error và một hàng probe thất bại; không gì ngoài văn phạm chạy.
+- Path `/sensor/v1`; `X-Vedette-Proto` is an integer, currently `5` (version 5: the `snmp` job, and, before the first release of version 5, the nuclei job's `scope` and `nuclei.own_ip` in the heartbeat, then `nmap.full` in the heartbeat and the two shapes `external_full`, `external_disruptive`, in the same way: only handed to a worker that has said `full`; then the SNMP credential's `port`: `core` drops it when it is 161, so a version 5 worker built earlier gets exactly the shape it knows for every default-port credential; a credential with another port sent to that worker gets `refused`/`invalid_job` (strict decoding, no packet sent), only within the update window because `core` and `scan` come from the same release; version 4: `capture_error` in the passive heartbeat; version 3: `host_errors` on nuclei results; version 2: `Job.kind`, nuclei jobs and results, the `nuclei` heartbeat, `running` with several ids). Because decoding is strict, every wire change (even adding a field or a `shape`) bumps the proto, **unless** that number has never been released (the nuclei `own_ip` job was added to version 5 before its first release, see the next bullet).
+- **Version skew (like Kubernetes version skew: the kubelet is never newer than kube-apiserver, but may be older):** `core` accepts its own proto (`sensorlink.ProtoVersion`) **and the one right before it** (`sensorlink.ProtoPrevious`, currently `4`; `TestProtoPreviousIsOneBelow` keeps it at exactly the version minus one); a sensor or worker **newer** than `core`, or more than two versions older → `426`. A proto bump must keep `core` able to serve the older side: new request fields are optional (absent = the old meaning; proto 3 without `capture_error` = no capture error); changing what `core` **returns** (the reply) first requires adding what does not exist yet: passing the request's proto to the handler and returning the old shape to the `ProtoPrevious` side, with a test. Version 4 compared with version 3 only adds `capture_error` to the request, so the reply does not differ. The nuclei `own_ip` job was added to version 5 **before its first release** (not bumped to 6: the latest release `v0.1.0-beta.1` speaks 4, and a version 6 would have no update path from it): `own_ip` in the heartbeat is optional (absent = `false`); `scope` only exists on `own_ip` jobs, and `core` only hands that job to a worker with `own_ip=true`, so a version 4 worker (and a version 5 worker built before `own_ip`) gets exactly the reply it knows (`sensoractive` `TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP`).
+- **Update order:** Apply switches `core` **first** and only then `sensor`/`scan`/`honeypot` (`modules/core/updates_run.go` `planApply`, core CONTRACT INV-35): the sensor/worker health check is a heartbeat received by `core` (`cmd/vedette-sensor/health.go`), so it can only be judged once `core` is on the new release; during that window the old sensor (N-1) is still accepted. Rollback goes the other way: `sensor`/`scan` first (back to a proto the running `core` still accepts), `core` last, so a sensor is never newer than `core`. A sensor that rolls itself back after a failed switch stays at N-1 and is still accepted. A release that bumps the proto to N must set `min_upgrade_from` (`update-manifest.md`) no lower than the first release with proto N-1, so no box jumps two proto versions at once; `release-manifest` checks this rule from git (the proto at this release's tag and at every earlier one) and refuses when `min_upgrade_from` would still let through a release with a proto below N-1.
+- Limit: the update plan is made by the **running** release, so only an update **from** a release that already has this order follows this order; a box running an older release (such as `0.0.1-test.16`) still switches the sensor first and gets reset when the proto increases: reinstall with the new release's `install.sh`.
+- A sensor that meets an unknown `shape` or field: `refused` (`invalid_job`) / `400` when decoding, no crash.
+- Widening the grammar's target set without changing the wire (adding 100.64/10) does not bump the proto: the wire stays the same; during the update window (core first), an old worker returns `refused`/`invalid_job` for a job with a new target like any job that breaks the grammar (no process runs), and never scans anything outside its grammar. Because `nextBatch` (`modules/sensor-active/service.go`) walks the merged ranges in address order, a discovery batch mixing RFC 1918 and 100.64/10 addresses is refused **as a whole**: during that window some RFC 1918 machines wait until the next turn for discovery, and each refused job leaves an Error log line and a failed probe row; nothing outside the grammar runs.
 
-## 11. Cân nhắc bảo mật (ánh xạ SYS)
+## 11. Security considerations (SYS mapping)
 
-| SYS | Áp dụng ở đây |
+| SYS | Applied here |
 |---|---|
-| SYS-1 | Không lệnh tổng quát; worker chỉ chạy `/usr/bin/nmap` qua `core/exec` với argv dựng từ job đã kiểm và `ValidateNmapArgs` |
-| SYS-2 | Trần thân trước giải mã, `jsonstrict`, `netip`, regex ở biên của `core`; worker kiểm lại job |
-| SYS-3 | Cấp, xoay, cho về hưu chứng chỉ sensor ghi `core_audit` (actor `system`); mỗi lần chạy nmap có dòng `sa_probe` **trước** khi job được giao (INV-9) |
-| SYS-4 | Khoá CA qua `core/secrets`; khoá sensor chỉ ở volume của vai (0640, chỉ đọc trong container), không log, không xuất, GUI không hiện |
-| SYS-5 | Module tắt → `409 module_off` và host dừng container; dữ liệu giữ nguyên |
-| SYS-6 | Mọi thứ từ sensor là không tin cậy: trần, giải mã chặt, hạn mức, kẹp độ tin cậy, XML phân tích ở `core` |
-| SYS-7 | `core` là bên đồng ý duy nhất; worker chỉ nhận IPv4 riêng trong văn phạm ba mẫu |
-| SYS-8 | Không liên quan (AI không nằm trong giao thức) |
+| SYS-1 | No general commands; the worker only runs `/usr/bin/nmap` through `core/exec` with an argv built from a checked job and `ValidateNmapArgs` |
+| SYS-2 | Body cap before decoding, `jsonstrict`, `netip`, regexes at `core`'s boundary; the worker checks the job again |
+| SYS-3 | Issuing, rotating and retiring sensor certificates writes `core_audit` (actor `system`); every nmap run has an `sa_probe` row **before** the job is handed out (INV-9) |
+| SYS-4 | The CA key through `core/secrets`; sensor keys only in the role's volume (0640, read-only in the container), not logged, not exported, not shown in the GUI |
+| SYS-5 | Module off → `409 module_off` and the host stops the container; data is kept |
+| SYS-6 | Everything from the sensor is untrusted: caps, strict decoding, quotas, confidence clamping, XML parsed in `core` |
+| SYS-7 | `core` is the only consenting side; the worker only accepts private IPv4 addresses within the grammar of the three shapes |
+| SYS-8 | Not applicable (AI is not part of the protocol) |
 
-Rủi ro còn lại:
-- `sensor` bị chiếm vẫn giả được quan sát **hợp lý** (cố hữu): bị chặn bởi hạn mức của `core`, trần 32 dòng mỗi (thiết bị, trường, nguồn) của inventory, thiết bị mới `approved=false` (S-INV-3) và mọi hành động đều cần duyệt.
-- `scan`/`sensor` bị chiếm giữ `NET_RAW` trên namespace mạng của host: gửi và đọc được khung trên LAN (cố hữu với quyền đó); không có `NET_ADMIN`, không root, rootfs chỉ đọc, không DB, không khoá của vai kia.
-- Chứng chỉ bị lấy cắp: chỉ mở route của vai đó, hết hạn trong ≤ 7 ngày, về hưu ở lần xoay kế tiếp.
-- `core` khởi động lại giữa lúc quét: lô dở bị bỏ (lease giết nmap), lô đã xong giữ (như INV-3).
+Remaining risks:
+- A compromised `sensor` can still fake **plausible** observations (inherent): limited by `core`'s quotas, inventory's cap of 32 rows per (device, field, source), new devices being `approved=false` (S-INV-3), and every action needing approval.
+- A compromised `scan`/`sensor` holds `NET_RAW` in the host's network namespace: it can send and read frames on the LAN (inherent to that capability); no `NET_ADMIN`, no root, a read-only rootfs, no DB, no key of the other role.
+- A stolen certificate: only opens that role's routes, expires within ≤ 7 days, retires at the next rotation.
+- `core` restarting mid-scan: an unfinished batch is dropped (the lease kills nmap), finished batches are kept (as in INV-3).
 
-## 12. Câu hỏi của bản nháp (đã đóng)
+## 12. Questions from the draft (closed)
 
-1. ~~Không có story cho enroll sensor tách rời~~ **Đã đóng:** không xây; §3.1 cũ chuyển sang phụ lục A; trên appliance không enroll qua mạng, `core` giao khoá bằng tệp.
-2. ~~Cổng listener và CA chung hay tách~~ **Đã đóng:** listener riêng `:8444`, chỉ `127.0.0.1:8444` trên appliance; một CA **riêng cho sensor** ký cả lá máy chủ 8444 và lá sensor, EKU tách vai; tách khỏi chứng chỉ 8443 và CA osquery.
-3. ~~Honeypot có danh tính mTLS riêng hay đi qua sensor~~ **Đã đóng:** không cách nào; hit đi qua tệp JSON-lines một chiều, honeypot không có đường mạng tới `core`.
-4. ~~Khớp IOC ở sensor hay ở `core`~~ **Đã đóng:** khớp ở `core` (module `logs`, như dòng syslog); sensor chỉ gửi (kind, src, dest) qua §6.7, không gửi IOC xuống sensor.
-5. ~~Phân tích syslog ở `core` hay sensor~~ **Đã đóng cho hồ sơ này:** không nhận syslog, không `NET_BIND_SERVICE` tới khi `logs` được xây.
-6. ~~Thời hạn chứng chỉ 90 ngày, trần/WAL chưa đo~~ **Đã đóng:** 7 ngày, cấp mới ở 1/3 cuối; không WAL; trần ở §9 là điểm xuất phát để đo.
+1. ~~No story for enrolling separate sensors~~ **Closed:** not built; the old §3.1 moved to appendix A; on the appliance there is no enrolment over the network, `core` delivers keys by file.
+2. ~~Shared or separate listener port and CA~~ **Closed:** a separate listener `:8444`, only `127.0.0.1:8444` on the appliance; one CA **dedicated to sensors** signs both the 8444 server leaf and the sensor leaves, with EKUs separating the roles; separate from the 8443 certificate and the osquery CA.
+3. ~~Does the honeypot get its own mTLS identity or go through the sensor~~ **Closed:** neither; hits go through a one-way JSON-lines file, and the honeypot has no network path to `core`.
+4. ~~IOC matching in the sensor or in `core`~~ **Closed:** matched in `core` (the `logs` module, like syslog lines); the sensor only sends (kind, src, dest) through §6.7, and no IOCs are sent down to the sensor.
+5. ~~Syslog parsing in `core` or in the sensor~~ **Closed for this profile:** no syslog intake, no `NET_BIND_SERVICE` until `logs` is built.
+6. ~~90-day certificate lifetime, caps/WAL not measured~~ **Closed:** 7 days, renewed in the last third; no WAL; the caps in §9 are starting points to measure.
 
-## 13. Lát
+## 13. Implementation order
 
-Mỗi lát một PR, sau SP-0 (tài liệu này): SP-1 `core/pki` + `core/sensorlink` (máy chủ, client, chưa nối module); SP-2 seam `Prober` và gói `nmapargv` (refactor thuần, song song SP-1); SP-3 bộ điều phối + `vedette-sensor active` (cần SP-1, SP-2); SP-4 tách sensor-passive + `vedette-sensor passive` (cần SP-1); SP-5 đóng gói, profile compose `dev`, nguồn địa chỉ của hộp (cần SP-3, SP-4); SP-6 unit `sensor`/`scan` và dựng `scan` tại chỗ trong `vedette-host` (cần lát host 3-6, 3-7).
+The code landed in small PRs after this document, in this order: `core/pki` + `core/sensorlink` (server, client, not yet wired to modules); the `Prober` seam and the `nmapargv` package (a pure refactor, in parallel with the first step); the dispatcher + `vedette-sensor active` (needs the first two); splitting sensor-passive + `vedette-sensor passive` (needs the first step); packaging, the `dev` compose profile, the box's address source (needs the dispatcher and the passive split); the `sensor`/`scan` units and the local `scan` build in `vedette-host` (needs the host's Quadlet unit and container pull work).
 
-## Phụ lục A. Để sau: sensor đặt ở máy khác
+## Appendix A. Later: sensors on other machines
 
-Không xây. Không có story; test GUI `inventory.test.tsx` khẳng định không có endpoint sensor từ xa. Khi có story, đường đi xa giữ dây, URI vai và CA sensor của tài liệu này, và thêm: bootstrap kiểu kubelet (token bootstrap → CSR do sensor tạo, khoá ở lại sensor, gia hạn gần hết hạn), bind trên LAN, hành động thu hồi có giao diện, hàng đợi đĩa có trần (thay "không WAL" hiện nay), và danh tính theo từng sensor thay cho hai URI theo vai.
+Not built. There is no story; the GUI test `inventory.test.tsx` asserts there is no remote sensor endpoint. When there is a story, the remote path keeps this document's wire, role URIs and sensor CA, and adds: kubelet-style bootstrap (bootstrap token → a CSR created by the sensor, the key stays on the sensor, renewal near expiry), binding on the LAN, a revocation action with an interface, a capped disk queue (replacing today's "no WAL"), and per-sensor identities instead of the two per-role URIs.
 
-Văn bản §3.1 của bản nháp trước (2026-11-09), giữ để tham khảo; chỗ khác với quyết định hiện tại ghi trong ngoặc vuông:
+The §3.1 text of the earlier draft (2026-11-09), kept for reference; where it differs from the current decision is noted in square brackets:
 
-> **Enroll.** Token enroll của sensor: một lần dùng, hết hạn mặc định 1 giờ, thu hồi được, **chỉ trong header `Authorization: Bearer`**, không bao giờ trong URL. Trên appliance, installer sinh token cục bộ vào volume dùng chung; người dùng không thấy. [Appliance không còn enroll.]
+> **Enroll.** Sensor enrolment token: single use, default expiry 1 hour, revocable, **only in the `Authorization: Bearer` header**, never in a URL. On the appliance, the installer generates a local token into a shared volume; the user does not see it. [The appliance no longer enrols.]
 >
-> `POST /sensor/v1/enroll` (TLS một chiều, chưa có chứng chỉ client)
+> `POST /sensor/v1/enroll` (one-way TLS, no client certificate yet)
 >
-> | Trường (request) | Kiểu | Bắt buộc | Quy tắc |
+> | Field (request) | Type | Required | Rule |
 > |---|---|---|---|
-> | `csr` | string (PEM PKCS#10) | có | khoá ECDSA P-256; core bỏ mọi subject/SAN do sensor đặt và tự ghi |
-> | `name` | string | có | regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` |
-> | `version` | string | có | semver |
-> | `interfaces` | string[] | không | tên card (`^[a-z0-9._-]{1,15}$`), tối đa 16 |
-> | `capabilities` | string[] | không | tập con của `passive`, `span`, `active_scan`, `syslog` |
+> | `csr` | string (PEM PKCS#10) | yes | ECDSA P-256 key; core drops any subject/SAN set by the sensor and writes its own |
+> | `name` | string | yes | regex `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` |
+> | `version` | string | yes | semver |
+> | `interfaces` | string[] | no | card names (`^[a-z0-9._-]{1,15}$`), at most 16 |
+> | `capabilities` | string[] | no | a subset of `passive`, `span`, `active_scan`, `syslog` |
 >
 > Response `201`: `{ "sensor_id": "sn_…", "certificate": "<PEM>", "ca": "<PEM>", "not_after": "<RFC3339>", "poll": { "commands_wait_s": 25 } }`.
 >
-> Lỗi: `401 invalid_token`, `403 token_expired | token_used`, `400 invalid_csr`, `409 name_taken`.
+> Errors: `401 invalid_token`, `403 token_expired | token_used`, `400 invalid_csr`, `409 name_taken`.
 >
-> Gia hạn: `POST /sensor/v1/renew` (mTLS, body `{ "csr": "…" }`) khi còn ≤ 1/3 thời hạn; trả chứng chỉ mới cùng `sensor_id`. Chứng chỉ hết hạn → phải enroll lại bằng token mới.
+> Renewal: `POST /sensor/v1/renew` (mTLS, body `{ "csr": "…" }`) when ≤ 1/3 of the lifetime is left; returns a new certificate with the same `sensor_id`. An expired certificate → must enrol again with a new token.
 >
-> **Chứng chỉ (bản nháp §3).** Sensor ghim CA bằng vân tay SHA-256 truyền lúc enroll (`--ca-sha256`), không có vân tay thì từ chối enroll (không TOFU âm thầm). Chứng chỉ client `CN=sensor:<sensor_id>`, SAN URI `vedette:sensor:<sensor_id>`, 90 ngày. Thu hồi: core giữ `sensor_id → active|revoked`, kiểm mỗi request, `403 sensor_revoked`. [CA là CA sensor riêng, không phải CA osquery; thời hạn 7 ngày; trên appliance danh tính theo vai.]
+> **Certificates (draft §3).** The sensor pins the CA by the SHA-256 fingerprint passed at enrolment (`--ca-sha256`); without a fingerprint, enrolment is refused (no silent TOFU). Client certificate `CN=sensor:<sensor_id>`, SAN URI `vedette:sensor:<sensor_id>`, 90 days. Revocation: core keeps `sensor_id → active|revoked`, checked on every request, `403 sensor_revoked`. [The CA is a dedicated sensor CA, not the osquery CA; lifetime 7 days; on the appliance identity is per role.]
 
-#### Phạm vi IP công khai do người dùng gõ (`domain_ip` với `typed`)
+#### Public IP scope typed by the user (`domain_ip` with `typed`)
 
-`jobs[].domain.typed` `{method, ptr_name?, cover_domain?, cover_token?, cover_proof_at?}` biến một job `domain_ip` thành job của một IPv4 công khai người dùng đã gõ vào exposure: `domain` và `name` là chính IP, `token` là token gắn hộp của IP đó (`HMAC` của khoá rào trên IP, cùng hàm với token domain) và worker tự kiểm bằng chứng của IP ngay trước công cụ và mỗi `domainfence.Recheck` khi đang chạy: `method` `"file"` là tệp `/.well-known/vedette-verify.txt` phục vụ trên chính IP (http hoặc https, chuyển hướng chỉ tới chính IP và cổng web, thân tối đa 512 byte) chứa token; `"ptr"` là reverse DNS xác nhận hai chiều: PTR của IP là `ptr_name`, và `ptr_name` được chứng minh bởi domain `cover_domain` của hộp (cùng luật một job domain, với `cover_token` và `cover_proof_at`). Token lạ hoặc IP không có trong danh sách của host → `token_foreign`; không thấy bằng chứng → `target_not_owned`; tra cứu lỗi → `ownership_unchecked`; văn phạm sai → `invalid_job`. Heartbeat `typed_ip` `true` khi worker giữ khoá rào (và biết trường này); core chỉ gửi job `typed` tới worker có `typed_ip`, worker cũ hơn không nhận job nào.
+`jobs[].domain.typed` `{method, ptr_name?, cover_domain?, cover_token?, cover_proof_at?}` turns a `domain_ip` job into a job for a public IPv4 address the user typed into exposure: `domain` and `name` are the IP itself, `token` is that IP's box-bound token (the `HMAC` of the fence key over the IP, the same function as the domain token) and the worker checks the IP's proof itself right before the tool and at every `domainfence.Recheck` while running: `method` `"file"` is the file `/.well-known/vedette-verify.txt` served on the IP itself (http or https, redirects only to the same IP and web port, body at most 512 bytes) containing the token; `"ptr"` is forward-confirmed reverse DNS: the IP's PTR is `ptr_name`, and `ptr_name` is proven by the box's domain `cover_domain` (the same rule as a domain job, with `cover_token` and `cover_proof_at`). An unknown token, or an IP not in the host's list → `token_foreign`; no proof found → `target_not_owned`; a lookup error → `ownership_unchecked`; bad grammar → `invalid_job`. The heartbeat's `typed_ip` is `true` when the worker holds the fence key (and knows this field); core only sends `typed` jobs to a worker with `typed_ip`, and older workers get no such job.

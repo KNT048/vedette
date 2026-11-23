@@ -18,15 +18,3 @@ export const riskRank = (f: Pick<Finding, 'basis' | 'severity'> & { evidence?: F
   (f.basis === 'version' && f.evidence?.source ? 2 : CERTAINTY[f.basis]) * 10 + SEVERITY.indexOf(f.severity)
 /** Chỉ khớp tên sản phẩm, chưa biết phiên bản: mức nghiêm trọng hiện mờ, "Unverified". */
 export const unverified = (f: Pick<Finding, 'basis'>) => f.basis === 'product'
-
-export type CvssBand = 'none' | 'low' | 'medium' | 'high' | 'critical'
-/** FIRST's qualitative bands, the same in CVSS v3.x and v4.0 (#825): 0.0 None, 0.1–3.9 Low, 4.0–6.9 Medium, 7.0–8.9 High, 9.0–10.0 Critical.
- *  CVSS 2.0 has NVD's own three bands: 0.0–3.9 Low, 4.0–6.9 Medium, 7.0–10.0 High (no None, no Critical). */
-export function cvssBand(score: number, version?: string | null): CvssBand {
-  if (version === '2.0') return score < 4 ? 'low' : score < 7 ? 'medium' : 'high'
-  if (score === 0) return 'none'
-  if (score < 4) return 'low'
-  if (score < 7) return 'medium'
-  if (score < 9) return 'high'
-  return 'critical'
-}

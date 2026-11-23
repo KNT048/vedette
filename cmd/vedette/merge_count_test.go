@@ -93,13 +93,17 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 		for _, r := range fx.Services {
 			s.insertRow("inv_service", r, map[string]any{"id": r["id"].(string) + "-" + dev.tag, "asset_id": dev.id})
 		}
-		for _, r := range fx.Findings {
-			s.insertRow("fnd_finding", r, map[string]any{"id": r["id"].(string) + "-" + dev.tag, "asset_id": dev.id, "software_id": sw(r["software_id"]),
-				"first_seen": shift(r["first_seen"]), "last_seen": shift(r["last_seen"]), "resolved_at": shift(r["resolved_at"])})
+		for _, r := range fx.Findings { // the export's findings (closed by Vedette as not affected) in the findings model
+			s.exec(`INSERT INTO fnd_finding (id, asset_id, cve, software_id, detected, basis, verified, range_origin, fix_kind, fix_key, evidence, state, resolution,
+				via, resolved_by, resolved_at, note, urgency, urgency_at, first_seen, last_seen, updated_at)
+				VALUES (?, ?, ?, ?, 0, 'device_version', 'no', 'nvd', 'unknown', 'unknown|unknown|', ?, 'handled', ?, 'data_corrected', ?, ?, NULL, 2, ?, ?, ?, ?)`,
+				r["id"].(string)+"-"+dev.tag, dev.id, r["cve"], sw(r["software_id"]), r["evidence"], r["status"], r["resolved_by"], shift(r["resolved_at"]),
+				shift(r["first_seen"]), shift(r["first_seen"]), shift(r["last_seen"]), shift(r["last_seen"]))
 		}
 		for _, r := range fx.History {
-			s.insertRow("fnd_finding_history", r, map[string]any{"id": r["id"].(string) + "-" + dev.tag, "finding_id": r["finding_id"].(string) + "-" + dev.tag,
-				"ts": shift(r["ts"])})
+			detail, _ := json.Marshal(map[string]any{"note": r["note"]})
+			s.exec(`INSERT INTO fnd_finding_event (finding_id, ts, actor, kind, detail) VALUES (?, ?, ?, ?, ?)`,
+				r["finding_id"].(string)+"-"+dev.tag, shift(r["ts"]), r["user"], r["action"], string(detail))
 		}
 		if code, v := s.do("PUT", "/inventory/snmp/devices/"+dev.id, "admin", `{"version":"v2c","community":"community-`+dev.tag+`-0001"}`); code != 200 {
 			t.Fatalf("SNMP of %s: %d %v", dev.id, code, v)
@@ -108,10 +112,10 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 	colliding = len(fx.Software) + len(fx.Services) + len(fx.Findings) + 1 // + the SNMP settings
 	f0, f1, f2 := fx.Findings[0]["id"].(string), fx.Findings[1]["id"].(string), fx.Findings[2]["id"].(string)
 	decide := func(finding, who, note string) {
-		s.exec(`UPDATE fnd_finding SET status = 'false_positive', resolved_by = ?, resolved_at = '2026-11-20T10:00:00.000Z', resolution_note = ?,
-			resolution_reason = NULL WHERE id = ?`, who, note, finding)
-		s.exec(`INSERT INTO fnd_finding_history (id, finding_id, ts, user, action, note) VALUES (?, ?, '2026-11-20T10:00:00.000Z', ?, 'false_positive', ?)`,
-			"fh-"+finding, finding, who, note)
+		s.exec(`UPDATE fnd_finding SET resolution = 'false_positive', via = 'person', resolved_by = ?, resolved_at = '2026-11-20T10:00:00.000Z', note = ?
+			WHERE id = ?`, who, note, finding)
+		detail, _ := json.Marshal(map[string]any{"resolution": "false_positive", "via": "person", "note": note})
+		s.exec(`INSERT INTO fnd_finding_event (finding_id, ts, actor, kind, detail) VALUES (?, '2026-11-20T10:00:00.000Z', ?, 'handled', ?)`, finding, who, string(detail))
 	}
 	decide(f0+"-f", "person@example.com", "the module is not loaded on this server")
 	decide(f0+"-i", "other@example.com", "checked with the vendor: not affected")
@@ -120,9 +124,6 @@ func (s *stack) twoRowsOfOneMachine(t *testing.T) (from, into string, colliding 
 	s.exec(`INSERT INTO notify_notice_finding (notice_id, finding_id) VALUES ('nt-merge-1', ?)`, fx.Findings[3]["id"].(string)+"-f")
 	s.exec(`INSERT INTO mit_applied (finding_id, item, ts, user) VALUES (?, 'workaround', '2026-11-20T10:05:00.000Z', 'person@example.com')`, f2+"-i")
 	s.exec(`INSERT INTO mit_ai_output (finding_id, skill, payload, model, created_at) VALUES (?, 'explain', '{"text":"why"}', 'model-x', '2026-11-20T10:06:00.000Z')`, f2+"-f")
-	sw := fx.Software[0]["id"].(string)
-	s.exec(`INSERT INTO fnd_plan_done (item_key, asset_id, version, cves, done_by, done_at) VALUES (?, ?, ?, '[]', 'person@example.com', '2026-11-20T10:07:00.000Z')`,
-		from+"/"+sw+"-f", from, fx.Software[0]["version"])
 	s.exec(`INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, status, queued_at, started_at, ended_at, updated_at)
 		VALUES ('run-merge-1', 'sensor-active', 'device_check', 'nmap', 'Check of host-44', 'manual', 'person@example.com', 'device', ?, 'done',
 		'2026-11-20T10:08:00.000Z', '2026-11-20T10:08:00.000Z', '2026-11-20T10:09:00.000Z', '2026-11-20T10:09:00.000Z')`, from)
@@ -146,10 +147,9 @@ var mergeFacts = []mergeFact{
 		FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id WHERE w.asset_id = ?1`},
 	{"open ports", `SELECT port || '/' || proto || '|' || source FROM inv_service WHERE asset_id = ?1`},
 	{"findings", `SELECT cve FROM fnd_finding WHERE asset_id = ?1`},
-	{"finding history", `SELECT f.cve || '|' || h.ts || '|' || h.user || '|' || h.action || '|' || ifnull(h.note, '') FROM fnd_finding_history h JOIN fnd_finding f ON f.id = h.finding_id WHERE f.asset_id = ?1`},
+	{"finding history", `SELECT f.cve || '|' || e.ts || '|' || e.actor || '|' || e.kind || '|' || ifnull(json_extract(e.detail, '$.note'), '') FROM fnd_finding_event e JOIN fnd_finding f ON f.id = e.finding_id WHERE f.asset_id = ?1`},
 	{"mitigation", `SELECT f.cve || '|applied|' || m.item FROM mit_applied m JOIN fnd_finding f ON f.id = m.finding_id WHERE f.asset_id = ?1
 		UNION SELECT f.cve || '|ai|' || m.skill FROM mit_ai_output m JOIN fnd_finding f ON f.id = m.finding_id WHERE f.asset_id = ?1`},
-	{"done marks", `SELECT version || '|' || cves || '|' || done_by FROM fnd_plan_done WHERE asset_id = ?1`},
 	{"device checks", `SELECT id FROM core_run WHERE module = 'sensor-active' AND subject_kind = 'device' AND subject_id = ?1`},
 	{"incidents", `SELECT d.incident_id FROM notify_incident_device d JOIN notify_incident i ON i.id = d.incident_id WHERE d.asset_id = ?1 AND i.kind <> 'unknown_device'`},
 	{"response events", `SELECT id FROM resp_events WHERE asset_id = ?1`},
@@ -164,7 +164,6 @@ var mergeFacts = []mergeFact{
 // version-needed items and done marks naming a software row no device has.
 var dangling = []string{
 	`SELECT count(*) FROM fnd_finding WHERE asset_id = ?1`,
-	`SELECT count(*) FROM fnd_plan_done WHERE asset_id = ?1`,
 	`SELECT count(*) FROM core_run WHERE module = 'sensor-active' AND subject_kind = 'device' AND subject_id = ?1`,
 	`SELECT count(*) FROM sa_snmp_device WHERE asset_id = ?1`,
 	`SELECT count(*) FROM notify_incident_device WHERE asset_id = ?1`,
@@ -172,7 +171,8 @@ var dangling = []string{
 	`SELECT count(*) FROM core_connection WHERE asset_id = ?1`,
 	`SELECT count(*) FROM feeds_weekly_answer WHERE device_id = ?1`,
 	`SELECT count(*) FROM fnd_finding f WHERE f.software_id LIKE 's-%' AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id)`,
-	`SELECT count(*) FROM fnd_version_needed v WHERE NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = v.software_id)`,
+	`SELECT count(*) FROM fnd_question q WHERE q.software_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = q.software_id)`,
+	`SELECT count(*) FROM fnd_question WHERE asset_id = ?1`,
 	`SELECT count(*) FROM notify_notice_finding n WHERE NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.id = n.finding_id)`,
 }
 

@@ -492,7 +492,8 @@
       "bad_address_attempt": "Attempt to reach a known-bad address",
       "log_anomaly": "Log anomaly",
       "unknown_device": "Unknown device appeared",
-      "intrusion": "Intrusion alert"
+      "intrusion": "Intrusion alert",
+      "other": "Incident"
     },
     "kf": {
       "all": "All kinds",
@@ -549,7 +550,8 @@
       "bad_address": "Open related logs",
       "log_anomaly": "Open related logs",
       "unknown_device": "Open the device",
-      "intrusion": "Open the alert"
+      "intrusion": "Open the alert",
+      "other": "Open the incident"
     },
     "respond": "Respond",
     "sentTitle": "Messages sent",

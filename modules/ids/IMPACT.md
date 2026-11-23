@@ -15,6 +15,7 @@
 ## Modifying: `Findings.Linked` (cổng gộp: thiết bị → CVE)
 - Cài ở `idsFindings` (`cmd/vedette/ids.go`), đọc `findings.Service.List` của từng thiết bị.
 - Gọi một lần mỗi trang, mỗi `Summarize` và mỗi flush (không theo từng thiết bị); bộ chuyển `idsFindings` đọc `Attacked` một lần mỗi lời gọi.
+- Devices a person ignored are left out (one `inventory.IgnoredIDs` read per call): their findings never make an alert critical or count as affected. `TestWiringIPSEventAtAnIgnoredDeviceIsNotCriticalOrAffected`.
 
 ## Modifying: `Inventory.DevicesAt`/`Names` (cổng thiết bị)
 - `idsInventory` ghép `logsInventory` (cmd/vedette/logs.go: IP trong danh sách và địa chỉ đọc SNMP từ sensor-active `ReadAddresses`, hai thiết bị cùng địa chỉ → không thiết bị) và `notifyDevices.DeviceStates` cho tên. Đổi quy tắc ghép địa chỉ ở logs → thiết bị của cảnh báo đổi theo.
@@ -26,3 +27,8 @@
 ## Modifying: `logs.Config.Received` (module logs)
 - `cmd/vedette/ids.go` `idsReceived` nối nó vào `Offer` (chỉ các dòng của loại nguồn `Reads`).
 - Gọi sau commit của lô với dòng đã làm sạch; nếu logs đổi thời điểm gọi hay nội dung `Text` (ví dụ cắt khác), INV-1 của ids (dòng bị cắt không đọc) phải đổi theo.
+
+## Modifying: `Attacked` / `ReadAttacked` (layer 1 of a finding's urgency)
+- findings' urgency pass reads `ReadAttacked(since now − 14 days)` while the module is on; a finding becomes "under attack here" for an
+  attack aimed at its device or at any address while the device is affected. The selfcheck reads the same function as of the last pass.
+

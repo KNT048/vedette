@@ -224,9 +224,9 @@ func clip(s string, n int) string { return cleanLine(s, n) }
 
 const (
 	searchAssetsDesc = "Search the inventory's devices. Optional filters, combined: text (every word in the name, IP, vendor, model, OS, services or software), kind, an open port, approved, os_contains. Returns how many match and the first limit (default 10) with vendor, model, OS, open ports and software; detail=true adds first and last seen, how it was added and which source saw it."
-	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns how many findings match, counts by severity, status and basis and per device (the devices with the most first), then the riskiest first limit findings (default 10). Use get_finding for the evidence of one. For what to upgrade on a device, use device_updates."
+	listFindingsDesc = "List findings: devices matched to a known vulnerability (urgency: none or under_attack means attackers use it; public_exploit, critical_edge, update_recommended do not). Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns the match count, counts by severity, status, basis and device, then the riskiest limit findings (default 10). get_finding: evidence of one."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
-	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
+	lookupCVEDesc    = "Look a CVE up in the box's catalogue; lists the devices it matches. on_exploited_list false: no list says it is exploited."
 	lookupIOCDesc    = "Check whether an IP address or a domain name is listed by the threat feeds this box pulls."
 )
 
@@ -435,16 +435,26 @@ func cleanAll(in []string, n int) []string {
 // vulnerability to the device (a finding's first_seen and last_seen), not when the device or its software was seen.
 func findingMap(f FindingRow) map[string]any {
 	m := map[string]any{"id": clip(f.ID, 96), "device": clip(f.Asset, 80), "device_ip": clip(f.AssetIP, 45), "asset_id": clip(f.AssetID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20),
-		"severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_matched": clip(f.FirstSeen, 32), "last_matched": clip(f.LastSeen, 32)}
+		"severity": clip(f.Severity, 12), "urgency": clip(f.Urgency, 20), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_matched": clip(f.FirstSeen, 32), "last_matched": clip(f.LastSeen, 32)}
 	if f.AcceptedUntil != "" { // When an accepted risk comes back by itself
 		m["accepted_until"] = clip(f.AcceptedUntil, 10)
 	}
+	put(m, "fix", clip(f.Fix, 300))
+	put(m, "confirmation", clip(f.Confirmation, 200))
 	return m
 }
 
-// riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (confirmed: a scan, a person or the version the device reports; the version, the
+// urgencyRank orders the urgency statuses, most urgent first; a finding that states none ranks with update_recommended.
+func urgencyRank(u string) int {
+	if r, ok := map[string]int{"under_attack": 0, "exploited": 1, "public_exploit": 2, "critical_edge": 3}[u]; ok {
+		return r
+	}
+	return 4
+}
+
+// riskRank orders findings riskiest first: open ones first (confirmed, suspected, then closed ones with status=any), then the most urgent layer, then severity, then how the match was made (confirmed: a scan, a person or the version the device reports; the version, the
 // product name only), then confidence. Equal ones keep the box's order (newest first).
-func riskRank(f FindingRow) [4]int {
+func riskRank(f FindingRow) [5]int {
 	sev := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
 	basis := map[string]int{"scan": 0, "person": 0, "version": 1}
 	s, ok := sev[f.Severity]
@@ -462,10 +472,10 @@ func riskRank(f FindingRow) [4]int {
 	if f.Status != "confirmed" && f.Status != "suspected" {
 		st = 2
 	}
-	return [4]int{st, s, b, -int(f.Confidence * 100)}
+	return [5]int{st, urgencyRank(f.Urgency), s, b, -int(f.Confidence * 100)}
 }
 
-func lessRank(a, b [4]int) bool {
+func lessRank(a, b [5]int) bool {
 	for i := range a {
 		if a[i] != b[i] {
 			return a[i] < b[i]
@@ -552,6 +562,9 @@ func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut,
 	rows := make([]map[string]any, len(list))
 	for i, f := range list {
 		r := map[string]any{"id": clip(f.ID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20), "severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12)}
+		if f.Urgency != "exploited" { // the common case is left out: no urgency means exploited in the wild
+			put(r, "urgency", clip(f.Urgency, 20))
+		}
 		put(r, "device", clip(f.Asset, 80))
 		rows[i] = r
 	}
@@ -596,6 +609,7 @@ func toolGetFinding(ctx context.Context, d Data, raw map[string]any) (toolOut, e
 	if f.Evidence != "" {
 		m["evidence"] = clip(f.Evidence, 600)
 	}
+	put(m, "workaround", clip(f.Workaround, 600))
 	b, _ := json.Marshal(m)
 	return toolOut{Text: string(b), Summary: "1 finding", Cite: "Findings"}, nil
 }
@@ -607,12 +621,13 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 		return toolOut{}, readFailed(err)
 	}
 	if !ok {
-		return toolOut{Text: `{"found":false,"note":"This CVE is not on the exploited list the box holds."}`, Summary: "not on the list"}, nil
+		return toolOut{Text: `{"found":false,"note":"The box's catalogue has no record of this CVE."}`, Summary: "not in the catalogue"}, nil
 	}
 	assets, err := f.AffectedAssets(ctx, id)
 	if err != nil {
 		return toolOut{}, readFailed(err)
 	}
+	listed := facts.Listed()
 	var links []string
 	for _, l := range facts.Links {
 		if (strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://")) && len(links) < 4 {
@@ -627,6 +642,7 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 	text, _ := fit(len(devs), 0, func(n, _ int) any {
 		return struct {
 			Found                bool             `json:"found"`
+			OnExploitedList      bool             `json:"on_exploited_list"`
 			CVE                  string           `json:"cve"`
 			MatchingDevicesTotal int              `json:"matching_devices_total"`
 			Shown                int              `json:"shown"`
@@ -640,9 +656,12 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 			Ransomware           bool             `json:"ransomware"`
 			Links                []string         `json:"links"`
 			MatchingDevices      []map[string]any `json:"matching_devices"`
-		}{true, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
+		}{true, listed, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
 			clip(facts.Description, 800), clip(facts.RequiredAction, 400), clip(facts.DateAdded, 20), facts.Ransomware, links, devs[:n]}
 	})
+	if !listed {
+		return toolOut{Text: text, Summary: "not on an exploited list, " + plural(len(assets), "device", "devices"), Cite: "CVE record: " + id}, nil
+	}
 	return toolOut{Text: text, Summary: "on the list, " + plural(len(assets), "device", "devices"), Cite: "Exploited list: " + id}, nil
 }
 

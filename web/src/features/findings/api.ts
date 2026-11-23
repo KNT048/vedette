@@ -1,6 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanDone, PlanFilter, StatusAction, ToFix, UncheckedItem, VersionNeeded } from './types'
+import type {
+  ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Plan, PlanFilter, Resolution, StatusAction, ToFix,
+  UncheckedItem, VersionNeeded, View,
+} from './types'
 
 export const useFindings = (asset?: string, enabled = true) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], enabled, queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[]; unchecked: UncheckedItem[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
@@ -17,16 +20,6 @@ export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true
   if (done) q.set('done', 'true')
   const qs = q.toString()
   return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null, done], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
-}
-
-/** A person marks a recommended update done, or puts it back: the plan, To fix and the risk markers read again. */
-export function usePlanDone() {
-  const qc = useQueryClient()
-  const refresh = () => { void qc.invalidateQueries({ queryKey: ['findings'] }) }
-  return {
-    mark: useMutation({ mutationFn: (v: { group: string; note: string }) => api.post<PlanDone>('/findings/plan/done', v), onSuccess: refresh }),
-    undo: useMutation({ mutationFn: (group: string) => api.post<{ group: string }>('/findings/plan/undone', { group }), onSuccess: refresh }),
-  }
 }
 
 export const useFinding = (id: string) =>
@@ -61,11 +54,48 @@ export const useApplied = (id: string) =>
 export const useAskAi = (id: string) =>
   useWrite<'explain' | 'mitigation-config'>(id, (skill) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/ai`, { skill }))
 
-/** Một hành động, một ghi chú cho nhiều phát hiện (INV-10): tất cả hoặc không gì. */
-export function useBulkStatus() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (v: { ids: string[]; action: BulkAction; note: string; until?: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }) },
-  })
+// ---- The findings model (contract.ts, "The findings model"): lists grouped on the server, handling, Home's overview.
+
+/** A query string of the set values only, in a fixed order (one cache entry per list state). */
+function qs(p: Record<string, string | number | undefined | null>): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== null && v !== '') q.set(k, String(v))
+  const s = q.toString()
+  return s ? `?${s}` : ''
 }
+/** A page of a server-paged list: offset and limit. */
+export type Page = { offset: number; limit: number }
+const model = (...k: unknown[]) => ['findings', 'model', ...k]
+
+/** By device: one card per device, its fix blocks inside; `ignored` lists only the ignored devices. */
+export const useDeviceCards = (f: { q?: string; status?: string; device?: string; ignored?: boolean }, page: Page, enabled = true) => {
+  const path = `/findings/devices${qs({ q: f.q, status: f.status, device: f.device, ignored: f.ignored ? 'true' : undefined, offset: page.offset, limit: page.limit })}`
+  return useQuery({ queryKey: model('devices', path), queryFn: () => api.get<DeviceCards>(path), enabled, placeholderData: keepPreviousData })
+}
+export const useFixCards = (f: { q?: string; status?: string }, page: Page, enabled = true) => {
+  const path = `/findings/fixes${qs({ q: f.q, status: f.status, offset: page.offset, limit: page.limit })}`
+  return useQuery({ queryKey: model('fixes', path), queryFn: () => api.get<FixCards>(path), enabled, placeholderData: keepPreviousData })
+}
+export const useInputList = (f: { device?: string }, page: Page, enabled = true) => {
+  const path = `/findings/input${qs({ device: f.device, offset: page.offset, limit: page.limit })}`
+  return useQuery({ queryKey: model('input', path), queryFn: () => api.get<InputList>(path), enabled, placeholderData: keepPreviousData })
+}
+export const useHandledList = (f: { q?: string; resolution?: string; device?: string; from?: string }, page: Page, enabled = true) => {
+  const path = `/findings/handled${qs({ q: f.q, resolution: f.resolution, device: f.device, from: f.from, offset: page.offset, limit: page.limit })}`
+  return useQuery({ queryKey: model('handled', path), queryFn: () => api.get<HandledList>(path), enabled, placeholderData: keepPreviousData })
+}
+export const useOverview = (enabled = true) =>
+  useQuery({ queryKey: model('overview'), queryFn: () => api.get<Overview>('/findings/overview'), enabled })
+
+/** Every finding read (lists, views, Home, the device page) is read again after a change. */
+function useModelWrite<V, R>(fn: (v: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }) } })
+}
+/** The handle request: findings of one device, by ids or by one of its fixes. */
+export type HandleInput = ({ ids: string[] } | { device: string; fix: string; software?: string }) & { resolution: Resolution; note: string; until?: string }
+export const useHandle = () => useModelWrite((v: HandleInput) => api.post<{ handled: number; skipped: number }>('/findings/handle', v))
+export const useReopen = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/reopen`, { note: v.note }))
+export const useVerify = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/verify`, { note: v.note }))
+export const useAnswer = () => useModelWrite((v: { id: string; answer: 'affected' | 'not_affected'; note: string }) =>
+  api.post<{ finding: string | null }>(`/findings/questions/${encodeURIComponent(v.id)}/answer`, { answer: v.answer, note: v.note }))

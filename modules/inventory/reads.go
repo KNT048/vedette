@@ -200,15 +200,13 @@ func (s *Service) risks(ctx context.Context) (out map[string]*Risk, ok bool) {
 	if s.risk == nil {
 		return out, true
 	}
-	m, err := s.risk.RiskByAsset(ctx)
+	m, err := s.risk.DeviceStatuses(ctx)
 	if err != nil {
 		s.log.WarnContext(ctx, "inventory: device risk markers not read", "error", err)
 		return out, false
 	}
-	for id, c := range m {
-		if r := riskOf(c); r != nil {
-			out[id] = r
-		}
+	for id, r := range m {
+		out[id] = &r
 	}
 	return out, true
 }
@@ -243,7 +241,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 }
 
 // DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither.
+// GET /findings/overview): one aggregate over inv_asset. Ignored devices are in neither.
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
 	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {

@@ -223,7 +223,7 @@ func (UnimplementedHandler) AiPostAiAsk(ctx context.Context, req *AiPostAiAskReq
 
 // AiPostAiCveIDExplain implements ai_post_ai_cve_id_explain operation.
 //
-// AI explains a CVE in terms of my devices.
+// Ask my AI: four answers about a CVE in terms of my devices.
 //
 // POST /ai/cve/{id}/explain
 func (UnimplementedHandler) AiPostAiCveIDExplain(ctx context.Context, params AiPostAiCveIDExplainParams) (r *AiPostAiCveIDExplainOK, _ error) {
@@ -1927,12 +1927,71 @@ func (UnimplementedHandler) FindingsGetFindings(ctx context.Context, params Find
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsGetFindingsDevices implements findings_get_findings_devices operation.
+//
+// By device: one card per device with open findings (devices not added yet included, ignored ones only
+// with ignored=true), the most urgent first; inside, one block per fix with its CVEs.
+//
+// GET /findings/devices
+func (UnimplementedHandler) FindingsGetFindingsDevices(ctx context.Context, params FindingsGetFindingsDevicesParams) (r *FindingsGetFindingsDevicesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsFixes implements findings_get_findings_fixes operation.
+//
+// By fix: one card per fix across devices (ignored devices left out), the most urgent first, each with
+// the devices it applies to.
+//
+// GET /findings/fixes
+func (UnimplementedHandler) FindingsGetFindingsFixes(ctx context.Context, params FindingsGetFindingsFixesParams) (r *FindingsGetFindingsFixesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsHandled implements findings_get_findings_handled operation.
+//
+// Handled: findings by handling, the newest first, each with who and how.
+//
+// GET /findings/handled
+func (UnimplementedHandler) FindingsGetFindingsHandled(ctx context.Context, params FindingsGetFindingsHandledParams) (r *FindingsGetFindingsHandledOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsGetFindingsID implements findings_get_findings_id operation.
 //
 // One finding: evidence, recommendation, compromise indicators, AI results.
 //
 // GET /findings/{id}
 func (UnimplementedHandler) FindingsGetFindingsID(ctx context.Context, params FindingsGetFindingsIDParams) (r *FindingsGetFindingsIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsIDView implements findings_get_findings_id_view operation.
+//
+// One finding as every place shows it: status, urgency with reasons, severity, verification, handling,
+// fix and history.
+//
+// GET /findings/{id}/view
+func (UnimplementedHandler) FindingsGetFindingsIDView(ctx context.Context, params FindingsGetFindingsIDViewParams) (r *FindingsGetFindingsIDViewOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsInput implements findings_get_findings_input operation.
+//
+// Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and
+// questions only a person can answer; one queue.
+//
+// GET /findings/input
+func (UnimplementedHandler) FindingsGetFindingsInput(ctx context.Context, params FindingsGetFindingsInputParams) (r *FindingsGetFindingsInputOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsOverview implements findings_get_findings_overview operation.
+//
+// Home: open findings and devices by status, the queue length, the fixes to do first and the 30-day
+// trend.
+//
+// GET /findings/overview
+func (UnimplementedHandler) FindingsGetFindingsOverview(ctx context.Context) (r *FindingsGetFindingsOverviewOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1946,16 +2005,6 @@ func (UnimplementedHandler) FindingsGetFindingsPlan(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
-//
-// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
-// device and alert counts; one cached read.
-//
-// GET /findings/summary
-func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *FindingsGetFindingsSummaryOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 //
 // To fix: every device that needs an update or an action, the most urgent first, each with its actions
@@ -1963,6 +2012,17 @@ func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *
 //
 // GET /findings/to-fix
 func (UnimplementedHandler) FindingsGetFindingsToFix(ctx context.Context, params FindingsGetFindingsToFixParams) (r *FindingsGetFindingsToFixOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsHandle implements findings_post_findings_handle operation.
+//
+// Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
+// one fix on one device; findings that already have this handling are skipped; one history and audit
+// row per finding, all or nothing.
+//
+// POST /findings/handle
+func (UnimplementedHandler) FindingsPostFindingsHandle(ctx context.Context, req *FindingsPostFindingsHandleReq) (r *FindingsPostFindingsHandleOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1994,6 +2054,15 @@ func (UnimplementedHandler) FindingsPostFindingsIDConfirm(ctx context.Context, r
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsPostFindingsIDReopen implements findings_post_findings_id_reopen operation.
+//
+// Open a handled finding again (a person's handling was a mistake); history and audit.
+//
+// POST /findings/{id}/reopen
+func (UnimplementedHandler) FindingsPostFindingsIDReopen(ctx context.Context, req *FindingsPostFindingsIDReopenReq, params FindingsPostFindingsIDReopenParams) (r *FindingsPostFindingsIDReopenOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 //
 // Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
@@ -2014,33 +2083,24 @@ func (UnimplementedHandler) FindingsPostFindingsIDUnconfirm(ctx context.Context,
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsPostFindingsPlanDone implements findings_post_findings_plan_done operation.
+// FindingsPostFindingsIDVerify implements findings_post_findings_id_verify operation.
 //
-// Mark a recommended update as done (operator, audited): it leaves the plan, the device's To fix card
-// and its risk marker, and is listed under Done; it comes back by itself when the device reports
-// another version of that software or a new CVE joins the item.
+// Confirm vulnerability on your own word: verified by a person; the note says what makes you sure;
+// history and audit.
 //
-// POST /findings/plan/done
-func (UnimplementedHandler) FindingsPostFindingsPlanDone(ctx context.Context, req *FindingsPostFindingsPlanDoneReq) (r *FindingsPostFindingsPlanDoneOK, _ error) {
+// POST /findings/{id}/verify
+func (UnimplementedHandler) FindingsPostFindingsIDVerify(ctx context.Context, req *FindingsPostFindingsIDVerifyReq, params FindingsPostFindingsIDVerifyParams) (r *FindingsPostFindingsIDVerifyOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsPostFindingsPlanUndone implements findings_post_findings_plan_undone operation.
+// FindingsPostFindingsQuestionsIDAnswer implements findings_post_findings_questions_id_answer operation.
 //
-// Put a recommended update a person marked done back on the plan (operator, audited).
+// Answer a question about one CVE on one device: affected records a finding confirmed by the person
+// and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected
+// closes the question (operator); history and audit.
 //
-// POST /findings/plan/undone
-func (UnimplementedHandler) FindingsPostFindingsPlanUndone(ctx context.Context, req *FindingsPostFindingsPlanUndoneReq) (r *FindingsPostFindingsPlanUndoneOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsPostFindingsStatus implements findings_post_findings_status operation.
-//
-// Change the status of the open findings among the ids (at most 500) with one note; one history and
-// audit row per finding, all or nothing; closed findings are skipped.
-//
-// POST /findings/status
-func (UnimplementedHandler) FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (r *FindingsPostFindingsStatusOK, _ error) {
+// POST /findings/questions/{id}/answer
+func (UnimplementedHandler) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (r *FindingsPostFindingsQuestionsIDAnswerOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

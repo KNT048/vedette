@@ -6,7 +6,7 @@ import { PageHeader, Notice } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { SeverityChip } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -156,7 +156,7 @@ function Content() {
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
       <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-caption text-muted">{t(kindKey(r))}</span></div>
     ) },
-    { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityChip severity={row.original.severity} /> },
+    { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityBadge severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
       <span className="flex flex-wrap gap-x-2">{r.devices.map((d) => <Link key={d.id} to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={link}>{d.name}</Link>)}</span>
     ) },
@@ -207,7 +207,7 @@ function Content() {
                   <div className="grid flex-1 gap-1.5">
                     <div className="flex items-start justify-between gap-3">
                       <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
-                      <SeverityChip severity={r.severity} />
+                      <SeverityBadge severity={r.severity} />
                     </div>
                     <p className="text-meta text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>

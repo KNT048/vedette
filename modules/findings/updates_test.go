@@ -6,6 +6,21 @@ import (
 	"time"
 )
 
+// deviceUpdates is one device's answer of To fix (ToFix with that device): the grouping of its open findings by the update that fixes
+// them and its recommended updates. ok is false for a device the inventory does not have.
+func deviceUpdates(t *testing.T, e *env, assetID string, feedsOn bool) (DeviceUpdates, bool, error) {
+	t.Helper()
+	tf, err := e.svc.ToFix(t.Context(), feedsOn, assetID)
+	if err != nil {
+		return DeviceUpdates{}, false, err
+	}
+	if len(tf.Devices) > 0 {
+		return tf.Devices[0], true, nil
+	}
+	_, ok, err := e.svc.cfg.Inventory.MatchInput(t.Context(), assetID)
+	return DeviceUpdates{AssetID: assetID, PlanOff: !feedsOn}, ok, err
+}
+
 // Many exploited CVEs of one product on a device
 // whose agent reports the version are ONE action ("Upgrade Photo Station from 6.1.1 to 6.3.0 or later", 4 CVEs, worst critical), all
 // detected, none "suspected"; a banner-read version on another device is suspected; the plan's items of the device come in the same
@@ -38,7 +53,7 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	u, ok, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
+	u, ok, err := deviceUpdates(t, e, "a-1", true)
 	if err != nil || !ok {
 		t.Fatalf("%v %v", ok, err)
 	}
@@ -46,8 +61,8 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatalf("one action for the 4 findings of one product: %+v", u)
 	}
 	x := u.Exploited[0]
-	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "critical" ||
-		x.CVEs[0] != "CVE-2099-0002" || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
+	if x.Action != "Upgrade Photo Station from 6.1.1 to 6.3.0 or later" || len(x.CVEs) != 4 || len(x.FindingIDs) != 4 || x.Worst != "medium" ||
+		!slices.Contains(x.CVEs, "CVE-2099-0002") || x.Ransomware != 1 || x.SoftwareID != "s-1" || x.Version != "6.1.1" {
 		t.Fatalf("action %+v", x)
 	}
 	if x.Confirmed != 4 || x.Suspected != 0 || x.Detected != 0 { // the finding page says confirmed: To fix counts it the same
@@ -58,7 +73,7 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatalf("planned %+v", u.Planned)
 	}
 
-	g, _, err := e.svc.DeviceUpdates(t.Context(), "a-2", true)
+	g, _, err := deviceUpdates(t, e, "a-2", true)
 	if err != nil || len(g.Exploited) != 1 || g.Exploited[0].Suspected != 4 || g.Exploited[0].Detected != 0 {
 		t.Fatalf("a banner's version is a network guess: suspected: %+v %v", g, err)
 	}
@@ -66,15 +81,15 @@ func TestDeviceUpdates_OneActionPerUpdateAgentIsConfirmed(t *testing.T) {
 		t.Fatalf("review r1 M4 of #935: a device the plan could not compare says so, it is not 0 updates: %+v", g)
 	}
 	// review r1 L1: the feeds module off lists no recommended update, as GET /findings/plan
-	if off, _, _ := e.svc.DeviceUpdates(t.Context(), "a-1", false); !off.PlanOff || off.Planned != nil || len(off.Exploited) != 1 {
+	if off, _, _ := deviceUpdates(t, e, "a-1", false); !off.PlanOff || off.Planned != nil || len(off.Exploited) != 1 {
 		t.Fatalf("feeds off: %+v", off)
 	}
 	// review r1 L5: a recommended CVE that crossed the 12-month line since the pass is left out, as on the page
 	e.advance(310 * 24 * time.Hour) // the 60-day-old CVE is now older than 12 months, the 30-day-old one is not
-	if late, _, _ := e.svc.DeviceUpdates(t.Context(), "a-1", true); len(late.Planned) != 1 || !slices.Equal(late.Planned[0].CVEs, []string{"CVE-2026-41001"}) || late.Planned[0].Likely != 0 {
+	if late, _, _ := deviceUpdates(t, e, "a-1", true); len(late.Planned) != 1 || !slices.Equal(late.Planned[0].CVEs, []string{"CVE-2026-41001"}) || late.Planned[0].Likely != 0 {
 		t.Fatalf("12-month cut: %+v", late.Planned)
 	}
-	if _, ok, err := e.svc.DeviceUpdates(t.Context(), "a-none", true); ok || err != nil {
+	if _, ok, err := deviceUpdates(t, e, "a-none", true); ok || err != nil {
 		t.Fatalf("unknown device: %v %v", ok, err)
 	}
 }
@@ -90,7 +105,7 @@ func TestDeviceUpdates_ProductOnlyIsNoNamedUpdate(t *testing.T) {
 	e.inv.match["a-1"] = pc
 	e.inv.mu.Unlock()
 	e.seed()
-	u, _, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
+	u, _, err := deviceUpdates(t, e, "a-1", true)
 	if err != nil || len(u.Exploited) != 0 || len(u.NoUpdate) != 1 {
 		t.Fatalf("%+v %v", u, err)
 	}
@@ -116,44 +131,11 @@ func TestDeviceUpdates_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.feeds.vulns = []Vuln{v} // CVE-2022-27593 left the list; its finding stays open
-	u, _, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
+	u, _, err := deviceUpdates(t, e, "a-1", true)
 	if err != nil || u.Open != 2 || len(u.Exploited) != 1 || u.Exploited[0].Detected != 1 || u.Exploited[0].Suspected != 0 {
 		t.Fatalf("manual row: %+v %v", u, err)
 	}
 	if len(u.NoUpdate) != 1 || u.NoUpdate[0].Group != "a-1/" || u.NoUpdate[0].SoftwareID != "" || !slices.Equal(u.NoUpdate[0].CVEs, []string{"CVE-2022-27593"}) {
 		t.Fatalf("left the list: %+v", u.NoUpdate)
-	}
-}
-
-// Review r2 L1, L2 of #935. The status is read from the row the finding matched on, never from the fix group's row when they differ
-// (a banner-matched CVE grouped under a person's row of the same product stays suspected), and an agent's row is "detected" only
-// when the matcher set evidence.agent (unset while the range has no end or a platform condition is open, so the person still
-// checks it): otherwise "reported".
-func TestDeviceUpdates_ProofReadsTheMatchedRowAndTheAgentFlag(t *testing.T) {
-	t.Parallel()
-	banner := Software{ID: "s-nmap", Display: "Photo Station", Version: "6.1.1", Source: "nmap"}
-	typed := Software{ID: "s-man", Display: "Photo Station", Version: "6.0.0", Source: "manual"}
-	sws := map[string]Software{banner.ID: banner, typed.ID: typed}
-	fix := &RowFix{Group: "a-1/s-man", SoftwareID: typed.ID}
-	version := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "…"}}}
-	if row, ok := proofRow(banner, true, fix, sws); proofOf(version, row, ok) != ProofSuspected {
-		t.Fatalf("matched on the banner, grouped under the typed row: %s", proofOf(version, row, ok))
-	}
-	if row, ok := proofRow(Software{}, false, fix, sws); proofOf(version, row, ok) != ProofDetected {
-		t.Fatal("no matched row: the group's (typed) row decides")
-	}
-	agent := Software{ID: "s-ag", Version: "6.1.1", Source: "agent"}
-	open := Record{Finding: Finding{Basis: BasisVersion, Evidence: &Evidence{Summary: "It affects only …"}}}
-	if got := proofOf(open, agent, true); got != ProofReported {
-		t.Fatalf("agent row without evidence.agent (platform open): %s, want reported", got)
-	}
-	open.Evidence.Agent = true
-	if got := proofOf(open, agent, true); got != ProofDetected {
-		t.Fatalf("evidence.agent: %s", got)
-	}
-	for _, src := range []string{"snmp", "manual"} {
-		if got := proofOf(version, Software{ID: "s-x", Source: src}, true); got != ProofDetected {
-			t.Fatalf("%s row: %s", src, got)
-		}
 	}
 }

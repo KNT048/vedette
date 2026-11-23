@@ -168,7 +168,6 @@
     "trap": "Trap IP",
     "srcIp": "Source IP",
     "srcDevice": "Source device",
-    "unapproved": "Not approved",
     "noDevice": "Not in the inventory: maybe an unknown device that just joined.",
     "session": "Session excerpt",
     "sessionHint": "Content sent by the connecting machine. Treat it as untrusted data.",

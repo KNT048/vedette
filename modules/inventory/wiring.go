@@ -118,12 +118,16 @@ type MatchSoftware struct {
 	// Key is the line's id on its effective reading and on a line of MatchDevice.NotInstalled; on another reading, the line's id,
 	// source and instance joined by char(31).
 	Key string
-	// MarkedAt is, on a line of MatchDevice.NotInstalled, when the person said it is not installed (RFC 3339); "" otherwise.
-	MarkedAt string
+	// MarkedAt is, on a line of MatchDevice.NotInstalled, when the person said it is not installed (RFC 3339); "" otherwise. MarkedBy
+	// is who said it ("" when unknown).
+	MarkedAt, MarkedBy string
 	// SeenAt is when the reading's source last read it (RFC 3339): for an agent's reading, the time of the list the version comes from.
 	SeenAt string
 	// ShadowedBy is "" on every row MatchInput returns. Kept for the findings port.
 	ShadowedBy string
+	// Guess: the reading is a sensor's guess (observe.Software.Guess, stored as nmap's os_guess instance: an OS fingerprint, an ESXi
+	// build the build table does not list), never matched.
+	Guess bool
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -255,7 +259,8 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 		keys := matchKeys(l.key, l.guess)
 		row := func(r Reading) MatchSoftware {
 			return MatchSoftware{ID: l.id, Display: r.Display, Vendor: l.vendor, Product: l.product, Version: r.Version, CPE: r.CPE, KevKeys: slices.Clone(keys),
-				Source: sourceClass(r.Source), Packaged: r.Packaged, PkgVersion: r.PkgVersion, PkgSource: r.PkgSource, Key: l.id, SeenAt: r.SeenAt}
+				Source: sourceClass(r.Source), Packaged: r.Packaged, PkgVersion: r.PkgVersion, PkgSource: r.PkgSource, Key: l.id, SeenAt: r.SeenAt,
+				Guess: r.guess()}
 		}
 		entry, det := entryOf(l.readings), detectedOf(l.readings)
 		if l.state == stateNotInstalled {
@@ -264,7 +269,7 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 				base = *det
 			}
 			sw := row(base)
-			sw.MarkedAt = l.markedAt
+			sw.MarkedAt, sw.MarkedBy = l.markedAt, l.markedBy
 			sw.Correction = correctionNote(entry, det, base.Display, l.markedBy, l.markedAt, true, loc)
 			notInstalled = append(notInstalled, sw)
 			continue
@@ -714,7 +719,13 @@ func (s *Service) keyedLines(ctx context.Context) ([]keyedLine, error) {
 // IgnoredIDs lists the devices a person ignored, ordered by id, no cap; a read error is an error, never a short list. findings'
 // reconcile closes their open findings and keeps their findings out of the orphan pass (#945).
 func (s *Service) IgnoredIDs(ctx context.Context) ([]string, error) {
-	return s.assetIDs(ctx, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
+	return ReadIgnoredIDs(ctx, s.db.Reader())
+}
+
+// ReadIgnoredIDs is IgnoredIDs on a handle of the box's database, for a reader without the service: the selfcheck of findings'
+// urgency layers runs on its own read-only handle and leaves the ignored devices out, as the urgency pass does.
+func ReadIgnoredIDs(ctx context.Context, q *sql.DB) ([]string, error) {
+	return readIDs(ctx, q, `SELECT id FROM inv_asset WHERE ignored_at IS NOT NULL`)
 }
 
 // IsIgnored says whether a person ignored the device; false for a device that does not exist. findings asks it inside its
@@ -745,7 +756,11 @@ func (s *Service) ignoredIDs(ctx context.Context) (map[string]bool, error) {
 }
 
 func (s *Service) assetIDs(ctx context.Context, query string, args ...any) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, query+` ORDER BY 1`, args...)
+	return readIDs(ctx, s.db.Reader(), query, args...)
+}
+
+func readIDs(ctx context.Context, q *sql.DB, query string, args ...any) ([]string, error) {
+	rows, err := q.QueryContext(ctx, query+` ORDER BY 1`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: match products: %w", err)
 	}
@@ -975,4 +990,39 @@ func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product str
 		n++
 	}
 	return n, nil
+}
+
+// LineRef is a software line as a list of findings names it: its device, display name, the version it runs now and its product.
+type LineRef struct {
+	ID, AssetID, Display, ProductKey string
+	Version                          string // "" when the line has no version
+}
+
+// LineRefs returns the software lines with these ids, in any state (a finding keeps naming a line that was removed); unknown ids are
+// absent. findings reads it to name the line of each finding in its lists and to search them by software name.
+func (s *Service) LineRefs(ctx context.Context, ids []string) (map[string]LineRef, error) {
+	out := make(map[string]LineRef, len(ids))
+	for chunk := range slices.Chunk(ids, 400) {
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			args[i] = id
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, asset_id, display, product_key, ifnull(version, '') FROM inv_software
+			WHERE id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("inventory: read software lines: %w", err)
+		}
+		for rows.Next() {
+			var l LineRef
+			if err := rows.Scan(&l.ID, &l.AssetID, &l.Display, &l.ProductKey, &l.Version); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("inventory: read software lines: %w", err)
+			}
+			out[l.ID] = l
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("inventory: read software lines: %w", err)
+		}
+	}
+	return out, nil
 }

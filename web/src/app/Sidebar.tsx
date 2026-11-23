@@ -1,5 +1,5 @@
 // The sidebar of docs/UI.md §2 (#842): an always-visible block, collapsible groups that remember their state per user, an icon rail
-// from lg, the same list in the phone drawer, badges from one summary read. Lives in app/ (one caller: Layout).
+// from lg, the same list in the phone drawer, badges from the one overview read. Lives in app/ (one caller: Layout).
 import { useState, type ComponentProps, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'

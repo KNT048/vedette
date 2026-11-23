@@ -3,15 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { AiBlock } from '@/components/common/AiBlock'
 import { EmptyState, ErrorState, Loading, ModuleOff } from '@/components/common/States'
-import { Chip, type Tone } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDigest, useRefreshDigest } from './api'
 import { ActionError, ToSettings, useAiGate } from './parts'
-
-const SEV: Record<string, Tone> = { high: 'danger', medium: 'warn', info: 'off' }
 
 /** Slot `logs.panels` (S-AI-4): digest log bằng AI theo mức đã chọn. Log là dữ liệu không tin cậy; AI chỉ tóm tắt, không hành động. */
 export default function LogsPanel() {
@@ -42,7 +40,7 @@ export default function LogsPanel() {
             <ul className="grid gap-4">
               {d.items.length === 0 ? <li className="text-muted">{t('logs.noItems')}</li> : d.items.map((it, i) => (
                 <li key={i} className="grid gap-1.5">
-                  <p className="flex flex-wrap items-center gap-2 font-medium"><Chip tone={SEV[it.severity] ?? 'off'}>{t(`logs.severity.${it.severity}`)}</Chip>{it.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-medium"><SeverityBadge severity={it.severity} />{it.title}</p>
                   <pre tabIndex={0} className="overflow-x-auto rounded-md bg-sunken p-2 font-mono text-caption leading-relaxed">{it.evidence.join('\n')}</pre>
                   <p>{it.recommendation}{it.asset_id ? <> <Link to={`/devices/${it.asset_id}`} className="text-accent underline underline-offset-4">{t('logs.device')}</Link></> : null}</p>
                 </li>

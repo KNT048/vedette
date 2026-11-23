@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 )
 
@@ -36,7 +37,9 @@ func feedsService(d deps) (*feeds.Service, error) {
 	if d.Inventory != nil {
 		fd.Inventory = feedsInventory{d.Inventory}
 	}
-	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
+	db := d.DB
+	fd.Pins = func(ctx context.Context) ([]string, error) { return findings.PinnedCVEs(ctx, db) } // the catalogue keeps a finding's CVE
+	if d.Bus != nil {                                                                             // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
 	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
@@ -83,6 +86,15 @@ func feedsJobs(d deps) []jobs.Job {
 
 // feedsHandlers is the handler constructor of the feeds entry in newHandler. A service that cannot be built means
 // a broken database or key: that is a failure to start, not a state to serve in.
+// feedsStore is the catalogue the feeds module reads and writes.
+func feedsStore(d deps) *feeds.Store {
+	s, err := feedsService(d)
+	if err != nil {
+		panic("feeds: cannot build the module: " + err.Error())
+	}
+	return s.Store()
+}
+
 func feedsHandlers(d deps) *feeds.FeedHandlers {
 	s, err := feedsService(d)
 	if err != nil {

@@ -520,7 +520,7 @@ describe('response: approvers prove their channel identity (S-RESP-2)', () => {
     expect(auditActions()).toContain('notify.telegram_link_code')
     renderApp(path, { role: 'operator' })
     expect(await screen.findByText(/^Link Telegram account 555 to your Vedette user /)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(/Linked\. Telegram user ID 555 now counts as you/)).toBeInTheDocument()
   })
 

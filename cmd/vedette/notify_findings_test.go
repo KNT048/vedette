@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -68,11 +71,15 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	if len(n.Devices) != 1 || n.Devices[0] != "FortiGate (192.168.30.1)" { // the Devices name with its address
 		t.Fatalf("devices = %v, want the Devices name", n.Devices)
 	}
-	if n.Product != "FortiGate firewall (FortiOS)" || n.Title != "FortiGate firewall (FortiOS) is being exploited (CVE-2026-4001)" {
+	t.Logf("notice: %+v", n)
+	if n.Product != "FortiGate firewall (FortiOS)" || n.Title != "FortiGate firewall (FortiOS) on FortiGate (192.168.30.1): exploited in the wild (CVE-2026-4001)" {
 		t.Fatalf("product/title: %q / %q", n.Product, n.Title)
 	}
-	if !strings.Contains(n.What, "Fortinet FortiOS flaw") || n.Action != "Apply updates per vendor instructions. <b>now</b>" {
+	if !strings.HasPrefix(n.What, findings.StatusMeaning(findings.UrgencyExploited)+" Why: Exploited in the wild: ") || n.Action != "Apply updates per vendor instructions. <b>now</b>" {
 		t.Fatalf("what/action: %q / %q", n.What, n.Action)
+	}
+	if n.Event != notify.NoticeCreated || n.Layer != findings.UrgencyExploited {
+		t.Fatalf("event %q layer %d", n.Event, n.Layer)
 	}
 	if n.Severity != notify.Medium {
 		t.Fatalf("severity %q, want the one findings computed (medium: no NVD versions, so the version was not compared)", n.Severity)
@@ -98,7 +105,7 @@ func TestWiringFindingDirectoryClipsHostileFeedText(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("Finding: %v %v", ok, err)
 	}
-	for _, v := range []string{info.Action, info.What, info.Title} {
+	for _, v := range []string{info.Action, info.Meaning, info.Reasons, info.Product} {
 		if strings.ContainsAny(v, "\r\n\x00") {
 			t.Fatalf("control characters survived: %q", v)
 		}
@@ -106,8 +113,8 @@ func TestWiringFindingDirectoryClipsHostileFeedText(t *testing.T) {
 	if n := len([]rune(info.Action)); n > noticeActionMax || n < 100 {
 		t.Fatalf("action has %d characters", n)
 	}
-	if n := len([]rune(info.What)); n > 500 {
-		t.Fatalf("what has %d characters", n)
+	if n := len([]rune(info.Meaning + info.Reasons + info.Product)); n > 800 {
+		t.Fatalf("the texts have %d characters", n)
 	}
 }
 
@@ -148,14 +155,18 @@ func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
 	s.telegramOn()
 	s.kev("CVE-2026-4003", "Fortinet", "FortiOS")
 	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET source_id = 'vulncheck-kev', list = 'vulncheck' WHERE cve = 'CVE-2026-4003'`)
+		if _, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET source_id = 'vulncheck-kev', list = 'vulncheck' WHERE cve = 'CVE-2026-4003'`); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_signal SET source = 'vulncheck-kev' WHERE cve = 'CVE-2026-4003' AND source = 'cisa-kev'`)
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
 	s.addFortiGate()
 	got := s.queuedNotices()
-	if len(got) != 1 || !strings.HasPrefix(got[0].What, "VulnCheck KEV lists CVE-2026-4003 (") || strings.Contains(got[0].What, "CISA") {
+	if len(got) != 1 || !strings.Contains(got[0].What, "Exploited in the wild: VulnCheck KEV (") || strings.Contains(got[0].What, "CISA lists") ||
+		strings.Contains(got[0].What, "wild: CISA") {
 		t.Fatalf("notices: %+v", got)
 	}
 }
@@ -185,11 +196,52 @@ func TestWiringAlertMarksADeviceNotAddedYet(t *testing.T) {
 	ign(true)
 	ign(false)
 	info, _, err = notifyFindings{s.d}.Finding(t.Context(), recs[0].ID)
-	if err != nil || len(info.Devices) != 1 || !strings.HasSuffix(info.Devices[0], " (device not added yet)") || !strings.Contains(info.What, "not added yet") {
+	if err != nil || len(info.Devices) != 1 || !strings.HasSuffix(info.Devices[0], " (device not added yet)") || !strings.Contains(info.Note, "not added yet") {
 		t.Fatalf("an unapproved device: %+v %v", info, err)
 	}
 	ign(true)
 	if info, _, _ = (notifyFindings{s.d}).Finding(t.Context(), recs[0].ID); strings.Contains(strings.Join(info.Devices, ","), "not added yet") {
 		t.Fatalf("an ignored device is marked: %+v", info)
+	}
+}
+
+// The History page's count of exploited vulnerabilities that matched no device is read from the signals: a source's news of the last days,
+// not what came with its first load, and not a CVE a device has a finding for.
+func TestWiringUnmatchedExploitedIsReadFromTheSignals(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	now := time.Now().UTC()
+	signal := func(cve, source string, qualifies int, stored time.Time) {
+		t.Helper()
+		s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES (?1, 'exploited', ?2, ?3, ?3, ?3, ?4)`,
+			cve, source, store.FormatTS(stored), qualifies)
+	}
+	count := func() int {
+		t.Helper()
+		n, err := notifySignals{s.d}.UnmatchedExploited(t.Context(), now.AddDate(0, 0, -7))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	signal("CVE-2019-0002", "rapid7-blog", 1, now.AddDate(0, -1, 0)) // the source's first load, a month ago: too old for the window
+	if n := count(); n != 0 {
+		t.Fatalf("an old signal counted: %d", n)
+	}
+	signal("CVE-2026-7001", "rapid7-blog", 1, now.Add(-time.Hour))
+	signal("CVE-2026-7002", "rapid7-blog", 1, now.Add(-2*time.Hour))
+	signal("CVE-2026-7003", "rapid7-blog", 0, now.Add(-time.Hour)) // does not qualify
+	signal("CVE-2026-7004", "metasploit", 1, now.Add(-time.Hour))  // metasploit's first sighting is this one: its first load
+	if n := count(); n != 2 {
+		t.Fatalf("unmatched exploited CVEs = %d, want the 2 news of rapid7-blog (not the unqualified row, not another source's first load)", n)
+	}
+	// a device that has a finding for one of them takes it out of the count
+	s.kev("CVE-2026-7001", "Fortinet", "FortiOS")
+	s.addFortiGate()
+	if s.nf("", "CVE-2026-7001") == 0 {
+		t.Fatal("the fixture made no finding for CVE-2026-7001")
+	}
+	if n := count(); n != 1 {
+		t.Fatalf("after a finding matched one of them: %d, want 1", n)
 	}
 }

@@ -20,16 +20,13 @@ const (
 // off; the handler answers 409 ai_unavailable.
 var ErrAIUnavailable = errors.New("ai unavailable")
 
-// AIRequest is what the AI gets: the finding as the page shows it, which is device and KEV data of
-// the customer's own box, and whether a confirmed pack exists (the config skill is for when it does not).
+// AIRequest is what the AI is asked about: one finding, by id. The AI door reads the finding's view and the brief of its CVE itself, the
+// same sources the page reads, and whether a confirmed pack exists (the config skill is for when it does not).
 type AIRequest struct {
-	Skill   Skill
-	Finding findings.Row
-	// FixedIn is the page's "Fixed version" fact (the device's version, the fixed release or the fix of each release line), nil
-	// when NVD names none: the AI gets the same facts the page shows (M2-2: it said "the data does not list affected versions").
-	FixedIn *findings.FixedIn
-	HasPack bool
-	User    string // email of the person who asked
+	Skill     Skill
+	FindingID string
+	HasPack   bool
+	User      string // email of the person who asked
 }
 
 // AIOutput is the answer of the AI module, already metered and logged by it.
@@ -40,6 +37,8 @@ type AIOutput struct {
 	OutputTok  int
 	Paragraphs []string
 	Steps      []string
+	// Answers are the four answers in order (findings.AIResult.Answers).
+	Answers []findings.AIAnswer
 	// Configs are the ready config blocks of the mitigation-config skill (Code is the lines to paste, Note what the change is based
 	// on, SideEffect what it can break); none for explain.
 	Configs []findings.CodeStep

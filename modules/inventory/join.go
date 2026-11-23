@@ -176,8 +176,9 @@ const (
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
 // A join never changes whether into is watched: into keeps its own ignored_at. When the two rows
-// differ the audit row says so and the caller publishes watchEvent for into, so the findings moved from from follow into's state
-// (inventory.asset.ignored closes them on an ignored into; inventory.asset.unignored reopens on a watched into the ones Ignore closed).
+// differ the audit row says so and the caller publishes watchEvent for into. The findings moved from from follow into's state with no
+// event of their own: on an ignored into the lists leave them out and the urgency pass does not rate them; on a watched into they are
+// listed and rated (the merge's inventory.asset.updated with match).
 // Nothing is dropped: a software row or an open port both rows hold is folded into into's (foldSoftware, foldServices), and every
 // module that keeps rows about a device moves them in this same transaction (core/lifecycle, before from's row goes); an error of
 // any of them rolls the whole write back.
@@ -203,13 +204,13 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	case intoIgnored && !fromIgnored && fromApproved:
 		// review r2 N2 of #945: an approved device a person watches is never hidden by a join with an ignored row (a join whose
 		// direction is fixed, a chassis or hand-added one, or a person's Merge): the kept row is watched again and its findings
-		// that Ignore closed reopen
+		// are back in the lists
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL WHERE id = ?`, into); err != nil {
 			return "", fmt.Errorf("inventory: watch the joined device: %w", err)
 		}
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" is an approved device that is watched, so "+intoName+" is watched again"
 	case intoIgnored && !fromIgnored:
-		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" close"
+		watchEvent, watch = EventAssetIgnored, "; "+intoName+" is ignored, so it stays ignored and the findings of "+fromName+" are left out of the lists"
 	case fromIgnored && !intoIgnored:
 		watchEvent, watch = EventAssetUnignored, "; "+fromName+" was ignored and "+intoName+" is watched, so it stays watched"
 	}
@@ -270,6 +271,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		m.Actor = actor
 	}
 	if err := s.lifecycle.DeviceMerged(ctx, tx, m); err != nil {
+		return "", err
+	}
+	if err := dropFoldedLines(ctx, tx, software); err != nil {
 		return "", err
 	}
 	if o != nil {
@@ -829,8 +833,8 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 // foldSoftware folds each software line device from holds that device into holds too (the same product and train) into into's line,
 // before from's lines move: every reading of from's line moves to into's line, and of two readings of the same source and instance
 // the newer one stays (a person's entry included). into's line is settled again. It returns the id of every line it removed mapped
-// to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it. Nothing else is
-// removed: the lines left on from move with their ids.
+// to the line that stays (lifecycle.Merge.Software), so the modules that point at a software line follow it; the folded lines are
+// deleted after the participants ran (dropFoldedLines). Nothing else is removed: the lines left on from move with their ids.
 func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT f.id, i.id, f.state, i.state, ifnull(f.not_installed_at, ''), ifnull(f.not_installed_by, '')
 		FROM inv_software f JOIN inv_software i ON i.asset_id = ?2 AND i.product_key = f.product_key AND i.line = f.line WHERE f.asset_id = ?1 ORDER BY f.id`, from, into)
@@ -868,7 +872,8 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 
 			`UPDATE inv_software SET first_seen = min(first_seen, (SELECT first_seen FROM inv_software WHERE id = ?2)),
 				last_seen = max(last_seen, (SELECT last_seen FROM inv_software WHERE id = ?2)) WHERE id = ?1`,
-			`DELETE FROM inv_software WHERE id = ?2`,
+			// the folded line itself goes after the lifecycle participants ran (dropFoldedLines): rows of other modules that point at it
+			// follow it to the kept line first (lifecycle.Merge.Software)
 			`UPDATE inv_software_event SET software_id = ?1 WHERE software_id = ?2`, // the folded line's history is the kept line's
 		} {
 			if _, err := tx.ExecContext(ctx, q, f.kept, f.gone); err != nil {
@@ -892,6 +897,17 @@ func foldSoftware(ctx context.Context, tx *sql.Tx, s *Service, from, into string
 		out[f.gone] = f.kept
 	}
 	return out, nil
+}
+
+// dropFoldedLines deletes the lines foldSoftware folded into another (gone to kept), once the lifecycle participants moved what they
+// keep about them, before from's other lines move to into.
+func dropFoldedLines(ctx context.Context, tx *sql.Tx, folded map[string]string) error {
+	for gone := range folded {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE id = ?`, gone); err != nil {
+			return fmt.Errorf("inventory: fold software: %w", err)
+		}
+	}
+	return nil
 }
 
 // foldServices folds each open port device from holds that device into holds too (same port, protocol and source) into into's row

@@ -29,8 +29,11 @@ func TestTheNameInVedetteReachesEveryReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // the response plan reads critical findings only
-		_, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET severity = 'critical' WHERE id = ?`, f.ID)
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // the response plan reads critical findings only: the CVE's CVSS band
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO feeds_cve (cve) VALUES (?)`, f.CVE); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_metric (cve, source, version, score, vector) VALUES (?, 'nvd', '3.1', 9.8, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')`, f.CVE)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -109,7 +112,7 @@ func TestTheNameInVedetteReachesEveryReader(t *testing.T) {
 				out["ai ask"] = r.Name
 			}
 		}
-		facts, err := aiFacts{findings: s.d.Findings, inv: findingsInventory{inv}}.AffectedAssets(ctx, "CVE-2024-21762")
+		facts, err := aiFacts{cases: caseSource{findings: s.d.Findings}, inv: findingsInventory{inv}}.AffectedAssets(ctx, "CVE-2024-21762")
 		if err != nil || len(facts) != 1 {
 			t.Fatalf("AffectedAssets = %+v, %v", facts, err)
 		}

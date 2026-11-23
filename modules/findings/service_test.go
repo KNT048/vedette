@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -32,6 +32,7 @@ type fakeInv struct {
 	onMatch func(id string)
 	// matchErr makes MatchInput of a device fail (a device that cannot be read).
 	matchErr map[string]error
+	lines    map[string]Line // Lines: named lines, before the match input's
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -40,6 +41,7 @@ func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView,
 	out := map[string]AssetView{}
 	for _, id := range ids {
 		if a, ok := f.assets[id]; ok {
+			a.Ignored = a.Ignored || f.ignored[id] // as inventory: an ignored device is present, marked
 			out[id] = a
 		}
 	}
@@ -81,6 +83,27 @@ func (f *fakeInv) EffectiveSoftware(context.Context, string) ([]EffectiveSoftwar
 	return []EffectiveSoftware{}, nil
 }
 
+// Lines names the lines of lines, else a line of the device's match input with that id.
+func (f *fakeInv) Lines(_ context.Context, ids []string) (map[string]Line, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := map[string]Line{}
+	for _, id := range ids {
+		if l, ok := f.lines[id]; ok {
+			out[id] = l
+			continue
+		}
+		for aid, a := range f.match {
+			for _, sw := range a.Software {
+				if sw.ID == id {
+					out[id] = Line{ID: id, AssetID: aid, Display: sw.Display, ProductKey: productid.Key(sw.Vendor, sw.Product), Version: sw.Version}
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
 func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -101,6 +124,8 @@ type fakeFeeds struct {
 	covered map[string]bool
 	loading map[string]bool // TierDistro's Loading: the distributions the plan still waits for
 	stamp   string
+	// onMatchSet runs when a pass reads the match set: a test can change the world while the catalogue is read.
+	onMatchSet func()
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -124,6 +149,13 @@ func (f *fakeFeeds) CVSS(_ context.Context, cves []string) (map[string]CVSS, err
 }
 
 func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
+
+func (f *fakeFeeds) MatchSet(context.Context, MatchScope) ([]Vuln, error) {
+	if f.onMatchSet != nil {
+		f.onMatchSet()
+	}
+	return f.vulns, nil
+}
 
 func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
 
@@ -202,18 +234,12 @@ type env struct {
 	feeds *fakeFeeds
 	pub   *fakePub
 	clock *time.Time
-	// parked keeps the match input of a device a test ignored (env.ignore), to give it back when it is watched again.
-	parked map[string]Asset
 }
 
 func newEnv(t testing.TB) *env {
 	t.Helper()
 	db := storetest.New(t)
-	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "findings", FS: Migrations}} {
-		if err := store.Migrate(t.Context(), db, m.Module, m.FS); err != nil {
-			t.Fatal(err)
-		}
-	}
+	migrateWithInventory(t, db)
 	e := &env{t: t, db: db, pub: &fakePub{}, clock: new(time.Time)}
 	*e.clock = t0
 	e.inv = &fakeInv{
@@ -285,7 +311,8 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.AssetID != "a-1" || r.CVE != "CVE-2022-27593" || r.Status != StatusSuspected || r.Basis != BasisProduct || r.Confidence != 0.5 || r.Severity != SeverityMedium {
+	if r.AssetID != "a-1" || r.CVE != "CVE-2022-27593" || r.Status != StatusSuspected || r.Row.State != StateOpen || !r.Row.Detected || r.Row.Verified != VerifiedNo ||
+		r.Row.SoftwareID != "s-1" || r.Row.MatchedVersion != "6.1.1" || r.Row.FixKey == "" || r.Row.Urgency != 2 {
 		t.Fatalf("finding = %+v", r)
 	}
 	if !r.FirstSeen.Equal(t0) || !r.LastSeen.Equal(t0) || len(r.History) != 1 || r.History[0].Action != "created" || r.History[0].User != SystemUser {
@@ -302,7 +329,7 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 		t.Fatalf("audit = %v", got)
 	}
 	var detail string // the audit page prints the stored text under the named one: an id in it showed each line twice
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593 on nas01, basis product, medium" {
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593, basis "+string(r.Row.Basis) {
 		t.Fatalf("detail = %q err=%v", detail, err)
 	}
 }
@@ -315,12 +342,12 @@ func TestOnMatchChangedUnknownAsset(t *testing.T) {
 	}
 }
 
-func TestContract_INV2_UpsertRaisesBasisOfOpenFindingOnly(t *testing.T) {
+func TestContract_INV2_UpsertKeepsOneFindingWhenTheRangeArrives(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.seed()
 	e.advance(time.Hour)
-	// the feed now knows the affected range and the device is inside it
+	// the feed now knows the affected range and the device is inside it: the same finding, its evidence and last seen move
 	a := nas("6.1.1")
 	vuln := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.2"}})
 	res, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{vuln})
@@ -328,17 +355,14 @@ func TestContract_INV2_UpsertRaisesBasisOfOpenFindingOnly(t *testing.T) {
 		t.Fatalf("result = %+v err=%v", res, err)
 	}
 	r, _ := e.svc.Get(t.Context(), id)
-	if r.Basis != BasisVersion || r.Confidence != ConfVersion || r.Status != StatusSuspected || !r.LastSeen.Equal(t0.Add(time.Hour)) || !r.FirstSeen.Equal(t0) {
+	if r.Status != StatusSuspected || !r.LastSeen.Equal(t0.Add(time.Hour)) || !r.FirstSeen.Equal(t0) || !strings.Contains(r.Evidence.Summary, "before 6.1.2") {
 		t.Fatalf("finding = %+v", r)
 	}
-	if got := e.auditActions(); len(got) != 2 || got[1] != "findings.basis_raised" {
+	if got := e.auditActions(); len(got) != 1 {
 		t.Fatalf("audit = %v", got)
 	}
-	// a repeated match never publishes created (POST-1); the raise to high has its own event and no status_changed
-	// goes out, since the status did not change (review H2, M-a of #663)
-	want := SeverityRaisedEvent{FindingID: id, AssetID: "a-1", CVE: "CVE-2022-27593", FromSeverity: SeverityMedium, ToSeverity: SeverityHigh, Basis: BasisVersion}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventSeverityRaised || ev[0].Payload.(SeverityRaisedEvent) != want {
-		t.Fatalf("events = %+v, want %+v", ev, want)
+	if ev := e.pub.take(); len(ev) != 0 {
+		t.Fatalf("events = %+v", ev)
 	}
 }
 
@@ -451,8 +475,9 @@ func TestContract_POST2_ConfirmFromScan(t *testing.T) {
 	if len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusSuspected, To: StatusConfirmed}) {
 		t.Fatalf("events = %+v", ev)
 	}
-	// a second confirmation of an already confirmed finding is a "rescanned" row and no event
-	if r, err = e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2022-27593", scanEv("t1")); err != nil || r.History[len(r.History)-1].Action != "rescanned" || len(e.pub.take()) != 0 {
+	// a second confirmation of an already confirmed finding adds no event and tells nobody
+	n := len(r.History)
+	if r, err = e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2022-27593", scanEv("t1")); err != nil || len(r.History) != n || len(e.pub.take()) != 0 {
 		t.Fatalf("rescan = %+v err=%v", r.History, err)
 	}
 }
@@ -465,7 +490,7 @@ func TestContract_POST2_ConfirmFromScanKeepsPersonsDecisionAndSignalsOncePerTemp
 		t.Fatal(err)
 	}
 	e.pub.take()
-	for i, want := range []int{1, 0, 1} { // same template twice, then a new one
+	for i, want := range []int{1, 0, 0} { // the first safe check that confirms it is told; the finding keeps the person's decision
 		tmpl := "t1"
 		if i == 2 {
 			tmpl = "t2"
@@ -496,10 +521,10 @@ func TestContract_POST2_ConfirmFromScanReopensPatched(t *testing.T) {
 	if err != nil || r.Status != StatusConfirmed || r.ResolvedBy != "" {
 		t.Fatalf("finding = %+v err=%v", r, err)
 	}
-	if h := r.History[len(r.History)-1]; h.Action != "reopened" {
+	if h := r.History[len(r.History)-1]; h.Action != "matches_again" || !strings.Contains(h.Note, "Still detected after it was marked patched") {
 		t.Fatalf("history = %+v", r.History)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusPatched, To: StatusConfirmed}) {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusPatched, To: StatusConfirmed, Reason: ReasonStillDetected}) {
 		t.Fatalf("events = %+v", ev)
 	}
 }
@@ -511,31 +536,14 @@ func TestConfirmFromScanRefusals(t *testing.T) {
 	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "not-a-cve", scanEv("t")); !errors.Is(err, ErrInvalidCVE) {
 		t.Errorf("bad cve: %v", err)
 	}
-	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2020-0001", scanEv("t")); !errors.Is(err, ErrNotFound) {
-		t.Errorf("no finding: %v", err)
+	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-404", "CVE-2020-0001", scanEv("t")); !errors.Is(err, ErrUnknownAsset) {
+		t.Errorf("no device: %v", err)
 	}
 	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2022-27593", Evidence{CheckedAt: t0}); !errors.Is(err, ErrInvalidEvidence) {
 		t.Errorf("no template: %v", err)
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'confirmed'`); n != 0 {
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE verified <> 'no'`); n != 0 {
 		t.Errorf("confirmed rows = %d", n)
-	}
-}
-
-func TestContract_POST2_RescanClearOnlyWritesHistory(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	id := e.seed()
-	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2022-27593", scanEv("t1")); err != nil {
-		t.Fatal(err)
-	}
-	e.pub.take()
-	if err := e.svc.RescanClear(t.Context(), "a-1", "CVE-2022-27593"); err != nil {
-		t.Fatal(err)
-	}
-	r, _ := e.svc.Get(t.Context(), id)
-	if r.Status != StatusConfirmed || r.History[len(r.History)-1].Action != "rescan_clear" || len(e.pub.take()) != 0 {
-		t.Fatalf("finding = %+v", r)
 	}
 }
 
@@ -551,7 +559,7 @@ func TestContract_INV7_DeviceDeletedRemovesFindingsAndHistory(t *testing.T) {
 	if e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-1'`) != 0 || e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-2'`) != 1 {
 		t.Fatal("wrong findings removed")
 	}
-	if e.count(`SELECT count(*) FROM fnd_finding_history`) != 1 {
+	if e.count(`SELECT count(*) FROM fnd_finding_event`) != 1 {
 		t.Fatal("history of the deleted findings is still there")
 	}
 	if got := e.auditActions(); got[len(got)-1] != "findings.deleted_with_asset" {
@@ -568,55 +576,59 @@ func TestContract_INV1_DatabaseRefusesWhatTheLibraryNeverBuilds(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.seed()
-	ts := store.FormatTS(t0)
-	insert := func(status, basis string, evidence any, cve string) error {
-		return e.db.Write(t.Context(), func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(t.Context(), `INSERT INTO fnd_finding (id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen)
-				VALUES (?, 'a-9', ?, ?, 'high', 0.5, ?, ?, ?, ?)`, store.NewID("f"), cve, status, basis, evidence, ts, ts)
-			return err
-		})
+	ok := Finding{ID: "f-ok", AssetID: "a-9", CVE: "CVE-2022-0001", FirstSeen: t0}
+	insert := func(f Finding) error {
+		return e.db.Write(t.Context(), func(tx *sql.Tx) error { return writeTestFinding(t.Context(), tx, f) })
 	}
-	if err := insert("confirmed", "version", `{"summary":"x","checked_at":"`+ts+`"}`, "CVE-2022-0001"); err == nil {
-		t.Error("confirmed with basis version accepted")
+	bad := map[string]func(f *Finding){
+		"handled without a resolution": func(f *Finding) {
+			f.State, f.Via, f.ResolvedBy, f.ResolvedAt = StateHandled, ViaPerson, "it@acme.example", t0
+		},
+		"open with a resolution":      func(f *Finding) { f.Resolution = ResolutionPatched },
+		"open with a way":             func(f *Finding) { f.Via = ViaPerson },
+		"accepted without a last day": func(f *Finding) { f.State, f.Resolution = StateHandled, ResolutionAccepted },
+		"a last day without accepted": func(f *Finding) { f.AcceptedUntil = t0 },
+		"version moved to the same": func(f *Finding) {
+			f.State, f.Resolution, f.Via, f.FromVersion, f.ToVersion = StateHandled, ResolutionPatched, ViaVersionMoved, "1.0", "1.0"
+		},
+		"version moved without from": func(f *Finding) {
+			f.State, f.Resolution, f.Via, f.ToVersion = StateHandled, ResolutionPatched, ViaVersionMoved, "1.0"
+		},
+		"versions without a move": func(f *Finding) {
+			f.State, f.Resolution, f.FromVersion, f.ToVersion = StateHandled, ResolutionPatched, "1.0", "2.0"
+		},
+		"an unknown verification":  func(f *Finding) { f.Verified = "maybe" },
+		"a way that is not a word": func(f *Finding) { f.State, f.Resolution, f.Via = StateHandled, ResolutionPatched, "Version Moved" },
+		"urgency outside 1..5":     func(f *Finding) { f.Urgency = 6 },
+		"a malformed CVE":          func(f *Finding) { f.CVE = "CVE-2022-0003; DROP" },
 	}
-	for _, src := range []string{"scan", "manual", "nmap", ""} { // only the device's own statement confirms a version
-		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-0011"); err == nil {
-			t.Errorf("confirmed with basis version from source %q accepted", src)
+	for name, change := range bad {
+		f := ok
+		f.ID = store.NewID("f")
+		change(&f)
+		if err := insert(f); err == nil {
+			t.Errorf("%s: accepted", name)
 		}
 	}
-	if err := insert("confirmed", "product", `{"summary":"x","source":"snmp","checked_at":"`+ts+`"}`, "CVE-2022-0012"); err == nil {
-		t.Error("confirmed with basis product accepted")
+	if err := insert(ok); err != nil {
+		t.Fatalf("valid row refused: %v", err)
 	}
-	for i, src := range []string{"snmp", "agent"} {
-		if err := insert("confirmed", "version", `{"summary":"x","source":"`+src+`","checked_at":"`+ts+`"}`, "CVE-2022-002"+strconv.Itoa(i)); err != nil {
-			t.Errorf("confirmed with basis version stated by the device (%s) refused: %v", src, err)
-		}
+	dup := ok
+	dup.ID = "f-dup"
+	if err := insert(dup); err == nil {
+		t.Error("a second finding for the same (device, CVE, line) was accepted")
 	}
-	if err := insert("confirmed", "scan", nil, "CVE-2022-0002"); err == nil {
-		t.Error("confirmed without evidence accepted")
+	other := ok
+	other.ID, other.SoftwareID = "f-line", "s-other"
+	if err := insert(other); err != nil {
+		t.Errorf("the same CVE on another software line refused: %v", err)
 	}
-	if err := insert("suspected", "product", nil, "CVE-2022-0003; DROP"); err == nil {
-		t.Error("malformed cve accepted")
-	}
-	if err := insert("suspected", "product", nil, "CVE-2022-27593"); err != nil {
-		t.Errorf("valid row refused: %v", err)
-	}
-	// UNIQUE(asset_id, cve)
 	err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO fnd_finding (id, asset_id, cve, status, severity, confidence, basis, first_seen, last_seen)
-			VALUES ('f-dup', 'a-1', 'CVE-2022-27593', 'suspected', 'high', 0.5, 'product', ?, ?)`, ts, ts)
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding_event SET actor = 'rewritten'`)
 		return err
 	})
 	if err == nil {
-		t.Error("a second finding for the same pair was accepted")
-	}
-	// the history is append-only
-	err = e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding_history SET note = 'rewritten'`)
-		return err
-	})
-	if err == nil {
-		t.Error("history row was updated")
+		t.Error("an event was updated")
 	}
 }
 
@@ -742,94 +754,4 @@ func (f failingInv) Assets(ctx context.Context, ids []string) (map[string]AssetV
 		return nil, f.assetsErr
 	}
 	return f.fakeInv.Assets(ctx, ids)
-}
-
-// When CISA changes the product of an entry, the finding of the old product stays open and says so once in its
-// history; a list without the CVE judges nothing.
-func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.seed()
-	const q = `SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`
-	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{{CVE: "CVE-2021-44228", Vendor: "Apache", Product: "Log4j"}}); err != nil || e.count(q) != 0 {
-		t.Fatalf("a list without the CVE noted something: %v", err)
-	}
-	for range 2 {
-		if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{moved}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if n := e.count(q); n != 1 {
-		t.Fatalf("history rows: %d, want 1", n)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`); n != 1 {
-		t.Fatalf("the finding was closed: %d suspected", n)
-	}
-}
-
-// Match, no longer match, match again: one history row each way, none added by repeated runs.
-func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.seed()
-	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
-	run := func(v Vuln) {
-		t.Helper()
-		if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{v}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	count := func(a string) int {
-		return e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = '` + a + `'`)
-	}
-	run(moved)
-	run(moved)
-	run(qnapScanned())
-	run(qnapScanned())
-	if count("no_longer_matches") != 1 || count("matches_again") != 1 {
-		t.Fatalf("rows: %d and %d, want 1 and 1", count("no_longer_matches"), count("matches_again"))
-	}
-	run(moved) // flaps again: the newest row is matches_again, so a new note is written
-	if count("no_longer_matches") != 2 {
-		t.Fatalf("second no_longer_matches: %d", count("no_longer_matches"))
-	}
-}
-
-// On a test box: the product findings of a software without a version stay open (FORBID-2) with a note that
-// says why, the device gets ONE "add the version" item, and the item goes away with the version or the device.
-func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.feeds.vulns[0].Affected = []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}}} // a version decides it (M3 of #939), 6.1.1 does not compare
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil {   // the old flood: a product finding
-		t.Fatal(err)
-	}
-	res, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns)
-	if err != nil || len(res.Created) != 0 {
-		t.Fatalf("%+v %v", res, err)
-	}
-	items, err := e.svc.ListVersionNeeded(t.Context(), "")
-	if err != nil || len(items) != 1 || items[0].AssetID != "a-1" || items[0].CVEs != 1 || items[0].Software != "Photo Station" {
-		t.Fatalf("items = %+v %v", items, err)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches' AND note LIKE '%Add the version%'`); n != 1 {
-		t.Fatalf("notes = %d", n)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`); n != 1 {
-		t.Fatalf("the finding must stay open (FORBID-2): %d", n)
-	}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	if items, _ := e.svc.ListVersionNeeded(t.Context(), ""); len(items) != 0 {
-		t.Fatalf("the version was added, item stays: %+v", items)
-	}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	e.deleteDevice(t, "a-1")
-	if n := e.count(`SELECT count(*) FROM fnd_version_needed`); n != 0 {
-		t.Fatalf("items left after the device was deleted: %d", n)
-	}
 }

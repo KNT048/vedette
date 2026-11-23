@@ -22,7 +22,8 @@ type FindingRow struct {
 	// whose device inventory does not know counts as approved.
 	DeviceApproved bool `json:"device_approved"`
 
-	noDevice bool // the device is a product added by hand with no device (Device.NoDevice)
+	noDevice     bool // the device is a product added by hand with no device (Device.NoDevice)
+	notExploited bool // the finding's CVE is not one attackers use (Finding.Exploited is false): an action's wording says "exploited" only when no finding of it is
 }
 
 // TopRisk is one of the biggest open risks of the week: the open findings of one product, as Findings names it.

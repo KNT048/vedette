@@ -12,10 +12,11 @@ import type { FindingAsset } from './types'
 /** A device nobody approved yet (and nobody ignored): its findings are listed, marked "Not added yet", with Add device and Ignore. */
 export const notAdded = (asset: FindingAsset | null | undefined): asset is FindingAsset => !!asset && !asset.approved && !asset.ignored
 
-/** The compact neutral mark next to a device name in a list. Nothing for an approved or an ignored device. */
-export function NotAddedChip({ asset }: { asset: FindingAsset | null | undefined }) {
+/** The compact neutral mark next to a device name, wherever a device nobody added is named. Nothing for an approved or an ignored
+ *  device. */
+export function NotAddedChip({ asset }: { asset: { approved: boolean; ignored?: boolean } | null | undefined }) {
   const { t } = useTranslation('findings')
-  if (!notAdded(asset)) return null
+  if (!asset || asset.approved || asset.ignored) return null
   return <Chip tone="off" title={t('notAdded.body')}>{t('notAdded.chip')}</Chip>
 }
 

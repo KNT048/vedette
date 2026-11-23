@@ -6,6 +6,6 @@
   {"id": "macos", "display": "macOS", "vendor": "Apple", "product": "macOS", "cpe": ["o:apple:macos", "o:apple:mac_os_x"]},
   {"id": "watchguard-firebox", "display": "WatchGuard Firebox", "vendor": "WatchGuard", "product": "Firebox", "cpe": ["o:watchguard:fireware"], "class": "firewall"},
   {"id": "vmware-esxi", "display": "VMware ESXi", "vendor": "VMware", "product": "ESXi", "kev": ["broadcom|vmware esx"], "cpe": ["o:vmware:esxi"], "scheme": "vmware-esxi", "class": "hypervisor", "record": ["VMware|ESX"], "kev_shared": ["vmware|esxi and workstation", "vmware|esxi, workstation, and fusion", "vmware|vmware esxi and horizon daas"]},
-  {"id": "juniper-junos-os", "display": "Juniper Junos OS", "vendor": "Juniper", "product": "Junos OS", "cpe": ["o:juniper:junos"], "class": "firewall"}
+  {"id": "juniper-junos-os", "display": "Juniper Junos OS", "vendor": "Juniper", "product": "Junos OS", "cpe": ["o:juniper:junos"], "class": "firewall", "scheme": "juniper-junos", "record": ["Juniper Networks|Junos OS", "Juniper|Junos OS"]}
  ]
 }

@@ -16,7 +16,7 @@ describe('a person confirms a suspected finding', () => {
     expect(why).toHaveTextContent(/only/)
     expect(why).toHaveTextContent('Last, confirm it yourself.')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm vulnerability' }))
     const dlg = await screen.findByRole('dialog', { name: 'Confirm this finding' })
     // the note is required
     await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm finding' }))
@@ -28,7 +28,7 @@ describe('a person confirms a suspected finding', () => {
     // confirmed by a person: the page, the basis and the history say so
     await waitFor(() => expect(row('f-2').status).toBe('confirmed'), T)
     expect(row('f-2').basis).toBe('person')
-    expect(await screen.findByText('Confirmed by a person', undefined, T)).toBeInTheDocument()
+    expect((await screen.findAllByText('Confirmed by a person', undefined, T)).length).toBeGreaterThan(0)
     expect(screen.getByText('Confirmed by admin@acme.example: Logged in to the admin page, it runs 6.4')).toBeInTheDocument()
     expect(screen.queryByTestId('suspected-why')).toBeNull()
     expect(auditStore.get().some((a) => a.action === 'findings.confirm')).toBe(true)
@@ -38,7 +38,7 @@ describe('a person confirms a suspected finding', () => {
     await waitFor(() => expect(row('f-2').status).toBe('suspected'), T)
     expect(row('f-2').basis).not.toBe('person')
     expect(await screen.findByTestId('suspected-why', undefined, T)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm vulnerability' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'findings.unconfirm')).toBe(true)
   })
 
@@ -48,7 +48,7 @@ describe('a person confirms a suspected finding', () => {
     const items = within(ways).getAllByRole('listitem')
     expect(items[0]).toHaveTextContent(/^Let the device report its version itself/)
     expect(items.at(-1)).toHaveTextContent(/^Last, if you checked the device yourself, confirm it\./)
-    expect(within(items.at(-1)!).getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(within(items.at(-1)!).getByRole('button', { name: 'Confirm vulnerability' })).toBeInTheDocument()
     // "Run the check" is offered only when the CVE has a safe check
     const check = within(ways).queryByRole('link', { name: 'run the check on the device page' })
     const finding = findingsStore.get().find((f) => f.id === 'f-2')!
@@ -56,24 +56,6 @@ describe('a person confirms a suspected finding', () => {
     expect(!!check).toBe(items.length === 3)
   })
 
-  it('the findings list has Confirm on a suspected row, and a viewer cannot use it', async () => {
-    renderApp('/findings?tab=open')
-    const table = await screen.findByRole('table', { name: 'Findings list' }, T)
-    const wp = within(table).getAllByRole('row').find((r) => within(r).queryByRole('link', { name: 'CVE-2026-119977' }))!
-    await userEvent.click(within(wp).getByRole('button', { name: /^Confirm CVE-2026-119977 on / }))
-    const dlg = await screen.findByRole('dialog', { name: 'Confirm this finding' })
-    await userEvent.type(within(dlg).getByLabelText('What did you check? (required)'), 'Checked on the device')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm finding' }))
-    // confirmed: the row's one action is now Mark as handled…, and Undo confirm is in its menu
-    const mark = await within(table).findByRole('button', { name: /^Mark as handled: CVE-2026-119977 on / }, T)
-    await userEvent.click(within(mark.closest('tr')!).getByRole('button', { name: /^More actions for CVE-2026-119977 on / }))
-    expect(await screen.findByRole('menuitem', { name: 'Undo confirm' }, T)).toBeInTheDocument()
-  })
-
-  it('an operator sees Confirm but cannot use it', async () => {
-    renderApp('/findings?tab=open', { role: 'operator' })
-    expect(await screen.findByRole('button', { name: /^Confirm CVE-2026-119977 on / }, T)).toBeDisabled()
-  })
 })
 
 describe('a version the device itself reports', () => {

@@ -11,7 +11,8 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// The gateway is the host's LAN default route, matched by IP to an inventory device whose open findings are counted.
+// The gateway is the host's LAN default route, matched by IP to an inventory device whose open findings are counted (none while a
+// person ignores the device).
 func TestExposureGateway(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -26,6 +27,13 @@ func TestExposureGateway(t *testing.T) {
 	got, err := g(route("192.168.30.1")).Gateway(t.Context())
 	if err != nil || got.IP.String() != "192.168.30.1" || got.DeviceID != id || got.OpenExploited != 2 || got.Name == "" {
 		t.Fatalf("gateway in inventory: %+v %v", got, err)
+	}
+	// an ignored gateway is still the gateway, but its findings are left out as on every findings list
+	if err := s.d.Inventory.SetIgnored(t.Context(), "it@acme.example", id, true); err != nil {
+		t.Fatal(err)
+	}
+	if got, err = g(route("192.168.30.1")).Gateway(t.Context()); err != nil || got.DeviceID != id || got.OpenExploited != 0 || got.Name == "" {
+		t.Fatalf("ignored gateway: %+v %v", got, err)
 	}
 	if got, err = g(route("192.168.30.254")).Gateway(t.Context()); err != nil || got.IP.String() != "192.168.30.254" || got.DeviceID != "" || got.OpenExploited != 0 {
 		t.Fatalf("gateway not in inventory: %+v %v", got, err)

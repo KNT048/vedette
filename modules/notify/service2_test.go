@@ -423,8 +423,8 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.Modules = gateFunc(func(string) bool { return on })
 		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.High, Title: "QNAP is being exploited", What: "w", Action: "a", Devices: []string{"NAS-01"}},
-			"f-2": {CVE: "CVE-2026-101", Product: "WordPress", Severity: notify.High, Title: "WordPress is being exploited", What: "w", Action: "a"},
+			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.High, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2), Devices: []string{"NAS-01"}},
+			"f-2": {CVE: "CVE-2026-101", Product: "WordPress", Severity: notify.High, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2)},
 		}}
 		c.Devices = fakeDevices{"a-new": "192.168.10.157"}
 	})
@@ -439,10 +439,10 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	}
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", AssetID: "a-1", CVE: "CVE-2026-100", Severity: findings.SeverityHigh, Basis: findings.BasisProduct})
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1"}) // the same finding again: one notice
-	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-2"}) // matched no device: counted, not sent
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-2"}) // matched no device: not sent
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-9"}) // unknown finding: nothing
 	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusPatched})
-	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusConfirmed})
+	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusConfirmed}) // a confirmation is history, not an alert
 	pub(notify.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a-new", Notify: true})
 	pub(notify.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a-quiet"})
 	pub(notify.EventHoneypotHit, map[string]any{"id": "hit-1", "ts": "2026-11-09T09:59:00Z", "kind": "service", "service": "smb", "src_ip": "192.168.10.107", "label": "FILESRV-OLD"})
@@ -454,8 +454,8 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	for _, it := range h.Items {
 		kinds[it.Kind]++
 	}
-	if kinds["vuln"] != 1 || kinds["incident"] != 3 || h.Suppressed.Count != 1 { // the finding and its confirmation: one digest
-		t.Fatalf("history kinds = %v, suppressed %d, items %+v", kinds, h.Suppressed.Count, h.Items)
+	if kinds["vuln"] != 1 || kinds["incident"] != 3 {
+		t.Fatalf("history kinds = %v, items %+v", kinds, h.Items)
 	}
 	l, _ := e.svc.Incidents(e.ctx())
 	got := map[notify.IncidentKind]notify.Incident{}
@@ -572,217 +572,5 @@ func TestRulesValidation(t *testing.T) {
 	}
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.rules_save'`) != 1 {
 		t.Fatal("rules save not audited once")
-	}
-}
-
-func TestSubscribeToldWhenAFindingGetsMoreSeriousOrIsReopened(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
-			"f-2": {CVE: "CVE-2026-101", Product: "WordPress", Severity: notify.High, Title: "t", What: "w", Action: "a"}, // matched no device
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	pub := func(name string, data any) {
-		t.Helper()
-		if err := e.bus.Publish(e.ctx(), events.Event{Name: name, Data: data}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	raised := func(id string, from, to findings.Severity) findings.SeverityRaisedEvent {
-		return findings.SeverityRaisedEvent{FindingID: id, AssetID: "a-1", CVE: "CVE-2026-100", FromSeverity: from, ToSeverity: to, Basis: findings.BasisVersion}
-	}
-	pub(notify.EventFindingRaised, raised("f-1", findings.SeverityMedium, findings.SeverityCritical))
-	pub(notify.EventFindingRaised, raised("f-1", findings.SeverityMedium, findings.SeverityCritical)) // the same raise again: still one
-	pub(notify.EventFindingRaised, raised("f-2", findings.SeverityMedium, findings.SeverityHigh))     // matched no device: not sent
-	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain})
-	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain}) // flaps the same day: still one
-	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice WHERE id = 'nt-f-1-raised-critical'`); n != 1 {
-		t.Fatalf("raised notices = %d", n)
-	}
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-reopened-%'`); n != 1 {
-		t.Fatalf("reopened notices = %d", n)
-	}
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-2-%'`); n != 0 {
-		t.Fatalf("a finding without a device was sent: %d", n)
-	}
-	all := strings.Join(smtp.messages(), "\n")
-	for _, want := range []string{"CVE-2026-100 on NAS-01: now critical (was medium)", "CVE-2026-100 on NAS-01: reopened, it matches again"} {
-		if !strings.Contains(all, want) {
-			t.Fatalf("text %q missing: %s", want, all)
-		}
-	}
-}
-
-func TestSubscribeRaisedNoticeSaysWhyInPlainWords(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	ev := findings.SeverityRaisedEvent{FindingID: "f-1", AssetID: "a-1", CVE: "CVE-2026-100", FromSeverity: findings.SeverityMedium, ToSeverity: findings.SeverityCritical, Basis: findings.BasisVersion}
-	if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingRaised, Data: ev}); err != nil {
-		t.Fatal(err)
-	}
-	e.flush()
-	all := strings.Join(smtp.messages(), "\n")
-	for _, want := range []string{"CVE-2026-100 on NAS-01 is now critical (was medium)", "The installed version is in the range that the vendor lists as affected."} {
-		if !strings.Contains(strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(all), want) {
-			t.Fatalf("text %q missing: %s", want, all)
-		}
-	}
-}
-
-func TestSubscribeRaisedAndReopenedAreSilentInTheBaseline(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{"f-1": {CVE: "CVE-2026-100", Product: "QNAP", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"NAS-01"}}}}
-	})
-	e.email(newFakeSMTP(t))
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	ctx := notify.WithBaseline(e.ctx())
-	for name, data := range map[string]any{
-		notify.EventFindingRaised:        findings.SeverityRaisedEvent{FindingID: "f-1", FromSeverity: findings.SeverityMedium, ToSeverity: findings.SeverityHigh, Basis: findings.BasisVersion},
-		notify.EventFindingStatusChanged: findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain},
-	} {
-		if err := e.bus.Publish(ctx, events.Event{Name: name, Data: data}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 0 {
-		t.Fatalf("notices in the baseline = %d", n)
-	}
-}
-
-// INV-21: an accepted risk whose day passed is told once, by name, and not in the baseline.
-func TestSubscribeToldWhenARiskAcceptanceEnds(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	ev := findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusRiskAccepted, To: findings.StatusConfirmed, Reason: findings.ReasonRiskExpired,
-		AcceptedBy: "it@acme.example", AcceptedUntil: "2027-02-12"}
-	if err := e.bus.Publish(notify.WithBaseline(e.ctx()), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 0 {
-		t.Fatalf("notices in the baseline = %d", n)
-	}
-	for range 2 {
-		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-expired-%'`) != 1 {
-		t.Fatalf("notices = %d", n)
-	}
-	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
-	for _, want := range []string{"Risk acceptance ended: CVE-2026-100 on NAS-01 is open again", "it@acme.example accepted this risk until 12 Feb 2027; that date has passed."} {
-		if !strings.Contains(all, want) {
-			t.Fatalf("text %q missing: %s", want, all)
-		}
-	}
-}
-
-// An acceptance that ends and a "matches again" reopen of the same finding on
-// the same UTC day are two notices; neither swallows the other.
-func TestSubscribeExpiryAndMatchesAgainSameDayBothGoOut(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	for _, ev := range []findings.StatusChangedEvent{
-		{FindingID: "f-1", From: findings.StatusRiskAccepted, To: findings.StatusConfirmed, Reason: findings.ReasonRiskExpired, AcceptedBy: "it@acme.example", AcceptedUntil: "2027-02-12"},
-		{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain},
-	} {
-		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e.flush()
-	if e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-expired-%'`) != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-reopened-%'`) != 1 {
-		t.Fatalf("notices = %d, want one expired and one reopened", e.count(`SELECT COUNT(*) FROM notify_notice`))
-	}
-	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
-	for _, want := range []string{"CVE-2026-100 on NAS-01: risk acceptance ended, open again", "CVE-2026-100 on NAS-01: reopened, it matches again"} {
-		if !strings.Contains(all, want) {
-			t.Fatalf("text %q missing: %s", want, all)
-		}
-	}
-}
-
-// A finding the version the device itself reports confirmed is a confirmation notice like a scan's, and says what confirmed it.
-func TestSubscribeDeviceVersionConfirmationIsANotice(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2025-61624", Product: "Fortinet FortiOS", Severity: notify.High, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"FW-EDGE"}},
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	ev := findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusConfirmed, Reason: findings.ReasonDeviceVersion}
-	if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
-		t.Fatal(err)
-	}
-	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice WHERE id = 'nt-f-1-confirmed'`); n != 1 {
-		t.Fatalf("confirmed notices = %d", n)
-	}
-	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
-	if want := "The version the device itself reports confirms that this flaw is present."; !strings.Contains(all, want) || strings.Contains(all, "A scan confirmed") {
-		t.Fatalf("text %q missing: %s", want, all)
-	}
-}
-
-// The first pass after the device-version rule arrived: one summary notice for every finding it confirmed, sent once.
-func TestSubscribeDeviceVersionBackfillIsOneSummary(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2025-61624", Product: "Fortinet FortiOS", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"FW-EDGE"}},
-			"f-2": {CVE: "CVE-2025-68686", Product: "Fortinet FortiOS", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"FW-EDGE"}},
-			"f-3": {CVE: "CVE-2022-27593", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "w", Action: "a", Devices: []string{"NAS-01"}},
-		}}
-	})
-	smtp := newFakeSMTP(t)
-	e.email(smtp)
-	e.plain()
-	e.svc.Subscribe(e.bus)
-	ev := findings.DeviceBackfillEvent{Findings: 3, Devices: 2, CVEs: 3, Severity: findings.SeverityCritical,
-		FindingIDs: []string{"f-3", "f-1", "f-2"}, CVEList: []string{"CVE-2022-27593", "CVE-2025-61624", "CVE-2025-68686"}}
-	for range 2 { // the same summary twice: still one notice
-		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventDeviceBackfill, Data: ev}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 {
-		t.Fatalf("notices = %d", n)
-	}
-	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
-	for _, want := range []string{"3 findings are now confirmed by the version their device reports", "on 2 devices (3 CVEs)"} {
-		if !strings.Contains(all, want) {
-			t.Fatalf("text %q missing: %s", want, all)
-		}
 	}
 }

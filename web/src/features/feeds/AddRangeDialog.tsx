@@ -41,7 +41,7 @@ export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       // The step on Home reads the same key: it then says the range is set and offers "Scan the LAN now".
       void qc.invalidateQueries({ queryKey: SCANNING_KEY })
       void qc.invalidateQueries({ queryKey: ['inventory'] })
-      void qc.invalidateQueries({ queryKey: ['findings', 'summary'] })
+      void qc.invalidateQueries({ queryKey: ['findings', 'model', 'overview'] })
       onOpenChange(false)
     },
     onError: (e) => {

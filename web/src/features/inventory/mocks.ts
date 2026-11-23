@@ -22,6 +22,7 @@ import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 import { badUserName, nameOf } from './nameOf'
 import { deviceRisk } from '@/features/findings/mocks'
+import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
@@ -342,7 +343,12 @@ function sourcesOf(a: Asset): DeviceSource[] {
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
 /** The CSV's risk column, in the marker's words (inventory riskWords). */
-const csvRisk = (r: DeviceRow['risk']) => (!r ? '' : r.level === 'exploited' ? `${r.exploited} exploited` : 'Update recommended')
+const csvRisk = (r: DeviceRow['risk']) => {
+  if (!r) return ''
+  const words: Record<string, string> = { under_attack: `${r.count} under attack here`, exploited: `${r.count} exploited`, public_exploit: `${r.count} with a public exploit`,
+    critical_edge: `${r.count} critical on an edge device`, update_recommended: 'Update recommended', needs_input: 'Needs your input' }
+  return words[r.code] ?? ''
+}
 /** The asks of "I updated it: ask the agent now" by device (agent-intake INV-23), and how the backend times them. */
 const reportAsks = new Map<string, number>()
 const REPORT_WINDOW_MS = 15 * 60_000
@@ -441,9 +447,10 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
   const badSource = sources.find((x) => !DEVICE_SOURCES.includes(x as DeviceSource))
   if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
-  const risks = list('risk') // exploited, update, none (ParseDeviceSearch)
-  const badRisk = risks.find((x) => !['exploited', 'update', 'none'].includes(x))
-  if (badRisk) return fail(400, 'bad_filter', `"${badRisk}" is not a risk. Use one of: exploited, update, none.`)
+  const risks = list('risk') // the device statuses, none (ParseDeviceSearch)
+  const RISKS = [...DEVICE_STATUSES, 'none'] as string[]
+  const badRisk = risks.find((x) => !RISKS.includes(x))
+  if (badRisk) return fail(400, 'bad_filter', `"${badRisk}" is not a risk. Use one of: ${RISKS.join(', ')}.`)
   const q = (p.get('q') ?? '').trim().toLowerCase()
   if (q.length > 80) return fail(400, 'invalid', 'The parameter "q" is not valid.')
   // Whole bytes of a MAC, in the stored aa:bb:cc form, so a piece never matches across a byte boundary (as the backend's macFragment).
@@ -456,7 +463,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (hasFindings === null || (r.findings_count > 0) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
-    && (!risks.length || risks.includes(r.risk?.level ?? 'none'))
+    && (!risks.length || risks.includes(r.risk?.code ?? 'none'))
     && (!q || [r.name, r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.filter((x) => !x.not_installed).map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }

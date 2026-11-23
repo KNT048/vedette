@@ -29,7 +29,7 @@ The rest of this document describes the data/content/advisory channels and the C
 
 Every channel: a signature is mandatory, the public keys are in the binary (2 keys: `builder-vn`, `builder-gh`, + a separate software release key), a **revocation list** in `index.json`.
 
-## 2. Rollout theo lô
+## 2. Rollout in batches
 
 - Each box has `cohort = hash(install_id) mod 100`. `index.json` records `rollout: {content-pack X: 10}` → only boxes with cohort <10 receive it; it grows 10 → 50 → 100 after 24 hours with no error report (an anonymous opt-in hit or an issue). Software: `beta` before `stable` by ≥ 7 days.
 - Never switch on a data/rule change globally (the Cloudflare lesson of 2025-12-05).
@@ -38,9 +38,9 @@ Every channel: a signature is mandatory, the public keys are in the binary (2 ke
 
 Shows: the software/data/content pack version, "updated at", the channel, the history of the last 20 updates, the signature state, a check-now button, a rollback button per channel, automatic/manual mode, the **offline bundle** (postponed until after v1: the GUI does not offer it, `/core/updates/bundle` returns 501) (`vedette bundle export/import` for air-gapped networks), the state of product advisories.
 
-## 4. Quy trình phát hành (CI, GitHub Actions)
+## 4. Release process (CI, GitHub Actions)
 
-1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (không GPL/AGPL vào lõi).
+1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (no GPL/AGPL in the core).
 2. Reproducible builds (`-trimpath`, `CGO_ENABLED=0`), multi-architecture (amd64/arm64: `make images`, one manifest list per image, cross-compiled without qemu; `make host-deb VERSION=<x.y.z> RELEASE_PREV_INDEX=<folder of the published index>` sets the `sequence` floor of the index inside `vedette-host` to the sequence of that index; a real build without `RELEASE_PREV_INDEX` is refused, except `MIN_SEQUENCE=0` for the first release; a real build is also refused when the git tree is dirty or `GOFLAGS` has `-overlay`/`-tags`, and the finished binary must carry exactly the bytes of the real public key), an **OCI image** for each container and a `.deb` package for `vedette-host` (`make host-deb`, nfpm; package parameters in `DEPLOYMENT.md` §3.1).
 3. A CycloneDX SBOM and vulnerability scanning with a single tool, **trivy** (no syft/grype): `make sbom` writes the SBOM for each image and each architecture plus the source tree into `dist/sbom/`; `make vuln-scan` stops when there is a HIGH/CRITICAL flaw that already has a fix, with exceptions only through `.trivyignore.yaml` with a reason and an expiry date; `make notices-check` compares `THIRD_PARTY_NOTICES.md` with the Go modules actually linked and the web dependencies. This step runs on the maintainer's machine, in the same pass as step 2, and needs no key (attaching the SBOM to the image with `cosign attest` belongs to step 4).
 4. Signing: **cosign** for each image (the box verifies when pulling); **minisign** for `release.json` and the `vedette-host` package (verifiable offline). Whether cosign is key-based or keyless: open question A3 in `ARCHITECTURE.md`.
@@ -49,7 +49,7 @@ Shows: the software/data/content pack version, "updated at", the channel, the hi
 
 ## 5. Flaws in the product itself
 
-- `SECURITY.md`: kênh báo riêng, SLA 2/14/30 ngày.
+- `SECURITY.md`: a private reporting channel, SLA 2/14/30 days.
 - Dependencies: Renovate weekly, pinned versions; a serious CVE in a dependency → a fix release within 7 days.
 - Malicious feed data (an IOC that "blocks Google", a dangerous Nuclei template): the builder has a **safety test** before signing: the top-10k-domain whitelist must not appear in the block list; the nuclei subset only has safe tags; log parsers run a 60-second fuzz.
 - The box keeps an update log (who, when, sha256) in `core_audit`.

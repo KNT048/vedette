@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
-import { FindingStatusChip } from './AcceptRisk'
+import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { useFindingAgentGone } from './agentNow'
@@ -25,12 +25,12 @@ import { errMsg } from './errors'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
-import { RiskChip } from './Risk'
-import { CvssScore } from './Cvss'
+import { SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
 import { StatusDialog } from './Handle'
+import { CveBriefCard } from './CveBrief'
 
 function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
@@ -53,7 +53,7 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
               { label: t('evidence.basis'), value: t(basisLabel(f)) },
               { label: t('evidence.confidence'), value: fmtPercent(f.confidence, 0) },
               { label: t('evidence.template'), value: ev.template ?? <span className="text-muted">{f.kev?.has_template ? t('evidence.noTemplateRun') : t('evidence.noTemplate')}</span> },
-              { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : 'kev'} confidence={f.confidence} at={ev.checked_at} /> },
+              { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : f.kev ? 'kev' : 'catalogue'} confidence={f.confidence} at={ev.checked_at} /> },
             ]} />
             {ev.request ? <CodeBlock code={ev.request} label={t('evidence.request')} /> : null}
             {ev.response ? <CodeBlock code={ev.response} label={t('evidence.response')} /> : null}
@@ -123,7 +123,6 @@ function Aside({ f }: { f: FindingDetail }) {
           </Card>
         ) : <p className="text-sm text-muted">{t('aside.noDevice')}</p>}
         {f.kev ? <p className="text-meta text-muted">{f.kev.name}</p> : null}
-        <Link to={`/cve/${f.cve}`} className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('aside.cvePage', { cve: f.cve })}</Link>
       </section>
       <section aria-labelledby="hist-title" className="grid gap-2">
         <h2 id="hist-title" className="text-base font-semibold">{t('history.title')}</h2>
@@ -186,11 +185,11 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <PageHeader
         breadcrumbs={crumbs}
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <FindingStatusChip f={f} /><RiskChip f={f} /><CvssScore cvss={f.cvss} prefix />
+            <FindingStatus f={f} /><SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span className="inline-flex items-center gap-1">{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}<InfoTip topic={t('col.lastSeen')}>{t('matchedInfo')}</InfoTip></span>
@@ -217,6 +216,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
       {open_ ? null : <ClosedNotice f={f} reopen={reopenButton} />}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
+          <CveBriefCard f={f} />
           {open_ ? body : (
             <details className="group" data-testid="before-closed">
               <summary className="mb-3 w-fit cursor-pointer text-base font-semibold">{t('closed.before')}</summary>

@@ -1,5 +1,6 @@
 // Hợp đồng API module inventory. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
+import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS, TYPE_IDS } from '@/lib/deviceTypes'
 
@@ -99,16 +100,13 @@ const ScanInfo = z.object({
 /** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
  * told apart (both are source agent in observations): osquery by the device's agent binding, Wazuh by its sync. */
 export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
-/** Which devices carry risk, at a glance in every list (like Defender's exposure level), read from what Findings › To fix
- * shows for the device (findings DeviceUpdates, one rule): exploited = open exploited findings To fix lists (an update is named for
- * them, or the box proved them); update = none, but a Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High
- * or Critical severity. null on a clean device. */
-export const RiskLevel = z.enum(['exploited', 'update'])
+/** A device's badge in every list (like Defender's exposure level): findings' device status, the one function the findings lists,
+ * the device page and Home read. Its most urgent open finding status with the distinct CVEs at it, else needs_input with the items
+ * waiting for a person. null when it has none. */
 export const DeviceRisk = z.object({
-  level: RiskLevel,
-  exploited: z.number().int().describe('Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)'),
-  updates: z.number().int().describe('Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity'),
-}).describe('The device\'s risk marker (findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
+  code: z.enum(DEVICE_STATUSES),
+  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items of the Needs your input queue for the device'),
+}).describe('The device\'s badge (findings\' device status): null when it has none, for the Vedette box itself, and while the findings module is off')
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
@@ -124,7 +122,7 @@ export const DevicesQuery = z.object({
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
-  risk: z.string().max(60).optional().describe('Comma-separated: exploited, update, none (no risk marker). Unknown value: 400 bad_filter'),
+  risk: z.string().max(120).optional().describe(`Comma-separated device statuses: ${DEVICE_STATUSES.join(', ')}, or none (no badge). Unknown value: 400 bad_filter`),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
@@ -132,7 +130,7 @@ export const DevicesResponse = z.object({
   counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices; no other count includes them') }),
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
-  risk_unavailable: z.boolean().describe('The risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
+  risk_unavailable: z.boolean().describe('The badges could not be read (the findings module failed): no row has one and a badge filter was not applied'),
 })
 /** INV-41: a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({
@@ -198,7 +196,7 @@ export const DeviceDetail = z.object({
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   risk: DeviceRisk.nullable(),
-  risk_unavailable: z.boolean().describe('The risk marker could not be read (the findings module failed)'),
+  risk_unavailable: z.boolean().describe('The badge could not be read (the findings module failed)'),
   observations: z.array(Observation),
   detected_differs: z.array(DetectedDiffers).describe('INV-47: fields where a trusted source reads another value than the one a person entered, which still wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept their value for the value now detected'),
   manual_at: dt.nullable().describe('INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or "not installed"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it ("last changed 2 hours ago")'),

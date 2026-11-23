@@ -597,10 +597,10 @@ func (s *Service) SetSuspicious(ctx context.Context, actor, id string, suspiciou
 // Devices list unless asked for; it sends no new-device alert (notify closes its open one on inventory.asset.ignored), the scan policies
 // read its network scan and SNMP reads as off (effectiveSources; the stored source choice and the unknown mark are kept), and it is out
 // of the vulnerability readers (MatchInput,
-// AssetIDs, DevicesRunning), so findings makes none and closes its open ones (findings OnAssetIgnored; what a person settled keeps its
-// status). A trap hit or an intrusion-detection incident from it still alerts: those modules never ask about it. Stopping sends it
-// through review again: not approved, its own scan and SNMP settings in force again, inventory.asset.unignored (findings reopens only
-// what Ignore closed), then matched again. Saying it again changes nothing (no audit row, no event). The box is 409 box_device.
+// AssetIDs, DevicesRunning), so findings makes none for it; the findings it has stay as they are, left out of every findings list
+// and not rated by the urgency pass. A trap hit or an intrusion-detection incident from it still alerts: those modules never ask about
+// it. Stopping sends it through review again: not approved, its own scan and SNMP settings in force again, inventory.asset.unignored,
+// then matched again (its findings are listed and rated again at once). Saying it again changes nothing (no audit row, no event). The box is 409 box_device.
 func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool) error {
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var box bool
@@ -625,8 +625,8 @@ func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = ? WHERE id = ?`, s.now(), id); err != nil {
 				return fmt.Errorf("inventory: ignore a device: %w", err)
 			}
-			// updated first: sensor-active and scan stop what runs on it; then ignored: notify closes its new-device incident, findings
-			// removes its findings.
+			// updated first: sensor-active and scan stop what runs on it; then ignored: notify closes its new-device incident. Its
+			// findings stay as they are: the lists leave them out and the urgency pass does not rate them while it is ignored.
 			o.add(EventAssetUpdated, AssetEvent{AssetID: id})
 			o.add(EventAssetIgnored, AssetEvent{AssetID: id, Actor: actor})
 			return s.auditTx(ctx, tx, actor, "inventory.ignore", name, id)
@@ -634,7 +634,7 @@ func (s *Service) SetIgnored(ctx context.Context, actor, id string, ignored bool
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ignored_at = NULL, approved = 0, approved_at = NULL WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("inventory: stop ignoring a device: %w", err)
 		}
-		// unignored first: findings reopens what Ignore closed; then updated with match: findings matches it again, and ScanOn:
+		// unignored first; then updated with match: findings matches it again and rates its findings at once, and ScanOn:
 		// sensor-active queues a discovered device for its next window (the default is on).
 		o.add(EventAssetUnignored, AssetEvent{AssetID: id, Actor: actor})
 		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: true, ScanOn: sourceState(scanSrc, origin) == SourceOn})

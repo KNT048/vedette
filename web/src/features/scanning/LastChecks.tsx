@@ -2,6 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -59,9 +60,15 @@ function vulnWhy(reason: string, origin: string | undefined, device: DeviceRefus
   return ['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never'].includes(reason) ? reason : 'out_of_scope'
 }
 
-function Never({ children }: { children: ReactNode }) {
+/** "Never", with what would run it behind its info icon (`info`) and, visible, only a pointer a person acts on (`children`). */
+function Never({ info, children }: { info?: string | null; children?: ReactNode }) {
   const { t } = useTranslation('scanning')
-  return <><Chip tone="off">{t('lastChecks.never')}</Chip><span>{children}</span></>
+  return (
+    <>
+      <span className="inline-flex items-center gap-1"><Chip tone="off">{t('lastChecks.never')}</Chip>{info ? <InfoTip topic={t('lastChecks.never')}>{info}</InfoTip> : null}</span>
+      {children ? <span>{children}</span> : null}
+    </>
+  )
 }
 
 /**
@@ -102,19 +109,20 @@ export function LastChecks(props: Record<string, unknown>) {
   const refusal = a ? scanRefusal(a, scanning.data) : null
   // a device added by hand with its network scan off: the note is on its Sources card; here only a pointer to it
   const seeSources = <ScanOffSeeSources link={!!a && hasSourcesCard(a)} />
-  // the cause is the note above the rows (DeviceActions): the rows say only that nothing ran
-  const neverIdentify = refusal === 'manual' ? seeSources : refusal ? t('lastChecks.notRun') : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
+  // "Never" alone; what would run it sits behind its info icon. A cause is said once, above the rows (DeviceActions), and a device
+  // added by hand keeps its visible pointer to the switch that turns its scan on.
+  const neverIdentify = refusal === 'manual' ? <Never>{seeSources}</Never> : <Never info={refusal ? null : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')} />
   const vulnReason = buttons.vuln && buttons.vuln !== 'off' ? vulnWhy(buttons.vuln, a?.origin, buttons.identify) : null
+  // why the box cannot scan now is a state: it stays in view, one line
   const blockReason = cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason : null
-  const neverVuln = vulnReason === 'manual' ? seeSources
-    : vulnReason ? t('lastChecks.notRun')
-    : checkable.none ? blockReason ?? t('lastChecks.notRun')
-    : !operator ? t('lastChecks.neverVulnRole')
-    : blockReason ?? t('lastChecks.neverVuln')
+  const neverVuln = vulnReason === 'manual' ? <Never>{seeSources}</Never>
+    : vulnReason ? <Never />
+    : checkable.none ? <Never info={checkable.suspected === 0 ? t('hint.vulnNoneSuspected') : t('hint.vulnNone', { count: checkable.suspected })}>{blockReason}</Never>
+    : <Never info={operator ? t('lastChecks.neverVuln') : t('lastChecks.neverVulnRole')}>{blockReason}</Never>
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
   const snmpCard = !!a && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
   return (
-    <Section id="last-checks" title={t('lastChecks.title')} description={t('lastChecks.description')} stories={['S-INV-1', 'S-SCAN-4']}
+    <Section id="last-checks" title={t('lastChecks.title')} stories={['S-INV-1', 'S-SCAN-4']}
       actions={<Link to={runsHref({ device: assetId })} className={`text-meta ${link}`}>{t('lastChecks.allRuns')}</Link>}>
       {/* "Check this device now" and "Run vulnerability checks now" (or why neither is offered) sit here, with the checks they start */}
       {a ? <div className="mb-3"><DeviceActions assetId={assetId} asset={a} /></div> : null}
@@ -123,16 +131,16 @@ export function LastChecks(props: Record<string, unknown>) {
           {loading ? <p className="text-meta text-muted">{t('common:loading')}</p> : (
             <>
               <Row title={t('lastChecks.kind.identify')} when={ident?.started_at ?? null} href={ident ? runHref(ident.id) : undefined}>
-                {ident ? <HistoryOutcome r={ident} /> : <Never>{neverIdentify}</Never>}
+                {ident ? <HistoryOutcome r={ident} /> : neverIdentify}
               </Row>
               <Row title={t('lastChecks.kind.vuln')} when={vuln?.started_at ?? null} href={vuln ? runHref(vuln.id) : undefined}>
                 {vuln ? <><RunStatusChip run={vuln} /><span>{runOutcome(vuln, ts)}</span></>
-                  : scanOn === false ? <><Chip tone="off">{t('lastChecks.off')}</Chip><span>{t('lastChecks.vulnOff')} <Link to="/settings/scanning?tab=engines#engine-nuclei-switch" className={link}>{t('lastChecks.vulnOffLink')}</Link></span></>
+                  : scanOn === false ? <><span className="inline-flex items-center gap-1"><Chip tone="off">{t('lastChecks.off')}</Chip><InfoTip topic={t('lastChecks.off')}>{t('lastChecks.vulnOff')}</InfoTip></span><Link to="/settings/scanning?tab=engines#engine-nuclei-switch" className={link}>{t('lastChecks.vulnOffLink')}</Link></>
                   : runs.isError ? <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
-                  : <Never>{neverVuln}</Never>}
+                  : neverVuln}
               </Row>
               <Row title={t('lastChecks.kind.snmp')} when={snmp?.started_at ?? null} href={snmp ? runHref(snmp.id) : undefined}>
-                {snmp ? <HistoryOutcome r={snmp} /> : <Never>{t('lastChecks.neverSnmp')}{snmpCard ? <> <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link></> : null}</Never>}
+                {snmp ? <HistoryOutcome r={snmp} /> : <Never info={t('lastChecks.neverSnmp')}>{snmpCard ? <Link to="#device-snmp" className={link}>{t('lastChecks.neverSnmpLink')}</Link> : null}</Never>}
               </Row>
             </>
           )}

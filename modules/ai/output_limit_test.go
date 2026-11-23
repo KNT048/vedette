@@ -47,7 +47,7 @@ func TestACutAnswerIsAskedAgainWithAHigherLimit(t *testing.T) {
 	a.withProfile()
 	a.fake.cutNext(1)
 	got := a.explain("CVE-2022-27593", 200, "")
-	if got["why"] == nil {
+	if got["answers"] == nil {
 		t.Fatalf("explanation = %v", got)
 	}
 	if l := a.jobLimits(); len(l) != 2 || l[0] != 6000 || l[1] != 12000 {
@@ -92,7 +92,7 @@ func TestAnAnswerCutTwiceSaysItWasCutOff(t *testing.T) {
 func TestAWrongFormatIsNotCalledCutOff(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.fake.setAnswer(`{"why":1}`)
+	a.fake.setAnswer(`{"answers":1}`)
 	m := a.explain("CVE-2022-27593", 502, "ai_bad_format")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not in the format") || strings.Contains(msg, "cut off") {
 		t.Fatalf("message = %q", msg)

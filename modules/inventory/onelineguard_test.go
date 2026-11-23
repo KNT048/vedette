@@ -43,6 +43,9 @@ var readingsDecls = map[string]bool{
 	"modules/inventory/join.go:foldSoftware":            true,
 	"modules/inventory/retention.go:pruneAgentSoftware": true, // drops readings of agents gone silent: a write job
 	"modules/inventory/manual.go:dropAgentData":         true, // the agent switch turned off: the agents' readings go
+	// a self-check (read-only, vedette selfcheck): a finding's matched version must be one its line runs, and the matcher also matches
+	// a line's other live readings (an older second install), so the check reads them as the matcher's input does
+	"modules/findings/selfcheck.go:catalogueInvariants": true,
 }
 
 // matchInputCallers may call MatchInput: the matcher itself, its adapter in the wiring, the report's fixes (the matcher's own fix

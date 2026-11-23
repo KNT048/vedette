@@ -70,6 +70,7 @@ type BreakerEvent struct {
 // Events this module listens to (it imports none of their producers; of logs only the stdlib-only address check of logs/signature):
 //
 //	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
+//	findings.finding.urgency_raised (an open finding rose to exploited or under attack) -> trigger finding
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
 //	logs.ioc_hit.detected (logs L4)                                   -> trigger ioc_connection
@@ -78,10 +79,13 @@ type BreakerEvent struct {
 const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
-	EventAssetDiscovered      = "inventory.asset.discovered"
-	EventHoneypotHit          = "honeypot.hit.created"
-	EventIocHit               = "logs.ioc_hit.detected"
-	EventPortOpened           = "exposure.port.opened"
+	// EventFindingUrgency: an open finding rose into a more urgent layer (1 under attack here .. 4); a rise to 1 or 2 (its CVE joined an
+	// exploited list, or an attack here named it) is a finding trigger, as a new exploited finding is.
+	EventFindingUrgency  = "findings.finding.urgency_raised"
+	EventAssetDiscovered = "inventory.asset.discovered"
+	EventHoneypotHit     = "honeypot.hit.created"
+	EventIocHit          = "logs.ioc_hit.detected"
+	EventPortOpened      = "exposure.port.opened"
 )
 
 // PortOpenedEvent is the payload of exposure.port.opened: one port that a scan of an exposure target saw open and the
@@ -127,6 +131,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	}
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
+	on(EventFindingUrgency, s.urgencyEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventHoneypotHit, s.honeypotEvent)
 	on(EventIocHit, s.iocEvent)
@@ -151,11 +156,37 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if e.FindingID == "" || (statusChange && e.To != "confirmed") {
 		return nil
 	}
+	suffix := ""
+	if statusChange {
+		suffix = ":confirmed"
+	}
+	return s.findingDet(ctx, e.FindingID, suffix)
+}
+
+// urgencyEvent records a finding trigger for a rise of an open finding to exploited (2) or under attack here (1), each rise its own
+// event (the id carries the layer and the rise's time).
+func (s *Service) urgencyEvent(ctx context.Context, data any) error {
+	var e struct {
+		FindingID string `json:"finding_id"`
+		To        int    `json:"to"`
+		At        string `json:"at"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.FindingID == "" || e.To < 1 || e.To > 2 {
+		return nil
+	}
+	return s.findingDet(ctx, e.FindingID, fmt.Sprintf(":urgency-%d-%s", e.To, oneLine(e.At, 40)))
+}
+
+// findingDet records the finding trigger of one open finding; suffix tells its events apart.
+func (s *Service) findingDet(ctx context.Context, findingID, suffix string) error {
 	if s.cfg.Directory == nil {
 		s.cfg.Log.WarnContext(ctx, "response: finding event skipped: no directory is wired")
 		return nil
 	}
-	f, ok, err := s.cfg.Directory.Finding(ctx, e.FindingID)
+	f, ok, err := s.cfg.Directory.Finding(ctx, findingID)
 	if err != nil || !ok || !openStatus(f.Status) {
 		return err
 	}
@@ -169,10 +200,7 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	default:
 		sev = "low"
 	}
-	id := "finding:" + f.ID
-	if statusChange {
-		id += ":confirmed"
-	}
+	id := "finding:" + f.ID + suffix
 	return s.StoreEvent(ctx, Det{ID: id, Trigger: "finding", TS: s.ts(), DeviceKind: d.Kind, AssetID: d.ID, FindingID: f.ID, CVE: f.CVE,
 		Summary: oneLine(d.Name+": "+f.CVE+" ("+sev+")", 300),
 		Fields:  map[string]string{"device": oneLine(d.Name, 100), "ip": d.IP, "cve": f.CVE, "severity": sev, "kev": fmt.Sprint(f.KEV), "exposed_via_nat": "false", "vip": ""}})

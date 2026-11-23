@@ -65,6 +65,7 @@
     "sortCount": "Most events first",
     "empty": "No intrusion alerts in this range.",
     "noCve": "No CVE named",
+    "cvesOf": "CVEs of {{signature}}",
     "incident": "Incident {{status}}",
     "noIncident": "No incident",
     "findings_one": "{{count}} finding",

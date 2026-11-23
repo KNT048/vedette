@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/winrel"
 )
 
 // ReconcileEvery is the pause between two reconcile runs (the job also runs once when the module starts).
@@ -322,16 +323,18 @@ func countQuestions(ctx context.Context, q querier, assetID string) (int, error)
 
 // ReconcileResult says what a reconcile run did.
 type ReconcileResult struct {
-	Devices  int // devices matched
-	Created  int // findings created that an event had not created
-	Closed   int // findings Vedette handled because the data no longer detects them
-	Reopened int // findings that opened again
-	Orphans  int // devices whose findings were removed because the device no longer exists
-	Expired  int // accepted risks whose last day passed
+	Devices   int // devices matched (Unchanged of them were up to date: nothing their match reads had moved since their last match)
+	Unchanged int
+	Created   int // findings created that an event had not created
+	Closed    int // findings Vedette handled because the data no longer detects them
+	Reopened  int // findings that opened again
+	Orphans   int // devices whose findings were removed because the device no longer exists
+	Expired   int // accepted risks whose last day passed
 }
 
 // Reconcile heals what a lost event left behind (the bus is best-effort, findings owns the catch-up): it lets time pass for every
-// accepted risk (TrTick), then does the work of OnMatchChanged for every device, and removes what findings keeps for a device the
+// accepted risk (TrTick), then does the work of OnMatchChanged for every device (but a device nothing its match reads moved for
+// since its last full match, matchstamp.go), and removes what findings keeps for a device the
 // inventory no longer has. It reads only through Inventory and Feeds, writes one device per transaction (the writer is never held
 // for the run), honours ctx between devices, and is idempotent. Findings it creates are written under ServiceConfig.Backlog unless
 // their KEV entry is recent (RecentKEV), so a lost baseline is not announced finding by finding. A device list that cannot be read
@@ -400,7 +403,13 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: reading the catalogue: %w", err))...)
 	}
-	set := newMatchSet(vulns)
+	in := passInput{set: newMatchSet(vulns), ok: true}
+	if s.cfg.HaveSince != nil {
+		if in.since, err = s.cfg.HaveSince(ctx); err != nil {
+			in.ok = false // every device is matched; its write reports the error
+		}
+	}
+	matched := make(map[string]bool, len(assets))
 	for _, a := range assets {
 		if len(vulns) == 0 {
 			break // no catalogue loaded yet: nothing can match
@@ -408,7 +417,14 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		if err := ctx.Err(); err != nil {
 			return res, err
 		}
-		up, err := s.upsertSplit(ctx, a, set)
+		matched[a.ID] = true
+		if s.unchanged(ctx, a, in) { // nothing it reads moved since its last full match: matching it again would write nothing
+			res.Devices++
+			res.Unchanged++
+			continue
+		}
+		s.stamps.drop(a.ID) // kept again only once both its writes are done
+		up, err := s.upsertSplit(ctx, a, in)
 		if err != nil {
 			if err := skip(a.ID, err); err != nil {
 				return res, err
@@ -420,6 +436,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		res.Closed += up.Closed
 		res.Reopened += up.Reopened
 	}
+	s.stamps.keepOnly(matched)
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
 		return res, errors.Join(append(failed, err)...)
@@ -454,7 +471,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		failed = append(failed, fmt.Errorf("findings: reconcile: rating urgency: %w", err))
 	}
 	// One line per run, so a box's log shows the pass ran and what it changed (the job's own line is debug).
-	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created, "handled_by_vedette", res.Closed,
+	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "unchanged", res.Unchanged, "created", res.Created, "handled_by_vedette", res.Closed,
 		"reopened", res.Reopened, "devices_removed", res.Orphans, "risk_acceptances_expired", res.Expired)
 	return res, errors.Join(failed...)
 }
@@ -495,22 +512,60 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	return n, err
 }
 
-// splitByNews separates the entries whose findings are announced (added to an exploited list within RecentKEV) from the backlog: an
+// splitIdx separates the entries whose findings are announced (added to an exploited list within RecentKEV) from the backlog: an
 // older entry, and a catalogue CVE on no list, whose findings are written silently (the urgency pass says what is urgent).
 // Without a Backlog hook everything is "recent": nothing can be marked, so nothing is held back.
-func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
+// It returns indexes into vulns, split at now; backlog is nil without a Backlog hook.
+func (s *Service) splitIdx(vulns []Vuln, now time.Time) (backlog, recent []int) {
 	if s.cfg.Backlog == nil {
-		return nil, vulns
+		recent = make([]int, len(vulns))
+		for i := range vulns {
+			recent[i] = i
+		}
+		return nil, recent
 	}
-	cut := s.now().Add(-RecentKEV)
-	for _, v := range vulns {
+	cut := now.Add(-RecentKEV)
+	for i, v := range vulns {
 		if v.DateAdded.IsZero() || v.DateAdded.Before(cut) {
-			backlog = append(backlog, v)
+			backlog = append(backlog, i)
 		} else {
-			recent = append(recent, v)
+			recent = append(recent, i)
 		}
 	}
 	return backlog, recent
+}
+
+// pick is the entries idx of vulns, in order; nil for none.
+func pick(vulns []Vuln, idx []int) []Vuln {
+	if len(idx) == 0 {
+		return nil
+	}
+	out := make([]Vuln, len(idx))
+	for k, i := range idx {
+		out[k] = vulns[i]
+	}
+	return out
+}
+
+// judgedParts is, for the whole set of one pass, the CVEs of its backlog and of its recent entries (splitIdx): each write of a
+// device judges the findings of its part's CVEs. Read once per pass, not once per device.
+func (s *Service) judgedParts(set *matchSet) (backlog, recent map[string]bool) {
+	set.splitOnce.Do(func() {
+		cves := func(idx []int) map[string]bool {
+			out := make(map[string]bool, len(idx))
+			for _, i := range idx {
+				out[set.vulns[i].CVE] = true
+			}
+			return out
+		}
+		set.splitAt = s.now()
+		b, r := s.splitIdx(set.vulns, set.splitAt)
+		if b != nil {
+			set.backlog = cves(b)
+		}
+		set.recent = cves(r)
+	})
+	return set.backlog, set.recent
 }
 
 // cveSet is the CVEs of vulns.
@@ -525,20 +580,36 @@ func cveSet(vulns []Vuln) map[string]bool {
 // upsertSplit matches one device against the entries of set that can concern it, in two writes, the backlog under the Backlog mark.
 // Each write judges every finding of the device whose CVE is in its part of the whole set (a CVE the device no longer runs a product
 // of is gone), and both store the questions of the whole match (each write replaces them).
-func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (UpsertResult, error) {
+// Once both writes ran on the device as it was read, the device's match stamp is kept (matchstamp.go).
+func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (UpsertResult, error) {
 	var sum UpsertResult
-	dev := set.forDevice(a)
-	a.winList = dev                           // A Windows build's month is read from the device's whole list in both writes
-	whole := MatchAsset(a, dev, nil, s.now()) // its questions: which findings exist does not change them
-	allBacklog, allRecent := s.splitByNews(set.vulns)
-	backlog, recent := s.splitByNews(dev)
-	add := func(wctx context.Context, vulns []Vuln, judged map[string]bool) error {
+	set := in.set
+	idx := set.devIdx(a)
+	dev := pick(set.vulns, idx)
+	if dev == nil {
+		dev = []Vuln{}
+	}
+	a.winList = dev // A Windows build's month is read from the device's whole list in both writes
+	now := s.now()
+	gen := winrel.Generation() // before the match: Windows releases or updates learned while it runs make the next pass match again
+	// The device's rows are read once and each entry once: the whole match (its questions: which findings exist does not change them)
+	// and each write's match of its part are assembled from the same readings (devMatch).
+	dm := newDevMatch(a, dev, now)
+	whole := dm.result(nil, nil)
+	allBacklog, allRecent := s.judgedParts(set)
+	// Split at the time the parts' judged CVEs were split (judgedParts), not at the device's own time.
+	backlog, recent := s.splitIdx(dev, set.splitAt)
+	var last *partMatch // the last write that ran
+	stampable := true   // every write that ran wrote on the device as it was read
+	add := func(wctx context.Context, part []int, judged map[string]bool) error {
 		if len(judged) == 0 {
 			return nil
 		}
 		wctx, cancel := context.WithTimeout(wctx, eventWriteTimeout)
 		defer cancel()
-		r, err := s.upsert(wctx, a, vulns, judged, &whole, true)
+		pre := &partMatch{dm: dm, idx: part}
+		r, err := s.upsertPart(wctx, a, pick(dev, part), judged, &whole, true, pre)
+		last, stampable = pre, stampable && pre.wrote && !pre.changed
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Touched += r.Touched
 		sum.Closed += r.Closed
@@ -547,11 +618,20 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (Upse
 		return err
 	}
 	if len(allBacklog) > 0 {
-		if err := add(s.cfg.Backlog(ctx), backlog, cveSet(allBacklog)); err != nil {
+		if err := add(s.cfg.Backlog(ctx), backlog, allBacklog); err != nil {
 			return sum, err
 		}
 	}
-	return sum, add(ctx, recent, cveSet(allRecent))
+	if err := add(ctx, recent, allRecent); err != nil {
+		return sum, err
+	}
+	if in.ok && stampable && last != nil {
+		a.winList = nil // the stamp hashes the device as MatchInput gives it
+		if stamp, ok := s.matchStamp(a, in, idx, last.rows, now, gen); ok {
+			s.stamps.set(a.ID, stamp)
+		}
+	}
+	return sum, nil
 }
 
 func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {

@@ -2,9 +2,13 @@ package findings
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
@@ -105,6 +109,34 @@ type matchSet struct {
 	vulns    []Vuln
 	listed   []int            // entries of an exploited list (Vendor set)
 	byVendor map[string][]int // normalised CPE vendor -> entries of the catalogue naming it
+	// backlog and recent are the CVEs of the set's backlog and recent entries (Service.judgedParts), split once per pass at splitAt;
+	// every device's entries are split at the same time, so an entry that ages out of RecentKEV during the pass stays in one part.
+	splitOnce       sync.Once
+	splitAt         time.Time
+	backlog, recent map[string]bool
+	// hashes are the entries' hashes for the match stamps (entryHash), computed when first asked; hashed[i]: 1 done, 2 not hashable.
+	hashes [][32]byte
+	hashed []uint8
+}
+
+// entryHash is a hash of every field of entry i (matchStamp); ok is false when it cannot be encoded.
+func (m *matchSet) entryHash(i int) ([32]byte, bool) {
+	if m.hashes == nil {
+		m.hashes, m.hashed = make([][32]byte, len(m.vulns)), make([]uint8, len(m.vulns))
+	}
+	switch m.hashed[i] {
+	case 1:
+		return m.hashes[i], true
+	case 2:
+		return [32]byte{}, false
+	}
+	b, err := json.Marshal(m.vulns[i])
+	if err != nil {
+		m.hashed[i] = 2
+		return [32]byte{}, false
+	}
+	m.hashes[i], m.hashed[i] = sha256.Sum256(b), 1
+	return m.hashes[i], true
 }
 
 func newMatchSet(vulns []Vuln) *matchSet {
@@ -128,6 +160,21 @@ func (m *matchSet) forDevice(a Asset) []Vuln {
 	if len(m.listed) == len(m.vulns) {
 		return m.vulns
 	}
+	if out := pick(m.vulns, m.devIdx(a)); out != nil {
+		return out
+	}
+	return []Vuln{}
+}
+
+// devIdx is forDevice as indexes into the set.
+func (m *matchSet) devIdx(a Asset) []int {
+	if len(m.listed) == len(m.vulns) {
+		at := make([]int, len(m.vulns))
+		for i := range at {
+			at[i] = i
+		}
+		return at
+	}
 	at := slices.Clone(m.listed)
 	seen := map[string]bool{}
 	for _, s := range deviceSoftware(a) {
@@ -140,12 +187,7 @@ func (m *matchSet) forDevice(a Asset) []Vuln {
 		}
 	}
 	slices.Sort(at)
-	at = slices.Compact(at)
-	out := make([]Vuln, len(at))
-	for i, x := range at {
-		out[i] = m.vulns[x]
-	}
-	return out
+	return slices.Compact(at)
 }
 
 // pinnedCVEs is the CVEs findings holds a finding for (any state), sorted: the catalogue keeps them whatever their age (feeds'

@@ -41,3 +41,11 @@
 ## Disabling this module
 - The Reports page and the scheduled sends stop; recipients get no report (no error on their side). `rep_*` are kept.
 - No module depends on `reports`.
+
+## Modifying: `ai.Service.RunJob(pdpl-assessment)` (through `reportsAI`)
+- **ai**: changing `JobResult` breaks the AI comment block; changing the `data: internal` of this job could send organisation data
+  to the cloud.
+
+## Modifying: the device type (`content/devicetypes`)
+- The PDPL assessment compares the type a device behaves as (`ActsAs`): a VPN gateway is a firewall, a virtual machine is a main
+  system (server); counting by type keeps the type id.

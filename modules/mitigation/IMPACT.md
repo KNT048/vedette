@@ -6,7 +6,7 @@
 ## Modifying: `{IP}`/`{HOST}` (deviceReplacer)
 - When there is no device or the IP is not valid, the text has `<IP>`/`<HOST>` (the mock uses `<IP-NAS>`/the IP). Pasting it into a shell by mistake is harmless: `<` is input redirection from a file that does not exist, so the command fails and runs nothing. When the host name is unsafe or absent `{HOST}` is the device IP, exactly like the mock (`hostname ?? ip`).
 
-## Modifying: các interface `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
+## Modifying: the interfaces `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
 - **`cmd/vedette` `packVerifier`** (installs a `Verifier` on `internal/release.VerifyContent` and the embedded release key; missing = every pack is refused): changing `Statement` must change the `release packs` signing tool (`scripts/release`) at the same time, and every signature already published stops matching, **ai** (installs `AI`: `Available`, `Run` through `ai.Service.Brief`), **inventory** (installs `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` asks `inventory.HasDevice` with kind `firewall` or `router`, comparing the vendor case-insensitively, including the vendor of software on the device, every device type that behaves like a firewall or router). Changing a signature = changing the wiring in `cmd/vedette`. `AI` is the door of the `ai` module (`aiMitigation`); `Loader` is built in `buildServices` with `packVerifier` and runs through the `load-packs` job.
 
 ## Modifying: `Provider.SetAgents` (the "agent still reports the device" check, INV-7)

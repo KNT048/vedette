@@ -1,32 +1,32 @@
 # Ids — Change Impact Map
 
-> Package `modules/ids`. Cổng vào: `Inventory`, `Findings`, `Incidents`, `Publisher`, `Modules`; nối ở `cmd/vedette/ids.go`.
+> Package `modules/ids`. Entry gates: `Inventory`, `Findings`, `Incidents`, `Publisher`, `Modules`; wired in `cmd/vedette/ids.go`.
 
-## Modifying: `Parse` / `profileKinds` / định dạng của một hãng
-- Thêm hay đổi định dạng: thêm dòng vào `testdata/ips_lines.json` (địa chỉ tài liệu, example.com) cho cả dòng là sự kiện và dòng không phải; `TestCountIPSLinesPerProfile` in số theo profile. Loại nguồn mới phải là một `KIND_IDS` của module logs (`content/logs/kinds.json`).
-- `NativeIPS` quyết watcher `ips_events` của tổng quan (`cmd/vedette/detection.go`) và `IPS_KINDS` của mock (`web/src/features/detection/mocks.ts`): đổi cùng lượt.
+## Modifying: `Parse` / `profileKinds` / a vendor's format
+- Adding or changing a format: add a line to `testdata/ips_lines.json` (documentation addresses, example.com) for both lines that are events and lines that are not; `TestCountIPSLinesPerProfile` prints the count per profile. A new source type must be a `KIND_IDS` of the logs module (`content/logs/kinds.json`).
+- `NativeIPS` decides the overview's `ips_events` watcher (`cmd/vedette/detection.go`) and the mock's `IPS_KINDS` (`web/src/features/detection/mocks.ts`): change them together.
 
-## Modifying: `Attacked(ctx, since)` — cổng của findings
-- Người đọc duy nhất: bộ chuyển `idsFindings` ở `cmd/vedette/ids.go` (`recentlyAttacked`, cửa sổ `AttackWindow`), nó ánh xạ trạng thái của findings sang `under_attack`/`exploited` cho `Findings.Linked`; module findings không gọi `Attacked`. Đổi nhóm hàng (CVE, địa chỉ đích) hay ý nghĩa `since` → trạng thái finding trong cảnh báo và mức critical sai mà không lỗi.
+## Modifying: `Attacked(ctx, since)` — the gate for findings
+- The only reader: the `idsFindings` adapter in `cmd/vedette/ids.go` (`recentlyAttacked`, window `AttackWindow`), which maps findings' state to `under_attack`/`exploited` for `Findings.Linked`; the findings module does not call `Attacked`. Changing the grouping of rows (CVE, destination address) or the meaning of `since` → the finding state in the alert and the critical level become wrong without an error.
 
-## Modifying: sự kiện `ids.alert.detected` (`AlertEvent`)
-- **notify** (`modules/notify/events.go` `intrusionEvent`): đọc qua JSON `source, target, title, what, action, severity, link, at, devices`; `link` phải bắt đầu `/detection/`. Đổi `IncidentKey` → sự cố cũ không còn được đếm tiếp và `incident` của cảnh báo đọc (notify `IncidentOf`) mất liên kết.
+## Modifying: the event `ids.alert.detected` (`AlertEvent`)
+- **notify** (`modules/notify/events.go` `intrusionEvent`): reads through the JSON `source, target, title, what, action, severity, link, at, devices`; `link` must start with `/detection/`. Changing `IncidentKey` → the old incident is no longer counted further and the alert's `incident` read (notify `IncidentOf`) loses its link.
 
-## Modifying: `Findings.Linked` (cổng gộp: thiết bị → CVE)
-- Cài ở `idsFindings` (`cmd/vedette/ids.go`), đọc `findings.Service.List` của từng thiết bị.
-- Gọi một lần mỗi trang, mỗi `Summarize` và mỗi flush (không theo từng thiết bị); bộ chuyển `idsFindings` đọc `Attacked` một lần mỗi lời gọi.
+## Modifying: `Findings.Linked` (the merge gate: device → CVE)
+- Installed in `idsFindings` (`cmd/vedette/ids.go`), reads `findings.Service.List` of each device.
+- Called once per page, per `Summarize` and per flush (not per device); the `idsFindings` adapter reads `Attacked` once per call.
 - Devices a person ignored are left out (one `inventory.IgnoredIDs` read per call): their findings never make an alert critical or count as affected. `TestWiringIPSEventAtAnIgnoredDeviceIsNotCriticalOrAffected`.
 
-## Modifying: `Inventory.DevicesAt`/`Names` (cổng thiết bị)
-- `idsInventory` ghép `logsInventory` (cmd/vedette/logs.go: IP trong danh sách và địa chỉ đọc SNMP từ sensor-active `ReadAddresses`, hai thiết bị cùng địa chỉ → không thiết bị) và `notifyDevices.DeviceStates` cho tên. Đổi quy tắc ghép địa chỉ ở logs → thiết bị của cảnh báo đổi theo.
+## Modifying: `Inventory.DevicesAt`/`Names` (the device gate)
+- `idsInventory` combines `logsInventory` (cmd/vedette/logs.go: IPs in the list and addresses read through SNMP from sensor-active `ReadAddresses`; two devices with the same address → no device) and `notifyDevices.DeviceStates` for names. Changing the address-matching rule in logs → the alert's devices change accordingly.
 
 ## Modifying: `List`/`Get`/`Summarize`
-- **web/features/detection** (`contract.ts` là hợp đồng; `into` của handler từ chối phản hồi lệch schema). `Summarize` → tổng quan (`alerts.total/affected`, watcher `ips_events`) ở `cmd/vedette/detection.go`, cùng `NativeIPS`.
-- Route `/detection/alerts*` gắn với module ở `core/server/modules.go` và `web/src/lib/apiModules.ts` (404 khi module tắt); `cmd/vedette/handler.go` nhúng `IDSHandlers`, `cmd/vedette/modules.go` đăng ký migrations + jobs, `cmd/vedette/devicelifecycle.go` đăng ký `DeviceMerged`.
+- **web/features/detection** (`contract.ts` is the contract; the handler's `into` rejects a response that drifts from the schema). `Summarize` → the overview (`alerts.total/affected`, the `ips_events` watcher) in `cmd/vedette/detection.go`, together with `NativeIPS`.
+- The `/detection/alerts*` routes are tied to the module in `core/server/modules.go` and `web/src/lib/apiModules.ts` (404 when the module is off); `cmd/vedette/handler.go` embeds `IDSHandlers`, `cmd/vedette/modules.go` registers migrations + jobs, `cmd/vedette/devicelifecycle.go` registers `DeviceMerged`.
 
 ## Modifying: `logs.Config.Received` (module logs)
-- `cmd/vedette/ids.go` `idsReceived` nối nó vào `Offer` (chỉ các dòng của loại nguồn `Reads`).
-- Gọi sau commit của lô với dòng đã làm sạch; nếu logs đổi thời điểm gọi hay nội dung `Text` (ví dụ cắt khác), INV-1 của ids (dòng bị cắt không đọc) phải đổi theo.
+- `cmd/vedette/ids.go` `idsReceived` connects it to `Offer` (only lines of the source type `Reads`).
+- Called after the batch commit with the cleaned line; if logs changes when it calls or the content of `Text` (for example cuts differently), INV-1 of ids (a truncated line is not read) must change with it.
 
 ## Modifying: `Attacked` / `ReadAttacked` (layer 1 of a finding's urgency)
 - findings' urgency pass reads `ReadAttacked(since now − 14 days)` while the module is on; a finding becomes "under attack here" for an

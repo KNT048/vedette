@@ -22,6 +22,7 @@ export type IncidentDetail = z.infer<typeof C.IncidentDetail>
 export type IncidentsResponse = z.infer<typeof C.IncidentsResponse>
 export type HistoryItem = z.infer<typeof C.HistoryItem>
 export type HistoryResponse = z.infer<typeof C.HistoryResponse>
+export type UnsentNotice = z.infer<typeof C.UnsentNotice>
 export type FindingNotices = z.infer<typeof C.FindingNotices>
 export type EmailSignin = z.infer<typeof C.EmailSignin>
 export type EmailSigninStart = z.infer<typeof C.EmailSigninStart>

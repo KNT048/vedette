@@ -601,7 +601,7 @@ export const handlers = [
 
   http.get(`${API}/notify/history`, () => {
     const denied = guard('admin'); if (denied) return denied
-    return HttpResponse.json({ items: history(), suppressed: suppressed(notices.get()) })
+    return HttpResponse.json({ items: history(), not_sent: [], suppressed: suppressed(notices.get()) })
   }),
 
   http.post(`${API}/notify/history/:id/resend`, ({ params }) => {

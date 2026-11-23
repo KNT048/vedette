@@ -1176,7 +1176,9 @@ describe('core: updates (S-CORE-2)', () => {
   it('an advisory warns, a software update, then the advisory is gone', async () => {
     const u = user()
     renderApp('/settings/updates')
-    expect(await screen.findByRole('alert')).toHaveTextContent('1 known vulnerabilities')
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('1 known vulnerability')
+    expect(banner).toHaveTextContent('Update the software to get the fix for VSA-2026-003 (fixed in 0.9.4).')
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
     // The software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
@@ -1185,6 +1187,17 @@ describe('core: updates (S-CORE-2)', () => {
     expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(screen.getByRole('table', { name: 'Versions in use' })).toHaveTextContent('0.9.4')
+  })
+
+  it('the advisory banner points to the advisory when no software update reaches the fix', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const base = await (await fetch(`${location.origin}/api/v1/core/updates`)).json() as { available: { component: string }[] }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, available: base.available.filter((a) => a.component !== 'software') })))
+    renderApp('/settings/updates')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('1 known vulnerability')
+    expect(alert).toHaveTextContent(/See VSA-2026-003 below for how to get the fix \(fixed in 0\.9\.4\)\./)
+    expect(alert).not.toHaveTextContent('Update the software')
   })
 
   it('rollback that restores the database: warns, needs the box ticked, then goes back', async () => {

@@ -458,6 +458,7 @@ func (s *Service) giveBackSoftware(ctx context.Context, tx *sql.Tx, id, newID, a
 					return fmt.Errorf("inventory: give the software back: %w", err)
 				}
 			}
+			moved[cur] = cur // the line itself is newID's now: the rows other modules keep by (id, line) follow it
 			continue
 		}
 		for _, x := range list {

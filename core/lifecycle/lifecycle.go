@@ -47,14 +47,14 @@ func (m Merge) SoftwareID(id string) string {
 type Split struct {
 	From, Into string
 	Actor      string // the person who split it
-	// Software maps the id of every software line of From whose readings went to another line of Into (a line of a new id: Into had no
-	// line of that product and train before) to that line, for the lines a module may keep rows by.
+	// Software maps the id of every software line of From whose readings went to Into to Into's line that holds them now, for the
+	// lines a module may keep rows by: another line of Into, or the same id when the line went whole (it is Into's now, Gone true).
 	Software map[string]SplitLine
 }
 
 // SplitLine is where one software line of a split's From went.
 type SplitLine struct {
-	// Into is the line of the split's Into that took the readings.
+	// Into is the line of the split's Into that took the readings: the line's own id when it went whole.
 	Into string
 	// Gone says From no longer has the software: no reading is left on its line (now removed). When false, From still reads the
 	// software too (another source, or a reading both devices shared): both devices have it.

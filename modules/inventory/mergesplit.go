@@ -739,12 +739,13 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 }
 
 // splitLines is the lifecycle.Split of a split of device from into device into: every line of from whose readings went to a line of
-// into (lines: from's line -> into's), and whether from still reads that software (its line is not removed).
+// into (lines: from's line -> into's; a line that went whole maps to itself), and whether from still reads that software (it still
+// holds the line, not removed).
 func splitLines(ctx context.Context, tx *sql.Tx, from, into, actor string, lines map[string]string) (lifecycle.Split, error) {
 	sp := lifecycle.Split{From: from, Into: into, Actor: actor, Software: make(map[string]lifecycle.SplitLine, len(lines))}
 	for old, to := range lines {
 		var state string
-		err := tx.QueryRowContext(ctx, `SELECT state FROM inv_software WHERE id = ?`, old).Scan(&state)
+		err := tx.QueryRowContext(ctx, `SELECT state FROM inv_software WHERE id = ? AND asset_id = ?`, old, from).Scan(&state)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return sp, fmt.Errorf("inventory: read software line: %w", err)
 		}

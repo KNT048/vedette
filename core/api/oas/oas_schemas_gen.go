@@ -151121,8 +151121,968 @@ func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) err
 	}
 }
 
+type InventoryGetInventoryDevicesIDMergePreviewOK struct {
+	// Only the fields the devices state differently; empty when they agree.
+	Differs []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem `json:"differs"`
+	// The devices that go into it, in the order given.
+	From []InventoryGetInventoryDevicesIDMergePreviewOKFromItem `json:"from"`
+	// The device that stays.
+	Into  InventoryGetInventoryDevicesIDMergePreviewOKInto  `json:"into"`
+	Moves InventoryGetInventoryDevicesIDMergePreviewOKMoves `json:"moves"`
+	// Why the merge would be refused (409 with this code); null when it may go ahead.
+	Refusal NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal `json:"refusal"`
+}
+
+// GetDiffers returns the value of Differs.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) GetDiffers() []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem {
+	return s.Differs
+}
+
+// GetFrom returns the value of From.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) GetFrom() []InventoryGetInventoryDevicesIDMergePreviewOKFromItem {
+	return s.From
+}
+
+// GetInto returns the value of Into.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) GetInto() InventoryGetInventoryDevicesIDMergePreviewOKInto {
+	return s.Into
+}
+
+// GetMoves returns the value of Moves.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) GetMoves() InventoryGetInventoryDevicesIDMergePreviewOKMoves {
+	return s.Moves
+}
+
+// GetRefusal returns the value of Refusal.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) GetRefusal() NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal {
+	return s.Refusal
+}
+
+// SetDiffers sets the value of Differs.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) SetDiffers(val []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) {
+	s.Differs = val
+}
+
+// SetFrom sets the value of From.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) SetFrom(val []InventoryGetInventoryDevicesIDMergePreviewOKFromItem) {
+	s.From = val
+}
+
+// SetInto sets the value of Into.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) SetInto(val InventoryGetInventoryDevicesIDMergePreviewOKInto) {
+	s.Into = val
+}
+
+// SetMoves sets the value of Moves.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) SetMoves(val InventoryGetInventoryDevicesIDMergePreviewOKMoves) {
+	s.Moves = val
+}
+
+// SetRefusal sets the value of Refusal.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOK) SetRefusal(val NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) {
+	s.Refusal = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem struct {
+	// Name, kind and os: the merge takes a choice (fields); the others follow the sources.
+	Choosable bool                                                         `json:"choosable"`
+	Field     InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField `json:"field"`
+	// What the kept device has after the merge unless the person picks another: the kept device's own name
+	// in Vedette (else the first that has one), the strongest source's reading for the other fields.
+	Kept string `json:"kept"`
+	// Each device's value, the kept device first; a device without a value is left out.
+	Values []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem `json:"values"`
+}
+
+// GetChoosable returns the value of Choosable.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetChoosable() bool {
+	return s.Choosable
+}
+
+// GetField returns the value of Field.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetField() InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField {
+	return s.Field
+}
+
+// GetKept returns the value of Kept.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetKept() string {
+	return s.Kept
+}
+
+// GetValues returns the value of Values.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetValues() []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem {
+	return s.Values
+}
+
+// SetChoosable sets the value of Choosable.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetChoosable(val bool) {
+	s.Choosable = val
+}
+
+// SetField sets the value of Field.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetField(val InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField) {
+	s.Field = val
+}
+
+// SetKept sets the value of Kept.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetKept(val string) {
+	s.Kept = val
+}
+
+// SetValues sets the value of Values.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetValues(val []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) {
+	s.Values = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField string
+
+const (
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldName     InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "name"
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldKind     InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "kind"
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldOs       InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "os"
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldVendor   InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "vendor"
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldModel    InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "model"
+	InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldHostname InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField = "hostname"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField values.
+func (InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField) AllValues() []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField {
+	return []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField{
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldName,
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldKind,
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldOs,
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldVendor,
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldModel,
+		InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldHostname,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldName:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldKind:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldOs:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldVendor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldModel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldHostname:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField(data) {
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldName:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldName
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldKind:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldKind
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldOs:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldOs
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldVendor:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldVendor
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldModel:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldModel
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldHostname:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemFieldHostname
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem struct {
+	Device string `json:"device"`
+	Value  string `json:"value"`
+}
+
+// GetDevice returns the value of Device.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) GetDevice() string {
+	return s.Device
+}
+
+// GetValue returns the value of Value.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) GetValue() string {
+	return s.Value
+}
+
+// SetDevice sets the value of Device.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetValue sets the value of Value.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) SetValue(val string) {
+	s.Value = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKFromItem struct {
+	Addresses []InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem `json:"addresses"`
+	// An agent reports from it.
+	Agent     bool                                                        `json:"agent"`
+	Approved  bool                                                        `json:"approved"`
+	Findings  int                                                         `json:"findings"`
+	ID        string                                                      `json:"id"`
+	Ignored   bool                                                        `json:"ignored"`
+	LastSeen  time.Time                                                   `json:"last_seen"`
+	Name      string                                                      `json:"name"`
+	OpenPorts int                                                         `json:"open_ports"`
+	Risk      NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk `json:"risk"`
+	// Software lines present.
+	Software int `json:"software"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetAddresses() []InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem {
+	return s.Addresses
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetAgent() bool {
+	return s.Agent
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetApproved() bool {
+	return s.Approved
+}
+
+// GetFindings returns the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetFindings() int {
+	return s.Findings
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetName() string {
+	return s.Name
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetOpenPorts() int {
+	return s.OpenPorts
+}
+
+// GetRisk returns the value of Risk.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetRisk() NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk {
+	return s.Risk
+}
+
+// GetSoftware returns the value of Software.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) GetSoftware() int {
+	return s.Software
+}
+
+// SetAddresses sets the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetAddresses(val []InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) {
+	s.Addresses = val
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetAgent(val bool) {
+	s.Agent = val
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetFindings(val int) {
+	s.Findings = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetOpenPorts(val int) {
+	s.OpenPorts = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetRisk(val NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) {
+	s.Risk = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItem) SetSoftware(val int) {
+	s.Software = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem struct {
+	FirstSeen time.Time `json:"first_seen"`
+	IP        NilString `json:"ip"`
+	LastSeen  time.Time `json:"last_seen"`
+	MAC       NilString `json:"mac"`
+	// The main address: the one lists show and every scan and read of the device goes to. Exactly one when
+	// the device has any address.
+	Main bool `json:"main"`
+	// What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan,
+	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
+	// nothing has seen since.
+	Source string `json:"source"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetIP() NilString {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetMAC returns the value of MAC.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetMAC() NilString {
+	return s.MAC
+}
+
+// GetMain returns the value of Main.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetMain() bool {
+	return s.Main
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) GetSource() string {
+	return s.Source
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
+// SetMain sets the value of Main.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetMain(val bool) {
+	s.Main = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetSource(val string) {
+	s.Source = val
+}
+
+// The device's badge (findings' device status): null when it has none, for the Vedette box itself, and
+// while the findings module is off.
+type InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk struct {
+	Code InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode `json:"code"`
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
+	// of the Needs your input queue for the device.
+	Count int `json:"count"`
+}
+
+// GetCode returns the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) GetCode() InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode {
+	return s.Code
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) GetCount() int {
+	return s.Count
+}
+
+// SetCode sets the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) SetCode(val InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) {
+	s.Code = val
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) SetCount(val int) {
+	s.Count = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode string
+
+const (
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUnderAttack       InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "under_attack"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeExploited         InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "exploited"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit     InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "public_exploit"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge      InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "critical_edge"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "update_recommended"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput        InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "needs_input"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode values.
+func (InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) AllValues() []InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode {
+	return []InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode{
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUnderAttack,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeExploited,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUnderAttack:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeExploited:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode(data) {
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUnderAttack:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUnderAttack
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeExploited:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeExploited
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The device that stays.
+type InventoryGetInventoryDevicesIDMergePreviewOKInto struct {
+	Addresses []InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem `json:"addresses"`
+	// An agent reports from it.
+	Agent     bool                                                    `json:"agent"`
+	Approved  bool                                                    `json:"approved"`
+	Findings  int                                                     `json:"findings"`
+	ID        string                                                  `json:"id"`
+	Ignored   bool                                                    `json:"ignored"`
+	LastSeen  time.Time                                               `json:"last_seen"`
+	Name      string                                                  `json:"name"`
+	OpenPorts int                                                     `json:"open_ports"`
+	Risk      NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk `json:"risk"`
+	// Software lines present.
+	Software int `json:"software"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetAddresses() []InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem {
+	return s.Addresses
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetAgent() bool {
+	return s.Agent
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetApproved() bool {
+	return s.Approved
+}
+
+// GetFindings returns the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetFindings() int {
+	return s.Findings
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetName() string {
+	return s.Name
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetOpenPorts() int {
+	return s.OpenPorts
+}
+
+// GetRisk returns the value of Risk.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetRisk() NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk {
+	return s.Risk
+}
+
+// GetSoftware returns the value of Software.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) GetSoftware() int {
+	return s.Software
+}
+
+// SetAddresses sets the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetAddresses(val []InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) {
+	s.Addresses = val
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetAgent(val bool) {
+	s.Agent = val
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetFindings(val int) {
+	s.Findings = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetName(val string) {
+	s.Name = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetOpenPorts(val int) {
+	s.OpenPorts = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetRisk(val NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) {
+	s.Risk = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKInto) SetSoftware(val int) {
+	s.Software = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem struct {
+	FirstSeen time.Time `json:"first_seen"`
+	IP        NilString `json:"ip"`
+	LastSeen  time.Time `json:"last_seen"`
+	MAC       NilString `json:"mac"`
+	// The main address: the one lists show and every scan and read of the device goes to. Exactly one when
+	// the device has any address.
+	Main bool `json:"main"`
+	// What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan,
+	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
+	// nothing has seen since.
+	Source string `json:"source"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetIP() NilString {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetMAC returns the value of MAC.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetMAC() NilString {
+	return s.MAC
+}
+
+// GetMain returns the value of Main.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetMain() bool {
+	return s.Main
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) GetSource() string {
+	return s.Source
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
+// SetMain sets the value of Main.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetMain(val bool) {
+	s.Main = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetSource(val string) {
+	s.Source = val
+}
+
+// The device's badge (findings' device status): null when it has none, for the Vedette box itself, and
+// while the findings module is off.
+type InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk struct {
+	Code InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode `json:"code"`
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
+	// of the Needs your input queue for the device.
+	Count int `json:"count"`
+}
+
+// GetCode returns the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) GetCode() InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode {
+	return s.Code
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) GetCount() int {
+	return s.Count
+}
+
+// SetCode sets the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) SetCode(val InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) {
+	s.Code = val
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) SetCount(val int) {
+	s.Count = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode string
+
+const (
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUnderAttack       InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "under_attack"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeExploited         InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "exploited"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit     InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "public_exploit"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge      InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "critical_edge"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "update_recommended"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput        InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "needs_input"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode values.
+func (InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) AllValues() []InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode {
+	return []InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode{
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUnderAttack,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeExploited,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUnderAttack:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeExploited:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode(data) {
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUnderAttack:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUnderAttack
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeExploited:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeExploited
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKMoves struct {
+	// Addresses that become the kept device's, each with what a scan read there.
+	Addresses int `json:"addresses"`
+	// Exploited CVEs the devices taken are marked with.
+	Exploited int `json:"exploited"`
+	// Findings that move, with their history and decisions; one CVE of one software line becomes one
+	// finding.
+	Findings  int `json:"findings"`
+	OpenPorts int `json:"open_ports"`
+	// Software readings that move; none is dropped.
+	Readings int `json:"readings"`
+	// Software lines the kept device does not have.
+	SoftwareNew int `json:"software_new"`
+	// Lines it has too: one line keeps every reading of both.
+	SoftwareShared int `json:"software_shared"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetAddresses() int {
+	return s.Addresses
+}
+
+// GetExploited returns the value of Exploited.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetExploited() int {
+	return s.Exploited
+}
+
+// GetFindings returns the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetFindings() int {
+	return s.Findings
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetOpenPorts() int {
+	return s.OpenPorts
+}
+
+// GetReadings returns the value of Readings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetReadings() int {
+	return s.Readings
+}
+
+// GetSoftwareNew returns the value of SoftwareNew.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetSoftwareNew() int {
+	return s.SoftwareNew
+}
+
+// GetSoftwareShared returns the value of SoftwareShared.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) GetSoftwareShared() int {
+	return s.SoftwareShared
+}
+
+// SetAddresses sets the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetAddresses(val int) {
+	s.Addresses = val
+}
+
+// SetExploited sets the value of Exploited.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetFindings(val int) {
+	s.Findings = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetOpenPorts(val int) {
+	s.OpenPorts = val
+}
+
+// SetReadings sets the value of Readings.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetReadings(val int) {
+	s.Readings = val
+}
+
+// SetSoftwareNew sets the value of SoftwareNew.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetSoftwareNew(val int) {
+	s.SoftwareNew = val
+}
+
+// SetSoftwareShared sets the value of SoftwareShared.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKMoves) SetSoftwareShared(val int) {
+	s.SoftwareShared = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKRefusal struct {
+	Code    InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode `json:"code"`
+	Message string                                                  `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKRefusal) GetCode() InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKRefusal) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKRefusal) SetCode(val InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKRefusal) SetMessage(val string) {
+	s.Message = val
+}
+
+type InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode string
+
+const (
+	InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeBoxDevice     InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode = "box_device"
+	InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeNotSameDevice InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode = "not_same_device"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode values.
+func (InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode) AllValues() []InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode {
+	return []InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode{
+		InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeBoxDevice,
+		InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeNotSameDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeBoxDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeNotSameDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDMergePreviewOKRefusalCode(data) {
+	case InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeBoxDevice:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeBoxDevice
+		return nil
+	case InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeNotSameDevice:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKRefusalCodeNotSameDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOK struct {
-	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
+	// Every address of the device, the main one first, then the others, the one seen last first: the
+	// device is found by any of them. Split off = POST /inventory/devices/{id}/split.
+	Addresses []InventoryGetInventoryDevicesIDOKAddressesItem `json:"addresses"`
+	Asset     InventoryGetInventoryDevicesIDOKAsset           `json:"asset"`
 	// INV-47: fields where a trusted source reads another value than the one a person entered, which still
 	// wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept
 	// their value for the value now detected.
@@ -151140,12 +152100,18 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one
 	// uses a private Wi-Fi address; never when a person kept them separate, two agents or two different
 	// burned-in MACs say two machines, they state another name, model or OS, or one was seen while the
-	// other was.
+	// other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or
+	// burned-in MACs from one block of a maker on network gear (reason).
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
 	Risk         NilInventoryGetInventoryDevicesIDOKRisk            `json:"risk"`
 	// The badge could not be read (the findings module failed).
 	RiskUnavailable bool `json:"risk_unavailable"`
 	Suspicious      bool `json:"suspicious"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDOK) GetAddresses() []InventoryGetInventoryDevicesIDOKAddressesItem {
+	return s.Addresses
 }
 
 // GetAsset returns the value of Asset.
@@ -151198,6 +152164,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetSuspicious() bool {
 	return s.Suspicious
 }
 
+// SetAddresses sets the value of Addresses.
+func (s *InventoryGetInventoryDevicesIDOK) SetAddresses(val []InventoryGetInventoryDevicesIDOKAddressesItem) {
+	s.Addresses = val
+}
+
 // SetAsset sets the value of Asset.
 func (s *InventoryGetInventoryDevicesIDOK) SetAsset(val InventoryGetInventoryDevicesIDOKAsset) {
 	s.Asset = val
@@ -151246,6 +152217,80 @@ func (s *InventoryGetInventoryDevicesIDOK) SetRiskUnavailable(val bool) {
 // SetSuspicious sets the value of Suspicious.
 func (s *InventoryGetInventoryDevicesIDOK) SetSuspicious(val bool) {
 	s.Suspicious = val
+}
+
+type InventoryGetInventoryDevicesIDOKAddressesItem struct {
+	FirstSeen time.Time `json:"first_seen"`
+	IP        NilString `json:"ip"`
+	LastSeen  time.Time `json:"last_seen"`
+	MAC       NilString `json:"mac"`
+	// The main address: the one lists show and every scan and read of the device goes to. Exactly one when
+	// the device has any address.
+	Main bool `json:"main"`
+	// What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan,
+	// agent, snmp), manual for the address a person typed, merge for one a person's merge brought that
+	// nothing has seen since.
+	Source string `json:"source"`
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetIP() NilString {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetMAC returns the value of MAC.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetMAC() NilString {
+	return s.MAC
+}
+
+// GetMain returns the value of Main.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetMain() bool {
+	return s.Main
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) GetSource() string {
+	return s.Source
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
+// SetMain sets the value of Main.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetMain(val bool) {
+	s.Main = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAddressesItem) SetSource(val string) {
+	s.Source = val
 }
 
 type InventoryGetInventoryDevicesIDOKAsset struct {
@@ -154519,7 +155564,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetScanSource) UnmarshalText(data []b
 }
 
 type InventoryGetInventoryDevicesIDOKAssetServicesItem struct {
-	Confidence float64 `json:"confidence"`
+	// The other address of the device a scan found the port on (an IP, or a MAC when that interface has no
+	// IP now); absent for the main address and for an agent's list. One port open on two interfaces is two
+	// rows.
+	Address    OptString `json:"address"`
+	Confidence float64   `json:"confidence"`
 	// What the service said about the device besides product and version: nmap extra info and device type,
 	// page title, certificate subject. Evidence only, never software.
 	Detail  OptString                                               `json:"detail"`
@@ -154529,6 +155578,11 @@ type InventoryGetInventoryDevicesIDOKAssetServicesItem struct {
 	Proto   InventoryGetInventoryDevicesIDOKAssetServicesItemProto  `json:"proto"`
 	Source  InventoryGetInventoryDevicesIDOKAssetServicesItemSource `json:"source"`
 	Version OptString                                               `json:"version"`
+}
+
+// GetAddress returns the value of Address.
+func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetAddress() OptString {
+	return s.Address
 }
 
 // GetConfidence returns the value of Confidence.
@@ -154569,6 +155623,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetSource() Inventor
 // GetVersion returns the value of Version.
 func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetVersion() OptString {
 	return s.Version
+}
+
+// SetAddress sets the value of Address.
+func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) SetAddress(val OptString) {
+	s.Address = val
 }
 
 // SetConfidence sets the value of Confidence.
@@ -157023,6 +158082,12 @@ type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it.
 	Name string `json:"name"`
+	// Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a
+	// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
+	// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
+	// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
+	// address of a device added by hand.
+	Reason InventoryGetInventoryDevicesIDOKPossibleSameItemReason `json:"reason"`
 	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
 	// time, and a private Wi-Fi address (phones and laptops change it).
 	Why string `json:"why"`
@@ -157051,6 +158116,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetLastSeen() time.Ti
 // GetName returns the value of Name.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetName() string {
 	return s.Name
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetReason() InventoryGetInventoryDevicesIDOKPossibleSameItemReason {
+	return s.Reason
 }
 
 // GetWhy returns the value of Why.
@@ -157083,9 +158153,88 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetName(val string) {
 	s.Name = val
 }
 
+// SetReason sets the value of Reason.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetReason(val InventoryGetInventoryDevicesIDOKPossibleSameItemReason) {
+	s.Reason = val
+}
+
 // SetWhy sets the value of Why.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 	s.Why = val
+}
+
+// Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a
+// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
+// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
+// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
+// address of a device added by hand.
+type InventoryGetInventoryDevicesIDOKPossibleSameItemReason string
+
+const (
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameMAC          InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "same_mac"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACBlock         InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "mac_block"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameNameCards    InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "same_name_cards"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName     InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "rotating_name"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel    InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "rotating_model"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "mac_at_added_device"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKPossibleSameItemReason values.
+func (InventoryGetInventoryDevicesIDOKPossibleSameItemReason) AllValues() []InventoryGetInventoryDevicesIDOKPossibleSameItemReason {
+	return []InventoryGetInventoryDevicesIDOKPossibleSameItemReason{
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameMAC,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACBlock,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameNameCards,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKPossibleSameItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameMAC:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACBlock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameNameCards:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItemReason) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKPossibleSameItemReason(data) {
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameMAC:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameMAC
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACBlock:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACBlock
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameNameCards:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameNameCards
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The device's badge (findings' device status): null when it has none, for the Vedette box itself, and
@@ -162570,6 +163719,12 @@ type InventoryGetInventoryPossibleSameOKItemsItem struct {
 	// The approved device when one is, else the one seen first: the one a merge most likely keeps.
 	A InventoryGetInventoryPossibleSameOKItemsItemA `json:"a"`
 	B InventoryGetInventoryPossibleSameOKItemsItemB `json:"b"`
+	// Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a
+	// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
+	// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
+	// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
+	// address of a device added by hand.
+	Reason InventoryGetInventoryPossibleSameOKItemsItemReason `json:"reason"`
 	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
 	// time, and a private Wi-Fi address (phones and laptops change it).
 	Why string `json:"why"`
@@ -162585,6 +163740,11 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetB() InventoryGetInvent
 	return s.B
 }
 
+// GetReason returns the value of Reason.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetReason() InventoryGetInventoryPossibleSameOKItemsItemReason {
+	return s.Reason
+}
+
 // GetWhy returns the value of Why.
 func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetWhy() string {
 	return s.Why
@@ -162598,6 +163758,11 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetA(val InventoryGetInve
 // SetB sets the value of B.
 func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetB(val InventoryGetInventoryPossibleSameOKItemsItemB) {
 	s.B = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetReason(val InventoryGetInventoryPossibleSameOKItemsItemReason) {
+	s.Reason = val
 }
 
 // SetWhy sets the value of Why.
@@ -162700,6 +163865,80 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetLastSeen(val time.Tim
 // SetName sets the value of Name.
 func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetName(val string) {
 	s.Name = val
+}
+
+// Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a
+// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
+// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
+// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
+// address of a device added by hand.
+type InventoryGetInventoryPossibleSameOKItemsItemReason string
+
+const (
+	InventoryGetInventoryPossibleSameOKItemsItemReasonSameMAC          InventoryGetInventoryPossibleSameOKItemsItemReason = "same_mac"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonMACBlock         InventoryGetInventoryPossibleSameOKItemsItemReason = "mac_block"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonSameNameCards    InventoryGetInventoryPossibleSameOKItemsItemReason = "same_name_cards"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName     InventoryGetInventoryPossibleSameOKItemsItemReason = "rotating_name"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel    InventoryGetInventoryPossibleSameOKItemsItemReason = "rotating_model"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice InventoryGetInventoryPossibleSameOKItemsItemReason = "mac_at_added_device"
+)
+
+// AllValues returns all InventoryGetInventoryPossibleSameOKItemsItemReason values.
+func (InventoryGetInventoryPossibleSameOKItemsItemReason) AllValues() []InventoryGetInventoryPossibleSameOKItemsItemReason {
+	return []InventoryGetInventoryPossibleSameOKItemsItemReason{
+		InventoryGetInventoryPossibleSameOKItemsItemReasonSameMAC,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonMACBlock,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonSameNameCards,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryPossibleSameOKItemsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameMAC:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACBlock:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameNameCards:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemReason) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryPossibleSameOKItemsItemReason(data) {
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameMAC:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonSameMAC
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACBlock:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonMACBlock
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameNameCards:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonSameNameCards
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventorySensorsOK struct {
@@ -167694,18 +168933,721 @@ func (s *InventoryPostInventoryDevicesIDMergeOK) SetID(val string) {
 }
 
 type InventoryPostInventoryDevicesIDMergeReq struct {
-	// The device that goes into the device of the path.
-	From string `json:"from"`
+	// Values a person chose where the devices differ; left out: the merge's own result (MergePreview
+	// differs kept).
+	Fields OptInventoryPostInventoryDevicesIDMergeReqFields `json:"fields"`
+	// The devices that go into the device of the path, 1 to 8 (the interfaces of one firewall in one step).
+	From []string `json:"from"`
+}
+
+// GetFields returns the value of Fields.
+func (s *InventoryPostInventoryDevicesIDMergeReq) GetFields() OptInventoryPostInventoryDevicesIDMergeReqFields {
+	return s.Fields
 }
 
 // GetFrom returns the value of From.
-func (s *InventoryPostInventoryDevicesIDMergeReq) GetFrom() string {
+func (s *InventoryPostInventoryDevicesIDMergeReq) GetFrom() []string {
 	return s.From
 }
 
+// SetFields sets the value of Fields.
+func (s *InventoryPostInventoryDevicesIDMergeReq) SetFields(val OptInventoryPostInventoryDevicesIDMergeReqFields) {
+	s.Fields = val
+}
+
 // SetFrom sets the value of From.
-func (s *InventoryPostInventoryDevicesIDMergeReq) SetFrom(val string) {
+func (s *InventoryPostInventoryDevicesIDMergeReq) SetFrom(val []string) {
 	s.From = val
+}
+
+// Values a person chose where the devices differ; left out: the merge's own result (MergePreview
+// differs kept).
+type InventoryPostInventoryDevicesIDMergeReqFields struct {
+	// Device type (content/devicetypes/types.json).
+	Kind OptInventoryPostInventoryDevicesIDMergeReqFieldsKind `json:"kind"`
+	Name OptString                                            `json:"name"`
+	Os   OptString                                            `json:"os"`
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) GetKind() OptInventoryPostInventoryDevicesIDMergeReqFieldsKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) GetName() OptString {
+	return s.Name
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) GetOs() OptString {
+	return s.Os
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) SetKind(val OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryPostInventoryDevicesIDMergeReqFields) SetOs(val OptString) {
+	s.Os = val
+}
+
+// Device type (content/devicetypes/types.json).
+type InventoryPostInventoryDevicesIDMergeReqFieldsKind string
+
+const (
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindRouter              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "router"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSwitch              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "switch"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindModem               InventoryPostInventoryDevicesIDMergeReqFieldsKind = "modem"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSdWan               InventoryPostInventoryDevicesIDMergeReqFieldsKind = "sd_wan"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindLoadBalancer        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "load_balancer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindNetworkController   InventoryPostInventoryDevicesIDMergeReqFieldsKind = "network_controller"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindFirewall            InventoryPostInventoryDevicesIDMergeReqFieldsKind = "firewall"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVpnGateway          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "vpn_gateway"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindIdsSensor           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "ids_sensor"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindProxy               InventoryPostInventoryDevicesIDMergeReqFieldsKind = "proxy"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindAp                  InventoryPostInventoryDevicesIDMergeReqFieldsKind = "ap"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessController  InventoryPostInventoryDevicesIDMergeReqFieldsKind = "wireless_controller"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindWifiExtender        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "wifi_extender"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindMeshNode            InventoryPostInventoryDevicesIDMergeReqFieldsKind = "mesh_node"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindServer              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "server"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVirtualMachine      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "virtual_machine"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindHypervisor          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "hypervisor"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindBmc                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "bmc"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindDomainController    InventoryPostInventoryDevicesIDMergeReqFieldsKind = "domain_controller"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindMailServer          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "mail_server"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindDatabaseServer      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "database_server"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupServer        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "backup_server"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPc                  InventoryPostInventoryDevicesIDMergeReqFieldsKind = "pc"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindLaptop              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "laptop"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindWorkstation         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "workstation"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindThinClient          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "thin_client"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPosTerminal         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "pos_terminal"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindKiosk               InventoryPostInventoryDevicesIDMergeReqFieldsKind = "kiosk"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartphone          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smartphone"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindTablet              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "tablet"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartwatch          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smartwatch"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPrinter             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "printer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindMfp                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "mfp"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindScanner             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "scanner"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindLabelPrinter        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "label_printer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindReceiptPrinter      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "receipt_printer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPlotter             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "plotter"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKind3dPrinter           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "3d_printer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindCamera              InventoryPostInventoryDevicesIDMergeReqFieldsKind = "camera"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindNvr                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "nvr"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindDvr                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "dvr"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoEncoder        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "video_encoder"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindDoorbell            InventoryPostInventoryDevicesIDMergeReqFieldsKind = "doorbell"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoConferencing   InventoryPostInventoryDevicesIDMergeReqFieldsKind = "video_conferencing"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindIPPhone             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "ip_phone"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPbx                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "pbx"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipAdapter         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "voip_adapter"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipGateway         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "voip_gateway"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindConferencePhone     InventoryPostInventoryDevicesIDMergeReqFieldsKind = "conference_phone"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindIntercom            InventoryPostInventoryDevicesIDMergeReqFieldsKind = "intercom"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindNas                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "nas"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSan                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "san"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupAppliance     InventoryPostInventoryDevicesIDMergeReqFieldsKind = "backup_appliance"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindTapeLibrary         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "tape_library"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindIot                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "iot"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartTv             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_tv"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindMediaPlayer         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "media_player"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartSpeaker        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_speaker"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindGameConsole         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "game_console"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartPlug           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_plug"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartLight          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_light"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartHub            InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_hub"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindThermostat          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "thermostat"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindProjector           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "projector"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindDigitalSignage      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "digital_signage"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSingleBoardComputer InventoryPostInventoryDevicesIDMergeReqFieldsKind = "single_board_computer"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartAppliance      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "smart_appliance"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindRobotVacuum         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "robot_vacuum"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessBridge      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "wireless_bridge"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPlc                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "plc"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindHmi                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "hmi"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindRtu                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "rtu"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindScadaServer         InventoryPostInventoryDevicesIDMergeReqFieldsKind = "scada_server"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindIndustrialSwitch    InventoryPostInventoryDevicesIDMergeReqFieldsKind = "industrial_switch"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindUps                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "ups"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPdu                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "pdu"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindAccessControl       InventoryPostInventoryDevicesIDMergeReqFieldsKind = "access_control"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindTimeClock           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "time_clock"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindAlarmPanel          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "alarm_panel"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindHvacController      InventoryPostInventoryDevicesIDMergeReqFieldsKind = "hvac_controller"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindBuildingController  InventoryPostInventoryDevicesIDMergeReqFieldsKind = "building_controller"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindPowerMeter          InventoryPostInventoryDevicesIDMergeReqFieldsKind = "power_meter"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindEnvironmentMonitor  InventoryPostInventoryDevicesIDMergeReqFieldsKind = "environment_monitor"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindEvCharger           InventoryPostInventoryDevicesIDMergeReqFieldsKind = "ev_charger"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindSolarInverter       InventoryPostInventoryDevicesIDMergeReqFieldsKind = "solar_inverter"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindMedicalDevice       InventoryPostInventoryDevicesIDMergeReqFieldsKind = "medical_device"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindWeb                 InventoryPostInventoryDevicesIDMergeReqFieldsKind = "web"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindCloudService        InventoryPostInventoryDevicesIDMergeReqFieldsKind = "cloud_service"
+	InventoryPostInventoryDevicesIDMergeReqFieldsKindUnknown             InventoryPostInventoryDevicesIDMergeReqFieldsKind = "unknown"
+)
+
+// AllValues returns all InventoryPostInventoryDevicesIDMergeReqFieldsKind values.
+func (InventoryPostInventoryDevicesIDMergeReqFieldsKind) AllValues() []InventoryPostInventoryDevicesIDMergeReqFieldsKind {
+	return []InventoryPostInventoryDevicesIDMergeReqFieldsKind{
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindRouter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSwitch,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindModem,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSdWan,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindLoadBalancer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindNetworkController,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindFirewall,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVpnGateway,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindIdsSensor,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindProxy,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindAp,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessController,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindWifiExtender,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindMeshNode,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindServer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVirtualMachine,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindHypervisor,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindBmc,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindDomainController,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindMailServer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindDatabaseServer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupServer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPc,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindLaptop,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindWorkstation,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindThinClient,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPosTerminal,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindKiosk,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartphone,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindTablet,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartwatch,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPrinter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindMfp,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindScanner,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindLabelPrinter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindReceiptPrinter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPlotter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKind3dPrinter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindCamera,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindNvr,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindDvr,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoEncoder,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindDoorbell,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoConferencing,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindIPPhone,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPbx,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipAdapter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipGateway,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindConferencePhone,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindIntercom,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindNas,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSan,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupAppliance,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindTapeLibrary,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindIot,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartTv,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindMediaPlayer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartSpeaker,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindGameConsole,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartPlug,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartLight,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartHub,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindThermostat,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindProjector,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindDigitalSignage,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSingleBoardComputer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartAppliance,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindRobotVacuum,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessBridge,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPlc,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindHmi,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindRtu,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindScadaServer,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindIndustrialSwitch,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindUps,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPdu,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindAccessControl,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindTimeClock,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindAlarmPanel,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindHvacController,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindBuildingController,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindPowerMeter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindEnvironmentMonitor,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindEvCharger,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindSolarInverter,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindMedicalDevice,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindWeb,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindCloudService,
+		InventoryPostInventoryDevicesIDMergeReqFieldsKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventoryDevicesIDMergeReqFieldsKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRouter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSwitch:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindModem:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSdWan:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNetworkController:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindFirewall:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVpnGateway:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIdsSensor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindProxy:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAp:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessController:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWifiExtender:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMeshNode:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindServer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHypervisor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBmc:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDomainController:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMailServer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupServer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPc:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLaptop:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWorkstation:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindThinClient:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPosTerminal:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindKiosk:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartphone:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTablet:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartwatch:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPrinter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMfp:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindScanner:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPlotter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKind3dPrinter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindCamera:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNvr:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDvr:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDoorbell:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIPPhone:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPbx:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipGateway:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindConferencePhone:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIntercom:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNas:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSan:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTapeLibrary:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIot:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartTv:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindGameConsole:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartPlug:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartLight:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartHub:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindThermostat:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindProjector:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPlc:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHmi:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRtu:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindScadaServer:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindUps:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPdu:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAccessControl:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTimeClock:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHvacController:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBuildingController:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPowerMeter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindEvCharger:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSolarInverter:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMedicalDevice:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWeb:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindCloudService:
+		return []byte(s), nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventoryDevicesIDMergeReqFieldsKind) UnmarshalText(data []byte) error {
+	switch InventoryPostInventoryDevicesIDMergeReqFieldsKind(data) {
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRouter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindRouter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSwitch:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSwitch
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindModem:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindModem
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSdWan:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSdWan
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLoadBalancer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindLoadBalancer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNetworkController:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindNetworkController
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindFirewall:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindFirewall
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVpnGateway:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVpnGateway
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIdsSensor:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindIdsSensor
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindProxy:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindProxy
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAp:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindAp
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessController:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessController
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWifiExtender:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindWifiExtender
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMeshNode:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindMeshNode
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindServer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindServer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVirtualMachine:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVirtualMachine
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHypervisor:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindHypervisor
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBmc:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindBmc
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDomainController:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindDomainController
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMailServer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindMailServer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDatabaseServer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindDatabaseServer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupServer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupServer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPc:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPc
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLaptop:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindLaptop
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWorkstation:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindWorkstation
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindThinClient:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindThinClient
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPosTerminal:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPosTerminal
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindKiosk:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindKiosk
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartphone:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartphone
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTablet:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindTablet
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartwatch:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartwatch
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPrinter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPrinter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMfp:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindMfp
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindScanner:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindScanner
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindLabelPrinter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindLabelPrinter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindReceiptPrinter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindReceiptPrinter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPlotter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPlotter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKind3dPrinter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKind3dPrinter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindCamera:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindCamera
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNvr:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindNvr
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDvr:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindDvr
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoEncoder:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoEncoder
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDoorbell:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindDoorbell
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoConferencing:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVideoConferencing
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIPPhone:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindIPPhone
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPbx:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPbx
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipAdapter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipAdapter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipGateway:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindVoipGateway
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindConferencePhone:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindConferencePhone
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIntercom:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindIntercom
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindNas:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindNas
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSan:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSan
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupAppliance:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindBackupAppliance
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTapeLibrary:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindTapeLibrary
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIot:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindIot
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartTv:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartTv
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMediaPlayer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindMediaPlayer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartSpeaker:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartSpeaker
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindGameConsole:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindGameConsole
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartPlug:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartPlug
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartLight:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartLight
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartHub:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartHub
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindThermostat:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindThermostat
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindProjector:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindProjector
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindDigitalSignage:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindDigitalSignage
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSingleBoardComputer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSingleBoardComputer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartAppliance:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSmartAppliance
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRobotVacuum:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindRobotVacuum
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessBridge:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindWirelessBridge
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPlc:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPlc
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHmi:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindHmi
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindRtu:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindRtu
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindScadaServer:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindScadaServer
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindIndustrialSwitch:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindIndustrialSwitch
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindUps:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindUps
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPdu:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPdu
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAccessControl:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindAccessControl
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindTimeClock:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindTimeClock
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindAlarmPanel:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindAlarmPanel
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindHvacController:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindHvacController
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindBuildingController:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindBuildingController
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindPowerMeter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindPowerMeter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindEnvironmentMonitor:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindEnvironmentMonitor
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindEvCharger:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindEvCharger
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindSolarInverter:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindSolarInverter
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindMedicalDevice:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindMedicalDevice
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindWeb:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindWeb
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindCloudService:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindCloudService
+		return nil
+	case InventoryPostInventoryDevicesIDMergeReqFieldsKindUnknown:
+		*s = InventoryPostInventoryDevicesIDMergeReqFieldsKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryPostInventoryDevicesIDSoftwareCreated struct {
@@ -167770,6 +169712,36 @@ func (s *InventoryPostInventoryDevicesIDSoftwareReq) SetVendor(val OptString) {
 // SetVersion sets the value of Version.
 func (s *InventoryPostInventoryDevicesIDSoftwareReq) SetVersion(val OptString) {
 	s.Version = val
+}
+
+type InventoryPostInventoryDevicesIDSplitOK struct {
+	ID string `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryDevicesIDSplitOK) GetID() string {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryDevicesIDSplitOK) SetID(val string) {
+	s.ID = val
+}
+
+type InventoryPostInventoryDevicesIDSplitReq struct {
+	// One IPv4 address or MAC of the device: that interface (its IP and MAC together) becomes a device of
+	// its own.
+	Address string `json:"address"`
+}
+
+// GetAddress returns the value of Address.
+func (s *InventoryPostInventoryDevicesIDSplitReq) GetAddress() string {
+	return s.Address
+}
+
+// SetAddress sets the value of Address.
+func (s *InventoryPostInventoryDevicesIDSplitReq) SetAddress(val string) {
+	s.Address = val
 }
 
 type InventoryPostInventoryDevicesIDSuspiciousOK struct {
@@ -196749,6 +198721,141 @@ func (o NilInventoryGetInventoryAgentsOKWazuh) Or(d InventoryGetInventoryAgentsO
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk returns new NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk with value set to v.
+func NewNilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk(v InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk {
+	return NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk is nullable InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk.
+type NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk struct {
+	Value InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) SetTo(v InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) Get() (v InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) Or(d InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk) InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk returns new NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk with value set to v.
+func NewNilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk(v InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk {
+	return NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk is nullable InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk.
+type NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk struct {
+	Value InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) SetTo(v InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) Get() (v InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) Or(d InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk) InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDMergePreviewOKRefusal returns new NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal with value set to v.
+func NewNilInventoryGetInventoryDevicesIDMergePreviewOKRefusal(v InventoryGetInventoryDevicesIDMergePreviewOKRefusal) NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal {
+	return NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal is nullable InventoryGetInventoryDevicesIDMergePreviewOKRefusal.
+type NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal struct {
+	Value InventoryGetInventoryDevicesIDMergePreviewOKRefusal
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) SetTo(v InventoryGetInventoryDevicesIDMergePreviewOKRefusal) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDMergePreviewOKRefusal
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) Get() (v InventoryGetInventoryDevicesIDMergePreviewOKRefusal, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDMergePreviewOKRefusal) Or(d InventoryGetInventoryDevicesIDMergePreviewOKRefusal) InventoryGetInventoryDevicesIDMergePreviewOKRefusal {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesIDOKAssetGuess returns new NilInventoryGetInventoryDevicesIDOKAssetGuess with value set to v.
 func NewNilInventoryGetInventoryDevicesIDOKAssetGuess(v InventoryGetInventoryDevicesIDOKAssetGuess) NilInventoryGetInventoryDevicesIDOKAssetGuess {
 	return NilInventoryGetInventoryDevicesIDOKAssetGuess{
@@ -217150,6 +219257,98 @@ func (o OptInventoryPostInventoryAgentsTokensReqKind) Get() (v InventoryPostInve
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventoryAgentsTokensReqKind) Or(d InventoryPostInventoryAgentsTokensReqKind) InventoryPostInventoryAgentsTokensReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostInventoryDevicesIDMergeReqFields returns new OptInventoryPostInventoryDevicesIDMergeReqFields with value set to v.
+func NewOptInventoryPostInventoryDevicesIDMergeReqFields(v InventoryPostInventoryDevicesIDMergeReqFields) OptInventoryPostInventoryDevicesIDMergeReqFields {
+	return OptInventoryPostInventoryDevicesIDMergeReqFields{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostInventoryDevicesIDMergeReqFields is optional InventoryPostInventoryDevicesIDMergeReqFields.
+type OptInventoryPostInventoryDevicesIDMergeReqFields struct {
+	Value InventoryPostInventoryDevicesIDMergeReqFields
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostInventoryDevicesIDMergeReqFields was set.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFields) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostInventoryDevicesIDMergeReqFields) Reset() {
+	var v InventoryPostInventoryDevicesIDMergeReqFields
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostInventoryDevicesIDMergeReqFields) SetTo(v InventoryPostInventoryDevicesIDMergeReqFields) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFields) Get() (v InventoryPostInventoryDevicesIDMergeReqFields, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFields) Or(d InventoryPostInventoryDevicesIDMergeReqFields) InventoryPostInventoryDevicesIDMergeReqFields {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostInventoryDevicesIDMergeReqFieldsKind returns new OptInventoryPostInventoryDevicesIDMergeReqFieldsKind with value set to v.
+func NewOptInventoryPostInventoryDevicesIDMergeReqFieldsKind(v InventoryPostInventoryDevicesIDMergeReqFieldsKind) OptInventoryPostInventoryDevicesIDMergeReqFieldsKind {
+	return OptInventoryPostInventoryDevicesIDMergeReqFieldsKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostInventoryDevicesIDMergeReqFieldsKind is optional InventoryPostInventoryDevicesIDMergeReqFieldsKind.
+type OptInventoryPostInventoryDevicesIDMergeReqFieldsKind struct {
+	Value InventoryPostInventoryDevicesIDMergeReqFieldsKind
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostInventoryDevicesIDMergeReqFieldsKind was set.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) Reset() {
+	var v InventoryPostInventoryDevicesIDMergeReqFieldsKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) SetTo(v InventoryPostInventoryDevicesIDMergeReqFieldsKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) Get() (v InventoryPostInventoryDevicesIDMergeReqFieldsKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostInventoryDevicesIDMergeReqFieldsKind) Or(d InventoryPostInventoryDevicesIDMergeReqFieldsKind) InventoryPostInventoryDevicesIDMergeReqFieldsKind {
 	if v, ok := o.Get(); ok {
 		return v
 	}

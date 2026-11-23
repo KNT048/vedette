@@ -584,6 +584,7 @@
       "inventory.merge": "Two rows of the same device joined",
       "inventory.bind_mac": "Device added by hand linked to the network card seen at its address",
       "inventory.keep_separate": "Keep two devices separate",
+      "inventory.split": "Split an address off a device",
       "inventory.import": "Import devices",
       "inventory.notify_new": "Change alerts for new devices",
       "inventory.remove_software": "Remove software from a device",

@@ -67811,6 +67811,10 @@
                                 "type": "number",
                                 "minimum": 0,
                                 "maximum": 1
+                              },
+                              "address": {
+                                "description": "The other address of the device a scan found the port on (an IP, or a MAC when that interface has no IP now); absent for the main address and for an agent's list. One port open on two interfaces is two rows",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -68650,6 +68654,18 @@
                             "type": "string",
                             "description": "What the two share, in plain words to show as is, e.g. Same name \"iPhone\", never online at the same time, and a private Wi-Fi address (phones and laptops change it)."
                           },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "same_mac",
+                              "mac_block",
+                              "same_name_cards",
+                              "rotating_name",
+                              "rotating_model",
+                              "mac_at_added_device"
+                            ],
+                            "description": "same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the address of a device added by hand"
+                          },
                           "approved": {
                             "type": "boolean"
                           },
@@ -68667,13 +68683,62 @@
                           "id",
                           "name",
                           "why",
+                          "reason",
                           "approved",
                           "last_seen",
                           "ignored"
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was"
+                      "description": "Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)"
+                    },
+                    "addresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "main": {
+                            "type": "boolean",
+                            "description": "The main address: the one lists show and every scan and read of the device goes to. Exactly one when the device has any address"
+                          },
+                          "source": {
+                            "type": "string",
+                            "description": "What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan, agent, snmp), manual for the address a person typed, merge for one a person's merge brought that nothing has seen since"
+                          },
+                          "first_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "mac",
+                          "main",
+                          "source",
+                          "first_seen",
+                          "last_seen"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every address of the device, the main one first, then the others, the one seen last first: the device is found by any of them. Split off = POST /inventory/devices/{id}/split"
                     }
                   },
                   "required": [
@@ -68686,7 +68751,8 @@
                     "detected_differs",
                     "manual_at",
                     "kinds",
-                    "possible_same"
+                    "possible_same",
+                    "addresses"
                   ],
                   "additionalProperties": false
                 }
@@ -69286,7 +69352,7 @@
     "/inventory/devices/{id}/merge": {
       "post": {
         "operationId": "inventory_post_inventory_devices_id_merge",
-        "summary": "The same machine: device `from` joins this device and is gone. This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
+        "summary": "The same machine: every device of `from` joins this device and is gone, in one step. This device keeps its id, main address, approval (it becomes approved when one of them was, and loses a suspicious mark as on Approve), notes (all kept), findings and settings; the addresses of each (with what a scan read at each one: the device is found by any of them, and a scan of one address never replaces what another address showed), MACs, sources, software, open ports and findings move to it. `fields` sets the name, type or OS a person picked where the devices differ. 400 invalid: no device, more than 8, one twice or this device itself. 400 bad_choice: a picked value none of the devices has. 404 not_found: any device. 409 box_device: one is the Vedette box. 409 not_same_device: two agents say two machines",
         "tags": [
           "inventory"
         ],
@@ -69312,10 +69378,127 @@
                 "type": "object",
                 "properties": {
                   "from": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 96,
-                    "description": "The device that goes into the device of the path"
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96
+                    },
+                    "description": "The devices that go into the device of the path, 1 to 8 (the interfaces of one firewall in one step)"
+                  },
+                  "fields": {
+                    "description": "Values a person chose where the devices differ; left out: the merge's own result (MergePreview differs kept)",
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "router",
+                          "switch",
+                          "modem",
+                          "sd_wan",
+                          "load_balancer",
+                          "network_controller",
+                          "firewall",
+                          "vpn_gateway",
+                          "ids_sensor",
+                          "proxy",
+                          "ap",
+                          "wireless_controller",
+                          "wifi_extender",
+                          "mesh_node",
+                          "server",
+                          "virtual_machine",
+                          "hypervisor",
+                          "bmc",
+                          "domain_controller",
+                          "mail_server",
+                          "database_server",
+                          "backup_server",
+                          "pc",
+                          "laptop",
+                          "workstation",
+                          "thin_client",
+                          "pos_terminal",
+                          "kiosk",
+                          "smartphone",
+                          "tablet",
+                          "smartwatch",
+                          "printer",
+                          "mfp",
+                          "scanner",
+                          "label_printer",
+                          "receipt_printer",
+                          "plotter",
+                          "3d_printer",
+                          "camera",
+                          "nvr",
+                          "dvr",
+                          "video_encoder",
+                          "doorbell",
+                          "video_conferencing",
+                          "ip_phone",
+                          "pbx",
+                          "voip_adapter",
+                          "voip_gateway",
+                          "conference_phone",
+                          "intercom",
+                          "nas",
+                          "san",
+                          "backup_appliance",
+                          "tape_library",
+                          "iot",
+                          "smart_tv",
+                          "media_player",
+                          "smart_speaker",
+                          "game_console",
+                          "smart_plug",
+                          "smart_light",
+                          "smart_hub",
+                          "thermostat",
+                          "projector",
+                          "digital_signage",
+                          "single_board_computer",
+                          "smart_appliance",
+                          "robot_vacuum",
+                          "wireless_bridge",
+                          "plc",
+                          "hmi",
+                          "rtu",
+                          "scada_server",
+                          "industrial_switch",
+                          "ups",
+                          "pdu",
+                          "access_control",
+                          "time_clock",
+                          "alarm_panel",
+                          "hvac_controller",
+                          "building_controller",
+                          "power_meter",
+                          "environment_monitor",
+                          "ev_charger",
+                          "solar_inverter",
+                          "medical_device",
+                          "web",
+                          "cloud_service",
+                          "unknown"
+                        ],
+                        "description": "Device type (content/devicetypes/types.json)"
+                      },
+                      "os": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -69340,6 +69523,492 @@
                   },
                   "required": [
                     "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/merge-preview": {
+      "get": {
+        "operationId": "inventory_get_inventory_devices_id_merge_preview",
+        "summary": "What merging the devices `from` into this device would do, without changing anything: both sides (addresses, software, ports, findings, badge), what moves, the fields they state differently with the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more than 8, one twice or this device itself. 404 not_found: any device",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 800,
+              "description": "Comma-separated ids of the devices that would go into the device of the path, 1 to 8"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "into": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "approved": {
+                          "type": "boolean"
+                        },
+                        "ignored": {
+                          "type": "boolean"
+                        },
+                        "agent": {
+                          "type": "boolean",
+                          "description": "An agent reports from it"
+                        },
+                        "addresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "mac": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "main": {
+                                "type": "boolean",
+                                "description": "The main address: the one lists show and every scan and read of the device goes to. Exactly one when the device has any address"
+                              },
+                              "source": {
+                                "type": "string",
+                                "description": "What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan, agent, snmp), manual for the address a person typed, merge for one a person's merge brought that nothing has seen since"
+                              },
+                              "first_seen": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "last_seen": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "mac",
+                              "main",
+                              "source",
+                              "first_seen",
+                              "last_seen"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "software": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Software lines present"
+                        },
+                        "open_ports": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "findings": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "risk": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "under_attack",
+                                    "exploited",
+                                    "public_exploit",
+                                    "critical_edge",
+                                    "update_recommended",
+                                    "needs_input"
+                                  ]
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991,
+                                  "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); needs_input: the items of the Needs your input queue for the device"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "count"
+                              ],
+                              "additionalProperties": false,
+                              "description": "The device's badge (findings' device status): null when it has none, for the Vedette box itself, and while the findings module is off"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "last_seen": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "approved",
+                        "ignored",
+                        "agent",
+                        "addresses",
+                        "software",
+                        "open_ports",
+                        "findings",
+                        "risk",
+                        "last_seen"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The device that stays"
+                    },
+                    "from": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "approved": {
+                            "type": "boolean"
+                          },
+                          "ignored": {
+                            "type": "boolean"
+                          },
+                          "agent": {
+                            "type": "boolean",
+                            "description": "An agent reports from it"
+                          },
+                          "addresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ip": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "mac": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "main": {
+                                  "type": "boolean",
+                                  "description": "The main address: the one lists show and every scan and read of the device goes to. Exactly one when the device has any address"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "description": "What last tied the address to the device: the sensor that last saw it there (passive, nmap, scan, agent, snmp), manual for the address a person typed, merge for one a person's merge brought that nothing has seen since"
+                                },
+                                "first_seen": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "last_seen": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "ip",
+                                "mac",
+                                "main",
+                                "source",
+                                "first_seen",
+                                "last_seen"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "software": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Software lines present"
+                          },
+                          "open_ports": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "findings": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "under_attack",
+                                      "exploited",
+                                      "public_exploit",
+                                      "critical_edge",
+                                      "update_recommended",
+                                      "needs_input"
+                                    ]
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991,
+                                    "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); needs_input: the items of the Needs your input queue for the device"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "count"
+                                ],
+                                "additionalProperties": false,
+                                "description": "The device's badge (findings' device status): null when it has none, for the Vedette box itself, and while the findings module is off"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "approved",
+                          "ignored",
+                          "agent",
+                          "addresses",
+                          "software",
+                          "open_ports",
+                          "findings",
+                          "risk",
+                          "last_seen"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The devices that go into it, in the order given"
+                    },
+                    "moves": {
+                      "type": "object",
+                      "properties": {
+                        "addresses": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Addresses that become the kept device's, each with what a scan read there"
+                        },
+                        "software_new": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Software lines the kept device does not have"
+                        },
+                        "software_shared": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Lines it has too: one line keeps every reading of both"
+                        },
+                        "readings": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Software readings that move; none is dropped"
+                        },
+                        "open_ports": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "findings": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Findings that move, with their history and decisions; one CVE of one software line becomes one finding"
+                        },
+                        "exploited": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Exploited CVEs the devices taken are marked with"
+                        }
+                      },
+                      "required": [
+                        "addresses",
+                        "software_new",
+                        "software_shared",
+                        "readings",
+                        "open_ports",
+                        "findings",
+                        "exploited"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "differs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string",
+                            "enum": [
+                              "name",
+                              "kind",
+                              "os",
+                              "vendor",
+                              "model",
+                              "hostname"
+                            ]
+                          },
+                          "values": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "device": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "device",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Each device's value, the kept device first; a device without a value is left out"
+                          },
+                          "kept": {
+                            "type": "string",
+                            "description": "What the kept device has after the merge unless the person picks another: the kept device's own name in Vedette (else the first that has one), the strongest source's reading for the other fields"
+                          },
+                          "choosable": {
+                            "type": "boolean",
+                            "description": "name, kind and os: the merge takes a choice (fields); the others follow the sources"
+                          }
+                        },
+                        "required": [
+                          "field",
+                          "values",
+                          "kept",
+                          "choosable"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Only the fields the devices state differently; empty when they agree"
+                    },
+                    "refusal": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "box_device",
+                                "not_same_device"
+                              ]
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the merge would be refused (409 with this code); null when it may go ahead"
+                    }
+                  },
+                  "required": [
+                    "into",
+                    "from",
+                    "moves",
+                    "differs",
+                    "refusal"
                   ],
                   "additionalProperties": false
                 }
@@ -70003,6 +70672,82 @@
         }
       }
     },
+    "/inventory/devices/{id}/split": {
+      "post": {
+        "operationId": "inventory_post_inventory_devices_id_split",
+        "summary": "Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a device of its own with what was read only there (the MAC's observations, the readings and open ports a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the main address, the other address seen last becomes the main one. The new device is approved when this one was (no new-device alert), and the pair is kept separate: never offered as possibly the same device again. Findings follow the software (matched again on both). One audit row. Returns the new device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one of this device's addresses. 409 box_device; 409 only_address: the device has no other address",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "description": "One IPv4 address or MAC of the device: that interface (its IP and MAC together) becomes a device of its own"
+                  }
+                },
+                "required": [
+                  "address"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/inventory/devices/{id}/suspicious": {
       "post": {
         "operationId": "inventory_post_inventory_devices_id_suspicious",
@@ -70528,12 +71273,25 @@
                           "why": {
                             "type": "string",
                             "description": "What the two share, in plain words to show as is, e.g. Same name \"iPhone\", never online at the same time, and a private Wi-Fi address (phones and laptops change it)."
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "same_mac",
+                              "mac_block",
+                              "same_name_cards",
+                              "rotating_name",
+                              "rotating_model",
+                              "mac_at_added_device"
+                            ],
+                            "description": "same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the address of a device added by hand"
                           }
                         },
                         "required": [
                           "a",
                           "b",
-                          "why"
+                          "why",
+                          "reason"
                         ],
                         "additionalProperties": false
                       },

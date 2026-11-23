@@ -170,7 +170,7 @@ func softwareLines(ctx context.Context, q querier, assetID string) ([]SoftwareLi
 	for rrows.Next() {
 		var id string
 		var r Reading
-		if err := rrows.Scan(&id, &r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt); err != nil {
+		if err := rrows.Scan(&id, &r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt, &r.Addr); err != nil {
 			_ = rrows.Close()
 			return nil, fmt.Errorf("inventory: read software readings: %w", err)
 		}

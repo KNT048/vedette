@@ -135,7 +135,7 @@ export function useSameDevice() {
   ])
   return {
     merge: useMutation({
-      mutationFn: ({ into, from }: { into: string } & MergeInput) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, { from } satisfies MergeInput),
+      mutationFn: ({ into, from }: { into: string; from: string }) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, { from: [from] } satisfies MergeInput),
       onSuccess: (_r, v) => { qc.removeQueries({ queryKey: ['inventory', 'device', v.from], exact: true, type: 'inactive' }); return refresh(v.from) },
       // #876 r1: a device gone meanwhile (404) or a pair the box now tells apart (409): read both devices and the pairs again, so the
       // notice stops offering what no longer exists (the dialog keeps the words; it lives outside the notice).

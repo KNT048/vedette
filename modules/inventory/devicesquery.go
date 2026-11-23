@@ -240,8 +240,11 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 			parts = append(parts, "EXISTS (SELECT 1 FROM inv_software sm WHERE sm.asset_id = a.id AND sm.source = 'manual' AND sm.state = 'present' AND lower(sm.vendor) || '|' || lower(sm.product) IN (SELECT value FROM json_each(?)))")
 			qa = append(qa, jsonList(keys))
 		}
+		// any of the device's other addresses (INV-57)
+		parts, qa = append(parts, "EXISTS (SELECT 1 FROM inv_asset_address xa WHERE xa.asset_id = a.id AND instr(coalesce(xa.ip, ''), ?) > 0)"), append(qa, f.Q)
 		if hex, ok := macFragment(f.Q); ok {
 			parts, qa = append(parts, "instr(coalesce(a.mac, ''), ?) > 0"), append(qa, hex) // a.mac is stored lower case aa:bb:…
+			parts, qa = append(parts, "EXISTS (SELECT 1 FROM inv_asset_address xm WHERE xm.asset_id = a.id AND instr(coalesce(xm.mac, ''), ?) > 0)"), append(qa, hex)
 		}
 		conds, args = append(conds, "("+strings.Join(parts, " OR ")+")"), append(args, qa...)
 	}

@@ -197,7 +197,13 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 				return err
 			}
 		}
-		removed, err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace, scope, s.clock())
+		addr := ""
+		if addressBound(string(source)) { // a scan of one of the device's other addresses replaces the ports it found there only
+			if addr, err = addressOf(ctx, tx, id, ip); err != nil {
+				return err
+			}
+		}
+		removed, err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace, scope, s.clock(), addr)
 		if err != nil {
 			return err
 		}
@@ -207,7 +213,7 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 			for i, p := range removed {
 				inst[i] = observe.PortInstance(p)
 			}
-			if err := s.replaceSoftwareTx(ctx, tx, o, id, nil, string(source), inst, now); err != nil {
+			if err := s.replaceSoftwareTx(ctx, tx, o, id, nil, string(source), inst, now, addr); err != nil {
 				return err
 			}
 		}
@@ -219,8 +225,8 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 // last parameter is read_at: the item's seen time when the write reads the port's name, product and version, else NULL; a row
 // keeps its read_at when the write does not read it (coalesce).
 const (
-	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at, read_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
+	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at, read_at, addr_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source, addr_id) DO UPDATE SET `
 	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at,
 		read_at = coalesce(excluded.read_at, read_at)`
 	// a gentle look with titles adds what a port said; a partial look that read a product (the -sV follow-up of the weekly scan
@@ -240,7 +246,10 @@ const (
 // read_at (INV-23) moves to seenAt on every row a write reads: each listed row of a list that read versions (a replace whose scope
 // does not say NoVersions), and a listed row that names a product in the others; an added or NoVersions row that names none keeps
 // its read_at (NULL for a new row).
-func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool, scope *observe.ServiceScope, now time.Time) ([]int, error) {
+//
+// addr is the address the list was read at: "" for the device's main address (and every source that reads the whole machine), else
+// the id of one of its other addresses (INV-57); only the rows of that address are replaced.
+func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool, scope *observe.ServiceScope, now time.Time, addr string) ([]int, error) {
 	versions := replace && (scope == nil || !scope.NoVersions)
 	q := upsertService + addSet
 	if versions {
@@ -253,7 +262,7 @@ func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []
 		if versions || it.Product != "" {
 			readAt = seenAt
 		}
-		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt, readAt)
+		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt, readAt, addr)
 		if err != nil {
 			return nil, fmt.Errorf("inventory: store service: %w", err)
 		}
@@ -270,7 +279,7 @@ func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []
 	if scoped && scope.KeepFor > 0 {
 		stale = store.FormatTS(now.Add(-scope.KeepFor))
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id, port, proto, seen_at FROM inv_service WHERE asset_id = ? AND source = ?`, assetID, source)
+	rows, err := tx.QueryContext(ctx, `SELECT id, port, proto, seen_at FROM inv_service WHERE asset_id = ? AND source = ? AND addr_id = ?`, assetID, source, addr)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read services: %w", err)
 	}

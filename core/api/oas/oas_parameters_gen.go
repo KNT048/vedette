@@ -11207,6 +11207,136 @@ func decodeInventoryGetInventoryDevicesIDParams(args [1]string, argsEscaped bool
 	return params, nil
 }
 
+// InventoryGetInventoryDevicesIDMergePreviewParams is parameters of inventory_get_inventory_devices_id_merge_preview operation.
+type InventoryGetInventoryDevicesIDMergePreviewParams struct {
+	ID   string
+	From string
+}
+
+func unpackInventoryGetInventoryDevicesIDMergePreviewParams(packed middleware.Parameters) (params InventoryGetInventoryDevicesIDMergePreviewParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "from",
+			In:   "query",
+		}
+		params.From = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryGetInventoryDevicesIDMergePreviewParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventoryDevicesIDMergePreviewParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: from.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.From = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     800,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.From)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "from",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // InventoryGetInventoryDevicesIDSourcesParams is parameters of inventory_get_inventory_devices_id_sources operation.
 type InventoryGetInventoryDevicesIDSourcesParams struct {
 	ID string
@@ -12976,6 +13106,71 @@ func unpackInventoryPostInventoryDevicesIDSoftwareParams(packed middleware.Param
 }
 
 func decodeInventoryPostInventoryDevicesIDSoftwareParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDSoftwareParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryPostInventoryDevicesIDSplitParams is parameters of inventory_post_inventory_devices_id_split operation.
+type InventoryPostInventoryDevicesIDSplitParams struct {
+	ID string
+}
+
+func unpackInventoryPostInventoryDevicesIDSplitParams(packed middleware.Parameters) (params InventoryPostInventoryDevicesIDSplitParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryPostInventoryDevicesIDSplitParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDSplitParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

@@ -2932,6 +2932,19 @@ func encodeInventoryGetInventoryDevicesIDResponse(response *InventoryGetInventor
 	return nil
 }
 
+func encodeInventoryGetInventoryDevicesIDMergePreviewResponse(response *InventoryGetInventoryDevicesIDMergePreviewOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryGetInventoryDevicesIDSourcesResponse(response *InventoryGetInventoryDevicesIDSourcesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -3316,6 +3329,19 @@ func encodeInventoryPostInventoryDevicesIDMergeResponse(response *InventoryPostI
 func encodeInventoryPostInventoryDevicesIDSoftwareResponse(response *InventoryPostInventoryDevicesIDSoftwareCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventoryDevicesIDSplitResponse(response *InventoryPostInventoryDevicesIDSplitOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
 
 	e := new(jx.Encoder)
 	response.Encode(e)

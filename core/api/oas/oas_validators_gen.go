@@ -85898,6 +85898,34 @@ func (s *NotifyGetNotifyHistoryOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.NotSent == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.NotSent {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_sent",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Suppressed.Validate(); err != nil {
 			return err
 		}
@@ -85974,6 +86002,120 @@ func (s NotifyGetNotifyHistoryOKItemsItemKind) Validate() error {
 	case "vuln":
 		return nil
 	case "approval":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *NotifyGetNotifyHistoryOKNotSentItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.NotSent.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_sent",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Validate() error {
+	switch s {
+	case "telegram":
+		return nil
+	case "slack":
+		return nil
+	case "zalo":
+		return nil
+	case "zalo-personal":
+		return nil
+	case "email":
+		return nil
+	case "webhook":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
+	switch s {
+	case "queued":
+		return nil
+	case "quiet_hours":
+		return nil
+	case "grouped":
+		return nil
+	case "no_channel":
+		return nil
+	case "channels_off":
+		return nil
+	case "channel_off":
+		return nil
+	case "channel_removed":
+		return nil
+	case "below_min_severity":
+		return nil
+	case "failed":
+		return nil
+	case "dropped_stale":
+		return nil
+	case "first_run_summary":
+		return nil
+	case "unknown":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -86285,6 +86427,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "queued":
 		return nil
 	case "quiet_hours":
+		return nil
+	case "grouped":
 		return nil
 	case "no_channel":
 		return nil
@@ -86663,6 +86807,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "queued":
 		return nil
 	case "quiet_hours":
+		return nil
+	case "grouped":
 		return nil
 	case "no_channel":
 		return nil
@@ -87395,6 +87541,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "queued":
 		return nil
 	case "quiet_hours":
+		return nil
+	case "grouped":
 		return nil
 	case "no_channel":
 		return nil

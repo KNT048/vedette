@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
@@ -231,10 +233,16 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 			n.Until = detail
 			n.Text = fmt.Sprintf("Held for quiet hours until %s. It goes out by itself then.", orgtime.Clock(t, loc))
 		}
-	case UnsentNoChannel:
-		n.Text = "Not sent: no alert channel was set up."
+	case UnsentGrouped:
+		n.Text = "Waiting to go out with the other alerts about the same product. It goes out by itself."
+		if t, err := time.Parse(time.RFC3339, detail); err == nil {
+			n.Until = detail
+			n.Text = fmt.Sprintf("Waiting to go out at %s with the other alerts about the same product (grouping). It goes out by itself then.", orgtime.Clock(t, loc))
+		}
+	case UnsentNoChannel: // said of the moment it opened: a channel set up later does not make it untrue
+		n.Text = "Not sent: no alert channel was set up when it opened."
 	case UnsentChannelsOff:
-		n.Text = "Not sent: the alert channels were turned off."
+		n.Text = "Not sent: the alert channels were turned off when it opened."
 	case UnsentChannelOff:
 		n.Text = "Not sent: the channel it was waiting for was turned off before it went out."
 	case UnsentChannelGone:
@@ -263,4 +271,168 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		n.Text = "Not sent. It was opened before this version of Vedette kept the reason."
 	}
 	return n
+}
+
+// noticeNotSent words a reason for a vulnerability notice: the incident's words, said of a finding.
+func noticeNotSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail string, loc *time.Location) NotSent {
+	n := *notSent(why, sev, floor, ch, detail, loc)
+	switch why {
+	case UnsentNoChannel:
+		n.Text = "Not sent: no alert channel was set up when it was found."
+	case UnsentChannelsOff:
+		n.Text = "Not sent: the alert channels were turned off when it was found."
+	case UnsentBelowMin:
+		n.Text = fmt.Sprintf("Not sent: it is rated %s for alerts, and your channels only send %s and above.", sev, floor)
+		if !floor.Valid() || !sev.Valid() {
+			n.Text = "Not sent: it is below the minimum severity of your channels."
+		}
+	case UnsentQueued:
+		n.Text = "Waiting to be sent: it goes out within a minute."
+	case UnsentUnknown:
+		n.Text = "Not named in any message that arrived. It was found before this version of Vedette kept the reason, or its line did not fit the message."
+	}
+	return n
+}
+
+// notSentNotices lists the vulnerability notices made since a time that no channel delivered, newest first, each with why (History,
+// INV-24 for notices): waiting in the queue (its grouping window, quiet hours, or within a minute), the last failed attempt, else the
+// decision kept when it was queued or dropped. A notice whose line a delivered message carried is told (notify_send_notice links only
+// the lines a message sent whole), so it is not listed. Three reads for the whole list.
+func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) ([]UnsentNotice, error) {
+	rows, err := q.QueryContext(ctx, `SELECT n.id, n.created_at, n.event, n.product, n.cves, ifnull(n.title, ''), ifnull(n.severity, ''), ifnull(n.unsent, ''),
+		ifnull(n.unsent_floor, ''), ifnull(n.unsent_channel, ''), (SELECT min(nf.finding_id) FROM notify_notice_finding nf WHERE nf.notice_id = n.id)
+		FROM notify_notice n WHERE n.created_at >= ? AND NOT EXISTS (SELECT 1 FROM notify_send_notice sn JOIN notify_send d ON d.id = sn.send_id
+		WHERE sn.notice_id = n.id AND d.ok = 1) ORDER BY n.created_at DESC, n.id LIMIT ?`, store.FormatTS(since), historyLimit)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read notices not sent: %w", err)
+	}
+	type row struct {
+		id, at, event, product, cves, title, sev, why, floor, ch string
+		finding                                                  sql.NullString
+	}
+	var list []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.at, &r.event, &r.product, &r.cves, &r.title, &r.sev, &r.why, &r.floor, &r.ch, &r.finding); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: read notices not sent: %w", err)
+		}
+		list = append(list, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read notices not sent: %w", err)
+	}
+	out := []UnsentNotice{}
+	if len(list) == 0 {
+		return out, nil
+	}
+	ids := make([]any, len(list))
+	for k, r := range list {
+		ids[k] = r.id
+	}
+	in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
+	type waiting struct{ now, group, quiet string } // the earliest due time of each kind of queued row
+	queue := map[string]*waiting{}
+	rows, err = q.QueryContext(ctx, `SELECT notice_id, reason, min(due_at) FROM notify_pending WHERE notice_id IN `+in+` GROUP BY notice_id, reason`, ids...)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read queued notices: %w", err)
+	}
+	for rows.Next() {
+		var id, reason, due string
+		if err := rows.Scan(&id, &reason, &due); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: read queued notices: %w", err)
+		}
+		w := queue[id]
+		if w == nil {
+			w = &waiting{}
+			queue[id] = w
+		}
+		switch reason {
+		case "quiet":
+			w.quiet = due
+		case "group":
+			w.group = due
+		default:
+			w.now = due
+		}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read queued notices: %w", err)
+	}
+	failed := map[string]SendView{} // the last failed attempt of each notice (a "Delayed" row still waits in the queue)
+	rows, err = q.QueryContext(ctx, `SELECT sn.notice_id, d.channel, d.error, d.at FROM notify_send_notice sn JOIN notify_send d ON d.id = sn.send_id
+		WHERE sn.notice_id IN `+in+` AND d.ok = 0 AND d.delayed = 0 ORDER BY d.at`, ids...)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read failed notices: %w", err)
+	}
+	for rows.Next() {
+		var id, ch, at string
+		var e sql.NullString
+		if err := rows.Scan(&id, &ch, &e, &at); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: read failed notices: %w", err)
+		}
+		failed[id] = SendView{Channel: channel.Type(ch), At: at, Error: e.String}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read failed notices: %w", err)
+	}
+	loc := s.loc(ctx)
+	rules, err := loadRules(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range list {
+		sev := Severity(r.sev)
+		var ns NotSent
+		w, f := queue[r.id], failed[r.id]
+		switch {
+		case w != nil && w.now != "":
+			ns = noticeNotSent(UnsentQueued, sev, "", "", "", loc)
+		case w != nil && w.group != "":
+			// The queue releases no grouped batch during quiet hours: a window that ends inside them waits for their end.
+			if due, err := time.Parse(time.RFC3339, w.group); err == nil && rules.Quiet.Active(due.In(loc)) {
+				ns = noticeNotSent(UnsentQuietHours, sev, "", "", store.FormatTS(rules.Quiet.EndsAt(due.In(loc))), loc)
+				break
+			}
+			ns = noticeNotSent(UnsentGrouped, sev, "", "", w.group, loc)
+		case w != nil:
+			ns = noticeNotSent(UnsentQuietHours, sev, "", "", w.quiet, loc)
+		case f.Channel != "":
+			ns = noticeNotSent(UnsentFailed, sev, "", f.Channel, f.Error, loc)
+		case r.why != "" && r.why != string(UnsentQueued) && r.why != string(UnsentQuietHours):
+			ns = noticeNotSent(NotSentReason(r.why), sev, Severity(r.floor), channel.Type(r.ch), "", loc)
+		default: // queued and gone without a delivered line, or written by an earlier build
+			ns = noticeNotSent(UnsentUnknown, sev, "", "", "", loc)
+		}
+		out = append(out, UnsentNotice{ID: r.id, At: r.at, What: noticeWhat(r.title, r.event, r.product, r.cves), Link: noticeLink(r.event, r.finding), NotSent: ns})
+	}
+	return out, nil
+}
+
+// noticeWhat is the line that names a notice in the History: its title, or for a notice written before titles were kept, its product
+// and CVEs.
+func noticeWhat(title, event, product, cves string) string {
+	if title != "" {
+		return title
+	}
+	var list []string
+	_ = json.Unmarshal([]byte(cves), &list)
+	what := strings.Join(list, ", ")
+	if p := strings.TrimSpace(product); p != "" {
+		what = p + ": " + what
+	}
+	if NoticeEvent(event) == NoticeFirstRun {
+		what = "First-run summary: " + what
+	}
+	return strings.TrimSuffix(strings.TrimSpace(what), ":")
+}
+
+// noticeLink is where a notice of the History opens: its finding, or the findings list for a summary.
+func noticeLink(event string, finding sql.NullString) string {
+	if NoticeEvent(event) == NoticeFirstRun || !finding.Valid {
+		return findingsList
+	}
+	return "/findings/" + finding.String
 }

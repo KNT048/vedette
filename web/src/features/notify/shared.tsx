@@ -16,7 +16,10 @@ export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kin
 
 
 /** The reason there is somewhere to edit: a link to Settings, Alert channels; only an admin can open that page. */
-const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
+const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'grouped', 'failed']
+
+/** A reason that still goes out by itself: queued, held for quiet hours, waiting for its grouping window. */
+export const waitingReason = (n: NotSent | null) => !!n && (n.reason === 'queued' || n.reason === 'quiet_hours' || n.reason === 'grouped')
 
 /** Open incidents no channel has and that will not go out by themselves (queued / quiet hours do): the KPI "not sent" and `?sent=no`. */
 export const needsFix = (n: NotSent | null) => !!n && ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)
@@ -25,6 +28,7 @@ export const needsFix = (n: NotSent | null) => !!n && ['no_channel', 'channels_o
  *  Edit button), the quiet hours, else the list of channels. The ids are in ChannelsSettings. */
 export function fixAt(n: NotSent): string {
   if (n.reason === 'quiet_hours') return '/settings/channels#quiet-hours'
+  if (n.reason === 'grouped') return '/settings/channels#grouping'
   if (n.channel && ['channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)) return `/settings/channels#channel-${n.channel}`
   return '/settings/channels#channels'
 }

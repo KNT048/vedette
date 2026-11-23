@@ -53,7 +53,7 @@
     "dialogDesc": "Enter the details, save, then send a test message.",
     "enabled": "Turn this channel on",
     "minSeverity": "Send from severity",
-    "minSeverityHint": "Alerts below this severity are not sent through this channel.",
+    "minSeverityHint": "Alerts below this severity are not sent through this channel. A vulnerability attackers are using counts as Critical, any other urgent one as at least High.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
     "urlSaved": "Saved: {{url}} (the rest stays hidden). Leave empty to keep it.",
     "generate": "Generate random",
@@ -344,7 +344,7 @@
     "grouping": {
       "title": "Grouping",
       "description": "Alerts for the same product within the window become one message.",
-      "descriptionInfo": "Critical is always sent right away, never held for grouping.",
+      "descriptionInfo": "Critical is always sent right away, never held for grouping. A vulnerability attackers are using counts as Critical, so it is never held either.",
       "enabled": "Group messages for the same product",
       "window": "Grouping window",
       "w15": "15 minutes",
@@ -524,6 +524,7 @@
       "channel_removed": "Set up alert channels",
       "below_min_severity": "Change the minimum severity",
       "quiet_hours": "Quiet hours settings",
+      "grouped": "Grouping settings",
       "failed": "Test the channel"
     },
     "emptyResolvedTitle": "No resolved incidents",
@@ -602,7 +603,7 @@
     "meta": "{{count}} new vulnerabilities in {{days}} days matched none of your devices: not sent.",
     "meta_one": "{{count}} new vulnerability in {{days}} days matched none of your devices: not sent.",
     "meta_other": "{{count}} new vulnerabilities in {{days}} days matched none of your devices: not sent.",
-    "metaNone": "No new vulnerability was skipped in the last {{days}} days.",
+    "metaNone": "In the last {{days}} days, no new vulnerability was left out for matching none of your devices.",
     "metaInfo": "Vedette only alerts for products you own: a new vulnerability that matches none of your devices is not sent. The first download of the vulnerability lists is not counted.",
     "caption": "Sent messages",
     "col": {
@@ -627,6 +628,14 @@
     "emptyTitle": "Nothing sent yet",
     "emptyBody": "Messages appear here once a channel is on and something happens.",
     "emptyBodyInfo": "Test messages are not listed here; each channel shows its last test.",
+    "notSent": {
+      "title": "Not sent",
+      "description": "Vulnerability alerts of the last {{days}} days that no channel delivered, and why. Waiting ones go out by themselves.",
+      "caption": "Vulnerability alerts not sent",
+      "none": "Every vulnerability alert of the last {{days}} days was delivered.",
+      "waiting": "Waiting",
+      "notSent": "Not sent"
+    },
     "delayed": "Delayed"
   },
   "signin": {

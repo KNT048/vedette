@@ -102,13 +102,25 @@ type HistoryItem struct {
 }
 
 // HistoryView is the answer of GET /notify/history. Suppressed counts the new vulnerabilities that
-// matched no device in the last Days days (INV-2): they were not sent.
+// matched no device in the last Days days (INV-2): they were not sent. NotSent lists the vulnerability notices of the same days that no
+// channel delivered, each with why (waiting for its grouping window or quiet hours, below the channels' minimum, no channel, failed).
 type HistoryView struct {
-	Items      []HistoryItem `json:"items"`
+	Items      []HistoryItem  `json:"items"`
+	NotSent    []UnsentNotice `json:"not_sent"`
 	Suppressed struct {
 		Count int `json:"count"`
 		Days  int `json:"days"`
 	} `json:"suppressed"`
+}
+
+// UnsentNotice is a vulnerability notice no channel has delivered: what it says, when it was made, the finding (or the findings list)
+// it links to, and why it was not sent.
+type UnsentNotice struct {
+	ID      string  `json:"id"`
+	At      string  `json:"at"`
+	What    string  `json:"what"`
+	Link    string  `json:"link"`
+	NotSent NotSent `json:"not_sent"`
 }
 
 // IncidentKind is what an incident is about (INV-10). There is no vulnerability kind: those are findings.
@@ -179,13 +191,14 @@ type Incident struct {
 	NotSent *NotSent `json:"not_sent"`
 }
 
-// NotSentReason is why an incident reached no channel (INV-24).
+// NotSentReason is why an incident or a vulnerability notice reached no channel (INV-24).
 type NotSentReason string
 
 // The reasons. queued and quiet_hours are not final: the message still goes out by itself.
 const (
 	UnsentQueued       NotSentReason = "queued"             // a channel took it; the deliver job sends it within a minute
 	UnsentQuietHours   NotSentReason = "quiet_hours"        // held until quiet hours end (INV-5), then sent
+	UnsentGrouped      NotSentReason = "grouped"            // a vulnerability notice waiting for its grouping window (INV-3), then sent
 	UnsentNoChannel    NotSentReason = "no_channel"         // no channel was set up
 	UnsentChannelsOff  NotSentReason = "channels_off"       // channels were set up, none was on
 	UnsentChannelOff   NotSentReason = "channel_off"        // the one channel it waited for (quiet hours, rate limit) was turned off before it went

@@ -189345,13 +189345,22 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel) UnmarshalText(data 
 }
 
 type NotifyGetNotifyHistoryOK struct {
-	Items      []NotifyGetNotifyHistoryOKItemsItem `json:"items"`
-	Suppressed NotifyGetNotifyHistoryOKSuppressed  `json:"suppressed"`
+	Items []NotifyGetNotifyHistoryOKItemsItem `json:"items"`
+	// The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest
+	// first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the
+	// channels' minimum, no channel or channels off when it was found.
+	NotSent    []NotifyGetNotifyHistoryOKNotSentItem `json:"not_sent"`
+	Suppressed NotifyGetNotifyHistoryOKSuppressed    `json:"suppressed"`
 }
 
 // GetItems returns the value of Items.
 func (s *NotifyGetNotifyHistoryOK) GetItems() []NotifyGetNotifyHistoryOKItemsItem {
 	return s.Items
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyHistoryOK) GetNotSent() []NotifyGetNotifyHistoryOKNotSentItem {
+	return s.NotSent
 }
 
 // GetSuppressed returns the value of Suppressed.
@@ -189362,6 +189371,11 @@ func (s *NotifyGetNotifyHistoryOK) GetSuppressed() NotifyGetNotifyHistoryOKSuppr
 // SetItems sets the value of Items.
 func (s *NotifyGetNotifyHistoryOK) SetItems(val []NotifyGetNotifyHistoryOKItemsItem) {
 	s.Items = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyHistoryOK) SetNotSent(val []NotifyGetNotifyHistoryOKNotSentItem) {
+	s.NotSent = val
 }
 
 // SetSuppressed sets the value of Suppressed.
@@ -189595,6 +189609,309 @@ func (s *NotifyGetNotifyHistoryOKItemsItemKind) UnmarshalText(data []byte) error
 		return nil
 	case NotifyGetNotifyHistoryOKItemsItemKindApproval:
 		*s = NotifyGetNotifyHistoryOKItemsItemKindApproval
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyHistoryOKNotSentItem struct {
+	// When the notice was made.
+	At time.Time `json:"at"`
+	ID string    `json:"id"`
+	// The finding it is about, or the findings list for a first-run summary.
+	Link    string                                     `json:"link"`
+	NotSent NotifyGetNotifyHistoryOKNotSentItemNotSent `json:"not_sent"`
+	// Its title: " on : ()".
+	What string `json:"what"`
+}
+
+// GetAt returns the value of At.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetID returns the value of ID.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetID() string {
+	return s.ID
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetLink() string {
+	return s.Link
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetNotSent() NotifyGetNotifyHistoryOKNotSentItemNotSent {
+	return s.NotSent
+}
+
+// GetWhat returns the value of What.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) GetWhat() string {
+	return s.What
+}
+
+// SetAt sets the value of At.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetLink(val string) {
+	s.Link = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetNotSent(val NotifyGetNotifyHistoryOKNotSentItemNotSent) {
+	s.NotSent = val
+}
+
+// SetWhat sets the value of What.
+func (s *NotifyGetNotifyHistoryOKNotSentItem) SetWhat(val string) {
+	s.What = val
+}
+
+type NotifyGetNotifyHistoryOKNotSentItemNotSent struct {
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+	// (below_min_severity).
+	Channel OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel `json:"channel"`
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
+	Reason NotifyGetNotifyHistoryOKNotSentItemNotSentReason `json:"reason"`
+	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
+	// send high and above.".
+	Text string `json:"text"`
+	// Quiet_hours, grouped: when the held message goes out.
+	Until OptDateTime `json:"until"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetChannel() OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return s.Channel
+}
+
+// GetReason returns the value of Reason.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetReason() NotifyGetNotifyHistoryOKNotSentItemNotSentReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetText() string {
+	return s.Text
+}
+
+// GetUntil returns the value of Until.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetChannel(val OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) {
+	s.Channel = val
+}
+
+// SetReason sets the value of Reason.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetReason(val NotifyGetNotifyHistoryOKNotSentItemNotSentReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetText(val string) {
+	s.Text = val
+}
+
+// SetUntil sets the value of Until.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSent) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+// (below_min_severity).
+type NotifyGetNotifyHistoryOKNotSentItemNotSentChannel string
+
+const (
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram     NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "telegram"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack        NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "slack"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo         NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "zalo"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "zalo-personal"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail        NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "email"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook      NotifyGetNotifyHistoryOKNotSentItemNotSentChannel = "webhook"
+)
+
+// AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentChannel values.
+func (NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) AllValues() []NotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return []NotifyGetNotifyHistoryOKNotSentItemNotSentChannel{
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyHistoryOKNotSentItemNotSentChannel(data) {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelTelegram
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelSlack
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZalo
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelZaloPersonal
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelEmail
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
+type NotifyGetNotifyHistoryOKNotSentItemNotSentReason string
+
+const (
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued           NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "queued"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "quiet_hours"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "grouped"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel        NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "no_channel"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channels_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channel_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved   NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channel_removed"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "below_min_severity"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed           NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "failed"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale     NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "dropped_stale"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary  NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "first_run_summary"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "unknown"
+)
+
+// AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentReason values.
+func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetNotifyHistoryOKNotSentItemNotSentReason {
+	return []NotifyGetNotifyHistoryOKNotSentItemNotSentReason{
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyHistoryOKNotSentItemNotSentReason(data) {
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelRemoved
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonBelowMinSeverity
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFailed
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -189921,13 +190238,14 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -190043,13 +190361,15 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -190066,6 +190386,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 	return []NotifyGetNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -190084,6 +190405,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -190116,6 +190439,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -190799,13 +191125,14 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -190921,13 +191248,15 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "queued"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel        NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_off"
@@ -190944,6 +191273,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 	return []NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason{
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff,
@@ -190962,6 +191292,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -190994,6 +191326,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
@@ -192224,13 +192559,14 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-	// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+	// = opened before the reason was kept and today's channels would take it.
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours: when the held message goes out.
+	// Quiet_hours, grouped: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -192346,13 +192682,15 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
-// go out by themselves; unknown = opened before the reason was kept and today's channels would take it.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
+// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown
+// = opened before the reason was kept and today's channels would take it.
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -192369,6 +192707,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 	return []NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -192387,6 +192726,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -192419,6 +192760,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -200327,6 +200671,52 @@ func (o OptNilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel returns new OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel with value set to v.
+func NewOptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel(v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
+	return OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel is optional NotifyGetNotifyHistoryOKNotSentItemNotSentChannel.
+type OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel struct {
+	Value NotifyGetNotifyHistoryOKNotSentItemNotSentChannel
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel was set.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Reset() {
+	var v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) SetTo(v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Get() (v NotifyGetNotifyHistoryOKNotSentItemNotSentChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel) Or(d NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) NotifyGetNotifyHistoryOKNotSentItemNotSentChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -260,12 +260,14 @@ type Job struct {
 	Scope  string
 	Domain *DomainScope
 	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending), sent only to a worker whose heartbeat says
-	// nmap.ports, and of the -sV run of an external job (the fixed list and the open ports its discovery found, ascending); nil on
-	// every other nmap job, which keeps the shape an older worker knows. An older worker never gets the -sV job: it runs its own
-	// earlier line for the discovery job, which core recognises and reports as an older worker before sending anything more.
+	// nmap.ports, and of an external -sV batch (1..40, ascending, with HostTimeoutS); nil on every other nmap job, which keeps the
+	// shape an older worker knows. A worker from before the external discovery runs its own earlier line for the discovery job,
+	// which core recognises and reports as an older worker before sending any batch.
 	Ports []int
 	// HostTimeoutS is the --host-timeout in seconds of an external -sV batch (nmapargv.BatchFlags: 60..120), the only nmap job
-	// whose host timeout core picks from the time left; 0 on every other job (omitempty keeps their shape).
+	// whose host timeout core picks from the time left; 0 on every other job (omitempty keeps their shape). A worker built before
+	// this field decodes jobs strictly and fails its whole poll on it, so the batch job expires unread (ErrWorkerLost) and the
+	// service step keeps the batches that finished; only while the box updates.
 	HostTimeoutS int
 
 	Nuclei *NucleiJob // nuclei, nil for the others

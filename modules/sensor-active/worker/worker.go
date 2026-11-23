@@ -597,6 +597,9 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if j.HostTimeoutS != 0 && !batch {
 		return nil, fmt.Errorf("a %s job carries no host timeout", j.Shape)
 	}
+	if batch && (j.HostTimeoutS < int(nmapargv.BatchMinTimeout/time.Second) || j.HostTimeoutS > int(nmapargv.BatchMaxTimeout/time.Second)) {
+		return nil, fmt.Errorf("host timeout %d s is outside the batch range", j.HostTimeoutS) // checked before it becomes a duration
+	}
 	var argv []string
 	if batch {
 		argv, err = nmapargv.BuildBatch(j.Rate, j.Ports, time.Duration(j.HostTimeoutS)*time.Second, targets)

@@ -570,24 +570,289 @@ func TestBatchBudgetWorstCase(t *testing.T) {
 	}
 }
 
-// The batches of a run put the ports the last run left unfinished first: a batch of the fixed list holding one of them moves to the
-// front (the others keep their order), and an unfinished port outside the fixed list joins this run's extras, first.
-func TestPlanBatchesRotation(t *testing.T) {
+// simulateRuns plans and "runs" the batches of runs scans in a row, as probeDefault would, from the probe rows the last run left:
+// each run reads its first k batches (fail says which of them fail, by their first port) and does not start the rest. It returns,
+// for each run, the first port of every batch that finished.
+func simulateRuns(t *testing.T, runs, k int, open, scanned []int, everywhere bool, fail func(first int) bool) [][]int {
+	t.Helper()
+	var last []lastBatch
+	var read [][]int
+	for range runs {
+		batches, err := planBatches(open, scanned, last, everywhere)
+		if err != nil {
+			t.Fatal(err)
+		}
+		last = nil
+		var got []int
+		for i, b := range batches {
+			switch {
+			case i >= k:
+				last = append(last, lastBatch{ports: b, state: batchNotStarted})
+			case fail != nil && fail(b[0]):
+				last = append(last, lastBatch{ports: b, state: batchFailed})
+			default:
+				last = append(last, lastBatch{ports: b, state: batchDone})
+				got = append(got, b[0])
+			}
+		}
+		read = append(read, got)
+	}
+	return read
+}
+
+// The rotation is a queue kept in the probe log: whatever the number of batches that fit a run (k) and the path (a normal
+// discovery with an extra open port, a cut discovery or an address that answers everywhere: the fixed list only), every batch is
+// read at least once in every ceil(n/k) runs in a row (at most 6), so the fixed-list batches are never starved; the first batch of
+// the surface list is not always first. A batch that always fails cannot block the others, and is still tried.
+func TestRotationReadsEveryBatch(t *testing.T) {
 	t.Parallel()
-	plain, err := planBatches([]int{50000}, nil, false)
+	normal, err := nmapargv.ExternalBatches([]int{50000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := planBatches([]int{50000}, []int{plain[2][0], 60000}, false)
+	fixed, err := nmapargv.ExternalBatches(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	extras := []int{50000, 60000}
-	if !slices.Equal(got[0], plain[2]) || !slices.Equal(got[1], extras) || !slices.Equal(got[2], plain[0]) || !slices.Equal(got[3], plain[1]) || len(got) != len(plain) {
-		t.Fatalf("rotated batches %v (plain %v)", got, plain)
+	firsts := func(bs [][]int) []int {
+		var out []int
+		for _, b := range bs {
+			out = append(out, b[0])
+		}
+		return out
 	}
-	every, err := planBatches([]int{50000}, []int{60000, plain[4][0]}, true) // answers everywhere: the fixed list only
-	if err != nil || len(every) != 5 || !slices.Equal(every[0], plain[4]) {
-		t.Fatalf("answers everywhere: %v %v", every, err)
+	for name, c := range map[string]struct {
+		open, scanned []int
+		everywhere    bool
+		want          [][]int
+	}{
+		"normal":             {[]int{50000}, []int{1, 50000}, false, normal},
+		"discovery cut":      {nil, nil, false, fixed},
+		"answers everywhere": {nil, nil, true, fixed},
+	} {
+		for _, k := range []int{1, 2} {
+			read := simulateRuns(t, 12, k, c.open, c.scanned, c.everywhere, nil)
+			window := (len(c.want) + k - 1) / k
+			if window > 6 {
+				t.Fatalf("%s, k=%d: window %d", name, k, window)
+			}
+			for _, first := range firsts(c.want) {
+				for from := 0; from+window <= len(read); from++ {
+					seen := false
+					for _, r := range read[from : from+window] {
+						seen = seen || slices.Contains(r, first)
+					}
+					if !seen {
+						t.Fatalf("%s, k=%d: the batch starting at port %d is not read in runs %d..%d: %v", name, k, first, from+1, from+window, read)
+					}
+				}
+			}
+			if k == 1 && read[1][0] == firsts(c.want)[0] {
+				t.Fatalf("%s: the surface list's first batch is first again: %v", name, read)
+			}
+		}
 	}
+	// one batch that always fails (the second of the surface list): the others are still each read once in every 6 runs, and it is
+	// tried again within those 6 runs too
+	bad := normal[1][0]
+	tried := 0
+	var last []lastBatch
+	for range 12 {
+		batches, err := planBatches([]int{50000}, []int{1, 50000}, last, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if batches[0][0] == bad {
+			tried++
+		}
+		last = []lastBatch{}
+		for i, b := range batches {
+			state := batchNotStarted
+			if i == 0 {
+				state = batchDone
+				if b[0] == bad {
+					state = batchFailed
+				}
+			}
+			last = append(last, lastBatch{ports: b, state: state})
+		}
+	}
+	if tried < 2 {
+		t.Fatalf("the failing batch was tried %d times in 12 runs", tried)
+	}
+	read := simulateRuns(t, 12, 1, []int{50000}, []int{1, 50000}, false, func(first int) bool { return first == bad })
+	for _, first := range firsts(normal) {
+		if first == bad {
+			continue
+		}
+		for from := 0; from+6 <= len(read); from++ {
+			seen := false
+			for _, r := range read[from : from+6] {
+				seen = seen || slices.Contains(r, first)
+			}
+			if !seen {
+				t.Fatalf("a failing batch starved the batch at port %d in runs %d..%d: %v", first, from+1, from+6, read)
+			}
+		}
+	}
+}
+
+// The queue order: the batches not started last run first (in that run's order), then those that failed, then the others in their
+// usual order; a fixed port the last run wrote no row for (it stopped early) counts as not started, after those that say so.
+func TestPlanBatchesQueue(t *testing.T) {
+	t.Parallel()
+	plain, err := planBatches(nil, nil, nil, false)
+	if err != nil || len(plain) != 5 {
+		t.Fatalf("plain %v %v", plain, err)
+	}
+	last := []lastBatch{{plain[0], batchDone}, {plain[1], batchFailed}, {plain[4], batchNotStarted}, {plain[2], batchNotStarted}}
+	got, err := planBatches(nil, nil, last, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]int{plain[4], plain[2], plain[3], plain[1], plain[0]} // plain[3] has no row: not started, after the rows that say so
+	for i := range want {
+		if !slices.Equal(got[i], want[i]) {
+			t.Fatalf("queue %v, want %v", firstPorts(got), firstPorts(want))
+		}
+	}
+}
+
+func firstPorts(bs [][]int) []int {
+	var out []int
+	for _, b := range bs {
+		out = append(out, b[0])
+	}
+	return out
+}
+
+// The extras of a run: the open ports the discovery found first, then the last run's unfinished extras the discovery did not see
+// closed (still open, or not among the ports it probed); one it saw closed needs no -sV. At most 40 in all, so the ports seen open
+// now always fit.
+func TestPlanBatchesExtras(t *testing.T) {
+	t.Parallel()
+	scanned := []int{1000, 1001, 1002, 1003}
+	last := []lastBatch{{[]int{1001, 1002, 60000}, batchFailed}}
+	got, err := planBatches([]int{1000, 1001}, scanned, last, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(got, func(b []int) bool { return slices.Contains(b, 1000) })
+	if i < 0 || !slices.Equal(got[i], []int{1000, 1001, 60000}) { // 1002 was seen closed; 60000 was not probed
+		t.Fatalf("batches %v", got)
+	}
+	if extras := got[i]; !slices.Equal(extras, []int{1000, 1001, 60000}) {
+		t.Fatalf("extras %v", extras)
+	}
+	var carried []lastBatch
+	for p := range 40 {
+		carried = append(carried, lastBatch{[]int{40000 + p}, batchFailed})
+	}
+	var open []int
+	for p := range 40 {
+		open = append(open, 50000+p)
+	}
+	got, err = planBatches(open, nil, carried, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all []int
+	for _, b := range got {
+		all = append(all, b...)
+	}
+	for _, p := range open {
+		if !slices.Contains(all, p) {
+			t.Fatalf("open port %d pushed out by carried ports", p)
+		}
+	}
+	if unread := unreadOpen([]int{22, 50000, 50001}, []int{22, 50000}); !slices.Equal(unread, []int{50001}) {
+		t.Fatalf("unreadOpen = %v", unread)
+	}
+}
+
+// runBatches keeps every finished batch whatever happens to a later one: a batch cut at its own bound (its host timeout plus the
+// job's overhead) while the run goes on is unfinished and the next one still runs; a lost worker ends the loop with the rest not
+// started; the batches that no longer fit before the inner deadline are not started. Only a stop or a fence refusal discards all.
+// Time is synctest's: nothing waits for real.
+func TestRunBatchesKeepsFinishedOnes(t *testing.T) {
+	t.Parallel()
+	batches := [][]int{{22}, {80}, {443}, {8443}}
+	yes := func(context.Context) error { return nil }
+	type call struct {
+		ports []int
+		host  time.Duration
+	}
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
+		defer cancel()
+		var calls []call
+		var notStarted []string
+		res, err := runBatches(ctx, batches, batchRunner{
+			fence: yes,
+			run: func(ctx context.Context, b []int, h time.Duration, _ string) ([]ExternalService, error) {
+				calls = append(calls, call{b, h})
+				if b[0] == 80 { // holds past its own bound
+					<-ctx.Done()
+					return nil, ErrStopped
+				}
+				return []ExternalService{{Port: b[0], Name: "http", Product: "x"}}, nil
+			},
+			notStarted: func(_ []int, label, why string) { notStarted = append(notStarted, label+": "+why) },
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(res.done, []int{22, 443, 8443}) || !slices.Equal(res.unfinished, []int{80}) || len(res.services) != 3 || len(calls) != 4 {
+			t.Fatalf("done %v unfinished %v services %d calls %v", res.done, res.unfinished, len(res.services), calls)
+		}
+		if calls[0].host != nmapargv.BatchMaxTimeout {
+			t.Fatalf("first host timeout %s", calls[0].host)
+		}
+
+		// little time: the first batch fits at its shortest, the rest are not started
+		short, cancel2 := context.WithTimeout(t.Context(), externalStep+nmapargv.BatchMinTimeout+30*time.Second)
+		defer cancel2()
+		notStarted = nil
+		res, err = runBatches(short, batches, batchRunner{fence: yes,
+			run: func(ctx context.Context, _ []int, _ time.Duration, _ string) ([]ExternalService, error) {
+				<-ctx.Done() // the batch takes its whole bound
+				return nil, ErrHostTimedOut
+			},
+			notStarted: func(_ []int, label, why string) { notStarted = append(notStarted, label+": "+why) },
+		})
+		if !errors.Is(err, ErrHostTimedOut) || len(notStarted) != 3 || notStarted[0] != "batch 2 of 4: "+whyNoTime {
+			t.Fatalf("err %v, not started %v", err, notStarted)
+		}
+
+		// a lost worker on batch 2: batch 1 is kept, batches 3 and 4 are not started
+		notStarted = nil
+		res, err = runBatches(ctx, batches, batchRunner{fence: yes,
+			run: func(_ context.Context, b []int, _ time.Duration, _ string) ([]ExternalService, error) {
+				if b[0] == 80 {
+					return nil, ErrWorkerLost
+				}
+				return []ExternalService{{Port: b[0]}}, nil
+			},
+			notStarted: func(_ []int, label, why string) { notStarted = append(notStarted, label+": "+why) },
+		})
+		if err != nil || !slices.Equal(res.done, []int{22}) || !slices.Equal(res.unfinished, []int{80, 443, 8443}) || len(notStarted) != 2 || notStarted[0] != "batch 3 of 4: "+whyWorkerLost {
+			t.Fatalf("worker lost: %+v %v %v", res, err, notStarted)
+		}
+
+		// a stop during batch 2 discards everything
+		stop, cancel3 := context.WithCancel(ctx)
+		_, err = runBatches(stop, batches, batchRunner{fence: yes,
+			run: func(_ context.Context, b []int, _ time.Duration, _ string) ([]ExternalService, error) {
+				if b[0] == 80 {
+					cancel3()
+					return nil, ErrStopped
+				}
+				return []ExternalService{{Port: b[0]}}, nil
+			},
+			notStarted: func([]int, string, string) {},
+		})
+		if !errors.Is(err, ErrStopped) {
+			t.Fatalf("stop: err = %v", err)
+		}
+	})
 }

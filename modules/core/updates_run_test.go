@@ -67,6 +67,7 @@ type updHost struct {
 	stateDown   int             // StateContainers answers unreachable that many times
 	dropped     map[string]bool // "start core": every call never reaches the host (no run, no answer)
 	rebootAt    *time.Time      // state/os reboot_scheduled_at
+	noOSCheck   bool            // state/os answers no_check_yet: the host never looked for operating system updates
 }
 
 func ver(s string) *string { return &s }
@@ -263,6 +264,9 @@ func (f *updHost) StateContainers(context.Context) (api.ContainersState, error) 
 func (f *updHost) StateOS(context.Context) (api.OSState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.noOSCheck {
+		return api.OSState{}, &hostclient.Error{Status: 404, Code: api.CodeNoCheckYet, Message: "no check yet"}
+	}
 	return api.OSState{RebootScheduledAt: f.rebootAt}, nil
 }
 

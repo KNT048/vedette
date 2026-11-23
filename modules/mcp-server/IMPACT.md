@@ -1,34 +1,34 @@
 # MCP-server — Change Impact Map
 
-> Package `modules/mcp-server` (`mcpserver`); nối ở `cmd/vedette/mcpserver.go`. Test: `go test ./modules/mcp-server/... -run Contract`, `go test ./cmd/vedette -run 'MCP'`.
+> Package `modules/mcp-server` (`mcpserver`); wired in `cmd/vedette/mcpserver.go`. Tests: `go test ./modules/mcp-server/... -run Contract`, `go test ./cmd/vedette -run 'MCP'`.
 
-## Modifying: `Tools` (tập công cụ, schema, phạm vi) — 3 người gọi
-- **Agent/SIEM của khách** (ngoài hệ thống): đổi tên công cụ/schema trả về → agent đã cấu hình hỏng không báo lỗi rõ. Thêm công cụ = đổi bề mặt dữ liệu rời hộp theo tay người dùng: đặt vào một phạm vi sẵn có, ghi vào CONTRACT INV-1 và PRIVACY luồng 13. `TestContract_INV7_AnswersFitTheirOutputSchema` bắt câu trả lời lệch schema.
-- **`McpHandlers.CoreGetCoreMcp`** (`handlers.go`): trả `tools[]` (tên + phạm vi) và `scopes[]` cho `GET /core/mcp`; hợp đồng `get /core/mcp` ở `web/src/features/core/contract.ts`.
-- **web/features/core/McpSection**: hiển thị `tools[]`/`scopes[]` từ `GET /core/mcp` và nhãn `mcp.tools.<tên>` trong `core.json`; thêm công cụ → thêm nhãn, mock `MCP_TOOLS` trong `web/src/features/core/mocks.ts`.
+## Modifying: `Tools` (the tool set, schema, scope) — 3 callers
+- **A customer's agent/SIEM** (outside the system): changing a tool name/returned schema → agents that are already configured break without a clear error. Adding a tool = changing the data surface that leaves the box at the user's hand: put it in an existing scope, record it in CONTRACT INV-1 and PRIVACY flow 13. `TestContract_INV7_AnswersFitTheirOutputSchema` catches an answer that drifts from the schema.
+- **`McpHandlers.CoreGetCoreMcp`** (`handlers.go`): returns `tools[]` (name + scope) and `scopes[]` for `GET /core/mcp`; the contract `get /core/mcp` in `web/src/features/core/contract.ts`.
+- **web/features/core/McpSection**: shows `tools[]`/`scopes[]` from `GET /core/mcp` and the label `mcp.tools.<name>` in `core.json`; adding a tool → add a label and the mock `MCP_TOOLS` in `web/src/features/core/mocks.ts`.
 
-## Modifying: `Source` (cổng dữ liệu) và `mcpSource` (cmd/vedette)
-- Là **người tiêu thụ** `inventory.Service.Devices/Device`, `findings.Service.List/Get`, `feeds.FeedHandlers.FeedsGetFeedsCveID/Search/Hot`: đổi trường ở đó không tự lọt ra (danh sách cho phép từng trường) nhưng có thể làm mất trường ở đây. Lọc bí mật nằm ở `mcpSource`, không dựa vào module nguồn; `TestMCPServerOnTheRealWiring` kiểm MAC, ghi chú, request/response quét và người duyệt không tới agent.
+## Modifying: `Source` (the data gate) and `mcpSource` (cmd/vedette)
+- It is a **consumer** of `inventory.Service.Devices/Device`, `findings.Service.List/Get`, `feeds.FeedHandlers.FeedsGetFeedsCveID/Search/Hot`: changing a field there does not leak out by itself (an allow list per field) but can make a field disappear here. The secret filtering lives in `mcpSource`, not in the source modules; `TestMCPServerOnTheRealWiring` checks that the MAC, notes, scan request/response and approvers do not reach the agent.
 
 ## Modifying: `authenticate`, `CleanScopes`, `hashToken`
-- Đổi so khớp phạm vi hoặc cách băm → token cũ có thể thành vô hiệu hoặc quá quyền; test INV-2/INV-3/INV-4 bắt buộc.
+- Changing the scope matching or the hashing → old tokens may become invalid or over-privileged; the INV-2/INV-3/INV-4 tests are mandatory.
 
-## Modifying: `rpc.go` (giao thức)
-- Đổi phiên bản hỗ trợ, header bắt buộc hoặc mã lỗi → khách MCP thật (Claude Code, v.v.) có thể không kết nối; `TestContract_Transport`, `TestContract_BothEras`.
+## Modifying: `rpc.go` (the protocol)
+- Changing the supported version, a required header or an error code → real MCP clients (Claude Code, etc.) may fail to connect; `TestContract_Transport`, `TestContract_BothEras`.
 
 ## Modifying: bind/port (`-mcp-listen`, `DefaultListen`)
-- Đổi từ loopback sang giao diện khác = thay đổi bảo mật + PRIVACY (INV-5, FORBID-4); `New` và `parseMCPListen` từ chối, test `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. Cờ nằm trong `newFlags`; để trống thì `parseMCPListen` chọn `0.0.0.0:8765` trong container, `127.0.0.1:8765` ngoài container. Đơn vị Quadlet của `core` (`host/ops/quadlet.go`, `PublishPort=127.0.0.1:8765:8765`) và `deploy/compose/container-only/compose.yaml` (`127.0.0.1:8765:8765`) dựa vào mặc định đó, **không truyền cờ**: unit/compose mới với image cũ (rollback, khởi động lại trước bước image) phải vẫn chạy, mà image cũ từ chối `0.0.0.0`. Đổi cổng = đổi cả hai nơi, `install.sh` (kiểm cổng trống), `Endpoint` (báo `127.0.0.1` + cùng cổng) và chữ trên màn hình; đổi mẫu đơn vị cần dòng legacy trong `host/ops/quadlet_legacy.go`. Bỏ `InContainer`/`inContainer` → MCP lại không tới được ở cả hai kiểu cài.
+- Changing from loopback to another interface = a security + PRIVACY change (INV-5, FORBID-4); `New` and `parseMCPListen` refuse it, tests `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. The flag is in `newFlags`; when left empty `parseMCPListen` chooses `0.0.0.0:8765` inside a container and `127.0.0.1:8765` outside one. The `core` Quadlet unit (`host/ops/quadlet.go`, `PublishPort=127.0.0.1:8765:8765`) and `deploy/compose/container-only/compose.yaml` (`127.0.0.1:8765:8765`) rely on that default and **pass no flag**: a new unit/compose with an old image (a rollback, a restart before the image step) must still run, and the old image refuses `0.0.0.0`. Changing the port = changing both places, `install.sh` (the free-port check), `Endpoint` (reports `127.0.0.1` + the same port) and the text on the screen; changing the unit template needs a legacy line in `host/ops/quadlet_legacy.go`. Removing `InContainer`/`inContainer` → MCP becomes unreachable again in both install types.
 
-## Modifying: bảng `mcp_tokens`
-- `modules/core/export_policy.go` liệt kê cột nào của `mcp_tokens` được xuất (`token_hash` bị bỏ qua); thêm/đổi cột → sửa chính sách xuất ở đó. `core/server/modules.go` ánh xạ tiền tố `/core/mcp` vào module (tắt → 404); `modules/core/handlers_privacy.go` đọc công tắc cho luồng 13, `web/src/features/core/PrivacySection.tsx` link tới `/settings/mcp`; nối dây ở `cmd/vedette/{main,modules,handler,mcpserver}.go`.
+## Modifying: the table `mcp_tokens`
+- `modules/core/export_policy.go` lists which columns of `mcp_tokens` are exported (`token_hash` is skipped); adding/changing a column → edit the export policy there. `core/server/modules.go` maps the prefix `/core/mcp` to the module (off → 404); `modules/core/handlers_privacy.go` reads the switch for flow 13, `web/src/features/core/PrivacySection.tsx` links to `/settings/mcp`; wiring in `cmd/vedette/{main,modules,handler,mcpserver}.go`.
 
-## Modifying: `recordCall` / giới hạn
-- Bỏ dòng audit mỗi lời gọi vi phạm INV-8 (`TestContract_INV6_INV8_…`); nới giới hạn làm tăng trần dòng audit.
+## Modifying: `recordCall` / limits
+- Dropping the audit line per call violates INV-8 (`TestContract_INV6_INV8_…`); loosening the limit raises the cap on audit lines.
 
 ## Disabling this module
-- Cổng đóng; agent/SIEM ngoài mất truy cập. Không module nào của Vedette phụ thuộc. Token và cấu hình giữ nguyên. Settings → Privacy luồng 13 thành `off`.
+- The port is closed; an outside agent/SIEM loses access. No Vedette module depends on it. Tokens and configuration are kept. Settings → Privacy flow 13 becomes `off`.
 
-- `list_findings` rows and `get_finding` carry `urgency` (under_attack, exploited, public_exploit, critical_edge, update_recommended), filled by `cmd/vedette/mcpserver.go` from findings' layer; the description no longer calls every finding exploited. Đổi tên mã = đổi schema `findingRowSchema`/`findingSchema`.
+- `list_findings` rows and `get_finding` carry `urgency` (under_attack, exploited, public_exploit, critical_edge, update_recommended), filled by `cmd/vedette/mcpserver.go` from findings' layer; the description no longer calls every finding exploited. Changing a code name = changing the schema `findingRowSchema`/`findingSchema`.
 
 ## Modifying: `Finding.Fix/Verification`, `CVEEntry` brief fields
 - Built by `cmd/vedette` `mcpSource` from `findingCase` (the finding view and the brief of its CVE). A new field of `findings.View` or `feeds.Brief` reaches an agent only through an allow-listed field here and in `tools.go`.

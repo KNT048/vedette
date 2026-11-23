@@ -586,16 +586,50 @@ func ValidCVE(s string) bool {
 // counted in the software's NeedVersion item instead, unless NVD lists every
 // version of the product as affected (then basis product, medium).
 func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) MatchResult {
-	var res MatchResult
-	seen := make(map[string]bool, len(vulns))
-	need := map[string]int{}     // software id -> index in res.NeedVersion
-	decided := map[string]bool{} // CVE -> a finding or an "add the version" item has it (#910: NotComparable then does not list it)
-	sws := deviceSoftware(a)     // its rows, and the network OS it states with its version
+	return newDevMatch(a, vulns, now).result(nil, have)
+}
+
+// devMatch is one device prepared for the matcher against one list of entries: its rows read once (deviceSoftware, swInfo, KEV keys
+// normalised), the rows each entry's NVD list may name, and each entry's reading of the rows, computed when first asked and kept.
+// result assembles the MatchResult of the whole list or of a part of it, for the findings the device has, without reading the rows
+// again. The result of a part is exactly MatchAsset of that part when the device's Windows list (Asset.winList) is the whole list, as
+// the match pass gives it: an entry's reading depends on the device, the Windows list and the entry alone.
+type devMatch struct {
+	a         Asset
+	vulns     []Vuln
+	now       time.Time
+	sws       []Software
+	infos     []swInfo
+	keys      [][]string     // rowKeys of each row
+	named     []map[int]bool // #910: per row, the entries whose NVD list may name it
+	allRows   []int
+	namedRows map[int][]int // entry -> the rows its NVD list may name, in row order
+	reads     []*entryRead  // per entry, its reading of the rows; nil until asked
+}
+
+// entryRead is one entry's reading of every row of the device (matchOne on each), before the findings the device has decide what
+// becomes of it.
+type entryRead struct {
+	best, proved, unlisted, platform, other, asked *Match
+	bestRow                                        int
+	otherVer                                       string      // other's version
+	unproved                                       bool        // a software of this product with a No that proves nothing, or one that needs a version
+	othersOnly                                     bool        // every software keyed to the entry is one NVD's list leaves out
+	needs                                          bool        // a row needs a version to tell
+	unnamed                                        []string    // the rows NVD's list leaves out, for the retired-entry sentence
+	unchecked                                      []Unchecked // #910: rows of the product that could not be checked
+	matched                                        []Match     // every row the entry matches: each software line is its own finding (Match.Lines)
+	needRows                                       []int       // the rows that need a version, in row order
+}
+
+func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
+	sws := deviceSoftware(a) // its rows, and the network OS it states with its version
 	winList := a.winList
 	if winList == nil {
 		winList = vulns
 	}
 	infos := make([]swInfo, len(sws))
+	keys := make([][]string, len(sws))
 	for i, s := range sws {
 		infos[i] = newSWInfo(s, a.OS)
 		infos[i].platformOS = platformOS(s, a)
@@ -603,15 +637,16 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			infos[i].winNamed = winNamed(winList, d.rel.Product) // the whole list, so both Reconcile writes agree
 			infos[i].winBuild = winBuildMonth(winList, d)        // From the whole list, never a part of it
 		}
+		keys[i] = rowKeys(s)
 	}
 	host := edgeHostOf(a, infos) // Whether Edge Legacy may still be on the device's Windows
 	for i := range infos {
 		infos[i].edgeHost = host
 	}
-	named := nvdCandidates(sws, vulns) // #910: per row, the entries whose NVD list may name it
+	named := nvdCandidates(sws, vulns)
 	distroCandidates(infos, vulns, named)
 	allRows := make([]int, len(sws))
-	namedRows := map[int][]int{} // entry -> the rows its NVD list may name, in row order
+	namedRows := map[int][]int{}
 	for i := range sws {
 		allRows[i] = i
 		for vi := range named[i] {
@@ -621,94 +656,137 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	for vi := range namedRows {
 		slices.Sort(namedRows[vi])
 	}
-	for vi, v := range vulns {
+	return &devMatch{a: a, vulns: vulns, now: now, sws: sws, infos: infos, keys: keys, named: named, allRows: allRows, namedRows: namedRows,
+		reads: make([]*entryRead, len(vulns))}
+}
+
+// read is entry vi's reading of the device's rows, computed once.
+func (d *devMatch) read(vi int) *entryRead {
+	if e := d.reads[vi]; e != nil {
+		return e
+	}
+	a, sws, infos, named, now := d.a, d.sws, d.infos, d.named, d.now
+	v := d.vulns[vi]
+	e := &entryRead{othersOnly: true, bestRow: -1}
+	ek := keyOf(v)
+	var key []identity // keyIDs(v), read once for the rows CISA's key reaches
+	haveKey := false
+	keep := func(m Match) *Match { return &m } // only a kept match leaves the loop: the loop's own stays on the stack
+	rows := d.allRows
+	if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
+		rows = d.namedRows[vi]
+	}
+	for _, i := range rows {
+		s := sws[i]
+		keyed := keyedBy(d.keys[i], ek)
+		if keyed && !haveKey {
+			key, haveKey = keyIDs(v), true
+		}
+		m, out := matchOne(a, s, infos[i], v, keyed, key, named[i][vi], now)
+		if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
+			// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
+			// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;
+			// #910 rule 2 reads it as NVD naming another product (not_named, unless NVD gives no version at all)
+			e.other, e.otherVer, e.unproved = keep(m), s.Version, true
+			if r, ok := uncheckedReason(s, infos[i], v, false); ok {
+				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
+			}
+			continue
+		}
+		if out == outRuledOut || out == outNone && named[i][vi] {
+			if r, ok := uncheckedRow(a, s, infos[i], v, named[i][vi], m, out); ok {
+				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
+			}
+		}
+		if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
+			e.othersOnly = false
+		}
+		switch out {
+		case outNotAffected:
+			if e.proved == nil {
+				e.proved = keep(m)
+			}
+			if m.why != "" && e.platform == nil {
+				e.platform = keep(m)
+			}
+		case outRuledOut:
+			e.unproved = true
+			if m.Evidence.Summary != "" {
+				if e.unlisted == nil {
+					e.unlisted = keep(m)
+				}
+				if !slices.Contains(e.unnamed, m.SoftwareDisplay) {
+					e.unnamed = append(e.unnamed, m.SoftwareDisplay)
+				}
+			}
+		case outMatch:
+			e.matched = append(e.matched, m)
+			// on a tie, a match with version evidence wins (versionBacked): whether the CVE is a
+			// finding never depends on the order of the rows; between two without it, the agent's row wins, so its note and
+			// agent_row do not depend on the order either (#909)
+			if e.best == nil || betterMatch(m, *e.best) {
+				e.best, e.bestRow = keep(m), i
+			}
+		case outQuestion: // No finding until a person answers; listed with the question
+			e.unproved = true
+			if e.asked == nil {
+				e.asked = keep(m)
+			}
+			u := uncheckedOf(s, v, m.ask.reason())
+			u.Answer = m.answer
+			e.unchecked = append(e.unchecked, u)
+		case outNeedVersion:
+			e.unproved, e.needs = true, true
+			e.needRows = append(e.needRows, i)
+		}
+	}
+	d.reads[vi] = e
+	return e
+}
+
+// result is the MatchResult of the entries idx of the list (every entry, in list order, when idx is nil) for a device that has a
+// finding of the CVEs in have: MatchAsset of those entries.
+func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
+	vulns := d.vulns
+	if idx != nil {
+		vulns = make([]Vuln, len(idx))
+		for k, vi := range idx {
+			vulns[k] = d.vulns[vi]
+		}
+	}
+	a, sws, infos, now := d.a, d.sws, d.infos, d.now
+	var res MatchResult
+	seen := make(map[string]bool, len(vulns))
+	need := map[string]int{}     // software id -> index in res.NeedVersion
+	decided := map[string]bool{} // CVE -> a finding or an "add the version" item has it (#910: NotComparable then does not list it)
+	for k, v := range vulns {
+		vi := k
+		if idx != nil {
+			vi = idx[k]
+		}
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved, unlisted, platform, other, asked *Match
-		otherVer := ""            // other's version
-		unproved := false         // a software of this product with a No that proves nothing, or one that needs a version
-		othersOnly := true        // every software keyed to the entry is one NVD's list leaves out
-		var unnamed []string      // their names, for the retired-entry sentence
-		var unchecked []Unchecked // #910: rows of the product that could not be checked
-		needs, bestRow := false, -1
-		var matched []Match // every row the entry matches: each software line is its own finding (Match.Lines)
-		rows := allRows
-		if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
-			rows = namedRows[vi]
-		}
-		for _, i := range rows {
+		e := d.read(vi)
+		for _, i := range e.needRows {
 			s := sws[i]
-			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
-			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
-				// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
-				// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;
-				// #910 rule 2 reads it as NVD naming another product (not_named, unless NVD gives no version at all)
-				other, otherVer, unproved = &m, s.Version, true
-				if r, ok := uncheckedReason(s, infos[i], v, false); ok {
-					unchecked = append(unchecked, uncheckedOf(s, v, r))
-				}
-				continue
+			n, ok := need[s.ID]
+			if !ok {
+				n = len(res.NeedVersion)
+				need[s.ID] = n
+				res.NeedVersion = append(res.NeedVersion, VersionNeeded{SoftwareID: s.ID, Software: clean(s.Display), Version: clean(s.Version)})
 			}
-			if out == outRuledOut || out == outNone && named[i][vi] {
-				if r, ok := uncheckedRow(a, s, infos[i], v, named[i][vi], m, out); ok {
-					unchecked = append(unchecked, uncheckedOf(s, v, r))
-				}
-			}
-			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
-				othersOnly = false
-			}
-			switch out {
-			case outNotAffected:
-				if proved == nil {
-					proved = &m
-				}
-				if m.why != "" && platform == nil {
-					platform = &m
-				}
-			case outRuledOut:
-				unproved = true
-				if m.Evidence.Summary != "" {
-					if unlisted == nil {
-						unlisted = &m
-					}
-					if !slices.Contains(unnamed, m.SoftwareDisplay) {
-						unnamed = append(unnamed, m.SoftwareDisplay)
-					}
-				}
-			case outMatch:
-				matched = append(matched, m)
-				// on a tie, a match with version evidence wins (versionBacked): whether the CVE is a
-				// finding never depends on the order of the rows; between two without it, the agent's row wins, so its note and
-				// agent_row do not depend on the order either (#909)
-				if best == nil || betterMatch(m, *best) {
-					best, bestRow = &m, i
-				}
-			case outQuestion: // No finding until a person answers; listed with the question
-				unproved = true
-				if asked == nil {
-					asked = &m
-				}
-				u := uncheckedOf(s, v, m.ask.reason())
-				u.Answer = m.answer
-				unchecked = append(unchecked, u)
-			case outNeedVersion:
-				unproved, needs = true, true
-				i, ok := need[s.ID]
-				if !ok {
-					i = len(res.NeedVersion)
-					need[s.ID] = i
-					res.NeedVersion = append(res.NeedVersion, VersionNeeded{SoftwareID: s.ID, Software: clean(s.Display), Version: clean(s.Version)})
-				}
-				if c := res.NeedVersion[i].CVEs; len(c) == 0 || c[len(c)-1] != v.CVE {
-					res.NeedVersion[i].CVEs = append(c, v.CVE)
-				}
+			if c := res.NeedVersion[n].CVEs; len(c) == 0 || c[len(c)-1] != v.CVE {
+				res.NeedVersion[n].CVEs = append(c, v.CVE)
 			}
 		}
+		best, proved, unlisted, platform, other, asked := e.best, e.proved, e.unlisted, e.platform, e.other, e.asked
+		unproved, needs, bestRow := e.unproved, e.needs, e.bestRow
+		unchecked := slices.Clip(e.unchecked) // appended to below: never into the kept reading
 		if best == nil && other != nil {
 			res.NotComparable = append(res.NotComparable, NotComparable{CVE: v.CVE, SoftwareID: other.SoftwareID, Software: other.SoftwareDisplay,
-				Version: clean(otherVer), Reason: NotComparableOtherProduct})
+				Version: clean(e.otherVer), Reason: NotComparableOtherProduct})
 		}
 		if best == nil && platform != nil && !unproved {
 			r := *platform
@@ -729,10 +807,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				res.NotAffected = append(res.NotAffected, *proved)
 			case unlisted != nil:
 				res.Unlisted = append(res.Unlisted, *unlisted)
-				if othersOnly && isMultiProduct(v.Product) && settled(v, now) { // the retire rule is about "Multiple Products" only (not a series)
+				if e.othersOnly && isMultiProduct(v.Product) && settled(v, now) { // the retire rule is about "Multiple Products" only (not a series)
 					r := *unlisted
 					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: %s lists %s for several %s products; NVD names %s, not %s (settled: %s added it over a year ago). Vedette checks it again whenever NVD's data for it changes.",
-						v.listName(), v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed), v.listName())
+						v.listName(), v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(e.unnamed), v.listName())
 					res.Retired = append(res.Retired, r)
 				}
 			}
@@ -781,7 +859,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 		decided[v.CVE] = true
 		b := *best
-		b.Lines = otherLines(b, matched, v, now)
+		b.Lines = otherLines(b, e.matched, v, now)
 		if have[v.CVE] {
 			res.Existing = append(res.Existing, b)
 		} else {
@@ -969,16 +1047,16 @@ func offListReading(s Software, in swInfo, v Vuln) bool {
 	return true
 }
 
-// matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
-// name the row (viaNVD, #910).
-func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
+// matchOne reads entry v for one software row: through CISA's key (keyed: keyedTo, with key its keyIDs), else through NVD's CPE list
+// when named says it may name the row (viaNVD, #910).
+func matchOne(a Asset, s Software, in swInfo, v Vuln, keyed bool, key []identity, named bool, now time.Time) (Match, outcome) {
 	var m Match
 	var out outcome
 	switch {
 	case s.Guess: // a sensor's guess is never matched (observe.Software.Guess)
 		return Match{}, outNone
-	case keyedTo(s, v):
-		m, out = judge(a, s, in, v, keyIDs(v), now)
+	case keyed:
+		m, out = judge(a, s, in, v, key, now)
 	case named && (v.listed() || offListReading(s, in, v)):
 		m, out = viaNVD(a, s, in, v, now)
 	default:

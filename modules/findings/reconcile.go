@@ -495,22 +495,59 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	return n, err
 }
 
-// splitByNews separates the entries whose findings are announced (added to an exploited list within RecentKEV) from the backlog: an
+// splitIdx separates the entries whose findings are announced (added to an exploited list within RecentKEV) from the backlog: an
 // older entry, and a catalogue CVE on no list, whose findings are written silently (the urgency pass says what is urgent).
 // Without a Backlog hook everything is "recent": nothing can be marked, so nothing is held back.
-func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
+// It returns indexes into vulns; backlog is nil without a Backlog hook.
+func (s *Service) splitIdx(vulns []Vuln) (backlog, recent []int) {
 	if s.cfg.Backlog == nil {
-		return nil, vulns
+		recent = make([]int, len(vulns))
+		for i := range vulns {
+			recent[i] = i
+		}
+		return nil, recent
 	}
 	cut := s.now().Add(-RecentKEV)
-	for _, v := range vulns {
+	for i, v := range vulns {
 		if v.DateAdded.IsZero() || v.DateAdded.Before(cut) {
-			backlog = append(backlog, v)
+			backlog = append(backlog, i)
 		} else {
-			recent = append(recent, v)
+			recent = append(recent, i)
 		}
 	}
 	return backlog, recent
+}
+
+// pick is the entries idx of vulns, in order; nil for none.
+func pick(vulns []Vuln, idx []int) []Vuln {
+	if len(idx) == 0 {
+		return nil
+	}
+	out := make([]Vuln, len(idx))
+	for k, i := range idx {
+		out[k] = vulns[i]
+	}
+	return out
+}
+
+// judgedParts is, for the whole set of one pass, the CVEs of its backlog and of its recent entries (splitIdx): each write of a
+// device judges the findings of its part's CVEs. Read once per pass, not once per device.
+func (s *Service) judgedParts(set *matchSet) (backlog, recent map[string]bool) {
+	set.splitOnce.Do(func() {
+		cves := func(idx []int) map[string]bool {
+			out := make(map[string]bool, len(idx))
+			for _, i := range idx {
+				out[set.vulns[i].CVE] = true
+			}
+			return out
+		}
+		b, r := s.splitIdx(set.vulns)
+		if b != nil {
+			set.backlog = cves(b)
+		}
+		set.recent = cves(r)
+	})
+	return set.backlog, set.recent
 }
 
 // cveSet is the CVEs of vulns.
@@ -528,17 +565,20 @@ func cveSet(vulns []Vuln) map[string]bool {
 func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (UpsertResult, error) {
 	var sum UpsertResult
 	dev := set.forDevice(a)
-	a.winList = dev                           // A Windows build's month is read from the device's whole list in both writes
-	whole := MatchAsset(a, dev, nil, s.now()) // its questions: which findings exist does not change them
-	allBacklog, allRecent := s.splitByNews(set.vulns)
-	backlog, recent := s.splitByNews(dev)
-	add := func(wctx context.Context, vulns []Vuln, judged map[string]bool) error {
+	a.winList = dev // A Windows build's month is read from the device's whole list in both writes
+	// The device's rows are read once and each entry once: the whole match (its questions: which findings exist does not change them)
+	// and each write's match of its part are assembled from the same readings (devMatch).
+	dm := newDevMatch(a, dev, s.now())
+	whole := dm.result(nil, nil)
+	allBacklog, allRecent := s.judgedParts(set)
+	backlog, recent := s.splitIdx(dev)
+	add := func(wctx context.Context, part []int, judged map[string]bool) error {
 		if len(judged) == 0 {
 			return nil
 		}
 		wctx, cancel := context.WithTimeout(wctx, eventWriteTimeout)
 		defer cancel()
-		r, err := s.upsert(wctx, a, vulns, judged, &whole, true)
+		r, err := s.upsertPart(wctx, a, pick(dev, part), judged, &whole, true, &partMatch{dm: dm, idx: part})
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Touched += r.Touched
 		sum.Closed += r.Closed
@@ -547,11 +587,11 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, set *matchSet) (Upse
 		return err
 	}
 	if len(allBacklog) > 0 {
-		if err := add(s.cfg.Backlog(ctx), backlog, cveSet(allBacklog)); err != nil {
+		if err := add(s.cfg.Backlog(ctx), backlog, allBacklog); err != nil {
 			return sum, err
 		}
 	}
-	return sum, add(ctx, recent, cveSet(allRecent))
+	return sum, add(ctx, recent, allRecent)
 }
 
 func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {

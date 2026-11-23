@@ -435,6 +435,23 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 // instead of the ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which
 // replaces them.
 func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool) (UpsertResult, error) {
+	return s.upsertPart(ctx, a, vulns, judged, whole, reread, nil)
+}
+
+// partMatch is the device's readings of the whole list (devMatch) and the entries of it a write compares (vulns of upsertPart).
+type partMatch struct {
+	dm  *devMatch
+	idx []int
+}
+
+// match is MatchAsset(a, vulns, have, now) for the part, from the readings already made (the part's vulns are dm's entries idx and
+// the device is dm's).
+func (p *partMatch) match(have map[string]bool) MatchResult { return p.dm.result(p.idx, have) }
+
+// upsertPart is upsert; pre, when not nil, holds the readings the device's match of vulns is assembled from instead of matching again
+// (the match pass reads every entry once for its two writes and its questions). The device read again inside the write (reread) is
+// matched afresh when it changed.
+func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool, pre *partMatch) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -456,7 +473,12 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 		return UpsertResult{}, err
 	}
 	haveBefore := haveOf(before)
-	matched := MatchAsset(a, vulns, haveBefore, s.now())
+	var matched MatchResult
+	if pre != nil {
+		matched = pre.match(haveBefore)
+	} else {
+		matched = MatchAsset(a, vulns, haveBefore, s.now())
+	}
 	var res UpsertResult
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
@@ -487,7 +509,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 			return err
 		}
 		have := haveOf(existing)
-		if changed || !maps.Equal(have, haveBefore) {
+		switch {
+		case !changed && !maps.Equal(have, haveBefore) && pre != nil:
+			matched = pre.match(have)
+		case changed || !maps.Equal(have, haveBefore):
 			matched = MatchAsset(a, vulns, have, now)
 		}
 		if changed {

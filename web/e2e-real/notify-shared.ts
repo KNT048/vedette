@@ -52,11 +52,11 @@ export function quietSummary(q: Quiet): string | null {
   if (!q.enabled || !q.from || !q.to || q.from === q.to) return null
   return q.from > q.to ? `Quiet from ${q.from} this evening until ${q.to} the next morning.` : `Quiet from ${q.from} to ${q.to} on the same day.`
 }
-/** The line over the History table (history.meta*), from the count of vulnerabilities that matched no device. */
+/** The line over the History table (history.meta*), from the count of vulnerabilities that matched no device. The longer explanation is behind the section's ⓘ. */
 export function historyMeta(s: { count: number; days: number }): string {
-  if (s.count === 0) return `Vedette only alerts for products you own. In the last ${s.days} days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.`
-  if (s.count === 1) return `Vedette only alerts for products you own. 1 new vulnerability in the last ${s.days} days matches none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.`
-  return `Vedette only alerts for products you own. ${s.count} new vulnerabilities in the last ${s.days} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.`
+  if (s.count === 0) return `No new vulnerability was skipped in the last ${s.days} days.`
+  if (s.count === 1) return `1 new vulnerability in ${s.days} days matched none of your devices: not sent.`
+  return `${s.count} new vulnerabilities in ${s.days} days matched none of your devices: not sent.`
 }
 /** "Sent to" cell of a channel row (dest() in ChannelsSettings.tsx). */
 export function destText(c: Ch): string {

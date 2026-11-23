@@ -94,8 +94,13 @@ func TestContract_POST2_ExplainIsSchemaBoundLabelledAndCached(t *testing.T) {
 	if tok := got["tokens"].(map[string]any); tok["input"] != float64(14) || tok["output"] != float64(3) {
 		t.Fatalf("tokens = %v", tok)
 	}
-	if got["why"] != "NAS-PHOTOS runs the affected product." || fmt.Sprint(got["patch_steps"]) != "[Update to the fixed build.]" || len(got["temp_mitigations"].([]any)) != 1 || len(got["detection_hints"].([]any)) != 1 {
+	answers := got["answers"].([]any)
+	if len(answers) != 4 || answers[0].(map[string]any)["key"] != "affected" || answers[0].(map[string]any)["text"] != "NAS-PHOTOS runs the affected product." ||
+		answers[1].(map[string]any)["key"] != "fix" || answers[1].(map[string]any)["text"] != "Update to the fixed build." || answers[3].(map[string]any)["key"] != "urgency" {
 		t.Fatalf("explain body = %v", got)
+	}
+	if links := answers[0].(map[string]any)["links"].([]any); len(links) != 0 {
+		t.Fatalf("links = %v: the answer named no reference", links)
 	}
 	// citations are the box's own: the feed's plain http(s) links (at most two) and the device count; never a link from the model
 	cites := got["citations"].([]any)
@@ -104,7 +109,7 @@ func TestContract_POST2_ExplainIsSchemaBoundLabelledAndCached(t *testing.T) {
 	}
 	calls := a.fake.total()
 	again := a.explain("CVE-2022-27593", 200, "") // the same CVE and devices: no new call, no new tokens
-	if again["cached"] != true || a.fake.total() != calls || again["why"] != got["why"] {
+	if again["cached"] != true || a.fake.total() != calls || fmt.Sprint(again["answers"]) != fmt.Sprint(got["answers"]) {
 		t.Fatalf("second explain = %v, calls %d -> %d", again, calls, a.fake.total())
 	}
 	cached := a.want("GET", "/ai/cve/CVE-2022-27593/cached", "viewer", "", 200, "")
@@ -130,8 +135,8 @@ func TestExplainAffectedIsTheBoxsAnswer(t *testing.T) {
 	a.facts.mu.Lock()
 	a.facts.assets["CVE-2022-27593"] = nil
 	a.facts.mu.Unlock()
-	got := a.explain("CVE-2022-27593", 200, "") // the model wrote steps, but no device matches
-	if got["affected"] != "no" || len(got["patch_steps"].([]any)) != 0 || len(got["temp_mitigations"].([]any)) != 0 || len(got["detection_hints"].([]any)) != 0 {
+	got := a.explain("CVE-2022-27593", 200, "") // the model answered "affected": the box decides, and no device matches
+	if got["affected"] != "no" || len(got["answers"].([]any)) != 4 {
 		t.Fatalf("no matching device = %v", got)
 	}
 }
@@ -187,11 +192,12 @@ func TestContract_INV5_BadAnswersAreDiscarded(t *testing.T) {
 	a.withProfile()
 	for name, answer := range map[string]string{
 		"not json":          "Sure! Here is the explanation: it is bad.",
-		"extra field":       `{"why":"x","patch_steps":[],"temp_mitigations":[],"detection_hints":[],"citations":[{"title":"evil","url":"https://evil.example"}]}`,
-		"empty why":         `{"why":"  ","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`,
+		"extra field":       `{"answers":[],"citations":[{"title":"evil","url":"https://evil.example"}]}`,
+		"empty answer":      `{"answers":[{"key":"affected","text":"  ","refs":[]},{"key":"fix","text":"x","refs":[]},{"key":"workaround","text":"x","refs":[]},{"key":"urgency","text":"x","refs":[]}]}`,
 		"two objects":       goodExplain + goodExplain,
-		"wrong type":        `{"why":"x","patch_steps":"do it","temp_mitigations":[],"detection_hints":[]}`,
-		"missing a section": `{"why":"x"}`,
+		"wrong type":        `{"answers":"do it"}`,
+		"missing a section": `{"answers":[{"key":"affected","text":"x","refs":[]}]}`,
+		"the older shape":   `{"why":"x","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`,
 	} {
 		a.fake.setAnswer(answer)
 		m := a.explain("CVE-2022-27593", 502, "ai_bad_format")
@@ -208,7 +214,7 @@ func TestContract_INV5_BadAnswersAreDiscarded(t *testing.T) {
 	}
 	// the calls cost tokens, so they are logged and show as schema_error
 	rows := a.activity()
-	if len(rows) != 6 || rows[0].Result != ai.ResultError || rows[0].TokensIn != 14 {
+	if len(rows) != 7 || rows[0].Result != ai.ResultError || rows[0].TokensIn != 14 {
 		t.Fatalf("activity = %v", rows)
 	}
 	runs := a.want("GET", "/ai/runs", "viewer", "", 200, "")["items"].([]any)
@@ -218,12 +224,13 @@ func TestContract_INV5_BadAnswersAreDiscarded(t *testing.T) {
 	// long text and long lists are cut to the schema's limits
 	long := strings.Repeat("a", 3000)
 	items := strings.TrimSuffix(strings.Repeat(`"`+long+`",`, 12), ",")
-	a.fake.setAnswer(`{"why":"` + long + `","patch_steps":[` + items + `],"temp_mitigations":[],"detection_hints":["ok\u0000\u0007x"]}`)
+	_ = items
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"` + long + `","refs":[]},{"key":"fix","text":"ok\u0000\u0007x","refs":[]},{"key":"workaround","text":"w","refs":[]},{"key":"urgency","text":"u","refs":[]}]}`)
 	got := a.explain("CVE-2022-27593", 200, "")
-	steps := got["patch_steps"].([]any)
-	// a list item over its limit is cut at a sentence end, else a word, and marked "…" (M2-2: never a silent mid-sentence stop)
-	if s0 := steps[0].(string); len(got["why"].(string)) != 1200 || len(steps) != 8 || utf8.RuneCountInString(s0) != 500 || !strings.HasSuffix(s0, "…") || got["detection_hints"].([]any)[0] != "okx" {
-		t.Fatalf("limits not applied: why %d, steps %d, hint %q", len(got["why"].(string)), len(steps), got["detection_hints"])
+	answers := got["answers"].([]any)
+	// a text over its limit is cut at a sentence end, else a word, and marked "…" (M2-2: never a silent mid-sentence stop); control characters go
+	if s0 := answers[0].(map[string]any)["text"].(string); utf8.RuneCountInString(s0) != 1200 || !strings.HasSuffix(s0, "…") || answers[1].(map[string]any)["text"] != "okx" {
+		t.Fatalf("limits not applied: first %d, second %q", utf8.RuneCountInString(s0), answers[1].(map[string]any)["text"])
 	}
 }
 

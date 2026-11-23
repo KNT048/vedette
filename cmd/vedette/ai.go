@@ -89,13 +89,26 @@ type aiFacts struct {
 	boxID func(context.Context) (string, error) // the id of the box's own device row, "" when there is none
 }
 
+// CVE reads the brief of the CVE, any CVE the catalogue holds: the exploited-list entry's words when a list has it, the brief as the text
+// of the data block with its references numbered from 1.
 func (f aiFacts) CVE(ctx context.Context, id string) (ai.CVEFacts, bool, error) {
-	v, ok, err := f.feeds.VulnByCVE(ctx, id)
+	b, ok, err := f.feeds.Brief(ctx, id)
 	if err != nil || !ok {
 		return ai.CVEFacts{}, false, err
 	}
-	return ai.CVEFacts{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Description: v.Description, RequiredAction: v.RequiredAction,
-		DateAdded: v.DateAdded, Links: v.Links, Ransomware: v.Ransomware, HasTemplate: v.HasTemplate, Source: v.SourceID}, true, nil
+	c := findingCase{Brief: b, Known: true}
+	links := c.Links()
+	out := ai.CVEFacts{CVE: b.CVE, Product: b.Display, Name: b.Title, Description: b.Description, Brief: c.briefFeedText(links)}
+	for _, l := range links {
+		out.Refs = append(out.Refs, ai.BriefRef{Title: l.Title, URL: l.URL})
+	}
+	if len(b.Lists) > 0 {
+		l := b.Lists[0]
+		out.Vendor, out.Product, out.Name, out.Description = l.Vendor, cmp.Or(l.Display, l.Product), cmp.Or(l.Name, b.Title), cmp.Or(l.Description, b.Description)
+		out.RequiredAction, out.DateAdded, out.Links, out.Ransomware, out.Source = l.RequiredAction, l.DateAdded, l.Links, l.Ransomware, l.Source
+	}
+	out.HasTemplate = slices.ContainsFunc(b.Signals, func(g feeds.BriefSignal) bool { return g.Kind == "public_exploit" && g.Source == "nuclei-templates" })
+	return out, true, nil
 }
 
 func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact, error) {

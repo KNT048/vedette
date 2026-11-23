@@ -167,15 +167,7 @@ func parseBrief(text string, job Job) (briefBody, error) {
 	if !hasKeys(text, keys...) {
 		return briefBody{}, ErrBadOutput
 	}
-	// the four answers, once each, none empty: a missing one is a format error the caller asks again about, never an empty section
-	seen := map[string]bool{}
-	for _, x := range b.Answers {
-		if !slices.Contains(AnswerKeys, x.Key) || seen[x.Key] || cleanText(x.Text) == "" {
-			return briefBody{}, ErrBadOutput
-		}
-		seen[x.Key] = true
-	}
-	if len(seen) != len(AnswerKeys) {
+	if !validAnswers(b.Answers) {
 		return briefBody{}, ErrBadOutput
 	}
 	if job == JobMitigationConfig { // the job is the config: an answer without one must say so (M2-2, r1 H1)
@@ -194,6 +186,42 @@ func parseBrief(text string, job Job) (briefBody, error) {
 	return b, nil
 }
 
+// validAnswers reports whether in is the four answers, once each, none empty: a missing one is a format error the caller asks again
+// about, never an empty section.
+func validAnswers(in []briefAnswerIn) bool {
+	seen := map[string]bool{}
+	for _, x := range in {
+		if !slices.Contains(AnswerKeys, x.Key) || seen[x.Key] || cleanText(x.Text) == "" {
+			return false
+		}
+		seen[x.Key] = true
+	}
+	return len(seen) == len(AnswerKeys)
+}
+
+// keepAnswers is the four answers as they are kept: in the order of the questions whatever order the model wrote them in, each text cut
+// at a sentence end, and the links of an answer the references the box offered, by the numbers the model named (any other number is
+// dropped). cut reports whether a text was cut.
+func keepAnswers(in []briefAnswerIn, refs []BriefRef) (out []BriefAnswerItem, cut bool) {
+	for _, key := range AnswerKeys {
+		for _, x := range in {
+			if x.Key != key {
+				continue
+			}
+			text, c := clipSentence(cleanText(x.Text), answerRunes)
+			cut = cut || c
+			it := BriefAnswerItem{Key: key, Text: text}
+			for _, n := range x.Refs {
+				if n >= 1 && n <= len(refs) && !slices.Contains(it.Links, refs[n-1]) && len(it.Links) < maxAnswerLinks {
+					it.Links = append(it.Links, refs[n-1])
+				}
+			}
+			out = append(out, it)
+		}
+	}
+	return out, cut
+}
+
 // answerRunes is the longest text of one answer the box keeps.
 const answerRunes = 1200
 
@@ -204,22 +232,7 @@ const maxAnswerLinks = 8
 // with the addresses it names that are not trusted (#897 r2: shown for checking, never dropped).
 func keptBrief(b briefBody, refs []BriefRef, trusted []netip.Addr) (a BriefAnswer) {
 	a.Paragraphs = []string{}
-	for _, key := range AnswerKeys { // in the order of the questions, whatever order the model wrote them in
-		for _, x := range b.Answers {
-			if x.Key != key {
-				continue
-			}
-			text, c := clipSentence(cleanText(x.Text), answerRunes)
-			a.Shortened = a.Shortened || c
-			it := BriefAnswerItem{Key: key, Text: text}
-			for _, n := range x.Refs { // the box writes the link of a number it offered; any other number is dropped
-				if n >= 1 && n <= len(refs) && !slices.Contains(it.Links, refs[n-1]) && len(it.Links) < maxAnswerLinks {
-					it.Links = append(it.Links, refs[n-1])
-				}
-			}
-			a.Answers = append(a.Answers, it)
-		}
-	}
+	a.Answers, a.Shortened = keepAnswers(b.Answers, refs)
 	var cut bool
 	a.Steps, cut = sentenceList(b.Steps, briefMaxSteps, briefStepRunes)
 	a.Shortened = a.Shortened || cut

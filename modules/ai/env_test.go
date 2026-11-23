@@ -421,7 +421,7 @@ func (f *fakeFacts) AffectedAssets(_ context.Context, cve string) ([]ai.AssetFac
 	return append([]ai.AssetFact(nil), f.assets[cve]...), nil
 }
 
-const goodExplain = `{"why":"NAS-PHOTOS runs the affected product.","patch_steps":["Update to the fixed build."],"temp_mitigations":["Remove the port forward."],"detection_hints":["Check the access log."]}`
+const goodExplain = `{"answers":[{"key":"affected","text":"NAS-PHOTOS runs the affected product.","refs":[]},{"key":"fix","text":"Update to the fixed build.","refs":[]},{"key":"workaround","text":"Remove the port forward.","refs":[]},{"key":"urgency","text":"Check the access log.","refs":[]}]}`
 
 func newFacts() *fakeFacts {
 	return &fakeFacts{

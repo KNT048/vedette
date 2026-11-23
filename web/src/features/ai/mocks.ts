@@ -249,16 +249,20 @@ function buildExplain(v: Kev): Omit<ExplainResult, 'cached' | 'generated_at' | '
   if (kinds.has('server') && v.vendor === 'Microsoft') temp.push('Only allow RDP and SMB to this server from the admin network or VPN.')
   if (!temp.length) temp.push('Limit access to the affected service to the IPs that need it until it is patched.')
   const none = matched.length === 0
+  const links = v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url }))
+  const answers: ExplainResult['answers'] = [
+    { key: 'affected', links: [], text: none
+      ? `Your inventory has no ${v.vendor} ${v.product}, so this vulnerability affects no device the box knows about.`
+      : `You have ${v.vendor} ${v.product} on ${names.join(', ')}. ${confirmed ? 'A safe scan sample confirmed the vulnerability exists.' : 'It is not confirmed whether the version is in the affected range, so treat it as suspected until checked.'}` },
+    { key: 'fix', links, text: `Open the vendor advisory (${v.links[0] ?? 'vendor page'}) and update to the patched build for the version you run.` },
+    { key: 'workaround', links: [], text: none ? 'No workaround is needed while no device matches.' : temp[0]! },
+    { key: 'urgency', links: [], text: `This vulnerability is being exploited in the wild (CISA KEV, added ${fmtDay(v.date_added)}).${v.ransomware ? ' It has been used for ransomware.' : ''}` },
+  ]
   return {
     cve: v.cve,
     affected: none ? 'no' : confirmed ? 'yes' : 'unknown',
-    why: none
-      ? `Your inventory has no ${v.vendor} ${v.product}, so this vulnerability affects no device the box knows about. If you have a device that is not listed, add it under Devices so Vedette matches again.`
-      : `You have ${v.vendor} ${v.product} on ${names.join(', ')}. ${confirmed ? 'A safe scan sample confirmed the vulnerability exists.' : 'It is not confirmed whether the version is in the affected range, so treat it as suspected until checked.'} This vulnerability is being exploited in the wild (CISA KEV, added ${fmtDay(v.date_added)}).`,
-    patch_steps: none ? [] : [`Open the vendor advisory (${v.links[0] ?? 'vendor page'}) and update to the patched build for the version you run.`, 'Back up the configuration or take a snapshot before updating.', 'After updating, check the device again on its page (Check this device now) to confirm the finding is gone.'],
-    temp_mitigations: none ? [] : temp,
-    detection_hints: none ? [] : [v.ransomware ? 'This vulnerability has been used for ransomware: look for files with odd new extensions and ransom notes in shared folders.' : 'Review the service access log for the last 7 days: odd requests from foreign IPs and new files in the web or system folders.', 'If you see signs, isolate the device from the network before anything else.'],
-    citations: [...v.links.slice(0, 2).map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url })), { title: `Inventory: ${boxApart(matched)} matching` }],
+    answers,
+    citations: [...links, { title: `Inventory: ${boxApart(matched)} matching` }],
   }
 }
 
@@ -484,7 +488,7 @@ export const handlers = [
     const id = String(params.id)
     if (!CVE_RE.test(id)) return fail(400, 'invalid_cve', 'A CVE ID looks like CVE-2022-27593.')
     const v = vulnOf(id)
-    if (!v) return fail(404, 'unknown_cve', 'This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for.')
+    if (!v) return fail(404, 'unknown_cve', "The box's catalogue has no record of this CVE. The AI only answers about CVEs the box has data for.")
     const hit = explains.get()[v.cve]
     if (hit) return HttpResponse.json({ ...hit, cached: true })
     const base = buildExplain(v)

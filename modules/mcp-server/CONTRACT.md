@@ -60,3 +60,6 @@ Cổng đóng, không route `/core/mcp*` (404), không job. Token giữ nguyên 
 2. ~~Giới hạn trang và tốc độ~~ Đã chốt.
 3. ~~Bằng chứng quét trong `get_finding`~~ Đã chốt: chỉ tóm tắt, mẫu và lúc kiểm; request/response thô ở lại hộp.
 4. ~~Tên bảng~~ `mcp_tokens`.
+
+## Findings view and CVE brief
+- **INV-12** `list_findings` and `get_finding` rows carry `fix` (the fix of the device in one sentence, the stored fix the finding page shows) and `verification` (confirmed by a person, a safe check or the device, or not confirmed; a person is never named, INV-7). `lookup_cve` answers for any CVE the catalogue holds from the CVE brief: title, weaknesses, score read into words, affected versions and their origin, fixed release per release train, solution, workaround (or the sentence that none is published), references by group. `listed` is true only when an exploited list has the CVE; `entry` is null only for a CVE the catalogue does not hold. Test: `TestMCPEntryOfABriefWithAndWithoutAList`.

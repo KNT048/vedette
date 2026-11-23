@@ -149,7 +149,7 @@ type Handler interface {
 	AiPostAiAsk(ctx context.Context, req *AiPostAiAskReq) (*AiPostAiAskOK, error)
 	// AiPostAiCveIDExplain implements ai_post_ai_cve_id_explain operation.
 	//
-	// AI explains a CVE in terms of my devices.
+	// Ask my AI: four answers about a CVE in terms of my devices.
 	//
 	// POST /ai/cve/{id}/explain
 	AiPostAiCveIDExplain(ctx context.Context, params AiPostAiCveIDExplainParams) (*AiPostAiCveIDExplainOK, error)

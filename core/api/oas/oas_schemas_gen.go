@@ -1631,23 +1631,29 @@ func (s *AiGetAiCveIDCachedOK) SetNews(val NilAiGetAiCveIDCachedOKNews) {
 }
 
 type AiGetAiCveIDCachedOKExplain struct {
-	Affected        AiGetAiCveIDCachedOKExplainAffected        `json:"affected"`
-	Cached          bool                                       `json:"cached"`
-	Citations       []AiGetAiCveIDCachedOKExplainCitationsItem `json:"citations"`
-	Cve             string                                     `json:"cve"`
-	DetectionHints  []string                                   `json:"detection_hints"`
-	GeneratedAt     time.Time                                  `json:"generated_at"`
-	Model           string                                     `json:"model"`
-	PatchSteps      []string                                   `json:"patch_steps"`
-	Profile         string                                     `json:"profile"`
-	TempMitigations []string                                   `json:"temp_mitigations"`
-	Tokens          AiGetAiCveIDCachedOKExplainTokens          `json:"tokens"`
-	Why             string                                     `json:"why"`
+	// Decided by the box from the matching findings, never by the model: yes when a safe check, the device
+	// or a person confirmed one, unknown when matches are unconfirmed, no when no device matches.
+	Affected AiGetAiCveIDCachedOKExplainAffected `json:"affected"`
+	// The four answers of "Ask my AI", in the order of AnswerKey, each rephrasing only the CVE brief and
+	// the matching findings; the page gives each its heading.
+	Answers     []AiGetAiCveIDCachedOKExplainAnswersItem   `json:"answers"`
+	Cached      bool                                       `json:"cached"`
+	Citations   []AiGetAiCveIDCachedOKExplainCitationsItem `json:"citations"`
+	Cve         string                                     `json:"cve"`
+	GeneratedAt time.Time                                  `json:"generated_at"`
+	Model       string                                     `json:"model"`
+	Profile     string                                     `json:"profile"`
+	Tokens      AiGetAiCveIDCachedOKExplainTokens          `json:"tokens"`
 }
 
 // GetAffected returns the value of Affected.
 func (s *AiGetAiCveIDCachedOKExplain) GetAffected() AiGetAiCveIDCachedOKExplainAffected {
 	return s.Affected
+}
+
+// GetAnswers returns the value of Answers.
+func (s *AiGetAiCveIDCachedOKExplain) GetAnswers() []AiGetAiCveIDCachedOKExplainAnswersItem {
+	return s.Answers
 }
 
 // GetCached returns the value of Cached.
@@ -1665,11 +1671,6 @@ func (s *AiGetAiCveIDCachedOKExplain) GetCve() string {
 	return s.Cve
 }
 
-// GetDetectionHints returns the value of DetectionHints.
-func (s *AiGetAiCveIDCachedOKExplain) GetDetectionHints() []string {
-	return s.DetectionHints
-}
-
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *AiGetAiCveIDCachedOKExplain) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
@@ -1680,19 +1681,9 @@ func (s *AiGetAiCveIDCachedOKExplain) GetModel() string {
 	return s.Model
 }
 
-// GetPatchSteps returns the value of PatchSteps.
-func (s *AiGetAiCveIDCachedOKExplain) GetPatchSteps() []string {
-	return s.PatchSteps
-}
-
 // GetProfile returns the value of Profile.
 func (s *AiGetAiCveIDCachedOKExplain) GetProfile() string {
 	return s.Profile
-}
-
-// GetTempMitigations returns the value of TempMitigations.
-func (s *AiGetAiCveIDCachedOKExplain) GetTempMitigations() []string {
-	return s.TempMitigations
 }
 
 // GetTokens returns the value of Tokens.
@@ -1700,14 +1691,14 @@ func (s *AiGetAiCveIDCachedOKExplain) GetTokens() AiGetAiCveIDCachedOKExplainTok
 	return s.Tokens
 }
 
-// GetWhy returns the value of Why.
-func (s *AiGetAiCveIDCachedOKExplain) GetWhy() string {
-	return s.Why
-}
-
 // SetAffected sets the value of Affected.
 func (s *AiGetAiCveIDCachedOKExplain) SetAffected(val AiGetAiCveIDCachedOKExplainAffected) {
 	s.Affected = val
+}
+
+// SetAnswers sets the value of Answers.
+func (s *AiGetAiCveIDCachedOKExplain) SetAnswers(val []AiGetAiCveIDCachedOKExplainAnswersItem) {
+	s.Answers = val
 }
 
 // SetCached sets the value of Cached.
@@ -1725,11 +1716,6 @@ func (s *AiGetAiCveIDCachedOKExplain) SetCve(val string) {
 	s.Cve = val
 }
 
-// SetDetectionHints sets the value of DetectionHints.
-func (s *AiGetAiCveIDCachedOKExplain) SetDetectionHints(val []string) {
-	s.DetectionHints = val
-}
-
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *AiGetAiCveIDCachedOKExplain) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
@@ -1740,19 +1726,9 @@ func (s *AiGetAiCveIDCachedOKExplain) SetModel(val string) {
 	s.Model = val
 }
 
-// SetPatchSteps sets the value of PatchSteps.
-func (s *AiGetAiCveIDCachedOKExplain) SetPatchSteps(val []string) {
-	s.PatchSteps = val
-}
-
 // SetProfile sets the value of Profile.
 func (s *AiGetAiCveIDCachedOKExplain) SetProfile(val string) {
 	s.Profile = val
-}
-
-// SetTempMitigations sets the value of TempMitigations.
-func (s *AiGetAiCveIDCachedOKExplain) SetTempMitigations(val []string) {
-	s.TempMitigations = val
 }
 
 // SetTokens sets the value of Tokens.
@@ -1760,11 +1736,8 @@ func (s *AiGetAiCveIDCachedOKExplain) SetTokens(val AiGetAiCveIDCachedOKExplainT
 	s.Tokens = val
 }
 
-// SetWhy sets the value of Why.
-func (s *AiGetAiCveIDCachedOKExplain) SetWhy(val string) {
-	s.Why = val
-}
-
+// Decided by the box from the matching findings, never by the model: yes when a safe check, the device
+// or a person confirmed one, unknown when matches are unconfirmed, no when no device matches.
 type AiGetAiCveIDCachedOKExplainAffected string
 
 const (
@@ -1811,6 +1784,133 @@ func (s *AiGetAiCveIDCachedOKExplainAffected) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type AiGetAiCveIDCachedOKExplainAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges).
+	Key AiGetAiCveIDCachedOKExplainAnswersItemKey `json:"key"`
+	// The references of the CVE brief the answer rests on: the box writes each link from a reference it
+	// offered, never the model; http(s) only.
+	Links []AiGetAiCveIDCachedOKExplainAnswersItemLinksItem `json:"links"`
+	// One to three short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) GetKey() AiGetAiCveIDCachedOKExplainAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) GetLinks() []AiGetAiCveIDCachedOKExplainAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) SetKey(val AiGetAiCveIDCachedOKExplainAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) SetLinks(val []AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges).
+type AiGetAiCveIDCachedOKExplainAnswersItemKey string
+
+const (
+	AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected   AiGetAiCveIDCachedOKExplainAnswersItemKey = "affected"
+	AiGetAiCveIDCachedOKExplainAnswersItemKeyFix        AiGetAiCveIDCachedOKExplainAnswersItemKey = "fix"
+	AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround AiGetAiCveIDCachedOKExplainAnswersItemKey = "workaround"
+	AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency    AiGetAiCveIDCachedOKExplainAnswersItemKey = "urgency"
+)
+
+// AllValues returns all AiGetAiCveIDCachedOKExplainAnswersItemKey values.
+func (AiGetAiCveIDCachedOKExplainAnswersItemKey) AllValues() []AiGetAiCveIDCachedOKExplainAnswersItemKey {
+	return []AiGetAiCveIDCachedOKExplainAnswersItemKey{
+		AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected,
+		AiGetAiCveIDCachedOKExplainAnswersItemKeyFix,
+		AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround,
+		AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiGetAiCveIDCachedOKExplainAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected:
+		return []byte(s), nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyFix:
+		return []byte(s), nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemKey) UnmarshalText(data []byte) error {
+	switch AiGetAiCveIDCachedOKExplainAnswersItemKey(data) {
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyAffected
+		return nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyFix:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyFix
+		return nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyWorkaround
+		return nil
+	case AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency:
+		*s = AiGetAiCveIDCachedOKExplainAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AiGetAiCveIDCachedOKExplainAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *AiGetAiCveIDCachedOKExplainAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type AiGetAiCveIDCachedOKExplainCitationsItem struct {
@@ -5165,23 +5265,29 @@ func (s *AiPostAiAskReq) SetQuestion(val string) {
 }
 
 type AiPostAiCveIDExplainOK struct {
-	Affected        AiPostAiCveIDExplainOKAffected        `json:"affected"`
-	Cached          bool                                  `json:"cached"`
-	Citations       []AiPostAiCveIDExplainOKCitationsItem `json:"citations"`
-	Cve             string                                `json:"cve"`
-	DetectionHints  []string                              `json:"detection_hints"`
-	GeneratedAt     time.Time                             `json:"generated_at"`
-	Model           string                                `json:"model"`
-	PatchSteps      []string                              `json:"patch_steps"`
-	Profile         string                                `json:"profile"`
-	TempMitigations []string                              `json:"temp_mitigations"`
-	Tokens          AiPostAiCveIDExplainOKTokens          `json:"tokens"`
-	Why             string                                `json:"why"`
+	// Decided by the box from the matching findings, never by the model: yes when a safe check, the device
+	// or a person confirmed one, unknown when matches are unconfirmed, no when no device matches.
+	Affected AiPostAiCveIDExplainOKAffected `json:"affected"`
+	// The four answers of "Ask my AI", in the order of AnswerKey, each rephrasing only the CVE brief and
+	// the matching findings; the page gives each its heading.
+	Answers     []AiPostAiCveIDExplainOKAnswersItem   `json:"answers"`
+	Cached      bool                                  `json:"cached"`
+	Citations   []AiPostAiCveIDExplainOKCitationsItem `json:"citations"`
+	Cve         string                                `json:"cve"`
+	GeneratedAt time.Time                             `json:"generated_at"`
+	Model       string                                `json:"model"`
+	Profile     string                                `json:"profile"`
+	Tokens      AiPostAiCveIDExplainOKTokens          `json:"tokens"`
 }
 
 // GetAffected returns the value of Affected.
 func (s *AiPostAiCveIDExplainOK) GetAffected() AiPostAiCveIDExplainOKAffected {
 	return s.Affected
+}
+
+// GetAnswers returns the value of Answers.
+func (s *AiPostAiCveIDExplainOK) GetAnswers() []AiPostAiCveIDExplainOKAnswersItem {
+	return s.Answers
 }
 
 // GetCached returns the value of Cached.
@@ -5199,11 +5305,6 @@ func (s *AiPostAiCveIDExplainOK) GetCve() string {
 	return s.Cve
 }
 
-// GetDetectionHints returns the value of DetectionHints.
-func (s *AiPostAiCveIDExplainOK) GetDetectionHints() []string {
-	return s.DetectionHints
-}
-
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *AiPostAiCveIDExplainOK) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
@@ -5214,19 +5315,9 @@ func (s *AiPostAiCveIDExplainOK) GetModel() string {
 	return s.Model
 }
 
-// GetPatchSteps returns the value of PatchSteps.
-func (s *AiPostAiCveIDExplainOK) GetPatchSteps() []string {
-	return s.PatchSteps
-}
-
 // GetProfile returns the value of Profile.
 func (s *AiPostAiCveIDExplainOK) GetProfile() string {
 	return s.Profile
-}
-
-// GetTempMitigations returns the value of TempMitigations.
-func (s *AiPostAiCveIDExplainOK) GetTempMitigations() []string {
-	return s.TempMitigations
 }
 
 // GetTokens returns the value of Tokens.
@@ -5234,14 +5325,14 @@ func (s *AiPostAiCveIDExplainOK) GetTokens() AiPostAiCveIDExplainOKTokens {
 	return s.Tokens
 }
 
-// GetWhy returns the value of Why.
-func (s *AiPostAiCveIDExplainOK) GetWhy() string {
-	return s.Why
-}
-
 // SetAffected sets the value of Affected.
 func (s *AiPostAiCveIDExplainOK) SetAffected(val AiPostAiCveIDExplainOKAffected) {
 	s.Affected = val
+}
+
+// SetAnswers sets the value of Answers.
+func (s *AiPostAiCveIDExplainOK) SetAnswers(val []AiPostAiCveIDExplainOKAnswersItem) {
+	s.Answers = val
 }
 
 // SetCached sets the value of Cached.
@@ -5259,11 +5350,6 @@ func (s *AiPostAiCveIDExplainOK) SetCve(val string) {
 	s.Cve = val
 }
 
-// SetDetectionHints sets the value of DetectionHints.
-func (s *AiPostAiCveIDExplainOK) SetDetectionHints(val []string) {
-	s.DetectionHints = val
-}
-
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *AiPostAiCveIDExplainOK) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
@@ -5274,19 +5360,9 @@ func (s *AiPostAiCveIDExplainOK) SetModel(val string) {
 	s.Model = val
 }
 
-// SetPatchSteps sets the value of PatchSteps.
-func (s *AiPostAiCveIDExplainOK) SetPatchSteps(val []string) {
-	s.PatchSteps = val
-}
-
 // SetProfile sets the value of Profile.
 func (s *AiPostAiCveIDExplainOK) SetProfile(val string) {
 	s.Profile = val
-}
-
-// SetTempMitigations sets the value of TempMitigations.
-func (s *AiPostAiCveIDExplainOK) SetTempMitigations(val []string) {
-	s.TempMitigations = val
 }
 
 // SetTokens sets the value of Tokens.
@@ -5294,11 +5370,8 @@ func (s *AiPostAiCveIDExplainOK) SetTokens(val AiPostAiCveIDExplainOKTokens) {
 	s.Tokens = val
 }
 
-// SetWhy sets the value of Why.
-func (s *AiPostAiCveIDExplainOK) SetWhy(val string) {
-	s.Why = val
-}
-
+// Decided by the box from the matching findings, never by the model: yes when a safe check, the device
+// or a person confirmed one, unknown when matches are unconfirmed, no when no device matches.
 type AiPostAiCveIDExplainOKAffected string
 
 const (
@@ -5345,6 +5418,133 @@ func (s *AiPostAiCveIDExplainOKAffected) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type AiPostAiCveIDExplainOKAnswersItem struct {
+	// Affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what
+	// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+	// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+	// published"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges).
+	Key AiPostAiCveIDExplainOKAnswersItemKey `json:"key"`
+	// The references of the CVE brief the answer rests on: the box writes each link from a reference it
+	// offered, never the model; http(s) only.
+	Links []AiPostAiCveIDExplainOKAnswersItemLinksItem `json:"links"`
+	// One to three short sentences; no heading.
+	Text string `json:"text"`
+}
+
+// GetKey returns the value of Key.
+func (s *AiPostAiCveIDExplainOKAnswersItem) GetKey() AiPostAiCveIDExplainOKAnswersItemKey {
+	return s.Key
+}
+
+// GetLinks returns the value of Links.
+func (s *AiPostAiCveIDExplainOKAnswersItem) GetLinks() []AiPostAiCveIDExplainOKAnswersItemLinksItem {
+	return s.Links
+}
+
+// GetText returns the value of Text.
+func (s *AiPostAiCveIDExplainOKAnswersItem) GetText() string {
+	return s.Text
+}
+
+// SetKey sets the value of Key.
+func (s *AiPostAiCveIDExplainOKAnswersItem) SetKey(val AiPostAiCveIDExplainOKAnswersItemKey) {
+	s.Key = val
+}
+
+// SetLinks sets the value of Links.
+func (s *AiPostAiCveIDExplainOKAnswersItem) SetLinks(val []AiPostAiCveIDExplainOKAnswersItemLinksItem) {
+	s.Links = val
+}
+
+// SetText sets the value of Text.
+func (s *AiPostAiCveIDExplainOKAnswersItem) SetText(val string) {
+	s.Text = val
+}
+
+// Affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what
+// confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a
+// direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none
+// published"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges).
+type AiPostAiCveIDExplainOKAnswersItemKey string
+
+const (
+	AiPostAiCveIDExplainOKAnswersItemKeyAffected   AiPostAiCveIDExplainOKAnswersItemKey = "affected"
+	AiPostAiCveIDExplainOKAnswersItemKeyFix        AiPostAiCveIDExplainOKAnswersItemKey = "fix"
+	AiPostAiCveIDExplainOKAnswersItemKeyWorkaround AiPostAiCveIDExplainOKAnswersItemKey = "workaround"
+	AiPostAiCveIDExplainOKAnswersItemKeyUrgency    AiPostAiCveIDExplainOKAnswersItemKey = "urgency"
+)
+
+// AllValues returns all AiPostAiCveIDExplainOKAnswersItemKey values.
+func (AiPostAiCveIDExplainOKAnswersItemKey) AllValues() []AiPostAiCveIDExplainOKAnswersItemKey {
+	return []AiPostAiCveIDExplainOKAnswersItemKey{
+		AiPostAiCveIDExplainOKAnswersItemKeyAffected,
+		AiPostAiCveIDExplainOKAnswersItemKeyFix,
+		AiPostAiCveIDExplainOKAnswersItemKeyWorkaround,
+		AiPostAiCveIDExplainOKAnswersItemKeyUrgency,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiCveIDExplainOKAnswersItemKey) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiCveIDExplainOKAnswersItemKeyAffected:
+		return []byte(s), nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyFix:
+		return []byte(s), nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyWorkaround:
+		return []byte(s), nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyUrgency:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiCveIDExplainOKAnswersItemKey) UnmarshalText(data []byte) error {
+	switch AiPostAiCveIDExplainOKAnswersItemKey(data) {
+	case AiPostAiCveIDExplainOKAnswersItemKeyAffected:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyAffected
+		return nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyFix:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyFix
+		return nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyWorkaround:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyWorkaround
+		return nil
+	case AiPostAiCveIDExplainOKAnswersItemKeyUrgency:
+		*s = AiPostAiCveIDExplainOKAnswersItemKeyUrgency
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AiPostAiCveIDExplainOKAnswersItemLinksItem struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) GetTitle() string {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) GetURL() string {
+	return s.URL
+}
+
+// SetTitle sets the value of Title.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *AiPostAiCveIDExplainOKAnswersItemLinksItem) SetURL(val string) {
+	s.URL = val
 }
 
 type AiPostAiCveIDExplainOKCitationsItem struct {

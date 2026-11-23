@@ -194,3 +194,23 @@ func TestCount_RealReadersSayWhoConfirmedAndTheStoredFix(t *testing.T) {
 	}
 	t.Logf("person-confirmed findings 3, readers 3: not read as confirmed or not carrying the page's fix: %d", bad)
 }
+
+// lookup_cve answers for any CVE the catalogue holds: a CVE no exploited list has still carries its title, score, affected versions,
+// fixed releases and workaround, with listed false; the exploited-list entry's words come with a list.
+func TestMCPEntryOfABriefWithAndWithoutAList(t *testing.T) {
+	t.Parallel()
+	b := feeds.Brief{CVE: "CVE-2025-22225", Title: "ESXi arbitrary write", Display: "vmware esxi", NVDStatus: "Analyzed",
+		CVSS:   vectorOf("CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:C/C:H/I:H/A:H"),
+		Ranges: []feeds.BriefRange{{Counts: true, Versions: "from 8.0 before 8.0 U3d"}, {Versions: "ignored: the row does not count"}},
+		Fixes:  []feeds.BriefFix{{Train: "8.0 U3", Release: "8.0 U3d (build 24585383)"}}, RangesFrom: feeds.OriginNVD}
+	e := mcpEntry(b)
+	if e.Source != "" || e.Title != "ESXi arbitrary write" || len(e.AffectedVersions) != 1 || len(e.FixedReleases) != 1 || e.FixedReleases[0].Release != "8.0 U3d (build 24585383)" ||
+		e.Workaround != "No workaround is published: install the fix." || e.CVSS == nil || e.CVSS.AttackVector != "local" || e.AffectedFrom != "nvd" {
+		t.Fatalf("entry without a list = %+v", e)
+	}
+	b.Lists = []feeds.ListEntry{{Source: "cisa-kev", Vendor: "VMware", Product: "ESXi", Name: "VMware ESXi Arbitrary Write Vulnerability", DateAdded: "2025-03-04", RequiredAction: "Apply updates.", Links: []string{"https://example.com/a"}}}
+	e = mcpEntry(b)
+	if e.Source != "cisa-kev" || e.Vendor != "VMware" || e.DateAdded != "2025-03-04" || len(e.Links) != 1 || e.Name != "VMware ESXi Arbitrary Write Vulnerability" {
+		t.Fatalf("entry with a list = %+v", e)
+	}
+}

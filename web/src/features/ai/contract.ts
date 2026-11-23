@@ -80,9 +80,16 @@ export const AskResult = z.object({
   hooks: z.array(AskHookHit).describe('Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did'),
   memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7)'),
 })
+export const AnswerKey = z.enum(['affected', 'fix', 'workaround', 'urgency'])
+  .describe('affected = Am I affected? (yes, no or needs a check, with the evidence: versions, who or what confirmed it, a condition from the record); fix = How do I fix it? (the exact fixed release with a direct link); workaround = What if I cannot patch yet? (the workaround with its link, or "none published"); urgency = How urgent? (who says it is exploited, the attack conditions, the privileges)')
+export const Answer = z.object({
+  key: AnswerKey,
+  text: z.string().max(1200).describe('One to three short sentences; no heading'),
+  links: z.array(z.object({ title: z.string().max(200), url: z.string().regex(/^https?:\/\//) })).max(8).describe('The references of the CVE brief the answer rests on: the box writes each link from a reference it offered, never the model; http(s) only'),
+})
 export const ExplainResult = z.object({
-  cve: z.string(), generated_at: iso, cached: z.boolean(), affected: z.enum(['yes', 'no', 'unknown']), why: z.string(),
-  patch_steps: z.array(z.string()), temp_mitigations: z.array(z.string()), detection_hints: z.array(z.string()),
+  cve: z.string(), generated_at: iso, cached: z.boolean(), affected: z.enum(['yes', 'no', 'unknown']).describe('Decided by the box from the matching findings, never by the model: yes when a safe check, the device or a person confirmed one, unknown when matches are unconfirmed, no when no device matches'),
+  answers: z.array(Answer).describe('The four answers of "Ask my AI", in the order of AnswerKey, each rephrasing only the CVE brief and the matching findings; the page gives each its heading'),
   citations: z.array(Citation), model: z.string(), profile: z.string(), tokens: Tokens,
 })
 export const FetchedSource = z.object({ kind: z.enum(['advisory', 'github', 'rss']), title: z.string(), url: z.string(), status: z.enum(['ok', 'failed']), note: z.string() })
@@ -172,7 +179,7 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/ai/hooks/{id}', summary: 'Edit or enable/disable a custom hook', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), body: HookInput, response: CustomHook },
   { method: 'delete', path: '/ai/hooks/{id}', summary: 'Delete a custom hook', stories: ['S-AI-7'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'get', path: '/ai/cve/{id}/cached', summary: 'Previously generated explanation and news for a CVE', stories: ['S-AI-2', 'S-AI-3'], role: 'viewer', params: z.object({ id: cve }), response: CachedCve, example: { params: { id: 'CVE-2022-27593' } } },
-  { method: 'post', path: '/ai/cve/{id}/explain', summary: 'AI explains a CVE in terms of my devices', stories: ['S-AI-2'], role: 'operator', params: z.object({ id: cve }), response: ExplainResult },
+  { method: 'post', path: '/ai/cve/{id}/explain', summary: 'Ask my AI: four answers about a CVE in terms of my devices', stories: ['S-AI-2'], role: 'operator', params: z.object({ id: cve }), response: ExplainResult },
   { method: 'post', path: '/ai/cve/{id}/news', summary: 'Box fetches advisories/PoC/RSS for a CVE, then the AI summarizes them', stories: ['S-AI-3'], role: 'operator', params: z.object({ id: cve }), response: NewsResult },
   { method: 'get', path: '/ai/logs/digest', summary: 'AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)', stories: ['S-AI-4'], role: 'viewer', response: z.object({ digest: LogDigest.nullable() }) },
   { method: 'post', path: '/ai/logs/digest', summary: 'Regenerate the log digest now', stories: ['S-AI-4'], role: 'operator', response: z.object({ digest: LogDigest }) },

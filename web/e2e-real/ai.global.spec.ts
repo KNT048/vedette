@@ -512,9 +512,10 @@ test('an answer from a model: the primary fails, the fallback explains with the 
     expect((await api(c, 'PUT', '/ai/assignments', { ...asg, jobs: { ...asg.jobs, 'explain-finding': { primary: primary.id, fallback: fallback.id } } })).status).toBe(200)
     const before = { activity: (await activity(c)).total, tokens: await usedToday(c) }
 
-    const r = await api<{ cached: boolean; why: string; patch_steps: string[]; citations: { title: string }[]; model: string; profile: string; tokens: { input: number; output: number } }>(c, 'POST', `/ai/cve/${CVE}/explain`)
+    const r = await api<{ cached: boolean; answers: { key: string; text: string }[]; citations: { title: string }[]; model: string; profile: string; tokens: { input: number; output: number } }>(c, 'POST', `/ai/cve/${CVE}/explain`)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body).toMatchObject({ cached: false, why: SAY.why, model: 'm-e2e', profile: fallback.name, tokens: { input: 120, output: 40 } })
+    expect(r.body.answers[0]).toMatchObject({ key: 'affected', text: SAY.why })
+    expect(r.body).toMatchObject({ cached: false, model: 'm-e2e', profile: fallback.name, tokens: { input: 120, output: 40 } })
     expect(r.body.citations.length, 'the box names its sources; the model never supplies a link').toBeGreaterThan(0)
     expect(f.calls.map((x) => [x.model, x.schema]), 'the primary was asked first, then the fallback').toEqual([[FAIL, 'explain_cve'], ['m-e2e', 'explain_cve']])
     for (const x of f.calls) {
@@ -529,10 +530,11 @@ test('an answer from a model: the primary fails, the fallback explains with the 
     expect(await usedToday(c), 'the meter counts the tokens of the answer').toBe(before.tokens + 160)
 
     // the same inputs: the stored explanation, no call, no tokens (INV-6)
-    const again = await api<{ cached: boolean; why: string; profile: string }>(c, 'POST', `/ai/cve/${CVE}/explain`)
-    expect(again.body).toMatchObject({ cached: true, why: SAY.why, profile: fallback.name })
+    const again = await api<{ cached: boolean; answers: { text: string }[]; profile: string }>(c, 'POST', `/ai/cve/${CVE}/explain`)
+    expect(again.body).toMatchObject({ cached: true, profile: fallback.name })
+    expect(again.body.answers[0]!.text).toBe(SAY.why)
     expect(f.calls, 'no second call').toHaveLength(2)
-    expect((await api<{ explain: { why: string; cached: boolean } | null }>(c, 'GET', `/ai/cve/${CVE}/cached`)).body.explain).toMatchObject({ why: SAY.why, cached: true })
+    expect((await api<{ explain: { answers: { text: string }[]; cached: boolean } | null }>(c, 'GET', `/ai/cve/${CVE}/cached`)).body.explain).toMatchObject({ answers: [{ text: SAY.why }, {}, {}, {}], cached: true })
     expect((await activity(c)).total).toBe(before.activity + 1)
     expect(await usedToday(c)).toBe(before.tokens + 160)
 

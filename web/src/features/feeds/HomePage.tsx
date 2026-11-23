@@ -103,11 +103,12 @@ function useKevNotice() {
   return { never, notice, noClaim }
 }
 
-function HotBoard({ noDevices }: { noDevices: boolean }) {
+type HotWindow = '24h' | '7d'
+
+function HotBoard({ noDevices, win, setWin }: { noDevices: boolean; win: HotWindow; setWin: (w: HotWindow) => void }) {
   const { t } = useTranslation('feeds')
   const { notice } = useKevNotice()
   const navigate = useNavigate()
-  const [win, setWin] = useState<'24h' | '7d'>('7d')
   const hot = useHot(win)
   const columns: ColumnDef<HotRow>[] = [
     { id: 'product', header: t('hot.col.product'), accessorFn: (r) => r.display, cell: ({ row }) => {
@@ -169,7 +170,9 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
   )
 }
 
-function Weekly() {
+/** "This week in plain words". `linked`: the CVEs the board above already links to their page; a sentence names such a CVE without
+ *  a second link to the same page (one link per CVE on a page). */
+function Weekly({ linked }: { linked: ReadonlySet<string> }) {
   const { t } = useTranslation('feeds')
   const weekly = useWeekly()
   const answer = useAnswerWeekly()
@@ -191,7 +194,7 @@ function Weekly() {
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
             {items.map((i) => (
               <li key={i.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
-                <p className="max-w-[72ch] text-sm leading-relaxed">{i.text} <Link to={`/cve/${i.cve}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link></p>
+                <p className="max-w-[72ch] text-sm leading-relaxed">{i.text} {linked.has(i.cve) ? <span className="text-meta text-muted">{i.cve}</span> : <Link to={`/cve/${i.cve}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link>}</p>
                 <div className="flex gap-2">
                   {i.answer === 'have' ? <span className="text-meta text-ok">{t('weekly.added')}</span> : (
                     <>
@@ -215,6 +218,9 @@ export default function HomePage() {
   const status = useFeedStatus()
   const setup = useSetup()
   const hot = useHot('7d')
+  const [win, setWin] = useState<HotWindow>('7d')
+  const board = useHot(win)
+  const linked = new Set((board.data?.rows ?? []).flatMap((r) => r.cves.map((c) => c.cve)))
   const findingsOn = useModuleEnabled('findings')
   const summary = useHome(findingsOn === true)
   const rows = hot.data?.rows ?? []
@@ -236,8 +242,8 @@ export default function HomePage() {
       />
       <AiBudgetPrompt />
       <HomeDashboard kevNotice={noClaim} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
-      <HotBoard noDevices={s ? s.devices.total <= 1 : false} />
-      <Weekly />
+      <HotBoard noDevices={s ? s.devices.total <= 1 : false} win={win} setWin={setWin} />
+      <Weekly linked={linked} />
     </>
   )
 }

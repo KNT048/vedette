@@ -25,7 +25,8 @@ export function fmtInZone(iso: string, zone: string) {
 
 /** The field a 400 names (`error.field` of the box), with its message. */
 export function fieldError(e: unknown): { field: string; message: string } | null {
-  return e instanceof ApiError && e.status === 400 ? { field: String(e.details.field ?? ''), message: e.message } : null
+  // the box names a field of the rule as "rule.<field>": the form's fields are the rule's own
+  return e instanceof ApiError && e.status === 400 ? { field: String(e.details.field ?? '').replace(/^rule\./, ''), message: e.message } : null
 }
 
 const ADVANCED: ReadonlySet<string> = new Set(['tz', 'window', 'window_days', 'window_from', 'window_to', 'paused_until'])
@@ -48,8 +49,11 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
   const on = d.enabled || !onOff
   // an interval the owner does not allow is said here, in plain words, and nothing is asked of the box for it
   const local = on ? intervalProblem(d, l) : null
-  const preview = useSchedulePreview({ owner_key: s.owner_key, rule: body.rule, paused_until: body.paused_until ?? null }, on && !local)
-  const err = (local ? { field: 'every_minutes', message: intervalText(local, l, t) } : null) ?? fieldError(error) ?? (on ? fieldError(preview.error) : null)
+  // a window of chosen days with no day ticked never starts: said here, and nothing is asked of the box for it
+  const noDay = on && d.window === 'custom' && d.windowDays.length === 0
+  const preview = useSchedulePreview({ owner_key: s.owner_key, rule: body.rule, paused_until: body.paused_until ?? null }, on && !local && !noDay)
+  const err = (local ? { field: 'every_minutes', message: intervalText(local, l, t) } : null) ?? (noDay ? { field: 'window_days', message: t('fields.windowNoDay') } : null)
+    ?? fieldError(error) ?? (on ? fieldError(preview.error) : null)
   const at = (f: string) => (err && err.field === f ? err.message : undefined)
   const [more, setMore] = useState(() => d.tz !== 'org' || d.window === 'custom' || d.resumeOn !== '' || (!!err && ADVANCED.has(err.field)))
   const set = (p: Partial<Draft>) => onChange({ ...d, ...p })
@@ -145,7 +149,11 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
                 </Field>
                 {windows.length > 1 || d.window !== windows[0] ? (
                   <Field label={t('fields.window')} htmlFor={id('window')} error={at('window')} className="max-w-sm">
-                    <Select id={id('window')} value={d.window} disabled={disabled} onChange={(e) => set({ window: e.target.value as WindowMode })}>
+                    <Select id={id('window')} value={d.window} disabled={disabled} onChange={(e) => {
+                      const w = e.target.value as WindowMode
+                      // chosen days start as every day (then the person narrows them), never as none
+                      set(w === 'custom' && d.windowDays.length === 0 ? { window: w, windowDays: [...DAYS] } : { window: w })
+                    }}>
                       {windows.map((w) => <option key={w} value={w}>{t(`windowMode.${w}`)}</option>)}
                     </Select>
                   </Field>

@@ -92,6 +92,33 @@ describe('ScheduleEditor', () => {
     expect(dlg.getByText('Next starts (Asia/Ho_Chi_Minh time)')).toBeInTheDocument()
   })
 
+  it('"Only on chosen days and hours" starts with every day; with no day left it says so in words and asks the box nothing', async () => {
+    const u = userEvent.setup()
+    let previews = 0
+    render(<Harness ownerKey="exposure.target:xt-14" />)
+    await u.click(await screen.findByRole('button', { name: 'Change the schedule of Outside scan' }, T))
+    const dlg = within(await screen.findByRole('dialog'))
+    if (dlg.getByRole('button', { name: 'Time zone, window, pause' }).getAttribute('aria-expanded') !== 'true') await u.click(dlg.getByRole('button', { name: 'Time zone, window, pause' }))
+    await u.selectOptions(dlg.getByLabelText('When it may start'), 'custom')
+    const days = within(dlg.getByRole('group', { name: 'Days' }))
+    expect(days.getAllByRole('checkbox').every((c) => c.getAttribute('aria-checked') === 'true' || (c as HTMLInputElement).checked)).toBe(true)
+    expect(await dlg.findByText(/^Next starts/, undefined, T)).toBeInTheDocument()
+    server.events.on('request:start', ({ request }) => { if (request.url.includes('/schedules/preview')) previews++ })
+    for (const c of days.getAllByRole('checkbox')) await u.click(c)
+    expect(await dlg.findByText('Pick at least one day: with no day chosen it never starts.', undefined, T)).toBeInTheDocument()
+    expect(dlg.queryByText(/window_days/)).toBeNull()
+    const before = previews
+    await new Promise((r) => setTimeout(r, 400))
+    expect(previews).toBe(before)
+    server.events.removeAllListeners('request:start')
+  })
+
+  it('a stored window of chosen days with an empty day list opens with every day ticked', async () => {
+    const { toDraft } = await import('./rule')
+    const s = { enabled: true, rule: { freq: 'weekly', every_minutes: null, at_time: '02:00', weekdays: [1], month_day: null, once_at: null, tz: 'org', window: 'custom', window_days: [], window_from: '22:00', window_to: '06:00' }, limits: { min_every_minutes: 60, max_every_minutes: 43200 } }
+    expect(toDraft(s as never, 'Europe/Berlin').windowDays).toEqual([1, 2, 3, 4, 5, 6, 7])
+  })
+
   it('pauses, resumes and runs once, opening the run it started', async () => {
     const u = userEvent.setup()
     render(<Harness ownerKey="exposure.target:xt-14" />)

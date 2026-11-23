@@ -2,7 +2,7 @@
 // device with the vendor advisory, the workaround or the plain "none published" line, and behind one click the affected versions
 // per release train; the AI's answer as four headed answers in a fixed order.
 import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -12,6 +12,7 @@ import { sessionStore } from '@/mocks/stores'
 import { esxiBrief } from '@/features/feeds/briefSamples'
 import type { CveBrief } from '@/features/feeds/types'
 import { AiAnswers } from './Recommendation'
+import { records } from './modelMocks'
 import { FixTable } from '@/features/feeds/BriefParts'
 import type { FindingDetail } from './types'
 
@@ -65,6 +66,24 @@ describe('the CVE summary card on a finding', () => {
     expect(await screen.findByText('Turn off the vulnerable service.')).toBeInTheDocument()
     expect(screen.getByText('If you cannot patch yet:')).toBeInTheDocument()
     expect(screen.queryByText('No workaround is published: install the fix.')).toBeNull()
+  })
+
+  it('names the product when neither the CVE record nor the exploited list does: the finding\'s software line, never "The product"', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const real = await api.get<FindingDetail>('/findings/f-2')
+    server.use(
+      http.get('*/api/v1/findings/f-2', () => HttpResponse.json({ ...real, kev: null, known_version: null })),
+      http.get('*/api/v1/findings/f-2/view', async () => {
+        const v = await (await fetch(`${location.origin}/api/v1/findings/${records.get()[0]!.id}/view`)).json() as Record<string, unknown>
+        return HttpResponse.json({ ...v, id: 'f-2', software: { id: 'sw-nginx', name: 'nginx', version: '1.30.5' } })
+      }),
+      http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({ ...brief, display: null, products: [], matched: null, not_affected: 0 })),
+    )
+    renderApp('/findings/f-2')
+    const card = (await screen.findByRole('heading', { name: /^About CVE-/ })).closest('section')!
+    const sentence = await within(card).findByTestId('brief-sentence')
+    await waitFor(() => expect(sentence).toHaveTextContent(/^nginx has a flaw/))
+    expect(sentence).not.toHaveTextContent(/The product/)
   })
 
   it('without a brief (a CVE the data does not hold) the card still gives the device\'s fix and the list\'s vendor link', async () => {

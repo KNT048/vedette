@@ -78,7 +78,7 @@ export function toDraft(s: Schedule, orgZone: string, now = Date.now()): Draft {
     enabled: s.enabled, freq: r.freq, every: String(every), unit, at: r.at_time ?? (r.freq === 'interval' ? '' : '02:00'),
     weekdays: r.weekdays ?? [1], monthDay: r.month_day ?? 1,
     onceAt: r.once_at ? isoToZoned(r.once_at, zone) : `${tomorrow}T${r.at_time ?? '02:00'}`,
-    tz: r.tz, window: r.window, windowDays: r.window_days ?? [1, 2, 3, 4, 5, 6, 7], windowFrom: r.window_from ?? '22:00', windowTo: r.window_to ?? '06:00',
+    tz: r.tz, window: r.window, windowDays: r.window_days?.length ? r.window_days : [...DAYS], windowFrom: r.window_from ?? '22:00', windowTo: r.window_to ?? '06:00',
     resumeOn: s.paused_until && Date.parse(s.paused_until) > now ? isoToZoned(s.paused_until, zone).slice(0, 10) : '',
   }
 }

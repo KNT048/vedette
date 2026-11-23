@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -120,7 +120,7 @@ function Form({ s, start, merged, devices, onSaved, onChanged }: {
       <Section id="scope" title={t('safety.scopeTitle')} description={t('safety.scopeDescription')} info={<><p>{t('safety.scopeInfo')}</p><p>{t('safety.appliesTo')}</p></>} stories={['S-INV-1', 'S-SCAN-4']}>
         <Card className="grid gap-4">
           <RangeList items={rangeList} disabled={dis} onChange={(v) => { setRanges(v.join('\n')); setConfirmed(false) }}
-            cost={(r) => <DraftCost input={costOf(r)} pps={pps} />} />
+            cost={(r, onRefused) => <DraftCost input={costOf(r)} pps={pps} onRefused={onRefused} />} />
           {cost ? <SweepCost c={cost} pps={pps} admin={admin} onPps={setPps} onWiden={widen} /> : null}
           <div className="flex items-start gap-3">
             <Checkbox id="scope-confirm" className="mt-0.5" checked={confirmed} disabled={dis} onCheckedChange={(v) => setConfirmed(v === true)} aria-describedby="scope-status" />
@@ -249,8 +249,12 @@ function SweepCost({ c, pps, admin, onPps, onWiden }: { c: ScopeCost; pps: numbe
 }
 
 /** The cost of the scope with the range typed in the Add range dialog (no buttons there: the dialog adds a range, nothing else). */
-function DraftCost({ input, pps }: { input: Parameters<typeof useScopeCost>[0]; pps: number }) {
+/** The cost of the scope with the range the dialog holds; `onRefused` hears whether that scope would be refused on save (it does not
+ *  fit a week of scan windows), so the dialog's Add stays off under "Saving is refused". */
+function DraftCost({ input, pps, onRefused }: { input: Parameters<typeof useScopeCost>[0]; pps: number; onRefused?: (refused: boolean) => void }) {
   const c = useScopeCost(input).data
+  const refused = !!c && c.addresses > 0 && !c.fits_week
+  useEffect(() => { onRefused?.(refused) }, [refused, onRefused])
   return c ? <SweepCost c={c} pps={pps} /> : null
 }
 

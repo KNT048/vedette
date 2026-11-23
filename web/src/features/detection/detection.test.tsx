@@ -53,6 +53,14 @@ describe('intrusion detection page', () => {
     expect(screen.getByRole('link', { name: 'Handle it on the incident' })).toHaveAttribute('href', '/incidents/in-ids-1')
   })
 
+  it('with IPS events coming in, the row has no link to the alerts list it sits above (no jump to the page it is on)', async () => {
+    renderApp('/detection')
+    await screen.findByRole('table', { name: 'Intrusion alerts' }, T)
+    const ips = await row('ips_events')
+    expect(ips.queryByRole('link')).toBeNull()
+    expect(document.querySelector('a[href="#alerts"]')).toBeNull()
+  })
+
   it('while the ids module is off there is no alert list and the row offers to turn it on', async () => {
     modulesStore.update((l) => [...l.filter((m) => (m.id as string) !== 'ids'), { id: 'ids', enabled: false, tier: 'optional', depends: ['logs'], enabled_at: null, available: true } as never])
     sessionStore.update((s) => ({ ...s }))
@@ -73,11 +81,29 @@ describe('intrusion detection: the bad-address row says what feeds it', () => {
     expect(badAddressRow([w('logs', 'off'), w('mirror_port', 'off')])).toMatchObject({ state: 'not_set_up', to: '/settings/modules#module-logs' })
   })
 
+  it('fed by received logs alone, it says DNS lookups of the box and the LAN need a mirror port or a DNS log, with the step to add one', () => {
+    expect(badAddressRow([w('logs', 'watching', '2026-11-24T00:00:00.000Z'), w('mirror_port', 'not_set_up')]).dnsGap).toBe('/logs?tab=sources&add=source')
+    expect(badAddressRow([w('logs', 'quiet'), w('mirror_port', 'off')]).dnsGap).toBe('/logs?tab=sources&add=source')
+    // a mirror port sees the lookups on the LAN: nothing to add
+    expect(badAddressRow([w('logs', 'watching'), w('mirror_port', 'watching')]).dnsGap).toBeNull()
+    expect(badAddressRow([w('logs', 'off'), w('mirror_port', 'quiet')]).dnsGap).toBeNull()
+    // nothing feeds it: the row's own text already says what is needed
+    expect(badAddressRow([w('logs', 'not_set_up'), w('mirror_port', 'not_set_up')]).dnsGap).toBeNull()
+  })
+
+  it('on the page, logs without a mirror port: the DNS line and its link are on the row', async () => {
+    networkStore.update((s) => ({ ...s, span: { ...s.span, enabled: false, interface: null }, ifaces: s.ifaces.map((i) => (i.role === 'span' ? { ...i, role: 'unused' as const } : i)) }))
+    renderApp('/detection')
+    const r = await row('bad-addresses')
+    expect(r.getByTestId('bad-addresses-dns-gap')).toHaveTextContent(/Without a mirror port, the names the box and the devices on your LAN look up \(DNS\)/)
+    expect(r.getByRole('link', { name: 'Add a DNS log source' })).toHaveAttribute('href', '/logs?tab=sources&add=source')
+  })
+
   it('on the page, with no input: it says a mirror port or a firewall or DNS log is needed and offers to add a log source', async () => {
     renderApp('/detection')
     const r = await row('bad-addresses')
     expect(r.getByText('Bad addresses')).toBeInTheDocument()
     expect(r.getByText(/^(Watching|Quiet|Not set up)$/)).toBeInTheDocument()
-    expect(r.getByRole('link')).toHaveAttribute('href', expect.stringMatching(/^\/(logs|settings)/))
+    for (const l of r.getAllByRole('link')) expect(l).toHaveAttribute('href', expect.stringMatching(/^\/(logs|settings)/))
   })
 })

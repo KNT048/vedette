@@ -29,9 +29,7 @@ type Kind = 'self' | 'duplicate' | 'no route'
 type Hit = { kind: Kind; page: string; label: string; to: string }
 
 /** Known cases outside this change, as `kind page → target` (routes, with the tab); see hitKey. */
-const KNOWN: string[] = [
-  'duplicate / → /cve/:id',
-]
+const KNOWN: string[] = []
 
 const ORIGIN = 'http://vedette.test'
 const routes = buildRoutes()

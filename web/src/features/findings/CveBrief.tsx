@@ -11,6 +11,7 @@ import { briefSentence } from '@/features/feeds/brief'
 import { AffectedAll, BriefFacts, BriefRemedy, BriefSources, FixTable } from '@/features/feeds/BriefParts'
 import type { CveBrief } from '@/features/feeds/types'
 import { FixedInNote } from './Recommendation'
+import { useView } from './api'
 import { deviceName, hasIp, isOpen } from './basis'
 import { linkKind, linkLabels } from './links'
 import type { FindingDetail } from './types'
@@ -33,8 +34,10 @@ export function CveBriefCard({ f }: { f: FindingDetail }) {
   const urls = advisories(b, f)
   const labels = linkLabels(t, urls)
   // the finding's own software names the product when the exploited list and the CVE record do not (an update-recommended finding
-  // is on no list): never "the software"
-  const known = f.known_version?.software ?? null
+  // is on no list): the version the box has, else the software line the finding is on, else the product its fix is for (the View
+  // every list reads): never "the software" or "The product"
+  const view = useView(f.id).data
+  const known = f.known_version?.software || view?.software?.name || view?.fix.product || null
   const product = f.kev?.display || b?.display || known || t('rec.theSoftware')
   const software = known ?? product
   const version = f.known_version?.version ?? f.fixed_in?.version

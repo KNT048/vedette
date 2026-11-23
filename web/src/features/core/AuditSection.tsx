@@ -1,5 +1,6 @@
 import { useDeferredValue, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -20,6 +21,16 @@ const AUDIT_PAGE = 50
 
 /** The Who option "Not the system": sends actor=people. No user value can be it: user values never hold a NUL. */
 const PEOPLE = '\u0000people'
+/** An action in words: its label, else (an action written before its label existed) its kind's name and what was done, in words —
+ *  never the stored code, which stays in the CSV export and in the cell's tooltip. */
+export function actionLabel(t: TFunction<'core'>, action: string): string {
+  const dot = action.indexOf('.')
+  const group = dot > 0 ? action.slice(0, dot) : action
+  const what = (dot > 0 ? action.slice(dot + 1) : '').replace(/[._-]+/g, ' ').trim()
+  const fallback = t('audit.actionFallback', { group: t(`audit.group.${group}`, { defaultValue: group }), what })
+  return t(`audit.action.${action}`, { defaultValue: fallback })
+}
+
 /** Device (a-…) and finding (f-…) ids in a target or detail. */
 const ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g // the same as auditIDRE in modules/core/handlers_audit.go
 
@@ -49,8 +60,8 @@ export default function AuditSection() {
   const columns: ColumnDef<AuditRow>[] = [
     { id: 'ts', header: t('audit.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'user', header: t('audit.col.user'), accessorFn: (r) => r.user },
-    { id: 'action', header: t('audit.col.action'), accessorFn: (r) => r.action, cell: ({ row }) => (
-      <div className="grid"><span>{t(`audit.action.${row.original.action}`, { defaultValue: row.original.action })}</span><span className="font-mono text-caption text-muted">{row.original.action}</span></div>
+    { id: 'action', header: t('audit.col.action'), accessorFn: (r) => actionLabel(t, r.action), cell: ({ row }) => (
+      <span title={row.original.action}>{actionLabel(t, row.original.action)}</span>
     ) },
     { id: 'target', header: t('audit.col.target'), accessorFn: (r) => named(r.target), cell: ({ row }) => <Named text={row.original.target} names={names} /> },
     { id: 'detail', header: t('audit.col.detail'), accessorFn: (r) => named(r.detail ?? ''), cell: ({ row }) => (row.original.detail ? <Named text={row.original.detail} names={names} /> : <span className="text-muted">–</span>) },
@@ -87,7 +98,7 @@ export default function AuditSection() {
             <DataTable urlKey="audit" data={d.items} columns={columns} caption={t('audit.caption')} pageSize={AUDIT_PAGE} server={{ total: d.total, list }}
               mobileRow={(r) => (
                 <div className="grid gap-0.5 text-meta">
-                  <span className="font-medium">{t(`audit.action.${r.action}`, { defaultValue: r.action })}</span>
+                  <span className="font-medium">{actionLabel(t, r.action)}</span>
                   <span className="break-words">{named(r.target)}{r.detail ? `: ${named(r.detail)}` : ''}</span>
                   <span className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.user}</span>
                 </div>

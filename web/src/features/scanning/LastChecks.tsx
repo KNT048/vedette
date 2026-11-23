@@ -6,12 +6,12 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { useDevice, useDeviceSnmp } from '@/features/inventory/api'
+import { useDevice, useDeviceSnmp, useDeviceSourceRows } from '@/features/inventory/api'
 import { useDeviceRuns, useScanConfig } from '@/features/scan/api'
 import { RunStatusChip, runOutcome } from '@/features/scan/shared'
 import type { ScanRun } from '@/features/scan/types'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import { useModules } from '@/lib/modules'
+import { useModuleEnabled, useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useScanning, useScanningHistory } from './api'
 import type { HistoryRun } from './types'
@@ -97,6 +97,10 @@ export function LastChecks(props: Record<string, unknown>) {
   const checkable = useVulnCheckable(assetId)
   // the device's SNMP set-up (administrators read it; the SNMP card is theirs too)
   const snmpState = useDeviceSnmp(assetId, admin && !!assetId).data?.state
+  // the device's Sources rows (the same read as its Sources card): "Set it up in Sources" only when the SNMP row there offers Set up
+  const snmpOn = useModuleEnabled('sensor-active') === true
+  const agentsOn = useModuleEnabled('agent-intake') === true
+  const sourceRows = useDeviceSourceRows(assetId, `${snmpOn}|${agentsOn}`, admin && !!assetId)
   if (!assetId) return null
   // #965: a read that failed or has not answered is never "Never"
   const failed = [history, modules, device].find((q) => q.isError)
@@ -123,8 +127,10 @@ export function LastChecks(props: Record<string, unknown>) {
     : <Never info={operator ? t('lastChecks.neverVuln') : t('lastChecks.neverVulnRole')}>{blockReason}</Never>
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
   // "Set it up in Sources" leads to that card's Set up button, which an approved device with an address has (SNMP reads approved
-  // devices only; a device not added yet offers Add device there instead)
+  // devices only; a device not added yet offers Add device there instead). A device whose SNMP row offers no Set up (a declared
+  // device, SNMP turned off for it) gets no link: it would only jump to a row without the step it names.
   const snmpCard = !!a && a.approved && !!a.ip && hasSnmpCard(a, admin, modules.data?.modules.find((m) => m.id === 'sensor-active')?.enabled === true)
+    && sourceRows.data?.rows.find((r) => r.source === 'snmp')?.action === 'set_up'
   // SNMP set up and not read yet: the row follows the set-up instead of asking to set it up
   const snmpSetUp = !!snmpState && snmpState !== 'not_set_up'
   return (

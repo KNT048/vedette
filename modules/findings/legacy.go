@@ -75,11 +75,6 @@ type Record struct {
 	Row              Finding // the finding itself
 }
 
-// Confirmed reports whether a safe check or a person confirmed the finding.
-func (r Record) Confirmed() bool {
-	return r.Row.Verified == VerifiedScan || r.Row.Verified == VerifiedPerson
-}
-
 // ByDevice reports whether the version the device itself reports confirms the finding.
 func (r Record) ByDevice() bool { return r.Row.Verified == VerifiedDevice }
 

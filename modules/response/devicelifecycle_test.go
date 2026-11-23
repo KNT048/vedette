@@ -1,10 +1,12 @@
 package response_test
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/modules/response"
 )
@@ -131,5 +133,44 @@ func TestFindingMovedWithdrawsThePendingRequest(t *testing.T) {
 	wantCode(t, err, 409, "expired")
 	if e.exec.count() != 0 {
 		t.Fatal("approving the withdrawn request reached a device")
+	}
+}
+
+// The rules run on a batch of waiting events read before any of them is handled. When a finding moves to another device while the
+// batch is being worked through, the rule must run on the event as it is stored now (moved to the finding's new device, with that
+// device's name and address), not on the copy read before the move: a request made from the stale copy would act on the old address
+// after the pending requests about the finding were withdrawn.
+func TestFindingMovedWhileTheRulesRunUsesTheMovedEvent(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.turnOn()
+	e.dir.devices["a-new"] = response.DeviceInfo{ID: "a-new", Name: "web-02", IP: "192.0.2.42", Kind: "server"}
+	e.rule("Tell me about IOCs", "ioc_connection", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "ioc {{trigger.dest_ip}}"}}}, nil)
+	e.rule("Tell me about findings", "finding", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.device}} {{trigger.ip}}"}}}, nil)
+	e.must(e.svc.StoreEvent(e.ctx(), e.iocEvent("e1", "198.51.100.7")))
+	e.exec1(`INSERT INTO resp_events (id, trigger, ts, summary, fields, asset_id, finding_id, cve, processed) VALUES
+		('ev-f1','finding','2026-11-09T09:00:00.000Z','s','{"device":"nas-01","ip":"192.0.2.10","cve":"CVE-2024-0001"}','a-old','f1','CVE-2024-0001',0)`)
+	// the split lands after the first event's request is made and before the finding's event is handled
+	moved := false
+	e.bus.Subscribe(response.EventRequestCreated, func(ctx context.Context, _ events.Event) error {
+		if moved {
+			return nil
+		}
+		moved = true
+		return e.db.Write(ctx, func(tx *sql.Tx) error {
+			return e.svc.FindingMoved(ctx, tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-new"})
+		})
+	})
+	_, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	e.svc.WaitSendsForTest()
+	if !moved {
+		t.Fatal("the finding was not moved during the run")
+	}
+	if n := e.count(`SELECT count(*) FROM resp_actions WHERE finding_id = 'f1' AND asset_id = 'a-old' AND status = 'pending'`); n != 0 {
+		t.Fatal("a request about the finding was made on the device it left, from the event as it was read before the move")
+	}
+	if n := e.count(`SELECT count(*) FROM resp_actions WHERE finding_id = 'f1' AND asset_id = 'a-new' AND items LIKE '%web-02 192.0.2.42%'`); n != 1 {
+		t.Fatal("the rule did not run on the moved event (the finding's new device and its address)")
 	}
 }

@@ -87463,8 +87463,20 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Kind)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -87545,23 +87557,6 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s NotifyGetNotifyIncidentsIDOKIncidentKind) Validate() error {
-	switch s {
-	case "trap":
-		return nil
-	case "bad_address":
-		return nil
-	case "log_anomaly":
-		return nil
-	case "unknown_device":
-		return nil
-	case "intrusion":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) Validate() error {
@@ -87846,8 +87841,20 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Kind)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -87928,23 +87935,6 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) Validate() error {
-	switch s {
-	case "trap":
-		return nil
-	case "bad_address":
-		return nil
-	case "log_anomaly":
-		return nil
-	case "unknown_device":
-		return nil
-	case "intrusion":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) Validate() error {
@@ -88583,8 +88573,20 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^[a-z0-9_]{1,40}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Kind)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -88665,23 +88667,6 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) Validate() error {
-	switch s {
-	case "trap":
-		return nil
-	case "bad_address":
-		return nil
-	case "log_anomaly":
-		return nil
-	case "unknown_device":
-		return nil
-	case "intrusion":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) Validate() error {

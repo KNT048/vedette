@@ -6,6 +6,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/feeds"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -15,7 +16,8 @@ import (
 type anyFinding struct{}
 
 func (anyFinding) Finding(context.Context, string) (notify.FindingInfo, bool, error) {
-	return notify.FindingInfo{Severity: notify.Critical, Title: "is being exploited", What: "w", Action: "a", Devices: []string{"FortiGate"}}, true, nil
+	return notify.FindingInfo{Severity: notify.Critical, Open: true, Layer: findings.UrgencyExploited, Status: findings.StatusName(findings.UrgencyExploited),
+		Meaning: findings.StatusMeaning(findings.UrgencyExploited), Action: "a", Devices: []string{"FortiGate"}}, true, nil
 }
 
 // The first CISA pull is silent end to end on the real bus and a real SQLite file: the baseline event makes

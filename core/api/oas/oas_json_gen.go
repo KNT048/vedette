@@ -303911,7 +303911,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("kind")
-		s.Kind.Encode(e)
+		e.Str(s.Kind)
 	}
 	{
 		e.FieldStart("last_seen")
@@ -304104,7 +304104,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 		case "kind":
 			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -304394,52 +304396,6 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentDevicesItem) MarshalJSON() ([]byte,
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentDevicesItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyGetNotifyIncidentsIDOKIncidentKind as json.
-func (s NotifyGetNotifyIncidentsIDOKIncidentKind) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes NotifyGetNotifyIncidentsIDOKIncidentKind from json.
-func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyGetNotifyIncidentsIDOKIncidentKind to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch NotifyGetNotifyIncidentsIDOKIncidentKind(v) {
-	case NotifyGetNotifyIncidentsIDOKIncidentKindTrap:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindTrap
-	case NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindBadAddress
-	case NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindLogAnomaly
-	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice
-	case NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKindIntrusion
-	default:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentKind(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyGetNotifyIncidentsIDOKIncidentKind) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -305360,7 +305316,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("kind")
-		s.Kind.Encode(e)
+		e.Str(s.Kind)
 	}
 	{
 		e.FieldStart("last_seen")
@@ -305553,7 +305509,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 		case "kind":
 			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -305843,52 +305801,6 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem) MarshalJSON() ([]by
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyGetNotifyIncidentsOKIncidentsItemKind as json.
-func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes NotifyGetNotifyIncidentsOKIncidentsItemKind from json.
-func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyGetNotifyIncidentsOKIncidentsItemKind to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch NotifyGetNotifyIncidentsOKIncidentsItemKind(v) {
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindTrap:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindTrap
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindBadAddress
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindLogAnomaly
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice
-	case NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindIntrusion
-	default:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemKind(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyGetNotifyIncidentsOKIncidentsItemKind) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -308154,7 +308066,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("kind")
-		s.Kind.Encode(e)
+		e.Str(s.Kind)
 	}
 	{
 		e.FieldStart("last_seen")
@@ -308347,7 +308259,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 		case "kind":
 			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -308637,52 +308551,6 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem) MarshalJSON() ([]byt
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyPatchNotifyIncidentsIDOKIncidentKind as json.
-func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes NotifyPatchNotifyIncidentsIDOKIncidentKind from json.
-func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyPatchNotifyIncidentsIDOKIncidentKind to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch NotifyPatchNotifyIncidentsIDOKIncidentKind(v) {
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindTrap:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindTrap
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindBadAddress
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindLogAnomaly
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice
-	case NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindIntrusion
-	default:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentKind(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyPatchNotifyIncidentsIDOKIncidentKind) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

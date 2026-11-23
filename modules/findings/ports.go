@@ -9,26 +9,16 @@ import (
 const (
 	EventCreated       = "findings.finding.created"
 	EventStatusChanged = "findings.finding.status_changed"
-	// EventSeverityRaised: a repeated match raised the severity of an open finding (review H2, M-a of #663): a
-	// product finding whose NVD ranges arrived and put its version inside (basis version), so it may now be critical.
-	EventSeverityRaised = "findings.finding.severity_raised"
-	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time
-	// (#939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
-	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
-	EventUncheckedAdded = "findings.unchecked.added"
-	// EventDeviceBackfill: the one summary of the open findings the first full match pass after the device-version rule arrived
-	// confirmed only because of that rule (they were already open; each was recorded in its history, none sent its own notice).
-	EventDeviceBackfill = "findings.device_version.backfilled"
-	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 (UrgencyRaisedEvent): one alert per rise. Published under
-	// the Backlog mark for old news (counted, never sent).
+	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 (UrgencyRaisedEvent; the finding's urgency_changed). Published
+	// under the Backlog mark for old news (counted, never sent). notify tells a finding again only at a more urgent layer than any it was
+	// told at, so a rise into a layer it was told at is no second alert.
 	EventUrgencyRaised = "findings.finding.urgency_raised"
 	// EventFirstRun: the rises of one first-run window in one pass (a signal source's first load, or the box's own first discovery),
 	// told as one summary (FirstRunEvent); none of them sends an alert of its own (their urgency_raised go under the Backlog mark).
 	EventFirstRun = "findings.urgency.first_run"
 )
 
-// UrgencyRaisedEvent is the payload of findings.finding.urgency_raised. At (the rise's time, RFC 3339) makes each rise its own notice: a
-// finding that dropped and rose again is told again.
+// UrgencyRaisedEvent is the payload of findings.finding.urgency_raised. At is the rise's time (RFC 3339).
 type UrgencyRaisedEvent struct {
 	FindingID string   `json:"finding_id"`
 	AssetID   string   `json:"asset_id"`
@@ -52,36 +42,8 @@ type FirstRunEvent struct {
 	CVEList    []string `json:"cve_list"`
 }
 
-// DeviceBackfillEvent is the payload of findings.device_version.backfilled: how many findings, devices and CVEs, and up to
-// MaxBackfillListed of the findings and CVEs, worst first.
-type DeviceBackfillEvent struct {
-	Findings   int      `json:"findings"`
-	Devices    int      `json:"devices"`
-	CVEs       int      `json:"cves"`
-	Severity   Severity `json:"severity"` // the worst of them
-	FindingIDs []string `json:"finding_ids"`
-	CVEList    []string `json:"cve_list"`
-}
-
-// MaxBackfillListed caps the lists of a DeviceBackfillEvent.
+// MaxBackfillListed caps the lists of a FirstRunEvent.
 const MaxBackfillListed = 50
-
-// UncheckedAddedEvent is the payload of findings.unchecked.added.
-type UncheckedAddedEvent struct {
-	AssetID   string              `json:"asset_id"`
-	AssetName string              `json:"asset_name"` // the name the matcher gives the device (Asset.Name)
-	CVEs      []UncheckedAddedCVE `json:"cves"`       // in list order, each once
-}
-
-// UncheckedAddedCVE is one CVE of an UncheckedAddedEvent: the row it is listed on and why it could not be checked.
-type UncheckedAddedCVE struct {
-	CVE        string          `json:"cve"`
-	SoftwareID string          `json:"software_id"` // "os:<asset>" for the network OS a device states without a software row
-	Software   string          `json:"software"`
-	Version    string          `json:"version"`
-	Reason     UncheckedReason `json:"reason"`
-	NVDPending bool            `json:"nvd_pending,omitempty"` // no_nvd_data while NVD has not answered yet: say "waiting for NVD's data"
-}
 
 // CreatedEvent is the payload of findings.finding.created.
 type CreatedEvent struct {
@@ -117,15 +79,9 @@ const ReasonDeviceVersion = "device_version"
 // entry again after Vedette had closed it as not affected.
 const ReasonMatchesAgain = "matches_again"
 
-// SeverityRaisedEvent is the payload of findings.finding.severity_raised. The status is unchanged (still open).
-type SeverityRaisedEvent struct {
-	FindingID    string   `json:"finding_id"`
-	AssetID      string   `json:"asset_id"`
-	CVE          string   `json:"cve"`
-	FromSeverity Severity `json:"from_severity"`
-	ToSeverity   Severity `json:"to_severity"`
-	Basis        Basis    `json:"basis"` // the basis after the raise (version)
-}
+// ReasonStillDetected is the StatusChangedEvent reason of a finding a person marked patched that Vedette reopened because a newer reading
+// of the device still shows the flaw.
+const ReasonStillDetected = "still_detected"
 
 // Publisher is the event bus as this module needs it. core/events is not built yet; the real bus
 // satisfies this by adapting its Publish. Events go out after the transaction commits, and a failed

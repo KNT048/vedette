@@ -1271,3 +1271,14 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
     expect(await within(dlg).findByText('The sign-in was declined. Sign in again and approve.')).toBeInTheDocument()
   })
 })
+
+describe('incident kinds', () => {
+  it('an unknown kind parses and gets the generic label; a known one keeps its own', async () => {
+    const { IncidentKind } = await import('./contract')
+    const { kindKey } = await import('./shared')
+    expect(IncidentKind.parse('ioc_hit')).toBe('ioc_hit')
+    expect(IncidentKind.safeParse('Not A Kind').success).toBe(false)
+    expect(kindKey({ kind: 'ioc_hit', attempt: false })).toBe('incidents.kind.other')
+    expect(kindKey({ kind: 'intrusion', attempt: false })).toBe('incidents.kind.intrusion')
+  })
+})

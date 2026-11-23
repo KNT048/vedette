@@ -768,48 +768,6 @@ func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, Mat
 	return a, MatchAsset(a, dev[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
 }
 
-// RescanClear records that a safe check that had matched a CVE on a device came back clear: each finding of the CVE a safe check had
-// confirmed goes away via scan_clear (patched by Vedette), unless the device's own reading (its agent, its SNMP answer, a package
-// release) still shows the flaw on that line now: then the reading wins and nothing changes.
-func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
-	if !ValidCVE(cve) {
-		return fmt.Errorf("findings: recording a clear rescan: %w", ErrInvalidCVE)
-	}
-	a, m, ok, err := s.matchOne(ctx, assetID, cve)
-	if err != nil {
-		return err
-	}
-	stillShown := map[string]bool{} // lines the device's own reading shows affected now
-	if ok {
-		lines := deviceLines(a)
-		for _, x := range slices.Concat(m.New, m.Existing) {
-			for _, y := range append([]Match{x}, x.Lines...) {
-				if d := detectionOf(y, lines); d.Basis == DetectDeviceVersion || d.Basis == DetectPackage {
-					stillShown[d.SoftwareID] = true
-				}
-			}
-		}
-	}
-	return s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		fs, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ?`, assetID, cve)
-		if err != nil {
-			return err
-		}
-		if len(fs) == 0 {
-			return fmt.Errorf("findings: recording a clear rescan: %w", ErrNotFound)
-		}
-		for _, f := range fs {
-			if f.Verified != VerifiedScan || stillShown[f.SoftwareID] {
-				continue
-			}
-			if _, _, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: ViaScanClear}, emit); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
 // Handle marks findings of one device handled by a person, with one note (POST /findings/handle): all of ids must be findings of one
 // device (else ErrManyDevices). A finding that already has this handling is skipped. One event and one audit row per finding, all
 // or nothing.

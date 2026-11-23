@@ -85,11 +85,12 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 		if err != nil || !ok {
 			t.Fatalf("notify finding: %v %v", ok, err)
 		}
-		if exploitedWords.MatchString(info.Title + " " + info.What) {
+		title, what := info.Product+": "+info.Status, info.Meaning+" "+info.Reasons
+		if exploitedWords.MatchString(title + " " + what) {
 			counts["notify notice"]++
 		}
 		notices = append(notices, withLayer(notify.Notice{ID: "nt-" + r.ID, Kind: notify.KindVuln, Severity: notify.High, Product: info.Product, FindingIDs: []string{r.ID},
-			CVEs: []string{r.CVE}, Devices: []string{"FortiGate"}, Title: info.Title, What: info.What, Action: info.Action, Link: "https://vedette.example/findings/" + r.ID}, info))
+			CVEs: []string{r.CVE}, Devices: []string{"FortiGate"}, Title: title, What: what, Action: info.Action, Link: "https://vedette.example/findings/" + r.ID}, info))
 	}
 	for _, b := range notify.GroupHeld(notices, notify.Low) {
 		m, err := b.Message()

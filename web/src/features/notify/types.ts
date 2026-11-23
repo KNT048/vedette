@@ -34,7 +34,10 @@ export type LinkApprovers = z.infer<typeof C.LinkApprovers>
 
 export const CHANNEL_TYPES: ChannelType[] = ['telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook']
 export const ROUTE_SEVERITIES: RouteSeverity[] = ['critical', 'high', 'medium', 'low']
-export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion']
+/** The kinds that have their own label and filter; any other kind parses and shows the generic one. */
+export const INCIDENT_KINDS = ['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion'] as const
+export type KnownIncidentKind = (typeof INCIDENT_KINDS)[number]
+export const knownKind = (k: IncidentKind): KnownIncidentKind | 'other' => (INCIDENT_KINDS as readonly string[]).includes(k) ? (k as KnownIncidentKind) : 'other'
 
 /** Trường không bí mật của từng kênh. Bí mật (token, mật khẩu) tách riêng: chỉ gửi lên, không bao giờ trả về (SYS-4). */
 export const FIELDS: Record<ChannelType, string[]> = {

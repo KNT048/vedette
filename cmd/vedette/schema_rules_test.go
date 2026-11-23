@@ -53,6 +53,7 @@ var jsonColumnAllowList = []string{
 	"hp_config.value",
 	"hp_hits.events",
 	"hp_trap_ips.services",
+	"inv_merged_from.facts", // what a person's merge took in, read whole by Split off; never filtered
 	"inv_setting.value",
 	"logs_siem.events",
 	"logs_siem.last_test",

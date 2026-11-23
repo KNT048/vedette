@@ -152,7 +152,9 @@ func TestAllPortsRunCountsItsDeviceAndSaysHowLongItHasLeft(t *testing.T) {
 			t.Fatalf("the weekly run while it runs: %+v", w)
 		}
 		e.svc.Stop() // the module turned off ends it
-		<-b.ended
+		if err := <-b.ended; !errors.Is(err, context.Canceled) {
+			t.Fatalf("the weekly run ended with %v, want stopped", err)
+		}
 		if err := <-tick; err != nil {
 			t.Fatal(err)
 		}
@@ -205,12 +207,6 @@ func (p *sickProber) NmapHealth() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.msg
-}
-
-func (p *sickProber) heal() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.msg = ""
 }
 
 func (p *sickProber) Probe(context.Context, []string) (sa.Output, error) {

@@ -67,6 +67,7 @@ help:
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f): print the cosign commands, build release-manifest.json + index.json (refuses migrations that remove, edit or insert below a migration of any earlier release tag of the same schema epoch; refuses rollback.safe=true, or a min_upgrade_from other than its own version, for a release that starts a new schema epoch, and rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index); RELEASE_ADVISORY=<file.json> adds an advisory every box shows on its Updates page; sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container"
 	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps (WP-08k): images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last"
+	@echo "make release-withdraw RELEASE_PREV_INDEX=<live index> WITHDRAW_RELEASE=<v> WITHDRAW_MANIFEST=<its release-manifest.json> WITHDRAW_REASON=<line> [CHANNEL_MANIFEST=<earlier manifest> | HOLD_CHANNEL=stable]   an index that withdraws a published release or image digest; then release-sign, release-verify, release-publish (docs/RUNBOOK.md 9.1)"
 	@echo "make release-deb-name VERSION=<v> / release-bake-install   part A of the release job: SemVer names of prerelease .deb before release-in; install.sh with its three lines baked and signed (MINISIGN_KEY) into dist/release"
 	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
@@ -548,12 +549,24 @@ release-verify:
 #                     run the registry as a container of the podman machine, published on 127.0.0.1:<port>, so both the machine and the Mac reach
 #                     it); a rehearsal needs a gates.json too.
 #   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
-#                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand.
+#                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional. RELEASE_NOTES is
+#                     the one line every box shows (signed into the manifest: at most 2048 bytes, no newline or other control character; read
+#                     from the environment, so quotes are safe), RELEASE_NOTES_FILE a Markdown file for the GitHub release page (any number of
+#                     lines; default: RELEASE_NOTES). Both can be edited in release.in.json later ("notes", "release_notes"); every step that
+#                     reads it refuses notes a box would refuse.
 #                     Each .deb (sha256), each image of images.json and of the local lists (config digest) must be what gates.json names
 #   release-publish   verifies dist/release again (install.sh too) and prints the gh release commands; PUBLISH=1 runs them (needs RELEASE_PREV_INDEX
 #                     equal to the live index, or FIRST_RELEASE=1 before any index exists; signers must be the compiled-in production keys): draft
-#                     v<version>, every asset, read back, anonymous pull of every image, publish, then index.json + .minisig to the release "index" LAST
-.PHONY: release-push release-in release-publish
+#                     v<version>, every asset, read back, anonymous pull of every image and its cosign signature tag (sha256-<hex>.sig, holding
+#                     this release's signature: a missing one is named and nothing goes public), publish, then index.json + .minisig to the
+#                     release "index" LAST
+#   release-withdraw  an index (into dist/release; no manifest) that withdraws a published release or image (docs/RUNBOOK.md 9.1):
+#                     RELEASE_PREV_INDEX = the live index, WITHDRAW_RELEASE=<version> and/or WITHDRAW_DIGEST=sha256:..., WITHDRAW_MANIFEST=<the
+#                     downloaded release-manifest.json of that release, .minisig beside it>, WITHDRAW_REASON (one line every box shows; from the
+#                     environment), and for a channel whose latest is withdrawn CHANNEL_MANIFEST=<an earlier release's manifest> or
+#                     HOLD_CHANNEL=<stable|beta>; WITHDRAW_ACTION=block_install for a note on the Updates page only (default: a banner on every
+#                     page). Then release-sign, release-verify (says WITHDRAWAL) and release-publish, like a refresh
+.PHONY: release-push release-in release-publish release-withdraw
 REGISTRY ?= ghcr.io/knt048
 RELEASE_CHANNEL ?=
 RELEASE_ROLLBACK_SAFE ?=
@@ -566,7 +579,16 @@ release-push:
 	$(RELEASE_GO) push -version '$(VERSION)' -registry '$(REGISTRY)' -platforms '$(PLATFORMS)' -out $(RELEASE_OUT)
 
 release-in:
-	$(RELEASE_GO) in -images $(RELEASE_OUT)/images.json -out $(RELEASE_IN) -deb-dir $(DEB_OUT) -channel '$(RELEASE_CHANNEL)' -rollback-safe '$(RELEASE_ROLLBACK_SAFE)' -rollback-min-version '$(RELEASE_ROLLBACK_MIN)' -min-upgrade-from '$(RELEASE_MIN_UPGRADE_FROM)'
+	$(RELEASE_GO) in -images $(RELEASE_OUT)/images.json -out $(RELEASE_IN) -deb-dir $(DEB_OUT) -channel '$(RELEASE_CHANNEL)' -rollback-safe '$(RELEASE_ROLLBACK_SAFE)' -rollback-min-version '$(RELEASE_ROLLBACK_MIN)' -min-upgrade-from '$(RELEASE_MIN_UPGRADE_FROM)' -notes "$$RELEASE_NOTES" $(if $(RELEASE_NOTES_FILE),-release-notes-file '$(RELEASE_NOTES_FILE)')
+
+WITHDRAW_RELEASE ?=
+WITHDRAW_DIGEST ?=
+WITHDRAW_MANIFEST ?=
+WITHDRAW_ACTION ?=
+CHANNEL_MANIFEST ?=
+HOLD_CHANNEL ?=
+release-withdraw:
+	$(RELEASE_GO) index -out $(RELEASE_OUT) -prev-index "$(RELEASE_PREV_INDEX)" -revoke-reason "$$WITHDRAW_REASON" $(foreach v,$(WITHDRAW_RELEASE),-revoke-release '$(v)') $(foreach d,$(WITHDRAW_DIGEST),-revoke-digest '$(d)') $(foreach m,$(WITHDRAW_MANIFEST),-revoked-manifest '$(m)') $(foreach m,$(CHANNEL_MANIFEST),-channel-manifest '$(m)') $(foreach c,$(HOLD_CHANNEL),-hold-channel '$(c)') $(if $(WITHDRAW_ACTION),-revoke-action '$(WITHDRAW_ACTION)') $(RELEASE_KEYS_ARG)
 
 release-publish:
 	$(RELEASE_GO) publish -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG) $(if $(filter 1,$(FIRST_RELEASE)),-first-release) $(if $(filter 1,$(PUBLISH)),-run)

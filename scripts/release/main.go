@@ -10,6 +10,7 @@
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
 //	go run ./scripts/release index       ... -advisory advisory.json   (a new advisory every box shows on its Updates page; repeatable)
+//	go run ./scripts/release index       -out dist/withdraw -prev-index DIR -revoke-release 0.2.0 -revoked-manifest FILE -revoke-reason TEXT [-revoke-digest sha256:...] [-channel-manifest FILE | -hold-channel stable] [-revoke-action block_install]   (withdraw a published release or image; docs/RUNBOOK.md §9.1)
 //	go run ./scripts/release min-sequence -prev-index DIR [-keys-dir DIR]   (prints the sequence of the published index: the MIN_SEQUENCE of vedette-host; index -min-sequence N refuses a sequence not above it)
 //	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
 //	go run ./scripts/release check-image -image localhost/vedette-scan-base:check -kind scan-base [-container podman|docker] [-repo .]   (the files the gates check inside core and scan-base, on one local image; make images-check)
@@ -338,7 +339,30 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		revoke = append(revoke, v)
 		return nil
 	})
-	reason := fs.String("revoke-reason", "", "why the keys of -revoke-key are revoked (one line)")
+	reason := fs.String("revoke-reason", "", "why the keys, releases or digests are revoked (one line; boxes show it as given)")
+	var w Withdrawal
+	var evidence, moveTo []string
+	fs.Func("revoke-release", "withdraw this published version (repeatable; its signed manifest goes in -revoked-manifest)", func(v string) error {
+		w.Releases = append(w.Releases, v)
+		return nil
+	})
+	fs.Func("revoke-digest", "withdraw this image digest, sha256:... (repeatable; a -revoked-manifest release must list it)", func(v string) error {
+		w.Digests = append(w.Digests, v)
+		return nil
+	})
+	fs.Func("revoked-manifest", "the published release-manifest.json (with its .minisig beside it) of a release -revoke-release or -revoke-digest names (repeatable)", func(v string) error {
+		evidence = append(evidence, v)
+		return nil
+	})
+	fs.Func("channel-manifest", "the published release-manifest.json (with .minisig) of an earlier release: the channel whose latest is withdrawn moves back to it (repeatable, one per channel)", func(v string) error {
+		moveTo = append(moveTo, v)
+		return nil
+	})
+	fs.Func("hold-channel", "a channel whose latest is withdrawn keeps naming it: its boxes are offered nothing until the next release (repeatable)", func(v string) error {
+		w.Hold = append(w.Hold, v)
+		return nil
+	})
+	fs.StringVar(&w.Action, "revoke-action", "", "block_install (the Updates page says so) or block_install_and_warn (default: a banner on every page of a box that runs it)")
 	var advisories []release.Advisory
 	fs.Func("advisory", "JSON file of a new advisory to publish: {id, severity, title, affects, fixed_in, url} (repeatable; earlier ones carry over)", func(v string) error {
 		raw, err := readSmall(v, 4<<10)
@@ -384,18 +408,34 @@ func cmdIndex(args []string, stdout io.Writer) error {
 	if len(revoke) > 0 && *prev == "" {
 		return errors.New("-revoke-key needs -prev-index: a rescue index carries on from the last published index")
 	}
+	if !w.empty() && *prev == "" {
+		return errors.New("withdrawing a release needs -prev-index: the published index it carries on from")
+	}
 	if *prev != "" {
 		trust, err := LoadTrust(*keys)
 		if err != nil {
 			return err
 		}
 		p.BackupKeyID = trust.Backup.KeyID()
-		if *prev != "" {
-			if prevIndex, err = LoadPrevIndex(*prev, trust); err != nil {
-				return err
+		if prevIndex, err = LoadPrevIndex(*prev, trust); err != nil {
+			return err
+		}
+		for _, f := range evidence {
+			sr, err := LoadSignedRelease(f, trust)
+			if err != nil {
+				return fmt.Errorf("-revoked-manifest: %w", err)
 			}
+			w.Evidence = append(w.Evidence, sr)
+		}
+		for _, f := range moveTo {
+			sr, err := LoadSignedRelease(f, trust)
+			if err != nil {
+				return fmt.Errorf("-channel-manifest: %w", err)
+			}
+			w.MoveTo = append(w.MoveTo, sr)
 		}
 	}
+	p.Withdraw = w
 	if *manifest != "" {
 		raw, err := readDoc(*manifest)
 		if err != nil {
@@ -521,14 +561,30 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if s.IndexOnly {
+	if s.IndexOnly && len(s.Withdrawn) == 0 && len(s.Moved) == 0 {
 		say(stdout, "verified: index-only refresh, sequence %d signed by %s, channels unchanged, backup signature %t", s.Sequence, s.IndexKeyID, s.BackupSig)
+		return nil
+	}
+	if s.IndexOnly {
+		say(stdout, "verified: WITHDRAWAL index, sequence %d signed by %s, backup signature %t", s.Sequence, s.IndexKeyID, s.BackupSig)
+		for _, w := range s.Withdrawn {
+			say(stdout, "  revokes %s", w)
+		}
+		for _, m := range s.Moved {
+			say(stdout, "  channel %s", m)
+		}
 		return nil
 	}
 	if s.Rescue {
 		say(stdout, "verified: RESCUE release: index and manifest signed by the backup key %s, which revokes the active key of these keys", s.IndexKeyID)
 	}
 	say(stdout, "verified: index sequence %d signed by %s, release %s (%s), backup signature %t", s.Sequence, s.IndexKeyID, s.Version, s.Channel, s.BackupSig)
+	for _, w := range s.Withdrawn {
+		say(stdout, "  revokes %s", w)
+	}
+	for _, m := range s.Moved {
+		say(stdout, "  channel %s", m)
+	}
 	for _, im := range s.Images {
 		say(stdout, "  image %s (cosign verified)", im)
 	}

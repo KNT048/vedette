@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -244,6 +245,9 @@ type Summary struct {
 	// ContainerAssets: the manifest lists install mode container and the four files of the container-only install are here,
 	// signed by the manifest's key, vedette.env naming the manifest's digests.
 	ContainerAssets bool
+	// Withdrawn are the release and image-digest revocations the index adds to the published one ("release 0.2.0"), and Moved the
+	// channels an index without a manifest moves back to an earlier release ("stable 0.2.0 -> 0.1.0").
+	Withdrawn, Moved []string
 }
 
 // legacyVerifiers check an index.v<N>.json and its signature. A legacy index is a document of a schema this build cannot
@@ -256,7 +260,8 @@ var legacyVerifiers = map[int]func(raw, sig []byte, trust release.Trust) error{}
 // back in sequence, and a channel that stays at the same version must keep the same manifest. Then the manifest (signature,
 // revocation, refs), its hash in the index, the index's latest for its channel, and every image's cosign signature against its
 // digest. A directory without a manifest is a refresh of the index: the index is checked against stored, the channels
-// must be unchanged apart from the sequence and dates, and nothing else exists to check.
+// must be unchanged apart from the sequence and dates, except a channel moved back to an earlier release because the index
+// withdraws the one it offered (checkChannelsMovedBack), and nothing else exists to check.
 func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	var stored *release.Index
 	if prevDir != "" {
@@ -276,6 +281,9 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 		}
 	}
 	s := &Summary{Sequence: idx.Sequence, IndexKeyID: idx.KeyID}
+	if stored != nil {
+		s.Withdrawn = addedWithdrawals(stored, idx)
+	}
 	raw, err := readDoc(filepath.Join(dir, indexFile))
 	if err != nil {
 		return nil, err
@@ -304,15 +312,8 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 		if stored == nil {
 			return nil, errors.New("a directory without a manifest is a refresh of the index: give the published index (-prev-index) to check it against")
 		}
-		for name, c := range idx.Channels {
-			if old, ok := stored.Channels[name]; !ok || old.Latest != c.Latest || old.Rollout == nil || c.Rollout == nil || *old.Rollout != *c.Rollout {
-				return nil, fmt.Errorf("channel %s differs from the published index, and no manifest is here to announce it", name)
-			}
-		}
-		for name := range stored.Channels {
-			if _, ok := idx.Channels[name]; !ok {
-				return nil, fmt.Errorf("channel %s is gone from the refreshed index", name)
-			}
+		if s.Moved, s.Withdrawn, err = checkChannelsMovedBack(stored, idx); err != nil {
+			return nil, err
 		}
 		s.IndexOnly = true
 		return s, nil
@@ -345,6 +346,18 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	}
 	if idx.Channels[m.Channel].Latest != m.Version {
 		return nil, fmt.Errorf("index says channel %s is at %s, the manifest is %s", m.Channel, idx.Channels[m.Channel].Latest, m.Version)
+	}
+	// The other channels stay as published, or move back because the index withdraws the release they offered.
+	if stored != nil {
+		others := func(x *release.Index) *release.Index {
+			c := *x
+			c.Channels = maps.Clone(x.Channels)
+			delete(c.Channels, m.Channel)
+			return &c
+		}
+		if s.Moved, _, err = checkChannelsMovedBack(others(stored), others(idx)); err != nil {
+			return nil, err
+		}
 	}
 	for _, im := range m.Images {
 		if err := release.VerifyImage(m, im.Service, im.Digest, trust); err != nil {

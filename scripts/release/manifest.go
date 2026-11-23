@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
 	"github.com/knt048/vedette/internal/release"
@@ -28,7 +29,7 @@ type Inputs struct {
 	Channel        string            `json:"channel"`
 	ReleasedAt     string            `json:"released_at"` // RFC 3339; empty = now
 	MinUpgradeFrom string            `json:"min_upgrade_from"`
-	Notes          string            `json:"notes"`
+	Notes          string            `json:"notes"` // one line, signed into the manifest: what a box shows (checkNotes)
 	InstallModes   []string          `json:"install_modes"`
 	Rollback       release.Rollback  `json:"rollback"`
 	Images         []ImageIn         `json:"images"`
@@ -36,6 +37,9 @@ type Inputs struct {
 	Content        []release.Content `json:"content"`
 	Bundled        []release.Bundled `json:"bundled"`
 	SBOM           *SBOMIn           `json:"sbom"`
+	// ReleaseNotes is the text of the GitHub release page (Markdown, any number of lines). It is not in the manifest, so a box never
+	// reads it; empty = the page shows Notes.
+	ReleaseNotes string `json:"release_notes"`
 }
 
 // ImageIn is one built image: the digest is the digest of the multi-platform index that was pushed.
@@ -67,7 +71,42 @@ func ParseInputs(raw []byte) (Inputs, error) {
 	if err := jsonstrict.Decode(raw, &in); err != nil {
 		return in, fmt.Errorf("inputs: %w", err)
 	}
+	if err := checkNotes(in.Notes, in.ReleaseNotes); err != nil {
+		return in, fmt.Errorf("inputs: %w", err)
+	}
 	return in, nil
+}
+
+// maxNotes is the most notes a box accepts in a manifest (internal/release parseManifest); maxReleaseNotes bounds the GitHub release
+// page's text, well below GitHub's own limit for a release body.
+const (
+	maxNotes        = 2048
+	maxReleaseNotes = 100 << 10
+)
+
+// checkNotes refuses manifest notes that every box would refuse (the manifest then fails verification on every box): a control
+// character (a newline included) or more than maxNotes bytes. releaseNotes, the multi-line text of the GitHub release page, only
+// has to be text.
+func checkNotes(notes, releaseNotes string) error {
+	const where = "the manifest's notes are one line every box shows (a box refuses the manifest otherwise); put multi-line text for the GitHub release page in release_notes"
+	if len(notes) > maxNotes {
+		return fmt.Errorf("notes are %d bytes, more than the %d a box accepts: %s", len(notes), maxNotes, where)
+	}
+	for i := 0; i < len(notes); i++ {
+		switch c := notes[i]; {
+		case c == '\n' || c == '\r':
+			return fmt.Errorf("notes hold a newline at byte %d: %s", i, where)
+		case c < 0x20 || c == 0x7f:
+			return fmt.Errorf("notes hold the control character 0x%02x at byte %d: %s", c, i, where)
+		}
+	}
+	if len(releaseNotes) > maxReleaseNotes {
+		return fmt.Errorf("release_notes are %d bytes, more than %d", len(releaseNotes), maxReleaseNotes)
+	}
+	if !utf8.ValidString(releaseNotes) || strings.ContainsRune(releaseNotes, 0) {
+		return errors.New("release_notes are not text (invalid UTF-8 or a NUL byte)")
+	}
+	return nil
 }
 
 // Env is everything the builder reads besides Inputs.
@@ -139,6 +178,9 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		return res, fmt.Errorf("channel must be stable or beta, got %q", in.Channel)
 	}
 	if err := checkInstallModes(in.InstallModes); err != nil {
+		return res, err
+	}
+	if err := checkNotes(in.Notes, in.ReleaseNotes); err != nil {
 		return res, err
 	}
 	latest := "" // the channel's latest in the published index, if any

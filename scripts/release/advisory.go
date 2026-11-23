@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/knt048/vedette/internal/jsonstrict"
@@ -124,12 +126,20 @@ func addAdvisories(x *release.Index, adds []release.Advisory) error {
 	return nil
 }
 
-// checkStrandedBoxesTold refuses an index that announces a release whose min_upgrade_from is above the latest release of a channel
-// of the previous index, unless an advisory tells the boxes on that release: they cannot update to the new release (their update
-// check says only that there is nothing to install), so the index must carry an advisory they show as affected (fixed_in above
-// the release they run). This is the case of a release that starts a new schema epoch, whose boxes of the earlier epoch must
-// install it fresh.
-func checkStrandedBoxesTold(prev, x *release.Index, version string, manifestRaw []byte) error {
+// checkStrandedBoxesTold refuses an index that announces a release whose min_upgrade_from is above the latest release a channel of
+// the previous index offers, unless an advisory tells the boxes on that release: they cannot update to the new release (their update
+// check says only that there is nothing to install), so the index must carry an advisory they show as affected.
+//
+// Only the boxes that can be stranded are looked at. A box follows one channel and is offered only that channel's latest, so an
+// ordinary release (min_upgrade_from below its own version: an intermediate release is needed first) strands only the boxes of the
+// channel it is published on. A release that starts a new schema epoch (min_upgrade_from is its own version) ends the earlier epoch
+// for every box, so the boxes on the latest release of every channel are looked at.
+//
+// An advisory tells a box on release L about this release V with min_upgrade_from M when the box shows it as affected (fixed_in above
+// L) and it names a fix this release brings: fixed_in at or above M (a version the box cannot update to) and not above V. An advisory
+// carried over from an earlier index whose fixed_in is above V is about something V does not fix: it would tell the box to wait for a
+// later release, not to install V fresh; one fixed below M points at a release the box is not offered.
+func checkStrandedBoxesTold(prev, x *release.Index, channel, version string, manifestRaw []byte) error {
 	if prev == nil || version == "" {
 		return nil
 	}
@@ -139,23 +149,29 @@ func checkStrandedBoxesTold(prev, x *release.Index, version string, manifestRaw 
 	if err := json.Unmarshal(manifestRaw, &m); err != nil || m.MinUpgradeFrom == "" {
 		return nil //nolint:nilerr // a manifest that does not parse was refused before, and none without min_upgrade_from strands a box
 	}
-	for name, ch := range prev.Channels {
+	newEpoch := m.MinUpgradeFrom == version
+	for _, name := range slices.Sorted(maps.Keys(prev.Channels)) {
+		if name != channel && !newEpoch {
+			continue
+		}
+		ch := prev.Channels[name]
 		c, err := release.CompareVersions(ch.Latest, m.MinUpgradeFrom)
 		if err != nil || c >= 0 {
 			continue
 		}
-		told := false
-		for _, a := range x.Advisories {
-			if f, err := release.CompareVersions(ch.Latest, a.FixedIn); err == nil && f < 0 {
-				told = true
-				break
-			}
-		}
-		if !told {
+		if !slices.ContainsFunc(x.Advisories, func(a release.Advisory) bool { return tellsStranded(a, ch.Latest, m.MinUpgradeFrom, version) }) {
 			return fmt.Errorf("release %s sets min_upgrade_from %s, so a box on %s (the latest of channel %s in the published index) cannot update to it "+
-				"and its Updates page would say nothing: add an advisory such a box shows as affected (-advisory FILE with fixed_in above %s; "+
-				"RELEASE_ADVISORY of make release-manifest)", version, m.MinUpgradeFrom, ch.Latest, name, ch.Latest)
+				"and its Updates page would say nothing: add an advisory such a box shows as affected (-advisory FILE with fixed_in from %s to %s, "+
+				"normally %s; RELEASE_ADVISORY of make release-manifest)", version, m.MinUpgradeFrom, ch.Latest, name, m.MinUpgradeFrom, version, version)
 		}
 	}
 	return nil
+}
+
+// tellsStranded reports whether a box running running shows a as affected and a names a fix in [minUp, version].
+func tellsStranded(a release.Advisory, running, minUp, version string) bool {
+	above, err1 := release.CompareVersions(a.FixedIn, running)
+	low, err2 := release.CompareVersions(a.FixedIn, minUp)
+	high, err3 := release.CompareVersions(a.FixedIn, version)
+	return err1 == nil && err2 == nil && err3 == nil && above > 0 && low >= 0 && high <= 0
 }

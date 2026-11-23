@@ -64,7 +64,7 @@ Two JSON documents, both with a detached minisign signature (`<file>.minisig`).
   "content": [ { "name": "mitigation-packs", "version": "2026-12-02.1", "in_image": "core", "path": "/opt/vedette/content/…", "sha256": "…" } ],
   "bundled": [ { "service": "honeypot", "name": "opencanary", "version": "0.9.4" } ],
   "sbom": { "format": "CycloneDX", "url": "…", "sha256": "…" },
-  "notes": "Short English text shown in the Updates page"
+  "notes": "Short English text shown in the Updates page (one line, at most 2048 bytes)"
 }
 ```
 
@@ -187,7 +187,9 @@ Rule: A/B by **tag/digest** (replacing the old design's "A/B slot binary" with t
 Box behaviour:
 
 - `block_install`: never install that release/digest (including under auto, and by bundle).
-- A **running** release that is revoked: a severity banner on every page when `action` is `block_install_and_warn` or `rollback_if_possible`, only a note on the Updates page when it is `block_install` (`UpdatesState.running_revoked`) + a notification on the admin channel (not built yet); `rollback_if_possible` goes back automatically only in `auto` mode, when tag N−1 still exists, is not revoked, and `rollback.safe`; otherwise the admin decides.
+- A **running** release that is revoked (by version, or by a digest of its manifest when the box knows that manifest): a severity banner on every page when `action` is `block_install_and_warn`, only a note on the Updates page when it is `block_install` (`UpdatesState.running_revoked`, with the signed `reason`); the box keeps running it, its update check says "up to date" unless the channel offers a higher release, and the admin replaces it with a newer release or Rollback (the host refuses Rollback only when the previous release is revoked too, `previous_revoked`). not yet: a notification on the admin channel, and the automatic rollback of `rollback_if_possible` (going back in `auto` mode when tag N−1 still exists, is not revoked, and `rollback.safe`): a box shows `rollback_if_possible` exactly like `block_install_and_warn`, so the release builder refuses to write it.
+- A box below the revoked release: nothing that is revoked is offered ("nothing offered: <v> is revoked" when it is the channel's latest), a stored offer of it is dropped at the next check, and the host refuses to pull it (`release_revoked`). When the index moves the channel back to an earlier release that is not revoked, a box below that release is offered it as usual (the index names its `manifest_sha256`); `latest` going down is allowed only in an index that revokes the release it named, which the release builder enforces (a box does not compare `latest` across indexes).
+- Writing revocations: `release index -revoke-release/-revoke-digest` (`scripts/release/withdraw.go`; procedure in `docs/RUNBOOK.md` §9.1). Each row must name a release whose signed manifest is given, no row is written twice, and a channel whose latest is revoked must either move back to an earlier release of that channel (`-channel-manifest`) or keep naming the revoked one (`-hold-channel`: its boxes are offered nothing until the next release).
 - A revoked key: a manifest signed with that key is rejected even if it was installed earlier (the box does not remove the software, it only stops trusting any further).
 - The revocation itself is signed within `index.json`; a newer `index.json` replaces it (by `sequence`). The box stores the highest version it has seen so an old index cannot "resurrect" a revoked release.
 
@@ -295,6 +297,6 @@ Threats and measures: (a) taking over the GitHub repository/registry → it cann
 3. ~~**Updating `vedette-host` itself**~~ **Decided:** the `.deb` signed on the GitHub Release, the host upgrades itself; the command is not yet in the allowlist (left for later).
 4. Should there be an "Install anyway" button for a release whose cohort has not arrived (spec: no)?
 5. The key `K_cohort`/`install_id`: it is local only and used for the rollout cohort; no anonymous signal exists, so nothing else shares it.
-6. Automatic `rollback_if_possible`: on by default or always needing an admin?
+6. Automatic `rollback_if_possible` (not built; the builder refuses the action until it is): on by default or always needing an admin?
 7. The health-check time, check frequency and bundle cap are starting points, not measured.
 8. Signatures of third-party dependencies in the image (nuclei, OpenCanary; nmap is in no signed image, it is installed when `scan` is built on the box): Vedette packages and signs the **whole image**; how they are used (a separate process in a container) must be recorded in `THIRD_PARTY_NOTICES` when building (rule `legal.md`).

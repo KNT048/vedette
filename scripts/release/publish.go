@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -142,7 +143,10 @@ func planPublish(dir string, s *Summary, in *Inputs, trust release.Trust) (*publ
 		verified[installer], verified[installerSig] = raw, sig
 		p.Version = s.Version
 		p.Prerelease = s.Channel == "beta" || strings.Contains(s.Version, "-")
-		p.Notes = m.Notes
+		p.Notes = m.Notes // the GitHub release page: release_notes of release.in.json when given (several lines), else the signed one-line notes
+		if in.ReleaseNotes != "" {
+			p.Notes = strings.TrimRight(in.ReleaseNotes, "\n")
+		}
 		if p.Notes == "" {
 			p.Notes = "Vedette " + s.Version
 		}
@@ -375,9 +379,12 @@ func deref(s *string) string {
 	return *s
 }
 
-// checkPullable proves every image of the release can be pulled the way a box pulls it: anonymously, by digest, from ghcr.io.
-func (e publishEnv) checkPullable(ctx context.Context, p *publishPlan) error {
+// checkRegistry proves every image of the release can be pulled the way a box pulls it (anonymously, by digest, from ghcr.io) and
+// that its cosign signature reached the registry (checkSignature): a customer's `cosign verify` reads the signature there, not
+// from the manifest.
+func (e publishEnv) checkRegistry(ctx context.Context, p *publishPlan) error {
 	path := strings.TrimPrefix(release.RegistryPrefix, "ghcr.io/")
+	var missing []error
 	for _, im := range p.Images {
 		if _, err := e.reg.manifest(ctx, "HEAD", path+im.Service, im.Digest, acceptList); err != nil {
 			if errors.Is(err, errDenied) {
@@ -385,8 +392,60 @@ func (e publishEnv) checkPullable(ctx context.Context, p *publishPlan) error {
 			}
 			return err
 		}
+		if err := e.checkSignature(ctx, path, im); err != nil {
+			if !errors.Is(err, errSigMissing) {
+				return err
+			}
+			missing = append(missing, err)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%w\nthe cosign sign lines of the plan upload them: run the plan again (make release-cosign-plan, then scripts/release/cosign-auth.sh sh -eu dist/cosign-plan.sh)", errors.Join(missing...))
 	}
 	return nil
+}
+
+// errSigMissing is an image whose cosign signature is not in the registry as this release signed it.
+var errSigMissing = errors.New("cosign signature missing in the registry")
+
+// cosignSigAnnotation is the layer annotation of a cosign signature manifest that carries the signature (base64).
+const cosignSigAnnotation = "dev.cosignproject.cosign/signature"
+
+// sigTag is the tag cosign uploads an image's signature to: sha256-<hex>.sig, next to the image in its repository.
+func sigTag(digest string) string { return strings.Replace(digest, "sha256:", "sha256-", 1) + ".sig" }
+
+// checkSignature reads the signature tag of im anonymously and requires a layer that is this release's signature: the layer is the
+// simple-signing payload (its digest is the payload's SHA-256) and its signature annotation decodes to the signature the signed
+// manifest carries. A tag left from another signing run, or by another key, does not count.
+func (e publishEnv) checkSignature(ctx context.Context, path string, im release.Image) error {
+	name := release.RegistryPrefix + im.Service + ":" + sigTag(im.Digest)
+	raw, err := e.reg.manifest(ctx, "GET", path+im.Service, sigTag(im.Digest), acceptImage)
+	if errors.Is(err, errDenied) {
+		return fmt.Errorf("%w: %s is not in the registry (%w)", errSigMissing, name, err)
+	}
+	if err != nil {
+		return err
+	}
+	payload, perr := base64.StdEncoding.DecodeString(im.Cosign.Payload)
+	sig, serr := base64.StdEncoding.DecodeString(strings.TrimSpace(im.Cosign.Signature))
+	if perr != nil || serr != nil || len(sig) == 0 {
+		return fmt.Errorf("image %s: the manifest's cosign signature is not base64", im.Service)
+	}
+	var m struct {
+		Layers []struct {
+			Digest      string            `json:"digest"`
+			Annotations map[string]string `json:"annotations"`
+		} `json:"layers"`
+	}
+	if json.Unmarshal(raw, &m) == nil {
+		for _, l := range m.Layers {
+			got, err := base64.StdEncoding.DecodeString(strings.TrimSpace(l.Annotations[cosignSigAnnotation]))
+			if err == nil && l.Digest == digestBytes(payload) && bytes.Equal(got, sig) {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("%w: %s does not hold the signature of this release (another signing run or key, or not a cosign signature)", errSigMissing, name)
 }
 
 // liveIndex is the index boxes read now: the bytes of index.json and its signature on the release "index", verified, and the same
@@ -537,7 +596,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 			if err := e.checkAssets(ctx, p, r, p.Assets, true, tag); err != nil {
 				return fmt.Errorf("%w (the release is still a draft: run again)", err)
 			}
-			if err := e.checkPullable(ctx, p); err != nil {
+			if err := e.checkRegistry(ctx, p); err != nil {
 				return fmt.Errorf("%w (the release is still a draft)", err)
 			}
 			if err := long(undraft); err != nil {
@@ -552,7 +611,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 			say(e.stdout, "published %s (%d assets)", tag, len(p.Assets))
 		}
 	}
-	if err := e.checkPullable(ctx, p); err != nil {
+	if err := e.checkRegistry(ctx, p); err != nil {
 		return fmt.Errorf("%w (the index was not uploaded)", err)
 	}
 	again, _, err := e.liveIndex(ctx, p)

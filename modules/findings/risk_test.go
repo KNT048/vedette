@@ -225,8 +225,9 @@ func TestRiskMap_TheMarkerCountsWhatTheCardCounts(t *testing.T) {
 	}
 }
 
-// The pages read the marker from their own answer (no device list): GET /findings/to-fix and GET /findings/plan carry each device's
-// risk; the Vedette box itself is never marked, while To fix still lists its updates (review r1 of #949).
+// The pages read the badge from their own answer (no device list): GET /findings/to-fix and GET /findings/plan carry each device's
+// status, the one every list gives; the in-memory plan items are not findings, so they give no badge; the Vedette box itself is never
+// marked, while To fix still lists its updates.
 func TestRiskMap_ToFixAndPlanCarryTheMarkerNotForTheBox(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -252,7 +253,7 @@ func TestRiskMap_ToFixAndPlanCarryTheMarkerNotForTheBox(t *testing.T) {
 		}
 		return out
 	}
-	want := map[string]any{"level": "update", "exploited": float64(0), "updates": float64(1)}
+	var want any // no finding: no badge
 	for _, path := range []string{"/findings/to-fix", "/findings/plan?tier=all"} {
 		list := "devices"
 		if path != "/findings/to-fix" {

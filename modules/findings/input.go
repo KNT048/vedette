@@ -90,7 +90,7 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 	q := s.cfg.DB.Reader()
 	// devices not added yet with open findings
 	counts := map[string]int{}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...)
+	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
 	if err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
 	}

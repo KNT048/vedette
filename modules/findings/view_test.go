@@ -164,7 +164,7 @@ func TestModelAPI_EveryAnswerFitsTheContract(t *testing.T) {
 }
 
 // allCards reads every page of a list at the default page size and sums its findings.
-func allCards(t *testing.T, e *httpEnv, path string) (pages, total, findings int) {
+func allCards(t *testing.T, e *httpEnv, path string) (pages, findings int) {
 	t.Helper()
 	sep := "?"
 	if strings.Contains(path, "?") {
@@ -176,9 +176,10 @@ func allCards(t *testing.T, e *httpEnv, path string) (pages, total, findings int
 		for _, it := range items {
 			pages += int(it.(map[string]any)["findings"].(float64))
 		}
-		total, findings = int(b["total"].(float64)), int(b["findings"].(float64))
+		total := int(b["total"].(float64))
+		findings = int(b["findings"].(float64))
 		if len(items) == 0 || off+2 >= total {
-			return pages, total, findings
+			return pages, findings
 		}
 	}
 }
@@ -192,8 +193,8 @@ func TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix(t *testing.T) {
 		t.Errorf("open %d, want 8", open)
 	}
 	for _, q := range []string{"", "status=exploited", "status=critical_edge,update_recommended", "q=openssh", "q=fw01", "q=cve-2026-2001", "q=192.0.2.77"} {
-		dp, _, df := allCards(t, e, "/findings/devices?"+q)
-		fp, _, ff := allCards(t, e, "/findings/fixes?"+q)
+		dp, df := allCards(t, e, "/findings/devices?"+q)
+		fp, ff := allCards(t, e, "/findings/fixes?"+q)
 		if dp != df || fp != ff || df != ff {
 			t.Errorf("%q: by device %d (pages %d), by fix %d (pages %d)", q, df, dp, ff, fp)
 		}

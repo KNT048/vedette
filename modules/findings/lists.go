@@ -219,8 +219,8 @@ func combine(gs []lineGroup) {
 		top := is[0]
 		ok := true
 		for _, i := range is[1:] {
-			c, comparable := compareFix(b.kind, gs[i].Fix.Version, gs[top].Fix.Version)
-			if !comparable {
+			c, same := compareFix(b.kind, gs[i].Fix.Version, gs[top].Fix.Version)
+			if !same {
 				ok = false
 				break
 			}
@@ -741,7 +741,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 		}
 		return c
 	}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, urgency, count(DISTINCT cve) FROM fnd_finding WHERE state = 'open'`+filter+` GROUP BY asset_id, urgency`, args...)
+	r, err := q.QueryContext(ctx, `SELECT asset_id, urgency, count(DISTINCT cve) FROM fnd_finding WHERE state = 'open'`+filter+` GROUP BY asset_id, urgency`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
 	if err != nil {
 		return nil, fmt.Errorf("findings: counting device findings: %w", err)
 	}
@@ -759,7 +759,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: counting device findings: %w", err)
 	}
-	r, err = q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_question WHERE answer IS NULL`+filter+` GROUP BY asset_id`, args...)
+	r, err = q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_question WHERE answer IS NULL`+filter+` GROUP BY asset_id`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
 	if err != nil {
 		return nil, fmt.Errorf("findings: counting device questions: %w", err)
 	}

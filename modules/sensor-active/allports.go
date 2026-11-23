@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
@@ -101,7 +102,8 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 		lbl := s.deviceLabel(ctx, id)
 		err = s.doWork(ctx, run.Spec{Kind: RunAllPorts, Title: "Scan of every port of " + lbl, Trigger: run.Schedule,
 			Subject: &run.Subject{Kind: "device", ID: id, Label: lbl}, Steps: []run.StepPlan{{Name: lbl, Total: 1}}},
-			func(ctx context.Context) error { return s.scanDevice(ctx, id, "all_ports", true) }, s.allPortsResult, 0, "")
+			func(ctx context.Context) error { return s.scanDevice(ctx, id, "all_ports", true) },
+			func(ctx context.Context, err error) run.Result { return s.allPortsResult(ctx, id, err) }, 0, "")
 		switch {
 		case err == nil:
 			err = s.markAllPorts(ctx, id, allPortsDone)
@@ -121,8 +123,9 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 	return nil
 }
 
-// allPortsResult is how an all_ports run ends, from scanDevice's error.
-func (s *Service) allPortsResult(ctx context.Context, err error) run.Result {
+// allPortsResult is how the all_ports run of device id ends, from scanDevice's error. A failure the round holds back (failAllPorts)
+// says when the device is tried again: in the next window after a first failure, next week after a second one in a row.
+func (s *Service) allPortsResult(ctx context.Context, id string, err error) run.Result {
 	switch {
 	case err == nil: // the device answered and what it said is recorded: its one device is counted
 		if x := execOf(ctx); x != nil {
@@ -130,19 +133,35 @@ func (s *Service) allPortsResult(ctx context.Context, err error) run.Result {
 		}
 		return run.Result{}
 	case errors.Is(err, errNoAnswer):
-		return run.Result{Status: run.Failed, Error: weeklyNoAnswer}
+		return run.Result{Status: run.Failed, Error: weeklyNoAnswer + " " + s.weeklyRetry(ctx, id)}
 	case errors.Is(err, errHostTimedOut):
-		return run.Result{Status: run.Failed, Error: fmt.Sprintf(weeklyTimedOutAt, roundWords(nmapargv.AllPortsHostTimeout))}
+		return run.Result{Status: run.Failed, Error: fmt.Sprintf(weeklyTimedOutAt, roundWords(nmapargv.AllPortsHostTimeout)) + " " + s.weeklyRetry(ctx, id)}
 	case errors.Is(err, errAnswersEverywhere):
 		return run.Result{Status: run.Partial, Error: "The device answers on every port (a firewall or a SYN proxy): this scan learns nothing"}
 	case errors.Is(err, ErrStopped) && ctx.Err() == nil:
 		return run.Result{Status: run.Partial, Error: "It gave way to other work; it stays due"}
+	case errors.Is(err, ErrWorkerLost): // the round counts it as a failure (failAllPorts), not as a run that waits
+		return run.Result{Status: run.Failed, Error: "The scan worker stopped during the scan (it restarts when Vedette is updated or restarted). " + s.weeklyRetry(ctx, id)}
 	}
 	r := s.scanResult(ctx, err)
-	if r.Status == run.Waiting { // the round asks for it again when it is due: this run does not wait
+	switch {
+	case r.Status == run.Waiting: // the round asks for it again when it is due: this run does not wait
 		return run.Result{Status: run.Partial, Error: "Not done: it waits for " + r.WaitingFor + "; it stays due"}
+	case r.Status == run.Failed && !errors.Is(err, ErrBlocked) && !errors.Is(err, ErrNotFound): // a failure the round holds back
+		r.Error = strings.TrimSuffix(r.Error, ".") + ". " + s.weeklyRetry(ctx, id)
 	}
 	return r
+}
+
+// weeklyRetry says when device id is tried again after its weekly scan failed now: a device whose last try failed already
+// (outcome retry) waits for the next week.
+func (s *Service) weeklyRetry(ctx context.Context, id string) string {
+	var outcome string
+	_ = s.db.Reader().QueryRowContext(context.WithoutCancel(ctx), `SELECT coalesce(outcome, '') FROM sa_all_ports WHERE asset_id = ?`, id).Scan(&outcome)
+	if outcome == allPortsRetry {
+		return weeklyRetryWeek
+	}
+	return weeklyRetryNext
 }
 
 // failAllPorts handles a weekly run that failed (not a stop, not a refusal): the first failure is held out of this window and tried

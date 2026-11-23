@@ -49,23 +49,36 @@ type starting struct {
 	resumed bool
 }
 
-// dispatch starts the oldest queued run of every free lane whose module is on and whose kind is registered.
+// holder is the running run that holds a lane, for its kind's GiveWay.
+type holder struct {
+	id   string
+	kind Kind
+}
+
+// dispatch starts the oldest queued run of every free lane whose module is on and whose kind is registered, and tells the running
+// run of a lane whose kind gives way (Kind.GiveWay) that a run of another kind is queued behind it.
 func (m *Manager) dispatch(ctx context.Context) error {
 	var start []starting
+	var giveWay map[string]holder
 	err := m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		start = start[:0]
+		start, giveWay = start[:0], map[string]holder{}
 		busy := map[string]bool{}
-		rows, err := tx.QueryContext(ctx, `SELECT lane FROM core_run WHERE status IN (?, ?)`, string(Running), string(Stopping))
+		holders := map[string]holder{} // by lane: the running run whose kind gives way
+		rows, err := tx.QueryContext(ctx, `SELECT id, module, kind, lane, status FROM core_run WHERE status IN (?, ?)`, string(Running), string(Stopping))
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
-			var lane string
-			if err := rows.Scan(&lane); err != nil {
+			var id, module, kind, lane string
+			var st Status
+			if err := rows.Scan(&id, &module, &kind, &lane, &st); err != nil {
 				_ = rows.Close()
 				return err
 			}
 			busy[lane] = true
+			if k, ok := m.kind(module, kind); ok && k.GiveWay != nil && st == Running {
+				holders[lane] = holder{id: id, kind: k}
+			}
 		}
 		if err := rows.Close(); err != nil {
 			return err
@@ -92,12 +105,15 @@ func (m *Manager) dispatch(ctx context.Context) error {
 		}
 		now := m.now()
 		for _, q := range qs {
-			if busy[q.lane] {
-				continue
-			}
 			k, ok := m.kind(q.module, q.kind)
 			if !ok || (m.cfg.Gate != nil && !m.cfg.Gate.Enabled(q.module)) {
 				continue // it waits in the queue for its module
+			}
+			if busy[q.lane] {
+				if h, ok := holders[q.lane]; ok && h.kind.key() != k.key() {
+					giveWay[h.id] = h // told after the commit, so every check the holder makes sees this run
+				}
+				continue
 			}
 			res, err := tx.ExecContext(ctx, `UPDATE core_run SET status = ?, started_at = COALESCE(started_at, ?), updated_at = ?,
 				waiting_for = NULL, stop_reason = NULL, error = NULL, ended_at = NULL WHERE id = ? AND status = ?`,
@@ -113,6 +129,9 @@ func (m *Manager) dispatch(ctx context.Context) error {
 				continue
 			}
 			busy[q.lane] = true
+			if k.GiveWay != nil {
+				holders[q.lane] = holder{id: q.id, kind: k}
+			}
 			text := "Started"
 			if q.resumed {
 				text = "Resumed"
@@ -129,6 +148,9 @@ func (m *Manager) dispatch(ctx context.Context) error {
 	}
 	for _, s := range start {
 		m.launch(s) //nolint:contextcheck // a run outlives this dispatch call: it runs under the manager's own base context
+	}
+	for id, h := range giveWay {
+		h.kind.GiveWay(m.base, id) //nolint:contextcheck // the holder runs under the manager's own base context
 	}
 	return nil
 }

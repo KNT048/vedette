@@ -261903,7 +261903,8 @@ type ScanningGetScanningOK struct {
 	Box ScanningGetScanningOKBox `json:"box"`
 	// Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed.
 	Engines []ScanningGetScanningOKEnginesItem `json:"engines"`
-	// Jobs running now across engines, for the "1 scan running" indicator of the top bar.
+	// Jobs running or queued now across engines (queued tells which), for the "1 scan running, 1 queued"
+	// indicator of the top bar.
 	Running []ScanningGetScanningOKRunningItem `json:"running"`
 	Safety  ScanningGetScanningOKSafety        `json:"safety"`
 }
@@ -262827,8 +262828,12 @@ type ScanningGetScanningOKRunningItem struct {
 	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
-	Progress  NilScanningGetScanningOKRunningItemProgress `json:"progress"`
-	StartedAt time.Time                                   `json:"started_at"`
+	Progress NilScanningGetScanningOKRunningItemProgress `json:"progress"`
+	// True while the run has not started, or gave way to other work: it waits for the run in its way or
+	// for the scan worker, and progress.message says what for and roughly when it starts; false while it
+	// runs.
+	Queued    bool      `json:"queued"`
+	StartedAt time.Time `json:"started_at"`
 	// The device id or exposure target id the run is about, for a link; null for a sweep or several
 	// devices.
 	TargetID NilString `json:"target_id"`
@@ -262852,6 +262857,11 @@ func (s *ScanningGetScanningOKRunningItem) GetLabel() string {
 // GetProgress returns the value of Progress.
 func (s *ScanningGetScanningOKRunningItem) GetProgress() NilScanningGetScanningOKRunningItemProgress {
 	return s.Progress
+}
+
+// GetQueued returns the value of Queued.
+func (s *ScanningGetScanningOKRunningItem) GetQueued() bool {
+	return s.Queued
 }
 
 // GetStartedAt returns the value of StartedAt.
@@ -262882,6 +262892,11 @@ func (s *ScanningGetScanningOKRunningItem) SetLabel(val string) {
 // SetProgress sets the value of Progress.
 func (s *ScanningGetScanningOKRunningItem) SetProgress(val NilScanningGetScanningOKRunningItemProgress) {
 	s.Progress = val
+}
+
+// SetQueued sets the value of Queued.
+func (s *ScanningGetScanningOKRunningItem) SetQueued(val bool) {
+	s.Queued = val
 }
 
 // SetStartedAt sets the value of StartedAt.
@@ -263832,7 +263847,8 @@ type ScanningPatchScanningEnginesIDOK struct {
 	Box ScanningPatchScanningEnginesIDOKBox `json:"box"`
 	// Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed.
 	Engines []ScanningPatchScanningEnginesIDOKEnginesItem `json:"engines"`
-	// Jobs running now across engines, for the "1 scan running" indicator of the top bar.
+	// Jobs running or queued now across engines (queued tells which), for the "1 scan running, 1 queued"
+	// indicator of the top bar.
 	Running []ScanningPatchScanningEnginesIDOKRunningItem `json:"running"`
 	Safety  ScanningPatchScanningEnginesIDOKSafety        `json:"safety"`
 }
@@ -264756,8 +264772,12 @@ type ScanningPatchScanningEnginesIDOKRunningItem struct {
 	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
-	Progress  NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
-	StartedAt time.Time                                              `json:"started_at"`
+	Progress NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
+	// True while the run has not started, or gave way to other work: it waits for the run in its way or
+	// for the scan worker, and progress.message says what for and roughly when it starts; false while it
+	// runs.
+	Queued    bool      `json:"queued"`
+	StartedAt time.Time `json:"started_at"`
 	// The device id or exposure target id the run is about, for a link; null for a sweep or several
 	// devices.
 	TargetID NilString `json:"target_id"`
@@ -264781,6 +264801,11 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetLabel() string {
 // GetProgress returns the value of Progress.
 func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetProgress() NilScanningPatchScanningEnginesIDOKRunningItemProgress {
 	return s.Progress
+}
+
+// GetQueued returns the value of Queued.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetQueued() bool {
+	return s.Queued
 }
 
 // GetStartedAt returns the value of StartedAt.
@@ -264811,6 +264836,11 @@ func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetLabel(val string) {
 // SetProgress sets the value of Progress.
 func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetProgress(val NilScanningPatchScanningEnginesIDOKRunningItemProgress) {
 	s.Progress = val
+}
+
+// SetQueued sets the value of Queued.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetQueued(val bool) {
+	s.Queued = val
 }
 
 // SetStartedAt sets the value of StartedAt.
@@ -266712,8 +266742,12 @@ type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {
 	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
-	Progress  NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
-	StartedAt time.Time                                                      `json:"started_at"`
+	Progress NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
+	// True while the run has not started, or gave way to other work: it waits for the run in its way or
+	// for the scan worker, and progress.message says what for and roughly when it starts; false while it
+	// runs.
+	Queued    bool      `json:"queued"`
+	StartedAt time.Time `json:"started_at"`
 	// The device id or exposure target id the run is about, for a link; null for a sweep or several
 	// devices.
 	TargetID NilString `json:"target_id"`
@@ -266737,6 +266771,11 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetLabel() string 
 // GetProgress returns the value of Progress.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetProgress() NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress {
 	return s.Progress
+}
+
+// GetQueued returns the value of Queued.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetQueued() bool {
+	return s.Queued
 }
 
 // GetStartedAt returns the value of StartedAt.
@@ -266767,6 +266806,11 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetLabel(val strin
 // SetProgress sets the value of Progress.
 func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetProgress(val NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) {
 	s.Progress = val
+}
+
+// SetQueued sets the value of Queued.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetQueued(val bool) {
+	s.Queued = val
 }
 
 // SetStartedAt sets the value of StartedAt.

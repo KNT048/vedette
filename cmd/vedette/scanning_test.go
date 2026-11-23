@@ -363,12 +363,17 @@ func TestScanningRunNow(t *testing.T) {
 	}
 	// a second run while the check goes on is queued behind it and says so (never refused); both are listed
 	code, again := run("admin", `{}`)
-	if prog, _ := again["progress"].(map[string]any); code != http.StatusAccepted || prog == nil || !strings.HasPrefix(fmt.Sprint(prog["message"]), "Queued behind “Check of ") {
+	if prog, _ := again["progress"].(map[string]any); code != http.StatusAccepted || prog == nil || !strings.HasPrefix(fmt.Sprint(prog["message"]), "Queued behind “Check of ") ||
+		again["queued"] != true {
 		t.Fatalf("a second run: %d %v", code, again)
 	}
 	_, page = s.do("GET", "/scanning", "viewer", "")
-	if r := page["running"].([]any); len(r) != 2 {
-		t.Fatalf("running with a queued sweep = %v, want the check and the sweep", r)
+	queued := map[any]any{} // running[] says which runs go on and which wait
+	for _, x := range page["running"].([]any) {
+		queued[x.(map[string]any)["id"]] = x.(map[string]any)["queued"]
+	}
+	if len(queued) != 2 || queued[again["id"]] != true || queued[out["id"]] != false {
+		t.Fatalf("running with a queued sweep = %v, want the check going and the sweep queued", page["running"])
 	}
 	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = ? AND detail LIKE 'check 192.168.10.20 (`+web+`) now%' AND user = 'admin@acme.example'`, out["id"]) != 1 {
 		t.Fatal("the run is not audited")

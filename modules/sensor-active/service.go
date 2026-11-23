@@ -368,6 +368,12 @@ func (s *Service) available(ctx context.Context) error {
 	return nil
 }
 
+// workerAbsent says the scan worker has not reported yet (after a restart) or for 90 seconds: the scanner comes back by itself.
+func (s *Service) workerAbsent() bool {
+	w, ok := s.prober.(workerWaiter)
+	return ok && w.WorkerAbsent()
+}
+
 // permit is the gate of every run (INV-2, INV-3, INV-6): the settings now, the window now, nmap present. It
 // returns the settings it read.
 func (s *Service) permit(ctx context.Context) (Settings, error) {
@@ -1077,8 +1083,15 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 var (
 	errNoAnswer      = errors.New("sensoractive: the device did not answer on any port")
 	errHostTimedOut  = errors.New("sensoractive: the scan of every port did not finish within its time limit")
-	weeklyNoAnswer   = "No answer from the device on any port: it may be off, or a firewall drops every probe. It is tried again in the next window"
-	weeklyTimedOutAt = "The scan of every port did not finish within its %s limit, so nothing was recorded. It is tried again in the next window"
+	weeklyNoAnswer   = "No answer from the device on any port: it may be off, or a firewall drops every probe."
+	weeklyTimedOutAt = "The scan of every port did not finish within its %s limit, so nothing was recorded."
+)
+
+// What happens after a weekly scan of every port failed (failAllPorts): the first failure is tried once more in the next window, a
+// second one in a row waits for the next week.
+const (
+	weeklyRetryNext = "It is tried again in the next window"
+	weeklyRetryWeek = "It failed in its last try too, so it is tried again next week"
 )
 
 // weeklyAnswered is nil when the weekly discovery heard ip on at least one port, else why it learned nothing.

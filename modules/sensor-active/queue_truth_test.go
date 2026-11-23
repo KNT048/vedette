@@ -110,8 +110,12 @@ func TestQueueEveryPersonsAskIsQueuedAndOneDeviceOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Status != run.Queued || r.BlockedBy == nil || r.BlockedBy.ID != first.ID || !strings.HasPrefix(r.Summary, "Queued behind “Check of ") {
-		t.Fatalf("the second check: %+v", r)
+	if r.Status != run.Queued || r.BlockedBy == nil || r.BlockedBy.ID != first.ID || !strings.HasPrefix(r.Summary, "Queued behind “Check of ") || !second.Queued {
+		t.Fatalf("the second check: %+v (queued %v)", r, second.Queued)
+	}
+	// the sweep counts the check queued before it, not only the run that holds the lane
+	if r, _ := e.svc.Runs().Read(e.ctx(), sweep.ID); !strings.Contains(r.Summary, " and 1 run queued before it (2nd in line); ") || !sweep.Queued {
+		t.Fatalf("the sweep: %q", r.Summary)
 	}
 	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND subject_id = 'a-web'`); n != 1 {
 		t.Fatalf("%d checks of the same device, want 1", n)

@@ -521,14 +521,7 @@ func (s *Service) sweepEstimate(ctx context.Context, r run.Run) string {
 	if err != nil || st.Rate < 1 {
 		return ""
 	}
-	left := r.Total - r.Done
-	sc := newScope(st)
-	near, n := sc.within(s.localPrefixes(ctx)).count(), sc.count()
-	perAddr := float64(nmapargv.SweepProbes)
-	if n > 0 {
-		perAddr = (float64(near) + float64((n-near)*nmapargv.SweepProbes)) / float64(n)
-	}
-	need := time.Duration(float64(left) * perAddr * float64(time.Second) / float64(st.Rate))
+	need := s.sweepTime(ctx, st, r.Total-r.Done)
 	win := st.windowLength()
 	switch {
 	case need < time.Minute:
@@ -538,6 +531,31 @@ func (s *Service) sweepEstimate(ctx context.Context, r run.Run) string {
 	}
 	nights := int(math.Ceil(float64(need) / float64(win)))
 	return fmt.Sprintf("about %d more windows at %d packets/s", nights, st.Rate)
+}
+
+// sweepTime is how long a sweep of n addresses of the scope takes at the settings' rate (st.Rate at least 1): an address on one of the
+// box's own segments costs one ARP request, one behind a router nmapargv.SweepProbes packets.
+func (s *Service) sweepTime(ctx context.Context, st Settings, n int) time.Duration {
+	sc := newScope(st)
+	near, all := sc.within(s.localPrefixes(ctx)).count(), sc.count()
+	perAddr := float64(nmapargv.SweepProbes)
+	if all > 0 {
+		perAddr = (float64(near) + float64((all-near)*nmapargv.SweepProbes)) / float64(all)
+	}
+	return time.Duration(float64(n) * perAddr * float64(time.Second) / float64(st.Rate))
+}
+
+// sweepHold is how long a pass keeps the nmap lane from a run queued behind it (run.Kind.Hold): it gives way after its current batch
+// (sweepMayGoOn), and a queued pass after the first batch it sends, so one batch of at most MaxBatch addresses.
+func (s *Service) sweepHold(ctx context.Context, r run.Run) (time.Duration, bool) {
+	if r.Status != run.Running && r.Status != run.Queued {
+		return 0, false
+	}
+	st, err := s.inv.Settings(ctx)
+	if err != nil || st.Rate < 1 {
+		return 0, false
+	}
+	return s.sweepTime(ctx, st, min(MaxBatch, max(r.Total-r.Done, 0))), true
 }
 
 // roundWords writes d as "40 minutes" or "3 hours".

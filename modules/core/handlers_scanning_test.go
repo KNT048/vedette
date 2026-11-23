@@ -114,7 +114,8 @@ func (f *fakeRunner) Run(ctx context.Context, _ string, targets []string, record
 	}
 	f.started++
 	return core.RunningJob{Engine: "nmap-discovery", ID: "sar-1", Label: "Check 192.168.142.20", TargetID: "a-1", StartedAt: time.Date(2026, 11, 16, 3, 0, 0, 0, time.UTC),
-		Progress: &progress.View{Phase: progress.PhaseDiscovery, StartedAt: "2026-11-16T03:00:00.000Z", PhaseStartedAt: "2026-11-16T03:00:00.000Z", UpdatedAt: "2026-11-16T03:00:00.000Z"}}, nil
+		Progress: &progress.View{Phase: progress.PhaseDiscovery, StartedAt: "2026-11-16T03:00:00.000Z", PhaseStartedAt: "2026-11-16T03:00:00.000Z", UpdatedAt: "2026-11-16T03:00:00.000Z"},
+		Queued:   true}, nil
 }
 
 type scanningComposite struct {
@@ -279,7 +280,7 @@ func TestContract_INV40_ScanningAnswersWithEveryModuleOff(t *testing.T) {
 	if got, want := page["box"].(map[string]any)["reserved_mb"], float64(core.CoreMemoryMB+512+1024); got != want {
 		t.Fatalf("reserved_mb = %v, want %v (core + sensor + the scan container once; ZAP only while it runs)", got, want)
 	}
-	if r := page["running"].([]any); len(r) != 1 || r[0].(map[string]any)["id"] != "saj-1" || r[0].(map[string]any)["target_id"] != nil {
+	if r := page["running"].([]any); len(r) != 1 || r[0].(map[string]any)["id"] != "saj-1" || r[0].(map[string]any)["target_id"] != nil || r[0].(map[string]any)["queued"] != false {
 		t.Fatalf("running = %v", r)
 	}
 
@@ -433,7 +434,8 @@ func TestContract_INV40_RunNow(t *testing.T) {
 		t.Fatal("a refused caller reached the runner")
 	}
 	code, run := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":["192.168.142.20"," 192.168.142.20 "]}`)
-	if code != http.StatusAccepted || run["id"] != "sar-1" || run["engine"] != "nmap-discovery" || run["target_id"] != "a-1" || run["progress"].(map[string]any)["phase"] != "discovery" {
+	if code != http.StatusAccepted || run["id"] != "sar-1" || run["engine"] != "nmap-discovery" || run["target_id"] != "a-1" || run["progress"].(map[string]any)["phase"] != "discovery" ||
+		run["queued"] != true {
 		t.Fatalf("run = %d %v", code, run)
 	}
 	if !slices.Equal(s.runner.targets[0], []string{"192.168.142.20"}) {
@@ -459,7 +461,6 @@ func TestContract_INV40_RunNow(t *testing.T) {
 		{core.ErrDiscoveryModuleOff, 409, "module_off"},
 		{core.ErrDiscoveryOff, 409, "engine_off"},
 		{core.ErrScopeNotConfirmed, 400, "scope_not_confirmed"},
-		{core.ErrRunBusy, 409, "already_running"},
 		{core.ErrNmapBusy, 409, "busy"},
 		{&core.RunTooSoon{RetryAfter: 7*time.Minute + 10*time.Second}, 409, "too_soon"},
 		{core.ErrNmapUnavailable, 503, "scanner_unavailable"},

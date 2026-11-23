@@ -166,6 +166,9 @@ type ReportMail struct {
 	Title, What, Action string
 	Items               []string
 	Path                string // a path on this box, for example "/reports"
+	// Doc, when set, is the report itself: the mail is HTML with a plain-text alternative carrying the document's sections, cut to a
+	// size the mail servers take with the link to the whole report (channel.Doc). Without it the mail is the plain-text digest.
+	Doc *channel.Doc
 }
 
 // Fixed errors of SendReport: none of them holds an address or text from the server.
@@ -195,7 +198,7 @@ func (s *Service) SendReport(ctx context.Context, to []string, r ReportMail) err
 	}
 	cctx, cancel := context.WithTimeout(ctx, codeSendTimeout)
 	defer cancel()
-	_, err = snd.Send(cctx, channel.Message{ID: store.NewID("rpt"), Kind: "report", Severity: string(Info), Title: r.Title, What: r.What, Action: r.Action, Items: r.Items, Link: s.link(r.Path)})
+	_, err = snd.Send(cctx, channel.Message{ID: store.NewID("rpt"), Kind: "report", Severity: string(Info), Title: r.Title, What: r.What, Action: r.Action, Items: r.Items, Link: s.link(r.Path), Doc: r.Doc})
 	if err != nil {
 		var se *channel.StatusError
 		if errors.As(err, &se) {

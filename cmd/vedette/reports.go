@@ -39,7 +39,9 @@ func reportsService(d deps) *reports.Service {
 	}
 	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings},
 		Views: reportsViews{d.Findings}, KEV: reportsKEV{&d}, Exposure: reportsExposure{&d}, Detections: reportsDetections{&d}, Feeds: reportsFeeds{&d},
-		Mail: reportsMailer{newNotify(&d)}, AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
+		AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
+	mailer := &reportsMailer{svc: newNotify(&d)}
+	cfg.Mail = mailer
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg
 	}
@@ -47,6 +49,7 @@ func reportsService(d deps) *reports.Service {
 	if err != nil { // only a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())
 	}
+	mailer.document = svc.Document
 	if d.Schedules != nil {
 		if err := d.Schedules.Register(svc.ScheduleOwner()); err != nil {
 			panic("vedette: " + err.Error()) // the owner is a constant of the package: registered once per database
@@ -436,12 +439,25 @@ func (a reportsDetections) Period(ctx context.Context, from, to time.Time, top i
 	return counts, tops, nil
 }
 
-type reportsMailer struct{ svc *notify.Service }
+// reportsMailer mails a report through notify's email channel: the report itself (its sections as HTML with a plain-text alternative,
+// reportMailDoc) and, when the document cannot be read, the digest the reports module wrote. reports.Mail does not carry the document
+// it was made from, so the document is made again here with the same definition, inside the same send (the period and the figures
+// are those of the stored one unless a finding changed in between).
+type reportsMailer struct {
+	svc      *notify.Service
+	document func(ctx context.Context) (reports.Document, error)
+}
 
-func (m reportsMailer) Ready(ctx context.Context) (bool, string) { return m.svc.EmailReady(ctx) }
+func (m *reportsMailer) Ready(ctx context.Context) (bool, string) { return m.svc.EmailReady(ctx) }
 
-func (m reportsMailer) Send(ctx context.Context, to []string, r reports.Mail) error {
-	return m.svc.SendReport(ctx, to, notify.ReportMail{Title: r.Title, What: r.What, Action: r.Action, Items: r.Items, Path: r.Path})
+func (m *reportsMailer) Send(ctx context.Context, to []string, r reports.Mail) error {
+	mail := notify.ReportMail{Title: r.Title, What: r.What, Action: r.Action, Items: r.Items, Path: r.Path}
+	if m.document != nil {
+		if doc, err := m.document(ctx); err == nil {
+			mail.Doc = reportMailDoc(doc)
+		}
+	}
+	return m.svc.SendReport(ctx, to, mail)
 }
 
 // ---- ai -> reports ----

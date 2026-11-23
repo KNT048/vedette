@@ -79,6 +79,7 @@ func (m Message) norm() Message {
 		Action:       multi(m.Action, maxLine),
 		Link:         m.Link,
 		IncidentKind: one(m.IncidentKind, 30),
+		Doc:          m.Doc, // cleaned and escaped when it is rendered
 	}
 	for i, d := range m.Devices {
 		if i == maxItems {

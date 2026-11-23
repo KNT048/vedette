@@ -590,10 +590,10 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(j.Ports) > 0 && kind != nmapargv.PortVersions {
+	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External {
 		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
 	}
-	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports
+	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports; external: the ports of its -sV run
 	if err != nil {
 		return nil, err
 	}

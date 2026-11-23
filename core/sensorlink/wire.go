@@ -259,8 +259,10 @@ type Job struct {
 	// address); "" and nil on every other nmap job, which keeps the shape an older worker knows.
 	Scope  string
 	Domain *DomainScope
-	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending); nil on every other nmap job, which keeps the
-	// shape an older worker knows. Sent only to a worker whose heartbeat says nmap.ports.
+	// Ports (protocol 5) are the ports of a port_versions job (1..20, ascending), sent only to a worker whose heartbeat says
+	// nmap.ports, and of the -sV run of an external job (the fixed list and the open ports its discovery found, ascending); nil on
+	// every other nmap job, which keeps the shape an older worker knows. An older worker never gets the -sV job: it runs its own
+	// earlier line for the discovery job, which core recognises and reports as an older worker before sending anything more.
 	Ports []int
 
 	Nuclei *NucleiJob // nuclei, nil for the others

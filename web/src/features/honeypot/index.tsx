@@ -9,6 +9,6 @@ export const feature: Feature = {
     { path: 'honeypot', lazy: () => import('./HoneypotPage').then((m) => ({ Component: m.default })) },
     { path: 'honeypot/hits/:id', lazy: () => import('./HitPage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/honeypot', label: 'honeypot:nav', icon: Radar, module: 'honeypot', group: 'detect', order: 10 }],
+  nav: [{ to: '/honeypot', label: 'common:shell.honeypot', icon: Radar, module: 'honeypot', group: 'detect', order: 10 }],
   slots: { 'device.panels': DevicePanel },
 }

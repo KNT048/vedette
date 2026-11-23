@@ -6,6 +6,6 @@ import SiemSettings from './SiemSettings'
 export const feature: Feature = {
   id: 'logs',
   routes: [{ path: 'logs', lazy: () => import('./LogsPage').then((m) => ({ Component: m.default })) }],
-  nav: [{ to: '/logs', label: 'logs:nav.logs', icon: ScrollText, module: 'logs', group: 'detect', order: 20 }],
-  settings: [{ id: 'siem', label: 'logs:siem.nav', module: 'logs', minRole: 'admin', order: 50, element: <SiemSettings /> }],
+  nav: [{ to: '/logs', label: 'common:shell.logs', icon: ScrollText, module: 'logs', group: 'detect', order: 20 }],
+  settings: [{ id: 'siem', label: 'common:shell.siem', module: 'logs', minRole: 'admin', order: 50, element: <SiemSettings /> }],
 }

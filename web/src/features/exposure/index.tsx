@@ -8,5 +8,5 @@ export const feature: Feature = {
     { path: 'exposure', lazy: () => import('./ExposurePage').then((m) => ({ Component: m.default })) },
     { path: 'exposure/:id', lazy: () => import('./TargetPage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/exposure', label: 'exposure:nav', icon: Globe, module: 'exposure', group: 'assets', order: 20 }],
+  nav: [{ to: '/exposure', label: 'common:shell.exposure', icon: Globe, module: 'exposure', group: 'assets', order: 20 }],
 }

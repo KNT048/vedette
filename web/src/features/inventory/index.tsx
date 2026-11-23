@@ -14,6 +14,6 @@ export const feature: Feature = {
     { path: 'devices/setup', lazy: () => import('./SetupPage').then((m) => ({ Component: m.default })) },
     { path: 'devices/:id', lazy: () => import('./DevicePage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/devices', label: 'inventory:nav.devices', icon: Laptop, module: 'inventory', group: 'assets', order: 10 }],
-  settings: [{ id: 'declared-software', label: 'inventory:declaredPage.nav', module: 'inventory', minRole: 'viewer', order: 27, element: <Suspense fallback={<Loading />}><DeclaredSoftware /></Suspense> }],
+  nav: [{ to: '/devices', label: 'common:shell.devices', icon: Laptop, module: 'inventory', group: 'assets', order: 10 }],
+  settings: [{ id: 'declared-software', label: 'common:shell.declared', module: 'inventory', minRole: 'viewer', order: 27, element: <Suspense fallback={<Loading />}><DeclaredSoftware /></Suspense> }],
 }

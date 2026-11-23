@@ -20,8 +20,8 @@ export const feature: Feature = {
     { path: 'link/telegram', lazy: () => import('./ChatLinkPage').then((m) => ({ Component: m.default })) },
     { path: 'link/zalo', lazy: () => import('./ChatLinkPage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/response', label: 'response:nav.response', icon: Siren, module: 'response', group: 'detect', order: 30 }],
-  settings: [{ id: 'response', label: 'response:settings.nav', module: 'response', minRole: 'admin', order: 45, element: <Suspense fallback={<Loading />}><ResponseSettings /></Suspense> }],
+  nav: [{ to: '/response', label: 'common:shell.response', icon: Siren, module: 'response', group: 'detect', order: 30 }],
+  settings: [{ id: 'response', label: 'common:shell.responseSettings', module: 'response', minRole: 'admin', order: 45, element: <Suspense fallback={<Loading />}><ResponseSettings /></Suspense> }],
   // modules.disable: what stays in force, in the Settings → Modules turn-off dialog (CONTRACT "Khi tắt module")
   slots: { 'finding.panels': wrap(FindingPanel), 'modules.disable': wrap(ModulesDisableNote) },
 }

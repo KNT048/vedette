@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, ScrollRestoration, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Menu } from 'lucide-react'
@@ -6,16 +6,18 @@ import { RevokedBanner, RunningVersion } from '@/features/core/UpdateSignals'
 import { PageModule } from '@/lib/v1'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
+import { Loading } from '@/components/common/States'
 import { Slot } from '@/components/common/Slot'
 import { useDeepLinkTarget } from '@/components/common/DependencyLink'
 import { Dialog, DialogTrigger, DrawerContent } from '@/components/ui/dialog'
+import { shellNamespaces } from './feature'
 import { Brand, NavList, Sidebar, UserMenu } from './Sidebar'
 import { navItemOf, useNavState } from './nav'
 import { cn } from '@/lib/utils'
 
 /** Tiêu đề tab trình duyệt theo trang (WCAG 2.4.2) và focus vào nội dung khi đổi trang (trình đọc màn hình đọc trang mới). */
 function usePageChrome() {
-  const { t, i18n } = useTranslation()
+  const { t, i18n } = useTranslation(['common', ...shellNamespaces])
   const loc = useLocation()
   const first = useRef(true)
   useEffect(() => {
@@ -29,7 +31,7 @@ function usePageChrome() {
 }
 
 export function Layout() {
-  const { t } = useTranslation()
+  const { t } = useTranslation(['common', ...shellNamespaces])
   const [open, setOpen] = useState(false)
   // A link in the drawer closes it and the page change moves focus to #main; Esc or the close button return it to "Open menu".
   const byLink = useRef(false)
@@ -67,7 +69,7 @@ export function Layout() {
       <div className="min-w-0">
         <RevokedBanner />
         <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-8">
-          <PageModule.Provider value={navItemOf(loc.pathname)?.module ?? null}><Outlet /></PageModule.Provider>
+          <PageModule.Provider value={navItemOf(loc.pathname)?.module ?? null}><Suspense fallback={<Loading />}><Outlet /></Suspense></PageModule.Provider>
         </main>
       </div>
       <ScrollRestoration />

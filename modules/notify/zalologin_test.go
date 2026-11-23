@@ -146,7 +146,7 @@ func TestZaloSignInIsAuditedBeforeItShows(t *testing.T) {
 	f := newFakeQR()
 	f.finish = channel.ZaloSignedIn{Session: secrets.NewValue(zaloSession), Name: "Vedette Box"}
 	useQR(e, f, nil)
-	const admin = "admin@acme.example"
+	const admin = "it@acme.example" // any administrator
 	if _, err := e.svc.StartZaloLogin(e.ctx(), admin); err != nil {
 		t.Fatal(err)
 	}

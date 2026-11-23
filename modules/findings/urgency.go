@@ -380,6 +380,11 @@ func raisedEvent(before, after Finding, sev Severity) UrgencyRaisedEvent {
 // open finding into a more urgent layer of 1–4 is told once (Tell): as news (findings.finding.urgency_raised), as a line of the
 // first-run summary (findings.urgency.first_run, one event per summary and pass), or as old news under the Backlog mark. Each finding is
 // read again inside its write and rated on that row.
+//
+// A device a person ignored is silent: its findings are not rated, so nothing about it is told (no alert, no response rule, no
+// planner work) and their stored layer stays as it was when the device was ignored. Stop ignoring rates the device again
+// (inventory sends inventory.asset.updated with match, so OnMatchChanged matches and rates it): a rise that happened meanwhile is told
+// then, by the same Tell rule as any rise (news while its reason is recent, else counted under the Backlog mark).
 func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResult, error) {
 	var res UrgencyResult
 	if !s.rates() {
@@ -388,6 +393,14 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResul
 	fs, err := findingsOf(ctx, s.cfg.DB.Reader(), assetID)
 	if err != nil || len(fs) == 0 {
 		return res, err
+	}
+	ignored, err := s.ignoredDevices(ctx)
+	if err != nil {
+		return res, fmt.Errorf("findings: urgency: %w", err) // never rate without knowing which devices are silent
+	}
+	fs = slices.DeleteFunc(fs, func(f Finding) bool { return ignored[f.AssetID] })
+	if len(fs) == 0 {
+		return res, nil
 	}
 	now := s.now().UTC()
 	in, err := s.urgencyInputs(ctx, fs, now)
@@ -414,12 +427,23 @@ func (s *Service) RateUrgency(ctx context.Context, assetID string) (UrgencyResul
 			var devices map[string]map[string]bool
 			if err := s.write(wctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 				summaries, devices = map[string]*FirstRunEvent{}, map[string]map[string]bool{}
+				silent := map[string]bool{} // by device: ignored, asked inside the write
 				for _, id := range chunk {
 					f, err := loadFinding(ctx, tx, id)
 					if errors.Is(err, ErrNotFound) {
 						continue // the device went away meanwhile
 					} else if err != nil {
 						return err
+					}
+					ig, asked := silent[f.AssetID]
+					if !asked {
+						if ig, err = s.cfg.Inventory.IsIgnored(ctx, f.AssetID); err != nil {
+							return fmt.Errorf("findings: urgency: reading whether the device is ignored: %w", err)
+						}
+						silent[f.AssetID] = ig
+					}
+					if ig {
+						continue // a person ignored the device after the pass read the list
 					}
 					r := in.rate(f, now)
 					if r.Layer == f.Urgency {

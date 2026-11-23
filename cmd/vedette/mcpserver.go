@@ -197,7 +197,7 @@ func (s mcpSource) Findings(ctx context.Context) ([]mcpserver.Finding, error) {
 	if err := s.need("findings"); err != nil {
 		return nil, err
 	}
-	vs, err := s.cases.findings.Views(ctx, findings.ViewFilter{}) // no brief: a finding's words need none
+	vs, err := s.cases.findings.Views(ctx, findings.ViewFilter{}) // no brief: a finding's words need none; ignored devices are left out
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +228,9 @@ func (s mcpSource) Finding(ctx context.Context, id string) (mcpserver.Finding, b
 	}
 	if err != nil {
 		return mcpserver.Finding{}, false, err
+	}
+	if c.View.Device.Ignored { // as list_findings: a device a person ignored is left out
+		return mcpserver.Finding{}, false, nil
 	}
 	return mcpFinding(c), true, nil
 }

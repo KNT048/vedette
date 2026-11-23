@@ -1029,6 +1029,9 @@ func (a aiAsk) Finding(ctx context.Context, id string) (ai.FindingRow, bool, err
 	if err != nil {
 		return ai.FindingRow{}, false, fmt.Errorf("ai ask: finding: %w", err)
 	}
+	if c.View.Device.Ignored { // as the findings list: a device a person ignored is left out
+		return ai.FindingRow{}, false, nil
+	}
 	devs := map[string]inventory.Device{}
 	if d, err := a.inv.Device(ctx, c.View.Finding.AssetID); err == nil {
 		devs[c.View.Finding.AssetID] = d

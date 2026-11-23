@@ -299,7 +299,8 @@ func deviceInfo(d inventory.Device) response.DeviceInfo {
 
 // Finding answers the fields a trigger needs, from the view of the finding (the one source every place reads). kev is the trigger's
 // "exploited in the wild" flag: true when attackers use the flaw (under attack here, or exploited in the wild), false for a finding at a
-// lower urgency layer; the firewall virtual IP of the trigger is not known without a firewall read (part 13b) and stays empty.
+// lower urgency layer; the firewall virtual IP of the trigger is not known without a firewall read (part 13b) and stays empty. A finding
+// of a device a person ignored is not found: no rule fires on it, no plan is listed or approved for it, it is no evidence.
 func (r responseDirectory) Finding(ctx context.Context, id string) (response.FindingInfo, bool, error) {
 	v, err := r.fnd.View(ctx, id)
 	if errors.Is(err, findings.ErrNotFound) {
@@ -307,6 +308,9 @@ func (r responseDirectory) Finding(ctx context.Context, id string) (response.Fin
 	}
 	if err != nil {
 		return response.FindingInfo{}, false, err
+	}
+	if v.Device.Ignored {
+		return response.FindingInfo{}, false, nil
 	}
 	f := v.Finding
 	return response.FindingInfo{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Severity: aiSeverityWord(v.Severity), Status: aiStatusWord(f), KEV: f.Exploited()}, true, nil

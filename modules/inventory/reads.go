@@ -241,7 +241,7 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 }
 
 // DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/summary, #825): one aggregate over inv_asset. Ignored devices are in neither.
+// GET /findings/overview): one aggregate over inv_asset. Ignored devices are in neither.
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
 	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {

@@ -198,7 +198,7 @@ func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
 
 // responseCritical lists the open critical findings that call for action now (urgency under attack to critical on an edge device:
 // findings.Announced) with their device and the CVE's facts, for the plan job. A critical finding with no sign of exploitation is an
-// update to plan, not a response.
+// update to plan, not a response. A device a person ignored gets no plan (Views leaves its findings out; the device read checks again).
 type responseCritical struct {
 	fnd *findings.Service
 	inv findings.Inventory
@@ -228,7 +228,7 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 	for _, v := range open {
 		f := v.Finding
 		a, ok := assets[f.AssetID]
-		if !ok {
+		if !ok || a.Ignored {
 			continue
 		}
 		name := a.IP

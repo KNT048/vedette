@@ -253,8 +253,14 @@
   (`findings.urgency.first_run`) / old news; the latter two go out under the Backlog mark, which notify only counts. `created` means a new
   finding only: a consumer that acts on a finding becoming exploited (response, the SIEM export, To review) listens to `urgency_raised`
   with `to` ≤ 2 too.
+- **Ignored devices are silent**: the pass skips a device a person ignored (no rise, no first-run line), so every consumer of
+  `urgency_raised` and `first_run` stays quiet about it without a check of its own; a new emitter of a finding event must skip ignored
+  devices the same way (`Inventory.IsIgnored` inside the write). Stop ignoring re-rates through `OnMatchChanged`; if inventory stops
+  sending `inventory.asset.updated` with match on stop ignoring, wire `inventory.asset.unignored` to `RateUrgency(assetID)` instead.
+  The selfcheck (`storedUrgencies`, cmd/vedette) leaves ignored devices out; keep it in step with the pass.
 - **Readers of the urgency layer**: `Row.urgency` (the finding's layer, 1..5) and `SummaryItem.urgency` are in the API (`contract.ts` FindingRow, SummaryItem); the "Fix first" list ranks the most urgent layer first. To fix (`classify`, `DeviceUpdates`) lists layers 1 to 4 only (`Announced`); the risk marker (`RiskOf`) and the card's "exploited CVEs to fix" count the CVEs of layer 1 and 2 (`UpdateAction.Layers`, `DeviceUpdates.actionable`). Outside this module the notice texts, alert links, response `kev` flag, exposure counts, reports, MCP and AI context read the layer too; `TestReadersNeverCallAFindingAboveLayerTwoExploited` (cmd/vedette) counts any reader still treating a finding above layer 2 as exploited.
 
 ## Modifying: `Service.Views`, `View.FixText`, `View.ConfirmText`, `FixWords` (`view_text.go`)
 - Readers outside the finding page say a fix and who confirmed it with these functions only: `cmd/vedette` `findingCase` (the assistant's context and tools, the MCP tools, response triggers). Count test: `TestFixCount_TheWordsOfAViewNameTheStoredFixAndWhoConfirmed`.
+- `Views` leaves out the findings of ignored devices (its readers: the assistant's `list_findings` and `AffectedAssets`, MCP `list_findings`, response's plan targets). A reader that needs them (the Ignored tab) uses the lists with `ListFilter.Ignored`, not `Views`. `View` does not filter: a new reader of one finding outside the finding page checks `View.Device.Ignored`.
 - Removed: `Service.DeviceUpdates` (its only caller was the assistant's `device_updates`); `UpdateAction`, `DeviceUpdates` (the type), `ToFix` and the plan code stay for `GET /findings/to-fix` and `/findings/plan`. `FixedInFor`, `RowFixes` and `groupFixOf` stay for the finding page, the list rows and the reports.

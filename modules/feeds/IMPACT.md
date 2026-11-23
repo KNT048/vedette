@@ -180,7 +180,7 @@
 - **nvd-kev**: lượt kéo đầy đủ (`buildNVD`, ~18 trang) chạy khi chưa có CVE nào của danh sách khai thác mà NVD đã trả lời (`kevNVDCount`) hoặc lần tốt cuối cũ hơn `nvdIncrementalDays`. Trong lúc NVD trả 503 lượt kéo đầy đủ tạm dừng và đi tiếp ở lượt sau (chỉ trong bộ nhớ: khởi động lại thì bắt đầu lại), và trong lúc đó không có lượt cập nhật, nên khoảng của mục KEV mới chờ tới khi lượt đầy đủ xong. Test fixture NVD phải mang `published`.
 - **exposure** (`cmd/vedette/exposurematch.go`): CVE KEV cũ chỉ khớp tên sản phẩm thành dòng "ruled out" kèm lý do thay vì dòng CVE.
 - **core export** (`export_policy.go`): `feeds_cve` là `skipAll` (dữ liệu công khai kéo lại được).
-- **`Store.PublishedOf(ctx, cves)`**: một truy vấn mỗi `publishedChunk` = 500 CVE (`json_each`, như `CVSSOf`), không một truy vấn mỗi CVE; `GET /findings` và `GET /findings/summary` hỏi mọi CVE mở qua `findingsFeeds.KevInfo`. Kết quả không đổi (`TestPublishedOfReadsEveryAskedCVEAcrossChunks`).
+- **`Store.PublishedOf(ctx, cves)`**: một truy vấn mỗi `publishedChunk` = 500 CVE (`json_each`, như `CVSSOf`), không một truy vấn mỗi CVE; `GET /findings` và `GET /findings/overview` hỏi mọi CVE mở qua `findingsFeeds.KevInfo`. Kết quả không đổi (`TestPublishedOfReadsEveryAskedCVEAcrossChunks`).
 - **SPA**: `CveDetail.published`, `TierCve` (`web/src/features/feeds/contract.ts`, `CvePage.tsx`, `TierCvePage.tsx`, mock `web/src/mocks/tiers.ts`).
 
 ## Modifying: dữ liệu tầng (`Store.TierRecords`, `Store.TierStamp`, `Store.MatchStamp`)

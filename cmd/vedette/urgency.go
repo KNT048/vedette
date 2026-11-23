@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -15,6 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	idsmodule "github.com/knt048/vedette/modules/ids"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // The ports of findings' urgency pass (findings.UrgencySources): what feeds holds of each CVE, the CVEs this network's intrusion alerts
@@ -22,7 +24,10 @@ import (
 // recomputes the stored layers with the very same reads on its read-only handle. The devices' Internet exposure is a line of the reasons
 // only, never a layer: it is not read until the reasons are shown.
 
-// urgencySources wires the pass. The attacks are read only while the intrusion detection module is on.
+// urgencySources wires the pass. The attacks are read only while the intrusion detection module is on. The CVE facts are read also
+// while the feeds module is off: turning a module off keeps its data (modules.md) and stops its routes, jobs and pulls, which this
+// read is none of. The stored signals stay the last word on a CVE, so the layers hold; reading nothing instead would lower every
+// finding while feeds is off and tell every rise again when it comes back on.
 func urgencySources(d *deps) findings.UrgencySources {
 	q := d.DB.Reader()
 	facts := feeds.NewUrgencyReader(q) // keeps what it reads of the sources until a feed pulls
@@ -227,9 +232,16 @@ func urgencyMismatches(ctx context.Context, db *sql.DB) (int64, error) {
 // urgencyStale is how old the last successful urgency pass may be before the selfcheck counts the pass as not running.
 const urgencyStale = 2 * findings.UrgencyEvery
 
-// storedUrgencies reads the findings the selfcheck compares: first seen by from, urgency last changed by upTo.
+// storedUrgencies reads the findings the selfcheck compares: first seen by from, urgency last changed by upTo, of devices nobody ignored
+// (the pass leaves an ignored device's layers as they were until a person stops ignoring it, findings.RateUrgency).
 func storedUrgencies(ctx context.Context, db *sql.DB, from, upTo string) ([]findings.Finding, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, fix_key, detected, urgency FROM fnd_finding WHERE first_seen <= ? AND urgency_at <= ?`, from, upTo)
+	ignored, err := inventory.ReadIgnoredIDs(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	ig, _ := json.Marshal(append([]string{}, ignored...))
+	rows, err := db.QueryContext(ctx, `SELECT id, asset_id, cve, fix_key, detected, urgency FROM fnd_finding WHERE first_seen <= ? AND urgency_at <= ?
+		AND asset_id NOT IN (SELECT value FROM json_each(?))`, from, upTo, string(ig))
 	if err != nil {
 		return nil, err
 	}

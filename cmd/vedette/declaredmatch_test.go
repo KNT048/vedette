@@ -47,6 +47,30 @@ func TestDeclaredDevices_GetTheirCVEsFindings(t *testing.T) {
 VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
 				return err
 			},
+			// DSM: two records of one batch: one names a fix of the device's line, the other names only later lines. The fix on the
+			// device's line for one CVE says nothing about the other: that one stays a question, never a finding
+			func() error { return seedNVD(ctx, tx, "CVE-2026-176954", recent, 0) },
+			func() error {
+				_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_status = 'Received', description = ? WHERE cve = 'CVE-2026-176954'`,
+					"A path traversal vulnerability in Synology DiskStation Manager (DSM) before 7.2.1-69057-13, 7.2.2-72806-10, 7.3.2-86009-5, and 7.4.1-90080-1 allows remote attackers to read or write arbitrary files.")
+				return err
+			},
+			func() error {
+				_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status)
+VALUES ('CVE-2026-176954', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
+				return err
+			},
+			func() error { return seedNVD(ctx, tx, "CVE-2026-124993", recent, 0) },
+			func() error {
+				_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_status = 'Received', description = ? WHERE cve = 'CVE-2026-124993'`,
+					"An incorrect authorization vulnerability in the Security Advisor in Synology DiskStation Manager (DSM) before 7.3.2-86009-5 and 7.4.1-90080-1 allows remote attackers to read specific files.")
+				return err
+			},
+			func() error {
+				_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status)
+VALUES ('CVE-2026-124993', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
+				return err
+			},
 			// DSM: a record row in Synology's notation, before NVD analyses the CVE
 			func() error { return seedNVD(ctx, tx, "CVE-2025-13392", recent, 0) },
 			func() error {
@@ -114,8 +138,8 @@ VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '',
 		has    []string
 		hasNot []string
 	}{
-		{nas, []string{"CVE-2024-10441", "CVE-2026-4036", "CVE-2025-13392"}, nil},
-		{nasPicked, []string{"CVE-2026-4036"}, []string{"CVE-2024-10441"}}, // Update 6 is CVE-2024-10441's fix, not CVE-2026-4036's (Update 10)
+		{nas, []string{"CVE-2024-10441", "CVE-2026-4036", "CVE-2025-13392", "CVE-2026-176954"}, []string{"CVE-2026-124993"}},
+		{nasPicked, []string{"CVE-2026-4036"}, []string{"CVE-2024-10441", "CVE-2026-124993"}}, // Update 6 is CVE-2024-10441's fix, not CVE-2026-4036's (Update 10)
 		{web, []string{"CVE-2026-123007"}, nil},
 		{temurin, []string{"CVE-2026-114938"}, nil},
 		{redhat, []string{"CVE-2026-114938"}, nil},
@@ -134,7 +158,10 @@ VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '',
 				t.Errorf("%s: open findings %v, must not have %s", c.device, got, cve)
 			}
 		}
-		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = 'CVE-2026-124993'`, c.device); (c.device == nas || c.device == nasPicked) && q == 0 {
+			t.Errorf("%s: no question about a CVE whose record names only later DSM lines", c.device)
+		}
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-176954', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
 			t.Errorf("%s: %d questions about CVEs whose record has versions", c.device, q)
 		}
 	}

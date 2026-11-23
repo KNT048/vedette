@@ -240,25 +240,25 @@ func newDeepEnv(t *testing.T) *deepEnv {
 			d.dns.point(h.Name, append(d.dns.a[h.Name], a.IP)...)
 		}
 	}
-	d.run = &fakeRunner{content: Content{Hosts: hosts, Ports: []PortRow{{IP: ipB, Port: 443, Service: "https"}, {IP: ipA, Port: 443, Service: "https"}}}}
+	d.run = &fakeRunner{content: Content{Hosts: hosts, Ports: []PortRow{{IP: ipB, Port: 443, Service: "https", HTTP: true}, {IP: ipA, Port: 443, Service: "https", HTTP: true}}}}
 	e.svc.SetRunner(d.run)
 	return d
 }
 
-func (d *deepEnv) scan() Snapshot {
+func (d *deepEnv) scan() ScanResult {
 	d.t.Helper()
 	snap, err := d.svc.Scan(d.ctx(), "admin@acme.example", d.dom.ID)
 	if err != nil {
 		d.t.Fatal(err)
 	}
-	got, err := d.svc.SnapshotOf(d.ctx(), d.dom.ID, snap.Date)
+	got, err := snap, error(nil)
 	if err != nil {
 		d.t.Fatal(err)
 	}
 	return got
 }
 
-func deepOf(s Snapshot, ip string) HostIP {
+func deepOf(s ScanResult, ip string) HostIP {
 	for _, h := range s.Hosts {
 		for _, a := range h.IPs {
 			if a.IP == ip {
@@ -269,7 +269,7 @@ func deepOf(s Snapshot, ip string) HostIP {
 	return HostIP{}
 }
 
-func hasLine(s Snapshot, sub string) bool {
+func hasLine(s ScanResult, sub string) bool {
 	return slices.ContainsFunc(s.NotChecked, func(n NotCheckedRow) bool { return strings.Contains(n.Text, sub) })
 }
 
@@ -481,7 +481,7 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 	if err == nil {
 		t.Fatal("the scan was not stopped")
 	}
-	if r := d.svc.CurrentScan(); r == nil || r.Status != RunStopped || r.StopReason == nil {
+	if r := d.svc.CurrentScan(d.ctx()); r == nil || r.Status != RunStopped || r.StopReason == nil {
 		t.Fatalf("run = %+v", r)
 	}
 	if got := d.seams.serviceIPs(); len(got) != 1 {
@@ -578,7 +578,7 @@ func TestContract_INV28_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := e.svc.SnapshotOf(e.ctx(), dom.ID, snap.Date)
+	s, err := snap, error(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -663,8 +663,8 @@ func TestContract_INV28_Deep_NmapDidNotRunKeepsPorts(t *testing.T) {
 	if a := deepOf(s, ipB); a.Deep != DeepIncomplete || a.LastDeep != first || a.LastTried == first {
 		t.Fatalf("ipB = %+v", a)
 	}
-	if !slices.ContainsFunc(s.Ports, func(p PortRow) bool { return p.IP == ipB && p.Port == 8443 }) {
-		t.Fatalf("the port nmap found before was dropped: %+v", s.Ports)
+	if n := d.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND port = 8443 AND state = 'open'`, ipB); n != 1 {
+		t.Fatalf("the port nmap found before was closed: %+v", s.Ports)
 	}
 	if !hasLine(s, deepNoNmap) {
 		t.Fatalf("not checked %q", notChecked(s))
@@ -734,48 +734,37 @@ func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
 	}
 }
 
-// review r2 N1: the "did not probe every port" keep-rule is per address. ipC's deep nmap does not finish (its "ports" Not checked
-// line), so its port 10022, found by an earlier deep scan, is kept unchecked; ipB's deep nmap finished, so its closed 10022 is missed
-// by one scan and closed by the next, as INV-22 says.
+// The "did not probe every port" keep-rule is per address. ipC's deep nmap does not finish (its "ports" Not checked line), so its port
+// 10022, found by an earlier deep scan, stays open as it was; ipB's deep nmap finished, so its 10022 that no longer answers is missed,
+// then closed by the next scan that misses it too.
 func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
 	d.acceptTerms(d.dom.ID, false)
 	d.seams.extra = []ServiceRow{{IP: ipB, Port: 10022, Name: "ssh", Product: "OpenSSH"}, {IP: ipC, Port: 10022, Name: "ssh", Product: "OpenSSH"}}
-	s := d.scan()
-	port := func(s Snapshot, ip string) (PortRow, bool) {
-		i := slices.IndexFunc(s.Ports, func(p PortRow) bool { return p.IP == ip && p.Port == 10022 })
-		if i < 0 {
-			return PortRow{}, false
-		}
-		return s.Ports[i], true
+	d.scan()
+	state := func(ip string) string {
+		var st string
+		_ = d.db.Reader().QueryRowContext(d.ctx(), `SELECT state FROM exp_service WHERE ip = ? AND port = 10022`, ip).Scan(&st)
+		return st
 	}
-	if _, ok := port(s, ipB); !ok {
-		t.Fatalf("first scan ports %+v", s.Ports)
-	}
-	if _, ok := port(s, ipC); !ok {
-		t.Fatalf("first scan ports %+v", s.Ports)
+	if state(ipB) != ServiceOpen || state(ipC) != ServiceOpen {
+		t.Fatalf("first scan: ipB %q, ipC %q", state(ipB), state(ipC))
 	}
 	d.seams.mu.Lock()
 	d.seams.extra = nil // ipB closed 10022
 	d.seams.errFor = map[string]error{ipC: ErrServicesTimedOut}
 	d.seams.mu.Unlock()
 	d.advance(ScanEvery + time.Minute)
-	s = d.scan()
-	if b, ok := port(s, ipB); !ok || b.Misses != 1 || b.Unchecked {
-		t.Fatalf("ipB after one miss: %+v %v", b, ok)
-	}
-	if c, ok := port(s, ipC); !ok || c.Misses != 0 || !c.Unchecked {
-		t.Fatalf("ipC (nmap did not finish): %+v %v", c, ok)
+	d.scan()
+	if state(ipB) != ServiceOpen || state(ipC) != ServiceOpen { // one miss: kept (INV-22)
+		t.Fatalf("second scan: ipB %q, ipC %q", state(ipB), state(ipC))
 	}
 	d.advance(ScanEvery + time.Minute)
-	s = d.scan()
-	if b, ok := port(s, ipB); ok {
-		t.Fatalf("ipB's closed port is still listed: %+v", b)
-	}
-	if c, ok := port(s, ipC); !ok || !c.Unchecked {
-		t.Fatalf("ipC: %+v %v", c, ok)
+	d.scan()
+	if state(ipB) != ServiceClosed || state(ipC) != ServiceOpen { // missed by two scans in a row that probed it
+		t.Fatalf("third scan: ipB %q, ipC %q", state(ipB), state(ipC))
 	}
 }
 
@@ -806,7 +795,7 @@ func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T)
 		g.states = []string{"Done", "Running"} // the first address finishes at once, the second scans
 		g.onPoll = func() {
 			if polls.Add(1) == 2 {
-				e.svc.cancelRun("admin@acme.example")
+				e.svc.StopScan(context.Background(), "admin@acme.example")
 			}
 		}
 	})
@@ -815,13 +804,9 @@ func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T)
 		{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}},
 		{Name: "www.acme.example", IP: ipB, Source: "ct", IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic}}},
 	}, Ports: []PortRow{}}})
-	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID); err == nil {
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err == nil {
 		t.Fatal("a stopped run reads as done")
-	}
-	run := e.svc.CurrentScan()
-	s, err := e.svc.SnapshotOf(e.ctx(), dom.ID, run.StartedAt[:10])
-	if err != nil {
-		t.Fatal(err)
 	}
 	h.gvm.mu.Lock()
 	ranges := slices.Clone(h.gvm.ranges)

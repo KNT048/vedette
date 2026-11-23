@@ -81,8 +81,8 @@ func (f *fakeMatcher) Match(_ context.Context, s []ServiceRow) (Matches, error) 
 	return f.m, f.err
 }
 
-// scanIP verifies ipA, records its commitment and scans it once; it returns the snapshot as GET …/snapshots/{date} reads it.
-func (e *env) scanIP(content Content) Snapshot {
+// scanIP verifies ipA, records its commitment and scans it once; it returns what the scan found and wrote.
+func (e *env) scanIP(content Content) ScanResult {
 	e.t.Helper()
 	ips := e.detect(ipA)
 	if _, err := e.commit(ips[0].ID); err != nil {
@@ -96,14 +96,10 @@ func (e *env) scanIP(content Content) Snapshot {
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), ips[0].ID, snap.Date)
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	return got
+	return snap
 }
 
-func notChecked(s Snapshot) []string {
+func notChecked(s ScanResult) []string {
 	var out []string
 	for _, n := range s.NotChecked {
 		out = append(out, n.Text)
@@ -111,7 +107,7 @@ func notChecked(s Snapshot) []string {
 	return out
 }
 
-func checkKinds(s Snapshot) []string {
+func checkKinds(s ScanResult) []string {
 	var out []string
 	for _, c := range s.Checks {
 		out = append(out, c.Kind)
@@ -126,7 +122,7 @@ func TestContract_INV19_NoServiceScannerSaysNotSetUp(t *testing.T) {
 	e := newEnv(t)
 	m := &fakeMatcher{}
 	e.svc.cfg.Matcher = m
-	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil}}})
+	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", "", nil, false}}})
 	if len(s.Ports) != 1 || len(s.Services) != 0 || len(s.Vulns) != 0 || len(s.VersionGaps) != 0 {
 		t.Fatalf("snapshot = %+v", s)
 	}
@@ -190,12 +186,11 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	if got := s.Checks[2].Text; got != "2 of 3 services compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched. 1 service could not be checked: no version was read. 1 service gave no product to look up, so not compared." {
 		t.Fatalf("compare line = %q", got)
 	}
-	var stored string
-	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT services FROM exp_snapshot`).Scan(&stored); err != nil || !strings.Contains(stored, "Apache httpd") {
-		t.Fatalf("stored services = %q, %v", stored, err)
+	if n := e.count(`SELECT count(*) FROM exp_service WHERE product = 'Apache httpd' AND state = 'open'`); n != 1 {
+		t.Fatalf("%d stored Apache services", n)
 	}
-	if e.count(`SELECT count(*) FROM exp_snapshot WHERE checks LIKE '%CVE%' OR services LIKE '%41773%'`) != 0 {
-		t.Fatal("the comparison is stored; it must be computed on read")
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'match' AND state = 'open'`); n != len(s.Vulns) || n == 0 {
+		t.Fatalf("%d match issues for %d matched CVEs", n, len(s.Vulns))
 	}
 
 	dom := e.committedDomain()
@@ -232,7 +227,7 @@ func TestContract_INV19_UnavailableAndFailedSteps(t *testing.T) {
 			if !tc.noMatch {
 				e.svc.cfg.Matcher = &fakeMatcher{err: tc.matchErr}
 			}
-			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", "", "", nil}}})
+			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", "", "", nil, false}}})
 			if !slices.Contains(notChecked(s), tc.want) || len(s.Ports) != 1 || len(s.Vulns) != 0 {
 				t.Fatalf("snapshot = %+v", s)
 			}
@@ -274,25 +269,6 @@ func TestContract_INV19_SanitizeLimits(t *testing.T) {
 	}
 	if n := sanitizeNotChecked([]NotCheckedRow{{Kind: "udp", Text: strings.Repeat("x", maxLineText+1)}, {Kind: "udp", Text: "UDP"}}); len(n) != 1 {
 		t.Fatalf("not checked = %+v", n)
-	}
-}
-
-// INV-20: the diff of two days says when a service changed version and when an exploited CVE appeared or went away with it.
-func TestContract_INV20_DiffServiceAndVuln(t *testing.T) {
-	t.Parallel()
-	a := Snapshot{Date: "2026-11-12", Content: Content{Services: []ServiceRow{{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}},
-		Vulns: []VulnRow{{IP: ipA, Port: 18443, CVE: "CVE-2021-41773", Name: "Apache HTTP Server Path Traversal Vulnerability"}}}
-	b := Snapshot{Date: "2026-11-13", Content: Content{Services: []ServiceRow{{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.51"},
-		{IP: ipA, Port: 22, Name: "ssh", Product: "OpenSSH", Version: "9.6p1"}}}}
-	d := diff(a, b)
-	if len(d.Changed) != 1 || d.Changed[0].Kind != "service" || d.Changed[0].From != "Apache httpd 2.4.49" || d.Changed[0].To != "Apache httpd 2.4.51" {
-		t.Fatalf("changed = %+v", d.Changed)
-	}
-	if len(d.Added) != 1 || d.Added[0].Kind != "service" || d.Added[0].Label != ipA+":22" {
-		t.Fatalf("added = %+v", d.Added)
-	}
-	if len(d.Removed) != 1 || d.Removed[0].Kind != "vuln" || d.Removed[0].Label != "CVE-2021-41773 on "+ipA+":18443" {
-		t.Fatalf("removed = %+v", d.Removed)
 	}
 }
 
@@ -341,23 +317,6 @@ func TestContract_INV20_RuledOutByPlatformIsACheckLine(t *testing.T) {
 	}
 }
 
-// INV-20 (review LOW-5): a version not read this time is not a change of version, and the CVEs it matched are not "gone".
-func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
-	t.Parallel()
-	apache := ServiceRow{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49"}
-	a := Snapshot{Date: "2026-11-12", Content: Content{Services: []ServiceRow{apache}}, Vulns: []VulnRow{{IP: ipA, Port: 18443, CVE: "CVE-2021-41773"}}}
-	unread := apache
-	unread.Version = ""
-	b := Snapshot{Date: "2026-11-13", Content: Content{Services: []ServiceRow{unread}}}
-	d := diff(a, b)
-	if len(d.Removed) != 0 || len(d.Added) != 0 || len(d.Changed) != 1 || d.Changed[0].From != "Apache httpd 2.4.49" || d.Changed[0].To != VersionNotRead {
-		t.Fatalf("diff = %+v", d)
-	}
-	if d := diff(b, a); len(d.Changed) != 0 || len(d.Removed) != 0 || len(d.Added) != 1 || d.Added[0].Kind != "vuln" { // read again: the CVE is new knowledge
-		t.Fatalf("version read again: %+v", d)
-	}
-}
-
 // A port that only service identification found (the deep scan's nmap probes every TCP port; the runner a fixed list) is an
 // open port of the snapshot, so the counts, the first sentence and the outside view (INV-21 scan_ports) name it.
 func TestServicePortsAreOpenPorts(t *testing.T) {
@@ -374,64 +333,6 @@ func TestServicePortsAreOpenPorts(t *testing.T) {
 	}
 	if !slices.Equal(got, []int{5060, 10022, 2000}) || s.Counts.Ports != 3 || s.Ports[1].Product != "OpenSSH 9.6p1" {
 		t.Fatalf("ports %+v counts %+v", s.Ports, s.Counts)
-	}
-}
-
-// matchSSH is a Matcher that names one exploited CVE on each OpenSSH service it is given.
-type matchSSH struct{}
-
-func (matchSSH) Match(_ context.Context, ss []ServiceRow) (Matches, error) {
-	m := Matches{Compared: len(ss), Listed: 1500, Vulns: []VulnRow{}}
-	for _, s := range ss {
-		if s.Product == "OpenSSH" {
-			m.Vulns = append(m.Vulns, VulnRow{IP: s.IP, Port: s.Port, CVE: "CVE-2026-123158", Name: "OpenSSH", Basis: "version", Summary: "In range."})
-		}
-	}
-	return m, nil
-}
-
-// A port only a deep scan found (10022, outside the fixed list) is kept, unchecked, with its service and exploited CVE,
-// by scans that do not probe every port (here: the terms withdrawn); it is never "missed" or closed by them.
-func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	deep := false
-	e.terms = &deep
-	e.svc.cfg.Matcher = matchSSH{}
-	sv := &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
-		{IP: ipA, Port: 5060, Name: "sip"}, {IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1"}}}}
-	e.svc.cfg.Services = sv
-	first := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip"}}})
-	if len(first.Ports) != 2 || len(first.Vulns) != 1 {
-		t.Fatalf("deep scan: ports %+v vulns %+v", first.Ports, first.Vulns)
-	}
-	ts, err := e.svc.Targets(e.ctx())
-	if err != nil || len(ts) != 1 {
-		t.Fatal(ts, err)
-	}
-	if _, err := e.svc.RevokeTerms(e.ctx(), "admin@acme.example", ts[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	sv.scan = ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 5060, Name: "sip"}}}
-	for i := range 2 {
-		e.advance(day)
-		s, err := e.svc.Scan(e.ctx(), "admin@acme.example", ts[0].ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := e.svc.SnapshotOf(e.ctx(), ts[0].ID, s.Date)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var p PortRow
-		for _, x := range got.Ports {
-			if x.Port == 10022 {
-				p = x
-			}
-		}
-		if p.Port != 10022 || !p.Unchecked || p.Misses != 0 || len(got.Vulns) != 1 || got.Vulns[0].Port != 10022 {
-			t.Fatalf("non-deep scan %d: port %+v, ports %+v, vulns %+v", i+1, p, got.Ports, got.Vulns)
-		}
 	}
 }
 
@@ -576,95 +477,6 @@ func TestServiceNamesMatchThePage(t *testing.T) {
 	for _, c := range []struct{ service, want string }{{"ssl/imap", "IMAPS"}, {"ssl/rdp", "RDP over TLS"}, {"constructor", "constructor"}, {"x", "x"}} {
 		if got := serviceName(c.service); got != c.want {
 			t.Errorf("serviceName(%q) = %q, want %q", c.service, got, c.want)
-		}
-	}
-}
-
-// A snapshot stored before a port named by its number alone was told apart said "6 services identified" while the comparison read
-// on the same page counts the same rows today: the step's counts are said again from the stored rows when the snapshot is read, so
-// the two lines never disagree. The count is measured over every shape of stored line: an IP target's, one address of a domain's
-// deep scan (rows of other addresses and rows an earlier scan kept do not count), a line with script results, a line without counts.
-func TestServicesLineRecountedOnRead(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 2, Listed: 1484}}
-	older := []ServiceRow{ // no method word: stored before it was recorded
-		{IP: ipA, Port: 10443, Name: "https", Product: "Fortinet FortiGate SSL VPN", CPE: "cpe:/o:fortinet:fortios"},
-		{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "8.9", CPE: "cpe:/a:openbsd:openssh:8.9"},
-		{IP: ipA, Port: 5060, Name: "sip"},
-		{IP: ipA, Port: 2000, Name: "cisco-sccp"},
-		{IP: ipA, Port: 11080, Name: "unknown"},
-		{IP: ipA, Port: 11443, Name: "ssl/unknown"},
-	}
-	snap := Snapshot{Content: Content{Services: older, Checks: []CheckRow{
-		{Kind: "ports", Text: "TCP connect to every TCP port: 6 ports open."},
-		{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 6 services identified."},
-	}}}
-	e.svc.withVulns(e.ctx(), &snap)
-	if got := snap.Checks[1].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named without a product (the scan did not record whether by a probe or by the port number), 2 not identified." {
-		t.Fatalf("services line = %q", got)
-	}
-	if got := snap.Checks[2].Text; !strings.HasPrefix(got, "2 of 6 services compared with today's CISA list") || !strings.HasSuffix(got, " 4 services gave no product to look up, so not compared.") {
-		t.Fatalf("compare line = %q", got)
-	}
-
-	// Rows that say how they were named read as a new scan says them; reading again changes nothing.
-	newer := slices.Clone(older)
-	for i, m := range []string{"probed", "probed", "table", "table", "", ""} {
-		newer[i].Method = m
-	}
-	snap = Snapshot{Content: Content{Services: newer, Checks: []CheckRow{{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named by port number only, 2 not identified."}}}}
-	e.svc.withVulns(e.ctx(), &snap)
-	e.svc.withVulns(e.ctx(), &snap)
-	if got := snap.Checks[0].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named by port number only, 2 not identified." {
-		t.Fatalf("services line read twice = %q", got)
-	}
-
-	// A port that answered at an earlier scan and was missed once is kept with its service (INV-22): the services line counts what
-	// this scan read, the comparison line counts every row and says the kept one apart, so the two add up.
-	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 3, Listed: 1484}}
-	snap = Snapshot{Content: Content{
-		Ports: []PortRow{{IP: ipA, Port: 443}, {IP: ipA, Port: 10022}, {IP: ipA, Port: 11080}, {IP: ipA, Port: 8443, LastSeen: "2026-11-16", Misses: 1}},
-		Services: []ServiceRow{
-			{IP: ipA, Port: 443, Name: "https", Product: "nginx", Version: "1.24.0", CPE: "cpe:/a:igor_sysoev:nginx:1.24.0", Method: "probed"},
-			{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "8.9", CPE: "cpe:/a:openbsd:openssh:8.9", Method: "probed"},
-			{IP: ipA, Port: 11080, Name: "unknown"},
-			{IP: ipA, Port: 8443, Name: "https", Product: "nginx", Version: "1.22.1", CPE: "cpe:/a:igor_sysoev:nginx:1.22.1", Method: "probed"},
-		},
-		Checks: []CheckRow{{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 1 not identified."}},
-	}}
-	e.svc.withVulns(e.ctx(), &snap)
-	if got := snap.Checks[0].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 1 not identified." {
-		t.Fatalf("services line with a kept row = %q", got)
-	}
-	if got := snap.Checks[1].Text; got != "3 of 4 services (1 kept from an earlier scan) compared with today's CISA list of exploited vulnerabilities (1484 entries) and its NVD version ranges: 0 exploited CVEs matched. 1 service gave no product to look up, so not compared." {
-		t.Fatalf("compare line with a kept row = %q", got)
-	}
-
-	// A domain's deep scan: each address's line counts its own rows; a row an earlier scan kept is not this step's; the script
-	// results stay; a line that is not a count is left alone.
-	snap = Snapshot{Content: Content{
-		Ports: []PortRow{{IP: ipA, Port: 443}, {IP: ipA, Port: 8080, LastSeen: "2026-11-14"}, {IP: ipB, Port: 22}},
-		Services: []ServiceRow{
-			{IP: ipA, Port: 443, Name: "https", Product: "nginx", Method: "probed"},
-			{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table"},
-			{IP: ipB, Port: 22, Name: "ssh"},
-		},
-		Checks: []CheckRow{
-			{Kind: "services", Text: ipA + " (www.example.com): Service identification (nmap -sV) on 65535 TCP ports: 9 services identified. nmap's scripts: 3 results, 0 saying VULNERABLE."},
-			{Kind: "services", Text: ipB + " (mail.example.com): Service identification (nmap -sV): 1 service identified."},
-			{Kind: "services", Text: "Service identification (nmap -sV) did not run: the scanner is off."},
-		},
-	}}
-	recountServices(&snap)
-	want := []string{
-		ipA + " (www.example.com): Service identification (nmap -sV) on 65535 TCP ports: 1 service identified. nmap's scripts: 3 results, 0 saying VULNERABLE.",
-		ipB + " (mail.example.com): Service identification (nmap -sV): 0 services identified, 1 named without a product (the scan did not record whether by a probe or by the port number).",
-		"Service identification (nmap -sV) did not run: the scanner is off.",
-	}
-	for i, w := range want {
-		if snap.Checks[i].Text != w {
-			t.Errorf("line %d = %q, want %q", i, snap.Checks[i].Text, w)
 		}
 	}
 }

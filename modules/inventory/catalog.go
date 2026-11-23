@@ -490,8 +490,11 @@ func (EmbeddedKEV) Products(context.Context) (string, []KEVProduct, error) {
 	return "embedded", list, nil
 }
 
-// CVEs implements KEV: none known.
-func (EmbeddedKEV) CVEs(context.Context, []string) ([]string, error) { return nil, nil }
+// CVEIndex implements KEV: no CVE is known.
+func (EmbeddedKEV) CVEIndex(context.Context) (KEVIndex, error) { return noKEVCVEs, nil }
+
+// noKEVCVEs is the KEVIndex of a source that knows no CVE.
+func noKEVCVEs([]string) []string { return nil }
 
 type catalogCache struct {
 	mu      sync.Mutex

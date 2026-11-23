@@ -59,7 +59,7 @@ func tplEnv(t *testing.T) (*env, *fakeTemplates) {
 	return e, f
 }
 
-func vulnOf(s Snapshot, cve string) VulnRow {
+func vulnOf(s ScanResult, cve string) VulnRow {
 	for _, v := range s.Vulns {
 		if v.CVE == cve {
 			return v
@@ -109,8 +109,11 @@ func TestContract_INV23_TemplateOutcomesOnTheRows(t *testing.T) {
 	if !strings.Contains(line, "2 templates sent on 1 port, 1 matched, 1 no match, 0 error") || !strings.Contains(line, "CVE-2021-41773") {
 		t.Fatalf("checks line = %q", line)
 	}
-	if s2, err := e.svc.SnapshotOf(e.ctx(), e.detectedID(ipA), s.Date); err != nil || len(s2.Templates) != 2 || vulnOf(s2, "CVE-2021-41773").Basis != "template" {
-		t.Fatalf("read back = %+v, %v", s2.Templates, err)
+	if vulnOf(s, "CVE-2021-41773").Basis != "template" {
+		t.Fatalf("vulns = %+v", s.Vulns)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'nuclei' AND key = 'CVE-2021-41773' AND state = 'open'`); n != 1 {
+		t.Fatalf("%d nuclei issues for the matched template", n)
 	}
 }
 
@@ -200,7 +203,7 @@ func TestContract_INV23_CarriedPortIsNotProbedAgain(t *testing.T) {
 	if len(f.jobs) != 1 {
 		t.Fatalf("the carried port was probed again: %d calls", len(f.jobs))
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), id, first.Date)
+	got, err := first, error(nil)
 	if err != nil || len(got.Templates) != 1 || got.Templates[0].Outcome != OutcomeMatched {
 		t.Fatalf("carried templates = %+v, %v", got.Templates, err)
 	}
@@ -413,5 +416,40 @@ func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.HasSuffix(r.Text, "and 4 more lines like these.") }) ||
 		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.Contains(r.Text, "not a read-only request") }) {
 		t.Fatalf("%d lines: %+v", n, s.NotChecked)
+	}
+}
+
+// A template counts as having looked at a port only when it ran there and found nothing: a match is a finding, and a call that
+// failed or was refused leaves every port unchecked, so a template issue there is not taken as fixed.
+func TestTemplatesRanOnlyWhereTheCallAnswered(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	f.results = []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched},
+		{Port: 80, Template: "CVE-2021-42013", CVE: "CVE-2021-42013", Outcome: OutcomeNoMatch}}
+	if s := e.scanIP(Content{}); !slices.Equal(s.TemplatesRan, []string{ipA + ":80|CVE-2021-42013"}) {
+		t.Fatalf("answered: ran on %q", s.TemplatesRan)
+	}
+	e2, f2 := tplEnv(t)
+	f2.err = errors.New("nuclei timed out")
+	if s := e2.scanIP(Content{}); len(s.TemplatesRan) != 0 {
+		t.Fatalf("failed: ran on %q", s.TemplatesRan)
+	}
+}
+
+// Only the results the scanner reports decide what ran: a port whose run never went out, an error outcome and a template that is not
+// a known template id give no coverage.
+func TestTemplatesCoveredOnlyNoMatchResults(t *testing.T) {
+	t.Parallel()
+	ip := netip.MustParseAddr(ipA)
+	jobs := []TemplateJob{{Port: 80}, {Port: 443}}
+	got := TemplatesCovered(ip, jobs, TemplateScan{Results: []TemplateResult{
+		{Port: 80, Template: "CVE-2021-41773", Outcome: OutcomeNoMatch},
+		{Port: 80, Template: "CVE-2021-42013", Outcome: OutcomeError},
+		{Port: 80, Template: "CVE-2021-44228", Outcome: OutcomeMatched},
+		{Port: 8080, Template: "CVE-2021-41773", Outcome: OutcomeNoMatch},
+		{Port: 80, Template: "../x", Outcome: OutcomeNoMatch},
+	}})
+	if !slices.Equal(got, []string{ipA + ":80|CVE-2021-41773"}) {
+		t.Fatalf("covered %q", got)
 	}
 }

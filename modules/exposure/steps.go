@@ -2,64 +2,12 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
 )
-
-// The engine steps of an external scan as Settings › Scanning shows them (#861, INV-30): nuclei (the safe and the deep templates), ZAP
-// (the passive web scan) and OpenVAS. Their cards take their last run from here.
-const (
-	StepNuclei  = "nuclei"
-	StepZAP     = "zap"
-	StepOpenVAS = "openvas"
-)
-
-// How a step of a run ended (exp_engine_run.outcome), as Settings › Scanning's last_run.outcome names it.
-const (
-	StepOK      = "ok"
-	StepPartial = "partial"
-	StepFailed  = "failed"
-	StepStopped = "stopped"
-)
-
-var stepEngines = []string{StepNuclei, StepZAP, StepOpenVAS}
-
-// EngineRun is the newest run of an external scan in which an engine step actually ran (exp_engine_run, INV-30): a run that skipped
-// the step (OpenVAS off, no web port for ZAP, no template needed) leaves the earlier one. At is when the step ended (RFC 3339 UTC).
-type EngineRun struct {
-	Engine  string
-	RunID   string
-	Target  string
-	At      string
-	Outcome string
-	Text    string
-}
-
-// EngineRuns reads the newest run of each engine step; an engine that never ran is not in the map.
-func (s *Service) EngineRuns(ctx context.Context) (map[string]EngineRun, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT engine, run_id, target, at, outcome, text FROM exp_engine_run`)
-	if err != nil {
-		return nil, fmt.Errorf("exposure: reading the engines' last runs: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	out := map[string]EngineRun{}
-	for rows.Next() {
-		var r EngineRun
-		if err := rows.Scan(&r.Engine, &r.RunID, &r.Target, &r.At, &r.Outcome, &r.Text); err != nil {
-			return nil, fmt.Errorf("exposure: reading the engines' last runs: %w", err)
-		}
-		out[r.Engine] = r
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("exposure: reading the engines' last runs: %w", err)
-	}
-	return out, nil
-}
 
 // stepLog is what the engine steps of one run did (INV-30). nuclei and ZAP count their calls as they make them (one call per address,
 // one per page); OpenVAS's outcome is the step's own state. A nil *stepLog records nothing (a step called outside a run).
@@ -272,31 +220,13 @@ func openVASStep(state string, results int, stop *GreenboneStop) (string, string
 	return "", ""
 }
 
-// saveSteps stores the steps of the run that ended and were not stored yet (INV-30): before the OpenVAS step starts (nuclei and ZAP
-// are done by then, end runOn), and when the run ends. A target deleted meanwhile gets no row. It runs on its own context, so a stop or a shutdown still records it; a failure is logged.
-func (s *Service) saveSteps(ctx context.Context, run *scanRun, end int, why string) {
-	rows := run.steps.rows(run.view.ID, run.view.TargetValue, s.clock(), end, why)
-	if len(rows) == 0 {
-		return
+// ran says the engine answered at least one call in this run: its issues of this run replace the earlier ones.
+func (l *stepLog) ran(engine string) bool {
+	if l == nil {
+		return false
 	}
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
-	defer cancel()
-	err := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
-		if _, err := loadTarget(wctx, tx, run.view.TargetID); errors.Is(err, ErrNotFound) { // deleted while it ran (L4 of #863 r1)
-			return nil
-		} else if err != nil {
-			return err
-		}
-		for _, r := range rows {
-			if _, err := tx.ExecContext(wctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text`,
-				r.Engine, r.RunID, r.Target, r.At, r.Outcome, r.Text); err != nil {
-				return fmt.Errorf("exposure: storing the last run of %s: %w", r.Engine, err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		s.cfg.Log.ErrorContext(wctx, "exposure: storing the engines' last runs failed", "run", run.view.ID, "error", err)
-	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	t := l.m[engine]
+	return t != nil && (t.ok > 0 || t.outcome == StepOK || t.outcome == StepPartial)
 }

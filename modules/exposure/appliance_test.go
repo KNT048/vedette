@@ -2,7 +2,6 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -264,52 +263,4 @@ func TestAppliance_FailedReadKeepsTheLastAnswer(t *testing.T) {
 	if a := read(); len(a.Devices) != 1 || a.Devices[0].DeviceID != "dev-fw" || fa.calls != calls+1 {
 		t.Fatalf("a failed read lost the last answer: %+v (%d calls)", a, fa.calls)
 	}
-}
-
-// A snapshot stored before the rule existed (no admin row for the port) counts the FortiGate page when it is read.
-func TestAppliance_OlderSnapshotCountsWhenRead(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	s := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 11443, Service: "ssl/unknown", CertNames: []string{"FortiGate"}}}})
-	id := ipTargetID(t, e)
-	err := e.svc.cfg.DB.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET admin_panels = '[]', counts = json_set(counts, '$.admin_panels', 0) WHERE target_id = ?`, id)
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	snap, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
-	if err != nil || snap.Counts.AdminPanels != 1 || len(snap.AdminPanels) != 1 || snap.AdminPanels[0].Appliance == nil || snap.AdminPanels[0].Appliance.Devices != nil {
-		t.Fatalf("read = %+v %v", snap.AdminPanels, err)
-	}
-	items, err := e.svc.Targets(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, it := range items {
-		if it.ID == id && (it.Latest == nil || it.Latest.AdminPanels != 1) {
-			t.Fatalf("list counts = %+v", it.Latest)
-		}
-	}
-	metas, err := e.svc.Snapshots(e.ctx(), id)
-	if err != nil || len(metas) != 1 || metas[0].Counts.AdminPanels != 1 {
-		t.Fatalf("snapshot list = %+v %v", metas, err)
-	}
-}
-
-// ipTargetID is the id of the IP target scanIP scanned.
-func ipTargetID(t *testing.T, e *env) string {
-	t.Helper()
-	items, err := e.svc.Targets(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, it := range items {
-		if it.Kind == KindIP && it.Value == ipA {
-			return it.ID
-		}
-	}
-	t.Fatal("no IP target")
-	return ""
 }

@@ -575,7 +575,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 				[]any{"https://user:PLANT-AIURLPW@api.example.com/v1/PLANT-AIPATH", sealed, ts, ts}},
 			{`INSERT INTO resp_blocklist (id, token_hash, secret_id, token_last4) VALUES (1, 'PLANT-BLOCK-TOKENHASH', ?, 'abcd')`, []any{sealed}},
 			{`INSERT INTO hp_tokens (id, type, name, value, plant_at, created_at, secret_id) VALUES ('t1', 'credential', 'decoy', 'decoyuser', ?, ?, ?)`, []any{ts, ts, sealed}},
-			{`INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('e1', 'domain', 'example.com', 'PLANT-EXP-TOKEN', ?)`, []any{ts}},
+			{`INSERT INTO exp_target (id, kind, value, origin, scope_mode, token, created_at) VALUES ('e1', 'domain', 'example.com', 'person', 'all', 'PLANT-EXP-TOKEN', ?)`, []any{ts}},
 			{`INSERT INTO notify_tg_button (request_id, nonce_hash, expires_at) VALUES ('r1', 'PLANT-NONCEHASH', ?)`, []any{ts}},
 			{`INSERT INTO resp_tokens (token_hash, kind, action_id, user_id, address, channel, expires_at) VALUES ('PLANT-RESPTOKEN-HASH', 'approve', 'a1', 'u1', 'x', 'email', ?)`, []any{ts}},
 			{`INSERT INTO core_email_code (user_id, code_hash, expires_at, sent_at) SELECT id, 'PLANT-CODEHASH', ?, ? FROM core_user LIMIT 1`, []any{ts, ts}},

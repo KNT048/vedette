@@ -1,38 +1,34 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import { ArrowLeft, Trash2 } from 'lucide-react'
-import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
+import { Chip } from '@/components/common/StatusChip'
+import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { InfoTip } from '@/components/common/InfoTip'
 import { useCan } from '@/lib/session'
-import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
+import { isLive, useNode, useTree } from './api'
 import { AnchorRedirect, ScrollToHash } from './anchors'
-import { queuePlace, ScanProgress } from './ScanProgress'
-import { SchedulePanel } from './SchedulePanel'
-import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { CommitmentPanel } from './CommitmentPanel'
-import { TermsPanel } from './TermsPanel'
-import { CommitChip, OwnerChip } from './OwnerChip'
-import { RemoveDialog } from './RemoveDialog'
-import { OpenPortsPanel } from './OpenPortsPanel'
-import { OutsidePanel } from './OutsidePanel'
-import { ResultsPanel } from './ResultsPanel'
-import { SurfacePanel } from './SurfacePanel'
-import { VerifyPanel } from './VerifyPanel'
 import { InfoLine } from './InfoLine'
-import type { Target } from './types'
-import { blockedKey } from './types'
-import { fmtDateTime, fmtEnd } from '@/lib/format'
+import { IssuesPanel } from './IssuesPanel'
+import { NamesPanel } from './NamesPanel'
+import { boxIp, needsProof } from './node'
+import { ProofChip } from './NodeParts'
+import { OutsidePanel } from './OutsidePanel'
+import { ProofPanel } from './ProofPanel'
+import { ScanBar, ScanButton, useScanFlow } from './ScanBar'
+import { ScansPanel } from './ScansPanel'
+import { ServicesPanel } from './ServicesPanel'
+import { DeleteTargetDialog, EditTargetDialog } from './TargetDialogs'
+import { TermsPanel } from './TermsPanel'
+import type { TargetNode } from './types'
 
 // Old #anchor → tab (before the tabs these were stacked blocks of one page).
-const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-commit': 'ownership', results: 'results', compare: 'results', open: 'exposures', outside: 'outside' }
-
-const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-commit': 'ownership', 'step-terms': 'ownership', outside: 'outside' }
 
 // modules.md: the module's API is read only while the module is on.
 export default function TargetPage() {
@@ -42,139 +38,114 @@ export default function TargetPage() {
 function TargetLoader() {
   const { t } = useTranslation('exposure')
   const { id = '' } = useParams()
-  const q = useTarget(id)
+  const q = useNode(id)
   return (
     <>
       <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-meta text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
-      <QueryState query={q}>{(tg) => <TargetView target={tg} />}</QueryState>
+      <QueryState query={q}>{(n) => <TargetView node={n} />}</QueryState>
     </>
   )
 }
 
-function TargetView({ target }: { target: Target }) {
-  const { t } = useTranslation('exposure')
-  const operator = useCan('operator')
-  const scan = useScan()
+/** When a scan of the node ends, its rows are read again: the services, names and issues it left. */
+function useRowsAfterScan(node: TargetNode) {
+  const qc = useQueryClient()
+  const live = isLive(node.last_scan)
+  const was = useRef(live)
+  useEffect(() => {
+    if (was.current && !live) void qc.invalidateQueries({ queryKey: ['exposure', 'rows', node.id] })
+    was.current = live
+  }, [live, node.id, qc])
+}
+
+/** A target that needs ownership proof opens on its Ownership tab: proving it is the one thing to do there. */
+function useOwnershipFirst(node: TargetNode) {
   const [params, setParams] = useSearchParams()
-  const current = useScanRun().data
-  // INV-36: only this target's own scan, or its place in the queue, holds its button; another target's scan does not
-  const running = current?.status === 'running' && current.target_id === target.id
-  const queued = target.scan_state === 'queued' || !!queuePlace(current, target.id)
+  const first = useRef(true)
+  useEffect(() => {
+    if (!first.current) return
+    first.current = false
+    if (!params.get('tab') && needsProof(node)) { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }
+  }, [node, params, setParams])
+}
+
+function TargetView({ node }: { node: TargetNode }) {
+  const { t } = useTranslation('exposure')
   const admin = useCan('admin')
-  // An administrator's first Scan now is the scan confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
-  const notice = target.blocked_reason === 'no_commitment' && admin ? target.commitment_notice : null
-  // The page cannot tell an SSO sign-in (the identity provider owns MFA) from no two-step, so the server decides and the refusal is shown here with the way out.
-  const needTwoStep = !!notice && scan.isError && (scan.error as { code?: string }).code === 'twofa_required'
-  const blocked = notice ? null : target.blocked_reason ? t(`blocked.reasonLong.${blockedKey(target)}`, { value: target.value }) : null
-  const roleReason = !operator ? t('common:needRole', { role: t('common:role.operator') }) : null
-  const c = target.latest
-  const title = target.blocked_reason && !notice ? t(`target.title.${blockedKey(target)}`, { value: target.value })
-    : c ? (target.kind === 'domain' ? t('target.title.result', { value: target.value, subs: c.subdomains, admin: c.admin_panels }) : t('target.title.resultIp', { value: target.value, ports: c.ports, admin: c.admin_panels }))
-    : t('target.title.ready', { value: target.value })
-
-  // The person has something to do on the Ownership tab: prove ownership, or the proof expired or went missing.
-  const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing' || target.blocked_reason === 'proof_missing'
-
-  // A paused or blocked ownership is a page-level state: it shows above the tabs whatever tab is open.
-  const typedIp = target.kind === 'ip' && target.origin === 'person'
-  const stateKey = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? 'verify.txtMissing' : null)
-    : typedIp ? (target.validity === 'expired' ? 'verify.typed.expired' : target.status !== 'unverified' && target.blocked_reason === 'proof_missing' ? 'verify.typed.missing' : null)
-    : target.blocked_reason === 'ip_not_current' ? 'verify.paused'
-    : target.validity === 'expired' ? 'verify.ipExpired' : null
-  const stateNotice = stateKey ? t(stateKey, { time: fmtDateTime(target.verified_at) }) : null
-
-  function run() {
-    scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
-      // After Scan now the person wants the results, not the tab they pressed it from.
-      onSuccess: (r) => {
-        if (r.status === 'queued') { toast.success(t('progress.queuedToast', { value: target.value })); return }
-        const p = new URLSearchParams(params); p.set('tab', 'results'); setParams(p, { replace: true })
-      },
-      onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
-    })
-  }
-  // The line under Scan now says what the next scan really does: the deep scan once the testing terms are accepted
-  // (with or without the disruptive checks), else the Scan now scope
-  // #824: the line stays one short sentence; what the deep scan sends is behind ⓘ
-  const deepKey = `scan.deep${target.kind === 'domain' ? 'Domain' : 'Ip'}`
-  const scopeText = !target.full_scan ? t('scan.safe') : t(deepKey) + ' ' + t(target.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')
-  const scopeInfo = !target.full_scan ? null : <><p>{t(`${deepKey}Info`)}</p>{target.terms?.disruptive ? <p>{t('scan.deepDisruptiveInfo')}</p> : null}</>
+  const operator = useCan('operator')
+  const nav = useNavigate()
+  const tree = useTree()
+  const items = tree.data?.items ?? []
+  const parent = items.find((n) => n.id === node.parent_id)
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  useRowsAfterScan(node)
+  useOwnershipFirst(node)
+  const flow = useScanFlow(node)
+  const needAdmin = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
+  const c = node.counts
+  const title = !node.enabled ? t('target.title.off', { value: node.value })
+    : needsProof(node) ? t('target.title.proof', { value: node.value })
+    : c.issues > 0 ? t('target.title.issues', { value: node.value, count: c.issues })
+    : c.services > 0 ? t('target.title.services', { value: node.value, count: c.services })
+    : node.last_scan ? t('target.title.clean', { value: node.value }) : t('target.title.ready', { value: node.value })
+  const domain = node.kind === 'domain'
   return (
     <>
-      <PageHeader title={title} stories={['S-EXP-1']}
-        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} /><CommitChip target={target} />{target.last_scan_at ? (target.last_scan_finished_at ? t('target.lastScanEnd', { time: fmtDateTime(target.last_scan_at), end: fmtEnd(target.last_scan_at, target.last_scan_finished_at) })
-          : t('target.lastScan', { time: fmtDateTime(target.last_scan_at) })) : t('targets.neverScanned')}</span>}
+      <PageHeader title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
+        meta={<span className="flex flex-wrap items-center gap-2">
+          <ProofChip node={node} />
+          {parent ? <span className="text-meta">{t('target.under')} <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(parent.id)}`}>{parent.value}</Link></span> : null}
+          {node.scope_mode ? <span className="text-meta text-muted">{t(`scope.short.${node.scope_mode}`)}</span> : null}
+          {!node.enabled ? <Chip tone="off">{t('tree.off')}</Chip> : null}
+        </span>}
         actions={<>
-          {/* #850: the contextual Scan now; its progress is the ScanProgress row under the header, with Stop */}
-          <ScanNowButton label={target.full_scan ? t('scan.deepButton') : t('scan.button')} onStart={run} running={running || queued} pending={scan.isPending} runningLabel={t('scan.running')}
-            blocked={blocked ?? roleReason} describedBy={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined} />
-          <DeleteTarget target={target} />
+          <ScanButton node={node} flow={flow} />
+          <Button onClick={() => setEditing(true)} disabled={!admin} title={needAdmin}><Pencil />{t('edit.button')}</Button>
+          <Button onClick={() => setDeleting(true)} disabled={!admin} title={needAdmin}><Trash2 />{t('delete.button')}</Button>
         </>} />
-      <ScanProgress targetId={target.id} />
-      {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/settings/account?tab=sign-in#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
-      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : (scopeInfo ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-meta text-muted" topic={t('scan.scopeTopic')} info={scopeInfo}>{scopeText}</InfoLine>
-        : <p className="-mt-3 mb-6 max-w-3xl text-meta text-muted">{scopeText}{!target.full_scan && admin ? <> <Link to="?tab=ownership#step-terms" className="font-medium text-accent underline underline-offset-4">{t('scan.acceptTerms')}</Link></> : null}</p>)}
-      <SchedulePanel target={target} />
-      {notice ? (
-        <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
-          <div className="mb-1 flex items-center gap-1">
-            <p className="font-medium">{t('scan.noticeTitle')}</p>
-            <InfoTip topic={t('scan.noticeTitle')}>{target.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}<p>{t('scan.noticeWho')}</p></InfoTip>
-          </div>
-          {target.commitment ? <p className="mb-1 text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
-          <p>{notice.text}</p>
-        </div>
-      ) : null}
-      {!operator ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-meta text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
-      {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice} info={t(`${stateKey}Info`)}
-        actions={<Button onClick={() => { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }}>{t('verify.goOwnership')}</Button>} /> : null}
-      <AnchorRedirect map={target.kind === 'ip' ? ANCHOR_TAB : { ...ANCHOR_TAB, outside: 'results' }} />
+      <ScanBar node={node} flow={flow} />
+      <ScanSchedule node={node} />
+      <AnchorRedirect map={ANCHOR_TAB} />
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[
-        { id: 'results', label: t('tabs.results'), panel: <ResultsPanel target={target} blockedText={blocked} /> },
-        { id: 'exposures', label: t('tabs.open'), badge: target.open_exposures > 0 ? { count: target.open_exposures, label: t('tabs.openCount'), tone: 'off' as const } : undefined, panel: <OpenPortsPanel target={target} /> },
-        ...(target.kind === 'domain' ? [{ id: 'surface', label: t('tabs.surface'), panel: <SurfacePanel target={target} blockedText={blocked} /> }] : []),
-        { id: 'ownership', label: t('tabs.ownership'), badge: needsOwnership ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
-          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : typedIp ? t('step.verifyHintTypedIp') : t('step.verifyHintIp')}
-            info={target.kind === 'domain' ? <><p>{t('step.verifyHintDomainInfo')}</p><p>{t('verify.doneDomainInfo')}</p></> : typedIp ? t('step.verifyHintTypedIpInfo') : t('step.verifyHintIpInfo')}>
-            <VerifyPanel target={target} />
+        { id: 'issues', label: t('tabs.issues'), badge: c.issues > 0 ? { count: c.issues, label: t('tabs.issuesCount'), tone: 'off' as const } : undefined, panel: <IssuesPanel node={node} /> },
+        { id: 'services', label: t('tabs.services'), badge: c.services > 0 ? { count: c.services, label: t('tabs.servicesCount'), tone: 'off' as const } : undefined, panel: <ServicesPanel node={node} gateway={boxIp(node) ? tree.data?.gateway ?? null : null} /> },
+        ...(domain ? [{ id: 'names', label: t('tabs.names'), panel: <NamesPanel node={node} onEdit={() => setEditing(true)} /> }] : []),
+        { id: 'scans', label: t('tabs.scans'), panel: <ScansPanel node={node} /> },
+        { id: 'ownership', label: t('tabs.ownership'), badge: needsProof(node) ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
+          <Section id="step-verify" title={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
+            <ProofPanel node={node} />
           </Section>
-          {target.commitment ? (
+          {node.commitment ? (
             <Section id="step-commit" title={t('step.commit')} description={t('step.commitHint')} info={t('step.commitHintInfo')}>
-              <CommitmentPanel target={target} />
+              <CommitmentPanel consent={node.commitment} />
             </Section>
           ) : null}
           <Section id="step-terms" title={t('terms.title')} description={t('terms.description')}
             info={<><p>{t('terms.descriptionInfo')}</p><p>{t('terms.who')}</p><p>{t('terms.stops')}</p></>}>
-            <TermsPanel target={target} />
+            <TermsPanel node={node} />
           </Section>
         </> },
-        ...(target.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel target={target} /> }] : []),
+        ...(node.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel node={node} /> }] : []),
       ]} />
+      {!operator ? <InfoLine className="mt-4 max-w-3xl text-meta text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
+      <EditTargetDialog node={node} open={editing} onOpenChange={setEditing} />
+      <DeleteTargetDialog node={node} items={items} open={deleting} onOpenChange={setDeleting} onDone={() => void nav('/exposure')} />
     </>
   )
 }
 
-function DeleteTarget({ target }: { target: Target }) {
+/**
+ * How often the box scans the target by itself: the shared schedule editor on the target's schedule (exposure.target:<id>), with the
+ * preview of the next starts, the pause and the window. Scan now is the page's own button, so the editor has no Run now of its own.
+ */
+function ScanSchedule({ node }: { node: TargetNode }) {
   const { t } = useTranslation('exposure')
-  const can = useCan('admin')
-  const del = useDeleteTarget()
-  const nav = useNavigate()
-  const [open, setOpen] = useState(false)
   return (
-    <>
-      <Button onClick={() => setOpen(true)} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Trash2 />{t('delete.button')}</Button>
-      {/* A public IP uses the same dialog as the list (with "Don't add it again if detected" ticked); a domain has nothing to ignore. */}
-      {target.kind === 'ip' ? <RemoveDialog target={open ? target : null} onClose={() => setOpen(false)} onDone={() => void nav('/exposure')} /> : (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')} info={t('delete.bodyInfo')}>
-          <DialogFooter>
-            <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.deleting')} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      )}
-    </>
+    <section aria-label={t('schedule.name', { value: node.value })} className="grid gap-1">
+      <ScheduleEditor ownerKey={node.schedule_key} name={t('schedule.name', { value: node.value })} runNow={false} />
+      {!node.deep ? <p className="text-meta text-muted">{t('schedule.needsTerms')}</p> : null}
+    </section>
   )
 }

@@ -112,12 +112,13 @@ type fakeSurface struct {
 	domain  string
 	ip      netip.Addr
 	allowed []string
+	names   surface.Names   // the names the scan was told to reach
 	started chan struct{}   // set: the scan blocks until its context ends
 	ctx     context.Context // the context of that blocking scan, set before started is closed
 }
 
-func (f *fakeSurface) Domain(ctx context.Context, d string, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
-	f.domain = d
+func (f *fakeSurface) Domain(ctx context.Context, d string, names surface.Names, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
+	f.domain, f.names = d, names
 	for _, a := range []string{"203.0.113.10", "203.0.113.11"} {
 		if may(ctx, netip.MustParseAddr(a)) {
 			f.allowed = append(f.allowed, a)
@@ -144,6 +145,7 @@ func TestExposureRunnerResult(t *testing.T) {
 	ip := netip.MustParseAddr("203.0.113.10")
 	f := &fakeSurface{res: surface.Result{
 		Hosts:    []surface.Host{{Name: "acme.example", IP: ip, Source: "dns", Addrs: []surface.Addr{{IP: ip, Class: "box"}, {IP: netip.MustParseAddr("2606:4700::5"), Class: "public"}}}},
+		Skipped:  []surface.Host{{Name: "git.acme.example", Source: "ct", CNAME: "git.example.net"}},
 		Wordlist: surface.WordlistNoAnswer, Unresolved: []string{"old.acme.example", "vpn.acme.example"},
 		Ports: []surface.Port{{IP: ip, Port: 443, Service: "https", Product: "FortiGate"}, {IP: ip, Port: 3000, Service: "http"}},
 		Admin: []surface.Admin{{URL: "https://acme.example", Product: "FortiGate", IP: ip, Port: 443, Danger: true}, {URL: "http://acme.example:3000", Product: "Grafana", IP: ip, Port: 3000}},
@@ -170,6 +172,11 @@ func TestExposureRunnerResult(t *testing.T) {
 		len(c.AdminPanels) != 2 || c.AdminPanels[0].Risk != "danger" || c.AdminPanels[1].Risk != "warn" ||
 		len(c.Certs) != 1 || c.Certs[0] != (exposure.CertRow{Host: "acme.example", Issuer: "R11", ExpiresAt: "2027-01-02T03:04:05Z"}) {
 		t.Fatalf("content %+v", c)
+	}
+	// A name the scan did not probe (its child target's, or out of its scope) comes back listed, without an address; the scan was handed
+	// the target's plan (nil here: every name)
+	if !reflect.DeepEqual(c.Listed, []exposure.HostRow{{Name: "git.acme.example", Source: "ct", CNAME: "git.example.net"}}) || f.names.Scans == nil || !f.names.Scans("www.acme.example") || !f.names.Find || f.names.Choose {
+		t.Fatalf("listed %+v", c.Listed)
 	}
 	if fmt.Sprint(asked) != "[op@acme.example 203.0.113.10 op@acme.example 203.0.113.11]" || fmt.Sprint(f.allowed) != "[203.0.113.10]" {
 		t.Fatalf("scope asked %v, allowed %v", asked, f.allowed)
@@ -236,7 +243,7 @@ func exposureScanNeverProbesNonPublic(t *testing.T) {
 			t.Fatalf("%s: %v", a, err)
 		}
 	}
-	got, err := s.Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool {
+	got, err := s.Domain(t.Context(), "acme.example", surface.Every, func(context.Context, netip.Addr) bool {
 		t.Error("a non-public address was offered for a port scan")
 		return true
 	})

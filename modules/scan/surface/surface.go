@@ -34,6 +34,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -153,12 +154,19 @@ type (
 		CNAME  string
 		Addrs  []Addr
 	}
-	// Port is an open TCP port. Product is what its page names (a fingerprint, else the Server header), or empty.
+	// Port is an open TCP port. Product is what its page names (a fingerprint, else the Server header), or empty. Title, Server and
+	// Location are what the page request read on it (the page's title, the Server header, where it redirects without the query), and
+	// CertNames the names of the certificate it showed: all empty on a port that gave no page, so a port with any of them answered HTTP.
 	Port struct {
-		IP      netip.Addr
-		Port    int
-		Service string
-		Product string
+		IP        netip.Addr
+		Port      int
+		Service   string
+		Product   string
+		Title     string
+		Server    string
+		Location  string
+		CertNames []string
+		HTTP      bool // the page request got an HTTP answer, even one with no title, header or redirect
 	}
 	// Admin is an admin page that answered. Danger: close it now; otherwise restrict it by IP.
 	Admin struct {
@@ -176,9 +184,13 @@ type (
 	}
 	// Result is what one scan found. Wordlist: why a domain scan did not try every common name (WordlistWildcard,
 	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer, sorted; they are
-	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27).
+	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27). Skipped: the names found that the scan was told
+	// not to reach (another target scans them, or the scope leaves them out), with their source only. NamesCut: the scope is the names
+	// chosen and the domain has more names than one scan lists, so only the chosen ones were looked up.
 	Result struct {
 		Hosts      []Host
+		Skipped    []Host
+		NamesCut   bool
 		Ports      []Port
 		Admin      []Admin
 		Certs      []Cert
@@ -187,32 +199,67 @@ type (
 	}
 )
 
+// Names is which names under a domain one scan reaches: the scope of the target and the names its child targets scan themselves.
+type Names struct {
+	// Scans says the scan probes a name (nil: every name found); the domain itself always. A name it refuses is listed in Skipped,
+	// never resolved nor probed, and does not count against maxNames.
+	Scans func(name string) bool
+	// Find: look for names under the domain (certificate logs, MX and NS, common names). Without it, only the domain and Chosen.
+	Find bool
+	// Choose: the scope is the names chosen. With too many names under the domain to list them, the scan falls back to Chosen
+	// (Result.NamesCut) instead of refusing.
+	Choose bool
+	// Chosen are names under the domain looked up and probed whether or not they are found this time (the names chosen).
+	Chosen []string
+}
+
+// Every is the scan of every name found under a domain.
+var Every = Names{Find: true}
+
 // Domain scans a verified domain: its names from certificate transparency, the apex's MX and NS hosts under it
 // and the common names that resolve (discover), each with its addresses, CNAME and class, listed; HTTP checks by name on 80 and 443
 // for the names on a public IPv4 address; a port scan only of the addresses that mayScanPorts accepts (exposure: a verified IP
 // target that may be scanned now), which are also the ones of kind "box". One probe-log row of kind "dns" is written before the
-// lookups. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names than one scan reads, ErrTooLong
-// past the time cap.
-func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
+// lookups. names is which names it reaches (Names): the others are listed in Skipped with no lookup, no check by name and no port scan
+// through them. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names to scan than one scan reads,
+// ErrTooLong past the time cap.
+func (s *Scanner) Domain(ctx context.Context, domain string, names Names, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
 		return Result{}, fmt.Errorf("surface: %q is not a domain name", domain)
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	ct, err := s.searchCT(ctx, domain)
-	if err != nil {
-		return Result{}, s.stopped(ctx, err)
+	var ct, other []string
+	cut := false
+	if names.Find {
+		var err error
+		ct, other, err = s.searchCT(ctx, domain, names.Scans)
+		switch {
+		case errors.Is(err, ErrTooManyNames) && names.Choose: // too many to list: the chosen names only, and the scan says so
+			cut, ct, other = true, nil, nil
+		case err != nil:
+			return Result{}, s.stopped(ctx, err)
+		}
+		s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct), "skipped", len(other))
 	}
-	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct))
 	// The domain is the label (and the target column); the text leads with the counts, so the 300-character clip of the probe log
 	// never cuts them.
 	const asked = "DNS lookups via the box's resolver: A, AAAA, CNAME of %d names from certificates; MX, NS; wildcard check; up to %d common names"
-	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: fmt.Sprintf(asked, len(ct), len(wordlist.Labels()))}}
+	const askedChosen = "DNS lookups via the box's resolver: A, AAAA, CNAME of the domain and %d chosen names"
+	req := fmt.Sprintf(asked, len(ct), len(wordlist.Labels()))
+	if !names.Find || cut {
+		req = fmt.Sprintf(askedChosen, len(names.Chosen))
+	}
+	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: req}}
 	if err := s.record(ctx, probe, false); err != nil {
 		return Result{}, err
 	}
-	d, err := s.discover(ctx, domain, ct)
+	d, err := s.discover(ctx, domain, ct, other, names, names.Find && !cut)
+	if errors.Is(err, ErrTooManyNames) && names.Choose && names.Find && !cut {
+		cut = true
+		d, err = s.discover(ctx, domain, nil, nil, names, false)
+	}
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -224,7 +271,10 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 	if d.answers[domain].failed { // the domain itself (and so, at worst, every name) got no clear answer: nothing to compare with
 		return Result{}, ErrDNS
 	}
-	res := Result{Wordlist: d.wordlist}
+	res := Result{Wordlist: d.wordlist, NamesCut: cut}
+	for _, n := range d.skipped { // another target's names, or out of the scope: listed, never looked up nor probed
+		res.Skipped = append(res.Skipped, Host{Name: n, Source: d.source[n]})
+	}
 	var jobs []fetchJob
 	var public []netip.Addr
 	contacted := map[string]netip.Addr{}
@@ -332,6 +382,7 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 		port int
 	}
 	product := map[key]string{}
+	read := map[key]answer{}
 	admins := map[string]bool{}
 	for i, a := range answers {
 		j := jobs[i]
@@ -342,6 +393,9 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 			continue
 		}
 		k := key{j.ip, j.port.port}
+		if _, ok := read[k]; !ok {
+			read[k] = a
+		}
 		fp := identify(a.page)
 		switch {
 		case fp != nil:
@@ -356,7 +410,9 @@ func assemble(res Result, ips []netip.Addr, open map[netip.Addr][]int, jobs []fe
 	}
 	for _, ip := range ips {
 		for _, p := range open[ip] {
-			res.Ports = append(res.Ports, Port{IP: ip, Port: p, Service: portByNumber[p].service, Product: product[key{ip, p}]})
+			a := read[key{ip, p}]
+			res.Ports = append(res.Ports, Port{IP: ip, Port: p, Service: portByNumber[p].service, Product: product[key{ip, p}], Title: a.titleRaw, Server: a.serverRaw,
+				Location: redirectTarget(a.locationRaw), CertNames: a.page.certNames, HTTP: a.ok})
 		}
 	}
 	return res
@@ -467,7 +523,10 @@ type answer struct {
 	ok        bool // the page was read
 	page      page
 	serverRaw string
-	cert      *x509.Certificate
+	titleRaw  string // the page's title as it was written
+	// locationRaw is the Location header of a redirect that was not followed
+	locationRaw string
+	cert        *x509.Certificate
 }
 
 // fetchAll runs the jobs a few at a time; answers[i] is the answer of jobs[i]. One probe-log line a job, written before and
@@ -558,7 +617,7 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxPageBody))
-	a := answer{ok: true, serverRaw: oneLine(resp.Header.Get("Server"), 100)}
+	a := answer{ok: true, serverRaw: oneLine(resp.Header.Get("Server"), 100), titleRaw: clipRunes(readTitle(string(body)), 120), locationRaw: oneLine(resp.Header.Get("Location"), 300)}
 	a.page = page{
 		title: strings.ToLower(readTitle(string(body))), server: strings.ToLower(a.serverRaw), body: strings.ToLower(string(body)),
 		location: strings.ToLower(resp.Header.Get("Location")), header: map[string]bool{},
@@ -572,6 +631,27 @@ func (s *Scanner) fetch(ctx context.Context, j fetchJob) answer {
 	}
 	s.log.InfoContext(ctx, "exposure_scan_page", "url", start, "ip", j.ip.String(), "status", resp.StatusCode)
 	return a
+}
+
+// redirectTarget is where a redirect goes without its user info, query and fragment, which may carry a token; "" when it is not a URL.
+func redirectTarget(loc string) string {
+	if loc == "" {
+		return ""
+	}
+	u, err := url.Parse(loc)
+	if err != nil {
+		return ""
+	}
+	u.User, u.RawQuery, u.Fragment, u.ForceQuery = nil, "", "", false
+	return clipRunes(u.String(), 200)
+}
+
+// clipRunes cuts s to n characters, so a long value is kept short instead of being refused later.
+func clipRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 // oneLine keeps the printable ASCII of a header, at most n bytes.

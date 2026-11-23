@@ -1365,6 +1365,27 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsIDTerms(ctx context.Con
 	return r, ht.ErrNotImplemented
 }
 
+// ExposureDeleteExposureTreeID implements exposure_delete_exposure_tree_id operation.
+//
+// Delete a target with its rows, consent and runs. Its children move up to its parent (or the top) and
+// keep their own options; a child that was covered by its proof needs its own. ignore=true (IPs only,
+// else 400 bad_value) also puts the IP on the Ignored list. Audited.
+//
+// DELETE /exposure/tree/{id}
+func (UnimplementedHandler) ExposureDeleteExposureTreeID(ctx context.Context, params ExposureDeleteExposureTreeIDParams) error {
+	return ht.ErrNotImplemented
+}
+
+// ExposureDeleteExposureTreeIDTerms implements exposure_delete_exposure_tree_id_terms operation.
+//
+// Withdraw the testing terms: the next scan is a surface scan, and a deep scan of this node that runs
+// now is stopped. Audited.
+//
+// DELETE /exposure/tree/{id}/terms
+func (UnimplementedHandler) ExposureDeleteExposureTreeIDTerms(ctx context.Context, params ExposureDeleteExposureTreeIDTermsParams) (r *ExposureDeleteExposureTreeIDTermsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
 //
 // The optional deep scan with OpenVAS (Greenbone Community Edition): its state and this box's memory
@@ -1444,6 +1465,83 @@ func (UnimplementedHandler) ExposureGetExposureTargetsIDSnapshotsDate(ctx contex
 	return r, ht.ErrNotImplemented
 }
 
+// ExposureGetExposureTree implements exposure_get_exposure_tree operation.
+//
+// Every target as a tree, with its proof (own or covered by an ancestor), consent, newest scan and
+// counts, plus the box-IP settings, the Ignored list and the gateway.
+//
+// GET /exposure/tree
+func (UnimplementedHandler) ExposureGetExposureTree(ctx context.Context) (r *ExposureGetExposureTreeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeID implements exposure_get_exposure_tree_id operation.
+//
+// One target node.
+//
+// GET /exposure/tree/{id}
+func (UnimplementedHandler) ExposureGetExposureTreeID(ctx context.Context, params ExposureGetExposureTreeIDParams) (r *ExposureGetExposureTreeIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeIDAddresses implements exposure_get_exposure_tree_id_addresses operation.
+//
+// Addresses of this node and of its names, with kind and first and last seen.
+//
+// GET /exposure/tree/{id}/addresses
+func (UnimplementedHandler) ExposureGetExposureTreeIDAddresses(ctx context.Context, params ExposureGetExposureTreeIDAddressesParams) (r *ExposureGetExposureTreeIDAddressesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeIDHosts implements exposure_get_exposure_tree_id_hosts operation.
+//
+// Names found under this domain node, with source, first and last seen, the choice for scope selected
+// and the child target that owns a name; empty for an IP.
+//
+// GET /exposure/tree/{id}/hosts
+func (UnimplementedHandler) ExposureGetExposureTreeIDHosts(ctx context.Context, params ExposureGetExposureTreeIDHostsParams) (r *ExposureGetExposureTreeIDHostsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeIDIssues implements exposure_get_exposure_tree_id_issues operation.
+//
+// Issues every engine reported on this node, open, gone and handled, most severe first.
+//
+// GET /exposure/tree/{id}/issues
+func (UnimplementedHandler) ExposureGetExposureTreeIDIssues(ctx context.Context, params ExposureGetExposureTreeIDIssuesParams) (r *ExposureGetExposureTreeIDIssuesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeIDScans implements exposure_get_exposure_tree_id_scans operation.
+//
+// The runs of this node, newest first (at most 100).
+//
+// GET /exposure/tree/{id}/scans
+func (UnimplementedHandler) ExposureGetExposureTreeIDScans(ctx context.Context, params ExposureGetExposureTreeIDScansParams) (r *ExposureGetExposureTreeIDScansOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposureGetExposureTreeIDServices implements exposure_get_exposure_tree_id_services operation.
+//
+// Services found on this node's public addresses, open and closed, with first and last seen and
+// whether they answered HTTP.
+//
+// GET /exposure/tree/{id}/services
+func (UnimplementedHandler) ExposureGetExposureTreeIDServices(ctx context.Context, params ExposureGetExposureTreeIDServicesParams) (r *ExposureGetExposureTreeIDServicesOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePatchExposureTreeID implements exposure_patch_exposure_tree_id operation.
+//
+// Edit a target: scope_mode (domains only), enabled, and selected, the ids of the names to scan when
+// the scope is selected (replaces the choice; 400 bad_value for an id of another node or with another
+// scope). Audited.
+//
+// PATCH /exposure/tree/{id}
+func (UnimplementedHandler) ExposurePatchExposureTreeID(ctx context.Context, req *ExposurePatchExposureTreeIDReq, params ExposurePatchExposureTreeIDParams) (r *ExposurePatchExposureTreeIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExposurePostExposureBoxIPVerify implements exposure_post_exposure_box_ip_verify operation.
 //
 // "Detect now": the box asks three public "what is my IP" services (checkip.amazonaws.com,
@@ -1456,6 +1554,27 @@ func (UnimplementedHandler) ExposureGetExposureTargetsIDSnapshotsDate(ctx contex
 //
 // POST /exposure/box-ip/verify
 func (UnimplementedHandler) ExposurePostExposureBoxIPVerify(ctx context.Context) (r *ExposurePostExposureBoxIPVerifyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePostExposureIssuesHandle implements exposure_post_exposure_issues_handle operation.
+//
+// Handle open issues (at most 500) with one resolution and note: patched, mitigated, accepted (with
+// accepted_until, from tomorrow to 365 days ahead, else 400 bad_until), false_positive or
+// not_relevant. The note is required (at least 3 characters, else 400 note_required) for
+// false_positive, not_relevant and accepted. One audit row per issue; issues not open are skipped.
+//
+// POST /exposure/issues/handle
+func (UnimplementedHandler) ExposurePostExposureIssuesHandle(ctx context.Context, req *ExposurePostExposureIssuesHandleReq) (r *ExposurePostExposureIssuesHandleOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePostExposureIssuesReopen implements exposure_post_exposure_issues_reopen operation.
+//
+// Reopen handled issues (at most 500); the others are skipped. Audited.
+//
+// POST /exposure/issues/reopen
+func (UnimplementedHandler) ExposurePostExposureIssuesReopen(ctx context.Context, req *ExposurePostExposureIssuesReopenReq) (r *ExposurePostExposureIssuesReopenOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1577,6 +1696,44 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDVerify(ctx context.Cont
 	return r, ht.ErrNotImplemented
 }
 
+// ExposurePostExposureTree implements exposure_post_exposure_tree operation.
+//
+// Add a target: a domain, or a public IPv4 address typed in (kind left out: an IPv4 address is an IP,
+// anything else a domain). A domain goes under the nearest domain target it is a name of, and targets
+// that are names of it move under it in the same write; a name the parent already found becomes its
+// own target there (Host.child). scope_mode is for domains only (default all; 400 bad_value for an
+// IP). A typed IP is never scanned until proven. 409 duplicate, 400 bad_value, 400 ip_not_allowed for
+// a private, reserved or IPv6 address.
+//
+// POST /exposure/tree
+func (UnimplementedHandler) ExposurePostExposureTree(ctx context.Context, req *ExposurePostExposureTreeReq) (r *ExposurePostExposureTreeCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePostExposureTreeIDScan implements exposure_post_exposure_tree_id_scan operation.
+//
+// Scan now: queues a run for this node (202 with the scan, status queued or running). Refused when
+// blocked: 409 disabled, 409 not_verified (the proof is re-checked right before), 400
+// commitment_required for an operator; an administrator's first Scan now records the confirmation and
+// needs two-step sign-in (403 twofa_required) and notice_version (409 notice_changed when not
+// current). 409 busy when a run of this node is queued or running. Stop it through the shared run.
+//
+// POST /exposure/tree/{id}/scan
+func (UnimplementedHandler) ExposurePostExposureTreeIDScan(ctx context.Context, req OptExposurePostExposureTreeIDScanReq, params ExposurePostExposureTreeIDScanParams) (r *ExposurePostExposureTreeIDScanAccepted, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePostExposureTreeIDVerify implements exposure_post_exposure_tree_id_verify operation.
+//
+// Check ownership now: a domain's TXT record, a typed IP's file or reverse DNS name, or that the box
+// still goes out through its own IP. A node covered by a proven ancestor is verified by that proof.
+// Not found is a normal answer (verified false). 429 rate_limited as before.
+//
+// POST /exposure/tree/{id}/verify
+func (UnimplementedHandler) ExposurePostExposureTreeIDVerify(ctx context.Context, params ExposurePostExposureTreeIDVerifyParams) (r *ExposurePostExposureTreeIDVerifyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExposurePutExposureBoxIPSettings implements exposure_put_exposure_box_ip_settings operation.
 //
 // Turn auto-detect on or off and set the check interval (5 to 1440 minutes, else 400 bad_interval).
@@ -1602,22 +1759,6 @@ func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// ExposurePutExposureTargetsIDSchedule implements exposure_put_exposure_targets_id_schedule operation.
-//
-// Set how often the box scans this target by itself: off, daily, weekly (the default) or monthly,
-// counted from the start of its newest scan. A scheduled scan runs as the box inside the scan window
-// of Settings › Scanning › Safety, only while the ownership proof holds and the testing terms of
-// the current version are accepted (else it is skipped and schedule.note says why), with the same
-// steps as Deep scan now (OpenVAS only while it is turned on); it waits in the queue like any scan.
-// What it finds new since the scan before (an open port, an admin page, a certificate now expiring
-// within 30 days, an exploited vulnerability newly matched) goes to the alert channels. 400 bad_value
-// for another value. Audited (exposure.schedule).
-//
-// PUT /exposure/targets/{id}/schedule
-func (UnimplementedHandler) ExposurePutExposureTargetsIDSchedule(ctx context.Context, req *ExposurePutExposureTargetsIDScheduleReq, params ExposurePutExposureTargetsIDScheduleParams) (r *ExposurePutExposureTargetsIDScheduleOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms operation.
 //
 // Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds
@@ -1632,6 +1773,19 @@ func (UnimplementedHandler) ExposurePutExposureTargetsIDSchedule(ctx context.Con
 //
 // PUT /exposure/targets/{id}/terms
 func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *ExposurePutExposureTargetsIDTermsReq, params ExposurePutExposureTargetsIDTermsParams) (r *ExposurePutExposureTargetsIDTermsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms operation.
+//
+// Accept the testing terms of a proven or covered node: its scans are then deep scans; disruptive adds
+// the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when
+// version is not terms_notice.version; 409 not_verified; 409 shared_address for disruptive behind
+// carrier-grade NAT. Records the scan confirmation too when the node has none of the current sentence.
+// Audited.
+//
+// PUT /exposure/tree/{id}/terms
+func (UnimplementedHandler) ExposurePutExposureTreeIDTerms(ctx context.Context, req *ExposurePutExposureTreeIDTermsReq, params ExposurePutExposureTreeIDTermsParams) (r *ExposurePutExposureTreeIDTermsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

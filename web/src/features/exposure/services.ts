@@ -1,4 +1,4 @@
-import type { PortRow, ServiceRow } from './types'
+import type { PortRow, Service, ServiceRow } from './types'
 
 // Short names people know for the services the scan lists (nmap's names, or the usual port names of the surface scan).
 const LABEL = new Map<string, string>(Object.entries({
@@ -28,47 +28,14 @@ export function serviceName(service: string): string {
   return base !== service ? `${name} over TLS` : name
 }
 
-type Ident = 'probed' | 'port' | 'none' | undefined
-
-/** How the port's service was named: a probe's answer, only the port number (not confirmed), or nothing. A row of an older
- * scan has no ident: a name that says nothing was read still counts as "none". */
-export const identOf = (p: { service: string; ident?: Ident }): Ident => (p.ident ?? (unnamed(p.service) ? 'none' : undefined))
-
-/** "SIP 5060" for an open port; "Probably SIP 5060" when only the port number says so; "Unidentified service 11080" when nothing does. */
-export function portLabel(p: Pick<PortRow, 'service' | 'port' | 'ident'>): string {
-  switch (identOf(p)) {
-    case 'none': return `${isTls(p.service) ? 'Unidentified TLS service' : 'Unidentified service'} ${p.port}`
-    case 'port': return `Probably ${serviceName(p.service)} ${p.port}`
-    default: return `${serviceName(p.service)} ${p.port}`
+/** The Service cell of a row: the name, and whether only the port number says so. */
+export function serviceText(s: Pick<Service, 'name' | 'ident'>): { name: string; byPort: boolean } {
+  if (s.ident === 'none' || unnamed(s.name)) {
+    if (s.name === 'tcpwrapped') return { name: 'Closed at once (tcpwrapped)', byPort: false }
+    return { name: isTls(s.name) ? 'TLS, service not identified' : 'Service not identified', byPort: false }
   }
-}
-
-/** The box's ServiceLabel (exposure portident.go): the port's service in a sentence, as "What changed" and the alert say it. */
-export function serviceLabel(p: Pick<PortRow, 'service' | 'ident'>): string {
-  if (identOf(p) === 'none') return isTls(p.service) ? 'TLS, service not identified' : 'service not identified'
-  return identOf(p) === 'port' ? `probably ${serviceName(p.service)}` : serviceName(p.service)
-}
-
-/** The Service cell of a port or a service row: the name, and the caption that says how sure it is. */
-export function serviceText(service: string, ident: Ident): { name: string; note: string | null } {
-  if (ident === 'none' || unnamed(service)) {
-    if (service === 'tcpwrapped') return { name: 'Closed at once (tcpwrapped)', note: null }
-    return { name: isTls(service) ? 'TLS, service not identified' : 'Service not identified', note: null }
-  }
-  if (ident === 'port') return { name: `Probably ${serviceName(service)}`, note: 'By port number, not confirmed' }
-  return { name: serviceName(service), note: null }
-}
-
-/** A service row's ident, from nmap's method. */
-export const serviceIdent = (r: Pick<ServiceRow, 'name' | 'method'>): Ident => (unnamed(r.name) ? 'none' : r.method === 'table' ? 'port' : r.method === 'probed' ? 'probed' : undefined)
-
-/** What the deep scan's scripts read on the port, as short phrases (certificate names, page title, Server header). */
-export function portHints(p: Pick<PortRow, 'cert_names' | 'title' | 'server' | 'product'>): string[] {
-  const out: string[] = []
-  if (p.cert_names?.length) out.push(`certificate for ${p.cert_names.join(', ')}`)
-  if (p.title) out.push(`page title "${p.title}"`)
-  if (p.server && !p.product) out.push(`Server header ${p.server}`)
-  return out
+  if (s.ident === 'table') return { name: `Probably ${serviceName(s.name)}`, byPort: true }
+  return { name: serviceName(s.name), byPort: false }
 }
 
 type Risk = 'voip' | 'remote' | 'files' | 'database' | 'control' | 'camera'
@@ -88,5 +55,16 @@ const RISKY = new Map<string, Risk>(Object.entries({
   dvr: 'camera',
 } satisfies Record<string, Risk>))
 
-/** The reason a port's service is commonly attacked; null when it is not, or when nothing identified the service. */
-export const riskOf = (p: Pick<PortRow, 'service' | 'ident'>) => (identOf(p) === 'none' ? null : RISKY.get(p.service) ?? RISKY.get(p.service.replace(/^ssl\//, '')) ?? null)
+/** The reason a service is commonly attacked; null when it is not, or when nothing identified it. */
+export const riskOf = (s: Pick<Service, 'name' | 'ident'>) => (s.ident === 'none' || unnamed(s.name) ? null : RISKY.get(s.name) ?? RISKY.get(s.name.replace(/^ssl\//, '')) ?? null)
+
+// The snapshot model of the older /exposure/targets API, which the sample data of the mock still serves.
+type Ident = 'probed' | 'port' | 'none' | undefined
+const identOf = (p: { service: string; ident?: Ident }): Ident => (p.ident ?? (unnamed(p.service) ? 'none' : undefined))
+/** A port's service in a sentence, as the older "What changed" said it. */
+export function serviceLabel(p: Pick<PortRow, 'service' | 'ident'>): string {
+  if (identOf(p) === 'none') return isTls(p.service) ? 'TLS, service not identified' : 'service not identified'
+  return identOf(p) === 'port' ? `probably ${serviceName(p.service)}` : serviceName(p.service)
+}
+/** A service row's ident, from nmap's method. */
+export const serviceIdent = (r: Pick<ServiceRow, 'name' | 'method'>): Ident => (unnamed(r.name) ? 'none' : r.method === 'table' ? 'port' : r.method === 'probed' ? 'probed' : undefined)

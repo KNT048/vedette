@@ -398,7 +398,7 @@ func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 
 // surfaceScan is the part of *surface.Scanner the runner calls (a test hands it a fake that probes nothing).
 type surfaceScan interface {
-	Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (surface.Result, error)
+	Domain(ctx context.Context, domain string, names surface.Names, mayScanPorts func(context.Context, netip.Addr) bool) (surface.Result, error)
 	IP(ctx context.Context, ip netip.Addr) (surface.Result, error)
 }
 
@@ -443,7 +443,9 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 	var err error
 	switch t.Kind {
 	case exposure.KindDomain:
-		res, err = r.scan.Domain(ctx, t.Value, func(ctx context.Context, ip netip.Addr) bool {
+		// t.Names: the names this target scans; its enabled children's names and the ones its scope leaves out are listed, not probed
+		names := surface.Names{Scans: t.Names.Scans, Find: t.Names.Find(), Choose: t.Names.Choose(), Chosen: t.Names.Chosen()}
+		res, err = r.scan.Domain(ctx, t.Value, names, func(ctx context.Context, ip netip.Addr) bool {
 			ok, err := r.scope(ctx, t.User, ip)
 			if err != nil { // fail closed: no port scan of an address exposure could not vouch for
 				r.log.ErrorContext(ctx, "exposure_scan_scope_failed", "ip", ip.String(), "error", err)
@@ -497,10 +499,16 @@ func contentOf(r surface.Result) exposure.Content {
 		c.Hosts = append(c.Hosts, row)
 	}
 	if text := map[string]string{surface.WordlistWildcard: exposure.NotWordlistWildcard, surface.WordlistNoAnswer: exposure.NotWordlistNoAnswer,
-		surface.WordlistCut: exposure.NotWordlistCut}[r.Wordlist]; text != "" {
+		surface.WordlistCut: exposure.NotWordlistCut, surface.WordlistChosen: exposure.NotWordlistChosen}[r.Wordlist]; text != "" {
 		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
 	}
-	c.Unresolved = r.Unresolved // exposure carries their previous rows forward and says so (INV-27)
+	c.Unresolved = r.Unresolved   // exposure carries their previous rows forward and says so (INV-27)
+	for _, h := range r.Skipped { // found and not probed: another target scans them, or the scope leaves them out
+		c.Listed = append(c.Listed, exposure.HostRow{Name: h.Name, Source: h.Source, CNAME: h.CNAME})
+	}
+	if r.NamesCut {
+		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "names", Text: exposure.NotNamesCut})
+	}
 	for _, p := range r.Ports {
 		// M2-7 (review r1 M1): the surface scan names a port from its number (surface's port list); only a product its GET read
 		// identifies it. nmap -sV, when it runs on the address, overrides this (exposure identifyPorts).
@@ -508,7 +516,8 @@ func contentOf(r surface.Result) exposure.Content {
 		if p.Product != "" {
 			ident = exposure.IdentProbed
 		}
-		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product, Ident: ident})
+		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product, Ident: ident,
+			CertNames: p.CertNames, Title: p.Title, Server: p.Server, Location: p.Location, HTTP: p.HTTP})
 	}
 	for _, a := range r.Admin {
 		risk := "warn"

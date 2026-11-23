@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
@@ -108,8 +109,10 @@ type matchSet struct {
 	vulns    []Vuln
 	listed   []int            // entries of an exploited list (Vendor set)
 	byVendor map[string][]int // normalised CPE vendor -> entries of the catalogue naming it
-	// backlog and recent are the CVEs of the set's backlog and recent entries (Service.judgedParts), split once per pass.
+	// backlog and recent are the CVEs of the set's backlog and recent entries (Service.judgedParts), split once per pass at splitAt;
+	// every device's entries are split at the same time, so an entry that ages out of RecentKEV during the pass stays in one part.
 	splitOnce       sync.Once
+	splitAt         time.Time
 	backlog, recent map[string]bool
 	// hashes are the entries' hashes for the match stamps (entryHash), computed when first asked; hashed[i]: 1 done, 2 not hashable.
 	hashes [][32]byte

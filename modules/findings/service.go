@@ -451,7 +451,13 @@ type partMatch struct {
 
 // match is MatchAsset(a, vulns, have, now) for the part, from the readings already made (the part's vulns are dm's entries idx and
 // the device is dm's).
-func (p *partMatch) match(have map[string]bool) MatchResult { return p.dm.result(p.idx, have) }
+func (p *partMatch) match(have map[string]bool) MatchResult {
+	idx := p.idx
+	if idx == nil {
+		idx = []int{} // an empty part matches nothing (result reads nil as the whole list)
+	}
+	return p.dm.result(idx, have)
+}
 
 // upsertPart is upsert; pre, when not nil, holds the readings the device's match of vulns is assembled from instead of matching again
 // (the match pass reads every entry once for its two writes and its questions). The device read again inside the write (reread) is

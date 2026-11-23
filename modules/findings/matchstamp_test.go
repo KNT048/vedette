@@ -1,13 +1,17 @@
 package findings
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/winrel"
 )
@@ -251,5 +255,36 @@ func TestMatchStamp_LearnedWindowsUpdatesMatchAgain(t *testing.T) {
 	winrel.LearnUpdates([]winrel.Update{{Build: 26100, Rev: 9999, KB: "KB5099999", Day: t0.Add(-24 * time.Hour)}})
 	if r := w.pass(); r.Unchanged != 0 {
 		t.Fatalf("after Windows updates were learned: %+v, want every device matched again", r)
+	}
+}
+
+// Windows updates learned while a device is being matched (after its match was computed, before its stamp is kept) are not in that
+// match: the stamp must say so, and the next pass matches the device again. Not parallel: it sets the learned updates every test reads.
+func TestMatchStamp_WindowsUpdatesLearnedDuringAMatchMatchAgain(t *testing.T) {
+	w := newTwin(t)
+	t.Cleanup(func() { winrel.LearnUpdates(nil) })
+	var once sync.Once
+	svc, err := NewService(ServiceConfig{DB: w.skip.db, Audit: audit.New(func() time.Time { return *w.skip.clock }), Publisher: w.skip.pub,
+		Inventory: w.inv, Feeds: w.feeds, Log: slog.New(slog.DiscardHandler), Clock: func() time.Time { return *w.skip.clock },
+		Backlog: func(ctx context.Context) context.Context {
+			once.Do(func() { // the first device's match is computed; its writes have not run yet
+				winrel.LearnUpdates([]winrel.Update{{Build: 26100, Rev: 9999, KB: "KB5099999", Day: t0.Add(-24 * time.Hour)}})
+			})
+			return context.WithValue(ctx, baselineKey{}, true)
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.svc = svc
+	if _, err := svc.Reconcile(t.Context()); err != nil { // its first device was matched with the updates as they were before
+		t.Fatal(err)
+	}
+	w.advance(10 * time.Minute)
+	r, err := svc.Reconcile(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Unchanged == r.Devices {
+		t.Fatalf("after updates were learned during the last pass: %+v, want the device matched before them matched again", r)
 	}
 }

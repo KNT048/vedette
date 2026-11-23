@@ -89,16 +89,18 @@ type passInput struct {
 }
 
 // matchStamp hashes everything the match pass reads for device a against the entries idx of the pass's set, with the device's rows
-// rows, at now (see the top of this file). ok is false when something could not be hashed: the device is then matched.
-func (s *Service) matchStamp(a Asset, in passInput, idx []int, rows deviceRows, now time.Time) (stamp [32]byte, ok bool) {
+// rows, at now, with the learned Windows releases and updates at generation gen (winrel.Generation, read before the match was
+// computed: what is learned during a match is not in it) (see the top of this file). ok is false when something could not be hashed:
+// the device is then matched.
+func (s *Service) matchStamp(a Asset, in passInput, idx []int, rows deviceRows, now time.Time, gen uint64) (stamp [32]byte, ok bool) {
 	h := sha256.New()
 	enc := json.NewEncoder(h)
 	if err := enc.Encode(a); err != nil {
 		return stamp, false
 	}
 	backlog, recent := s.judgedParts(in.set)
-	_, _ = fmt.Fprintf(h, "winrel %d day %s rates %t backlog %t\n", winrel.Generation(), now.UTC().Format(time.DateOnly), s.rates(), s.cfg.Backlog != nil)
-	cut := now.Add(-RecentKEV)
+	_, _ = fmt.Fprintf(h, "winrel %d day %s rates %t backlog %t\n", gen, now.UTC().Format(time.DateOnly), s.rates(), s.cfg.Backlog != nil)
+	cut := in.set.splitAt.Add(-RecentKEV) // the pass splits news from backlog at one time (judgedParts)
 	for _, i := range idx {
 		e, ok := in.set.entryHash(i)
 		if !ok {
@@ -161,6 +163,6 @@ func (s *Service) unchanged(ctx context.Context, a Asset, in passInput) bool {
 		return false
 	}
 	now := s.now()
-	stamp, ok := s.matchStamp(a, in, in.set.devIdx(a), rows, now)
+	stamp, ok := s.matchStamp(a, in, in.set.devIdx(a), rows, now, winrel.Generation())
 	return ok && stamp == kept
 }

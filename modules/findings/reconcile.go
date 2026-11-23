@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/winrel"
 )
 
 // ReconcileEvery is the pause between two reconcile runs (the job also runs once when the module starts).
@@ -557,7 +558,8 @@ func (s *Service) judgedParts(set *matchSet) (backlog, recent map[string]bool) {
 			}
 			return out
 		}
-		b, r := s.splitIdx(set.vulns, s.now())
+		set.splitAt = s.now()
+		b, r := s.splitIdx(set.vulns, set.splitAt)
 		if b != nil {
 			set.backlog = cves(b)
 		}
@@ -589,12 +591,14 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 	}
 	a.winList = dev // A Windows build's month is read from the device's whole list in both writes
 	now := s.now()
+	gen := winrel.Generation() // before the match: Windows releases or updates learned while it runs make the next pass match again
 	// The device's rows are read once and each entry once: the whole match (its questions: which findings exist does not change them)
 	// and each write's match of its part are assembled from the same readings (devMatch).
 	dm := newDevMatch(a, dev, now)
 	whole := dm.result(nil, nil)
 	allBacklog, allRecent := s.judgedParts(set)
-	backlog, recent := s.splitIdx(dev, now)
+	// Split at the time the parts' judged CVEs were split (judgedParts), not at the device's own time.
+	backlog, recent := s.splitIdx(dev, set.splitAt)
 	var last *partMatch // the last write that ran
 	stampable := true   // every write that ran wrote on the device as it was read
 	add := func(wctx context.Context, part []int, judged map[string]bool) error {
@@ -623,7 +627,7 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 	}
 	if in.ok && stampable && last != nil {
 		a.winList = nil // the stamp hashes the device as MatchInput gives it
-		if stamp, ok := s.matchStamp(a, in, idx, last.rows, now); ok {
+		if stamp, ok := s.matchStamp(a, in, idx, last.rows, now, gen); ok {
 			s.stamps.set(a.ID, stamp)
 		}
 	}

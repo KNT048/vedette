@@ -4,7 +4,8 @@
 // ones that lead to a route it has not rendered yet. On each page it counts:
 //  - self: a link to the same path and query as the page (a missing ?tab= is the page's first tab), or to an anchor that holds the
 //    link itself (a jump to the place you already are). The menu's own entry for the page (aria-current="page") is not counted;
-//  - duplicate: the same label and target twice on the page;
+//  - duplicate: the same label and target twice on the page (an #anchor does not make it another target; the same record named in
+//    two rows of one table or list is not a twin);
 //  - no route: a target no route of the app answers (the "page not found" route, or a settings section that does not exist).
 // It crawls twice: with the dev data as it is, and while scans run (a device check, a LAN sweep and a public scan), where the
 // "Open the run" links and the "scans running" indicator show. Each kind has a list of the known cases outside this change
@@ -30,24 +31,6 @@ type Hit = { kind: Kind; page: string; label: string; to: string }
 /** Known cases outside this change, as `kind page → target` (routes, with the tab); see hitKey. */
 const KNOWN: string[] = [
   'duplicate / → /cve/:id',
-  'duplicate /detection → /devices/:id',
-  'duplicate /detection/alerts/:id → /devices/:id',
-  'duplicate /devices/:id?tab=overview → /findings/:id',
-  'duplicate /findings?tab=input → /devices/:id?tab=software',
-  'duplicate /honeypot?tab=hits → /devices/:id',
-  'duplicate /logs?tab=digest → /devices/:id',
-  'duplicate /logs?tab=digest → /logs?tab=events',
-  'duplicate /response?tab=actions → /settings/:section',
-  'self /devices/:id?tab=services → /devices/:id?tab=services',
-  'self /devices/:id?tab=software → /devices/:id?tab=software',
-  'self /exposure?tab=targets → /exposure?tab=targets',
-  'self /findings?tab=open → /findings?tab=open',
-  'self /honeypot?tab=hits → /honeypot?tab=hits',
-  'self /honeypot?tab=trap-ips → /honeypot?tab=trap-ips',
-  'self /incidents?tab=open → /incidents?tab=open',
-  'self /logs?tab=digest → /logs?tab=digest',
-  'self /logs?tab=events → /logs?tab=events',
-  'self /logs?tab=sources → /logs?tab=sources',
 ]
 
 const ORIGIN = 'http://vedette.test'
@@ -138,7 +121,7 @@ async function crawl(first: string[] = []): Promise<{ hits: Hit[]; pages: number
     if (!u.searchParams.get('tab')) seen.add(`${route}?tab=${tabs.selected ?? ''}`)
     pages++
     const page = tabs.selected ? `${here}?tab=${tabs.selected}` : here
-    const pairs = new Map<string, number>()
+    const pairs = new Map<string, { row: Element | null; list: Element | null }[]>()
     for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href]')) {
       const href = a.getAttribute('href')!
       if (!href.startsWith('/') && !href.startsWith('?') && !href.startsWith('#')) continue
@@ -156,10 +139,18 @@ async function crawl(first: string[] = []): Promise<{ hits: Hit[]; pages: number
           hits.set(`${hitKey(h)} [${h.label}]`, h)
         }
       }
-      // twins in the page's content (the menu and the content may both name a page)
-      const pair = `${label}|${to.pathname}${to.search}${to.hash}`
-      if (a.closest('main')) pairs.set(pair, (pairs.get(pair) ?? 0) + 1)
-      if (pairs.get(pair) === 2) { const h: Hit = { kind: 'duplicate', page, label, to: where }; hits.set(`${hitKey(h)} [${h.label}]`, h) }
+      // twins in the page's content (the menu and the content may both name a page): the same label to the same page, an #anchor
+      // or not (two "Open modules" read the same however they land). Rows of one list that name the same record (a device in two
+      // hits) are records, not twins: two links count only when they are not in different rows of the same table or list.
+      const pair = `${label}|${to.pathname}${to.search}`
+      if (a.closest('main')) {
+        const row = a.closest('tr, li')
+        const list = row?.parentElement?.closest('table, ul, ol') ?? null
+        const seenAt = pairs.get(pair) ?? []
+        const twin = seenAt.some((p) => !(list && p.list === list && p.row !== row))
+        pairs.set(pair, [...seenAt, { row, list }])
+        if (twin) { const h: Hit = { kind: 'duplicate', page, label, to: where }; hits.set(`${hitKey(h)} [${h.label}]`, h) }
+      }
       // follow a route not rendered yet (and each tab of a page, by its ?tab=)
       const key = `${target}?tab=${to.searchParams.get('tab') ?? ''}`
       if (!seen.has(key) && !target.startsWith('/reports/print')) queue.push(`${to.pathname}${to.search}`)

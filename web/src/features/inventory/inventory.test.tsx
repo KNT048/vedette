@@ -2089,12 +2089,11 @@ describe('inventory: the box is the first device (S-INV-5)', () => {
     } finally { installStore.set({ kind: 'appliance' }) }
   })
 
-  it('it cannot be deleted: the button is disabled with the reason and the server refuses', async () => {
+  it('it cannot be deleted: no Remove is offered (the page says why) and the server refuses', async () => {
     asAdmin()
     renderApp(`/devices/${BOX_ID}`)
-    const btn = await moreItem(userEvent.setup(), 'Remove from list')
-    expect(btn).toHaveAttribute('aria-disabled', 'true')
-    expect(btn).toHaveAttribute('title', 'The box cannot be removed from the list: Vedette runs on it.')
+    expect((await screen.findAllByText('The box cannot be removed from the list: Vedette runs on it.', undefined, T)).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
     const r = await call('DELETE', `/devices/${BOX_ID}`)
     expect(r.status).toBe(409)
     expect(r.json!.error.code).toBe('box_device')
@@ -2322,7 +2321,8 @@ describe('inventory: rename a device (S-INV-1)', () => {
     renderApp('/devices/a-nas02', { role: 'operator' })
     await user.click(await screen.findByRole('button', { name: 'Rename device' }, T))
     await user.type(screen.getByRole('textbox', { name: 'Name in Vedette' }), 'a<b')
-    expect(screen.getByRole('alert')).toHaveTextContent('A name cannot contain < or >, control characters or invisible characters.')
+    expect(screen.getByText('A name cannot contain < or >, control characters or invisible characters.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Rename device' })).toBeInTheDocument() // a dialog over the page, not a field in the title
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
@@ -2332,14 +2332,14 @@ describe('inventory: rename a device (S-INV-1)', () => {
     await user.click(await screen.findByRole('button', { name: 'Rename device' }, T))
     const field = screen.getByRole('textbox', { name: 'Name in Vedette' })
     fireEvent.change(field, { target: { value: '\u202eresu-lawerif' } })
-    expect(screen.getByRole('alert')).toHaveTextContent('invisible characters')
+    expect(screen.getByText(/invisible characters/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     fireEvent.change(field, { target: { value: 'fw\u200bcore' } })
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     server.use(http.patch(`${location.origin}/api/v1/inventory/devices/:id`, () => HttpResponse.json({ error: { code: 'forbidden', message: 'You need the operator role.' } }, { status: 403 })))
     await user.clear(field)
     await user.type(field, 'Photo NAS{Enter}')
-    expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('You need the operator role.')
+    expect(await screen.findByText('You need the operator role.', undefined, T)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveFocus(), T)
     expect(screen.getByRole('textbox', { name: 'Name in Vedette' })).toHaveAttribute('aria-invalid', 'true')
     expect(nas().name ?? null).toBeNull()

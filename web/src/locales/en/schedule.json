@@ -65,8 +65,16 @@
     "none": "At any time",
     "custom": "Only on chosen days and hours"
   },
+  "limit": {
+    "atLeast": "The interval is at least {{span}}.",
+    "atMost": "The interval is at most {{span}}."
+  },
   "preview": {
     "title": "Next starts",
+    "titleIn": "Next starts ({{zone}} time)",
+    "moved": "moved off {{at}} into {{window}}",
+    "scanWindow": "the scan window",
+    "customWindow": "the window ({{days}}, {{from}}–{{to}})",
     "none": "It does not start again with this setting."
   },
   "days": {

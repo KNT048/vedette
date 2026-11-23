@@ -379,7 +379,8 @@
     "quietBody": "Phones and laptops change their private address, so this one is not in To review while it shows nothing to look at. It moves there if it opens a service or keeps coming back for more than a day. Approve it if you recognise it."
   },
   "privateMac": {
-    "note": "This device uses a private (randomised) MAC address. Phones and laptops pick one per network and may change it, so the address can differ the next time and a device seen again under a new address is joined to this one by its host name when that name is its own."
+    "note": "This device uses a private (randomised) MAC address.",
+    "noteInfo": "Phones and laptops pick one per network and may change it, so the address can differ the next time and a device seen again under a new address is joined to this one by its host name when that name is its own."
   },
   "obs": {
     "title": "All observations",
@@ -830,7 +831,8 @@
     },
     "createSubmit": "Create token",
     "createCommand": "Create install command",
-    "createNote": "This makes one enrollment token and shows the install command with it. The token is shown once. A token that no machine has used expires after 24 hours; once a machine has enrolled, it works for the lifetime you see in the list.",
+    "createNote": "The token is shown once.",
+    "createNoteInfo": "This makes one enrollment token and shows the install command with it. The token is shown once. A token that no machine has used expires after 24 hours; once a machine has enrolled, it works for the lifetime you see in the list.",
     "defaultTokenName": "osquery install {{day}}",
     "unknownMaker": "Not recorded",
     "removeUnused": {
@@ -1405,7 +1407,8 @@
     "undone": "{{name}} is back in To review.",
     "since": "Ignored {{when}}.",
     "listTitle": "Ignored devices",
-    "description": "Devices you said need no watching, such as staff phones. They are not scanned and raise no new-device or vulnerability alerts; a trap hit or an intrusion alert from one still reaches you.",
+    "description": "Devices you said need no watching, such as staff phones.",
+    "descriptionInfo": "They are not scanned and raise no new-device or vulnerability alerts; a trap hit or an intrusion alert from one still reaches you.",
     "none": "No ignored devices."
   },
   "deviceSnmp": {

@@ -188,7 +188,8 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const view = renderApp('/logs')
     const strip = await screen.findByRole('list', { name: 'Logs at a glance' })
     const links = within(strip).getAllByRole('link')
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/logs?tab=digest', '/logs?tab=digest', '/logs?tab=sources', '/logs?tab=events'])
+    // the two digest numbers are on the Digest tab already shown: plain numbers, not links to the page you are on
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/logs?tab=sources', '/logs?tab=events'])
     expect(within(strip).getByRole('link', { name: /Sources reporting/ })).toHaveTextContent('3 / 4')
     expect(screen.getByRole('tab', { name: 'Digest' })).toHaveAttribute('aria-selected', 'true')
     await userEvent.click(within(strip).getByRole('link', { name: /Lines per hour/ }))
@@ -795,5 +796,16 @@ describe('logs: Add log source form matrix', () => {
     expect(name).toBeInvalid()
     expect(name).toHaveAccessibleDescription(NAME_ERR)
     expect(within(form).queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('logs: "Add a log source" from another page opens the add dialog', () => {
+  it('?add=source opens the add dialog for an administrator and leaves the URL; an operator only sees the list', async () => {
+    const view = renderApp('/logs?tab=sources&add=source')
+    expect(await screen.findByRole('dialog', { name: 'Add log source' }, { timeout: 5000 })).toBeInTheDocument()
+    view.unmount()
+    renderApp('/logs?tab=sources&add=source', { role: 'operator' })
+    expect(await screen.findByRole('button', { name: /Add log source/ }, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

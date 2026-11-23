@@ -3,7 +3,7 @@
 // (a "N software" tile) leave them where they are.
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, within, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router'
 import '@/lib/i18n'
@@ -74,9 +74,13 @@ describe('a list keeps its page', () => {
     expect(url()).toBe('')
   })
 
-  it('when the page\'s own link (a tile that says "290 software") is clicked', async () => {
+  it('when a tile that says "290 software" is clicked from another tab; on its own tab it is no link (it would lead where you are)', async () => {
     const user = userEvent.setup()
-    inRouter('/devices/d1?tab=software&software.page=3&software.q=pack&software.sort=-name', <Page />)
+    inRouter('/devices/d1?tab=software&software.page=3', <Page />)
+    expect(screen.queryByRole('link', { name: /software/ })).toBeNull()
+    expect(screen.getByText('290')).toBeInTheDocument()
+    cleanup()
+    inRouter('/devices/d1?tab=overview&software.page=3&software.q=pack&software.sort=-name', <Page />)
     await user.click(screen.getByRole('link', { name: /software/ }))
     const p = new URLSearchParams(url())
     expect(p.get('tab')).toBe('software')

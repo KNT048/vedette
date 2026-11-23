@@ -22,6 +22,16 @@
     "off": "Off",
     "unavailable": "Not available on this install"
   },
+  "badAddresses": {
+    "name": "Bad addresses",
+    "watching": "Names and addresses seen in {{sources}} are matched against the bad-address lists.",
+    "quiet": "Nothing new from {{sources}}: names and addresses are not checked until it sends again.",
+    "not_set_up": "Needs a mirror port, or a firewall or DNS log source: the box does not read the names your devices look up by itself.",
+    "source": { "mirror_port": "the mirror port", "logs": "received logs" },
+    "and": " and ",
+    "view": "Open the log digest",
+    "check": "Check what stopped"
+  },
   "action": {
     "view": { "traps": "Open traps", "logs": "Open logs", "mirror_port": "Open mirror port", "ips_events": "See alerts" },
     "set_up": { "traps": "Add a Trap IP", "logs": "Add a log source", "mirror_port": "Set up a mirror port", "ips_events": "Add a firewall log source" },

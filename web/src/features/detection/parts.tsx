@@ -11,13 +11,15 @@ export function DeviceLink({ device, ip }: { device: DeviceRef | null; ip: strin
   return device ? <Link to={`/devices/${device.id}`} onClick={(e) => e.stopPropagation()} className={link}>{device.name}</Link> : <span>{ip}</span>
 }
 
-/** "source → destination:port", a device by name when the inventory has the address. */
-export function AlertLine({ a }: { a: Alert }) {
+/** "source → destination:port", a device by name when the inventory has the address. `plain`: names only, no links (the page
+ *  links each device on its own line already). */
+export function AlertLine({ a, plain }: { a: Alert; plain?: boolean }) {
+  const end = (device: Alert['src_device'], ip: string) => (plain ? <span>{device?.name ?? ip}</span> : <DeviceLink device={device} ip={ip} />)
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-1 text-meta">
-      <DeviceLink device={a.src_device} ip={a.src_ip} />
+      {end(a.src_device, a.src_ip)}
       <span aria-hidden>→</span>
-      <DeviceLink device={a.dst_device} ip={a.dst_ip} />
+      {end(a.dst_device, a.dst_ip)}
       {a.dst_port !== null ? <span className="text-muted">{`:${a.dst_port}${a.proto ? `/${a.proto}` : ''}`}</span> : a.proto ? <span className="text-muted">{`/${a.proto}`}</span> : null}
     </span>
   )

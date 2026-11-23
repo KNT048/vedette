@@ -55,16 +55,16 @@ describe('/runs/<id>: one run', () => {
     expect(screen.getByRole('link', { name: 'NAS-PHOTOS' })).toHaveAttribute('href', '/devices/a-nas02')
     expect(screen.getByText('10.20.3.17').closest('a')).toBeNull() // an address no device has yet is not a link
     expect(screen.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/settings/scanning?tab=runs')
-    await user.click(screen.getByRole('button', { name: 'Resume' }))
+    await user.click(screen.getByRole('button', { name: 'Start now' })) // a waiting run has not stopped: Start now, not Resume
     await waitFor(() => expect(runsStore.get().find((r) => r.id === 'run-m1')!.status).toBe('queued'), T)
     expect(auditStore.get().some((a) => a.action === 'scanning.run_resume' && a.target === 'run-m1')).toBe(true)
   })
 
-  it('an operator may stop it, after a question; Resume of a sweep is not offered (the box says it needs an administrator)', async () => {
+  it('an operator may stop it, after a question; Start now of a sweep is not offered (the box says it needs an administrator)', async () => {
     const user = userEvent.setup()
     renderApp('/runs/run-m1', { role: 'operator' })
     await user.click(await screen.findByRole('button', { name: 'Stop' }, T))
-    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Resume|Start now)$/ })).toBeNull()
     const dlg = await screen.findByRole('dialog', { name: 'Stop this run?' })
     await user.click(within(dlg).getByRole('button', { name: 'Stop the run' }))
     await waitFor(() => expect(runsStore.get().find((r) => r.id === 'run-m1')!.status).toBe('stopped'), T)

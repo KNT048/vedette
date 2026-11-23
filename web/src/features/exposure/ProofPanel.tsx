@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useVerifyNode } from './api'
-import { InfoLine } from './InfoLine'
+import { InfoLine } from '@/components/common/InfoLine'
 import { boxIp, proven } from './node'
 import type { DnsProof, FileProof, TargetNode } from './types'
 import { checkPause, secondsToWait, useCooldown } from './useCooldown'
@@ -91,7 +91,7 @@ function DnsSteps({ node, dns }: { node: TargetNode; dns: DnsProof }) {
       ]} />
       <CodeBlock code={dns.value} label={t('verify.dns.valueLabel')} />
       <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
-      {!apex && dns.alt_host ? <p className="max-w-3xl text-meta text-muted" data-testid="proof-alt">{t('verify.cnameHint', { zone: dns.zone, value: node.value, alt: dns.alt_host })}</p> : null}
+      {!apex && dns.alt_host ? <div data-testid="proof-alt"><InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.cnameHintInfo', { value: node.value, alt: dns.alt_host })}>{t('verify.cnameHint', { zone: dns.zone, alt: dns.alt_host })}</InfoLine></div> : null}
       {apex ? <p className="max-w-3xl text-meta text-muted">{t('proof.coversNames', { value: node.value })}</p> : null}
     </>
   )

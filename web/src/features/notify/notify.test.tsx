@@ -63,7 +63,8 @@ describe('notify: incidents (S-ALERT-3)', () => {
     renderApp('/incidents')
     const strip = await screen.findByRole('list', { name: 'Incidents at a glance' })
     // A 0 opens nothing, so "0 Open, not sent" is plain text, not a link to an empty list
-    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent'])
+    // and the Open count is the tab already shown: plain text, not a link to the page you are on
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open&severity=urgent'])
     expect(strip).toHaveTextContent(/0\s*Open, not sent/)
     expect(within(within(strip).getByRole('link', { name: /High and critical open/ })).getByText('2')).toBeInTheDocument()
     await screen.findByRole('table', { name: 'Incidents' })

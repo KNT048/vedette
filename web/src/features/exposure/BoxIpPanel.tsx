@@ -12,7 +12,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { BusyNote } from '@/components/common/BusyNote'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { InfoLine } from './InfoLine'
+import { InfoLine } from '@/components/common/InfoLine'
 import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
 import type { BoxIpSettings, IgnoredIp } from './types'
 

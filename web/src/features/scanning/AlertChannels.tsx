@@ -20,7 +20,7 @@ import { TurnOnModule } from './Fixes'
  * (#877 r1 L7).
  */
 export function AlertChannels() {
-  const { t } = useTranslation('scanning')
+  const { t } = useTranslation(['scanning', 'notify'])
   const admin = useCan('admin')
   const on = useModuleEnabled('notify') === true
   const q = useChannels({ enabled: on && admin, retry: false })

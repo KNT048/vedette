@@ -18,11 +18,14 @@
   "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership of each target: a domain with a DNS TXT record (re-checked right before every scan); a public IP you type in with a token file served on it or a reverse DNS name under one of your proved domains (re-checked right before every scan; the proof lasts 30 days and the box checks it again by itself); a public IP the box finds as its own egress address is proved by that detection and renewed each time the box sees it. Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
   "kpi": {
     "label": "External exposure at a glance",
-    "targets": "targets",
+    "targets_one": "target",
+    "targets_other": "targets",
     "scan": "last scan",
     "never": "never",
-    "services": "open services",
-    "issues": "open issues"
+    "services_one": "open service",
+    "services_other": "open services",
+    "issues_one": "open issue",
+    "issues_other": "open issues"
   },
   "tabs": {
     "label": "External exposure sections",
@@ -163,7 +166,8 @@
     "recheckHint": "Select it after you have saved the record at your DNS provider.",
     "dnsIntroZone": "Add a TXT record at @ of the DNS zone {{zone}}.",
     "dnsIntroSub": "Add a TXT record at @ of the DNS zone {{zone}}, where you manage {{value}}: a record there proves {{value}}, and {{value}} itself needs no record.",
-    "cnameHint": "If you cannot add a record at @ of {{zone}}, use the Name {{alt}} instead: it proves {{value}} just the same. Not on {{value}} itself if it is a CNAME: DNS allows no other record beside a CNAME, so your provider answers \"Record could not be added\".",
+    "cnameHint": "No record possible at @ of {{zone}}? Use the Name {{alt}} instead.",
+    "cnameHintInfo": "The Name {{alt}} proves {{value}} just the same. Not on {{value}} itself if it is a CNAME: DNS allows no other record beside a CNAME, so your provider answers \"Record could not be added\".",
     "dnsIntroInfo": "Do it where you manage the domain (your registrar, Cloudflare, or whoever hosts your DNS).",
     "dnsTopic": "DNS TXT record",
     "dns": {

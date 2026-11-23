@@ -1,6 +1,6 @@
 import { Panel } from '@/components/common/PageHeader'
 import { useTranslation } from 'react-i18next'
-import { InfoLine } from './InfoLine'
+import { InfoLine } from '@/components/common/InfoLine'
 import type { Consent } from './types'
 import { fmtDateTime } from '@/lib/format'
 

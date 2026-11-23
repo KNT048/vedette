@@ -100,7 +100,9 @@ describe('core: system helper update (S-CORE-2)', () => {
     const error = vi.spyOn(toast, 'error')
     hostScenario.set({ code: 'host_too_old', version: null })
     renderApp('/settings/updates')
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    const u = userEvent.setup()
+    await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Update to / })) // the confirm step
     const why = "This box's system helper (0.9.3) is too old to update itself. Run install.sh of release 0.9.4 on the box (it upgrades the helper and keeps your data), then apply again."
     expect(await screen.findByText(why, { selector: '[role="alert"]' })).toBeInTheDocument()
     expect(error).toHaveBeenCalledWith(why)

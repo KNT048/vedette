@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { useCan } from '@/lib/session'
 import { useRunSchedule, useSaveSchedule, useSchedule } from './api'
-import { describeRule, toDraft, toSave, type Draft } from './rule'
+import { describeRule, intervalProblem, toDraft, toSave, type Draft } from './rule'
 import { fieldError, fmtInZone, orgZoneOf, ScheduleFields } from './ScheduleFields'
 import type { Schedule } from './types'
 
@@ -112,6 +112,7 @@ function EditDialog({ s, name, onClose }: { s: Schedule; name: string; onClose: 
   const change = (d: Draft) => { setDraft(d); save.reset() }
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (draft.enabled && intervalProblem(draft, s.limits)) return // the field says why; nothing is sent
     save.mutate(toSave(draft, orgZone), { onSuccess: () => { toast.success(t('saved', { name })); onClose() } })
   }
   const title = t('editTitle', { name })

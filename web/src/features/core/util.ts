@@ -109,3 +109,6 @@ export function compareVersion(a: string, b: string): number {
   if (pb === undefined) return -1
   return pa < pb ? -1 : 1
 }
+
+/** The public page of a Vedette release, where its whole notes are (the box shows the first 500 characters). */
+export const releaseUrl = (version: string) => `https://github.com/KNT048/vedette/releases/tag/v${encodeURIComponent(version)}`

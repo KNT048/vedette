@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '@/components/common/States'
 import { useSaveSchedule, useSchedule } from './api'
-import { toDraft, toSave, type Draft } from './rule'
+import { intervalProblem, intervalText, toDraft, toSave, type Draft } from './rule'
 import { orgZoneOf, ScheduleFields } from './ScheduleFields'
 import type { Schedule } from './types'
 
@@ -23,6 +23,11 @@ export function useScheduleDraft(ownerKey: string, { idPrefix, enabled = true, o
     : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} />
     : s && draft ? <ScheduleFields schedule={s} draft={draft} onChange={(d) => { setDraft(d); save.reset() }} error={save.error} idPrefix={idPrefix} onOff={onOff} />
     : <p role="status" className="text-meta text-muted">{t('loading')}</p>
-  const commit = () => (dirty && draft ? save.mutateAsync(toSave(draft, orgZone)) : Promise.resolve(s))
+  const commit = () => {
+    // an interval the owner does not allow: the field already says why in plain words; the dialog's save stops with the same words
+    const p = s && draft && (draft.enabled || !onOff) ? intervalProblem(draft, s.limits) : null
+    if (p && s) return Promise.reject(new Error(intervalText(p, s.limits, t)))
+    return dirty && draft ? save.mutateAsync(toSave(draft, orgZone)) : Promise.resolve(s)
+  }
   return { fields, commit, pending: save.isPending }
 }

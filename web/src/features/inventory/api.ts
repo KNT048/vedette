@@ -20,7 +20,11 @@ export const useSoftwareMatches = (words: string[]) => useQuery({
 })
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
-export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '' })
+/** The device page reads its device again every minute while it is open, so "last seen", a new agent report and its software show
+ *  without a reload (the lists keep their page: their page lives in the URL). */
+export const devicePoll = { ms: 60_000 } // a test shortens it
+export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '',
+  refetchInterval: (q) => (q.state.status === 'error' ? false : devicePoll.ms) })
 /** The device's three source rows (network scan, SNMP, agent), each decided on the server. `modules` names the state of the modules
  *  behind them, so turning one on or off (from a row or from Settings) reads the rows again. */
 export const useDeviceSourceRows = (id: string, modules: string, enabled = true) =>

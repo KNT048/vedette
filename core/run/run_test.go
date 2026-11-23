@@ -60,13 +60,14 @@ func (g *gate) Enabled(id string) bool {
 	return !g.off[id]
 }
 
-func (g *gate) set(id string, on bool) {
+// setScan switches the scan module the test kinds belong to.
+func (g *gate) setScan(on bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.off == nil {
 		g.off = map[string]bool{}
 	}
-	g.off[id] = !on
+	g.off["scan"] = !on
 }
 
 // process is one start of the box: a Manager with the test kinds registered. ended receives the id of every run whose end
@@ -555,7 +556,7 @@ func TestTheModuleSwitch(t *testing.T) {
 	t.Parallel()
 	b := newBox(t)
 	g := &gate{}
-	g.set("scan", false)
+	g.setScan(false)
 	k := newGated()
 	p := b.process(g, k.kind("scan", "vuln_check", "nuclei", false))
 	id := create(t, p, spec("scan", "vuln_check", "Vulnerability checks"))
@@ -566,10 +567,10 @@ func TestTheModuleSwitch(t *testing.T) {
 	if d := b.get(p, id); d.Status != run.Queued {
 		t.Fatalf("run of an off module = %s, want queued", d.Status)
 	}
-	g.set("scan", true)
+	g.setScan(true)
 	p.ModuleChanged("scan", true)
 	k.waitStarted(t)
-	g.set("scan", false)
+	g.setScan(false)
 	p.ModuleChanged("scan", false)
 	p.waitEnded(t, id)
 	if d := b.get(p, id); d.Status != run.Stopped || d.StopReason == nil || *d.StopReason != run.ModuleOffReason {
@@ -760,7 +761,7 @@ func TestTheHolderIsToldToGiveWayAfterTheQueuedRunIsCommitted(t *testing.T) {
 	holder := create(t, p, spec("sensor-active", "all_ports", "Scan of every port of printer"))
 	g.waitStarted(t)
 	create(t, p, spec("sensor-active", "all_ports", "Scan of every port of router")) // its own kind: it waits its turn
-	gt.set("scan", false)
+	gt.setScan(false)
 	create(t, p, spec("scan", "vuln_identify", "Identification")) // its module is off: it does not start, so nothing gives way to it
 	if err := b.db.Write(t.Context(), func(tx *sql.Tx) error {
 		_, err := p.CreateTx(t.Context(), tx, spec("sensor-active", "device_check", "Check of printer"))

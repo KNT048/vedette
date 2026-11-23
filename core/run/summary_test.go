@@ -157,7 +157,7 @@ func TestAQueuedRunSaysItsPlaceInLineAndWhenItStarts(t *testing.T) {
 	p.start(t)
 	create(t, p, spec("sensor-active", "lan_sweep", "LAN sweep of 10.20.0.0/16"))
 	g.waitStarted(t)
-	gt.set("scan", false)
+	gt.setScan(false)
 	b.clock.Advance(time.Second)
 	create(t, p, spec("scan", "vuln_identify", "Identification for the vulnerability checks")) // its module is off: never ahead
 	b.clock.Advance(time.Second)

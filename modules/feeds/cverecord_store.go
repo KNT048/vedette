@@ -26,7 +26,7 @@ const importantSQL = keepSetSQL
 
 // recordKeep says which records the box stores.
 type recordKeep struct {
-	have      map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
+	have map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
 	// askable are the kept CVEs whose record may be asked for by ID because every box asks the same: one a public source names
 	// (publicListedSQL), or one published inside the window. Never a CVE kept only for a finding or a custom list.
 	askable map[string]bool

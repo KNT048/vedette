@@ -1,9 +1,13 @@
 package findings
 
 import (
+	"context"
 	"database/sql"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/lifecycle"
 )
 
 // A software line inventory gives to another device with its id (a split gives a merged device its software back whole) takes its
@@ -39,6 +43,12 @@ func TestContract_FindingsFollowTheirLineToAnotherDevice(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			var moves []lifecycle.FindingMove // the modules that keep a device id next to a finding id are told the finding moved
+			e.svc.cfg.Lifecycle = &lifecycle.Hooks{}
+			e.svc.cfg.Lifecycle.Register(lifecycle.Participant{Name: "keyed by finding and device", FindingMoved: func(_ context.Context, _ *sql.Tx, m lifecycle.FindingMove) error {
+				moves = append(moves, m)
+				return nil
+			}})
 			moved := nas("6.1.1")
 			moved.ID, moved.Name = "a-2", "nas02"
 			e.inv.mu.Lock()
@@ -69,6 +79,9 @@ func TestContract_FindingsFollowTheirLineToAnotherDevice(t *testing.T) {
 			}
 			if n := e.count(`SELECT count(*) FROM fnd_finding`); n != 1 {
 				t.Errorf("%d findings, want the one that moved", n)
+			}
+			if want := []lifecycle.FindingMove{{Finding: id, From: "a-1", Into: "a-2"}}; !slices.Equal(moves, want) {
+				t.Errorf("lifecycle FindingMoved calls %+v, want %+v", moves, want)
 			}
 			if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE finding_id = '` + id + `' AND actor = 'anna'`); n == 0 {
 				t.Error("the person's decision left the finding's history")

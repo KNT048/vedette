@@ -128,6 +128,9 @@ type MatchSoftware struct {
 	// Guess: the reading is a sensor's guess (observe.Software.Guess, stored as nmap's os_guess instance: an OS fingerprint, an ESXi
 	// build the build table does not list), never matched.
 	Guess bool
+	// SetBy is the person who entered the version or last changed it (a person's entry, Source "manual"); "" for a reading of an
+	// agent, a scan or a sensor. Findings names this person when the version they set closes or reopens a finding.
+	SetBy string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -260,7 +263,7 @@ func matchSoftware(ctx context.Context, q querier, id string, loc *time.Location
 		row := func(r Reading) MatchSoftware {
 			return MatchSoftware{ID: l.id, Display: r.Display, Vendor: l.vendor, Product: l.product, Version: r.Version, CPE: r.CPE, KevKeys: slices.Clone(keys),
 				Source: sourceClass(r.Source), Packaged: r.Packaged, PkgVersion: r.PkgVersion, PkgSource: r.PkgSource, Key: l.id, SeenAt: r.SeenAt,
-				Guess: r.guess()}
+				Guess: r.guess(), SetBy: r.SetBy}
 		}
 		entry, det := entryOf(l.readings), detectedOf(l.readings)
 		if l.state == stateNotInstalled {

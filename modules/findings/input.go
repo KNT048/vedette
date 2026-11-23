@@ -77,16 +77,17 @@ type InputList struct {
 // Input reads one page of the queue (of one device when device is set, of the items a search q finds when q is set): devices not
 // added yet first, then unconfirmed findings by status, then questions by the CVEs waiting on them.
 func (s *Service) Input(ctx context.Context, device, q string, p Page) (InputList, error) {
+	q = strings.TrimSpace(q)
 	var items []InputItemJS
 	err := s.readTx(ctx, func(ctx context.Context) error {
 		var err error
-		items, err = s.inputItems(ctx, device)
+		items, err = s.inputItems(ctx, device, q != "")
 		return err
 	})
 	if err != nil {
 		return InputList{}, err
 	}
-	if q = strings.TrimSpace(q); q != "" {
+	if q != "" {
 		items = slices.DeleteFunc(items, func(it InputItemJS) bool { return !it.matches(q) })
 	}
 	lo, hi := p.cut(len(items))
@@ -110,29 +111,28 @@ func (it InputItemJS) matches(q string) bool {
 	return slices.ContainsFunc(it.terms, has)
 }
 
-func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS, error) {
+// inputItems is the whole queue, in order. search says the caller filters it by search text: only then are the words a device not
+// added yet is found by read (the CVE ids and software names of its open findings), since the card names neither.
+func (s *Service) inputItems(ctx context.Context, device string, search bool) ([]InputItemJS, error) {
 	rows, args, _, _, err := s.where(ctx, StateOpen, ListFilter{Device: device})
 	if err != nil {
 		return nil, err
 	}
 	q := s.rd(ctx)
-	// devices not added yet with open findings: how many, and the CVEs and software lines a search finds them by
+	// devices not added yet with open findings: how many
 	counts := map[string]int{}
-	type found struct{ cve, line string }
-	open := map[string][]found{}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, cve, ifnull(software_id, '') FROM fnd_finding WHERE `+rows, args...)
+	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
 	}
 	for r.Next() {
 		var id string
-		var x found
-		if err := r.Scan(&id, &x.cve, &x.line); err != nil {
+		var n int
+		if err := r.Scan(&id, &n); err != nil {
 			_ = r.Close()
 			return nil, fmt.Errorf("findings: needs your input: %w", err)
 		}
-		counts[id]++
-		open[id] = append(open[id], x)
+		counts[id] = n
 	}
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
@@ -166,23 +166,10 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 			notAdded = append(notAdded, id)
 		}
 	}
-	// the software lines of the devices not added yet, named for the search (one read of inventory for them all)
-	var notAddedLines []string
-	for _, id := range notAdded {
-		for _, x := range open[id] {
-			if x.line != "" {
-				notAddedLines = append(notAddedLines, x.line)
-			}
-		}
-	}
-	lineNames := map[string]string{}
-	if len(notAddedLines) > 0 {
-		ls, err := s.cfg.Inventory.Lines(ctx, notAddedLines)
-		if err != nil {
-			return nil, fmt.Errorf("findings: needs your input: reading software lines: %w", err)
-		}
-		for id, l := range ls {
-			lineNames[id] = l.Display
+	var terms map[string][]string
+	if search {
+		if terms, err = s.notAddedTerms(ctx, rows, args, notAdded); err != nil {
+			return nil, err
 		}
 	}
 	statuses, err := s.deviceStatuses(ctx, notAdded)
@@ -191,15 +178,8 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 	}
 	for _, id := range notAdded {
 		st := statuses[id]
-		var terms []string
-		for _, x := range open[id] {
-			terms = append(terms, x.cve)
-			if n := lineNames[x.line]; n != "" {
-				terms = append(terms, n)
-			}
-		}
 		out = append(out, InputItemJS{Kind: "device_not_added", ID: "device:" + id, Device: deviceRef(ref.device(id)), Status: st, Findings: counts[id],
-			nullables: []string{"status"}, rank: [3]int{0, statusRank(st), -counts[id]}, terms: terms})
+			nullables: []string{"status"}, rank: [3]int{0, statusRank(st), -counts[id]}, terms: terms[id]})
 	}
 	vs, err := s.views(ctx, unconfirmed)
 	if err != nil {
@@ -255,6 +235,51 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 			cmp.Compare(strings.ToLower(a.Device.Name), strings.ToLower(b.Device.Name)), cmp.Compare(a.ID, b.ID))
 	})
 	return out, nil
+}
+
+// notAddedTerms is, for each device not added yet, what a search also finds it by: the CVE ids and the software names of its open
+// findings (rows and args select the open findings of the queue). One read of the findings and one of inventory for them all.
+func (s *Service) notAddedTerms(ctx context.Context, rows string, args []any, notAdded []string) (map[string][]string, error) {
+	if len(notAdded) == 0 {
+		return nil, nil
+	}
+	ids, _ := json.Marshal(notAdded)
+	r, err := s.rd(ctx).QueryContext(ctx, `SELECT asset_id, cve, ifnull(software_id, '') FROM fnd_finding WHERE `+rows+
+		` AND asset_id IN (SELECT value FROM json_each(?))`, append(slices.Clone(args), string(ids))...)
+	if err != nil {
+		return nil, fmt.Errorf("findings: needs your input: %w", err)
+	}
+	type found struct{ asset, cve, line string }
+	var open []found
+	var lines []string
+	for r.Next() {
+		var x found
+		if err := r.Scan(&x.asset, &x.cve, &x.line); err != nil {
+			_ = r.Close()
+			return nil, fmt.Errorf("findings: needs your input: %w", err)
+		}
+		open = append(open, x)
+		if x.line != "" {
+			lines = append(lines, x.line)
+		}
+	}
+	if err := errors.Join(r.Err(), r.Close()); err != nil {
+		return nil, fmt.Errorf("findings: needs your input: %w", err)
+	}
+	names := map[string]Line{}
+	if len(lines) > 0 {
+		if names, err = s.cfg.Inventory.Lines(ctx, lines); err != nil {
+			return nil, fmt.Errorf("findings: needs your input: reading software lines: %w", err)
+		}
+	}
+	terms := map[string][]string{}
+	for _, x := range open {
+		terms[x.asset] = append(terms[x.asset], x.cve)
+		if n := names[x.line].Display; n != "" {
+			terms[x.asset] = append(terms[x.asset], n)
+		}
+	}
+	return terms, nil
 }
 
 // openQuestions are the questions not answered yet, of devices nobody ignored (of one device when device is set), the most CVEs first.

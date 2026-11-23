@@ -31,7 +31,8 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 		h.Register(lifecycle.Participant{Name: "notify", DeviceMerged: notifySvc.DeviceMerged, DeviceDeleted: notifySvc.DeviceDeleted, FindingFolded: notifySvc.FindingFolded})
 	}
 	if d.Response != nil {
-		h.Register(lifecycle.Participant{Name: "response", DeviceMerged: d.Response.DeviceMerged, FindingFolded: d.Response.FindingFolded})
+		h.Register(lifecycle.Participant{Name: "response", DeviceMerged: d.Response.DeviceMerged, FindingFolded: d.Response.FindingFolded,
+			FindingMoved: d.Response.FindingMoved})
 	}
 	if d.Conn != nil {
 		h.Register(lifecycle.Participant{Name: "connections", DeviceMerged: d.Conn.DeviceMerged, DeviceDeleted: d.Conn.DeviceDeleted})

@@ -620,8 +620,15 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 
 // handleInTx runs one rule on one event inside tx. The rule may have changed since the caller read it, so its trigger, switch and
 // conditions are tested again on the stored rule before anything is recorded: a rule that no longer matches is not run and the
-// event is not marked handled for it. handled is true when the pair was new and the rule ran.
+// event is not marked handled for it. handled is true when the pair was new and the rule ran. The event is read again too: a
+// finding that moved to another device since the batch was read moved its waiting event with it (FindingMoved), and the rule
+// must act on the device and address stored now, not on the copy read before the move.
 func (s *Service) handleInTx(ctx context.Context, tx *sql.Tx, ruleID string, ev Det, all []Det, sum *RunSummary, fx *effects) (pre string, handled bool, err error) {
+	now, err := loadEvents(ctx, tx, `WHERE id = ?`, 1, ev.ID)
+	if err != nil || len(now) == 0 {
+		return "", false, err
+	}
+	ev = now[0]
 	cur, ok, err := loadRule(ctx, tx, ruleID)
 	if err != nil || !ok || !cur.Enabled || cur.Trigger != ev.Trigger {
 		return "", false, err

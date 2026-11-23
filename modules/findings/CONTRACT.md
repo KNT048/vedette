@@ -48,7 +48,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version. A person's correction of what a source reads is not an update (`data_corrected`, no credit). A person who changes the
   version they entered themselves (a line that is only their entry) updated the device and said so: `version_moved` with credit,
   handled by that person (`resolved_by`), never by Vedette; setting it back opens the finding again with the person named in the
-  reopen event (`detail.by`, View `reopened.by`). Inventory's `MatchSoftware` carries no `SetBy`; `cmd/vedette` reads it from
+  reopen event (`detail.by`, View `reopened.by`) and in its audit row (that person's row, detail "the version was set back by
+  <person>"). Inventory's `MatchSoftware` carries no `SetBy`; `cmd/vedette` reads it from
   inventory's software lines for the lines that are a person's entry (`Software.SetBy`).
 - **M-6 Device lifecycle.** Findings take part in inventory's merge and delete inside inventory's transaction (`lifecycle.go`): a
   merge moves findings to the kept device and line and folds two findings of one (CVE, line) into one, keeping events; a delete
@@ -56,7 +57,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   inventory gives to another device with its id (a split gives a merged device its software back whole) takes its findings and
   questions with it at the next match write of either device (`followline.go`): the same finding id, handling, notes, events and the
   rows other modules keep by its id, never a handled copy left behind and a new finding opened; two findings of one (CVE, line) fold
-  as in a merge (audit `findings.moved_with_line`; selfcheck `findings.line_on_its_device`). Ignoring a device changes no finding;
+  as in a merge (audit `findings.moved_with_line`; selfcheck `findings.line_on_its_device`). Before a finding moves, the modules that
+  keep a device id next to its id are told (lifecycle `FindingMoved`, inside the match write). Ignoring a device changes no finding;
   lists, Home, the AI context and reports leave its findings out.
 - **M-7 One match pass.** Reconcile reads every device and asks feeds once for the match set (`Feeds.MatchSet`). A CVE that matches
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects
@@ -77,7 +79,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
   draws one status the same way; `View.ReasonsLine` and `View.VerificationLine` are those lines as text for notices, mails and reports.
   By device and By fix group the same open rows in SQL, so their totals always agree. The Needs your input queue is computed from
-  rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
+  rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
+  added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
+  is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
 
 ## Invariants
 

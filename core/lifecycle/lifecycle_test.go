@@ -86,6 +86,9 @@ func TestNilHooksCallNothing(t *testing.T) {
 	if err := h.FindingFolded(t.Context(), nil, lifecycle.FindingFold{}); err != nil {
 		t.Fatal(err)
 	}
+	if err := h.FindingMoved(t.Context(), nil, lifecycle.FindingMove{}); err != nil {
+		t.Fatal(err)
+	}
 	h.MergeCommitted(t.Context(), lifecycle.Merge{})
 	h.DeleteCommitted(t.Context(), lifecycle.Delete{})
 }

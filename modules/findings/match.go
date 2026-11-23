@@ -903,6 +903,45 @@ func keyedTo(s Software, v Vuln) bool {
 	return false
 }
 
+// entryKey is an entry's exploited-list key as keyedTo compares it, normalised once: its key, or for "Multiple Products" its vendor's
+// prefix. none: no row can be keyed to it (a catalogue CVE on no list, a vendor or product holding the key separator).
+type entryKey struct {
+	none, multi bool
+	key         string // productid.Key of vendor and product, or of the vendor alone for "Multiple Products"
+}
+
+func keyOf(v Vuln) entryKey {
+	if v.Vendor == "" && v.Product == "" || strings.Contains(v.Vendor, "|") || strings.Contains(v.Product, "|") {
+		return entryKey{none: true}
+	}
+	if isMultiProduct(v.Product) {
+		return entryKey{multi: true, key: productid.Key(v.Vendor, "")}
+	}
+	return entryKey{key: productid.Key(v.Vendor, v.Product)}
+}
+
+// rowKeys is the row's KEV keys normalised as keyedTo compares them.
+func rowKeys(s Software) []string {
+	out := make([]string, len(s.KevKeys))
+	for i, k := range s.KevKeys {
+		out[i] = productid.NormalizeKey(k)
+	}
+	return out
+}
+
+// keyedBy is keyedTo on a row's keys and an entry's key normalised once (rowKeys, keyOf).
+func keyedBy(keys []string, k entryKey) bool {
+	if k.none {
+		return false
+	}
+	for _, x := range keys {
+		if k.multi && strings.HasPrefix(x, k.key) || !k.multi && x == k.key {
+			return true
+		}
+	}
+	return false
+}
+
 // trustedReading says whether a row's version may make a finding of a CVE on no exploited list: the device's agent, a person, the
 // device's own SNMP answer, the network OS the device states (deviceSoftware's OS row), or the firmware a device states through its
 // management interface with its build (selfStated: an ESXi host's API). Never a version read from a banner (nmap,
@@ -1042,6 +1081,15 @@ func distroBuilt(in swInfo) bool {
 // nvdCandidates is, per row of sws, the entries of vulns whose NVD list names a vendor the row is known by (rowVendors): the only
 // ones viaNVD can read for it. One pass over the list, so the matcher does not read every entry for every row.
 func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
+	vendors := make([][]string, len(sws))
+	for i, s := range sws {
+		vendors[i] = rowVendors(s)
+	}
+	return nvdCandidatesOf(vendors, vulns)
+}
+
+// nvdCandidatesOf is nvdCandidates for rows whose vendors (rowVendors) are already known.
+func nvdCandidatesOf(rows [][]string, vulns []Vuln) []map[int]bool {
 	byVendor := map[string][]int{}
 	add := func(vn string, i int) {
 		if l := byVendor[vn]; vn != "" && (len(l) == 0 || l[len(l)-1] != i) {
@@ -1053,9 +1101,9 @@ func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 			add(vn, i)
 		}
 	}
-	out := make([]map[int]bool, len(sws))
-	for i, s := range sws {
-		for _, vn := range rowVendors(s) {
+	out := make([]map[int]bool, len(rows))
+	for i, vendors := range rows {
+		for _, vn := range vendors {
 			for _, vi := range byVendor[vn] {
 				if out[i] == nil {
 					out[i] = map[int]bool{}

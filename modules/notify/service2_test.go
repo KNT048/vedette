@@ -463,7 +463,7 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 		got[i.Kind] = i
 	}
 	if got[notify.IncidentTrap].Severity != notify.Critical || got[notify.IncidentTrap].Link != "/honeypot/hits/hit-1" ||
-		got[notify.IncidentUnknownDevice].Title != "1 device found on your network: approve it in Devices" || got[notify.IncidentBadAddress].Devices[0].Name != "PC-SALES-02" {
+		got[notify.IncidentUnknownDevice].Title != "1 device found on your network: add it in Devices" || got[notify.IncidentBadAddress].Devices[0].Name != "PC-SALES-02" {
 		t.Fatalf("incidents = %+v", l)
 	}
 	// Module off: events are ignored.

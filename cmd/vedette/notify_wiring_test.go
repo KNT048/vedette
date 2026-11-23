@@ -529,7 +529,7 @@ func TestWiringALearningSensorFoldsItsDevicesIntoTheSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	list, err := newNotify(s.d).Incidents(ctx)
-	if err != nil || len(list) != 1 || list[0].Link != "/devices" || list[0].Title != "1 device found on your network: approve it in Devices" ||
+	if err != nil || len(list) != 1 || list[0].Link != "/devices" || list[0].Title != "1 device found on your network: add it in Devices" ||
 		len(list[0].Devices) != 1 || list[0].Devices[0].Name != "printer-2 (192.168.142.146)" || !strings.Contains(list[0].What, "A sensor started watching") {
 		t.Fatalf("incidents = %+v, %v", list, err)
 	}

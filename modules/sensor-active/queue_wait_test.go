@@ -298,3 +298,26 @@ func TestDispatcherWorkerAbsent(t *testing.T) {
 		t.Fatal("not absent 91 seconds after its last heartbeat")
 	}
 }
+
+// "Scan the LAN now" and "Check this device now" on an idle scanner start at once: the answer does not say queued (the person sees
+// "Scan started", not "Queued: it starts when the scanner is free") although the dispatcher may not have picked the run up yet.
+func TestQueueARunOnAnIdleScannerIsNotQueued(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Queued {
+		t.Errorf("Scan the LAN now on an idle scanner answers queued: %+v", m)
+	}
+	waitManual(t, e)
+	m, err = e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Queued {
+		t.Errorf("Check this device now on an idle scanner answers queued: %+v", m)
+	}
+	waitManual(t, e)
+}

@@ -55,9 +55,15 @@ type ManualRun struct {
 	StartedAt time.Time
 	Until     time.Time // a sweep's end outside the window at the latest: manualFor after its start
 	Progress  *progress.View
-	// Queued is true while the run has not started or has given way: it waits for the run in its way, or for the scan worker
-	// (Progress says what for).
+	// Queued is true while the run waits: for the run in its way, for the scan worker, or after it gave way (Progress says what
+	// for); see waits.
 	Queued bool
+}
+
+// waits says run r waits for something (ManualRun.Queued): it is waiting, or queued behind the run that holds its lane. A queued
+// run whose lane is free is only not picked up by the dispatcher yet: it starts at once.
+func waits(r run.Run) bool {
+	return r.Status == run.Waiting || r.Status == run.Queued && r.BlockedBy != nil
 }
 
 // sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now, runs
@@ -164,7 +170,7 @@ func (s *Service) manualOf(ctx context.Context, r run.Run) *ManualRun {
 		}
 	}
 	m.Progress = runView(r)
-	m.Queued = r.Status == run.Queued || r.Status == run.Waiting
+	m.Queued = waits(r)
 	return m
 }
 
@@ -377,7 +383,7 @@ func (s *Service) stateOfRun(ctx context.Context, id string) (*progress.View, bo
 		now := s.now()
 		return &progress.View{Phase: progress.PhaseDiscovery, StartedAt: now, PhaseStartedAt: now, UpdatedAt: now}, false
 	}
-	return runView(r), r.Status == run.Queued || r.Status == run.Waiting
+	return runView(r), waits(r)
 }
 
 // SweepGap is the least time between two sweeps a person starts, or a person's and the window's (INV-21, review #857 L4): the window

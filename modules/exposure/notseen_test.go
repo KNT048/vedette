@@ -267,3 +267,44 @@ func TestNotSeen_UnfinishedBatchPortsAreSaidAndNotCounted(t *testing.T) {
 		t.Fatalf("an unfinished port was closed: %+v", s.Ports)
 	}
 }
+
+// When the address answers on almost every port, the scanner drops each port where -sV named no service, though it stays in Probed:
+// such a port is not counted as checked, so a real service nmap cannot name (8444, outside the fixed list) found by a normal scan is
+// kept through any number of those scans. A port of the fixed list is still checked there (the runner TCP-connects it): 8443 is
+// missed, then closed.
+func TestNotSeen_AnswersEverywhereDoesNotCheckDroppedPorts(t *testing.T) {
+	t.Parallel()
+	find := func(s Snapshot, port int) (PortRow, bool) {
+		for _, p := range s.Ports {
+			if p.Port == port {
+				return p, true
+			}
+		}
+		return PortRow{}, false
+	}
+	probed := append(make([]int, 0, 1002), 8443, 8444)
+	for p := 1; p <= 1000; p++ {
+		probed = append(probed, p)
+	}
+	slices.Sort(probed)
+	n := newNS(t)
+	n.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: len(probed), Probed: probed}}
+	n.scan(day, ports(80, 8443, 8444))
+	n.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: len(probed), Probed: probed, AnswersEverywhere: true}}
+	s := n.scan(day, ports(80))
+	if !slices.Contains(notChecked(s), notAnswersEverywhereKept) {
+		t.Fatalf("not checked = %q", notChecked(s))
+	}
+	if p, ok := find(s, 8443); !ok || p.Misses != 1 {
+		t.Fatalf("8443 (fixed list) after one answers-everywhere scan: %+v", s.Ports)
+	}
+	for i := range 3 {
+		s = n.scan(day, ports(80))
+		if p, ok := find(s, 8444); !ok || p.Misses != 0 || !p.Unchecked {
+			t.Fatalf("answers-everywhere scan %d counted 8444 as checked: %+v", i+2, s.Ports)
+		}
+	}
+	if _, ok := find(s, 8443); ok {
+		t.Fatalf("8443 (fixed list), missed by two scans, is still open: %+v", s.Ports)
+	}
+}

@@ -174,6 +174,11 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	if news := e.pub.named(EventNewKEV); len(news) != 1 || news[0].(NewKEVEvent).CVE != "CVE-2026-1009" {
 		t.Errorf("new_kev: %v", news)
 	}
+	// the announcement is recorded with the entry, so a subscriber that missed the event catches up; the first fill is not
+	if got, err := e.svc.st.NewKEVSince(t.Context(), time.Time{}, "", 10); err != nil || len(got) != 1 || got[0].CVE != "CVE-2026-1009" ||
+		got[0].Vendor != "Acme" || got[0].Product != "Gateway" || !got[0].At.Equal(e.clock()) {
+		t.Errorf("announced: %+v %v", got, err)
+	}
 	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck'`); n != 2 { // 1003 is no longer listed
 		t.Errorf("%d rows", n)
 	}

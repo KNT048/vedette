@@ -514,7 +514,7 @@ func (st Settings) Cost(local []netip.Prefix) SweepCost {
 
 // sweepEstimate is the time a waiting or running pass has left, in words: "about 9 more nights at 50 packets/s" (run.Kind.Estimate).
 func (s *Service) sweepEstimate(ctx context.Context, r run.Run) string {
-	if r.Total <= 0 || r.Done >= r.Total || (r.Status != run.Running && r.Status != run.Waiting) {
+	if r.Total <= 0 || r.Done >= r.Total || r.Status != run.Running { // a waiting pass says what it waits for, not a time left
 		return ""
 	}
 	st, err := s.inv.Settings(ctx)
@@ -558,8 +558,17 @@ func (s *Service) sweepHold(ctx context.Context, r run.Run) (time.Duration, bool
 	return s.sweepTime(ctx, st, min(MaxBatch, max(r.Total-r.Done, 0))), true
 }
 
-// roundWords writes d as "40 minutes" or "3 hours".
+// roundWords writes d for an "about": "40 minutes" (rounded up) or "3 hours" (rounded to the nearest: 3 hours and 10 minutes is not
+// "about 4 hours").
 func roundWords(d time.Duration) string {
+	if d < 90*time.Minute {
+		return fmt.Sprintf("%d minutes", int(math.Ceil(d.Minutes())))
+	}
+	return fmt.Sprintf("%d hours", int(math.Round(d.Hours())))
+}
+
+// boundWords writes d for an "at most": rounded up, in minutes or hours, so the bound is never below the time it stands for.
+func boundWords(d time.Duration) string {
 	if d < 90*time.Minute {
 		return fmt.Sprintf("%d minutes", int(math.Ceil(d.Minutes())))
 	}

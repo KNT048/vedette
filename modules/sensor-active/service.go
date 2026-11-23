@@ -19,7 +19,6 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
-	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -122,8 +121,18 @@ type Service struct {
 
 	// prog is the last progress report of the worker's nmap, by run (runSink): the summaries of the running device runs read it.
 	// progMu is its own lock: the Dispatcher reports under its lock, and nothing here calls the Dispatcher while holding progMu.
+	// bg is the work started on a goroutine of its own (workerReported); closed refuses more of it once Close began.
+	bg     sync.WaitGroup
+	closed atomic.Bool
+	waking atomic.Bool // a workerReported pass is going on: another heartbeat meanwhile starts none
+	// since is when this process started: a person's check waits personWaitMax for the scan worker from then at the earliest, since
+	// the worker starts with it (resumePersonsChecks).
+	since  time.Time
 	progMu sync.Mutex
-	prog   map[string]progress.Update
+	prog   map[string]runProg
+	// typical and typicalAt: how long a device check takes on this box and when that was read (typicalCheck), under mu.
+	typical   time.Duration
+	typicalAt time.Time
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
@@ -199,7 +208,10 @@ func (s *Service) windowNow(ctx context.Context, st Settings) (end time.Time, ok
 }
 
 type running struct {
-	cancel   context.CancelFunc
+	cancel context.CancelFunc
+	// why is the first reason the run was stopped for while it ran (stopCur), nil when nothing stopped it: its run says that one reason,
+	// and a person's check goes on after a reason it can survive (stopCause.again).
+	why      error
 	targets  []netip.Addr  // the run in progress, published before it is checked
 	rate     int           // the packets per second of the run
 	deadline time.Time     // when the run in progress stops by itself: the end of the window it was checked against, or maxRun
@@ -234,6 +246,7 @@ func New(cfg Config) (*Service, error) {
 	if s.clock == nil {
 		s.clock = time.Now
 	}
+	s.since = s.clock()
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
@@ -261,6 +274,9 @@ func New(cfg Config) (*Service, error) {
 	if err := s.registerKinds(); err != nil {
 		return nil, err
 	}
+	if r, ok := s.prober.(workerReporter); ok {
+		r.OnReport(s.workerReported) // a person's check that waits for the scan worker starts when it reports
+	}
 	s.recoverYielded(context.Background())
 	if s.ownRuns {
 		if err := s.runs.Start(context.Background()); err != nil {
@@ -277,6 +293,8 @@ func (g moduleGate) Enabled(id string) bool { return id != ModuleID || !g.s.off.
 
 // Close stops the run manager the service made itself (Config.Runs nil); a shared one is the box's to close.
 func (s *Service) Close() {
+	s.closed.Store(true)
+	s.bg.Wait()
 	if s.ownRuns {
 		s.runs.Close()
 	}
@@ -455,10 +473,6 @@ func clip(s string, n int) string {
 // a stop for a change of settings: the queue counts it as an attempt.
 var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
 
-// errLeftAddress is ErrStopped for a scan of a device run that did not start because the device left the address (probe's re-read,
-// #882): what an earlier scan of the run found at that address is dropped too, since it is recorded by address.
-var errLeftAddress = fmt.Errorf("%w: the device left the address", ErrStopped)
-
 // probe runs one nmap command over targets and returns the hosts that answered. Order matters (INV-1, INV-2,
 // INV-3): the run's targets are published first, so SettingsChanged can see them; then the settings, the
 // window and the scope are read again for every target; only then the probe row is written (INV-9: no packet
@@ -501,7 +515,9 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	if asset != "" {
 		a, err := s.inv.Asset(ctx, asset)
 		switch {
-		case errors.Is(err, ErrNotFound), err == nil && !slices.Contains(targets, a.IP):
+		case errors.Is(err, ErrNotFound):
+			return nil, errDeviceGone
+		case err == nil && !slices.Contains(targets, a.IP):
 			return nil, errLeftAddress
 		case err != nil && ctx.Err() != nil:
 			return nil, ErrStopped
@@ -527,14 +543,23 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, err
 	}
 	if ctx.Err() != nil || s.ver.Load() != v0 {
-		s.finishProbe(ctx, probeID, stoppedText)
-		return nil, ErrStopped
+		why := s.curWhy()
+		if why == nil && ctx.Err() == nil {
+			why = errSettingsMoved // the settings changed between their check and nmap: the run reads them again
+		}
+		s.finishProbe(ctx, probeID, stoppedLine(why))
+		return nil, cmpErr(why, ErrStopped)
 	}
 
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	res, runErr := s.prober.Probe(rctx, args)
 	all, result, err := runOutcome(ctx, rctx, res, runErr)
+	if result == stoppedText && !errors.Is(err, errDeadline) {
+		if why := s.curWhy(); why != nil {
+			result, err = stoppedLine(why), why
+		}
+	}
 	var hosts []host
 	if err == nil {
 		hosts = onlyTargets(all, targets)
@@ -643,7 +668,7 @@ func (s *Service) Stop() {
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
 	if cur != nil {
-		cur.cancel()
+		s.stopCur(cur, errModuleOff)
 	}
 	// its runs that have not ended stop too: on the box core/run does it when the module switch moves; a manager of the service's own
 	// (tests) has no switch board
@@ -1071,7 +1096,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
 	case errors.Is(err, ErrStopped):
-		s.finishJob(ctx, id, StatusStopped, 0, 0, stoppedText)
+		s.finishJob(ctx, id, StatusStopped, 0, 0, stoppedLine(cmpErr(s.whyStopped(cur), err)))
 	default:
 		s.finishJob(ctx, id, StatusFailed, 0, 0, err.Error())
 	}
@@ -1308,13 +1333,17 @@ func tcpPorts(ports []portInfo) []int {
 // result is recorded as an Extra one (its ports added; services and software of the normal scan untouched): kind is
 // what recordDevice should record.
 func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) (hosts []host, rec nmapargv.Kind, extraFailed bool, err error) {
-	hosts, err = s.probe(ctx, jobID, kind, rate, []netip.Addr{ip})
-	if err != nil || (kind != nmapargv.Normal && kind != nmapargv.Versions) {
+	passes := 1
+	if kind == nmapargv.Normal || kind == nmapargv.Versions {
+		passes = 2 // the extra ports follow
+	}
+	hosts, err = s.probe(withPass(ctx, 1, passes), jobID, kind, rate, []netip.Addr{ip})
+	if err != nil || passes == 1 {
 		return hosts, kind, false, err
 	}
-	extra, err := s.probe(ctx, jobID, nmapargv.Extra, rate, []netip.Addr{ip})
+	extra, err := s.probe(withPass(ctx, 2, passes), jobID, nmapargv.Extra, rate, []netip.Addr{ip})
 	if errors.Is(err, errLeftAddress) { // the first run is recorded by address: another device, or none, is there now
-		return nil, kind, false, ErrStopped
+		return nil, kind, false, errLeftAddress
 	}
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not finish; the device keeps the top 1000 ports' result", "ip", ip.String(), "error", err)
@@ -1431,7 +1460,7 @@ func (s *Service) stopWeekly() {
 	cur := s.cur
 	s.mu.Unlock()
 	if cur != nil && cur.weekly {
-		cur.cancel()
+		s.stopCur(cur, errGaveWay)
 	}
 }
 
@@ -1441,16 +1470,34 @@ func (s *Service) identifyIn(ctx context.Context, assetID string) (Identificatio
 	stops := s.stops.Load()
 	s.lockRun(ctx)
 	defer s.runMu.Unlock()
-	if s.stops.Load() != stops || ctx.Err() != nil { // the module was turned off while it waited (#723)
-		return Identification{}, ErrStopped
+	for try := 1; ; try++ {
+		if s.stops.Load() != stops || ctx.Err() != nil { // the module was turned off while it waited (#723)
+			return Identification{}, ErrStopped
+		}
+		got, err := s.identifyOnce(ctx, assetID, try < maxIdentifyTries)
+		// A person asked to check the device, not an address: a device that moved while it was checked, or settings that changed but
+		// still allow the check, are checked again from the start (every rule read again), a few times at most.
+		if errors.Is(err, ErrStopped) && canGoOn(err) && ctx.Err() == nil && try < maxIdentifyTries {
+			s.dropProgress(runIDOf(ctx)) // the new try's nmap reports from its start: the cut one's last report no longer says where it is
+			continue
+		}
+		return got, err
 	}
+}
+
+// maxIdentifyTries bounds how often a person's check starts again after a stop it can go on after (canGoOn).
+const maxIdentifyTries = 3
+
+// identifyOnce is one try of identifyIn, under runMu; more says another try may follow it.
+func (s *Service) identifyOnce(ctx context.Context, assetID string, more bool) (Identification, error) {
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, asset: assetID, picked: true, runID: runIDOf(ctx)})
+	cur := &running{cancel: cancel, asset: assetID, picked: true, runID: runIDOf(ctx)}
+	s.setCur(cur)
 	defer s.setCur(nil)
 	stopped := func(err error) error {
 		if jctx.Err() != nil {
-			return ErrStopped
+			return cmpErr(s.whyStopped(cur), ErrStopped)
 		}
 		return err
 	}
@@ -1530,8 +1577,13 @@ func (s *Service) identifyIn(ctx context.Context, assetID string) (Identificatio
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
 	case errors.Is(err, ErrStopped):
-		s.finishJob(ctx, id, StatusStopped, 0, 0, stoppedText)
-		return Identification{}, ErrStopped
+		why := cmpErr(s.whyStopped(cur), err)
+		line := "Stopped: " + stopWords(why)
+		if more && canGoOn(why) && ctx.Err() == nil {
+			line += "; the device is checked again"
+		}
+		s.finishJob(ctx, id, StatusStopped, 0, 0, line)
+		return Identification{}, why
 	default:
 		s.finishJob(ctx, id, StatusFailed, 0, 0, err.Error())
 		if errors.Is(err, ErrUnavailable) {
@@ -1574,20 +1626,28 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 		return nil
 	}
 	st, err := s.inv.Settings(ctx)
-	if err != nil || st.allowed() != nil {
-		cur.cancel() // fail closed
+	if err != nil {
+		s.stopCur(cur, errSettingsUnread) // fail closed
 		return err
+	}
+	if err := st.allowed(); err != nil {
+		s.stopCur(cur, settingsStop(err))
+		return nil
 	}
 	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3). A picked
 	// identification is not bound to the window; the rate and the scope still bind it.
 	end, ok := s.windowNow(withManualUntil(ctx, until), st)
-	if (!ok && !picked) || st.Rate < rate || (!picked && !deadline.IsZero() && end.Before(deadline)) {
-		cur.cancel()
+	switch {
+	case (!ok && !picked) || (!picked && !deadline.IsZero() && end.Before(deadline)):
+		s.stopCur(cur, errWindowClosed)
+		return nil
+	case st.Rate < rate:
+		s.stopCur(cur, errRateLowered)
 		return nil
 	}
 	sc := newScope(st)
 	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
-		cur.cancel()
+		s.stopCur(cur, errLeftScope)
 		return nil
 	}
 	// the settings may have changed the device's own policy (fragile kinds, regular-scan kinds): check it as AssetChanged does
@@ -1617,7 +1677,7 @@ func (s *Service) checkSweep(ctx context.Context, cur *running, assetID string, 
 		return nil
 	}
 	if err != nil {
-		cur.cancel() // fail closed
+		s.stopCur(cur, errDeviceUnread) // fail closed
 		return err
 	}
 	if !a.IP.IsValid() || !slices.Contains(targets, a.IP) {
@@ -1625,7 +1685,7 @@ func (s *Service) checkSweep(ctx context.Context, cur *running, assetID string, 
 	}
 	prot, err := s.inv.ProtectedIPs(ctx)
 	if err != nil || slices.Contains(prot, a.IP) {
-		cur.cancel()
+		s.stopCur(cur, errBatchProtected)
 	}
 	return err
 }
@@ -1657,7 +1717,13 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 	if len(targets) > 0 {
 		a, err := s.inv.Asset(ctx, assetID)
 		if err != nil || !slices.Contains(targets, a.IP) {
-			cur.cancel() // fail closed
+			why := errLeftAddress
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				why = errDeviceUnread
+			} else if errors.Is(err, ErrNotFound) {
+				why = errDeviceGone
+			}
+			s.stopCur(cur, why) // fail closed
 			if err != nil && !errors.Is(err, ErrNotFound) {
 				return err
 			}
@@ -1669,7 +1735,7 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 		st, serr := s.inv.Settings(ctx)
 		kind, r, why := pickedPlan(dec, st.Rate)
 		if serr != nil || why != "" || (kind.IsGentle() && !gentle) || r < rate {
-			cur.cancel()
+			s.stopCur(cur, policyStop(dec, why))
 		}
 		return serr
 	}
@@ -1684,7 +1750,13 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 		allGone = serr != nil || why != ""
 	}
 	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) || titlesGone || allGone {
-		cur.cancel() // fail closed
+		why := policyStop(dec, dec.Reason)
+		if errors.Is(err, ErrNotFound) {
+			why = errDeviceGone
+		} else if err != nil {
+			why = errDeviceUnread
+		}
+		s.stopCur(cur, why) // fail closed
 		if errors.Is(err, ErrNotFound) {
 			return nil
 		}

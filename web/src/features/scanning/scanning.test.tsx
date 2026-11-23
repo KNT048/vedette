@@ -203,6 +203,18 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     expect(within(view.container).getByRole('link', { name: 'Open the run' })).toHaveAttribute('href', expect.stringMatching(/^\/runs\/sar-/))
   })
 
+  it('while the LAN sweep is only queued, another "Scan the LAN now" says it is queued and what it waits for, not that it is going on', async () => {
+    renderHere(<ScanNowButton targets={['a-nas02']} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Check this device now' }))
+    await screen.findByRole('progressbar')
+    renderHere(<ScanNowButton targets="lan" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan the LAN now' }))
+    const view = renderHere(<ScanNowButton targets="lan" />)
+    expect(await within(view.container).findByText('A LAN scan is queued.')).toBeInTheDocument()
+    expect(within(view.container).getByText(/^Queued behind “/)).toBeInTheDocument()
+    expect(within(view.container).queryByText('A LAN scan is going on now.')).toBeNull()
+  })
+
   it('what it needs, where it is (§0): no commitment opens the scope dialog; an operator is told it needs an admin', async () => {
     unconfirm()
     const view = renderHere(<ScanNowButton targets="lan" />)

@@ -12,7 +12,7 @@ import (
 )
 
 // Every run reads as one line of words made by the box: what a queued run waits for (with the run that holds its lane), what a
-// waiting one waits for and how far it got with the kind's unit and estimate, why a stopped one stopped.
+// waiting one waits for and how far it got with the kind's unit (no time left: it does not move while it waits), why a stopped one stopped.
 func TestTheSummaryOfARunAndTheRunAQueuedOneWaitsFor(t *testing.T) {
 	t.Parallel()
 	b := newBox(t)
@@ -41,7 +41,7 @@ func TestTheSummaryOfARunAndTheRunAQueuedOneWaitsFor(t *testing.T) {
 	}
 	g.release <- run.Result{Status: run.Waiting, WaitingFor: "the scan window (opens Mon 23:00)"}
 	p.waitEnded(t, first)
-	if r := b.get(p, first); r.Summary != "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,534 addresses; about 9 more windows at 50 packets/s" {
+	if r := b.get(p, first); r.Summary != "Waiting for the scan window (opens Mon 23:00); 6,272 of 65,534 addresses" {
 		t.Fatalf("waiting: %q", r.Summary)
 	}
 	g.waitStarted(t) // the check had the lane once the sweep waited

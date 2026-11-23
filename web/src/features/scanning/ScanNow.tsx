@@ -88,7 +88,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
     : needsScope ? t('scanNow.needsScope')
     : !disc.enabled ? t('scanNow.discoveryOff')
     : disc.state === 'unavailable' || disc.state === 'error' ? disc.reason
-    : sweeping ? t('scanNow.sweepRunning')
+    : sweeping ? t(sweeping.queued ? 'scanNow.sweepQueued' : 'scanNow.sweepRunning')
     : targets !== 'lan' && ids.length === 0 ? t('scanNow.none')
     : ids.length > MAX_RUN_TARGETS ? t('scanNow.tooMany', { max: MAX_RUN_TARGETS, count: ids.length }) : null
   return (
@@ -108,6 +108,8 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
         {blocked && !ours ? (
           <span className="flex flex-wrap items-center gap-2 text-meta text-muted">
             <span>{blocked}</span>
+            {/* a sweep that waits says for what (the box's own line: the run in its way and when it starts) */}
+            {sweeping?.queued && sweeping.progress?.message ? <span>{sweeping.progress.message}</span> : null}
             {admin && needsScope ? <ScopeButton /> : null}
             {admin && !needsScope && disc && !disc.enabled ? <Link to="/settings/scanning?tab=engines#engine-nmap-discovery-switch" className="text-accent underline underline-offset-4">{t('scanNow.turnOnDiscovery')}</Link> : null}
             {/* the run in the way opens from the button's own place; a row of a list (showProgress off) leaves it to the page, so a

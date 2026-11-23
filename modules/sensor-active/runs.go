@@ -68,7 +68,7 @@ func (s *Service) registerKinds() error {
 	kinds := []run.Kind{
 		{Module: ModuleID, Name: RunSweep, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitAddresses, Estimate: s.sweepEstimate,
 			Hold: s.sweepHold, Run: s.runOf(s.runSweep)},
-		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Estimate: s.workerEstimate,
+		{Module: ModuleID, Name: RunCheck, Lane: laneNmap, Resumable: true, AdminResume: true, Unit: unitDevices, Estimate: s.checkEstimate,
 			Hold: s.checkHold, Run: s.runOf(s.runCheck)},
 		{Module: ModuleID, Name: RunAllPorts, Lane: laneNmap, Unit: unitDevices, Estimate: s.allPortsEstimate, Hold: s.allPortsHold,
 			GiveWay: s.allPortsGiveWay, Run: s.runOf(s.runAllPorts)},

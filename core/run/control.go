@@ -105,7 +105,7 @@ func (m *Manager) Resume(ctx context.Context, id, by string) error {
 		}
 		text := "Resumed by " + by
 		if by == System {
-			text = "Resumed"
+			text = "Queued again" // the dispatcher writes "Resumed" when it really starts again
 		}
 		if err := logTx(ctx, tx, id, now, Info, text); err != nil {
 			return err
@@ -149,6 +149,34 @@ func (m *Manager) Rewait(ctx context.Context, waitingFor string, ids ...string) 
 			}
 		}
 		return nil
+	})
+}
+
+// GiveUp ends a waiting run as failed with errText, the words of why it will not run (the scan worker it waited for never came back):
+// it never started work, so it has nothing to stop. ErrNotFound, or ErrNotLive for a run that is not waiting (it started, or ended).
+func (m *Manager) GiveUp(ctx context.Context, id, errText string) error {
+	text := nullable(errText, 1000)
+	if text == nil {
+		return fmt.Errorf("%w: a run that gives up needs to say why", ErrInvalid)
+	}
+	return m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		st, _, err := statusOf(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if st != Waiting {
+			return ErrNotLive
+		}
+		now := m.now()
+		if _, err := tx.ExecContext(ctx, `UPDATE core_run SET status = ?, waiting_for = NULL, error = ?, ended_at = ?, updated_at = ? WHERE id = ?`,
+			string(Failed), *text, now, now, id); err != nil {
+			return fmt.Errorf("run: give up %s: %w", id, err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE core_run_step SET status = ?, ended_at = ? WHERE run_id = ? AND status IN (?, ?)`,
+			string(Failed), now, id, string(Queued), string(Waiting)); err != nil {
+			return err
+		}
+		return logTx(ctx, tx, id, now, Error, "Failed: "+*text)
 	})
 }
 

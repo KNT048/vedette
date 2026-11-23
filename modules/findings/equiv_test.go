@@ -19,13 +19,15 @@ import (
 // The answers of the code on it are kept in testdata (equivGolden): a change that is meant to make the code faster must leave them
 // exactly as they are. A change of behaviour regenerates them on purpose with VEDETTE_UPDATE_GOLDEN=1, and the diff is reviewed.
 
+// with is a with its own id and name.
+func with(a Asset, id string) Asset {
+	a.ID, a.Name = id, id
+	return a
+}
+
 // equivAssets is the fixture's devices, each with its own id.
 func equivAssets(t *testing.T) []Asset {
 	t.Helper()
-	with := func(a Asset, id string) Asset {
-		a.ID, a.Name = id, id
-		return a
-	}
 	tools := vmwareToolsPC()
 	tools.Software = append(tools.Software, Software{ID: "s-fusion", Display: "VMware Fusion", Vendor: "VMware", Product: "Fusion", Version: "12.0.0",
 		Source: "agent", KevKeys: []string{"vmware|fusion"}})

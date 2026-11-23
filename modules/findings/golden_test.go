@@ -369,7 +369,7 @@ func TestGolden_OfficeWithoutAVersionCountsAllThirty(t *testing.T) {
 	// rest stay in the item
 	noVersions := []string{"CVE-2016-3235", "CVE-2023-21715", "CVE-2026-124194"}
 	for _, v := range vulns {
-		_, out := matchOne(a, sw, in, v, false, t0)
+		_, out := matchOne(a, sw, in, v, keyedTo(sw, v), keyIDs(v), false, t0)
 		t.Logf("%s added %s: %s (NVD: %s)", v.CVE, v.DateAdded.Format(time.DateOnly), names[out], nvdProducts(v.Vendor, v.Affected))
 		if want := map[bool]outcome{true: outMatch, false: outNeedVersion}[slices.Contains(noVersions, v.CVE)]; out != want {
 			t.Errorf("%s: %s, want %s", v.CVE, names[out], names[want])

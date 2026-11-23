@@ -52,6 +52,17 @@
   regenerates it on purpose (`VEDETTE_UPDATE_GOLDEN=1`).
 
 ## Modifying: thư viện thuần `modules/findings` (không DB; `Service` bọc ngoài)
+- **Cost of the matcher**: `MatchAsset` is `newDevMatch(...).result(nil, have)`: the device's rows (swInfo, normalised KEV keys) are read
+  once, each entry's reading of the rows (`entryRead`, the row loop) once, and `result` assembles the answer for a part of the list and
+  the findings the device has. The match pass reads every entry once for its whole match and both writes (`upsertSplit`,
+  `partMatch`). A new input of the row loop that depends on the other entries of the list or on `have` breaks that reuse: it belongs in
+  `result`, not in `read`. `TestDevMatch_PartIsMatchAssetOfThePart`, `TestMatchAsset_SameResultsOnTheFixture` and
+  `TestMatchPass_SameRowsOnTheFixture` (every finding row, event and question of five passes on the fixture,
+  `testdata/equiv-matchpass.json.gz`) keep the answers.
+- **Match only what changed** (`matchstamp.go`): the pass skips a device whose match stamp has not moved. A new input of the match (a
+  field the matcher, `applyMatch` or `Transition` reads, a new rule that reads the clock, a process-wide table like `core/winrel`)
+  must go into `matchStamp`, or a device keeps an old answer until the next day's full match. `TestMatchStamp_EveryChangeMatchesTheDeviceAgain`
+  compares a skipping pass with a full pass after each kind of change; add the new input there.
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult` — bộ khớp. Gọi từ service (`OnMatchChanged`, `Reconcile`, `scanLine`) và từ `cmd/vedette` (`exposurematch.go`, `ai.go`). Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `TestContract_INV4_*`, `TestGolden_*`.
 - `Transition(finding, trigger)`, `Finding.Validate` — vòng đời (M-3, M-4; `transition_table_test.go`). Lỗi `*APIError` (`ErrBadAction`, `ErrNoteTooLong`, `ErrNoteRequired`, `ErrAlreadyOpen`, `ErrBadUntil`, `ErrNotConfirmedByHand`, `ErrNotFound`) ánh xạ 1:1 mã lỗi API; đổi mã = đổi `findings/contract.ts` và mock.
 - `ParseCPE`, `CPE.Matches|SameProduct`, `CompareVersions`, `VersionRange.Contains` — dùng bởi bộ khớp; `feeds` phải đưa khoảng phiên bản NVD vào `Vuln.Affected` (chuỗi CPE 2.3 + `VersionRange`), `inventory` đưa `Software.KevKeys` (khoá `vendorproject|product` chữ thường) và tuỳ chọn `Software.CPE`.

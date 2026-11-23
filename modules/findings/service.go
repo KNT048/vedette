@@ -78,6 +78,7 @@ type Service struct {
 	plan       planState       // "Updates to plan": in memory, see planpass.go
 	gen        atomic.Uint64   // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
+	stamps     stamps          // each device's match stamp of its last full match (matchstamp.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -435,6 +436,33 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 // instead of the ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which
 // replaces them.
 func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool) (UpsertResult, error) {
+	return s.upsertPart(ctx, a, vulns, judged, whole, reread, nil)
+}
+
+// partMatch is the device's readings of the whole list (devMatch) and the entries of it a write compares (vulns of upsertPart).
+type partMatch struct {
+	dm  *devMatch
+	idx []int
+	// Set by the write: wrote (it ran: the device was neither ignored nor gone), changed (the device read differently inside it, so
+	// its match was computed again for the newer reading) and rows (the device's findings and questions as the write left them).
+	wrote, changed bool
+	rows           deviceRows
+}
+
+// match is MatchAsset(a, vulns, have, now) for the part, from the readings already made (the part's vulns are dm's entries idx and
+// the device is dm's).
+func (p *partMatch) match(have map[string]bool) MatchResult {
+	idx := p.idx
+	if idx == nil {
+		idx = []int{} // an empty part matches nothing (result reads nil as the whole list)
+	}
+	return p.dm.result(idx, have)
+}
+
+// upsertPart is upsert; pre, when not nil, holds the readings the device's match of vulns is assembled from instead of matching again
+// (the match pass reads every entry once for its two writes and its questions). The device read again inside the write (reread) is
+// matched afresh when it changed.
+func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool, pre *partMatch) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -456,7 +484,12 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 		return UpsertResult{}, err
 	}
 	haveBefore := haveOf(before)
-	matched := MatchAsset(a, vulns, haveBefore, s.now())
+	var matched MatchResult
+	if pre != nil {
+		matched = pre.match(haveBefore)
+	} else {
+		matched = MatchAsset(a, vulns, haveBefore, s.now())
+	}
 	var res UpsertResult
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
@@ -487,7 +520,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 			return err
 		}
 		have := haveOf(existing)
-		if changed || !maps.Equal(have, haveBefore) {
+		switch {
+		case !changed && !maps.Equal(have, haveBefore) && pre != nil:
+			matched = pre.match(have)
+		case changed || !maps.Equal(have, haveBefore):
 			matched = MatchAsset(a, vulns, have, now)
 		}
 		if changed {
@@ -509,6 +545,11 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 		}
 		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
 		res = r
+		if err != nil || pre == nil {
+			return err
+		}
+		rows, err := readDeviceRows(ctx, tx, a.ID)
+		pre.wrote, pre.changed, pre.rows = err == nil, changed, rows
 		return err
 	})
 	if err != nil {

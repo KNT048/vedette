@@ -36,8 +36,6 @@ type Publisher interface {
 const (
 	EventNewKEV        = "feeds.vuln.new_kev"
 	EventVulnUpdated   = "feeds.vuln.updated"
-	EventIOCUpdated    = "feeds.ioc.updated"
-	EventFetchFailed   = "feeds.fetch.failed"
 	EventSyncBaseline  = "feeds.sync.baseline"
 	EventRangesUpdated = "feeds.ranges.updated"
 )
@@ -72,19 +70,6 @@ type NewKEVEvent struct {
 // VulnUpdatedEvent lists CVEs whose stored data changed (vendor, product, dates, ransomware flag, template).
 type VulnUpdatedEvent struct {
 	CVEs []string `json:"cves"`
-}
-
-// IOCUpdatedEvent says how many listings of a feed were added and removed by a pull.
-type IOCUpdatedEvent struct {
-	FeedID  string `json:"feed_id"`
-	Added   int    `json:"added"`
-	Removed int    `json:"removed"`
-}
-
-// FetchFailedEvent is published when a pull fails; Error is the user-safe text stored on the feed.
-type FetchFailedEvent struct {
-	FeedID string `json:"feed_id"`
-	Error  string `json:"error"`
 }
 
 // Deps is what the module needs from the rest of the box.

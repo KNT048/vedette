@@ -101,7 +101,6 @@ detail is in its doc comment.
   scanning.
 - **INV-20** `TrustedKind` is true for a kind from a person or an agent, or from SNMP/nmap on an approved device.
 - **INV-40** The device badge comes from findings (`RiskSource.DeviceStatuses`); with findings off no device has one.
-- **INV-48** `SimilarDevices` lists devices sharing a maker or known kind (read-only, for sensor-active's SNMP settings).
 
 **Scanning scope and safety**
 - **INV-6** LAN ranges: at most 16, each with an explicit prefix and no host bits, private (RFC 1918) or shared (100.64.0.0/10)
@@ -154,7 +153,7 @@ detail is in its doc comment.
 | `inventory.asset.approved`, `inventory.asset.ignored` | notify |
 | `inventory.software.changed`, `inventory.match.changed` | findings (match pass for the device) |
 | `inventory.settings.changed` | sensor-active, the module container wiring |
-| `inventory.asset.merged`, `inventory.asset.unignored` | none today (merges are handled by `core/lifecycle`) |
+| `inventory.asset.unignored` | none today |
 
 Inventory listens to `findings.finding.created`, `findings.finding.urgency_raised` and `honeypot.hit.created` (a device earns review),
 and to the feeds events (re-match: `feeds.vuln.new_kev`, `feeds.vuln.updated`, `feeds.ranges.updated`, `feeds.sync.baseline`).
@@ -164,7 +163,7 @@ and to the feeds events (re-match: `feeds.vuln.new_kev`, `feeds.vuln.updated`, `
 - **Depends on**: `core`, `feeds` (the `KEV` port for matching and the catalogue; with feeds off the catalogue uses
   `content/catalog/kev-products.json` and matches nothing). Optional: agent-intake (`WazuhAgentAddresses`), honeypot (`DecoyIPs`), findings (`DeviceStatuses`).
 - **Used by** (adapters in `cmd/vedette`): findings (`MatchInput`, `SoftwareLines`, `DeviceRefs`, `AssetIDs`), sensor-active
-  (`ScanPolicy`, `SimilarDevices`, `AddressMap`, `KnownMACs`), scan (`VulnScanPolicy`, `Checks`), feeds (`AddManualDevice`,
+  (`ScanPolicy`, `AddressMap`, `KnownMACs`), scan (`VulnScanPolicy`, `Checks`), feeds (`AddManualDevice`,
   `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`), response, ai and logs (`DevicesOfKind`), reports, ai,
   honeypot and the exposure gateway (`AllDevices`), notify and audit names (`DeviceRefs`), core setup (`SetupScope`), the reach
   audit (`Catalog.Curated`).

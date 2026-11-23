@@ -221,8 +221,8 @@ func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.
 				announced++
 			}
 		}
-		if merged := len(e.ev.named(inventory.EventAssetMerged)); merged != 0 || tc.bound != (announced == 0) {
-			t.Errorf("%s: %d announced, %d merged", tc.name, announced, merged)
+		if tc.bound != (announced == 0) {
+			t.Errorf("%s: %d announced", tc.name, announced)
 		}
 		if !tc.bound && !offersWith(e.sameAs(id), e.idByMAC(burnt1), "the address nas was added with") {
 			t.Errorf("%s: the agent's machine is not offered: %+v", tc.name, e.sameAs(id))

@@ -505,14 +505,13 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	p.out.Started, p.out.Finished = started, s.now()
 
 	var (
-		fresh          []VulnRow
-		changed        []string
-		added, removed int
-		stale          bool
-		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE
-		rangesChanged  []string
-		rangesFirst    bool
-		catalogue      bool // ranges of a CVE on no exploited list changed
+		fresh         []VulnRow
+		changed       []string
+		stale         bool
+		baseline      bool // the CISA list filled an empty table: one baseline event, not one per CVE
+		rangesChanged []string
+		rangesFirst   bool
+		catalogue     bool // ranges of a CVE on no exploited list changed
 	)
 	pinned, err := s.pinned(ctx) // the catalogue keeps them, whatever an NVD pull brings
 	if err != nil {
@@ -534,10 +533,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
 	}
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst, catalogue = nil, nil, 0, 0, false, false, nil, false, false
+		fresh, changed, stale, baseline, rangesChanged, rangesFirst, catalogue = nil, nil, false, false, nil, false, false
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
-			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
+			_, _, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
 			return err
 		}
 		if p.hasEPSSAll { // 400,000 rows: chunks too (applyEPSSAll)
@@ -604,9 +603,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyDistro(ctx, tx, src.ID, p.distro); err != nil {
 					return err
 				}
-				// a tier CVE's rows change only "Updates to plan", which TierStamp reaches: findings rematches as before
+				// a tier CVE's rows decide no finding: only the KEV CVEs are rematched
 				rangesChanged = slices.DeleteFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
-				var kept any // the packages the rows were kept for, with the rows (distroBehind, covered of TierDistroRecords)
+				var kept any // the packages the rows were kept for, with the rows (distroBehind)
 				if p.distroKeep != nil {
 					b, err := json.Marshal(p.distroKeep)
 					if err != nil {
@@ -681,15 +680,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if len(changed) > 0 && (isKEVSource(src.ID) || p.hasTemplates) {
 		emit(EventVulnUpdated, VulnUpdatedEvent{CVEs: changed})
 	}
-	if added > 0 || removed > 0 {
-		emit(EventIOCUpdated, IOCUpdatedEvent{FeedID: src.ID, Added: added, Removed: removed})
-	}
 	if len(rangesChanged) > 0 || catalogue {
 		slices.Sort(rangesChanged)
 		emit(EventRangesUpdated, RangesUpdatedEvent{CVEs: rangesChanged, First: rangesFirst && len(rangesChanged) > 0, Catalogue: catalogue})
-	}
-	if !p.out.OK {
-		emit(EventFetchFailed, FetchFailedEvent{FeedID: src.ID, Error: p.out.Err})
 	}
 	return row, kev, evs, nil
 }

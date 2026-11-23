@@ -272,8 +272,8 @@ func TestContract_INV8_DatabaseFailureLeavesATraceAndBacksOff(t *testing.T) {
 	if err := e.runPull(t.Context()); err != nil || o.count("/c2.csv") != hits {
 		t.Errorf("RunPull right after a failure: %v, %d more requests", err, o.count("/c2.csv")-hits)
 	}
-	if e.feed(id).Failures != 1 || len(e.pub.named(EventFetchFailed)) != 1 {
-		t.Errorf("failures %d, events %v", e.feed(id).Failures, e.pub.named(EventFetchFailed))
+	if e.feed(id).Failures != 1 {
+		t.Errorf("failures %d", e.feed(id).Failures)
 	}
 }
 

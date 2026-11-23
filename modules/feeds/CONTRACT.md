@@ -108,7 +108,6 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 | `feeds.vuln.updated` | listed CVEs whose entry changed | inventory (re-match) |
 | `feeds.ranges.updated` | affected versions, distribution fixes or Windows releases changed | inventory (findings match pass for the CVEs named; every device on the first fill) |
 | `feeds.sync.baseline` | the first fill of an exploited list | inventory (re-match every device as a baseline, so notify does not alert per CVE) |
-| `feeds.ioc.updated`, `feeds.fetch.failed` | an indicator list changed; a pull failed | none today |
 
 Feeds listens to inventory's device discovered/updated events only to wake the Alpine feed for the first Alpine device.
 

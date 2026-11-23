@@ -142,17 +142,6 @@ type fakeInv struct {
 	snmpRead, snmpOn []string
 	turnedOn         []string
 	turnOnErr        error
-	// similar is what SimilarDevices answers for a source device (the inventory's maker and type comparison is its own test)
-	similar map[string][]sa.SimilarDevice
-}
-
-func (f *fakeInv) SimilarDevices(_ context.Context, id string) ([]sa.SimilarDevice, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if _, ok := f.assets[id]; !ok {
-		return nil, sa.ErrNotFound
-	}
-	return slices.Clone(f.similar[id]), nil
 }
 
 func (f *fakeInv) SNMPKnown(context.Context) (read, on []string, err error) {

@@ -2431,17 +2431,6 @@ func (UnimplementedHandler) InventoryGetInventorySnmpDevicesID(ctx context.Conte
 	return r, ht.ErrNotImplemented
 }
 
-// InventoryGetInventorySnmpDevicesIDSimilar implements inventory_get_inventory_snmp_devices_id_similar operation.
-//
-// Candidates for "Use these settings on similar devices": devices of the same maker or the same type
-// as this one, with no SNMP settings of their own, not ignored, not the box, with an address. 404
-// not_found; 409 not_set_up (this device has no SNMP settings to share), secret_lost.
-//
-// GET /inventory/snmp/devices/{id}/similar
-func (UnimplementedHandler) InventoryGetInventorySnmpDevicesIDSimilar(ctx context.Context, params InventoryGetInventorySnmpDevicesIDSimilarParams) (r *InventoryGetInventorySnmpDevicesIDSimilarOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 //
 // Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the
@@ -2711,19 +2700,6 @@ func (UnimplementedHandler) InventoryPostInventoryDevicesIDSuspicious(ctx contex
 //
 // POST /inventory/import
 func (UnimplementedHandler) InventoryPostInventoryImport(ctx context.Context, req *InventoryPostInventoryImportReq) (r *InventoryPostInventoryImportOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// InventoryPostInventorySnmpDevicesIDApplySimilar implements inventory_post_inventory_snmp_devices_id_apply_similar operation.
-//
-// Copy this device's SNMP settings (secret included, on the box) to the chosen similar devices in one
-// call: each target keeps its own address as the read address, is turned on for SNMP as with a normal
-// save, and gets a read queued. One audit row per device and one for the action, with the person.
-// Per-device results; a target that is no longer a candidate is not_a_candidate. 404 not_found; 409
-// not_set_up, secret_lost, unavailable; 400 too many or no devices.
-//
-// POST /inventory/snmp/devices/{id}/apply-similar
-func (UnimplementedHandler) InventoryPostInventorySnmpDevicesIDApplySimilar(ctx context.Context, req *InventoryPostInventorySnmpDevicesIDApplySimilarReq, params InventoryPostInventorySnmpDevicesIDApplySimilarParams) (r *InventoryPostInventorySnmpDevicesIDApplySimilarOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

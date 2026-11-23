@@ -442,8 +442,6 @@ var contractRoutes = map[string][]string{
 		"DELETE /inventory/snmp/devices/{id}",
 		"GET /inventory/snmp",
 		"GET /inventory/snmp/devices/{id}",
-		"GET /inventory/snmp/devices/{id}/similar",
-		"POST /inventory/snmp/devices/{id}/apply-similar",
 		"POST /inventory/snmp/devices/{id}/check",
 		"POST /inventory/snmp/notices/dismiss",
 		"PUT /inventory/snmp/devices/{id}",

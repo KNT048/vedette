@@ -215,7 +215,6 @@ func (s *Service) mergeOne(ctx context.Context, tx *sql.Tx, o *outbox, actor, in
 	if _, err := s.RecomputeAsset(ctx, tx, into); err != nil {
 		return err
 	}
-	o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: actor})
 	o.add(EventAssetDeleted, AssetEvent{AssetID: from, Actor: actor})
 	if watch != "" { // The moved findings follow into's watch state
 		o.add(watch, AssetEvent{AssetID: into, Actor: actor})

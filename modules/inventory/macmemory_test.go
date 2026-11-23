@@ -346,10 +346,6 @@ func TestContract_AnOldDuplicateJoinsOnItsNextSighting(t *testing.T) {
 		d.Hostname == nil || *d.Hostname != "annas-macbook-air" {
 		t.Errorf("device: id %s approved %v ip %s mac %v kind %s name %v", d.ID, d.Approved, d.IP, d.MAC, d.Kind, d.Hostname)
 	}
-	merged := e.ev.named(inventory.EventAssetMerged)
-	if len(merged) != 1 || merged[0].Data.(inventory.MergeEvent).From != "a-dup" || merged[0].Data.(inventory.MergeEvent).Into != id {
-		t.Errorf("merged events: %+v, want a-dup into %s", merged, id)
-	}
 	if len(e.ev.named(inventory.EventAssetDeleted)) != 1 || len(e.discovered()) != 0 {
 		t.Errorf("deleted %v, discovered %v", e.ev.named(inventory.EventAssetDeleted), e.discovered())
 	}

@@ -248,9 +248,6 @@ func TestContract_INV8_DisabledFeedRefusedAndErrorsAreRecorded(t *testing.T) {
 	if f.Status != "error" || *f.Error != "The source answered HTTP 503." || f.Failures != 1 || *f.Records != 3 || rowsOf(t, e.db, "feeds_kev") != 3 || !f.LastFetch.Equal(failedAt) {
 		t.Errorf("after the error: %+v", f)
 	}
-	if ev := e.pub.named(EventFetchFailed); len(ev) != 1 || ev[0] != (FetchFailedEvent{FeedID: "cisa-kev", Error: "The source answered HTTP 503."}) {
-		t.Errorf("failed event: %v", ev)
-	}
 	_, list := e.get("/feeds/sources")
 	if at(list, "items", 0, "status") != "error" || at(list, "items", 0, "error") != "The source answered HTTP 503." {
 		t.Errorf("listing: %v", at(list, "items", 0))
@@ -376,10 +373,6 @@ func TestIOCFeedsPullMergeAndReportChanges(t *testing.T) {
 	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	ev := e.pub.named(EventIOCUpdated)
-	if len(ev) != 2 || ev[0] != (IOCUpdatedEvent{FeedID: "et-open", Added: 2}) || ev[1] != (IOCUpdatedEvent{FeedID: "abusech-feodo", Added: 1}) {
-		t.Errorf("events: %v", ev)
-	}
 	if f := e.feed("et-open"); *f.Records != 2 || !strings.Contains(*f.Error, "1 of 3 rows were rejected") {
 		t.Errorf("et-open: %+v", f)
 	}
@@ -394,10 +387,6 @@ func TestIOCFeedsPullMergeAndReportChanges(t *testing.T) {
 	o.body("/et.txt", `"e2"`, "185.220.101.47\n103.75.190.12\n")
 	e.setNow(e.clock().Add(7 * time.Hour))
 	_ = e.runPull(t.Context())
-	ev = e.pub.named(EventIOCUpdated)
-	if len(ev) != 3 || ev[2] != (IOCUpdatedEvent{FeedID: "et-open", Added: 1, Removed: 1}) {
-		t.Errorf("events: %v", ev)
-	}
 	if _, b = e.get("/feeds/search?q=45.148.10.95"); b["hit"] != nil {
 		t.Errorf("a dropped listing is still a hit: %v", b)
 	}

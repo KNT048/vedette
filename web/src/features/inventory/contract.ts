@@ -452,22 +452,6 @@ export const SnmpDeviceRow = z.object({
   state: SnmpState.exclude(['not_set_up']), last_answer_at: dt.nullable(),
   blocked: SnmpBlocked.nullable().describe('As DeviceSnmp.blocked'),
 })
-/** Use one device's working SNMP settings on similar devices (S-INV-1): the box copies the settings and the secret itself (as copy_from),
- * every target is read only at its own address, and the person's choice of targets is what allows sending the secret there. */
-export const SnmpSimilarDevice = z.object({
-  device_id: z.string(), name: z.string().describe('How a person knows the device; empty when none'), ip: z.string().nullable(),
-  vendor: z.string().describe('The device\'s maker as the inventory holds it; empty when unknown'), kind: z.string().describe('The device type id'),
-  same_maker: z.boolean().describe('Same maker as the source device (the checklist prechecks these)'), same_type: z.boolean().describe('Same device type as the source (never true for an unknown type)'),
-  approved: z.boolean().describe('false: a person has not approved the device yet, so the box saves the settings but sends nothing until it is approved'),
-})
-export const SnmpSimilarResponse = z.object({ devices: z.array(SnmpSimilarDevice).describe('Devices with no SNMP settings of their own, not ignored, not the box, with an address, of the same maker or the same type; same maker first, then by name') })
-export const SnmpApplyInput = z.object({ device_ids: z.array(z.string().min(1).max(96)).min(1).max(50).describe('The devices the person ticked; each must still be a candidate of the source') })
-export const SnmpApplyResult = z.object({
-  device_id: z.string(), name: z.string(), ok: z.boolean().describe('The settings were saved on this device and a read was queued'),
-  code: z.string().describe('When not ok: the error code (not_a_candidate, no_ip, read_from_taken, secret_lost, device_ignored, box_device, read_from_box…); empty when ok'),
-  message: z.string().describe('Plain words for the person; empty when ok'),
-})
-export const SnmpApplyResponse = z.object({ results: z.array(SnmpApplyResult).describe('One row per requested device, in the order asked. The reads queued run in the background one device at a time; each device\'s SNMP state (GET /inventory/snmp) shows the outcome') })
 export const SnmpNotice = z.object({ id: z.number().int(), at: dt, text: z.string().describe('Plain words, e.g. what the move to per-device SNMP did to a saved credential') })
 export const SnmpResponse = z.object({
   ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
@@ -546,8 +530,6 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/snmp/notices/dismiss', summary: 'Dismiss every SNMP notice', stories: ['S-INV-1'], role: 'admin', response: ok },
   { method: 'get', path: '/inventory/snmp/devices/{id}', summary: 'The SNMP settings and state of one device: working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device', stories: ['S-INV-1'], role: 'admin', params: id, response: DeviceSnmp },
   { method: 'put', path: '/inventory/snmp/devices/{id}', summary: 'Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person\'s consent: it turns the device\'s SNMP source on when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a read_from other than the device\'s IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored', stories: ['S-INV-1'], role: 'admin', params: id, body: DeviceSnmpInput, response: DeviceSnmp },
-  { method: 'get', path: '/inventory/snmp/devices/{id}/similar', summary: 'Candidates for "Use these settings on similar devices": devices of the same maker or the same type as this one, with no SNMP settings of their own, not ignored, not the box, with an address. 404 not_found; 409 not_set_up (this device has no SNMP settings to share), secret_lost', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpSimilarResponse },
-  { method: 'post', path: '/inventory/snmp/devices/{id}/apply-similar', summary: 'Copy this device\'s SNMP settings (secret included, on the box) to the chosen similar devices in one call: each target keeps its own address as the read address, is turned on for SNMP as with a normal save, and gets a read queued. One audit row per device and one for the action, with the person. Per-device results; a target that is no longer a candidate is not_a_candidate. 404 not_found; 409 not_set_up, secret_lost, unavailable; 400 too many or no devices', stories: ['S-INV-1'], role: 'admin', params: id, body: SnmpApplyInput, response: SnmpApplyResponse },
   { method: 'delete', path: '/inventory/snmp/devices/{id}', summary: 'Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
   { method: 'post', path: '/inventory/snmp/devices/{id}/check', summary: 'Check now: read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpCheckResult },
 ])
